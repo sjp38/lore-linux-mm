@@ -1,53 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9957B6B01EF
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 13:23:30 -0400 (EDT)
-Message-ID: <4BCDE2F0.3010009@redhat.com>
-Date: Tue, 20 Apr 2010 13:22:56 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C236B01EF
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 13:44:29 -0400 (EDT)
+Date: Tue, 20 Apr 2010 18:44:07 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] hugetlbfs: Kill applications that use MAP_NORESERVE with
+	SIGBUS instead of OOM-killer
+Message-ID: <20100420174407.GA30306@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
-References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com> <20100324145028.GD2024@csn.ul.ie> <4BCC4B0C.8000602@linux.vnet.ibm.com> <20100419214412.GB5336@cmpxchg.org> <4BCD55DA.2020000@linux.vnet.ibm.com> <20100420153202.GC5336@cmpxchg.org>
-In-Reply-To: <20100420153202.GC5336@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/20/2010 11:32 AM, Johannes Weiner wrote:
+Ordinarily, application using hugetlbfs will create mappings with
+reserves. For shared mappings, these pages are reserved before mmap()
+returns success and for private mappings, the caller process is
+guaranteed and a child process that cannot get the pages gets killed
+with sigbus.
 
-> The idea is that it pans out on its own.  If the workload changes, new
-> pages get activated and when that set grows too large, we start shrinking
-> it again.
->
-> Of course, right now this unscanned set is way too large and we can end
-> up wasting up to 50% of usable page cache on false active pages.
+An application that uses MAP_NORESERVE gets no reservations and mmap()
+will always succeed at the risk the page will not be available at fault
+time. This might be used for example on very large sparse mappings where the
+developer is confident the necessary huge pages exist to satisfy all faults
+even though the whole mapping cannot be backed by huge pages.  Unfortunately,
+if an allocation does fail, VM_FAULT_OOM is returned to the fault handler
+which proceeds to trigger the OOM-killer. This is unhelpful.
 
-Thing is, changing workloads often change back.
+This patch alters hugetlbfs to kill a process that uses MAP_NORESERVE
+where huge pages were not available with SIGBUS instead of triggering
+the OOM killer.
 
-Specifically, think of a desktop system that is doing
-work for the user during the day and gets backed up
-at night.
+This patch if accepted should also be considered a -stable candidate.
 
-You do not want the backup to kick the working set
-out of memory, because when the user returns in the
-morning the desktop should come back quickly after
-the screensaver is unlocked.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/hugetlb.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-The big question is, what workload suffers from
-having the inactive list at 50% of the page cache?
-
-So far the only big problem we have seen is on a
-very unbalanced virtual machine, with 256MB RAM
-and 4 fast disks.  The disks simply have more IO
-in flight at once than what fits in the inactive
-list.
-
-This is a very untypical situation, and we can
-probably solve it by excluding the in-flight pages
-from the active/inactive file calculation.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6034dc9..af2d907 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1038,7 +1038,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 		page = alloc_buddy_huge_page(h, vma, addr);
+ 		if (!page) {
+ 			hugetlb_put_quota(inode->i_mapping, chg);
+-			return ERR_PTR(-VM_FAULT_OOM);
++			return ERR_PTR(-VM_FAULT_SIGBUS);
+ 		}
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
