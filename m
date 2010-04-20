@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ED3AE6B0204
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 17:02:03 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 78B8F6B0205
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 17:02:05 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 02/14] mm,migration: Share the anon_vma ref counts between KSM and page migration
-Date: Tue, 20 Apr 2010 22:01:04 +0100
-Message-Id: <1271797276-31358-3-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 13/14] mm,compaction: Add a tunable that decides when memory should be compacted and when it should be reclaimed
+Date: Tue, 20 Apr 2010 22:01:15 +0100
+Message-Id: <1271797276-31358-14-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
 References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,170 +13,140 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For clarity of review, KSM and page migration have separate refcounts on
-the anon_vma.  While clear, this is a waste of memory.  This patch gets
-KSM and page migration to share their toys in a spirit of harmony.
+The kernel applies some heuristics when deciding if memory should be
+compacted or reclaimed to satisfy a high-order allocation.  One of these
+is based on the fragmentation.  If the index is below 500, memory will not
+be compacted.  This choice is arbitrary and not based on data.  To help
+optimise the system and set a sensible default for this value, this patch
+adds a sysctl extfrag_threshold.  The kernel will only compact memory if
+the fragmentation index is above the extfrag_threshold.
 
+[randy.dunlap@oracle.com: Fix build errors when proc fs is not configured]
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/rmap.h |   50 ++++++++++++++++++--------------------------------
- mm/ksm.c             |    4 ++--
- mm/migrate.c         |    4 ++--
- mm/rmap.c            |    6 ++----
- 4 files changed, 24 insertions(+), 40 deletions(-)
+ Documentation/sysctl/vm.txt |   16 +++++++++++++++-
+ include/linux/compaction.h  |    3 +++
+ kernel/sysctl.c             |   15 +++++++++++++++
+ mm/compaction.c             |   12 +++++++++++-
+ 4 files changed, 44 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 567d43f..7721674 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -26,11 +26,17 @@
-  */
- struct anon_vma {
- 	spinlock_t lock;	/* Serialize access to vma list */
--#ifdef CONFIG_KSM
--	atomic_t ksm_refcount;
--#endif
--#ifdef CONFIG_MIGRATION
--	atomic_t migrate_refcount;
-+#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 3b3fa1b..6274970 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -27,6 +27,7 @@ Currently, these files are in /proc/sys/vm:
+ - dirty_ratio
+ - dirty_writeback_centisecs
+ - drop_caches
++- extfrag_threshold
+ - hugepages_treat_as_movable
+ - hugetlb_shm_group
+ - laptop_mode
+@@ -149,6 +149,20 @@ user should run `sync' first.
+ 
+ ==============================================================
+ 
++extfrag_threshold
 +
-+	/*
-+	 * The external_refcount is taken by either KSM or page migration
-+	 * to take a reference to an anon_vma when there is no
-+	 * guarantee that the vma of page tables will exist for
-+	 * the duration of the operation. A caller that takes
-+	 * the reference is responsible for clearing up the
-+	 * anon_vma if they are the last user on release
-+	 */
-+	atomic_t external_refcount;
++This parameter affects whether the kernel will compact memory or direct
++reclaim to satisfy a high-order allocation. /proc/extfrag_index shows what
++the fragmentation index for each order is in each zone in the system. Values
++tending towards 0 imply allocations would fail due to lack of memory,
++values towards 1000 imply failures are due to fragmentation and -1 implies
++that the allocation will succeed as long as watermarks are met.
++
++The kernel will not compact memory in a zone if the
++fragmentation index is <= extfrag_threshold. The default value is 500.
++
++==============================================================
++
+ hugepages_treat_as_movable
+ 
+ This parameter is only useful when kernelcore= is specified at boot time to
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index eed40ec..3719325 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -15,6 +15,9 @@
+ extern int sysctl_compact_memory;
+ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+ 			void __user *buffer, size_t *length, loff_t *ppos);
++extern int sysctl_extfrag_threshold;
++extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos);
+ 
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 987d6cf..43dc29d 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -262,6 +262,11 @@ static int min_sched_shares_ratelimit = 100000; /* 100 usec */
+ static int max_sched_shares_ratelimit = NSEC_PER_SEC; /* 1 second */
  #endif
- 	/*
- 	 * NOTE: the LSB of the head.next is set by
-@@ -64,46 +70,26 @@ struct anon_vma_chain {
- };
  
- #ifdef CONFIG_MMU
--#ifdef CONFIG_KSM
--static inline void ksm_refcount_init(struct anon_vma *anon_vma)
-+#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
-+static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
- {
--	atomic_set(&anon_vma->ksm_refcount, 0);
-+	atomic_set(&anon_vma->external_refcount, 0);
++#ifdef CONFIG_COMPACTION
++static int min_extfrag_threshold;
++static int max_extfrag_threshold = 1000;
++#endif
++
+ static struct ctl_table kern_table[] = {
+ 	{
+ 		.procname	= "sched_child_runs_first",
+@@ -1130,6 +1135,16 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0200,
+ 		.proc_handler	= sysctl_compaction_handler,
+ 	},
++	{
++		.procname	= "extfrag_threshold",
++		.data		= &sysctl_extfrag_threshold,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= sysctl_extfrag_handler,
++		.extra1		= &min_extfrag_threshold,
++		.extra2		= &max_extfrag_threshold,
++	},
++
+ #endif /* CONFIG_COMPACTION */
+ 	{
+ 		.procname	= "min_free_kbytes",
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 06aed42..bd13560 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -433,6 +433,8 @@ static unsigned long compact_zone_order(struct zone *zone,
+ 	return compact_zone(zone, &cc);
  }
  
--static inline int ksm_refcount(struct anon_vma *anon_vma)
-+static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
- {
--	return atomic_read(&anon_vma->ksm_refcount);
-+	return atomic_read(&anon_vma->external_refcount);
- }
- #else
--static inline void ksm_refcount_init(struct anon_vma *anon_vma)
-+static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
- {
- }
++int sysctl_extfrag_threshold = 500;
++
+ /**
+  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
+  * @zonelist: The zonelist used for the current allocation
+@@ -491,7 +493,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 		 * Only compact if a failure would be due to fragmentation.
+ 		 */
+ 		fragindex = fragmentation_index(zone, order);
+-		if (fragindex >= 0 && fragindex <= 500)
++		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
+ 			continue;
  
--static inline int ksm_refcount(struct anon_vma *anon_vma)
-+static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
- {
+ 		if (fragindex == -1 && zone_watermark_ok(zone, order, watermark, 0, 0)) {
+@@ -572,6 +574,14 @@ int sysctl_compaction_handler(struct ctl_table *table, int write,
  	return 0;
  }
- #endif /* CONFIG_KSM */
--#ifdef CONFIG_MIGRATION
--static inline void migrate_refcount_init(struct anon_vma *anon_vma)
--{
--	atomic_set(&anon_vma->migrate_refcount, 0);
--}
--
--static inline int migrate_refcount(struct anon_vma *anon_vma)
--{
--	return atomic_read(&anon_vma->migrate_refcount);
--}
--#else
--static inline void migrate_refcount_init(struct anon_vma *anon_vma)
--{
--}
--
--static inline int migrate_refcount(struct anon_vma *anon_vma)
--{
--	return 0;
--}
--#endif /* CONFIG_MIGRATE */
  
- static inline struct anon_vma *page_anon_vma(struct page *page)
- {
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 8cdfc2a..3666d43 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -318,14 +318,14 @@ static void hold_anon_vma(struct rmap_item *rmap_item,
- 			  struct anon_vma *anon_vma)
- {
- 	rmap_item->anon_vma = anon_vma;
--	atomic_inc(&anon_vma->ksm_refcount);
-+	atomic_inc(&anon_vma->external_refcount);
- }
- 
- static void drop_anon_vma(struct rmap_item *rmap_item)
- {
- 	struct anon_vma *anon_vma = rmap_item->anon_vma;
- 
--	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
-+	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
- 		int empty = list_empty(&anon_vma->head);
- 		spin_unlock(&anon_vma->lock);
- 		if (empty)
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b768a1d..42a3d24 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -601,7 +601,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 		rcu_read_lock();
- 		rcu_locked = 1;
- 		anon_vma = page_anon_vma(page);
--		atomic_inc(&anon_vma->migrate_refcount);
-+		atomic_inc(&anon_vma->external_refcount);
- 	}
- 
- 	/*
-@@ -643,7 +643,7 @@ skip_unmap:
- rcu_unlock:
- 
- 	/* Drop an anon_vma reference if we took one */
--	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-+	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
- 		int empty = list_empty(&anon_vma->head);
- 		spin_unlock(&anon_vma->lock);
- 		if (empty)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 4bad2c5..85f203e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -249,8 +249,7 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
- 	list_del(&anon_vma_chain->same_anon_vma);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
--	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma) &&
--					!migrate_refcount(anon_vma);
-+	empty = list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma);
- 	spin_unlock(&anon_vma->lock);
- 
- 	if (empty)
-@@ -274,8 +273,7 @@ static void anon_vma_ctor(void *data)
- 	struct anon_vma *anon_vma = data;
- 
- 	spin_lock_init(&anon_vma->lock);
--	ksm_refcount_init(anon_vma);
--	migrate_refcount_init(anon_vma);
-+	anonvma_external_refcount_init(anon_vma);
- 	INIT_LIST_HEAD(&anon_vma->head);
- }
- 
++int sysctl_extfrag_handler(struct ctl_table *table, int write,
++			void __user *buffer, size_t *length, loff_t *ppos)
++{
++	proc_dointvec_minmax(table, write, buffer, length, ppos);
++
++	return 0;
++}
++
+ #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+ ssize_t sysfs_compact_node(struct sys_device *dev,
+ 			struct sysdev_attribute *attr,
 -- 
 1.6.5
 
