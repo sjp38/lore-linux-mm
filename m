@@ -1,35 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 13BE16B01F1
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 08:38:16 -0400 (EDT)
-Received: by pvg11 with SMTP id 11so3653376pvg.14
-        for <linux-mm@kvack.org>; Tue, 20 Apr 2010 05:38:15 -0700 (PDT)
-MIME-Version: 1.0
-Date: Tue, 20 Apr 2010 18:08:14 +0530
-Message-ID: <y2t448a67a1004200538l45d46338vcd77b63a0e53d54e@mail.gmail.com>
-Subject: accessing stack of non-current task
-From: Uma shankar <shankar.vk@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DC6686B01F1
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 09:43:26 -0400 (EDT)
+Date: Tue, 20 Apr 2010 15:43:22 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: accessing stack of non-current task
+Message-ID: <20100420134322.GM20640@cmpxchg.org>
+References: <y2t448a67a1004200538l45d46338vcd77b63a0e53d54e@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <y2t448a67a1004200538l45d46338vcd77b63a0e53d54e@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Uma shankar <shankar.vk@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, Apr 20, 2010 at 06:08:14PM +0530, Uma shankar wrote:
+> Hi,
+> 
+> Is it possible for the kernel to access the user-stack data of a
+> task different from "current" ? ( This is needed for stack-dump as
+> well as backtrace. )
 
-Is it possible for the kernel to access the user-stack data of a
-task different from "current" ? ( This is needed for stack-dump as
-well as backtrace. )
+Yes, have a look at __get_user_pages() in mm/memory.c.
 
-I thought the answer is "no". ( Kernel sees memory through the
-page-table of "current" )
+> I thought the answer is "no". ( Kernel sees memory through the
+> page-table of "current" )
 
-But I found few places in kernel where this is done. ( eg:
-debug_rt_mutex_print_deadlock() in rtmutex-debug.c )
+That is correct when using virtual addresses and letting the MMU
+do the page table lookup in the currently active page tables.
 
-What is the explanation ?
-
-                                        thanks
-                                        shankar
+But if you have the task_struct of another process, you can easily
+get to its vmas and page tables (task->mm) and walk them in software.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
