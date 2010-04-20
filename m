@@ -1,61 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A82E46B01F3
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 06:14:07 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so3159574gyg.14
-        for <linux-mm@kvack.org>; Tue, 20 Apr 2010 03:14:06 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D620A6B01F5
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 06:32:31 -0400 (EDT)
+Date: Tue, 20 Apr 2010 20:32:16 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+Message-ID: <20100420103216.GK15130@dastard>
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
+ <1271118255-21070-2-git-send-email-david@fromorbit.com>
+ <20100418001514.GA26575@infradead.org>
+ <20100419140039.GQ5683@laptop>
+ <20100420004149.GA14744@dastard>
+ <20100420083840.GR5683@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20100420095855.GE19264@csn.ul.ie>
-References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
-	 <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100419181442.GA19264@csn.ul.ie> <20100419193919.GB19264@csn.ul.ie>
-	 <s2v28c262361004191939we64e5490ld59b21dc4fa5bc8d@mail.gmail.com>
-	 <20100420082057.GC19264@csn.ul.ie>
-	 <x2h28c262361004200132q39fe5d5ex79251643a80d28b3@mail.gmail.com>
-	 <20100420084454.GD19264@csn.ul.ie>
-	 <x2u28c262361004200250h2c38894i9adbd85d8fb7b1d8@mail.gmail.com>
-	 <20100420095855.GE19264@csn.ul.ie>
-Date: Tue, 20 Apr 2010 19:14:05 +0900
-Message-ID: <p2m28c262361004200314i43af7c2bob94ee64d912ae2c1@mail.gmail.com>
-Subject: Re: error at compaction (Re: mmotm 2010-04-15-14-42 uploaded
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100420083840.GR5683@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 6:58 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Tue, Apr 20, 2010 at 06:50:23PM +0900, Minchan Kim wrote:
->> On Tue, Apr 20, 2010 at 5:44 PM, Mel Gorman <mel@csn.ul.ie> wrote:
->> > On Tue, Apr 20, 2010 at 05:32:13PM +0900, Minchan Kim wrote:
->> >>
->> >> Yes. Then, Let's add comment like split_page. :)
->> >> =C2=A0/*
->> >> =C2=A0* Note: this is probably too low level an operation for use in =
-drivers.
->> >> =C2=A0* Please consult with lkml before using this in your driver.
->> >> =C2=A0*/
->> >>
->> >
->> > I can, but the comment that was there says it's like split_page except=
- the
->> > page is already free. This also covers not using it in a driver.
->>
->> I see. In addition, you already mentioned "As this is only being used
->> for migration".
->> I missed one.
->> I don't have any against one.
->> Will you repost v2 which move split_free_pages out of compaction.c?
->
-> I don't understand your suggestion. split_free_pages is already out of
-> compaction.c.
+On Tue, Apr 20, 2010 at 06:38:40PM +1000, Nick Piggin wrote:
+> On Tue, Apr 20, 2010 at 10:41:49AM +1000, Dave Chinner wrote:
+> > And if this is enough of a problem to disallow context based cache
+> > shrinkers, then lets fix the interface so that we encode the
+> > dependencies explicitly in the registration interface rather than
+> > doing it implicitly.
+> > 
+> > IOWs, I don't think this is a valid reason for not allowing a
+> > context to be passed with a shrinker because it is easily fixed.
+> 
+> Well yeah you could do all that maybe. I think it would definitely be
+> required if we were to do context shrinkers like this. But AFAIKS there
+> is simply no need at all. Definitely it is not preventing XFS from
+> following more like the existing shrinker implementations.
 
-Ahh. Sorry. It's my fault. I confused. forget it, please.
---=20
-Kind regards,
-Minchan Kim
+So you're basically saying that we shouldn't improve the shrinker
+interface because you don't think that anyone should be doing
+anything different to what is already there.
+
+If a change of interface means that we end up with shorter call
+chains, less global state, more flexibilty, better batching and IO
+patterns, less duplication of code and algorithms and it doesn't
+cause any regressions, then where's the problem?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
