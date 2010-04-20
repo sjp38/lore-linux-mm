@@ -1,65 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B2A7C6B01EF
-	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 22:39:37 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3K2dYb5026557
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 20 Apr 2010 11:39:35 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B00D945DE52
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 11:39:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C7A445DE50
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 11:39:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BDF61DB8015
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 11:39:34 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0408E1DB8019
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 11:39:34 +0900 (JST)
-Date: Tue, 20 Apr 2010 11:35:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: error at compaction  (Re: mmotm 2010-04-15-14-42 uploaded
-Message-Id: <20100420113544.b06be095.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100419181442.GA19264@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 658FE6B01F0
+	for <linux-mm@kvack.org>; Mon, 19 Apr 2010 22:39:48 -0400 (EDT)
+Received: by iwn14 with SMTP id 14so3731932iwn.22
+        for <linux-mm@kvack.org>; Mon, 19 Apr 2010 19:39:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100419193919.GB19264@csn.ul.ie>
 References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
-	<20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100419181442.GA19264@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	 <20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100419181442.GA19264@csn.ul.ie> <20100419193919.GB19264@csn.ul.ie>
+Date: Tue, 20 Apr 2010 11:39:46 +0900
+Message-ID: <s2v28c262361004191939we64e5490ld59b21dc4fa5bc8d@mail.gmail.com>
+Subject: Re: error at compaction (Re: mmotm 2010-04-15-14-42 uploaded
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Apr 2010 19:14:42 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, Apr 20, 2010 at 4:39 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On Mon, Apr 19, 2010 at 07:14:42PM +0100, Mel Gorman wrote:
+>> On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
+>> >
+>> > mmotm 2010-04-15-14-42
+>> >
+>> > When I tried
+>> > =C2=A0# echo 0 > /proc/sys/vm/compaction
+>> >
+>> > I see following.
+>> >
+>> > My enviroment was
+>> > =C2=A0 2.6.34-rc4-mm1+ (2010-04-15-14-42) (x86-64) CPUx8
+>> > =C2=A0 allocating tons of hugepages and reduce free memory.
+>> >
+>> > What I did was:
+>> > =C2=A0 # echo 0 > /proc/sys/vm/compact_memory
+>> >
+>> > Hmm, I see this kind of error at migation for the 1st time..
+>> > my.config is attached. Hmm... ?
+>> >
+>> > (I'm sorry I'll be offline soon.)
+>>
+>> That's ok, thanks you for the report. I'm afraid I made little progress
+>> as I spent most of the day on other bugs but I do have something for
+>> you.
+>>
+>> First, I reproduced the problem using your .config. However, the problem=
+ does
+>> not manifest with the .config I normally use which is derived from the d=
+istro
+>> kernel configuration (Debian Lenny). So, there is something in your .con=
+fig
+>> that triggers the problem. I very strongly suspect this is an interactio=
+n
+>> between migration, compaction and page allocation debug.
+>
+> I unexpecedly had the time to dig into this. Does the following patch fix
+> your problem? It Worked For Me.
 
-> On Mon, Apr 19, 2010 at 07:01:33PM +0900, KAMEZAWA Hiroyuki wrote:
+Nice catch during shot time. Below is comment.
 
-> I'll verify the theory tomorrow but it's a plausible explanation. On a
-> different note, where did config options like the following come out of?
-> 
-> CONFIG_ARCH_HWEIGHT_CFLAGS="-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" 
-> 
-> I don't think they are a factor but I'm curious.
-> 
+>
+> =3D=3D=3D=3D CUT HERE =3D=3D=3D=3D
+> mm,compaction: Map free pages in the address space after they get split f=
+or compaction
+>
+> split_free_page() is a helper function which takes a free page from the
+> buddy lists and splits it into order-0 pages. It is used by memory
+> compaction to build a list of destination pages. If
+> CONFIG_DEBUG_PAGEALLOC is set, a kernel paging request bug is triggered
+> because split_free_page() did not call the arch-allocation hooks or map
+> the page into the kernel address space.
+>
+> This patch does not update split_free_page() as it is called with
+> interrupts held. Instead it documents that callers of split_free_page()
+> are responsible for calling the arch hooks and to map the page and fixes
+> compaction.
 
-Hmm ? arch/x86/Kconfig.
+Dumb question. Why can't we call arch_alloc_page and kernel_map_pages
+as interrupt disabled? It's deadlock issue or latency issue?
+I don't found any comment about it.
+It should have added the comment around that functions. :)
 
-config ARCH_HWEIGHT_CFLAGS
-        string
-        default "-fcall-saved-ecx -fcall-saved-edx" if X86_32
-        default "-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" if X86_64
+And now compaction only uses split_free_page and it is exposed by mm.h.
+I think it would be better to map pages inside split_free_page to
+export others.(ie, making generic function).
+If we can't do, how about making split_free_page static as static function?
+And only uses it in compaction.
 
-
-Seems to be from
-patches/x86-add-optimized-popcnt-variants.patch
-
-Thanks,
--Kame
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
