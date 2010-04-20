@@ -1,57 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F10C6B01F5
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 19:26:18 -0400 (EDT)
-Date: Wed, 21 Apr 2010 00:07:19 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Suspicious compilation warning
-Message-ID: <20100420230719.GB1432@n2100.arm.linux.org.uk>
-References: <k2ncecb6d8f1004191627w3cd36450xf797f746460abb09@mail.gmail.com> <20100420155122.6f2c26eb.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100420155122.6f2c26eb.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6533D6B01F5
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 19:33:57 -0400 (EDT)
+Date: Tue, 20 Apr 2010 16:33:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hugetlbfs: Kill applications that use MAP_NORESERVE
+ with SIGBUS instead of OOM-killer
+Message-Id: <20100420163307.785a6cb2.akpm@linux-foundation.org>
+In-Reply-To: <20100420174407.GA30306@csn.ul.ie>
+References: <20100420174407.GA30306@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br>, Stephen Rothwell <sfr@canb.auug.org.au>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 03:51:22PM -0700, Andrew Morton wrote:
-> On Mon, 19 Apr 2010 20:27:43 -0300
-> Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br> wrote:
+On Tue, 20 Apr 2010 18:44:07 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
+
+> Ordinarily, application using hugetlbfs will create mappings with
+> reserves. For shared mappings, these pages are reserved before mmap()
+> returns success and for private mappings, the caller process is
+> guaranteed and a child process that cannot get the pages gets killed
+> with sigbus.
 > 
-> > I get this warning while compiling for ARM/SA1100:
-> > 
-> > mm/sparse.c: In function '__section_nr':
-> > mm/sparse.c:135: warning: 'root' is used uninitialized in this function
-> > 
-> > With a small patch in fs/proc/meminfo.c, I find that NR_SECTION_ROOTS
-> > is zero, which certainly explains the warning.
-> > 
-> > # cat /proc/meminfo
-> > NR_SECTION_ROOTS=0
-> > NR_MEM_SECTIONS=32
-> > SECTIONS_PER_ROOT=512
-> > SECTIONS_SHIFT=5
-> > MAX_PHYSMEM_BITS=32
+> An application that uses MAP_NORESERVE gets no reservations and mmap()
+> will always succeed at the risk the page will not be available at fault
+> time. This might be used for example on very large sparse mappings where the
+> developer is confident the necessary huge pages exist to satisfy all faults
+> even though the whole mapping cannot be backed by huge pages.  Unfortunately,
+> if an allocation does fail, VM_FAULT_OOM is returned to the fault handler
+> which proceeds to trigger the OOM-killer. This is unhelpful.
 > 
-> hm, who owns sparsemem nowadays? Nobody identifiable.
+> This patch alters hugetlbfs to kill a process that uses MAP_NORESERVE
+> where huge pages were not available with SIGBUS instead of triggering
+> the OOM killer.
 > 
-> Does it make physical sense to have SECTIONS_PER_ROOT > NR_MEM_SECTIONS?
+> This patch if accepted should also be considered a -stable candidate.
 
-Well, it'll be about this number on everything using sparsemem extreme:
+Why?  The changelog doesn't convey much seriousness?
 
-#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/hugetlb.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 6034dc9..af2d907 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1038,7 +1038,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+>  		page = alloc_buddy_huge_page(h, vma, addr);
+>  		if (!page) {
+>  			hugetlb_put_quota(inode->i_mapping, chg);
+> -			return ERR_PTR(-VM_FAULT_OOM);
+> +			return ERR_PTR(-VM_FAULT_SIGBUS);
+>  		}
+>  	}
+>  
 
-and with only 32 sections, this is going to give a NR_SECTION_ROOTS value
-of zero.  I think the calculation of NR_SECTIONS_ROOTS is wrong.
+This affects hugetlb_cow() as well?
 
-#define NR_SECTION_ROOTS        (NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
-
-Clearly if we have 1 mem section, we want to have one section root, so
-I think this division should round up any fractional part, thusly:
-
-#define NR_SECTION_ROOTS        ((NR_MEM_SECTIONS + SECTIONS_PER_ROOT - 1) / SECTIONS_PER_ROOT)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
