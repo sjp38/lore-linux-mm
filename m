@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 552A86B01EF
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 10:40:38 -0400 (EDT)
-Message-ID: <4BCDBCC4.60401@redhat.com>
-Date: Tue, 20 Apr 2010 10:40:04 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id A32F86B01EF
+	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 11:05:44 -0400 (EDT)
+Date: Tue, 20 Apr 2010 16:05:22 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
+Message-ID: <20100420150522.GG19264@csn.ul.ie>
+References: <4BC6CB30.7030308@kernel.org> <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com> <4BC6E581.1000604@kernel.org> <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com> <4BC6FBC8.9090204@kernel.org> <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com> <alpine.DEB.2.00.1004161105120.7710@router.home> <1271606079.2100.159.camel@barrios-desktop> <alpine.DEB.2.00.1004191235160.9855@router.home> <4BCCD8BD.1020307@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
-References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com> <20100324145028.GD2024@csn.ul.ie> <4BCC4B0C.8000602@linux.vnet.ibm.com> <20100419214412.GB5336@cmpxchg.org>
-In-Reply-To: <20100419214412.GB5336@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4BCCD8BD.1020307@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/19/2010 05:44 PM, Johannes Weiner wrote:
+On Tue, Apr 20, 2010 at 07:27:09AM +0900, Tejun Heo wrote:
+> Hello, Christoph.
+> 
+> On 04/20/2010 02:38 AM, Christoph Lameter wrote:
+> > alloc_pages_exact_node results in more confusion because it does suggest
+> > that fallback to other nodes is not allowed.
+> 
+> I can't see why alloc_pages_exact_node() exists at all.  It's in the
+> mainline and if you look at the difference between alloc_pages_node()
+> and alloc_pages_exact_node(), it's almost silly.  :-(
+> 
 
-> What do people think?
+alloc_pages_exact_node() avoids a branch in a hot path that is checking for
+something the caller already knows. That's the reason it exists.
 
-It has potential advantages and disadvantages.
-
-On smaller desktop systems, it is entirely possible that
-the working set is close to half of the page cache.  Your
-patch reduces the amount of memory that is protected on
-the active file list, so it may cause part of the working
-set to get evicted.
-
-On the other hand, having a smaller active list frees up
-more memory for sequential (streaming, use-once) disk IO.
-This can be useful on systems with large IO subsystems
-and small memory (like Christian's s390 virtual machine,
-with 256MB RAM and 4 disks!).
-
-I wonder if we could not find some automatic way to
-balance between these two situations, for example by
-excluding currently-in-flight pages from the calculations.
-
-In Christian's case, he could have 160MB of cache (buffer
-+ page cache), of which 70MB is in flight to disk at a
-time.  It may be worthwhile to exclude that 70MB from the
-total and aim for 45MB active file and 45MB inactive file
-pages on his system.  That way IO does not get starved.
-
-On a desktop system, which needs the working set protected
-and does less IO, we will automatically protect more of
-the working set - since there is no IO to starve.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
