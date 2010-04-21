@@ -1,103 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A2BE6B01EF
-	for <linux-mm@kvack.org>; Tue, 20 Apr 2010 22:53:18 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3L2rGTq031402
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 21 Apr 2010 11:53:16 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BD0A45DE53
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 11:53:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E316B45DE50
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 11:53:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CA0941DB803B
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 11:53:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E9591DB803E
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 11:53:15 +0900 (JST)
-Date: Wed, 21 Apr 2010 11:49:20 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 01/14] mm,migration: Take a reference to the anon_vma
- before migrating
-Message-Id: <20100421114920.ae4c45fd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1271797276-31358-2-git-send-email-mel@csn.ul.ie>
-References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
-	<1271797276-31358-2-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 94E766B01EE
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 00:24:00 -0400 (EDT)
+Received: from d06nrmr1707.portsmouth.uk.ibm.com (d06nrmr1707.portsmouth.uk.ibm.com [9.149.39.225])
+	by mtagate7.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o3L4NwO0025939
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 04:23:58 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1707.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3L4Noxl1589332
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 05:23:58 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o3L4Nnwh014640
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 05:23:50 +0100
+Message-ID: <4BCE7DD1.70900@linux.vnet.ibm.com>
+Date: Wed, 21 Apr 2010 06:23:45 +0200
+From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
+References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com> <20100324145028.GD2024@csn.ul.ie> <4BCC4B0C.8000602@linux.vnet.ibm.com> <20100419214412.GB5336@cmpxchg.org> <4BCD55DA.2020000@linux.vnet.ibm.com> <20100420153202.GC5336@cmpxchg.org> <4BCDE2F0.3010009@redhat.com>
+In-Reply-To: <4BCDE2F0.3010009@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Apr 2010 22:01:03 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
 
-> rmap_walk_anon() does not use page_lock_anon_vma() for looking up and
-> locking an anon_vma and it does not appear to have sufficient locking to
-> ensure the anon_vma does not disappear from under it.
+
+Rik van Riel wrote:
+> On 04/20/2010 11:32 AM, Johannes Weiner wrote:
 > 
-> This patch copies an approach used by KSM to take a reference on the
-> anon_vma while pages are being migrated.  This should prevent rmap_walk()
-> running into nasty surprises later because anon_vma has been freed.
+>> The idea is that it pans out on its own.  If the workload changes, new
+>> pages get activated and when that set grows too large, we start shrinking
+>> it again.
+>>
+>> Of course, right now this unscanned set is way too large and we can end
+>> up wasting up to 50% of usable page cache on false active pages.
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Rik van Riel <riel@redhat.com>
+> Thing is, changing workloads often change back.
+> 
+> Specifically, think of a desktop system that is doing
+> work for the user during the day and gets backed up
+> at night.
+> 
+> You do not want the backup to kick the working set
+> out of memory, because when the user returns in the
+> morning the desktop should come back quickly after
+> the screensaver is unlocked.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+IMHO it is fine to prevent that nightly backup job from not being 
+finished when the user arrives at morning because we didn't give him 
+some more cache - and e.g. a 30 sec transition from/to both optimized 
+states is fine.
+But eventually I guess the point is that both behaviors are reasonable 
+to achieve - depending on the users needs.
 
-Hmm, a nitpick..
+What we could do is combine all our thoughts we had so far:
+a) Rik could create an experimental patch that excludes the in flight pages
+b) Johannes could create one for his suggestion to "always scan active 
+file pages but only deactivate them when the ratio is off and otherwise 
+strip buffers of clean pages"
+c) I would extend the patch from Johannes setting the ratio of 
+active/inactive pages to be a userspace tunable
 
+a,b,a+b would then need to be tested if they achieve a better behavior.
 
->  static inline struct anon_vma *page_anon_vma(struct page *page)
->  {
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 5938db5..b768a1d 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -543,6 +543,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	int rcu_locked = 0;
->  	int charge = 0;
->  	struct mem_cgroup *mem = NULL;
-> +	struct anon_vma *anon_vma = NULL;
->  
->  	if (!newpage)
->  		return -ENOMEM;
-> @@ -599,6 +600,8 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  	if (PageAnon(page)) {
->  		rcu_read_lock();
->  		rcu_locked = 1;
-> +		anon_vma = page_anon_vma(page);
-> +		atomic_inc(&anon_vma->migrate_refcount);
->  	}
->  
->  	/*
-> @@ -638,6 +641,15 @@ skip_unmap:
->  	if (rc)
->  		remove_migration_ptes(page, page);
->  rcu_unlock:
-> +
-> +	/* Drop an anon_vma reference if we took one */
-> +	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
-> +		int empty = list_empty(&anon_vma->head);
-> +		spin_unlock(&anon_vma->lock);
-> +		if (empty)
-> +			anon_vma_free(anon_vma);
-> +	}
-> +
+c on the other hand would be a fine tunable to let administrators 
+(knowing their workloads) or distributions (e.g. different values for 
+Desktop/Server defaults) adapt their installations.
 
-Hmm. Can't we move this part to mm/rmap.c ?
+In theory a,b and c should work fine together in case we need all of them.
 
-	as
-		anon_vma_drop_external_reference()
-or some.
+> The big question is, what workload suffers from
+> having the inactive list at 50% of the page cache?
+> 
+> So far the only big problem we have seen is on a
+> very unbalanced virtual machine, with 256MB RAM
+> and 4 fast disks.  The disks simply have more IO
+> in flight at once than what fits in the inactive
+> list.
 
-Thanks,
--Kame
+Did I get you right that this means the write case - explaining why it 
+is building up buffers to the 50% max?
+
+Note: It even uses up to 64 disks, with 1 disk per thread so e.g. 16 
+threads => 16 disks.
+
+For being "unbalanced" I'd like to mention that over the years I learned 
+that sometimes, after a while, virtualized systems look that way without 
+being intended - this happens by adding more and more guests and let 
+guest memory balooning take care of it.
+
+> This is a very untypical situation, and we can
+> probably solve it by excluding the in-flight pages
+> from the active/inactive file calculation.
+
+-- 
+
+GrA 1/4 sse / regards, Christian Ehrhardt
+IBM Linux Technology Center, System z Linux Performance
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
