@@ -1,109 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DF6CE6B01F3
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 05:47:40 -0400 (EDT)
-Date: Wed, 21 Apr 2010 12:42:49 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-Message-ID: <20100421094249.GC30855@redhat.com>
-References: <4BBEFE25.7000807@tauceti.net> <20100411110303.GD8992@redhat.com> <4BC2E706.7010108@tauceti.net> <20100412112330.GA16908@redhat.com> <4BC32527.9090301@tauceti.net> <20100412135223.GA17887@redhat.com> <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C3C086B01F3
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 05:52:03 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3L9q0ce006508
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 21 Apr 2010 18:52:01 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BBAD545DE50
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:52:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CFB145DE4C
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:52:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 718F21DB8012
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:52:00 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CF051DB8013
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:52:00 +0900 (JST)
+Date: Wed, 21 Apr 2010 18:48:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: error at compaction  (Re: mmotm 2010-04-15-14-42 uploaded
+Message-Id: <20100421184806.2c3ecc87.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100421172838.0377e0cc.kamezawa.hiroyu@jp.fujitsu.com>
+References: <201004152210.o3FMA7KV001909@imap1.linux-foundation.org>
+	<20100419190133.50a13021.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100419181442.GA19264@csn.ul.ie>
+	<20100419193919.GB19264@csn.ul.ie>
+	<20100421172838.0377e0cc.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kernel <kernel@tauceti.net>
-Cc: Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 21, 2010 at 01:23:12PM +0200, kernel wrote:
-> So after the compiler was running hot I've now the following result:
-> 
-> server10:/usr/src/linux # git bisect log 
-> # bad: [74fca6a42863ffacaf7ba6f1936a9f228950f657] Linux 2.6.31
-> # good: [07a2039b8eb0af4ff464efd3dfd95de5c02648c6] Linux 2.6.30
-> git bisect start 'v2.6.31' 'v2.6.30'
-> # good: [925d74ae717c9a12d3618eb4b36b9fb632e2cef3] V4L/DVB (11736):
-> videobuf: modify return value of VIDIOC_REQBUFS ioctl
-> git bisect good 925d74ae717c9a12d3618eb4b36b9fb632e2cef3
-> # bad: [a380137900fca5c79e6daa9500bdb6ea5649188e] ixgbe: Fix device
-> capabilities of 82599 single speed fiber NICs.
-> git bisect bad a380137900fca5c79e6daa9500bdb6ea5649188e
-> # good: [1dbb5765acc7a6fe4bc1957c001037cc9d02ae03] Staging: android:
-> lowmemorykiller: fix up remaining checkpatch warnings
-> git bisect good 1dbb5765acc7a6fe4bc1957c001037cc9d02ae03
-> # good: [df36b439c5fedefe013d4449cb6a50d15e2f4d70] Merge branch
-> 'for-2.6.31' of git://git.linux-nfs.org/projects/trondmy/nfs-2.6
-> git bisect good df36b439c5fedefe013d4449cb6a50d15e2f4d70
-> # bad: [a800faec1b21d7133b5f0c8c6dac593b7c4e118d] Merge branch 'for-linus'
-> of git://www.jni.nu/cris
-> git bisect bad a800faec1b21d7133b5f0c8c6dac593b7c4e118d
-> # good: [ac1b7c378ef26fba6694d5f118fe7fc16fee2fe2] Merge
-> git://git.infradead.org/mtd-2.6
-> git bisect good ac1b7c378ef26fba6694d5f118fe7fc16fee2fe2
-> # bad: [37c6dbe290c05023b47f52528e30ce51336b93eb] V4L/DVB (12091):
-> gspca_sonixj: Add light frequency control
-> git bisect bad 37c6dbe290c05023b47f52528e30ce51336b93eb
-> # bad: [687d680985b1438360a9ba470ece8b57cd205c3b] Merge
-> git://git.infradead.org/~dwmw2/iommu-2.6.31
-> git bisect bad 687d680985b1438360a9ba470ece8b57cd205c3b
-> # bad: [1053414068bad659479e6efa62a67403b8b1ec0a] Merge branch 'for-linus'
-> of git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6
-> git bisect bad 1053414068bad659479e6efa62a67403b8b1ec0a
-> # good: [b01b4babbf204443b5a846a7494546501614cefc] firewire: net: fix card
-> driver reloading
-> git bisect good b01b4babbf204443b5a846a7494546501614cefc
-> # bad: [c02d7adf8c5429727a98bad1d039bccad4c61c50] NFSv4: Replace
-> nfs4_path_walk() with VFS path lookup in a private namespace
-> git bisect bad c02d7adf8c5429727a98bad1d039bccad4c61c50
-> # good: [616511d039af402670de8500d0e24495113a9cab] VFS: Uninline the
-> function put_mnt_ns()
-> git bisect good 616511d039af402670de8500d0e24495113a9cab
-> # good: [cf8d2c11cb77f129675478792122f50827e5b0ae] VFS: Add VFS helper
-> functions for setting up private namespaces
-> git bisect good cf8d2c11cb77f129675478792122f50827e5b0ae
-> 
-> 
-> The last "git bisect good" prints out:
-> 
-> server10:/usr/src/linux # git bisect good
-> c02d7adf8c5429727a98bad1d039bccad4c61c50 is the first bad commit
-> commit c02d7adf8c5429727a98bad1d039bccad4c61c50
-> Author: Trond Myklebust <Trond.Myklebust@netapp.com>
-> Date:   Mon Jun 22 15:09:14 2009 -0400
-> 
->     NFSv4: Replace nfs4_path_walk() with VFS path lookup in a private
-> namespace
->     
->     As noted in the previous patch, the NFSv4 client mount code currently
->     has several limitations. If the mount path contains symlinks, or
->     referrals, or even if it just contains a '..', then the client code in
->     nfs4_path_walk() will fail with an error.
->     
->     This patch replaces the nfs4_path_walk()-based lookup with a helper
->     function that sets up a private namespace to represent the namespace
-> on the
->     server, then uses the ordinary VFS and NFS path lookup code to walk
-> down the
->     mount path in that namespace.
->     
->     Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> 
-> :040000 040000 97a18818f26ab9a0987f157257eb6f399c3cc1cc
-> 9ab6c712bb64f1349b5ac9f2020191abb5780ca0 M      fs
-> 
-> Does this help you any further?
-> 
-> Thanks!
-> Robert
+On Wed, 21 Apr 2010 17:28:38 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Looks suspiciously like some error in testing.
-Could you pls retest and verify again that cf8d2c11cb77f129675478792122f50827e5b0ae
-is good and c02d7adf8c5429727a98bad1d039bccad4c61c50 is bad?
+> On Mon, 19 Apr 2010 20:39:19 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > On Mon, Apr 19, 2010 at 07:14:42PM +0100, Mel Gorman wrote: 
+> > ==== CUT HERE ====
+> > mm,compaction: Map free pages in the address space after they get split for compaction
+> > 
+> > split_free_page() is a helper function which takes a free page from the
+> > buddy lists and splits it into order-0 pages. It is used by memory
+> > compaction to build a list of destination pages. If
+> > CONFIG_DEBUG_PAGEALLOC is set, a kernel paging request bug is triggered
+> > because split_free_page() did not call the arch-allocation hooks or map
+> > the page into the kernel address space.
+> > 
+> > This patch does not update split_free_page() as it is called with
+> > interrupts held. Instead it documents that callers of split_free_page()
+> > are responsible for calling the arch hooks and to map the page and fixes
+> > compaction.
+> > 
+> > This is a fix to the patch mm-compaction-memory-compaction-core.patch.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> Sorry, I think I hit another? error again. (sorry, no log.)
+> What I did was...
+>    Running 2 shells.
+>    while true; do make -j 16;make cleanl;done
+>    and
+>    while true; do echo 0 > /proc/sys/vm/compact_memory;done
+> 
+> 
+> Using the same config.
+> 
+> Apr 21 17:27:47 localhost kernel: ------------[ cut here ]------------
+> Apr 21 17:27:47 localhost kernel: kernel BUG at include/linux/swapops.h:105!
+> Apr 21 17:27:47 localhost kernel: invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
+> Apr 21 17:27:47 localhost kernel: last sysfs file: /sys/devices/virtual/net/br0/statistics/collisions
+> Apr 21 17:27:47 localhost kernel: CPU 3
+> Apr 21 17:27:47 localhost kernel: Modules linked in: fuse sit tunnel4 ipt_MASQUERADE iptable_nat nf_nat bridge stp llc sunrpc cpufreq_ondemand acpi_cpufreq freq_table mperf xt_physdev ip6t_REJECT nf_conntrack_ipv6 ip6table_filter ip6_tables ipv6 dm_multipath uinput ioatdma ppdev parport_pc i5000_edac bnx2 iTCO_wdt edac_core iTCO_vendor_support shpchp parport e1000e kvm_intel dca kvm i2c_i801 i2c_core i5k_amb pcspkr megaraid_sas [last unloaded: microcode]
+> Apr 21 17:27:47 localhost kernel:
+> Apr 21 17:27:47 localhost kernel: Pid: 27892, comm: cc1 Tainted: G        W   2.6.34-rc4-mm1+ #4 D2519/PRIMERGY          
+> Apr 21 17:27:47 localhost kernel: RIP: 0010:[<ffffffff8114e9cf>]  [<ffffffff8114e9cf>] migration_entry_wait+0x16f/0x180
+> Apr 21 17:27:47 localhost kernel: RSP: 0000:ffff88008d9efe08  EFLAGS: 00010246
+> Apr 21 17:27:47 localhost kernel: RAX: ffffea0000000000 RBX: ffffea0000241100 RCX: 0000000000000001
+> Apr 21 17:27:47 localhost kernel: RDX: 000000000000a4e0 RSI: ffff880621a4ab00 RDI: 000000000149c03e
+> Apr 21 17:27:47 localhost kernel: RBP: ffff88008d9efe38 R08: 0000000000000000 R09: 0000000000000000
+> Apr 21 17:27:47 localhost kernel: R10: 0000000000000000 R11: 0000000000000001 R12: ffff880621a4aae8
+> Apr 21 17:27:47 localhost kernel: R13: 00000000bf811000 R14: 000000000149c03e R15: 0000000000000000
+> Apr 21 17:27:47 localhost kernel: FS:  00007fe6abc90700(0000) GS:ffff880005a00000(0000) knlGS:0000000000000000
+> Apr 21 17:27:47 localhost kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> Apr 21 17:27:47 localhost kernel: CR2: 00007fe6a37279a0 CR3: 000000008d942000 CR4: 00000000000006e0
+> Apr 21 17:27:47 localhost kernel: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> Apr 21 17:27:47 localhost kernel: DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> Apr 21 17:27:47 localhost kernel: Process cc1 (pid: 27892, threadinfo ffff88008d9ee000, task ffff8800b23ec820)
+> Apr 21 17:27:47 localhost kernel: Stack:
+> Apr 21 17:27:47 localhost kernel: ffffea000101aee8 ffff880621a4aae8 ffff88008d9efe38 00007fe6a37279a0
+> Apr 21 17:27:47 localhost kernel: <0> ffff8805d9706d90 ffff880621a4aa00 ffff88008d9efef8 ffffffff81126d05
+> Apr 21 17:27:47 localhost kernel: <0> ffff88008d9efec8 0000000000000246 0000000000000000 ffffffff81586533
+> Apr 21 17:27:47 localhost kernel: Call Trace:
+> Apr 21 17:27:47 localhost kernel: [<ffffffff81126d05>] handle_mm_fault+0x995/0x9b0
+> Apr 21 17:27:47 localhost kernel: [<ffffffff81586533>] ? do_page_fault+0x103/0x330
+> Apr 21 17:27:47 localhost kernel: [<ffffffff8104bf40>] ? finish_task_switch+0x0/0xf0
+> Apr 21 17:27:47 localhost kernel: [<ffffffff8158659e>] do_page_fault+0x16e/0x330
+> Apr 21 17:27:47 localhost kernel: [<ffffffff81582f35>] page_fault+0x25/0x30
+> Apr 21 17:27:47 localhost kernel: Code: 53 08 85 c9 0f 84 32 ff ff ff 8d 41 01 89 4d d8 89 45 d4 8b 75 d4 8b 45 d8 f0 0f b1 32 89 45 dc 8b 45 dc 39 c8 74 aa 89 c1 eb d7 <0f> 0b eb fe 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5
+> Apr 21 17:27:47 localhost kernel: RIP  [<ffffffff8114e9cf>] migration_entry_wait+0x16f/0x180
+> Apr 21 17:27:47 localhost kernel: RSP <ffff88008d9efe08>
+> Apr 21 17:27:47 localhost kernel: ---[ end trace 4860ab585c1fcddb ]---
+> 
 
--- 
-MST
+It seems that this is a new error.
+
+
+static inline struct page *migration_entry_to_page(swp_entry_t entry)
+{
+        struct page *p = pfn_to_page(swp_offset(entry));
+        /*
+         * Any use of migration entries may only occur while the
+         * corresponding page is locked
+         */
+        BUG_ON(!PageLocked(p));
+        return p;
+}
+
+
+Hits this BUG_ON()....then, the page migration_entry points to is unlocked.
+
+But we always do
+
+	lock_page(old_page);
+	unamp(old_page);
+	remap(new_page);
+	unlock_page(old_page);
+
+So....some pte wasn't updated at remap ?
+
+Hmm.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
