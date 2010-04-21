@@ -1,39 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3CF506B01FA
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 13:46:21 -0400 (EDT)
-Date: Wed, 21 Apr 2010 19:46:15 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [patch] ksm: check for ERR_PTR from follow_page()
-Message-ID: <20100421174615.GO32034@random.random>
-References: <20100421102759.GA29647@bicker>
- <4BCF18A8.8080809@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E2FCE6B01F3
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 15:07:13 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp01.in.ibm.com (8.14.3/8.13.1) with ESMTP id o3LJ77Ak014775
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 00:37:07 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3LJ77xO3453154
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 00:37:07 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3LJ77kn018367
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 05:07:07 +1000
+Date: Thu, 22 Apr 2010 00:37:04 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: [PATCH][RESEND]Fix GFP flags passed from the virtio balloon driver
+Message-ID: <20100421190704.GK3994@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4BCF18A8.8080809@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Dan Carpenter <error27@gmail.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: kvm <kvm@vger.kernel.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Avi Kivity <avi@qumranet.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 21, 2010 at 11:24:24AM -0400, Rik van Riel wrote:
-> On 04/21/2010 06:27 AM, Dan Carpenter wrote:
-> > The follow_page() function can potentially return -EFAULT so I added
-> > checks for this.
-> >
-> > Also I silenced an uninitialized variable warning on my version of gcc
-> > (version 4.3.2).
-> >
-> > Signed-off-by: Dan Carpenter<error27@gmail.com>
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
+Fix GFP flags passed from the virtio balloon driver
 
-  	    	while (!(page = follow_page(vma, start, foll_flags)))
-  	    	{
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-gup only checks for null, so when exactly is follow_page going to
-return -EFAULT? It's not immediately clear.
+The virtio balloon driver can dig into the reservation pools
+of the OS to satisfy a balloon request. This is not advisable
+and other balloon drivers (drivers/xen/balloon.c) avoid this
+as well. The patch also avoids printing a warning if allocation
+fails.
+
+Comments?
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ drivers/virtio/virtio_balloon.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 369f2ee..f8ffe8c 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -102,7 +102,8 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+ 
+ 	for (vb->num_pfns = 0; vb->num_pfns < num; vb->num_pfns++) {
+-		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY);
++		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
++					__GFP_NOMEMALLOC | __GFP_NOWARN);
+ 		if (!page) {
+ 			if (printk_ratelimit())
+ 				dev_printk(KERN_INFO, &vb->vdev->dev,
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
