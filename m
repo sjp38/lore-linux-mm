@@ -1,62 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4794E6B01EE
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 04:40:12 -0400 (EDT)
-Date: Wed, 21 Apr 2010 18:40:04 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
-Message-ID: <20100421084004.GS5683@laptop>
-References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
- <1271118255-21070-2-git-send-email-david@fromorbit.com>
- <20100418001514.GA26575@infradead.org>
- <20100419140039.GQ5683@laptop>
- <20100420004149.GA14744@dastard>
- <20100420083840.GR5683@laptop>
- <20100420103216.GK15130@dastard>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD366B01EE
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 05:03:55 -0400 (EDT)
+Date: Wed, 21 Apr 2010 11:03:27 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 0/3] Avoid the use of congestion_wait under zone pressure
+Message-ID: <20100421090327.GD5336@cmpxchg.org>
+References: <20100322235053.GD9590@csn.ul.ie> <4BA940E7.2030308@redhat.com> <20100324145028.GD2024@csn.ul.ie> <4BCC4B0C.8000602@linux.vnet.ibm.com> <20100419214412.GB5336@cmpxchg.org> <4BCD55DA.2020000@linux.vnet.ibm.com> <20100420153202.GC5336@cmpxchg.org> <4BCDE2F0.3010009@redhat.com> <4BCE7DD1.70900@linux.vnet.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100420103216.GK15130@dastard>
+In-Reply-To: <4BCE7DD1.70900@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, gregkh@novell.com, Corrado Zoccolo <czoccolo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 08:32:16PM +1000, Dave Chinner wrote:
-> On Tue, Apr 20, 2010 at 06:38:40PM +1000, Nick Piggin wrote:
-> > On Tue, Apr 20, 2010 at 10:41:49AM +1000, Dave Chinner wrote:
-> > > And if this is enough of a problem to disallow context based cache
-> > > shrinkers, then lets fix the interface so that we encode the
-> > > dependencies explicitly in the registration interface rather than
-> > > doing it implicitly.
-> > > 
-> > > IOWs, I don't think this is a valid reason for not allowing a
-> > > context to be passed with a shrinker because it is easily fixed.
-> > 
-> > Well yeah you could do all that maybe. I think it would definitely be
-> > required if we were to do context shrinkers like this. But AFAIKS there
-> > is simply no need at all. Definitely it is not preventing XFS from
-> > following more like the existing shrinker implementations.
+On Wed, Apr 21, 2010 at 06:23:45AM +0200, Christian Ehrhardt wrote:
+> Rik van Riel wrote:
+> >You do not want the backup to kick the working set
+> >out of memory, because when the user returns in the
+> >morning the desktop should come back quickly after
+> >the screensaver is unlocked.
 > 
-> So you're basically saying that we shouldn't improve the shrinker
-> interface because you don't think that anyone should be doing
-> anything different to what is already there.
+> IMHO it is fine to prevent that nightly backup job from not being 
+> finished when the user arrives at morning because we didn't give him 
+> some more cache - and e.g. a 30 sec transition from/to both optimized 
+> states is fine.
 
-I'm saying that dynamic registration is no good, if we don't have a
-way to order the shrinkers.
+For batched work maybe :-)
 
- 
-> If a change of interface means that we end up with shorter call
-> chains, less global state, more flexibilty, better batching and IO
-> patterns, less duplication of code and algorithms and it doesn't
-> cause any regressions, then where's the problem?
+> What we could do is combine all our thoughts we had so far:
+> a) Rik could create an experimental patch that excludes the in flight pages
+> b) Johannes could create one for his suggestion to "always scan active 
+> file pages but only deactivate them when the ratio is off and otherwise 
+> strip buffers of clean pages"
 
-Yep that would all be great but I don't see how the interface change
-enables any of that at all. It seems to me that the advantage goes
-the other way because it doesn't put as much crap into your mount
-structure and you end up with an useful traversable list of mounts as
-a side-effect.
- 
+Please drop that idea, that 'Buffers:' is a red herring.  It's just pages
+that do not back files but block devices.  Stripping buffer_heads won't
+achieve anything, we need to get rid of the pages.  Sorry, I should have
+slept and thought before writing that suggestion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
