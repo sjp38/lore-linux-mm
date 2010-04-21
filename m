@@ -1,68 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0D1C86B01F8
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 13:06:46 -0400 (EDT)
-Received: by iwn40 with SMTP id 40so5167629iwn.1
-        for <linux-mm@kvack.org>; Wed, 21 Apr 2010 10:06:23 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3CF506B01FA
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 13:46:21 -0400 (EDT)
+Date: Wed, 21 Apr 2010 19:46:15 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [patch] ksm: check for ERR_PTR from follow_page()
+Message-ID: <20100421174615.GO32034@random.random>
+References: <20100421102759.GA29647@bicker>
+ <4BCF18A8.8080809@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1004210914570.4959@router.home>
-References: <4BC6CB30.7030308@kernel.org>
-	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-	 <4BC6FBC8.9090204@kernel.org>
-	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
-	 <alpine.DEB.2.00.1004161105120.7710@router.home>
-	 <1271606079.2100.159.camel@barrios-desktop>
-	 <alpine.DEB.2.00.1004191235160.9855@router.home>
-	 <4BCCD8BD.1020307@kernel.org> <20100420150522.GG19264@csn.ul.ie>
-	 <alpine.DEB.2.00.1004210914570.4959@router.home>
-Date: Thu, 22 Apr 2010 02:06:22 +0900
-Message-ID: <i2t28c262361004211006yc1301a84ncf9b3acbff37e212@mail.gmail.com>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4BCF18A8.8080809@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Dan Carpenter <error27@gmail.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 21, 2010 at 11:15 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> On Tue, 20 Apr 2010, Mel Gorman wrote:
->
->> alloc_pages_exact_node() avoids a branch in a hot path that is checking =
-for
->> something the caller already knows. That's the reason it exists.
->
-> We can avoid alloc_pages_exact_node() by making all callers of
-> alloc_pages_node() never use -1. -1 is ambiguous and only rarely will a
-> caller pass that to alloc_pages_node().
+On Wed, Apr 21, 2010 at 11:24:24AM -0400, Rik van Riel wrote:
+> On 04/21/2010 06:27 AM, Dan Carpenter wrote:
+> > The follow_page() function can potentially return -EFAULT so I added
+> > checks for this.
+> >
+> > Also I silenced an uninitialized variable warning on my version of gcc
+> > (version 4.3.2).
+> >
+> > Signed-off-by: Dan Carpenter<error27@gmail.com>
+> 
+> Acked-by: Rik van Riel <riel@redhat.com>
 
-That's very reasonable to me.
-Then, we can remove alloc_pages_exact_node and nid < 0 check in
-alloc_pages_node at the same time.
+  	    	while (!(page = follow_page(vma, start, foll_flags)))
+  	    	{
 
-Mel. Could you agree?
-
-Firstly Tejun suggested this but I didn't got the point.
-Sorry for bothering you.
-
-Okay. I will dive into this approach.
-Thanks for careful review, All.
-
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+gup only checks for null, so when exactly is follow_page going to
+return -EFAULT? It's not immediately clear.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
