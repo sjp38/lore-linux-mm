@@ -1,413 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 186CA6B01F2
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 11:40:08 -0400 (EDT)
-Date: Fri, 23 Apr 2010 01:39:56 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable
- task can be found
-Message-ID: <20100422153956.GY5683@laptop>
-References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com>
- <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com>
- <20100407205418.FB90.A69D9226@jp.fujitsu.com>
- <alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
- <20100421121758.af52f6e0.akpm@linux-foundation.org>
- <20100422072319.GW5683@laptop>
- <20100422162536.b904203e.kamezawa.hiroyu@jp.fujitsu.com>
- <20100422100944.GX5683@laptop>
- <alpine.DEB.2.00.1004220326130.19785@chino.kir.corp.google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 15FBE6B01F3
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 11:40:28 -0400 (EDT)
+Date: Thu, 22 Apr 2010 16:40:04 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+	PageSwapCache pages
+Message-ID: <20100422154003.GC30306@csn.ul.ie>
+References: <alpine.DEB.2.00.1004211027120.4959@router.home> <20100421153421.GM30306@csn.ul.ie> <alpine.DEB.2.00.1004211038020.4959@router.home> <20100422092819.GR30306@csn.ul.ie> <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com> <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com> <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com> <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com> <20100422141404.GA30306@csn.ul.ie> <p2y28c262361004220718m3a5e3e2ekee1fef7ebdae8e73@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1004220326130.19785@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <p2y28c262361004220718m3a5e3e2ekee1fef7ebdae8e73@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 22, 2010 at 03:28:38AM -0700, David Rientjes wrote:
-> On Thu, 22 Apr 2010, Nick Piggin wrote:
+On Thu, Apr 22, 2010 at 11:18:14PM +0900, Minchan Kim wrote:
+> On Thu, Apr 22, 2010 at 11:14 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Thu, Apr 22, 2010 at 07:51:53PM +0900, KAMEZAWA Hiroyuki wrote:
+> >> On Thu, 22 Apr 2010 19:31:06 +0900
+> >> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >>
+> >> > On Thu, 22 Apr 2010 19:13:12 +0900
+> >> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> >> >
+> >> > > On Thu, Apr 22, 2010 at 6:46 PM, KAMEZAWA Hiroyuki
+> >> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >> >
+> >> > > > Hmm..in my test, the case was.
+> >> > > >
+> >> > > > Before try_to_unmap:
+> >> > > >        mapcount=1, SwapCache, remap_swapcache=1
+> >> > > > After remap
+> >> > > >        mapcount=0, SwapCache, rc=0.
+> >> > > >
+> >> > > > So, I think there may be some race in rmap_walk() and vma handling or
+> >> > > > anon_vma handling. migration_entry isn't found by rmap_walk.
+> >> > > >
+> >> > > > Hmm..it seems this kind patch will be required for debug.
+> >> > >
+> >>
+> >> Ok, here is my patch for _fix_. But still testing...
+> >> Running well at least for 30 minutes, where I can see bug in 10minutes.
+> >> But this patch is too naive. please think about something better fix.
+> >>
+> >> ==
+> >> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>
+> >> At adjust_vma(), vma's start address and pgoff is updated under
+> >> write lock of mmap_sem. This means the vma's rmap information
+> >> update is atoimic only under read lock of mmap_sem.
+> >>
+> >>
+> >> Even if it's not atomic, in usual case, try_to_ummap() etc...
+> >> just fails to decrease mapcount to be 0. no problem.
+> >>
+> >> But at page migration's rmap_walk(), it requires to know all
+> >> migration_entry in page tables and recover mapcount.
+> >>
+> >> So, this race in vma's address is critical. When rmap_walk meet
+> >> the race, rmap_walk will mistakenly get -EFAULT and don't call
+> >> rmap_one(). This patch adds a lock for vma's rmap information.
+> >> But, this is _very slow_.
+> >
+> > Ok wow. That is exceptionally well-spotted. This looks like a proper bug
+> > that compaction exposes as opposed to a bug that compaction introduces.
+> >
+> >> We need something sophisitcated, light-weight update for this..
+> >>
+> >
+> > In the event the VMA is backed by a file, the mapping i_mmap_lock is taken for
+> > the duration of the update and is  taken elsewhere where the VMA information
+> > is read such as rmap_walk_file()
+> >
+> > In the event the VMA is anon, vma_adjust currently talks no locks and your
+> > patch introduces a new one but why not use the anon_vma lock here? Am I
+> > missing something that requires the new lock?
 > 
-> > Oh actually what happened with the pagefault OOM / panic on oom thing?
-> > We were talking around in circles about that too.
-> > 
+> rmap_walk_anon doesn't hold vma's anon_vma->lock.
+> It holds page->anon_vma->lock.
 > 
-> The oom killer rewrite attempts to kill current first, if possible, and 
-> then will panic if panic_on_oom is set before falling back to selecting a 
-> victim.
 
-See, this is what we want to avoid. If the user sets panic_on_oom,
-it is because they want the system to panic on oom. Not to kill
-tasks and try to continue. The user does not know or care in the
-slightest about "page fault oom". So I don't know why you think this
-is a good idea.
+Of course, thank you for pointing out my error. With multiple
+anon_vma's, the locking is a bit of a mess. We cannot hold spinlocks on
+two vma's in the same list at the same time without potentially causing
+a livelock. The problem becomes how we can safely drop one anon_vma and
+acquire the other without them disappearing from under us.
 
+See the XXX mark in the following incomplete patch for example. It's
+incomplete because the list traversal is also not safe once the lock has
+been dropped and -EFAULT is returned by vma_address.
 
->  This is consistent with all other architectures such as powerpc 
-> that currently do not use pagefault_out_of_memory().  If all architectures 
-> are eventually going to be converted to using pagefault_out_of_memory() 
+==== CUT HERE ====
+mm: Take the vma anon_vma lock in vma_adjust and during rmap_walk
 
-Yes, architectures are going to be converted, it has already been
-agreed, I dropped the ball and lazily hoped the arch people would do it.
-But further work done should be to make it consistent in the right way,
-not the wrong way.
+vma_adjust() is updating anon VMA information without any locks taken.
+In constract, file-backed mappings use the i_mmap_lock. This lack of
+locking can result in races with page migration. During rmap_walk(),
+vma_address() can return -EFAULT for an address that will soon be valid.
+This leaves a dangling migration PTE behind which can later cause a
+BUG_ON to trigger when the page is faulted in.
 
+This patch takes the anon_vma->lock during vma_adjust to avoid such
+races. During rmap_walk, the page anon_vma is locked but as it walks the
+VMA list, it'll lock the VMA->anon_vma if they differ as well.
 
-> with additional work on top of -mm, it would be possible to define 
-> consistent panic_on_oom semantics for this case.  I welcome such an 
-> addition since I believe it's a natural extension of panic_on_oom, but I 
-> believe it should be done consistently so the sysctl doesn't have 
-> different semantics depending on the underlying arch.
+---
+ mm/mmap.c |    6 ++++++
+ mm/rmap.c |   48 ++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 46 insertions(+), 8 deletions(-)
 
-It's simply a bug rather than intentional semantics. "pagefault oom"
-is basically a meaningless semantic for the user.
-
-Let's do a deal. I'll split up the below patch and send it to arch
-maintainers, and you don't change the sysctl interface or "fix" the
-pagefault oom path.
-
---
-Index: linux-2.6/arch/alpha/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/alpha/mm/fault.c
-+++ linux-2.6/arch/alpha/mm/fault.c
-@@ -188,16 +188,10 @@ do_page_fault(unsigned long address, uns
- 	/* We ran out of memory, or some other thing happened to us that
- 	   made us unable to handle the page fault gracefully.  */
-  out_of_memory:
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk(KERN_ALERT "VM: killing process %s(%d)\n",
--	       current->comm, task_pid_nr(current));
- 	if (!user_mode(regs))
- 		goto no_context;
--	do_group_exit(SIGKILL);
-+	pagefault_out_of_memory();
-+	return;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..61d6f1d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -578,6 +578,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
  
-  do_sigbus:
- 	/* Send a sigbus, regardless of whether we were in kernel
-Index: linux-2.6/arch/avr32/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/avr32/mm/fault.c
-+++ linux-2.6/arch/avr32/mm/fault.c
-@@ -211,15 +211,10 @@ no_context:
++	if (vma->anon_vma)
++		spin_lock(&vma->anon_vma->lock);
++
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +623,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (vma->anon_vma)
++		spin_unlock(&vma->anon_vma->lock);
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 85f203e..1ea0cae 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1358,7 +1358,7 @@ int try_to_munlock(struct page *page)
+ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+-	struct anon_vma *anon_vma;
++	struct anon_vma *page_avma;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1368,20 +1368,52 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
  	 */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: Killing process %s\n", tsk->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	pagefault_out_of_memory();
-+	if (!user_mode(regs))
-+		goto no_context;
-+	return;
- 
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/cris/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/cris/mm/fault.c
-+++ linux-2.6/arch/cris/mm/fault.c
-@@ -245,10 +245,10 @@ do_page_fault(unsigned long address, str
- 
-  out_of_memory:
- 	up_read(&mm->mmap_sem);
--	printk("VM: killing process %s\n", tsk->comm);
--	if (user_mode(regs))
--		do_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
-  do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/frv/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/frv/mm/fault.c
-+++ linux-2.6/arch/frv/mm/fault.c
-@@ -257,10 +257,10 @@ asmlinkage void do_page_fault(int datamm
-  */
-  out_of_memory:
- 	up_read(&mm->mmap_sem);
--	printk("VM: killing process %s\n", current->comm);
--	if (user_mode(__frame))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(__frame))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
-  do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/ia64/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/ia64/mm/fault.c
-+++ linux-2.6/arch/ia64/mm/fault.c
-@@ -276,13 +276,7 @@ ia64_do_page_fault (unsigned long addres
- 
-   out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk(KERN_CRIT "VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
+-	anon_vma = page_anon_vma(page);
+-	if (!anon_vma)
++	page_avma = page_anon_vma(page);
++	if (!page_avma)
+ 		return ret;
+-	spin_lock(&anon_vma->lock);
+-	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
++	spin_lock(&page_avma->lock);
++restart:
++	list_for_each_entry(avc, &page_avma->head, same_anon_vma) {
++		struct anon_vma *vma_avma;
+ 		struct vm_area_struct *vma = avc->vma;
+ 		unsigned long address = vma_address(page, vma);
+-		if (address == -EFAULT)
+-			continue;
++		if (address == -EFAULT) {
++			/*
++			 * If the pages anon_vma and the VMAs anon_vma differ,
++			 * vma_address was called without the lock being held
++			 * but we cannot hold more than one lock on the anon_vma
++			 * list at a time without potentially causing a livelock.
++			 * Drop the page anon_vma lock, acquire the vma one and
++			 * then restart the whole operation
++			 */
++			if (vma->anon_vma != page_avma) {
++				vma_avma = vma->anon_vma;
++				spin_unlock(&page_avma->lock);
++
++				/*
++				 * XXX: rcu_read_lock will ensure that the
++				 *      anon_vma still exists but how can we be
++				 *      sure it has not been freed and reused?
++				 */
++				spin_lock(&vma_avma->lock);
++				address = vma_address(page, vma);
++				spin_unlock(&vma_avma->lock);
++
++				/* page_avma with elevated external_refcount exists */
++				spin_lock(&page_avma->lock);
++				if (address == -EFAULT)
++					continue;
++			}
++		}
+ 		ret = rmap_one(page, vma, address, arg);
+ 		if (ret != SWAP_AGAIN)
+ 			break;
++
++		/* Restart the whole list walk if the lock was dropped */
++		if (vma_avma)
++			goto restart;
+ 	}
+-	spin_unlock(&anon_vma->lock);
++	spin_unlock(&page_avma->lock);
+ 	return ret;
  }
-Index: linux-2.6/arch/m32r/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/m32r/mm/fault.c
-+++ linux-2.6/arch/m32r/mm/fault.c
-@@ -271,15 +271,10 @@ no_context:
-  */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(tsk)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", tsk->comm);
- 	if (error_code & ACE_USERMODE)
--		do_group_exit(SIGKILL);
--	goto no_context;
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
  
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/m68k/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/m68k/mm/fault.c
-+++ linux-2.6/arch/m68k/mm/fault.c
-@@ -180,15 +180,10 @@ good_area:
-  */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--
--	printk("VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
- no_context:
- 	current->thread.signo = SIGBUS;
-Index: linux-2.6/arch/microblaze/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/microblaze/mm/fault.c
-+++ linux-2.6/arch/microblaze/mm/fault.c
-@@ -273,16 +273,11 @@ bad_area_nosemaphore:
-  * us unable to handle the page fault gracefully.
-  */
- out_of_memory:
--	if (current->pid == 1) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
- 	up_read(&mm->mmap_sem);
--	printk(KERN_WARNING "VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_exit(SIGKILL);
--	bad_page_fault(regs, address, SIGKILL);
-+	if (!user_mode(regs))
-+		bad_page_fault(regs, address, SIGKILL);
-+	else
-+		pagefault_out_of_memory();
- 	return;
- 
- do_sigbus:
-Index: linux-2.6/arch/mn10300/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/mn10300/mm/fault.c
-+++ linux-2.6/arch/mn10300/mm/fault.c
-@@ -338,11 +338,10 @@ no_context:
-  */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	monitor_signal(regs);
--	printk(KERN_ALERT "VM: killing process %s\n", tsk->comm);
--	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
--		do_exit(SIGKILL);
--	goto no_context;
-+	if ((fault_code & MMUFCR_xFC_ACCESS) != MMUFCR_xFC_ACCESS_USR)
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/parisc/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/parisc/mm/fault.c
-+++ linux-2.6/arch/parisc/mm/fault.c
-@@ -264,8 +264,7 @@ no_context:
- 
-   out_of_memory:
- 	up_read(&mm->mmap_sem);
--	printk(KERN_CRIT "VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
- }
-Index: linux-2.6/arch/powerpc/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/powerpc/mm/fault.c
-+++ linux-2.6/arch/powerpc/mm/fault.c
-@@ -359,15 +359,10 @@ bad_area_nosemaphore:
-  */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	return SIGKILL;
-+	if (!user_mode(regs))
-+		return SIGKILL;
-+	pagefault_out_of_memory();
-+	return 0;
- 
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/score/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/score/mm/fault.c
-+++ linux-2.6/arch/score/mm/fault.c
-@@ -167,15 +167,10 @@ no_context:
- 	*/
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(tsk)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", tsk->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/sh/mm/fault_32.c
-===================================================================
---- linux-2.6.orig/arch/sh/mm/fault_32.c
-+++ linux-2.6/arch/sh/mm/fault_32.c
-@@ -290,15 +290,10 @@ no_context:
-  */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", tsk->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/sh/mm/tlbflush_64.c
-===================================================================
---- linux-2.6.orig/arch/sh/mm/tlbflush_64.c
-+++ linux-2.6/arch/sh/mm/tlbflush_64.c
-@@ -294,22 +294,11 @@ no_context:
-  * us unable to handle the page fault gracefully.
-  */
- out_of_memory:
--	if (is_global_init(current)) {
--		panic("INIT out of memory\n");
--		yield();
--		goto survive;
--	}
--	printk("fault:Out of memory\n");
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", tsk->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	if (!user_mode(regs))
-+		goto no_context;
-+	pagefault_out_of_memory();
-+	return;
- 
- do_sigbus:
- 	printk("fault:Do sigbus\n");
-Index: linux-2.6/arch/xtensa/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/xtensa/mm/fault.c
-+++ linux-2.6/arch/xtensa/mm/fault.c
-@@ -146,15 +146,10 @@ bad_area:
- 	 */
- out_of_memory:
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(current)) {
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	printk("VM: killing process %s\n", current->comm);
--	if (user_mode(regs))
--		do_group_exit(SIGKILL);
--	bad_page_fault(regs, address, SIGKILL);
-+	if (!user_mode(regs))
-+		bad_page_fault(regs, address, SIGKILL);
-+	else
-+		pagefault_out_of_memory();
- 	return;
- 
- do_sigbus:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
