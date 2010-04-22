@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BC96B01E3
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 17:11:58 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [10.3.21.3])
-	by smtp-out.google.com with ESMTP id o3MLBsvh011665
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 23:11:54 +0200
-Received: from pzk35 (pzk35.prod.google.com [10.243.19.163])
-	by hpaq3.eem.corp.google.com with ESMTP id o3MLBq5w030937
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 23:11:53 +0200
-Received: by pzk35 with SMTP id 35so1045129pzk.0
-        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 14:11:52 -0700 (PDT)
-Date: Thu, 22 Apr 2010 14:11:48 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EFFDC6B01E3
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 17:20:31 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id o3MLKR9d021555
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 23:20:28 +0200
+Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
+	by kpbe13.cbf.corp.google.com with ESMTP id o3MLK3LU025851
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 16:20:26 -0500
+Received: by pxi19 with SMTP id 19so857542pxi.26
+        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 14:20:26 -0700 (PDT)
+Date: Thu, 22 Apr 2010 14:20:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
- can be found
-In-Reply-To: <20100422192714.da3fdccf.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1004221409560.25350@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com> <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com> <20100407205418.FB90.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
- <20100421121758.af52f6e0.akpm@linux-foundation.org> <20100422072319.GW5683@laptop> <20100422162536.b904203e.kamezawa.hiroyu@jp.fujitsu.com> <20100422100944.GX5683@laptop> <20100422192714.da3fdccf.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
+In-Reply-To: <4BD05929.8040900@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com>
+References: <4BD05929.8040900@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Apr 2010, KAMEZAWA Hiroyuki wrote:
+On Thu, 22 Apr 2010, Miao Xie wrote:
 
-> Hmm...checking again.
+> - local variable might be an empty nodemask, so must be checked before setting
+>   pol->v.nodes to it.
 > 
-> Maybe related patches are:
->  1: oom-remove-special-handling-for-pagefault-ooms.patch
->  2: oom-default-to-killing-current-for-pagefault-ooms.patch
+> - nodes_remap() may cause the weight of pol->v.nodes being monotonic decreasing.
+>   and never become large even we pass a nodemask with large weight after
+>   ->v.nodes become little.
 > 
-> IIUC, (1) doesn't make change. But (2)...
+
+That's always been the intention of rebinding a mempolicy nodemask: we 
+remap the current mempolicy nodes over the new nodemask given the set of 
+allowed nodes.  The nodes_remap() shouldn't be removed.
+
+> this patch fixes these two problem.
 > 
-> Before(1)
->  - pagefault-oom kills someone by out_of_memory().
-> After (1)
->  - pagefault-oom calls out_of_memory() only when someone isn't being killed.
+> Signed-off-by: Miao Xie <miaox@cn.fujitsu.com>
+> ---
+>  mm/mempolicy.c |    9 ++++++---
+>  1 files changed, 6 insertions(+), 3 deletions(-)
 > 
-> So, this patch helps to avoid double-kill and I like this change.
-> 
-> Before (2)
->  At pagefault-out-of-memory
->   - panic_on_oom==2, panic always.
->   - panic_on_oom==1, panic when CONSITRAINT_NONE.
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 08f40a2..03ba9fc 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -291,12 +291,15 @@ static void mpol_rebind_nodemask(struct mempolicy *pol,
+>  	else if (pol->flags & MPOL_F_RELATIVE_NODES)
+>  		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+>  	else {
+> -		nodes_remap(tmp, pol->v.nodes, pol->w.cpuset_mems_allowed,
+> -			    *nodes);
+> +		tmp = *nodes;
+>  		pol->w.cpuset_mems_allowed = *nodes;
+>  	}
 >  
-> After (2)
->   At pagefault-put-of-memory, if there is no running OOM-Kill,
->   current is killed always. In this case, panic_on_oom doesn't work.
-> 
-> I think panic_on_oom==2 should work.. Hmm. why this behavior changes ?
-> 
-
-We can readd the panic_on_oom code once Nick's patchset is merged that 
-unifies all architectures in using pagefault_out_of_memory() for 
-VM_FAULT_OOM.  Otherwise, some architectures would panic in this case and 
-others would not (while they allow tasks to be SIGKILL'd even when 
-panic_on_oom == 2 is set, including OOM_DISABLE tasks!) so I think it's 
-better to be entirely consistent with sysctl semantics across 
-architectures.
+> -	pol->v.nodes = tmp;
+> +	if (nodes_empty(tmp))
+> +		pol->v.nodes = *nodes;
+> +	else
+> +		pol->v.nodes = tmp;
+> +
+>  	if (!node_isset(current->il_next, tmp)) {
+>  		current->il_next = next_node(current->il_next, tmp);
+>  		if (current->il_next >= MAX_NUMNODES)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
