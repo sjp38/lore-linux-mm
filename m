@@ -1,145 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 55D1C6B01F1
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 06:13:14 -0400 (EDT)
-Received: by gwj15 with SMTP id 15so1827053gwj.14
-        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:13:12 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0CD9F6B01F1
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 06:15:18 -0400 (EDT)
+Received: by gwj15 with SMTP id 15so1827900gwj.14
+        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:15:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
-	 <alpine.DEB.2.00.1004210927550.4959@router.home>
-	 <20100421150037.GJ30306@csn.ul.ie>
-	 <alpine.DEB.2.00.1004211004360.4959@router.home>
-	 <20100421151417.GK30306@csn.ul.ie>
-	 <alpine.DEB.2.00.1004211027120.4959@router.home>
-	 <20100421153421.GM30306@csn.ul.ie>
-	 <alpine.DEB.2.00.1004211038020.4959@router.home>
-	 <20100422092819.GR30306@csn.ul.ie>
-	 <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 22 Apr 2010 19:13:12 +0900
-Message-ID: <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of PageSwapCache
-	pages
+In-Reply-To: <4BCED815.90704@kernel.org>
+References: <4BC6CB30.7030308@kernel.org>
+	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
+	 <4BC6FBC8.9090204@kernel.org>
+	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
+	 <alpine.DEB.2.00.1004161105120.7710@router.home>
+	 <1271606079.2100.159.camel@barrios-desktop>
+	 <alpine.DEB.2.00.1004191235160.9855@router.home>
+	 <4BCCD8BD.1020307@kernel.org> <20100420150522.GG19264@csn.ul.ie>
+	 <4BCED815.90704@kernel.org>
+Date: Thu, 22 Apr 2010 19:15:14 +0900
+Message-ID: <x2h28c262361004220315v9b8fbf3ei86fe0ebba92169f1@mail.gmail.com>
+Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 22, 2010 at 6:46 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 22 Apr 2010 10:28:20 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, Apr 21, 2010 at 7:48 PM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
 >
->> On Wed, Apr 21, 2010 at 10:46:45AM -0500, Christoph Lameter wrote:
->> > On Wed, 21 Apr 2010, Mel Gorman wrote:
->> >
->> > > > > 2. Is the BUG_ON check in
->> > > > > =C2=A0 =C2=A0include/linux/swapops.h#migration_entry_to_page() n=
-ow wrong? (I
->> > > > > =C2=A0 =C2=A0think yes, but I'm not sure and I'm having trouble =
-verifying it)
->> > > >
->> > > > The bug check ensures that migration entries only occur when the p=
-age
->> > > > is locked. This patch changes that behavior. This is going too oop=
-s
->> > > > therefore in unmap_and_move() when you try to remove the migration=
-_ptes
->> > > > from an unlocked page.
->> > > >
->> > >
->> > > It's not unmap_and_move() that the problem is occurring on but durin=
-g a
->> > > page fault - presumably in do_swap_page but I'm not 100% certain.
->> >
->> > remove_migration_pte() calls migration_entry_to_page(). So it must do =
-that
->> > only if the page is still locked.
->> >
->>
->> Correct, but the other call path is
->>
->> do_swap_page
->> =C2=A0 -> migration_entry_wait
->> =C2=A0 =C2=A0 -> migration_entry_to_page
->>
->> with migration_entry_wait expecting the page to be locked. There is a da=
-ngling
->> migration PTEs coming from somewhere. I thought it was from unmapped swa=
-pcache
->> first, but that cannot be the case. There is a race somewhere.
->>
->> > You need to ensure that the page is not unlocked in move_to_new_page()=
- if
->> > the migration ptes are kept.
->> >
->> > move_to_new_page() only unlocks the new page not the original page. So=
- that is safe.
->> >
->> > And it seems that the old page is also unlocked in unmap_and_move() on=
-ly
->> > after the migration_ptes have been removed? So we are fine after all..=
-.?
->> >
->>
->> You'd think but migration PTEs are being left behind in some circumstanc=
-e. I
->> thought it was due to this series, but it's unlikely. It's more a case t=
-hat
->> compaction heavily exercises migration.
->>
->> We can clean up the old migration PTEs though when they are encountered
->> like in the following patch for example? I'll continue investigating why
->> this dangling migration pte exists as closing that race would be a
->> better fix.
->>
->> =3D=3D=3D=3D CUT HERE =3D=3D=3D=3D
->> mm,migration: Remove dangling migration ptes pointing to unlocked pages
->>
->> Due to some yet-to-be-identified race, it is possible for migration PTEs
->> to be left behind, When later paged-in, a BUG is triggered that assumes
->> that all migration PTEs are point to a page currently being migrated and
->> so must be locked.
->>
->> Rather than calling BUG, this patch notes the existance of dangling migr=
-ation
->> PTEs in migration_entry_wait() and cleans them up.
->>
+> On 04/20/2010 05:05 PM, Mel Gorman wrote:
+>> alloc_pages_exact_node() avoids a branch in a hot path that is checking =
+for
+>> something the caller already knows. That's the reason it exists.
 >
-> I use similar patch for debugging. In my patch, this when this function f=
-ounds
-> dangling migration entry, return error code and do_swap_page() returns
-> VM_FAULT_SIGBUS.
+> Yeah sure but Minchan is trying to tidy up the API by converting
+> alloc_pages_node() users to use alloc_pages_exact_node(), at which
+> point, the distinction becomes pretty useless. =C2=A0Wouldn't just making
+> alloc_pages_node() do what alloc_pages_exact_node() does now and
+> converting all its users be simpler? =C2=A0IIRC, the currently planned
+> transformation looks like the following.
 >
+> =C2=A0alloc_pages() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0-> alloc_pages_any_node()
+> =C2=A0alloc_pages_node() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 -> bas=
+ically gonna be obsoleted by _exact_node
+> =C2=A0alloc_pages_exact_node() =C2=A0 =C2=A0 =C2=A0 -> gonna be used by m=
+ost NUMA aware allocs
 >
-> Hmm..in my test, the case was.
->
-> Before try_to_unmap:
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mapcount=3D1, SwapCache, remap_swapcache=3D1
-> After remap
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0mapcount=3D0, SwapCache, rc=3D0.
->
-> So, I think there may be some race in rmap_walk() and vma handling or
-> anon_vma handling. migration_entry isn't found by rmap_walk.
->
-> Hmm..it seems this kind patch will be required for debug.
+> So, let's just make sure no one calls alloc_pages_node() w/ -1 nid,
+> kill alloc_pages_node() and rename alloc_pages_exact_node() to
+> alloc_pages_node().
 
-I looked do_swap_page, again.
-lock_page is called long after migration_entry_wait.
-It means lock_page can't close the race.
-
-So I think this BUG is possible.
-What do you think?
-
-> -Kame
->
->
->
->
-
+Yes. It was a stupid idea. I hope Mel agree this suggestion.
+Thanks for careful review, Tejun.
 
 
 --=20
