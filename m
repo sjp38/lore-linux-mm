@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D2A3C6B01FC
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:29:11 -0400 (EDT)
-Date: Thu, 22 Apr 2010 06:28:49 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B9BBE6B01F1
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:30:48 -0400 (EDT)
+Date: Thu, 22 Apr 2010 06:29:09 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: Cleancache [PATCH 4/7] (was Transcendent Memory): ext3 hook
-Message-ID: <20100422132849.GA27333@ca-server1.us.oracle.com>
+Subject: Cleancache [PATCH 5/7] (was Transcendent Memory): btrfs hooks
+Message-ID: <20100422132909.GA27349@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -15,35 +15,69 @@ List-ID: <linux-mm.kvack.org>
 
 (Sorry for resend... Mail server DNS problems sending to some recipients)
 
-Cleancache [PATCH 4/7] (was Transcendent Memory): ext3 hook
+Cleancache [PATCH 5/7] (was Transcendent Memory): btrfs hooks
 
-Filesystems must explicitly enable cleancache.  For ext3,
-all other cleancache hooks are in the VFS layer.
+Filesystems must explicitly enable cleancache.  Also, btrfs
+uses its own readpage which must be hooked.
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Chris Mason <chris.mason@oracle.com>
 
 Diffstat:
+ extent_io.c                              |    9 +++++++++
  super.c                                  |    2 ++
- 1 file changed, 2 insertions(+)
+ 2 files changed, 11 insertions(+)
 
---- linux-2.6.34-rc5/fs/ext3/super.c	2010-04-19 17:29:56.000000000 -0600
-+++ linux-2.6.34-rc5-cleancache/fs/ext3/super.c	2010-04-21 10:06:48.000000000 -0600
-@@ -37,6 +37,7 @@
- #include <linux/quotaops.h>
- #include <linux/seq_file.h>
- #include <linux/log2.h>
+--- linux-2.6.34-rc5/fs/btrfs/super.c	2010-04-19 17:29:56.000000000 -0600
++++ linux-2.6.34-rc5-cleancache/fs/btrfs/super.c	2010-04-21 10:08:39.000000000 -0600
+@@ -39,6 +39,7 @@
+ #include <linux/miscdevice.h>
+ #include <linux/magic.h>
+ #include <linux/slab.h>
 +#include <linux/cleancache.h>
+ #include "compat.h"
+ #include "ctree.h"
+ #include "disk-io.h"
+@@ -477,6 +478,7 @@ static int btrfs_fill_super(struct super
+ 	sb->s_root = root_dentry;
  
- #include <asm/uaccess.h>
- 
-@@ -1344,6 +1345,7 @@ static int ext3_setup_super(struct super
- 	} else {
- 		ext3_msg(sb, KERN_INFO, "using internal journal");
- 	}
+ 	save_mount_options(sb, data);
 +	sb->cleancache_poolid = cleancache_init_fs(PAGE_SIZE);
- 	return res;
- }
+ 	return 0;
  
+ fail_close:
+--- linux-2.6.34-rc5/fs/btrfs/extent_io.c	2010-04-19 17:29:56.000000000 -0600
++++ linux-2.6.34-rc5-cleancache/fs/btrfs/extent_io.c	2010-04-21 10:07:31.000000000 -0600
+@@ -10,6 +10,7 @@
+ #include <linux/swap.h>
+ #include <linux/writeback.h>
+ #include <linux/pagevec.h>
++#include <linux/cleancache.h>
+ #include "extent_io.h"
+ #include "extent_map.h"
+ #include "compat.h"
+@@ -2030,6 +2031,13 @@ static int __extent_read_full_page(struc
+ 
+ 	set_page_extent_mapped(page);
+ 
++	if (!PageUptodate(page)) {
++		if (cleancache_get_page(page) == 1) {
++			BUG_ON(blocksize != PAGE_SIZE);
++			goto out;
++		}
++	}
++
+ 	end = page_end;
+ 	lock_extent(tree, start, end, GFP_NOFS);
+ 
+@@ -2146,6 +2154,7 @@ static int __extent_read_full_page(struc
+ 		cur = cur + iosize;
+ 		page_offset += iosize;
+ 	}
++out:
+ 	if (!nr) {
+ 		if (!PageError(page))
+ 			SetPageUptodate(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
