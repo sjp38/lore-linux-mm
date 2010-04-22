@@ -1,85 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E5B0E6B01EF
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 20:27:25 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3M0RMbs018478
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Apr 2010 09:27:22 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F8BF45DE6E
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C8F445DE60
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 141E81DB803A
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB2FA1DB8037
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:18 +0900 (JST)
-Date: Thu, 22 Apr 2010 09:23:24 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable
- task can be found
-Message-Id: <20100422092324.3900c5d4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1004211502430.25558@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com>
-	<20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100407205418.FB90.A69D9226@jp.fujitsu.com>
-	<alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
-	<20100421121758.af52f6e0.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1004211502430.25558@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 553B06B01EF
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 21:03:14 -0400 (EDT)
+Received: by pzk11 with SMTP id 11so3016930pzk.28
+        for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:03:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1004210909110.4959@router.home>
+References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
+	 <20100413083855.GS25756@csn.ul.ie>
+	 <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
+	 <20100416111539.GC19264@csn.ul.ie>
+	 <o2kcf18f8341004160803v9663d602g8813b639024b5eca@mail.gmail.com>
+	 <alpine.DEB.2.00.1004161049130.7710@router.home>
+	 <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
+	 <alpine.DEB.2.00.1004191245250.9855@router.home>
+	 <w2ucf18f8341004191908v2546cfffo3cc7615802ca1c80@mail.gmail.com>
+	 <alpine.DEB.2.00.1004210909110.4959@router.home>
+Date: Thu, 22 Apr 2010 09:03:12 +0800
+Message-ID: <m2vcf18f8341004211803x1392ee7ftc92a1d803316bcee@mail.gmail.com>
+Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Apr 2010 15:04:27 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Wed, Apr 21, 2010 at 10:13 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Tue, 20 Apr 2010, Bob Liu wrote:
+>
+>> On Tue, Apr 20, 2010 at 1:47 AM, Christoph Lameter
+>> <cl@linux-foundation.org> wrote:
+>> > On Sat, 17 Apr 2010, Bob Liu wrote:
+>> >
+>> >> > GFP_THISNODE forces allocation from the node. Without it we will fallback.
+>> >> >
+>> >>
+>> >> Yeah, but I think we shouldn't fallback at this case, what we want is
+>> >> alloc a page
+>> >> from exactly the dest node during migrate_to_node(dest).So I added
+>> >> GFP_THISNODE.
+>> >
+>> > Why would we want that?
+>> >
+>>
+>> Because if dest node have no memory, it will fallback to other nodes.
+>> The dest node's fallback nodes may be nodes in nodemask from_nodes.
+>> It maybe make circulation ?.(I am not sure.)
+>>
+>> What's more,i think it against the user's request.
+>
+> The problem is your perception of NUMA against the kernel NUMA design. As
+> long as you have this problem I would suggest that you do not submit
+> patches against NUMA functionality in the kernel.
+>
+ok :)
 
-> On Wed, 21 Apr 2010, Andrew Morton wrote:
-> 
-> > fyi, I still consider these patches to be in the "stuck" state.  So we
-> > need to get them unstuck.
-> > 
-> > 
-> > Hiroyuki (and anyone else): could you please summarise in the briefest
-> > way possible what your objections are to Daivd's oom-killer changes?
-> > 
-> > I'll start: we don't change the kernel ABI.  Ever.  And when we _do_
-> > change it we don't change it without warning.
-> > 
-> 
-> I'm not going to allow a simple cleanup to jeopardize the entire patchset, 
-> so I can write a patch that readds /proc/sys/vm/oom_kill_allocating_task 
-> that simply mirrors the setting of /proc/sys/vm/oom_kill_quick and then 
-> warn about its deprecation. 
+>> The user wants to move pages from from_nodes to to_nodes, if fallback
+>> happened, the pages may be moved to other nodes instead of any node in
+>> nodemask to_nodes.
+>> I am not sure if the user can expect this and accept.
+>
+> Sure the user always had it this way. NUMA allocations (like also
+> MPOL_INTERLEAVE round robin) are *only* attempts to allocate on specific
+> nodes.
+>
+> There was never a guarantee (until GFP_THISNODE arrived on the scene to
+> fix SLAB breakage but that was very late in NUMA design of the kernel).
+>
 
-Yeah, I welcome it.
+Thanks for your patient reply.
+Just one small point, why do_move_pages() in migrate.c needs GFP_THISNODE ?
 
-> I don't believe we need to do the same thing 
-> for the removal of /proc/sys/vm/oom_dump_tasks since that functionality is 
-> now enabled by default.
-> 
-
-But *warning* is always apprecieated and will not make the whole patches
-too dirty. So, please write one.
-
-BTW, I don't think there is an admin who turns off oom_dump_task..
-So, just keeping interface and putting this one to feature-removal-list 
-is okay for me if you want to cleanup sysctl possibly.
-
-Talking about myself, I also want to remove/cleanup some interface under memcg
-which is rarely used. But I don't do because we have users. And I'll not to
-clean up as far as we can maintain it. Then, we have to be careful to add
-interfaces.
-
-Thanks,
--Kame
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
