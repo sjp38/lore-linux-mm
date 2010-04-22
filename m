@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DAF86B01E3
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 04:30:32 -0400 (EDT)
-Message-ID: <4BCED815.90704@kernel.org>
-Date: Wed, 21 Apr 2010 12:48:53 +0200
-From: Tejun Heo <tj@kernel.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C2B76B01EF
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 04:34:27 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id o3M8YORX021807
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 01:34:24 -0700
+Received: from pwj2 (pwj2.prod.google.com [10.241.219.66])
+	by wpaz17.hot.corp.google.com with ESMTP id o3M8YNTF014164
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 01:34:23 -0700
+Received: by pwj2 with SMTP id 2so5480734pwj.3
+        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 01:34:23 -0700 (PDT)
+Date: Thu, 22 Apr 2010 01:34:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
+ can be found
+In-Reply-To: <20100422092324.3900c5d4.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1004220132080.11176@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com> <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com> <20100407205418.FB90.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
+ <20100421121758.af52f6e0.akpm@linux-foundation.org> <alpine.DEB.2.00.1004211502430.25558@chino.kir.corp.google.com> <20100422092324.3900c5d4.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-References: <4BC6CB30.7030308@kernel.org> <l2u28c262361004150240q8a873b6axb73eaa32fd6e65e6@mail.gmail.com> <4BC6E581.1000604@kernel.org> <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com> <4BC6FBC8.9090204@kernel.org> <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com> <alpine.DEB.2.00.1004161105120.7710@router.home> <1271606079.2100.159.camel@barrios-desktop> <alpine.DEB.2.00.1004191235160.9855@router.home> <4BCCD8BD.1020307@kernel.org> <20100420150522.GG19264@csn.ul.ie>
-In-Reply-To: <20100420150522.GG19264@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 22 Apr 2010, KAMEZAWA Hiroyuki wrote:
 
-On 04/20/2010 05:05 PM, Mel Gorman wrote:
-> alloc_pages_exact_node() avoids a branch in a hot path that is checking for
-> something the caller already knows. That's the reason it exists.
+> > I'm not going to allow a simple cleanup to jeopardize the entire patchset, 
+> > so I can write a patch that readds /proc/sys/vm/oom_kill_allocating_task 
+> > that simply mirrors the setting of /proc/sys/vm/oom_kill_quick and then 
+> > warn about its deprecation. 
+> 
+> Yeah, I welcome it.
+> 
 
-Yeah sure but Minchan is trying to tidy up the API by converting
-alloc_pages_node() users to use alloc_pages_exact_node(), at which
-point, the distinction becomes pretty useless.  Wouldn't just making
-alloc_pages_node() do what alloc_pages_exact_node() does now and
-converting all its users be simpler?  IIRC, the currently planned
-transformation looks like the following.
+Ok, good.
 
- alloc_pages()			-> alloc_pages_any_node()
- alloc_pages_node()		-> basically gonna be obsoleted by _exact_node
- alloc_pages_exact_node()	-> gonna be used by most NUMA aware allocs
+> > I don't believe we need to do the same thing 
+> > for the removal of /proc/sys/vm/oom_dump_tasks since that functionality is 
+> > now enabled by default.
+> > 
+> 
+> But *warning* is always apprecieated and will not make the whole patches
+> too dirty. So, please write one.
+> 
+> BTW, I don't think there is an admin who turns off oom_dump_task..
+> So, just keeping interface and putting this one to feature-removal-list 
+> is okay for me if you want to cleanup sysctl possibly.
+> 
 
-So, let's just make sure no one calls alloc_pages_node() w/ -1 nid,
-kill alloc_pages_node() and rename alloc_pages_exact_node() to
-alloc_pages_node().
+Do we really need to keep oom_dump_tasks around since the result of this 
+patchset is that we've enabled it by default?  It seems to me like users 
+who now want to disable it (something that nobody is currently doing, it's 
+the default in Linus' tree) can simply do
 
-Thanks.
+	echo 1 > /proc/sys/vm/oom_kill_quick
 
--- 
-tejun
+instead to both suppress the tasklist scan for the dump and for the target 
+selection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
