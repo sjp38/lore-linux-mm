@@ -1,82 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id F0B1F6B01E3
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 20:11:05 -0400 (EDT)
-Received: by gwj15 with SMTP id 15so1547522gwj.14
-        for <linux-mm@kvack.org>; Wed, 21 Apr 2010 17:11:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100422085943.3d908a4b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
-	 <1271797276-31358-5-git-send-email-mel@csn.ul.ie>
-	 <alpine.DEB.2.00.1004210927550.4959@router.home>
-	 <20100422085943.3d908a4b.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Thu, 22 Apr 2010 09:11:04 +0900
-Message-ID: <t2l28c262361004211711v728b50e5h91e0b3bb94dcef4b@mail.gmail.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of PageSwapCache
-	pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E5B0E6B01EF
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 20:27:25 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3M0RMbs018478
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 22 Apr 2010 09:27:22 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F8BF45DE6E
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C8F445DE60
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 141E81DB803A
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:22 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AB2FA1DB8037
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 09:27:18 +0900 (JST)
+Date: Thu, 22 Apr 2010 09:23:24 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable
+ task can be found
+Message-Id: <20100422092324.3900c5d4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1004211502430.25558@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com>
+	<20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100407205418.FB90.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
+	<20100421121758.af52f6e0.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1004211502430.25558@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 22, 2010 at 8:59 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Wed, 21 Apr 2010 09:30:20 -0500 (CDT)
-> Christoph Lameter <cl@linux-foundation.org> wrote:
->
->> On Tue, 20 Apr 2010, Mel Gorman wrote:
->>
->> > @@ -520,10 +521,12 @@ static int move_to_new_page(struct page *newpage=
-, struct page *page)
->> > =C2=A0 =C2=A0 else
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 rc =3D fallback_migrate_page=
-(mapping, newpage, page);
->> >
->> > - =C2=A0 if (!rc)
->> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 remove_migration_ptes(page, newpa=
-ge);
->> > - =C2=A0 else
->> > + =C2=A0 if (rc) {
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 newpage->mapping =3D NULL;
->> > + =C2=A0 } else {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (remap_swapcache)
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 remov=
-e_migration_ptes(page, newpage);
->> > + =C2=A0 }
->>
->> You are going to keep the migration ptes after the page has been unlocke=
-d?
->> Or is remap_swapcache true if its not a swapcache page?
->>
->> Maybe you meant
->>
->> if (!remap_swapcache)
->>
->
-> Ah....Can I confirm my understanding ?
->
-> remap_swapcache =3D=3D true only when
-> =C2=A0The old page was ANON && it is not mapped. && it is SwapCache.
->
-> We do above check under lock_page(). So, this SwapCache is never mapped u=
-ntil
-> we release lock_page() on the old page. So, we don't use migration_pte in
-> this case because try_to_unmap() do nothing and don't need to call
-> remove_migration_pte().
+On Wed, 21 Apr 2010 15:04:27 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-Yes. so I thought what kinds of race happened.
-Firstly I doubt fork and migration. but It isn't.
-I can't understand how this bug happens.
-Apparently, We have been missed something.
-I will look into this further.
+> On Wed, 21 Apr 2010, Andrew Morton wrote:
+> 
+> > fyi, I still consider these patches to be in the "stuck" state.  So we
+> > need to get them unstuck.
+> > 
+> > 
+> > Hiroyuki (and anyone else): could you please summarise in the briefest
+> > way possible what your objections are to Daivd's oom-killer changes?
+> > 
+> > I'll start: we don't change the kernel ABI.  Ever.  And when we _do_
+> > change it we don't change it without warning.
+> > 
+> 
+> I'm not going to allow a simple cleanup to jeopardize the entire patchset, 
+> so I can write a patch that readds /proc/sys/vm/oom_kill_allocating_task 
+> that simply mirrors the setting of /proc/sys/vm/oom_kill_quick and then 
+> warn about its deprecation. 
 
+Yeah, I welcome it.
 
---=20
-Kind regards,
-Minchan Kim
+> I don't believe we need to do the same thing 
+> for the removal of /proc/sys/vm/oom_dump_tasks since that functionality is 
+> now enabled by default.
+> 
+
+But *warning* is always apprecieated and will not make the whole patches
+too dirty. So, please write one.
+
+BTW, I don't think there is an admin who turns off oom_dump_task..
+So, just keeping interface and putting this one to feature-removal-list 
+is okay for me if you want to cleanup sysctl possibly.
+
+Talking about myself, I also want to remove/cleanup some interface under memcg
+which is rarely used. But I don't do because we have users. And I'll not to
+clean up as far as we can maintain it. Then, we have to be careful to add
+interfaces.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
