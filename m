@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 553B06B01EF
-	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 21:03:14 -0400 (EDT)
-Received: by pzk11 with SMTP id 11so3016930pzk.28
-        for <linux-mm@kvack.org>; Wed, 21 Apr 2010 18:03:13 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D048C6B01E3
+	for <linux-mm@kvack.org>; Wed, 21 Apr 2010 22:52:41 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: [PATCH] virtio: Fix GFP flags passed from the virtio balloon driver
+Date: Thu, 22 Apr 2010 12:22:34 +0930
+References: <20100421190704.GK3994@balbir.in.ibm.com>
+In-Reply-To: <20100421190704.GK3994@balbir.in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1004210909110.4959@router.home>
-References: <1270522777-9216-1-git-send-email-lliubbo@gmail.com>
-	 <20100413083855.GS25756@csn.ul.ie>
-	 <q2ycf18f8341004130728hf560f5cdpa8704b7031a0076d@mail.gmail.com>
-	 <20100416111539.GC19264@csn.ul.ie>
-	 <o2kcf18f8341004160803v9663d602g8813b639024b5eca@mail.gmail.com>
-	 <alpine.DEB.2.00.1004161049130.7710@router.home>
-	 <m2vcf18f8341004170654tc743e4b0s73a0e234cfdcda93@mail.gmail.com>
-	 <alpine.DEB.2.00.1004191245250.9855@router.home>
-	 <w2ucf18f8341004191908v2546cfffo3cc7615802ca1c80@mail.gmail.com>
-	 <alpine.DEB.2.00.1004210909110.4959@router.home>
-Date: Thu, 22 Apr 2010 09:03:12 +0800
-Message-ID: <m2vcf18f8341004211803x1392ee7ftc92a1d803316bcee@mail.gmail.com>
-Subject: Re: [PATCH] mempolicy:add GFP_THISNODE when allocing new page
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201004221222.36014.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, minchan.kim@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, andi@firstfloor.org, rientjes@google.com, lee.schermerhorn@hp.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: balbir@linux.vnet.ibm.com, kvm <kvm@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, virtualization@lists.linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 21, 2010 at 10:13 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> On Tue, 20 Apr 2010, Bob Liu wrote:
->
->> On Tue, Apr 20, 2010 at 1:47 AM, Christoph Lameter
->> <cl@linux-foundation.org> wrote:
->> > On Sat, 17 Apr 2010, Bob Liu wrote:
->> >
->> >> > GFP_THISNODE forces allocation from the node. Without it we will fallback.
->> >> >
->> >>
->> >> Yeah, but I think we shouldn't fallback at this case, what we want is
->> >> alloc a page
->> >> from exactly the dest node during migrate_to_node(dest).So I added
->> >> GFP_THISNODE.
->> >
->> > Why would we want that?
->> >
->>
->> Because if dest node have no memory, it will fallback to other nodes.
->> The dest node's fallback nodes may be nodes in nodemask from_nodes.
->> It maybe make circulation ?.(I am not sure.)
->>
->> What's more,i think it against the user's request.
->
-> The problem is your perception of NUMA against the kernel NUMA design. As
-> long as you have this problem I would suggest that you do not submit
-> patches against NUMA functionality in the kernel.
->
-ok :)
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
->> The user wants to move pages from from_nodes to to_nodes, if fallback
->> happened, the pages may be moved to other nodes instead of any node in
->> nodemask to_nodes.
->> I am not sure if the user can expect this and accept.
->
-> Sure the user always had it this way. NUMA allocations (like also
-> MPOL_INTERLEAVE round robin) are *only* attempts to allocate on specific
-> nodes.
->
-> There was never a guarantee (until GFP_THISNODE arrived on the scene to
-> fix SLAB breakage but that was very late in NUMA design of the kernel).
->
+The virtio balloon driver can dig into the reservation pools
+of the OS to satisfy a balloon request. This is not advisable
+and other balloon drivers (drivers/xen/balloon.c) avoid this
+as well. The patch also adds changes to avoid printing a warning
+if allocation fails, since we retry after sometime anyway.
 
-Thanks for your patient reply.
-Just one small point, why do_move_pages() in migrate.c needs GFP_THISNODE ?
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+Cc: kvm <kvm@vger.kernel.org>
+Cc: stable@kernel.org
+---
+ drivers/virtio/virtio_balloon.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
--- 
-Regards,
---Bob
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 369f2ee..f8ffe8c 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -102,7 +102,8 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+ 
+ 	for (vb->num_pfns = 0; vb->num_pfns < num; vb->num_pfns++) {
+-		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY);
++		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
++					__GFP_NOMEMALLOC | __GFP_NOWARN);
+ 		if (!page) {
+ 			if (printk_ratelimit())
+ 				dev_printk(KERN_INFO, &vb->vdev->dev,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
