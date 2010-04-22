@@ -1,105 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0DA966B01F9
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 10:14:43 -0400 (EDT)
-Message-ID: <4BD05900.7040203@cn.fujitsu.com>
-Date: Thu, 22 Apr 2010 22:11:12 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F046B01F4
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 10:16:12 -0400 (EDT)
+Date: Thu, 22 Apr 2010 15:14:05 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+	PageSwapCache  pages
+Message-ID: <20100422141404.GA30306@csn.ul.ie>
+References: <alpine.DEB.2.00.1004211004360.4959@router.home> <20100421151417.GK30306@csn.ul.ie> <alpine.DEB.2.00.1004211027120.4959@router.home> <20100421153421.GM30306@csn.ul.ie> <alpine.DEB.2.00.1004211038020.4959@router.home> <20100422092819.GR30306@csn.ul.ie> <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com> <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com> <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com> <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/2] fix oom happening when changing cpuset'mems(was: [regression]
- cpuset,mm: update tasks' mems_allowed in time (58568d2))
-Content-Type: multipart/mixed;
- boundary="------------020700000103080306030400"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020700000103080306030400
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+On Thu, Apr 22, 2010 at 07:51:53PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 22 Apr 2010 19:31:06 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > On Thu, 22 Apr 2010 19:13:12 +0900
+> > Minchan Kim <minchan.kim@gmail.com> wrote:
+> > 
+> > > On Thu, Apr 22, 2010 at 6:46 PM, KAMEZAWA Hiroyuki
+> > > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > > Hmm..in my test, the case was.
+> > > >
+> > > > Before try_to_unmap:
+> > > >        mapcount=1, SwapCache, remap_swapcache=1
+> > > > After remap
+> > > >        mapcount=0, SwapCache, rc=0.
+> > > >
+> > > > So, I think there may be some race in rmap_walk() and vma handling or
+> > > > anon_vma handling. migration_entry isn't found by rmap_walk.
+> > > >
+> > > > Hmm..it seems this kind patch will be required for debug.
+> > > 
+> 
+> Ok, here is my patch for _fix_. But still testing...
+> Running well at least for 30 minutes, where I can see bug in 10minutes.
+> But this patch is too naive. please think about something better fix.
+> 
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> At adjust_vma(), vma's start address and pgoff is updated under
+> write lock of mmap_sem. This means the vma's rmap information
+> update is atoimic only under read lock of mmap_sem.
+> 
+> 
+> Even if it's not atomic, in usual case, try_to_ummap() etc...
+> just fails to decrease mapcount to be 0. no problem.
+> 
+> But at page migration's rmap_walk(), it requires to know all
+> migration_entry in page tables and recover mapcount.
+> 
+> So, this race in vma's address is critical. When rmap_walk meet
+> the race, rmap_walk will mistakenly get -EFAULT and don't call
+> rmap_one(). This patch adds a lock for vma's rmap information. 
+> But, this is _very slow_.
 
-Nick Piggin reported that the allocator may see an empty nodemask when
-changing cpuset's mems.
+Ok wow. That is exceptionally well-spotted. This looks like a proper bug
+that compaction exposes as opposed to a bug that compaction introduces.
 
-The problem is that:
-Cpuset updates task->mems_allowed and mempolicy by setting all new bits
-in the nodemask first, and clearing all old unallowed bits later.
-But the allocator may load a word of the mask before setting all new bits
-and then load another word of the mask after clearing all old unallowed
-bits, in this way, the allocator sees an empty nodemask.
+> We need something sophisitcated, light-weight update for this..
+> 
 
-It happens only on the kernel that do not do atomic nodemask_t stores.
-(MAX_NUMNODES > BITS_PER_LONG)
+In the event the VMA is backed by a file, the mapping i_mmap_lock is taken for
+the duration of the update and is  taken elsewhere where the VMA information
+is read such as rmap_walk_file()
 
-But I found that there is also a problem on the kernel that can do atomic
-nodemask_t stores. The problem is that the allocator can't find a node to
-alloc page when changing cpuset's mems though there is a lot of free memory.
+In the event the VMA is anon, vma_adjust currently talks no locks and your
+patch introduces a new one but why not use the anon_vma lock here? Am I
+missing something that requires the new lock?
 
-I can use the attached program reproduce it by the following step:
-# mkdir /dev/cpuset
-# mount -t cpuset cpuset /dev/cpuset
-# mkdir /dev/cpuset/1
-# echo `cat /dev/cpuset/cpus` > /dev/cpuset/1/cpus
-# echo `cat /dev/cpuset/mems` > /dev/cpuset/1/mems
-# echo $$ > /dev/cpuset/1/tasks
-# numactl --membind=`cat /dev/cpuset/mems` ./cpuset_mem_hog <nr_tasks> &
-   <nr_tasks> = max(nr_cpus - 1, 1)
-# killall -s SIGUSR1 cpuset_mem_hog
-# ./change_mems.sh
+For example;
 
-several hours later, oom will happen though there is a lot of free memory.
+==== CUT HERE ====
+mm: Take the anon_vma lock in vma_adjust()
 
-The problem is following:
-	task1					task2
-	mmap()				mems=1
-	  Can alloc page on node0? NO	mems=1
-					mems=0	change mems from 1 to 0
-					mems=0-1  set all new bits
-					mems=0	  clear all disallowed bits
-	  Can alloc page on node1? NO	mems=0
-	  ...
-	can't alloc page
-	  goto oom
+vma_adjust() is updating anon VMA information without any locks taken.
+In constract, file-backed mappings use the i_mmap_lock. This lack of
+locking can result in races with page migration. During rmap_walk(),
+vma_address() can return -EFAULT for an address that will soon be valid.
+This leaves a dangling migration PTE behind which can later cause a
+BUG_ON to trigger when the page is faulted in.
 
-this patchset fixes those problems.
+This patch takes the anon_vma->lock during vma_adjust to avoid such
+races.
 
-Thanks
-Miao
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/mmap.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
 
---------------020700000103080306030400
-Content-Type: application/gzip;
- name="reproduce_prog.tar.gz"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="reproduce_prog.tar.gz"
-
-H4sIAHwx0UsAA+1Xe0/bSBDPv/anGAJCTpqH7eYhHQQpKqFCAoLyOO7EIWuxN8kKx478gHLX
-fvfOrO2QB4iexBWd6p8UeT3v2ZnZrGv1gC8C34ltbuFzWi+8PXREu91Mnq31Z4qCYXxsNUzT
-MHSjoBsNQ28WoPkfxLKFOIxYAFCYC+Z/EfxFudf4/1PUNutvL+KQR9acz62ZP63Zb+CDCtxq
-NV6q/8eWYWb119u41o222dILoL+B71fxi9d/V3i2GzscDsPIEX5tdqSukVxxu06LPYHkTblA
-eNN1mh09Lvg6iQfBhp6YeszdoD2GdVINt8lYqWib+sDEM9T5nHlEVXcdPhEeh/HFeNg7VhTL
-YhGGextH3LJA02IP+90plVT13ndZJFwOwouAe84BkYQDGOWMeY7LA0NLrEgJCt4vqf+o37bk
-zGflFLQJHTAOSIM46YxppC0FUJRmT+rg4kBVXN+bwoJNeSj+5vgee2SOOyAZZeY4AVLJWEDy
-qpLJoqMpj7I3rUQ8MQEN1fl8ET2ieW0/cVOCQ9BLqqJgfTSjAsVVmVIRVWVgcbjABJZKZPBh
-Rtul7SC9BBi/QvGgZ9z8hXYxPjurLGOHMhh6BS4H/ZE16HWP4WuyvhqcjnoVVFWU8+6ldTk4
-/b076iGX3roX/Ys/z/vjYQWqGJhOocgsEj8dKXTSPT3rHSf+FdyFZItxvcB8/EArUjQwYRiq
-U/vLk/koym3A2R2tvuEPC0G5klX08uWkvRG3VJnHHqWVCG2xsaTkPA68pBJZiZnwNFqwYGpX
-wJ7hWVMu48u9LDhxvIiFd2FaRfFUTcxDT9+o8WMSwUGLbdkezI6E70HIcF9CZiJvIRzsnDI+
-wqzY5BR2OmCuVtdfSE0RwkOATVQrylImUaBPFvmCFO+vjZtl16Tcw856o6RkNBXOmeumpigC
-agKk+HamWgbaLn+iyTBLtGVkeIeEV01KJRZxkFbSqiV2MddayKx0xtDDymAePNfdifwc/b/e
-4kvzE5dNw2zvE5PJXmvD08/j4QC19+WuU38/ZzeVXlo1XwrafD5o898Fbf5I0KYM2vzRoCd+
-AJqQ9kCgdNqiID58SOaMinMtblACRe+05VxmdHKQDGQ2hInc1hiuzuvTSAJ3QzyGs/5Ai6VU
-mOYrOzazsSM5QW2ehJk4XvYzTVR2UFWrAo7SHlbuhOtmAVcg3afMZqqQWKlWE5v0T4MVksO4
-TPnq9KT3B55hx1rKgP19uCLScNQdjYcZubSe7vZ58T7//9v3P+zOKaf7X1gLZ2/i47X7v9lo
-Le//egPviUarbZr5/e9nYHenfiu8ejhT1U+XeGfBf+d+f9Qp1h1+n34LFFVsZevzoD++7BT3
-VqTqRlE9750PrRP8B0bWUqxO3VNUJbNT1HGVzNM1GHCjOj5eheyZD3vEh6PkKY2oilTZ07Qd
-ScSpcXyPv9Ns/ArYmv9zdocXZvctG11+/zVe/P7Tcfaf5p/OCaPZbObffz8FeN/6TVWmtg2b
-H/5Q9Tdoqmq7nHkoH8yhOtnkvncqOXLkyJEjR44cOXLkyJEjR44cOXLkyJFjBd8BQ7XGowAo
-AAA=
---------------020700000103080306030400--
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..61d6f1d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -578,6 +578,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
+ 
++	if (vma->anon_vma)
++		spin_lock(&vma->anon_vma->lock);
++
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +623,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (vma->anon_vma)
++		spin_unlock(&vma->anon_vma->lock);
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
