@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0CD9F6B01F1
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 06:15:18 -0400 (EDT)
-Received: by gwj15 with SMTP id 15so1827900gwj.14
-        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:15:17 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0626B01E3
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 06:28:47 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o3MASi2n009565
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:28:44 -0700
+Received: from pzk34 (pzk34.prod.google.com [10.243.19.162])
+	by kpbe12.cbf.corp.google.com with ESMTP id o3MASgTr006460
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:28:43 -0700
+Received: by pzk34 with SMTP id 34so2486848pzk.33
+        for <linux-mm@kvack.org>; Thu, 22 Apr 2010 03:28:42 -0700 (PDT)
+Date: Thu, 22 Apr 2010 03:28:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
+ can be found
+In-Reply-To: <20100422100944.GX5683@laptop>
+Message-ID: <alpine.DEB.2.00.1004220326130.19785@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com> <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com> <20100407205418.FB90.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
+ <20100421121758.af52f6e0.akpm@linux-foundation.org> <20100422072319.GW5683@laptop> <20100422162536.b904203e.kamezawa.hiroyu@jp.fujitsu.com> <20100422100944.GX5683@laptop>
 MIME-Version: 1.0
-In-Reply-To: <4BCED815.90704@kernel.org>
-References: <4BC6CB30.7030308@kernel.org>
-	 <z2p28c262361004150321sc65e84b4w6cc99927ea85a52b@mail.gmail.com>
-	 <4BC6FBC8.9090204@kernel.org>
-	 <w2h28c262361004150449qdea5cde9y687c1fce30e665d@mail.gmail.com>
-	 <alpine.DEB.2.00.1004161105120.7710@router.home>
-	 <1271606079.2100.159.camel@barrios-desktop>
-	 <alpine.DEB.2.00.1004191235160.9855@router.home>
-	 <4BCCD8BD.1020307@kernel.org> <20100420150522.GG19264@csn.ul.ie>
-	 <4BCED815.90704@kernel.org>
-Date: Thu, 22 Apr 2010 19:15:14 +0900
-Message-ID: <x2h28c262361004220315v9b8fbf3ei86fe0ebba92169f1@mail.gmail.com>
-Subject: Re: [PATCH 2/6] change alloc function in pcpu_alloc_pages
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <lliubbo@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 21, 2010 at 7:48 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello,
->
-> On 04/20/2010 05:05 PM, Mel Gorman wrote:
->> alloc_pages_exact_node() avoids a branch in a hot path that is checking =
-for
->> something the caller already knows. That's the reason it exists.
->
-> Yeah sure but Minchan is trying to tidy up the API by converting
-> alloc_pages_node() users to use alloc_pages_exact_node(), at which
-> point, the distinction becomes pretty useless. =C2=A0Wouldn't just making
-> alloc_pages_node() do what alloc_pages_exact_node() does now and
-> converting all its users be simpler? =C2=A0IIRC, the currently planned
-> transformation looks like the following.
->
-> =C2=A0alloc_pages() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0-> alloc_pages_any_node()
-> =C2=A0alloc_pages_node() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 -> bas=
-ically gonna be obsoleted by _exact_node
-> =C2=A0alloc_pages_exact_node() =C2=A0 =C2=A0 =C2=A0 -> gonna be used by m=
-ost NUMA aware allocs
->
-> So, let's just make sure no one calls alloc_pages_node() w/ -1 nid,
-> kill alloc_pages_node() and rename alloc_pages_exact_node() to
-> alloc_pages_node().
+On Thu, 22 Apr 2010, Nick Piggin wrote:
 
-Yes. It was a stupid idea. I hope Mel agree this suggestion.
-Thanks for careful review, Tejun.
+> Oh actually what happened with the pagefault OOM / panic on oom thing?
+> We were talking around in circles about that too.
+> 
 
-
---=20
-Kind regards,
-Minchan Kim
+The oom killer rewrite attempts to kill current first, if possible, and 
+then will panic if panic_on_oom is set before falling back to selecting a 
+victim.  This is consistent with all other architectures such as powerpc 
+that currently do not use pagefault_out_of_memory().  If all architectures 
+are eventually going to be converted to using pagefault_out_of_memory() 
+with additional work on top of -mm, it would be possible to define 
+consistent panic_on_oom semantics for this case.  I welcome such an 
+addition since I believe it's a natural extension of panic_on_oom, but I 
+believe it should be done consistently so the sysctl doesn't have 
+different semantics depending on the underlying arch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
