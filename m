@@ -1,35 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 78C8E6B01F3
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 11:14:43 -0400 (EDT)
-Date: Thu, 22 Apr 2010 10:14:04 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of PageSwapCache
-  pages
-In-Reply-To: <1271946226.2100.211.camel@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.1004221009150.32107@router.home>
-References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>  <alpine.DEB.2.00.1004210927550.4959@router.home>  <20100421150037.GJ30306@csn.ul.ie>  <alpine.DEB.2.00.1004211004360.4959@router.home>  <20100421151417.GK30306@csn.ul.ie>
- <alpine.DEB.2.00.1004211027120.4959@router.home>  <20100421153421.GM30306@csn.ul.ie>  <alpine.DEB.2.00.1004211038020.4959@router.home>  <20100422092819.GR30306@csn.ul.ie>  <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
- <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>  <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>  <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com> <1271946226.2100.211.camel@barrios-desktop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D8F1D6B01F5
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 11:17:44 -0400 (EDT)
+Message-ID: <4BD0688A.7050806@redhat.com>
+Date: Thu, 22 Apr 2010 11:17:30 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [BUG] rmap: fix page_address_in_vma() to walk through anon_vma_chain
+References: <20100422054241.GB10957@spritzerA.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20100422054241.GB10957@spritzerA.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Apr 2010, Minchan Kim wrote:
+On 04/22/2010 01:42 AM, Naoya Horiguchi wrote:
+> I found a bug on page_address_in_vma() related to anon_vma_chain.
+>
+> I wrote a patch, but according to a comment in include/linux/rmap.h,
+> I suspect this doesn't meet lock requirement of anon_vma_chain
+> (mmap_sem and page_table_lock, see below).
+>
+>                             mmap_sem      page_table_lock
+>    mm/ksm.c:
+>      write_protect_page()   hold          not hold
+>      replace_page()         hold          not hold
+>    mm/memory-failure.c:
+>      add_to_kill()          not hold      hold
+>    mm/mempolicy.c:
+>      new_vma_page()         hold          not hold
+>    mm/swapfile.c:
+>      unuse_vma()            hold          not hold
+>
+> Any comments?
 
-> For further optimization, we can hold vma->adjust_lock if vma_address
-> returns -EFAULT. But I hope we redesigns it without new locking.
-> But I don't have good idea, now. :(
+Good catch.
 
-You could make it atomic through the use of RCU.
+However, for anonymous pages, page_address_in_vma only
+ever determined whether the page _could_ be part of the
+VMA, never whether it actually was.
 
-Create a new vma entry with the changed parameters and then atomically
-switch to the new vma.
+The function page_address_in_vma has always given
+false positives, which means all of the callers already
+check that the page is actually part of the process.
 
-Problem is that you have some list_heads in there.
+This means we may be able to get away with not verifying
+the anon_vma at all.  After all, verifying that the VMA
+has the anon_vma mapped does not mean the VMA has this
+page...
+
+Doing away with that check gets rid of your locking
+conundrum :)
+
+Opinions?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
