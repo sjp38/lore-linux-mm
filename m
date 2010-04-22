@@ -1,192 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id EB1956B01E3
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 06:55:54 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3MAtqll016928
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Apr 2010 19:55:52 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DDBB145DE50
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 19:55:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B49E245DE51
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 19:55:51 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 862871DB804D
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 19:55:51 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DAD41DB8049
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 19:55:51 +0900 (JST)
-Date: Thu, 22 Apr 2010 19:51:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
- PageSwapCache  pages
-Message-Id: <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
-	<alpine.DEB.2.00.1004210927550.4959@router.home>
-	<20100421150037.GJ30306@csn.ul.ie>
-	<alpine.DEB.2.00.1004211004360.4959@router.home>
-	<20100421151417.GK30306@csn.ul.ie>
-	<alpine.DEB.2.00.1004211027120.4959@router.home>
-	<20100421153421.GM30306@csn.ul.ie>
-	<alpine.DEB.2.00.1004211038020.4959@router.home>
-	<20100422092819.GR30306@csn.ul.ie>
-	<20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
-	<x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
-	<20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 69A746B01EF
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 08:14:37 -0400 (EDT)
+Subject: Cleancache [PATCH 0/7] (was Transcendent Memory): overview
+Reply-To: dan.magenheimer@oracle.com
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Message-Id: <E1O4vHp-0006ZI-7A@ca-server1.us.oracle.com>
+Date: Thu, 22 Apr 2010 05:13:41 -0700
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: adilger@sun.com, akpm@linux-foundation.org, chris.mason@oracle.com, dave.mccracken@oracle.com, JBeulich@novell.com, jeremy@goop.org, joel.becker@oracle.com, kurt.hackel@oracle.com, linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, matthew@wil.cx, mfasheh@suse.com, ngupta@vflare.org, npiggin@suse.de, ocfs2-devel@oss.oracle.com, riel@redhat.com, tytso@mit.edu, viro@zeniv.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Apr 2010 19:31:06 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Cleancache [PATCH 0/7] (was Transcendent Memory): overview
 
-> On Thu, 22 Apr 2010 19:13:12 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
-> 
-> > On Thu, Apr 22, 2010 at 6:46 PM, KAMEZAWA Hiroyuki
-> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > > Hmm..in my test, the case was.
-> > >
-> > > Before try_to_unmap:
-> > > A  A  A  A mapcount=1, SwapCache, remap_swapcache=1
-> > > After remap
-> > > A  A  A  A mapcount=0, SwapCache, rc=0.
-> > >
-> > > So, I think there may be some race in rmap_walk() and vma handling or
-> > > anon_vma handling. migration_entry isn't found by rmap_walk.
-> > >
-> > > Hmm..it seems this kind patch will be required for debug.
-> > 
+Patch applies to 2.6.34-rc5
 
-Ok, here is my patch for _fix_. But still testing...
-Running well at least for 30 minutes, where I can see bug in 10minutes.
-But this patch is too naive. please think about something better fix.
+In previous patch postings, cleancache was part of the Transcendent
+Memory ("tmem") patchset.  This patchset refocuses not on the underlying
+technology (tmem) but instead on the useful functionality provided for Linux,
+and provides a clean API so that cleancache can provide this very useful
+functionality either via a Xen tmem driver OR completely independent of tmem.
+For example: Nitin Gupta (of compcache and ramzswap fame) is implementing
+an in-kernel compression "backend" for cleancache; some believe
+cleancache will be a very nice interface for building RAM-like functionality
+for pseudo-RAM devices such as SSD or phase-change memory; and a Pune
+University team is looking at a backend for virtio (see OLS'2010).
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+A more complete description of cleancache can be found in the introductory
+comment in mm/cleancache.c (in PATCH 2/7) which is included below
+for convenience.
 
-At adjust_vma(), vma's start address and pgoff is updated under
-write lock of mmap_sem. This means the vma's rmap information
-update is atoimic only under read lock of mmap_sem.
+Note that an earlier version of this patch is now shipping in OpenSuSE 11.2
+and will soon ship in a release of Oracle Enterprise Linux.  Underlying
+tmem technology is now shipping in Oracle VM 2.2 and was just released
+in Xen 4.0 on April 15, 2010.  (Search news.google.com for Transcendent
+Memory)
 
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Reviewed-by: Jeremy Fitzhardinge <jeremy@goop.org>
 
-Even if it's not atomic, in usual case, try_to_ummap() etc...
-just fails to decrease mapcount to be 0. no problem.
+ fs/btrfs/extent_io.c       |    9 ++
+ fs/btrfs/super.c           |    2 
+ fs/buffer.c                |    5 +
+ fs/ext3/super.c            |    2 
+ fs/ext4/super.c            |    2 
+ fs/mpage.c                 |    7 +
+ fs/ocfs2/super.c           |    3 
+ fs/super.c                 |    8 +
+ include/linux/cleancache.h |   88 ++++++++++++++++++++
+ include/linux/fs.h         |    5 +
+ mm/Kconfig                 |   22 +++++
+ mm/Makefile                |    1 
+ mm/cleancache.c            |  198 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c               |   11 ++
+ mm/truncate.c              |   10 ++
+ 15 files changed, 373 insertions(+)
 
-But at page migration's rmap_walk(), it requires to know all
-migration_entry in page tables and recover mapcount.
+Cleancache can be thought of as a page-granularity victim cache for clean
+pages that the kernel's pageframe replacement algorithm (PFRA) would like
+to keep around, but can't since there isn't enough memory.  So when the
+PFRA "evicts" a page, it first attempts to put it into a synchronous
+concurrency-safe page-oriented pseudo-RAM device (such as Xen's Transcendent
+Memory, aka "tmem", or in-kernel compressed memory, aka "zmem", or other
+RAM-like devices) which is not directly accessible or addressable by the
+kernel and is of unknown and possibly time-varying size.  And when a
+cleancache-enabled filesystem wishes to access a page in a file on disk,
+it first checks cleancache to see if it already contains it; if it does,
+the page is copied into the kernel and a disk access is avoided.
+This pseudo-RAM device links itself to cleancache by setting the
+cleancache_ops pointer appropriately and the functions it provides must
+conform to certain semantics as follows:
 
-So, this race in vma's address is critical. When rmap_walk meet
-the race, rmap_walk will mistakenly get -EFAULT and don't call
-rmap_one(). This patch adds a lock for vma's rmap information. 
-But, this is _very slow_.
-We need something sophisitcated, light-weight update for this..
+Most important, cleancache is "ephemeral".  Pages which are copied into
+cleancache have an indefinite lifetime which is completely unknowable
+by the kernel and so may or may not still be in cleancache at any later time.
+Thus, as its name implies, cleancache is not suitable for dirty pages.  The
+pseudo-RAM has complete discretion over what pages to preserve and what
+pages to discard and when.
 
+A filesystem calls "init_fs" to obtain a pool id which, if positive, must be
+saved in the filesystem's superblock; a negative return value indicates
+failure.  A "put_page" will copy a (presumably about-to-be-evicted) page into
+pseudo-RAM and associate it with the pool id, the file inode, and a page
+index into the file.  (The combination of a pool id, an inode, and an index
+is called a "handle".)  A "get_page" will copy the page, if found, from
+pseudo-RAM into kernel memory.  A "flush_page" will ensure the page no longer
+is present in pseudo-RAM; a "flush_inode" will flush all pages associated
+with the specified inode; and a "flush_fs" will flush all pages in all
+inodes specified by the given pool id.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/mm_types.h |    1 +
- kernel/fork.c            |    1 +
- mm/mmap.c                |   11 ++++++++++-
- mm/rmap.c                |    3 +++
- 4 files changed, 15 insertions(+), 1 deletion(-)
+A "init_shared_fs", like init, obtains a pool id but tells the pseudo-RAM
+to treat the pool as shared using a 128-bit UUID as a key.  On systems
+that may run multiple kernels (such as hard partitioned or virtualized
+systems) that may share a clustered filesystem, and where the pseudo-RAM
+may be shared among those kernels, calls to init_shared_fs that specify the
+same UUID will receive the same pool id, thus allowing the pages to
+be shared.  Note that any security requirements must be imposed outside
+of the kernel (e.g. by "tools" that control the pseudo-RAM).  Or a
+pseudo-RAM implementation can simply disable shared_init by always
+returning a negative value.
 
-Index: linux-2.6.34-rc4-mm1/include/linux/mm_types.h
-===================================================================
---- linux-2.6.34-rc4-mm1.orig/include/linux/mm_types.h
-+++ linux-2.6.34-rc4-mm1/include/linux/mm_types.h
-@@ -183,6 +183,7 @@ struct vm_area_struct {
- #ifdef CONFIG_NUMA
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
-+	spinlock_t adjust_lock;
- };
- 
- struct core_thread {
-Index: linux-2.6.34-rc4-mm1/mm/mmap.c
-===================================================================
---- linux-2.6.34-rc4-mm1.orig/mm/mmap.c
-+++ linux-2.6.34-rc4-mm1/mm/mmap.c
-@@ -584,13 +584,20 @@ again:			remove_next = 1 + (end > next->
- 		if (adjust_next)
- 			vma_prio_tree_remove(next, root);
- 	}
--
-+	/*
-+	 * changing all params in atomic. If not, vma_address in rmap.c
-+ 	 * can see wrong result.
-+ 	 */
-+	spin_lock(&vma->adjust_lock);
- 	vma->vm_start = start;
- 	vma->vm_end = end;
- 	vma->vm_pgoff = pgoff;
-+	spin_unlock(&vma->adjust_lock);
- 	if (adjust_next) {
-+		spin_lock(&next->adjust_lock);
- 		next->vm_start += adjust_next << PAGE_SHIFT;
- 		next->vm_pgoff += adjust_next;
-+		spin_unlock(&next->adjust_lock);
- 	}
- 
- 	if (root) {
-@@ -1939,6 +1946,7 @@ static int __split_vma(struct mm_struct 
- 	*new = *vma;
- 
- 	INIT_LIST_HEAD(&new->anon_vma_chain);
-+	spin_lock_init(&new->adjust_lock);
- 
- 	if (new_below)
- 		new->vm_end = addr;
-@@ -2338,6 +2346,7 @@ struct vm_area_struct *copy_vma(struct v
- 			if (IS_ERR(pol))
- 				goto out_free_vma;
- 			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
-+			spin_lock_init(&new_vma->adjust_lock);
- 			if (anon_vma_clone(new_vma, vma))
- 				goto out_free_mempol;
- 			vma_set_policy(new_vma, pol);
-Index: linux-2.6.34-rc4-mm1/kernel/fork.c
-===================================================================
---- linux-2.6.34-rc4-mm1.orig/kernel/fork.c
-+++ linux-2.6.34-rc4-mm1/kernel/fork.c
-@@ -350,6 +350,7 @@ static int dup_mmap(struct mm_struct *mm
- 			goto fail_nomem;
- 		*tmp = *mpnt;
- 		INIT_LIST_HEAD(&tmp->anon_vma_chain);
-+		spin_lock_init(&tmp->adjust_lock);
- 		pol = mpol_dup(vma_policy(mpnt));
- 		retval = PTR_ERR(pol);
- 		if (IS_ERR(pol))
-Index: linux-2.6.34-rc4-mm1/mm/rmap.c
-===================================================================
---- linux-2.6.34-rc4-mm1.orig/mm/rmap.c
-+++ linux-2.6.34-rc4-mm1/mm/rmap.c
-@@ -332,11 +332,14 @@ vma_address(struct page *page, struct vm
- 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
- 	unsigned long address;
- 
-+	spin_lock(&vma->adjust_lock);
- 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
- 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
-+		spin_unlock(&vma->adjust_lock);
- 		/* page should be within @vma mapping range */
- 		return -EFAULT;
- 	}
-+	spin_unlock(&vma->adjust_lock);
- 	return address;
- }
- 
+If a get_page is successful on a non-shared pool, the page is flushed (thus
+making cleancache an "exclusive" cache).  On a shared pool, the page
+is NOT flushed on a successful get_page so that it remains accessible to
+other sharers.  The kernel is responsible for ensuring coherency between
+cleancache (shared or not), the page cache, and the filesystem, using
+cleancache flush operations as required.
 
+Note that the pseudo-RAM must enforce put-put-get coherency and get-get
+coherency.  For the former, if two puts are made to the same handle but
+with different data, say AAA by the first put and BBB by the second, a
+subsequent get can never return the stale data (AAA).  For get-get coherency,
+if a get for a given handle fails, subsequent gets for that handle will
+never succeed unless preceded by a successful put with that handle.
 
-
+Last, pseudo-RAM provides no SMP serialization guarantees; if two
+different Linux threads are putting an flushing a page with the same
+handle, the results are indeterminate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
