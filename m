@@ -1,68 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D852D6B01E3
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 00:02:15 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id F07936B01E3
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 00:07:48 -0400 (EDT)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3N42DRm019911
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3N47jCc014877
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 23 Apr 2010 13:02:13 +0900
+	Fri, 23 Apr 2010 13:07:45 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3140A45DE51
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:02:13 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C6C745DE4E
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:07:45 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F2A245DE4E
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:02:13 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F255B45DE51
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:07:44 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E7B1C1DB805A
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:02:12 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B5D51DB8040
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:02:09 +0900 (JST)
-Date: Fri, 23 Apr 2010 12:58:14 +0900
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DB57B1DB803C
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:07:44 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BE521DB803F
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 13:07:44 +0900 (JST)
+Date: Fri, 23 Apr 2010 13:03:49 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] memcg rcu lock fix v2
-Message-Id: <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4BD11A24.2070500@cn.fujitsu.com>
+Subject: [BUGFIX][PATCH] memcg rcu lock fix v3
+Message-Id: <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
 References: <4BD10D59.9090504@cn.fujitsu.com>
 	<20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
 	<4BD118E2.7080307@cn.fujitsu.com>
 	<4BD11A24.2070500@cn.fujitsu.com>
+	<20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Apr 2010 11:55:16 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Fri, 23 Apr 2010 12:58:14 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> Li Zefan wrote:
-> > KAMEZAWA Hiroyuki wrote:
-> >> On Fri, 23 Apr 2010 11:00:41 +0800
-> >> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> >>
-> >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
-> >>> css_id() is not under rcu_read_lock().
-> >>>
-> >> Ok. Thank you for reporting.
-> >> This is ok ? 
+> On Fri, 23 Apr 2010 11:55:16 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> 
+> > Li Zefan wrote:
+> > > KAMEZAWA Hiroyuki wrote:
+> > >> On Fri, 23 Apr 2010 11:00:41 +0800
+> > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > >>
+> > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
+> > >>> css_id() is not under rcu_read_lock().
+> > >>>
+> > >> Ok. Thank you for reporting.
+> > >> This is ok ? 
+> > > 
+> > > Yes, and I did some more simple tests on memcg, no more warning
+> > > showed up.
+> > > 
 > > 
-> > Yes, and I did some more simple tests on memcg, no more warning
-> > showed up.
+> > oops, after trigging oom, I saw 2 more warnings:
 > > 
 > 
-> oops, after trigging oom, I saw 2 more warnings:
-> 
+> Thank you for good testing.
+v3 here...sorry too rapid posting...
 
-Thank you for good testing.
-=
+==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 css_id() should be called under rcu_read_lock().
-And css_is_ancestor() should be called under rcu_read_lock().
-
 Following is a report from Li Zefan.
 ==
 ===================================================
@@ -106,6 +110,7 @@ Call Trace:
  [<c046b570>] ? kthread+0x0/0x80
  [<c04035ba>] kernel_thread_helper+0x6/0x10
 
+And css_is_ancestor() should be called under rcu_read_lock().
 
 
 Reported-by: Li Zefan <lizf@cn.fujitsu.com>
@@ -113,8 +118,8 @@ Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ mm/memcontrol.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
 Index: linux-2.6.34-rc5-mm1/mm/memcontrol.c
 ===================================================================
@@ -158,6 +163,31 @@ Index: linux-2.6.34-rc5-mm1/mm/memcontrol.c
  		mem_cgroup_get(memcg);
  	}
  	if (swapout && memcg)
+@@ -2458,8 +2466,10 @@ static int mem_cgroup_move_swap_account(
+ {
+ 	unsigned short old_id, new_id;
+ 
++	rcu_read_lock();
+ 	old_id = css_id(&from->css);
+ 	new_id = css_id(&to->css);
++	rcu_read_unlock();
+ 
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+ 		mem_cgroup_swap_statistics(from, false);
+@@ -4303,7 +4313,11 @@ static int is_target_pte_for_mc(struct v
+ 	}
+ 	/* Threre is a swap entry and a page doesn't exist or isn't charged */
+ 	if (ent.val && !ret) {
+-		if (css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
++		unsigned short id;
++		rcu_read_lock();
++		id = css_id(&mc.from->css);
++		rcu_read_unlock();
++		if (id == lookup_swap_cgroup(ent)) {
+ 			ret = MC_TARGET_SWAP;
+ 			if (target)
+ 				target->ent = ent;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
