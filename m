@@ -1,48 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9C7176B0200
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 12:35:16 -0400 (EDT)
-Received: by pvg11 with SMTP id 11so6515713pvg.14
-        for <linux-mm@kvack.org>; Fri, 23 Apr 2010 09:35:15 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 166356B0201
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 14:32:11 -0400 (EDT)
+Date: Fri, 23 Apr 2010 20:31:35 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+ PageSwapCache  pages
+Message-ID: <20100423183135.GT32034@random.random>
+References: <20100421153421.GM30306@csn.ul.ie>
+ <alpine.DEB.2.00.1004211038020.4959@router.home>
+ <20100422092819.GR30306@csn.ul.ie>
+ <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
+ <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
+ <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
+ <1271946226.2100.211.camel@barrios-desktop>
+ <1271947206.2100.216.camel@barrios-desktop>
+ <20100422154443.GD30306@csn.ul.ie>
 MIME-Version: 1.0
-Reply-To: jiahua@gmail.com
-In-Reply-To: <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
-References: <20100422134249.GA2963@ca-server1.us.oracle.com>
-	 <4BD06B31.9050306@redhat.com>
-	 <53c81c97-b30f-4081-91a1-7cef1879c6fa@default>
-	 <4BD07594.9080905@redhat.com> <4BD16D09.2030803@redhat.com>
-	 <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
-Date: Fri, 23 Apr 2010 09:35:14 -0700
-Message-ID: <r2h63b77a231004230935hae38da68l2de84cb1a2084a6b@mail.gmail.com>
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-From: Jiahua <jiahua@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100422154443.GD30306@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 23, 2010 at 6:47 AM, Dan Magenheimer
-<dan.magenheimer@oracle.com> wrote:
+Hi Mel,
 
-> If I understand correctly, SSDs work much more efficiently when
-> writing 64KB blocks. =A0So much more efficiently in fact that waiting
-> to collect 16 4KB pages (by first copying them to fill a 64KB buffer)
-> will be faster than page-at-a-time DMA'ing them. =A0If so, the
-> frontswap interface, backed by an asynchronous "buffering layer"
-> which collects 16 pages before writing to the SSD, may work
-> very nicely. =A0Again this is still just speculation... I was
-> only pointing out that zero-copy DMA may not always be the best
-> solution.
+On Thu, Apr 22, 2010 at 04:44:43PM +0100, Mel Gorman wrote:
+> heh, I thought of a similar approach at the same time as you but missed
+> this mail until later. However, with this approach I suspect there is a
+> possibility that two walkers of the same anon_vma list could livelock if
+> two locks on the list are held at the same time. Am still thinking of
+> how it could be resolved without introducing new locking.
 
-I guess you are talking about the write amplification issue of SSD. In
-fact, most of the new generation drives already solved the problem
-with log like structure. Even with the old drives, the size of the
-writes depends on the the size of the erase block, which is not
-necessary 64KB.
+Trying to understand this issue and I've some questions. This
+vma_adjust and lock inversion troubles with the anon-vma lock in
+rmap_walk are a new issue introduced by the recent anon-vma changes,
+right?
 
-Jiahua
+About swapcache, try_to_unmap just nuke the mappings, establish the
+swap entry in the pte (not migration entry), and then there's no need
+to call remove_migration_ptes. So it just need to skip it for
+swapcache. page_mapped must return zero after try_to_unmap returns
+before we're allowed to migrate (plus the page count must be just 1
+and not 2 or more for gup users!).
+
+I don't get what's the problem about swapcache and the races connected
+to it, the moment I hear migration PTE in context of swapcache
+migration I'm confused because there's no migration PTE for swapcache.
+
+The new page will have no mappings either, it just needs to be part of
+the swapcache with the same page->index = swapentry, indexed in the
+radix tree with that page->index, and paga->mapping pointing to
+swapcache. Then new page faults will bring it in the pageatables. The
+lookup_swap_cache has to be serialized against some lock, it should be
+the radix tree lock? So the migration has to happen with that lock
+hold no? We can't just migrate swapcache without stopping swapcache
+radix tree lookups no? I didn't digest the full migrate.c yet and I
+don't see where it happens. Freeing the swapcache while simpler and
+safer, would be quite bad as it'd create I/O for potentially hot-ram.
+
+About the refcounting of anon-vma in migrate.c I think it'd be much
+simpler if zap_page_range and folks would just wait (like they do if
+they find a pmd_trans_huge && pmd_trans_splitting pmd), there would be
+no need of refcounting the anon-vma that way.
+
+I assume whatever is added to rmap_walk I also have to add to
+split_huge_page later when switching to mainline anon-vma code (for
+now I stick to 2.6.32 anon-vma code to avoid debugging anon-vma-chain,
+memory compaction, swapcache migration and transparent hugepage at the
+same time, which becomes a little beyond feasibility).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
