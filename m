@@ -1,202 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 237626B0205
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:34:16 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o3NJOSYp030940
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:24:28 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3NJY8OO062480
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:34:08 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3NJY7HO005038
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:34:08 -0400
-Date: Fri, 23 Apr 2010 12:34:06 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH] memcg rcu lock fix v3
-Message-ID: <20100423193406.GD2589@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <4BD10D59.9090504@cn.fujitsu.com>
- <20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
- <4BD118E2.7080307@cn.fujitsu.com>
- <4BD11A24.2070500@cn.fujitsu.com>
- <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
- <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 059566B0208
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:40:23 -0400 (EDT)
+Date: Fri, 23 Apr 2010 21:39:48 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+ PageSwapCache  pages
+Message-ID: <20100423193948.GU32034@random.random>
+References: <20100422092819.GR30306@csn.ul.ie>
+ <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
+ <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
+ <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
+ <1271946226.2100.211.camel@barrios-desktop>
+ <1271947206.2100.216.camel@barrios-desktop>
+ <20100422154443.GD30306@csn.ul.ie>
+ <20100423183135.GT32034@random.random>
+ <20100423192311.GC14351@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100423192311.GC14351@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 23, 2010 at 01:03:49PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 23 Apr 2010 12:58:14 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Fri, 23 Apr 2010 11:55:16 +0800
-> > Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Fri, Apr 23, 2010 at 08:23:12PM +0100, Mel Gorman wrote:
+> On Fri, Apr 23, 2010 at 08:31:35PM +0200, Andrea Arcangeli wrote:
+> > Hi Mel,
 > > 
-> > > Li Zefan wrote:
-> > > > KAMEZAWA Hiroyuki wrote:
-> > > >> On Fri, 23 Apr 2010 11:00:41 +0800
-> > > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> > > >>
-> > > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
-> > > >>> css_id() is not under rcu_read_lock().
-> > > >>>
-> > > >> Ok. Thank you for reporting.
-> > > >> This is ok ? 
-> > > > 
-> > > > Yes, and I did some more simple tests on memcg, no more warning
-> > > > showed up.
-> > > > 
-> > > 
-> > > oops, after trigging oom, I saw 2 more warnings:
-> > > 
+> > On Thu, Apr 22, 2010 at 04:44:43PM +0100, Mel Gorman wrote:
+> > > heh, I thought of a similar approach at the same time as you but missed
+> > > this mail until later. However, with this approach I suspect there is a
+> > > possibility that two walkers of the same anon_vma list could livelock if
+> > > two locks on the list are held at the same time. Am still thinking of
+> > > how it could be resolved without introducing new locking.
 > > 
-> > Thank you for good testing.
-> v3 here...sorry too rapid posting...
+> > Trying to understand this issue and I've some questions. This
+> > vma_adjust and lock inversion troubles with the anon-vma lock in
+> > rmap_walk are a new issue introduced by the recent anon-vma changes,
+> > right?
+> > 
 > 
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> In a manner of speaking. There was no locking going on but prior to the
+> anon_vma changes, there would have been only one anon_vma lock and the
+> fix would be easier - just take the lock on anon_vma->lock while the
+> VMAs are being updated.
 
-I have queued this, thank you all!
+So it was very much a bug before too and we could miss to find some
+pte mapping the page if vm_start was adjusted?
 
-However, memcg_oom_wake_function() does not yet exist in the tree
-I am using, and is_target_pte_for_mc() has changed.  I omitted the
-hunk for memcg_oom_wake_function() and edited the hunk for
-is_target_pte_for_mc().
+Also note, expand_downwards also moves vm_start with only the
+anon_vma->lock as it has to serialize against other expand_downwards
+and the rmap_walk. But expand_downwards takes the lock and it was safe
+before.
 
-I have queued this for others' testing, but if you would rather carry
-this patch up the memcg path, please let me know and I will drop it.
+Also for swapping even if things screwup it's no big deal, because it
+will just skip, but migration has to find all ptes in
+remove_migration_ptes and try_to_unmap also has to unmap everything.
 
-							Thanx, Paul
+In the split_huge_page case even the ordering at which newly allocated
+vmas for the child are queued is critical, they've to be put at the
+end of the list to be safe (otherwise do_wp_huge_page may not wait and
+we may fail to mark the huge_pmd in the child as pmd_splitting).
 
-> css_id() should be called under rcu_read_lock().
-> Following is a report from Li Zefan.
-> ==
-> ===================================================
-> [ INFO: suspicious rcu_dereference_check() usage. ]
-> ---------------------------------------------------
-> kernel/cgroup.c:4438 invoked rcu_dereference_check() without protection!
+> > About swapcache, try_to_unmap just nuke the mappings, establish the
+> > swap entry in the pte (not migration entry), and then there's no need
+> > to call remove_migration_ptes.
 > 
-> other info that might help us debug this:
+> That would be an alternative for swapcache but it's not necessarily
+> where the problem is.
+
+Hmm try_to_unmap already nukes all swap entries without creating any
+migration pte for swapcache as far as I can tell.
+
+> > So it just need to skip it for
+> > swapcache. page_mapped must return zero after try_to_unmap returns
+> > before we're allowed to migrate (plus the page count must be just 1
+> > and not 2 or more for gup users!).
+> > 
+> > I don't get what's the problem about swapcache and the races connected
+> > to it, the moment I hear migration PTE in context of swapcache
+> > migration I'm confused because there's no migration PTE for swapcache.
+> > 
 > 
+> That was a mistake on my part. The race appears to be between vma_adjust
+> changing the details of the VMA while rmap_walk is going on. It mistakenly
+> believes the vma no longer spans the address, gets -EFAULT from vma_address
+> and doesn't clean up the migration PTE. This is later encountered but the
+> page lock is no longer held and it bugs. An alternative would be to clean
+> up the migration PTE of unlocked pages on the assumption it was due to this
+> race but it's a bit sloppier.
+
+Agreed, it's sure better to close the race... the other may have even
+more implications. It's good to retain the invariant that when a
+migration PTE exists the page also still exists and it's locked
+(locked really mostly matters for pagecache I guess, but it's ok).
+
+> > The new page will have no mappings either, it just needs to be part of
+> > the swapcache with the same page->index = swapentry, indexed in the
+> > radix tree with that page->index, and paga->mapping pointing to
+> > swapcache. Then new page faults will bring it in the pageatables. The
+> > lookup_swap_cache has to be serialized against some lock, it should be
+> > the radix tree lock? So the migration has to happen with that lock
+> > hold no?
 > 
-> rcu_scheduler_active = 1, debug_locks = 1
-> 1 lock held by kswapd0/31:
->  #0:  (swap_lock){+.+.-.}, at: [<c05058bb>] swap_info_get+0x4b/0xd0
+> Think migrate_page_move_mapping() is what you're looking for? It takes
+> the mapping tree lock.
+
+Yep exactly!
+
+> >We can't just migrate swapcache without stopping swapcache
+> > radix tree lookups no? I didn't digest the full migrate.c yet and I
+> > don't see where it happens. Freeing the swapcache while simpler and
+> > safer, would be quite bad as it'd create I/O for potentially hot-ram.
+> > 
+> > About the refcounting of anon-vma in migrate.c I think it'd be much
+> > simpler if zap_page_range and folks would just wait (like they do if
+> > they find a pmd_trans_huge && pmd_trans_splitting pmd), there would be
+> > no need of refcounting the anon-vma that way.
+> > 
 > 
-> stack backtrace:
-> Pid: 31, comm: kswapd0 Not tainted 2.6.34-rc5-tip+ #13
-> Call Trace:
->  [<c083c5d6>] ? printk+0x1d/0x1f
->  [<c0480744>] lockdep_rcu_dereference+0x94/0xb0
->  [<c049d6ed>] css_id+0x5d/0x60
->  [<c05165a5>] mem_cgroup_uncharge_swapcache+0x45/0xa0
->  [<c0505e4f>] swapcache_free+0x3f/0x60
->  [<c04e79e2>] __remove_mapping+0xb2/0xf0
->  [<c04e7cbb>] shrink_page_list+0x26b/0x490
->  [<c047f85d>] ? put_lock_stats+0xd/0x30
->  [<c083fd67>] ? _raw_spin_unlock_irq+0x27/0x50
->  [<c0482566>] ? trace_hardirqs_on_caller+0xb6/0x220
->  [<c04e8158>] shrink_inactive_list+0x278/0x620
->  [<c04729e1>] ? sched_clock_cpu+0x121/0x180
->  [<c047e9b8>] ? trace_hardirqs_off_caller+0x18/0x130
->  [<c047eadb>] ? trace_hardirqs_off+0xb/0x10
->  [<c0843438>] ? sub_preempt_count+0x8/0x90
->  [<c047f85d>] ? put_lock_stats+0xd/0x30
->  [<c04e8704>] shrink_zone+0x204/0x3c0
->  [<c083fcac>] ? _raw_spin_unlock+0x2c/0x50
->  [<c04e951e>] kswapd+0x61e/0x7c0
->  [<c04e6ed0>] ? isolate_pages_global+0x0/0x1f0
->  [<c046bae0>] ? autoremove_wake_function+0x0/0x50
->  [<c04e8f00>] ? kswapd+0x0/0x7c0
->  [<c046b5e4>] kthread+0x74/0x80
->  [<c046b570>] ? kthread+0x0/0x80
->  [<c04035ba>] kernel_thread_helper+0x6/0x10
-> 
-> And css_is_ancestor() should be called under rcu_read_lock().
-> 
-> 
-> Reported-by: Li Zefan <lizf@cn.fujitsu.com>
-> Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   18 ++++++++++++++++--
->  1 file changed, 16 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6.34-rc5-mm1/mm/memcontrol.c
-> ===================================================================
-> --- linux-2.6.34-rc5-mm1.orig/mm/memcontrol.c
-> +++ linux-2.6.34-rc5-mm1/mm/memcontrol.c
-> @@ -838,10 +838,12 @@ int task_in_mem_cgroup(struct task_struc
->  	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
->  	 * hierarchy(even if use_hierarchy is disabled in "mem").
->  	 */
-> +	rcu_read_lock();
->  	if (mem->use_hierarchy)
->  		ret = css_is_ancestor(&curr->css, &mem->css);
->  	else
->  		ret = (curr == mem);
-> +	rcu_read_unlock();
->  	css_put(&curr->css);
->  	return ret;
->  }
-> @@ -1360,9 +1362,13 @@ static int memcg_oom_wake_function(wait_
->  	 * Both of oom_wait_info->mem and wake_mem are stable under us.
->  	 * Then we can use css_is_ancestor without taking care of RCU.
->  	 */
-> +	rcu_read_lock();
->  	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
-> -	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
-> +	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css)) {
-> +		rcu_read_unlock();
->  		return 0;
-> +	}
-> +	rcu_read_unlock();
-> 
->  wakeup:
->  	return autoremove_wake_function(wait, mode, sync, arg);
-> @@ -2401,7 +2407,9 @@ mem_cgroup_uncharge_swapcache(struct pag
-> 
->  	/* record memcg information */
->  	if (do_swap_account && swapout && memcg) {
-> +		rcu_read_lock();
->  		swap_cgroup_record(ent, css_id(&memcg->css));
-> +		rcu_read_unlock();
->  		mem_cgroup_get(memcg);
->  	}
->  	if (swapout && memcg)
-> @@ -2458,8 +2466,10 @@ static int mem_cgroup_move_swap_account(
->  {
->  	unsigned short old_id, new_id;
-> 
-> +	rcu_read_lock();
->  	old_id = css_id(&from->css);
->  	new_id = css_id(&to->css);
-> +	rcu_read_unlock();
-> 
->  	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
->  		mem_cgroup_swap_statistics(from, false);
-> @@ -4303,7 +4313,11 @@ static int is_target_pte_for_mc(struct v
->  	}
->  	/* Threre is a swap entry and a page doesn't exist or isn't charged */
->  	if (ent.val && !ret) {
-> -		if (css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
-> +		unsigned short id;
-> +		rcu_read_lock();
-> +		id = css_id(&mc.from->css);
-> +		rcu_read_unlock();
-> +		if (id == lookup_swap_cgroup(ent)) {
->  			ret = MC_TARGET_SWAP;
->  			if (target)
->  				target->ent = ent;
-> 
-> 
+> I'm not getting what you're suggesting here. The refcount is to make
+> sure the anon_vma doesn't go away after the page mapcount reaches zero.
+> What are we waiting for?
+
+Causing zap_page-range to Wait the end of migration when it encounters
+migration ptes instead of skipping them all together by only releasing
+the rss and doing nothing about them. If the pte can't go away, so the
+mm so the vma and so the anon-vma. I'm not suggesting to change that,
+but I guess that's the way I would have done if I would have
+implemented it, it'd avoid refcounting. Just like I did in
+split_huge_page I count the number of pmd marked splitting, and I
+compare it to the number of pmds that are converted from huge to
+not-huge and I compared that again with the page_mapcount. If the
+three numbers aren't equal I bug. It simply can't go wrong unnoticed
+that way. I only can do that because I stop the zapping.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
