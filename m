@@ -1,100 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2316D6B01EE
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 21:06:42 -0400 (EDT)
-Date: Fri, 23 Apr 2010 11:06:32 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
-Message-ID: <20100423010632.GA10390@dastard>
-References: <20100413202021.GZ13327@think>
- <20100414014041.GD2493@dastard>
- <20100414155233.D153.A69D9226@jp.fujitsu.com>
- <20100414072830.GK2493@dastard>
- <20100414085132.GJ25756@csn.ul.ie>
- <20100415013436.GO2493@dastard>
- <20100415102837.GB10966@csn.ul.ie>
- <20100416041412.GY2493@dastard>
- <20100416151403.GM19264@csn.ul.ie>
- <20100419152034.GW19264@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A2A686B01EE
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 21:26:56 -0400 (EDT)
+Message-ID: <4BD0F797.6020704@cn.fujitsu.com>
+Date: Fri, 23 Apr 2010 09:27:51 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100419152034.GW19264@csn.ul.ie>
+Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
+References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 19, 2010 at 04:20:34PM +0100, Mel Gorman wrote:
-> On Fri, Apr 16, 2010 at 04:14:03PM +0100, Mel Gorman wrote:
-> > > > Your patch fixes 2, avoids 1, breaks 3 and haven't thought about 4 but I
-> > > > guess dirty pages can cycle around more so it'd need to be cared for.
-> > > 
-> > > Well, you keep saying that they break #3, but I haven't seen any
-> > > test cases or results showing that. I've been unable to confirm that
-> > > lumpy reclaim is broken by disallowing writeback in my testing, so
-> > > I'm interested to know what tests you are running that show it is
-> > > broken...
-> > > 
-> > 
-> > Ok, I haven't actually tested this. The machines I use are tied up
-> > retesting the compaction patches at the moment. The reason why I reckon
-> > it'll be a problem is that when these sync-writeback changes were
-> > introduced, it significantly helped lumpy reclaim for huge pages. I am
-> > making an assumption that backing out those changes will hurt it.
-> > 
-> > I'll test for real on Monday and see what falls out.
-> > 
+on 2010-4-23 5:20, David Rientjes wrote:
+> On Thu, 22 Apr 2010, Miao Xie wrote:
 > 
-> One machine has completed the test and the results are as expected. When
-> allocating huge pages under stress, your patch drops the success rates
-> significantly. On X86-64, it showed
+>> - local variable might be an empty nodemask, so must be checked before setting
+>>   pol->v.nodes to it.
+>>
+>> - nodes_remap() may cause the weight of pol->v.nodes being monotonic decreasing.
+>>   and never become large even we pass a nodemask with large weight after
+>>   ->v.nodes become little.
+>>
 > 
-> STRESS-HIGHALLOC
->               stress-highalloc   stress-highalloc
->             enable-directreclaim disable-directreclaim
-> Under Load 1    89.00 ( 0.00)    73.00 (-16.00)
-> Under Load 2    90.00 ( 0.00)    85.00 (-5.00)
-> At Rest         90.00 ( 0.00)    90.00 ( 0.00)
+> That's always been the intention of rebinding a mempolicy nodemask: we 
+> remap the current mempolicy nodes over the new nodemask given the set of 
+> allowed nodes.  The nodes_remap() shouldn't be removed.
+
+Suppose the current mempolicy nodes is 0-2, we can remap it from 0-2 to 2,
+then we can remap it from 2 to 1, but we can't remap it from 2 to 0-2.
+
+that is to say it can't be remaped to a large set of allowed nodes, and the task
+just can use the small set of nodes for ever, even the large set of nodes is allowed,
+I think it is unreasonable.
+
+Thanks
+Miao
+
 > 
-> So with direct reclaim, it gets 89% of memory as huge pages at the first
-> attempt but 73% with your patch applied. The "Under Load 2" test happens
-> immediately after. With the start kernel, the first and second attempts
-> are usually the same or very close together. With your patch applied,
-> there are big differences as it was no longer trying to clean pages.
+>> this patch fixes these two problem.
+>>
+>> Signed-off-by: Miao Xie <miaox@cn.fujitsu.com>
+>> ---
+>>  mm/mempolicy.c |    9 ++++++---
+>>  1 files changed, 6 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>> index 08f40a2..03ba9fc 100644
+>> --- a/mm/mempolicy.c
+>> +++ b/mm/mempolicy.c
+>> @@ -291,12 +291,15 @@ static void mpol_rebind_nodemask(struct mempolicy *pol,
+>>  	else if (pol->flags & MPOL_F_RELATIVE_NODES)
+>>  		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
+>>  	else {
+>> -		nodes_remap(tmp, pol->v.nodes, pol->w.cpuset_mems_allowed,
+>> -			    *nodes);
+>> +		tmp = *nodes;
+>>  		pol->w.cpuset_mems_allowed = *nodes;
+>>  	}
+>>  
+>> -	pol->v.nodes = tmp;
+>> +	if (nodes_empty(tmp))
+>> +		pol->v.nodes = *nodes;
+>> +	else
+>> +		pol->v.nodes = tmp;
+>> +
+>>  	if (!node_isset(current->il_next, tmp)) {
+>>  		current->il_next = next_node(current->il_next, tmp);
+>>  		if (current->il_next >= MAX_NUMNODES)
+> 
+> 
+> 
 
-What was the machine config you were testing on (RAM, CPUs, etc)?
-And what are these loads? Do you have a script that generates
-them? If so, can you share them, please?
-
-OOC, what was the effect on the background load - did it go faster
-or slower when writeback was disabled? i.e. did we trade of more
-large pages for better overall throughput?
-
-Also, I'm curious as to the repeatability of the tests you are
-doing. I found that from run to run I could see a *massive*
-variance in the results. e.g. one run might only get ~80 huge
-pages at the first attempt, the test run from the same initial
-conditions next might get 440 huge pages at the first attempt. I saw
-the same variance with or without writeback from direct reclaim
-enabled. Hence only after averaging over tens of runs could I see
-any sort of trend emerge, and it makes me wonder if your testing is
-also seeing this sort of variance....
-
-FWIW, if we look results of the test I did, it showed a 20%
-improvement in large page allocation with a 15% increase in load
-throughput, while you're showing a 16% degradation in large page
-allocation.  Effectively we've got two workloads that show results
-at either end of the spectrum (perhaps they are best case vs worst
-case) but there's no real in-between. What other tests can we run to
-get a better picture of the effect?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
