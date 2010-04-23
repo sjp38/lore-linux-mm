@@ -1,74 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3EA046B01F0
-	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 19:56:08 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3MNu5h5017639
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 23 Apr 2010 08:56:05 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 383E245DE4E
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 08:56:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1145F45DE58
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 08:56:05 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5F01DB8061
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 08:56:04 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 39AAC1DB805F
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 08:56:04 +0900 (JST)
-Date: Fri, 23 Apr 2010 08:52:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
- PageSwapCache pages
-Message-Id: <20100423085203.b43d1cb3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1004221439040.5023@router.home>
-References: <20100421153421.GM30306@csn.ul.ie>
-	<alpine.DEB.2.00.1004211038020.4959@router.home>
-	<20100422092819.GR30306@csn.ul.ie>
-	<20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
-	<x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
-	<20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100422141404.GA30306@csn.ul.ie>
-	<p2y28c262361004220718m3a5e3e2ekee1fef7ebdae8e73@mail.gmail.com>
-	<20100422154003.GC30306@csn.ul.ie>
-	<20100422192923.GH30306@csn.ul.ie>
-	<alpine.DEB.2.00.1004221439040.5023@router.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2316D6B01EE
+	for <linux-mm@kvack.org>; Thu, 22 Apr 2010 21:06:42 -0400 (EDT)
+Date: Fri, 23 Apr 2010 11:06:32 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: disallow direct reclaim page writeback
+Message-ID: <20100423010632.GA10390@dastard>
+References: <20100413202021.GZ13327@think>
+ <20100414014041.GD2493@dastard>
+ <20100414155233.D153.A69D9226@jp.fujitsu.com>
+ <20100414072830.GK2493@dastard>
+ <20100414085132.GJ25756@csn.ul.ie>
+ <20100415013436.GO2493@dastard>
+ <20100415102837.GB10966@csn.ul.ie>
+ <20100416041412.GY2493@dastard>
+ <20100416151403.GM19264@csn.ul.ie>
+ <20100419152034.GW19264@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100419152034.GW19264@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Apr 2010 14:40:46 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
-
-> On Thu, 22 Apr 2010, Mel Gorman wrote:
+On Mon, Apr 19, 2010 at 04:20:34PM +0100, Mel Gorman wrote:
+> On Fri, Apr 16, 2010 at 04:14:03PM +0100, Mel Gorman wrote:
+> > > > Your patch fixes 2, avoids 1, breaks 3 and haven't thought about 4 but I
+> > > > guess dirty pages can cycle around more so it'd need to be cared for.
+> > > 
+> > > Well, you keep saying that they break #3, but I haven't seen any
+> > > test cases or results showing that. I've been unable to confirm that
+> > > lumpy reclaim is broken by disallowing writeback in my testing, so
+> > > I'm interested to know what tests you are running that show it is
+> > > broken...
+> > > 
+> > 
+> > Ok, I haven't actually tested this. The machines I use are tied up
+> > retesting the compaction patches at the moment. The reason why I reckon
+> > it'll be a problem is that when these sync-writeback changes were
+> > introduced, it significantly helped lumpy reclaim for huge pages. I am
+> > making an assumption that backing out those changes will hurt it.
+> > 
+> > I'll test for real on Monday and see what falls out.
+> > 
 > 
-> > vma_adjust() is updating anon VMA information without any locks taken.
-> > In constract, file-backed mappings use the i_mmap_lock. This lack of
-> > locking can result in races with page migration. During rmap_walk(),
-> > vma_address() can return -EFAULT for an address that will soon be valid.
-> > This leaves a dangling migration PTE behind which can later cause a
-> > BUG_ON to trigger when the page is faulted in.
+> One machine has completed the test and the results are as expected. When
+> allocating huge pages under stress, your patch drops the success rates
+> significantly. On X86-64, it showed
 > 
-> Isnt this also a race with reclaim /  swap?
+> STRESS-HIGHALLOC
+>               stress-highalloc   stress-highalloc
+>             enable-directreclaim disable-directreclaim
+> Under Load 1    89.00 ( 0.00)    73.00 (-16.00)
+> Under Load 2    90.00 ( 0.00)    85.00 (-5.00)
+> At Rest         90.00 ( 0.00)    90.00 ( 0.00)
 > 
-Yes, it's also race in reclaim/swap ...
-  page_referenced()
-  try_to_unmap().
-  rmap_walk()  <==== we hit this case.
+> So with direct reclaim, it gets 89% of memory as huge pages at the first
+> attempt but 73% with your patch applied. The "Under Load 2" test happens
+> immediately after. With the start kernel, the first and second attempts
+> are usually the same or very close together. With your patch applied,
+> there are big differences as it was no longer trying to clean pages.
 
-But above 2 are not considered to be critical.
+What was the machine config you were testing on (RAM, CPUs, etc)?
+And what are these loads? Do you have a script that generates
+them? If so, can you share them, please?
 
-I'm not sure how this race affect KSM.
+OOC, what was the effect on the background load - did it go faster
+or slower when writeback was disabled? i.e. did we trade of more
+large pages for better overall throughput?
 
-Thanks,
--Kame
+Also, I'm curious as to the repeatability of the tests you are
+doing. I found that from run to run I could see a *massive*
+variance in the results. e.g. one run might only get ~80 huge
+pages at the first attempt, the test run from the same initial
+conditions next might get 440 huge pages at the first attempt. I saw
+the same variance with or without writeback from direct reclaim
+enabled. Hence only after averaging over tens of runs could I see
+any sort of trend emerge, and it makes me wonder if your testing is
+also seeing this sort of variance....
+
+FWIW, if we look results of the test I did, it showed a 20%
+improvement in large page allocation with a 15% increase in load
+throughput, while you're showing a 16% degradation in large page
+allocation.  Effectively we've got two workloads that show results
+at either end of the spectrum (perhaps they are best case vs worst
+case) but there's no real in-between. What other tests can we run to
+get a better picture of the effect?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
