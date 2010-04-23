@@ -1,142 +1,366 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 059566B0208
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:40:23 -0400 (EDT)
-Date: Fri, 23 Apr 2010 21:39:48 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
- PageSwapCache  pages
-Message-ID: <20100423193948.GU32034@random.random>
-References: <20100422092819.GR30306@csn.ul.ie>
- <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com>
- <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com>
- <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com>
- <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
- <1271946226.2100.211.camel@barrios-desktop>
- <1271947206.2100.216.camel@barrios-desktop>
- <20100422154443.GD30306@csn.ul.ie>
- <20100423183135.GT32034@random.random>
- <20100423192311.GC14351@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 784706B020A
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 16:18:19 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
+References: <1268609202-15581-2-git-send-email-arighi@develer.com>
+	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100318162855.GG18054@balbir.in.ibm.com>
+	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100319024039.GH18054@balbir.in.ibm.com>
+	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
+	<xr931veiplpr.fsf@ninji.mtv.corp.google.com>
+	<20100414140523.GC13535@redhat.com>
+	<xr9339yxyepc.fsf@ninji.mtv.corp.google.com>
+	<20100415114022.ef01b704.nishimura@mxp.nes.nec.co.jp>
+	<g2u49b004811004142148i3db9fefaje1f20760426e0c7e@mail.gmail.com>
+	<20100415152104.62593f37.nishimura@mxp.nes.nec.co.jp>
+	<20100415155432.cf1861d9.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 23 Apr 2010 13:17:38 -0700
+Message-ID: <xr93k4rxx6sd.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100423192311.GC14351@csn.ul.ie>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 23, 2010 at 08:23:12PM +0100, Mel Gorman wrote:
-> On Fri, Apr 23, 2010 at 08:31:35PM +0200, Andrea Arcangeli wrote:
-> > Hi Mel,
-> > 
-> > On Thu, Apr 22, 2010 at 04:44:43PM +0100, Mel Gorman wrote:
-> > > heh, I thought of a similar approach at the same time as you but missed
-> > > this mail until later. However, with this approach I suspect there is a
-> > > possibility that two walkers of the same anon_vma list could livelock if
-> > > two locks on the list are held at the same time. Am still thinking of
-> > > how it could be resolved without introducing new locking.
-> > 
-> > Trying to understand this issue and I've some questions. This
-> > vma_adjust and lock inversion troubles with the anon-vma lock in
-> > rmap_walk are a new issue introduced by the recent anon-vma changes,
-> > right?
-> > 
-> 
-> In a manner of speaking. There was no locking going on but prior to the
-> anon_vma changes, there would have been only one anon_vma lock and the
-> fix would be easier - just take the lock on anon_vma->lock while the
-> VMAs are being updated.
+On Wed, Apr 14, 2010 at 11:54 PM, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fuj=
+itsu.com> wrote:
+> On Thu, 15 Apr 2010 15:21:04 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+>> > The only reason to use trylock in this case is to prevent deadlock
+>> > when running in a context that may have preempted or interrupted a
+>> > routine that already holds the bit locked. =C2=A0In the
+>> > __remove_from_page_cache() irqs are disabled, but that does not imply
+>> > that a routine holding the spinlock has been preempted. =C2=A0When the=
+ bit
+>> > is locked, preemption is disabled. =C2=A0The only way to interrupt a h=
+older
+>> > of the bit for an interrupt to occur (I/O, timer, etc). =C2=A0So I thi=
+nk
+>> > that in_interrupt() is sufficient. =C2=A0Am I missing something?
+>> >
+>> IIUC, it's would be enough to prevent deadlock where one CPU tries to ac=
+quire
+>> the same page cgroup lock. But there is still some possibility where 2 C=
+PUs
+>> can cause dead lock each other(please see the commit e767e056).
+>> IOW, my point is "don't call lock_page_cgroup() under mapping->tree_lock=
+".
+>>
+> Hmm, maybe worth to try. We may be able to set/clear all DIRTY/WRITBACK b=
+it
+> on page_cgroup without mapping->tree_lock.
+> In such case, of course, the page itself should be locked by lock_page().
+>
+> But.Hmm..for example.
+>
+> account_page_dirtied() is the best place to mark page_cgroup dirty. But
+> it's called under mapping->tree_lock.
+>
+> Another thinking:
+> I wonder we may have to change our approach for dirty page acccounting.
+>
+> Please see task_dirty_inc(). It's for per task dirty limiting.
+> And you'll notice soon that there is no task_dirty_dec().
 
-So it was very much a bug before too and we could miss to find some
-pte mapping the page if vm_start was adjusted?
+Hello Kame-san,
 
-Also note, expand_downwards also moves vm_start with only the
-anon_vma->lock as it has to serialize against other expand_downwards
-and the rmap_walk. But expand_downwards takes the lock and it was safe
-before.
+This is an interesting idea.  If this applies to memcg dirty accounting,
+then would it also apply to system-wide dirty accounting?  I don't think
+so, but I wanted to float the idea.  It looks like this proportions.c
+code is good is at comparing the rates of events (for example: per-task
+dirty page events).  However, in the case of system-wide dirty
+accounting we also want to consider the amount of dirty memory, not just
+the rate at which it is being dirtied.
 
-Also for swapping even if things screwup it's no big deal, because it
-will just skip, but migration has to find all ptes in
-remove_migration_ptes and try_to_unmap also has to unmap everything.
+Cgroup dirty page accounting imposes the following additional accounting
+complexities:
+* hierarchical accounting
+* page migration between cgroups
 
-In the split_huge_page case even the ordering at which newly allocated
-vmas for the child are queued is critical, they've to be put at the
-end of the list to be safe (otherwise do_wp_huge_page may not wait and
-we may fail to mark the huge_pmd in the child as pmd_splitting).
+For per-memcg dirty accounting, are you thinking that each mem_cgroup
+would have a struct prop_local_single to represent a memcg's dirty
+memory usage relative to a system wide prop_descriptor?
 
-> > About swapcache, try_to_unmap just nuke the mappings, establish the
-> > swap entry in the pte (not migration entry), and then there's no need
-> > to call remove_migration_ptes.
-> 
-> That would be an alternative for swapcache but it's not necessarily
-> where the problem is.
+My concern is that we will still need an efficient way to determine the
+mem_cgroup associated with a page under a variety of conditions (page
+fault path for new mappings, softirq for dirty page writeback).
 
-Hmm try_to_unmap already nukes all swap entries without creating any
-migration pte for swapcache as far as I can tell.
+Currently -rc4 and -mmotm use a non-irq safe lock_page_cgroup() to
+protect a page's cgroup membership.  I think this will cause problems as
+we add more per-cgroup stats (dirty page counts, etc) that are adjusted
+in irq handlers.  Proposed approaches include:
+1. use try-style locking.  this can lead to fuzzy counters, which some
+   do not like.  Over time these fuzzy counter may drift.
 
-> > So it just need to skip it for
-> > swapcache. page_mapped must return zero after try_to_unmap returns
-> > before we're allowed to migrate (plus the page count must be just 1
-> > and not 2 or more for gup users!).
-> > 
-> > I don't get what's the problem about swapcache and the races connected
-> > to it, the moment I hear migration PTE in context of swapcache
-> > migration I'm confused because there's no migration PTE for swapcache.
-> > 
-> 
-> That was a mistake on my part. The race appears to be between vma_adjust
-> changing the details of the VMA while rmap_walk is going on. It mistakenly
-> believes the vma no longer spans the address, gets -EFAULT from vma_address
-> and doesn't clean up the migration PTE. This is later encountered but the
-> page lock is no longer held and it bugs. An alternative would be to clean
-> up the migration PTE of unlocked pages on the assumption it was due to this
-> race but it's a bit sloppier.
+2. mask irq when calling lock_page_cgroup().  This has some performance
+   cost, though it may be small (see below).
 
-Agreed, it's sure better to close the race... the other may have even
-more implications. It's good to retain the invariant that when a
-migration PTE exists the page also still exists and it's locked
-(locked really mostly matters for pagecache I guess, but it's ok).
+3. because a page's cgroup membership rarely changes, use RCU locking.
+   This is fast, but may be more complex than we want.
 
-> > The new page will have no mappings either, it just needs to be part of
-> > the swapcache with the same page->index = swapentry, indexed in the
-> > radix tree with that page->index, and paga->mapping pointing to
-> > swapcache. Then new page faults will bring it in the pageatables. The
-> > lookup_swap_cache has to be serialized against some lock, it should be
-> > the radix tree lock? So the migration has to happen with that lock
-> > hold no?
-> 
-> Think migrate_page_move_mapping() is what you're looking for? It takes
-> the mapping tree lock.
+The performance of simple irqsave locking or more advanced RCU locking
+is similar to current locking (non-irqsave/non-rcu) for several
+workloads (kernel build, dd).  Using a micro-benchmark some differences
+are seen:
+* irqsave is 1% slower than mmotm non-irqsave/non-rcu locking.
+* RCU locking is 4% faster than mmotm non-irqsave/non-rcu locking.
+* RCU locking is 5% faster than irqsave locking.
 
-Yep exactly!
+I think we need some changes to per-memcg dirty page accounting updates
+from irq handlers.  If we want to focus micro benchmark performance,
+then RCU locking seems like the correct approach.  Otherwise, irqsave
+locking seems adequate.  I'm thinking that for now we should start
+simple and use irqsave.  Comments?
 
-> >We can't just migrate swapcache without stopping swapcache
-> > radix tree lookups no? I didn't digest the full migrate.c yet and I
-> > don't see where it happens. Freeing the swapcache while simpler and
-> > safer, would be quite bad as it'd create I/O for potentially hot-ram.
-> > 
-> > About the refcounting of anon-vma in migrate.c I think it'd be much
-> > simpler if zap_page_range and folks would just wait (like they do if
-> > they find a pmd_trans_huge && pmd_trans_splitting pmd), there would be
-> > no need of refcounting the anon-vma that way.
-> > 
-> 
-> I'm not getting what you're suggesting here. The refcount is to make
-> sure the anon_vma doesn't go away after the page mapcount reaches zero.
-> What are we waiting for?
+Here's the data I collected...
 
-Causing zap_page-range to Wait the end of migration when it encounters
-migration ptes instead of skipping them all together by only releasing
-the rss and doing nothing about them. If the pte can't go away, so the
-mm so the vma and so the anon-vma. I'm not suggesting to change that,
-but I guess that's the way I would have done if I would have
-implemented it, it'd avoid refcounting. Just like I did in
-split_huge_page I count the number of pmd marked splitting, and I
-compare it to the number of pmds that are converted from huge to
-not-huge and I compared that again with the page_mapcount. If the
-three numbers aren't equal I bug. It simply can't go wrong unnoticed
-that way. I only can do that because I stop the zapping.
+config      kernel_build[1]   dd[2]   read-fault[3]
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D
+2.6.34-rc4  4:18.64, 4:56.06(+-0.190%)
+MEMCG=3Dn                       0.276(+-1.298%), 0.532(+-0.808%), 2.659(+-0=
+.869%)
+                                      3753.6(+-0.105%)
+
+2.6.34-rc4  4:19.60, 4:58.29(+-0.184%)
+MEMCG=3Dy                       0.288(+-0.663%), 0.599(+-1.857%), 2.841(+-1=
+.020%)
+root cgroup                           4172.3(+-0.074%)
+
+2.6.34-rc4  5:02.41, 4:58.56(+-0.116%)
+MEMCG=3Dy                       0.288(+-0.978%), 0.571(+-1.005%), 2.898(+-1=
+.052%)
+non-root cgroup                       4162.8(+-0.317%)
+
+2.6.34-rc4  4:21.02, 4:57.27(+-0.152%)
+MEMCG=3Dy                       0.289(+-0.809%), 0.574(+-1.013%), 2.856(+-0=
+.909%)
+mmotm                                 4159.0(+-0.280%)
+root cgroup
+
+2.6.34-rc4  5:01.13, 4:56.84(+-0.074%)
+MEMCG=3Dy                       0.299(+-1.512%), 0.577(+-1.158%), 2.864(+-1=
+.012%)
+mmotm                                 4202.3(+-0.149%)
+non-root cgroup
+
+2.6.34-rc4  4:19.44, 4:57.30(+-0.151%)
+MEMCG=3Dy                       0.293(+-0.885%), 0.578(+-0.967%), 2.878(+-1=
+.026%)
+mmotm                                 4219.1(+-0.007%)
+irqsave locking
+root cgroup
+
+2.6.34-rc4  5:01.07, 4:58.62(+-0.796%)
+MEMCG=3Dy                       0.305(+-1.752%), 0.579(+-1.035%), 2.893(+-1=
+.111%)
+mmotm                                 4254.3(+-0.095%)
+irqsave locking
+non-root cgroup
+
+2.6.34-rc4  4:19.53, 4:58.74(+-0.840%)
+MEMCG=3Dy                       0.291(+-0.394%), 0.577(+-1.219%), 2.868(+-1=
+.033%)
+mmotm                                 4004.4(+-0.059%)
+RCU locking
+root cgroup
+
+2.6.34-rc4  5:00.99, 4:57.04(+-0.069%)
+MEMCG=3Dy                       0.289(+-1.027%), 0.575(+-1.069%), 2.858(+-1=
+.102%)
+mmotm                                 4004.0(+-0.096%)
+RCU locking
+non-root cgroup
+
+[1] kernel build is listed as two numbers, first build is cache cold,
+    and average of three non-first builds (with warm cache).  src and
+    output are in 2G tmpfs.
+
+[2] dd creates 10x files in tmpfs of various sizes (100M,200M,1000M) using:
+    "dd if=3D/dev/zero bs=3D$((1<<20)) count=3D..."
+
+[3] micro benchmark measures cycles (rdtsc) per read fault of mmap-ed
+    file warm in the page cache.
+
+[4] MEMCG=3D is an abberviation for CONFIG_CGROUP_MEM_RES_CTLR=3D
+
+[5] mmotm is dated 2010-04-15-14-42
+
+[6] irqsave locking converts all [un]lock_page_cgroup() to use
+    local_irq_save/restore().
+    (local commit a7f01d96417b10058a2128751fe4062e8a3ecc53).  This was
+    previously proposed on linux-kernel and linux-mm.
+
+[7] RCU locking patch is shown below.
+    (local commit 231a4fec6ccdef9e630e184c0e0527c884eac57d)
+
+For reference, here's the RCU locking patch for 2010-04-15-14-42 mmotm,
+which patches 2.6.34-rc4.
+
+  Use RCU to avoid lock_page_cgroup() in most situations.
+
+  When locking, disable irq to allow for accounting from irq handlers.
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ee3b52f..cd46474 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -280,6 +280,12 @@ static bool move_file(void)
+ }
+=20
+ /*
++ * If accounting changes are underway, then access to the mem_cgroup field
++ * within struct page_cgroup requires locking.
++ */
++static bool mem_cgroup_account_move_ongoing;
++
++/*
+  * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+  * limit reclaim to prevent infinite loops, if they ever occur.
+  */
+@@ -1436,12 +1442,25 @@ void mem_cgroup_update_file_mapped(struct page *pag=
+e, int val)
+ {
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc;
++	bool locked =3D false;
++	unsigned long flags =3D 0;
+=20
+ 	pc =3D lookup_page_cgroup(page);
+ 	if (unlikely(!pc))
+ 		return;
+=20
+-	lock_page_cgroup(pc);
++	/*
++	 * Unless a page's cgroup reassignment is possible, then avoid grabbing
++	 * the lock used to protect the cgroup assignment.
++	 */
++	rcu_read_lock();
++	smp_rmb();
++	if (unlikely(mem_cgroup_account_move_ongoing)) {
++		local_irq_save(flags);
++		lock_page_cgroup(pc);
++		locked =3D true;
++	}
++
+ 	mem =3D pc->mem_cgroup;
+ 	if (!mem || !PageCgroupUsed(pc))
+ 		goto done;
+@@ -1449,6 +1468,7 @@ void mem_cgroup_update_file_mapped(struct page *page,=
+ int val)
+ 	/*
+ 	 * Preemption is already disabled. We can use __this_cpu_xxx
+ 	 */
++	VM_BUG_ON(preemptible());
+ 	if (val > 0) {
+ 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 		SetPageCgroupFileMapped(pc);
+@@ -1458,7 +1478,11 @@ void mem_cgroup_update_file_mapped(struct page *page=
+, int val)
+ 	}
+=20
+ done:
+-	unlock_page_cgroup(pc);
++	if (unlikely(locked)) {
++		unlock_page_cgroup(pc);
++		local_irq_restore(flags);
++	}
++	rcu_read_unlock();
+ }
+=20
+ /*
+@@ -2498,6 +2522,28 @@ static inline int mem_cgroup_move_swap_account(swp_e=
+ntry_t entry,
+ #endif
+=20
+ /*
++ * Reassignment of mem_cgroup is possible, so locking is required.  Make s=
+ure
++ * that locks are used when accessing mem_cgroup.
++ * mem_cgroup_end_page_cgroup_reassignment() balances this function.
++ */
++static void mem_cgroup_begin_page_cgroup_reassignment(void)
++{
++	VM_BUG_ON(mem_cgroup_account_move_ongoing);
++	mem_cgroup_account_move_ongoing =3D true;
++	synchronize_rcu();
++}
++
++/*
++ * Once page cgroup membership changes complete, this routine indicates th=
+at
++ * access to mem_cgroup does not require locks.
++ */
++static void mem_cgroup_end_page_cgroup_reassignment(void)
++{
++	VM_BUG_ON(! mem_cgroup_end_page_cgroup_reassignment);
++	mem_cgroup_account_move_ongoing =3D false;
++}
++
++/*
+  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+  * page belongs to.
+  */
+@@ -2524,6 +2570,10 @@ int mem_cgroup_prepare_migration(struct page *page, =
+struct mem_cgroup **ptr)
+ 		css_put(&mem->css);
+ 	}
+ 	*ptr =3D mem;
++
++	if (!ret)
++		mem_cgroup_begin_page_cgroup_reassignment();
++
+ 	return ret;
+ }
+=20
+@@ -2536,7 +2586,8 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 	enum charge_type ctype;
+=20
+ 	if (!mem)
+-		return;
++		goto unlock;
++
+ 	cgroup_exclude_rmdir(&mem->css);
+ 	/* at migration success, oldpage->mapping is NULL. */
+ 	if (oldpage->mapping) {
+@@ -2583,6 +2634,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 	 * In that case, we need to call pre_destroy() again. check it here.
+ 	 */
+ 	cgroup_release_and_wakeup_rmdir(&mem->css);
++
++unlock:
++	mem_cgroup_end_page_cgroup_reassignment();
+ }
+=20
+ /*
+@@ -4406,6 +4460,8 @@ static void mem_cgroup_clear_mc(void)
+ 	mc.to =3D NULL;
+ 	mc.moving_task =3D NULL;
+ 	wake_up_all(&mc.waitq);
++
++	mem_cgroup_end_page_cgroup_reassignment();
+ }
+=20
+ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+@@ -4440,6 +4496,8 @@ static int mem_cgroup_can_attach(struct cgroup_subsys=
+ *ss,
+ 			mc.moved_swap =3D 0;
+ 			mc.moving_task =3D current;
+=20
++			mem_cgroup_begin_page_cgroup_reassignment();
++
+ 			ret =3D mem_cgroup_precharge_mc(mm);
+ 			if (ret)
+ 				mem_cgroup_clear_mc();
+
+--
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
