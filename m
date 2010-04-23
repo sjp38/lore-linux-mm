@@ -1,81 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 849B46B01EE
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 02:09:25 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3N69QRm026535
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 23 Apr 2010 15:09:27 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A7F9245DE66
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:09:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C63545DE5D
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:09:26 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 59E281DB8048
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:09:26 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C98A61DB8041
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 15:09:25 +0900 (JST)
-Date: Fri, 23 Apr 2010 15:05:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4E06B01E3
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 03:00:19 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp03.au.ibm.com (8.14.3/8.13.1) with ESMTP id o3N6uuau005585
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 16:56:56 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3N70D9O1630298
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 17:00:13 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3N70DmU017121
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 17:00:13 +1000
+Date: Fri, 23 Apr 2010 12:30:11 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [BUGFIX][PATCH] memcg rcu lock fix v3
-Message-Id: <20100423150530.469566ab.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4BD139D8.80309@cn.fujitsu.com>
+Message-ID: <20100423070011.GS3994@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <4BD10D59.9090504@cn.fujitsu.com>
-	<20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
-	<4BD118E2.7080307@cn.fujitsu.com>
-	<4BD11A24.2070500@cn.fujitsu.com>
-	<20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
-	<4BD139D8.80309@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
+ <4BD118E2.7080307@cn.fujitsu.com>
+ <4BD11A24.2070500@cn.fujitsu.com>
+ <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Apr 2010 14:10:32 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-04-23 13:03:49]:
 
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > css_id() should be called under rcu_read_lock().
-> > Following is a report from Li Zefan.
-> > ==
-> > ===================================================
-> > [ INFO: suspicious rcu_dereference_check() usage. ]
-> > ---------------------------------------------------
-> > kernel/cgroup.c:4438 invoked rcu_dereference_check() without protection!
-> > 
-> > other info that might help us debug this:
-> > 
-> > 
-> > rcu_scheduler_active = 1, debug_locks = 1
-> > 1 lock held by kswapd0/31:
-> >  #0:  (swap_lock){+.+.-.}, at: [<c05058bb>] swap_info_get+0x4b/0xd0
-> > 
-> > stack backtrace:
-> ...
-> > 
-> > And css_is_ancestor() should be called under rcu_read_lock().
-> > 
-> > 
-> > Reported-by: Li Zefan <lizf@cn.fujitsu.com>
-> > Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> On Fri, 23 Apr 2010 12:58:14 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> With this patch applied, I did some more test, and no warning was triggered.
+> > On Fri, 23 Apr 2010 11:55:16 +0800
+> > Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > 
+> > > Li Zefan wrote:
+> > > > KAMEZAWA Hiroyuki wrote:
+> > > >> On Fri, 23 Apr 2010 11:00:41 +0800
+> > > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > > >>
+> > > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
+> > > >>> css_id() is not under rcu_read_lock().
+> > > >>>
+> > > >> Ok. Thank you for reporting.
+> > > >> This is ok ? 
+> > > > 
+> > > > Yes, and I did some more simple tests on memcg, no more warning
+> > > > showed up.
+> > > > 
+> > > 
+> > > oops, after trigging oom, I saw 2 more warnings:
+> > > 
+> > 
+> > Thank you for good testing.
+> v3 here...sorry too rapid posting...
 > 
-> Tested-by: Li Zefan <lizf@cn.fujitsu.com>
-> 
-Thank you!.
 
--Kame
+Looking at the patch we seem to be protecting the use of only css_*().
+I wonder if we should push down the rcu_read_*lock() semnatics to the
+css routines or is it just too instrusive to do it that way?
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
