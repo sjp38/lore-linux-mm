@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CE24E6B020E
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 16:57:17 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DB356B0210
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 17:19:15 -0400 (EDT)
 Received: from f199130.upc-f.chello.nl ([80.56.199.130] helo=dyad.programming.kicks-ass.net)
-	by casper.infradead.org with esmtpsa (Exim 4.69 #1 (Red Hat Linux))
-	id 1O5Pw2-0006jh-8t
-	for linux-mm@kvack.org; Fri, 23 Apr 2010 20:57:14 +0000
+	by bombadil.infradead.org with esmtpsa (Exim 4.69 #1 (Red Hat Linux))
+	id 1O5QHI-0003iK-Sq
+	for linux-mm@kvack.org; Fri, 23 Apr 2010 21:19:13 +0000
 Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
 From: Peter Zijlstra <peterz@infradead.org>
 In-Reply-To: <xr93k4rxx6sd.fsf@ninji.mtv.corp.google.com>
@@ -24,8 +24,8 @@ References: <1268609202-15581-2-git-send-email-arighi@develer.com>
 	 <20100415155432.cf1861d9.kamezawa.hiroyu@jp.fujitsu.com>
 	 <xr93k4rxx6sd.fsf@ninji.mtv.corp.google.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 23 Apr 2010 22:57:06 +0200
-Message-ID: <1272056226.1821.41.camel@laptop>
+Date: Fri, 23 Apr 2010 23:19:09 +0200
+Message-ID: <1272057549.1821.44.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -34,14 +34,31 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishi
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 2010-04-23 at 13:17 -0700, Greg Thelen wrote:
-> +static void mem_cgroup_begin_page_cgroup_reassignment(void)
-> +{
-> +       VM_BUG_ON(mem_cgroup_account_move_ongoing);
-> +       mem_cgroup_account_move_ongoing = true;
-> +       synchronize_rcu();
-> +} 
+> 
+> This is an interesting idea.  If this applies to memcg dirty accounting,
+> then would it also apply to system-wide dirty accounting?  I don't think
+> so, but I wanted to float the idea.  It looks like this proportions.c
+> code is good is at comparing the rates of events (for example: per-task
+> dirty page events).  However, in the case of system-wide dirty
+> accounting we also want to consider the amount of dirty memory, not just
+> the rate at which it is being dirtied.
 
-btw, you know synchronize_rcu() is _really_ slow?
+Correct, the whole proportion thing is purely about comparing rates of
+events.
+
+> The performance of simple irqsave locking or more advanced RCU locking
+> is similar to current locking (non-irqsave/non-rcu) for several
+> workloads (kernel build, dd).  Using a micro-benchmark some differences
+> are seen:
+> * irqsave is 1% slower than mmotm non-irqsave/non-rcu locking.
+> * RCU locking is 4% faster than mmotm non-irqsave/non-rcu locking.
+> * RCU locking is 5% faster than irqsave locking.
+
+Depending on what architecture you care about local_t might also be an
+option, it uses per-cpu irq/nmi safe instructions (and falls back to
+local_irq_save/restore for architectures lacking this support).
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
