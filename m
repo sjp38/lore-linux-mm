@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C0D726B01F0
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 04:45:28 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [10.3.21.1])
-	by smtp-out.google.com with ESMTP id o3N8jQlv028766
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 01:45:26 -0700
-Received: from pvg4 (pvg4.prod.google.com [10.241.210.132])
-	by hpaq1.eem.corp.google.com with ESMTP id o3N8jJlM032485
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 10:45:24 +0200
-Received: by pvg4 with SMTP id 4so377166pvg.29
-        for <linux-mm@kvack.org>; Fri, 23 Apr 2010 01:45:22 -0700 (PDT)
-Date: Fri, 23 Apr 2010 01:45:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
-In-Reply-To: <4BD0F797.6020704@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com>
-References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 490B16B01E3
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 05:03:52 -0400 (EDT)
+Date: Fri, 23 Apr 2010 10:03:29 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+	PageSwapCache pages
+Message-ID: <20100423090329.GI30306@csn.ul.ie>
+References: <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com> <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com> <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com> <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com> <20100422141404.GA30306@csn.ul.ie> <p2y28c262361004220718m3a5e3e2ekee1fef7ebdae8e73@mail.gmail.com> <20100422154003.GC30306@csn.ul.ie> <20100422192923.GH30306@csn.ul.ie> <alpine.DEB.2.00.1004221439040.5023@router.home> <20100423085203.b43d1cb3.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100423085203.b43d1cb3.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Apr 2010, Miao Xie wrote:
-
-> Suppose the current mempolicy nodes is 0-2, we can remap it from 0-2 to 2,
-> then we can remap it from 2 to 1, but we can't remap it from 2 to 0-2.
+On Fri, Apr 23, 2010 at 08:52:03AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 22 Apr 2010 14:40:46 -0500 (CDT)
+> Christoph Lameter <cl@linux.com> wrote:
 > 
-> that is to say it can't be remaped to a large set of allowed nodes, and the task
-> just can use the small set of nodes for ever, even the large set of nodes is allowed,
-> I think it is unreasonable.
+> > On Thu, 22 Apr 2010, Mel Gorman wrote:
+> > 
+> > > vma_adjust() is updating anon VMA information without any locks taken.
+> > > In constract, file-backed mappings use the i_mmap_lock. This lack of
+> > > locking can result in races with page migration. During rmap_walk(),
+> > > vma_address() can return -EFAULT for an address that will soon be valid.
+> > > This leaves a dangling migration PTE behind which can later cause a
+> > > BUG_ON to trigger when the page is faulted in.
+> > 
+> > Isnt this also a race with reclaim /  swap?
+> > 
+> Yes, it's also race in reclaim/swap ...
+>   page_referenced()
+>   try_to_unmap().
+>   rmap_walk()  <==== we hit this case.
+> 
+> But above 2 are not considered to be critical.
+> 
+> I'm not sure how this race affect KSM.
 > 
 
-That's been the behavior for at least three years so changing it from 
-under the applications isn't acceptable, see 
-Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
-the two flags that are defined that can be used to adjust the behavior.
+I'm not that familiar with KSM but took a look through. Mostly,
+accessing the VMA is protected by the mmap_sem with the exception of
+rmap_walk_ksm. It needs similar protection for accessing the VMA than
+rmap_walk_anon does.
 
-The pol->v.nodes = nodes_empty(tmp) ? *nodes : tmp fix is welcome, 
-however, as a standalone patch.
+Specifically, this part
+
+                list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+                        vma = vmac->vma;
+                        if (rmap_item->address < vma->vm_start ||
+                            rmap_item->address >= vma->vm_end)
+                                continue;
+
+needs to acquire the vma->anon_vma lock if it differs or in your case
+call something similar to vma_address_safe.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
