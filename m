@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 490B16B01E3
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 05:03:52 -0400 (EDT)
-Date: Fri, 23 Apr 2010 10:03:29 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
-	PageSwapCache pages
-Message-ID: <20100423090329.GI30306@csn.ul.ie>
-References: <20100422184621.0aaaeb5f.kamezawa.hiroyu@jp.fujitsu.com> <x2l28c262361004220313q76752366l929a8959cd6d6862@mail.gmail.com> <20100422193106.9ffad4ec.kamezawa.hiroyu@jp.fujitsu.com> <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com> <20100422141404.GA30306@csn.ul.ie> <p2y28c262361004220718m3a5e3e2ekee1fef7ebdae8e73@mail.gmail.com> <20100422154003.GC30306@csn.ul.ie> <20100422192923.GH30306@csn.ul.ie> <alpine.DEB.2.00.1004221439040.5023@router.home> <20100423085203.b43d1cb3.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id B4FCF6B01E3
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 05:49:06 -0400 (EDT)
+Message-ID: <4BD16D09.2030803@redhat.com>
+Date: Fri, 23 Apr 2010 12:48:57 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100423085203.b43d1cb3.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default 4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default>
+In-Reply-To: <b1036777-129b-4531-a730-1e9e5a87cea9@default>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 23, 2010 at 08:52:03AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 22 Apr 2010 14:40:46 -0500 (CDT)
-> Christoph Lameter <cl@linux.com> wrote:
-> 
-> > On Thu, 22 Apr 2010, Mel Gorman wrote:
-> > 
-> > > vma_adjust() is updating anon VMA information without any locks taken.
-> > > In constract, file-backed mappings use the i_mmap_lock. This lack of
-> > > locking can result in races with page migration. During rmap_walk(),
-> > > vma_address() can return -EFAULT for an address that will soon be valid.
-> > > This leaves a dangling migration PTE behind which can later cause a
-> > > BUG_ON to trigger when the page is faulted in.
-> > 
-> > Isnt this also a race with reclaim /  swap?
-> > 
-> Yes, it's also race in reclaim/swap ...
->   page_referenced()
->   try_to_unmap().
->   rmap_walk()  <==== we hit this case.
-> 
-> But above 2 are not considered to be critical.
-> 
-> I'm not sure how this race affect KSM.
-> 
+On 04/22/2010 11:15 PM, Dan Magenheimer wrote:
+>>
+>> Much easier to simulate an asynchronous API with a synchronous backend.
+>>      
+> Indeed.  But an asynchronous API is not appropriate for frontswap
+> (or cleancache).  The reason the hooks are so simple is because they
+> are assumed to be synchronous so that the page can be immediately
+> freed/reused.
+>    
 
-I'm not that familiar with KSM but took a look through. Mostly,
-accessing the VMA is protected by the mmap_sem with the exception of
-rmap_walk_ksm. It needs similar protection for accessing the VMA than
-rmap_walk_anon does.
+Swapping is inherently asynchronous, so we'll have to wait for that to 
+complete anyway (as frontswap does not guarantee swap-in will succeed).  
+I don't doubt it makes things simpler, but also less flexible and useful.
 
-Specifically, this part
+Something else that bothers me is the double swapping.  Sure we're 
+making swapin faster, but we we're still loading the io subsystem with 
+writes.  Much better to make swap-to-ram authoritative (and have the 
+hypervisor swap it to disk if it needs the memory).
 
-                list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
-                        vma = vmac->vma;
-                        if (rmap_item->address < vma->vm_start ||
-                            rmap_item->address >= vma->vm_end)
-                                continue;
+>> Well, copying memory so you can use a zero-copy dma engine is
+>> counterproductive.
+>>      
+> Yes, but for something like an SSD where copying can be used to
+> build up a full 64K write, the cost of copying memory may not be
+> counterproductive.
+>    
 
-needs to acquire the vma->anon_vma lock if it differs or in your case
-call something similar to vma_address_safe.
+I don't understand.  Please clarify.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
