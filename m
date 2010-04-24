@@ -1,73 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 857BE6B021C
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 22:26:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3O2QGeG028858
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 24 Apr 2010 11:26:17 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A750945DE4F
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:26:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8687345DE4D
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:26:16 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C2C71DB804B
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:26:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2265A1DB8045
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:26:16 +0900 (JST)
-Date: Sat, 24 Apr 2010 11:22:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mmotm 1/5] memcg: disable irq at page cgroup lock
-Message-Id: <20100424112217.e2efb61b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1272056226.1821.41.camel@laptop>
-References: <1268609202-15581-2-git-send-email-arighi@develer.com>
-	<20100318133527.420b2f25.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100318162855.GG18054@balbir.in.ibm.com>
-	<20100319102332.f1d81c8d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100319024039.GH18054@balbir.in.ibm.com>
-	<20100319120049.3dbf8440.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr931veiplpr.fsf@ninji.mtv.corp.google.com>
-	<20100414140523.GC13535@redhat.com>
-	<xr9339yxyepc.fsf@ninji.mtv.corp.google.com>
-	<20100415114022.ef01b704.nishimura@mxp.nes.nec.co.jp>
-	<g2u49b004811004142148i3db9fefaje1f20760426e0c7e@mail.gmail.com>
-	<20100415152104.62593f37.nishimura@mxp.nes.nec.co.jp>
-	<20100415155432.cf1861d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr93k4rxx6sd.fsf@ninji.mtv.corp.google.com>
-	<1272056226.1821.41.camel@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4046B0200
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:48 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e5.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o3O4CIGa023313
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:12:18 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3O4RfCI159098
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:41 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3O4Re20006896
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:41 -0400
+Date: Fri, 23 Apr 2010 21:27:39 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH] memcg rcu lock fix v3
+Message-ID: <20100424042739.GD2589@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <4BD10D59.9090504@cn.fujitsu.com>
+ <20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
+ <4BD118E2.7080307@cn.fujitsu.com>
+ <4BD11A24.2070500@cn.fujitsu.com>
+ <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100423193406.GD2589@linux.vnet.ibm.com>
+ <20100424110805.17c7f86e.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100424110805.17c7f86e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Greg Thelen <gthelen@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, balbir@linux.vnet.ibm.com, Andrea Righi <arighi@develer.com>, Trond Myklebust <trond.myklebust@fys.uio.no>, Suleiman Souhlal <suleiman@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Apr 2010 22:57:06 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Fri, 2010-04-23 at 13:17 -0700, Greg Thelen wrote:
-> > +static void mem_cgroup_begin_page_cgroup_reassignment(void)
-> > +{
-> > +       VM_BUG_ON(mem_cgroup_account_move_ongoing);
-> > +       mem_cgroup_account_move_ongoing = true;
-> > +       synchronize_rcu();
-> > +} 
+On Sat, Apr 24, 2010 at 11:08:05AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 23 Apr 2010 12:34:06 -0700
+> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
 > 
-> btw, you know synchronize_rcu() is _really_ slow?
+> > On Fri, Apr 23, 2010 at 01:03:49PM +0900, KAMEZAWA Hiroyuki wrote:
+> > > On Fri, 23 Apr 2010 12:58:14 +0900
+> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > 
+> > > > On Fri, 23 Apr 2010 11:55:16 +0800
+> > > > Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > > > 
+> > > > > Li Zefan wrote:
+> > > > > > KAMEZAWA Hiroyuki wrote:
+> > > > > >> On Fri, 23 Apr 2010 11:00:41 +0800
+> > > > > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > > > > >>
+> > > > > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
+> > > > > >>> css_id() is not under rcu_read_lock().
+> > > > > >>>
+> > > > > >> Ok. Thank you for reporting.
+> > > > > >> This is ok ? 
+> > > > > > 
+> > > > > > Yes, and I did some more simple tests on memcg, no more warning
+> > > > > > showed up.
+> > > > > > 
+> > > > > 
+> > > > > oops, after trigging oom, I saw 2 more warnings:
+> > > > > 
+> > > > 
+> > > > Thank you for good testing.
+> > > v3 here...sorry too rapid posting...
+> > > 
+> > > ==
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > I have queued this, thank you all!
+> > 
+> > However, memcg_oom_wake_function() does not yet exist in the tree
+> > I am using, and is_target_pte_for_mc() has changed.  I omitted the
+> > hunk for memcg_oom_wake_function() and edited the hunk for
+> > is_target_pte_for_mc().
+> > 
+> Ok, memcg_oom_wake_function is for -mm. I'll prepare another patch for -mm.
 > 
-IIUC, this is called once per an event when task is moved and we have
-to move accouting information...and once per an event when we call
-rmdir() to destroy cgroup. 
+> 
+> > I have queued this for others' testing, but if you would rather carry
+> > this patch up the memcg path, please let me know and I will drop it.
+> > 
+> I think it's ok to be fixed by your tree. I'll look at memcg later and
+> fix remaining things.
 
-So, this is not frequenctly called.
-(hooks to migration in this patch is removable.)
+Sounds good!
 
-Thanks,
--Kame
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
