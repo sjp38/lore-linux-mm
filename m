@@ -1,92 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BA4046B0200
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:48 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e5.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o3O4CIGa023313
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:12:18 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3O4RfCI159098
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:41 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3O4Re20006896
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 00:27:41 -0400
-Date: Fri, 23 Apr 2010 21:27:39 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH] memcg rcu lock fix v3
-Message-ID: <20100424042739.GD2589@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <4BD10D59.9090504@cn.fujitsu.com>
- <20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
- <4BD118E2.7080307@cn.fujitsu.com>
- <4BD11A24.2070500@cn.fujitsu.com>
- <20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
- <20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
- <20100423193406.GD2589@linux.vnet.ibm.com>
- <20100424110805.17c7f86e.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E36E36B0221
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 06:43:47 -0400 (EDT)
+Date: Sat, 24 Apr 2010 11:43:24 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
+Message-ID: <20100424104324.GD14351@csn.ul.ie>
+References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com> <20100423095922.GJ30306@csn.ul.ie> <20100423155801.GA14351@csn.ul.ie> <20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100424110805.17c7f86e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 24, 2010 at 11:08:05AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri, 23 Apr 2010 12:34:06 -0700
-> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+On Sat, Apr 24, 2010 at 11:02:00AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 23 Apr 2010 16:58:01 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > On Fri, Apr 23, 2010 at 01:03:49PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Fri, 23 Apr 2010 12:58:14 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > I had considered this idea as well as it is vaguely similar to how zones get
+> > > resized with a seqlock. I was hoping that the existing locking on anon_vma
+> > > would be usable by backing off until uncontended but maybe not so lets
+> > > check out this approach.
 > > > 
-> > > > On Fri, 23 Apr 2010 11:55:16 +0800
-> > > > Li Zefan <lizf@cn.fujitsu.com> wrote:
-> > > > 
-> > > > > Li Zefan wrote:
-> > > > > > KAMEZAWA Hiroyuki wrote:
-> > > > > >> On Fri, 23 Apr 2010 11:00:41 +0800
-> > > > > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> > > > > >>
-> > > > > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
-> > > > > >>> css_id() is not under rcu_read_lock().
-> > > > > >>>
-> > > > > >> Ok. Thank you for reporting.
-> > > > > >> This is ok ? 
-> > > > > > 
-> > > > > > Yes, and I did some more simple tests on memcg, no more warning
-> > > > > > showed up.
-> > > > > > 
-> > > > > 
-> > > > > oops, after trigging oom, I saw 2 more warnings:
-> > > > > 
-> > > > 
-> > > > Thank you for good testing.
-> > > v3 here...sorry too rapid posting...
-> > > 
-> > > ==
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > I have queued this, thank you all!
+> > A possible combination of the two approaches is as follows. It uses the
+> > anon_vma lock mostly except where the anon_vma differs between the page
+> > and the VMAs being walked in which case it uses the seq counter. I've
+> > had it running a few hours now without problems but I'll leave it
+> > running at least 24 hours.
 > > 
-> > However, memcg_oom_wake_function() does not yet exist in the tree
-> > I am using, and is_target_pte_for_mc() has changed.  I omitted the
-> > hunk for memcg_oom_wake_function() and edited the hunk for
-> > is_target_pte_for_mc().
-> > 
-> Ok, memcg_oom_wake_function is for -mm. I'll prepare another patch for -mm.
+> ok, I'll try this, too.
 > 
 > 
-> > I have queued this for others' testing, but if you would rather carry
-> > this patch up the memcg path, please let me know and I will drop it.
+> > ==== CUT HERE ====
+> >  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information by protecting against vma_adjust with a combination of locks and seq counter
 > > 
-> I think it's ok to be fixed by your tree. I'll look at memcg later and
-> fix remaining things.
+> > vma_adjust() is updating anon VMA information without any locks taken.
+> > In constract, file-backed mappings use the i_mmap_lock. This lack of
+> > locking can result in races with page migration. During rmap_walk(),
+> > vma_address() can return -EFAULT for an address that will soon be valid.
+> > This leaves a dangling migration PTE behind which can later cause a
+> > BUG_ON to trigger when the page is faulted in.
+> > 
+> > With the recent anon_vma changes, there is no single anon_vma->lock that
+> > can be taken that is safe for rmap_walk() to guard against changes by
+> > vma_adjust(). Instead, a lock can be taken on one VMA while changes
+> > happen to another.
+> > 
+> > What this patch does is protect against updates with a combination of
+> > locks and seq counters. First, the vma->anon_vma lock is taken by
+> > vma_adjust() and the sequence counter starts. The lock is released and
+> > the sequence ended when the VMA updates are complete.
+> > 
+> > The lock serialses rmap_walk_anon when the page and VMA share the same
+> > anon_vma. Where the anon_vmas do not match, the seq counter is checked.
+> > If a change is noticed, rmap_walk_anon drops its locks and starts again
+> > from scratch as the VMA list may have changed. The dangling migration
+> > PTE bug was not triggered after several hours of stress testing with
+> > this patch applied.
+> > 
+> > [kamezawa.hiroyu@jp.fujitsu.com: Use of a seq counter]
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> I think this patch is nice!
+> 
 
-Sounds good!
+It looks nice but it still broke after 28 hours of running. The
+seq-counter is still insufficient to catch all changes that are made to
+the list. I'm beginning to wonder if a) this really can be fully safely
+locked with the anon_vma changes and b) if it has to be a spinlock to
+catch the majority of cases but still a lazy cleanup if there happens to
+be a race. It's unsatisfactory and I'm expecting I'll either have some
+insight to the new anon_vma changes that allow it to be locked or Rik
+knows how to restore the original behaviour which as Andrea pointed out
+was safe.
 
-							Thanx, Paul
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
