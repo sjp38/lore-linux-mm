@@ -1,92 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 02CA76B0216
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 22:06:10 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3O266kP014763
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6FF696B0218
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 22:12:06 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3O2C2Qv010694
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 24 Apr 2010 11:06:07 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A5D6445DE54
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 73D0F45DE53
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 57AB21DB8038
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 12BCF1DB803C
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
-Date: Sat, 24 Apr 2010 11:02:00 +0900
+	Sat, 24 Apr 2010 11:12:03 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A1F9A45DE6F
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:12:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E49D45DE6E
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:12:02 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 558821DB803B
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:12:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 04CC91DB8037
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:11:59 +0900 (JST)
+Date: Sat, 24 Apr 2010 11:08:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
-Message-Id: <20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100423155801.GA14351@csn.ul.ie>
-References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100423095922.GJ30306@csn.ul.ie>
-	<20100423155801.GA14351@csn.ul.ie>
+Subject: Re: [BUGFIX][PATCH] memcg rcu lock fix v3
+Message-Id: <20100424110805.17c7f86e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100423193406.GD2589@linux.vnet.ibm.com>
+References: <4BD10D59.9090504@cn.fujitsu.com>
+	<20100423121424.ae47efcb.kamezawa.hiroyu@jp.fujitsu.com>
+	<4BD118E2.7080307@cn.fujitsu.com>
+	<4BD11A24.2070500@cn.fujitsu.com>
+	<20100423125814.01e95bce.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100423130349.f320d0be.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100423193406.GD2589@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: paulmck@linux.vnet.ibm.com
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Apr 2010 16:58:01 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 23 Apr 2010 12:34:06 -0700
+"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
 
-> > I had considered this idea as well as it is vaguely similar to how zones get
-> > resized with a seqlock. I was hoping that the existing locking on anon_vma
-> > would be usable by backing off until uncontended but maybe not so lets
-> > check out this approach.
+> On Fri, Apr 23, 2010 at 01:03:49PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Fri, 23 Apr 2010 12:58:14 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > > 
+> > > On Fri, 23 Apr 2010 11:55:16 +0800
+> > > Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > > 
+> > > > Li Zefan wrote:
+> > > > > KAMEZAWA Hiroyuki wrote:
+> > > > >> On Fri, 23 Apr 2010 11:00:41 +0800
+> > > > >> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> > > > >>
+> > > > >>> with CONFIG_PROVE_RCU=y, I saw this warning, it's because
+> > > > >>> css_id() is not under rcu_read_lock().
+> > > > >>>
+> > > > >> Ok. Thank you for reporting.
+> > > > >> This is ok ? 
+> > > > > 
+> > > > > Yes, and I did some more simple tests on memcg, no more warning
+> > > > > showed up.
+> > > > > 
+> > > > 
+> > > > oops, after trigging oom, I saw 2 more warnings:
+> > > > 
+> > > 
+> > > Thank you for good testing.
+> > v3 here...sorry too rapid posting...
+> > 
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> A possible combination of the two approaches is as follows. It uses the
-> anon_vma lock mostly except where the anon_vma differs between the page
-> and the VMAs being walked in which case it uses the seq counter. I've
-> had it running a few hours now without problems but I'll leave it
-> running at least 24 hours.
+> I have queued this, thank you all!
 > 
-ok, I'll try this, too.
+> However, memcg_oom_wake_function() does not yet exist in the tree
+> I am using, and is_target_pte_for_mc() has changed.  I omitted the
+> hunk for memcg_oom_wake_function() and edited the hunk for
+> is_target_pte_for_mc().
+> 
+Ok, memcg_oom_wake_function is for -mm. I'll prepare another patch for -mm.
 
 
-> ==== CUT HERE ====
->  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information by protecting against vma_adjust with a combination of locks and seq counter
+> I have queued this for others' testing, but if you would rather carry
+> this patch up the memcg path, please let me know and I will drop it.
 > 
-> vma_adjust() is updating anon VMA information without any locks taken.
-> In constract, file-backed mappings use the i_mmap_lock. This lack of
-> locking can result in races with page migration. During rmap_walk(),
-> vma_address() can return -EFAULT for an address that will soon be valid.
-> This leaves a dangling migration PTE behind which can later cause a
-> BUG_ON to trigger when the page is faulted in.
-> 
-> With the recent anon_vma changes, there is no single anon_vma->lock that
-> can be taken that is safe for rmap_walk() to guard against changes by
-> vma_adjust(). Instead, a lock can be taken on one VMA while changes
-> happen to another.
-> 
-> What this patch does is protect against updates with a combination of
-> locks and seq counters. First, the vma->anon_vma lock is taken by
-> vma_adjust() and the sequence counter starts. The lock is released and
-> the sequence ended when the VMA updates are complete.
-> 
-> The lock serialses rmap_walk_anon when the page and VMA share the same
-> anon_vma. Where the anon_vmas do not match, the seq counter is checked.
-> If a change is noticed, rmap_walk_anon drops its locks and starts again
-> from scratch as the VMA list may have changed. The dangling migration
-> PTE bug was not triggered after several hours of stress testing with
-> this patch applied.
-> 
-> [kamezawa.hiroyu@jp.fujitsu.com: Use of a seq counter]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+I think it's ok to be fixed by your tree. I'll look at memcg later and
+fix remaining things.
 
-I think this patch is nice!
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
