@@ -1,65 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B92576B0215
-	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 21:52:47 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so1423200pwi.14
-        for <linux-mm@kvack.org>; Fri, 23 Apr 2010 18:52:46 -0700 (PDT)
-Message-ID: <4BD24E37.30204@vflare.org>
-Date: Sat, 24 Apr 2010 07:19:43 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default 4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com>
-In-Reply-To: <4BD1B427.9010905@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 02CA76B0216
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2010 22:06:10 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3O266kP014763
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 24 Apr 2010 11:06:07 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A5D6445DE54
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 73D0F45DE53
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 57AB21DB8038
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 12BCF1DB803C
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 11:06:06 +0900 (JST)
+Date: Sat, 24 Apr 2010 11:02:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
+Message-Id: <20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100423155801.GA14351@csn.ul.ie>
+References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100423095922.GJ30306@csn.ul.ie>
+	<20100423155801.GA14351@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/23/2010 08:22 PM, Avi Kivity wrote:
-> On 04/23/2010 05:43 PM, Dan Magenheimer wrote:
->>>
->>> Perhaps I misunderstood.  Isn't frontswap in front of the normal swap
->>> device?  So we do have double swapping, first to frontswap (which is in
->>> memory, yes, but still a nonzero cost), then the normal swap device.
->>> The io subsystem is loaded with writes; you only save the reads.
->>> Better to swap to the hypervisor, and make it responsible for
->>> committing
->>> to disk on overcommit or keeping in RAM when memory is available.  This
->>> way we avoid the write to disk if memory is in fact available (or at
->>> least defer it until later).  This way you avoid both reads and writes
->>> if memory is available.
->>>      
->> Each page is either in frontswap OR on the normal swap device,
->> never both.  So, yes, both reads and writes are avoided if memory
->> is available and there is no write issued to the io subsystem if
->> memory is available.  The is_memory_available decision is determined
->> by the hypervisor dynamically for each page when the guest attempts
->> a "frontswap_put".  So, yes, you are indeed "swapping to the
->> hypervisor" but, at least in the case of Xen, the hypervisor
->> never swaps any memory to disk so there is never double swapping.
->>    
-> 
-> I see.  So why not implement this as an ordinary swap device, with a
-> higher priority than the disk device?  this way we reuse an API and keep
-> things asynchronous, instead of introducing a special purpose API.
-> 
+On Fri, 23 Apr 2010 16:58:01 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-ramzswap is exactly this: an ordinary swap device which stores every page
-in (compressed) memory and its enabled as highest priority swap. Currently,
-it stores these compressed chunks in guest memory itself but it is not very
-difficult to send these chunks out to host/hypervisor using virtio.
- 
-However, it suffers from unnecessary block I/O layer overhead and requires
-weird hooks in swap code, say to get notification when a swap slot is freed.
-OTOH frontswap approach gets rid of any such artifacts and overheads.
-(ramzswap: http://code.google.com/p/compcache/)
+> > I had considered this idea as well as it is vaguely similar to how zones get
+> > resized with a seqlock. I was hoping that the existing locking on anon_vma
+> > would be usable by backing off until uncontended but maybe not so lets
+> > check out this approach.
+> > 
+> 
+> A possible combination of the two approaches is as follows. It uses the
+> anon_vma lock mostly except where the anon_vma differs between the page
+> and the VMAs being walked in which case it uses the seq counter. I've
+> had it running a few hours now without problems but I'll leave it
+> running at least 24 hours.
+> 
+ok, I'll try this, too.
 
-Thanks,
-Nitin
+
+> ==== CUT HERE ====
+>  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information by protecting against vma_adjust with a combination of locks and seq counter
+> 
+> vma_adjust() is updating anon VMA information without any locks taken.
+> In constract, file-backed mappings use the i_mmap_lock. This lack of
+> locking can result in races with page migration. During rmap_walk(),
+> vma_address() can return -EFAULT for an address that will soon be valid.
+> This leaves a dangling migration PTE behind which can later cause a
+> BUG_ON to trigger when the page is faulted in.
+> 
+> With the recent anon_vma changes, there is no single anon_vma->lock that
+> can be taken that is safe for rmap_walk() to guard against changes by
+> vma_adjust(). Instead, a lock can be taken on one VMA while changes
+> happen to another.
+> 
+> What this patch does is protect against updates with a combination of
+> locks and seq counters. First, the vma->anon_vma lock is taken by
+> vma_adjust() and the sequence counter starts. The lock is released and
+> the sequence ended when the VMA updates are complete.
+> 
+> The lock serialses rmap_walk_anon when the page and VMA share the same
+> anon_vma. Where the anon_vmas do not match, the seq counter is checked.
+> If a change is noticed, rmap_walk_anon drops its locks and starts again
+> from scratch as the VMA list may have changed. The dangling migration
+> PTE bug was not triggered after several hours of stress testing with
+> this patch applied.
+> 
+> [kamezawa.hiroyu@jp.fujitsu.com: Use of a seq counter]
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+I think this patch is nice!
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
