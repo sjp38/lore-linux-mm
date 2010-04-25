@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3DB606B01E3
-	for <linux-mm@kvack.org>; Sun, 25 Apr 2010 08:06:19 -0400 (EDT)
-Message-ID: <4BD43033.7090706@redhat.com>
-Date: Sun, 25 Apr 2010 15:06:11 +0300
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BF0D46B01E3
+	for <linux-mm@kvack.org>; Sun, 25 Apr 2010 08:11:50 -0400 (EDT)
+Message-ID: <4BD43182.1040508@redhat.com>
+Date: Sun, 25 Apr 2010 15:11:46 +0300
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com> <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default 4BD3377E.6010303@redhat.com> <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default>
-In-Reply-To: <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default>
+References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default 4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default>
+In-Reply-To: <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,37 +16,85 @@ To: Dan Magenheimer <dan.magenheimer@oracle.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 04/25/2010 03:41 AM, Dan Magenheimer wrote:
->>> No, ANY put_page can fail, and this is a critical part of the API
->>> that provides all of the flexibility for the hypervisor and all
->>> the guests. (See previous reply.)
+On 04/25/2010 03:30 AM, Dan Magenheimer wrote:
+>>>> I see.  So why not implement this as an ordinary swap device, with a
+>>>> higher priority than the disk device?  this way we reuse an API and
+>>>> keep
+>>>> things asynchronous, instead of introducing a special purpose API.
+>>>>
+>>>>          
+>>> Because the swapping API doesn't adapt well to dynamic changes in
+>>> the size and availability of the underlying "swap" device, which
+>>> is very useful for swap to (bare-metal) hypervisor.
 >>>        
->> The guest isn't required to do any put_page()s.  It can issue lots of
->> them when memory is available, and keep them in the hypervisor forever.
->> Failing new put_page()s isn't enough for a dynamic system, you need to
->> be able to force the guest to give up some of its tmem.
+>> Can we extend it?  Adding new APIs is easy, but harder to maintain in
+>> the long term.
 >>      
-> Yes, indeed, this is true.  That is why it is important for any
-> policy implemented behind frontswap to "bill" the guest if it
-> is attempting to keep frontswap pages in the hypervisor forever
-> and to prod the guest to reclaim them when it no longer needs
-> super-fast emergency swap space.  The frontswap patch already includes
-> the kernel mechanism to enable this and the prodding can be implemented
-> by a guest daemon (of which there already exists an existence proof).
+> Umm... I think the difference between a "new" API and extending
+> an existing one here is a choice of semantics.  As designed, frontswap
+> is an extremely simple, only-very-slightly-intrusive set of hooks that
+> allows swap pages to, under some conditions, go to pseudo-RAM instead
+> of an asynchronous disk-like device.  It works today with at least
+> one "backend" (Xen tmem), is shipping today in real distros, and is
+> extremely easy to enable/disable via CONFIG or module... meaning
+> no impact on anyone other than those who choose to benefit from it.
+>
+> "Extending" the existing swap API, which has largely been untouched for
+> many years, seems like a significantly more complex and error-prone
+> undertaking that will affect nearly all Linux users with a likely long
+> bug tail.  And, by the way, there is no existence proof that it
+> will be useful.
+>
+> Seems like a no-brainer to me.
 >    
 
-In this case you could use the same mechanism to stop new put_page()s?
+My issue is with the API's synchronous nature.  Both RAM and more exotic 
+memories can be used with DMA instead of copying.  A synchronous 
+interface gives this up.
 
-Seems frontswap is like a reverse balloon, where the balloon is in 
-hypervisor space instead of the guest space.
-
-> (While devil's advocacy is always welcome, frontswap is NOT a
-> cool academic science project where these issues have not been
-> considered or tested.)
+>> Ok.  For non traditional RAM uses I really think an async API is
+>> needed.  If the API is backed by a cpu synchronous operation is fine,
+>> but once it isn't RAM, it can be all kinds of interesting things.
+>>      
+> Well, we shall see.  It may also be the case that the existing
+> asynchronous swap API will work fine for some non traditional RAM;
+> and it may also be the case that frontswap works fine for some
+> non traditional RAM.  I agree there is fertile ground for exploration
+> here.  But let's not allow our speculation on what may or may
+> not work in the future halt forward progress of something that works
+> today.
 >    
 
+Let's not allow the urge to merge prevent us from doing the right thing.
 
-Good to know.
+>
+>    
+>> Note that even if you do give the page to the guest, you still control
+>> how it can access it, through the page tables.  So for example you can
+>> easily compress a guest's pages without telling it about it; whenever
+>> it
+>> touches them you decompress them on the fly.
+>>      
+> Yes, at a much larger more invasive cost to the kernel.  Frontswap
+> and cleancache and tmem are all well-layered for a good reason.
+>    
+
+No need to change the kernel at all; the hypervisor controls the page 
+tables.
+
+>> Swap has no timing
+>> constraints, it is asynchronous and usually to slow devices.
+>>      
+> What I was referring to is that the existing swap code DOES NOT
+> always have the ability to collect N scattered pages before
+> initiating an I/O write suitable for a device (such as an SSD)
+> that is optimized for writing N pages at a time.  That is what
+> I meant by a timing constraint.  See references to page_cluster
+> in the swap code (and this is for contiguous pages, not scattered).
+>    
+
+I see.  Given that swap-to-flash will soon be way more common than 
+frontswap, it needs to be solved (either in flash or in the swap code).
 
 -- 
 error compiling committee.c: too many arguments to function
