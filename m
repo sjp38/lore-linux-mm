@@ -1,47 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E762600375
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 20:41:33 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default>
-Date: Sat, 24 Apr 2010 17:41:04 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <20100422134249.GA2963@ca-server1.us.oracle.com>
- <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default>
- <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default>
- <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
- <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
- <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com>
- <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default 4BD3377E.6010303@redhat.com>
-In-Reply-To: <4BD3377E.6010303@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E8678600375
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 22:40:30 -0400 (EDT)
+Subject: No one seems to be using AOP_WRITEPAGE_ACTIVATE?
+From: "Theodore Ts'o" <tytso@mit.edu>
+Message-Id: <E1O5rld-0001AX-Lk@closure.thunk.org>
+Date: Sat, 24 Apr 2010 22:40:21 -0400
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > No, ANY put_page can fail, and this is a critical part of the API
-> > that provides all of the flexibility for the hypervisor and all
-> > the guests. (See previous reply.)
->=20
-> The guest isn't required to do any put_page()s.  It can issue lots of
-> them when memory is available, and keep them in the hypervisor forever.
-> Failing new put_page()s isn't enough for a dynamic system, you need to
-> be able to force the guest to give up some of its tmem.
 
-Yes, indeed, this is true.  That is why it is important for any
-policy implemented behind frontswap to "bill" the guest if it
-is attempting to keep frontswap pages in the hypervisor forever
-and to prod the guest to reclaim them when it no longer needs
-super-fast emergency swap space.  The frontswap patch already includes
-the kernel mechanism to enable this and the prodding can be implemented
-by a guest daemon (of which there already exists an existence proof).
+I happened to be going through the source code for write_cache_pages(),
+and I came across a reference to AOP_WRITEPAGE_ACTIVATE.  I was curious
+what the heck that was, so I did search for it, and found this in
+Documentation/filesystems/vfs.txt:
 
-(While devil's advocacy is always welcome, frontswap is NOT a
-cool academic science project where these issues have not been
-considered or tested.)
+      If wbc->sync_mode is WB_SYNC_NONE, ->writepage doesn't have to
+      try too hard if there are problems, and may choose to write out
+      other pages from the mapping if that is easier (e.g. due to
+      internal dependencies).  If it chooses not to start writeout, it
+      should return AOP_WRITEPAGE_ACTIVATE so that the VM will not keep
+      calling ->writepage on that page.
+
+      See the file "Locking" for more details.
+
+No filesystems are currently returning AOP_WRITEPAGE_ACTIVATE when it
+chooses not to writeout page and call redirty_page_for_writeback()
+instead.
+
+Is this a change we should make, for example when btrfs refuses a
+writepage() when PF_MEMALLOC is set, or when ext4 refuses a writepage()
+if the page involved hasn't been allocated an on-disk block yet (i.e.,
+delayed allocation)?  The change seems to be that we should call
+redirty_page_for_writeback() as before, but then _not_ unlock the page,
+and return AOP_WRITEPAGE_ACTIVATE.  Is this a good and useful thing for
+us to do?
+
+Right now, the only writepage() function which is returning
+AOP_WRITEPAGE_ACTIVATE is shmem_writepage(), and very curiously it's not
+using redirty_page_for_writeback().  Should it, out of consistency's
+sake if not to keep various zone accounting straight?
+
+There are some longer-term issues, including the fact that ext4 and
+btrfs are violating some of the rules laid out in
+Documentation/vfs/Locking regarding what writepage() is supposed to do
+under direct reclaim -- something which isn't going to be practical for
+us to change on the file-system side, at least not without doing some
+pretty nasty and serious rework, for both ext4 and I suspect btrfs.  But
+if returning AOP_WRITEPAGE_ACTIVATE will help the VM deal more
+gracefully with the fact that ext4 and btrfs will be refusing
+writepage() calls under certain conditions, maybe we should make this
+change?
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
