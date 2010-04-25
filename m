@@ -1,60 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E8678600375
-	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 22:40:30 -0400 (EDT)
-Subject: No one seems to be using AOP_WRITEPAGE_ACTIVATE?
-From: "Theodore Ts'o" <tytso@mit.edu>
-Message-Id: <E1O5rld-0001AX-Lk@closure.thunk.org>
-Date: Sat, 24 Apr 2010 22:40:21 -0400
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 84FEF6B0234
+	for <linux-mm@kvack.org>; Sat, 24 Apr 2010 23:14:16 -0400 (EDT)
+Received: by pvf33 with SMTP id 33so368454pvf.14
+        for <linux-mm@kvack.org>; Sat, 24 Apr 2010 20:14:15 -0700 (PDT)
+Message-ID: <4BD3B2D1.8080203@vflare.org>
+Date: Sun, 25 Apr 2010 08:41:13 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+MIME-Version: 1.0
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default 4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <4BD24E37.30204@vflare.org> <4BD33822.2000604@redhat.com>
+In-Reply-To: <4BD33822.2000604@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org
+To: Avi Kivity <avi@redhat.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+On 04/24/2010 11:57 PM, Avi Kivity wrote:
+> On 04/24/2010 04:49 AM, Nitin Gupta wrote:
+>>
+>>> I see.  So why not implement this as an ordinary swap device, with a
+>>> higher priority than the disk device?  this way we reuse an API and keep
+>>> things asynchronous, instead of introducing a special purpose API.
+>>>
+>>>      
+>> ramzswap is exactly this: an ordinary swap device which stores every page
+>> in (compressed) memory and its enabled as highest priority swap.
+>> Currently,
+>> it stores these compressed chunks in guest memory itself but it is not
+>> very
+>> difficult to send these chunks out to host/hypervisor using virtio.
+>>
+>> However, it suffers from unnecessary block I/O layer overhead and
+>> requires
+>> weird hooks in swap code, say to get notification when a swap slot is
+>> freed.
+>>    
+> 
+> Isn't that TRIM?
 
-I happened to be going through the source code for write_cache_pages(),
-and I came across a reference to AOP_WRITEPAGE_ACTIVATE.  I was curious
-what the heck that was, so I did search for it, and found this in
-Documentation/filesystems/vfs.txt:
+No: trim or discard is not useful. The problem is that we require a callback
+_as soon as_ a page (swap slot) is freed. Otherwise, stale data quickly accumulates
+in memory defeating the whole purpose of in-memory compressed swap devices (like ramzswap).
 
-      If wbc->sync_mode is WB_SYNC_NONE, ->writepage doesn't have to
-      try too hard if there are problems, and may choose to write out
-      other pages from the mapping if that is easier (e.g. due to
-      internal dependencies).  If it chooses not to start writeout, it
-      should return AOP_WRITEPAGE_ACTIVATE so that the VM will not keep
-      calling ->writepage on that page.
+Increasing the frequency of discards is also not an option:
+ - Creating discard bio requests themselves need memory and these swap devices
+come into picture only under low memory conditions.
+ - We need to regularly scan swap_map to issue these discards. Increasing discard
+frequency also means more frequent scanning (which will still not be fast enough
+for ramzswap needs).
 
-      See the file "Locking" for more details.
+> 
+>> OTOH frontswap approach gets rid of any such artifacts and overheads.
+>> (ramzswap: http://code.google.com/p/compcache/)
+>>    
+> 
+> Maybe we should optimize these overheads instead.  Swap used to always
+> be to slow devices, but swap-to-flash has the potential to make swap act
+> like an extension of RAM.
+> 
 
-No filesystems are currently returning AOP_WRITEPAGE_ACTIVATE when it
-chooses not to writeout page and call redirty_page_for_writeback()
-instead.
+Spending lot of effort optimizing an overhead which can be completely avoided
+is probably not worth it.
 
-Is this a change we should make, for example when btrfs refuses a
-writepage() when PF_MEMALLOC is set, or when ext4 refuses a writepage()
-if the page involved hasn't been allocated an on-disk block yet (i.e.,
-delayed allocation)?  The change seems to be that we should call
-redirty_page_for_writeback() as before, but then _not_ unlock the page,
-and return AOP_WRITEPAGE_ACTIVATE.  Is this a good and useful thing for
-us to do?
+Also, I think the choice of a synchronous style API for frontswap and cleancache
+is justified as they want to send pages to host *RAM*. If you want to use other
+devices like SSDs, then these should be just added as another swap device as
+we do currently -- these should not be used as frontswap storage directly.
 
-Right now, the only writepage() function which is returning
-AOP_WRITEPAGE_ACTIVATE is shmem_writepage(), and very curiously it's not
-using redirty_page_for_writeback().  Should it, out of consistency's
-sake if not to keep various zone accounting straight?
-
-There are some longer-term issues, including the fact that ext4 and
-btrfs are violating some of the rules laid out in
-Documentation/vfs/Locking regarding what writepage() is supposed to do
-under direct reclaim -- something which isn't going to be practical for
-us to change on the file-system side, at least not without doing some
-pretty nasty and serious rework, for both ext4 and I suspect btrfs.  But
-if returning AOP_WRITEPAGE_ACTIVATE will help the VM deal more
-gracefully with the fact that ext4 and btrfs will be refusing
-writepage() calls under certain conditions, maybe we should make this
-change?
-
-						- Ted
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
