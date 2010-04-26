@@ -1,85 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 730726B0202
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:43:34 -0400 (EDT)
-Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
-	by mtagate6.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o3QChTQx005459
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 12:43:29 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3QChUlv876680
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 13:43:30 +0100
-Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o3QChTZF009980
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 13:43:29 +0100
-Message-ID: <4BD58A6C.6040104@linux.vnet.ibm.com>
-Date: Mon, 26 Apr 2010 14:43:24 +0200
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BEB776B0204
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:47:07 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: Subject: [PATCH][RFC] mm: make working set portion that is protected
- tunable v2
-References: <20100322235053.GD9590@csn.ul.ie> <20100419214412.GB5336@cmpxchg.org>	 <4BCD55DA.2020000@linux.vnet.ibm.com> <20100420153202.GC5336@cmpxchg.org> <4BCDE2F0.3010009@redhat.com> <4BCE7DD1.70900@linux.vnet.ibm.com>	 <4BCEAAC6.7070602@linux.vnet.ibm.com> <4BCEFB4C.1070206@redhat.com>	 <4BCFEAD0.4010708@linux.vnet.ibm.com> <4BD57213.7060207@linux.vnet.ibm.com> <p2y2f11576a1004260459jcaf79962p50e4d29f990019ee@mail.gmail.com>
-In-Reply-To: <p2y2f11576a1004260459jcaf79962p50e4d29f990019ee@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Message-ID: <f038ee35-8b34-4305-b93a-49383c86f83e@default>
+Date: Mon, 26 Apr 2010 05:45:57 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <20100422134249.GA2963@ca-server1.us.oracle.com>
+ <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default>
+ <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default>
+ <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
+ <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
+ <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default>
+ <4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default>
+ <4BD43182.1040508@redhat.com> <c5062f3a-3232-4b21-b032-2ee1f2485ff0@default>
+ <4BD44E74.2020506@redhat.com> <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default
+ 4BD52C4F.40505@redhat.com>
+In-Reply-To: <4BD52C4F.40505@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, gregkh@novell.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+> dma engines are present on commodity hardware now:
+>=20
+> http://en.wikipedia.org/wiki/I/O_Acceleration_Technology
+>=20
+> I don't know if consumer machines have them, but servers certainly do.
+> modprobe ioatdma.
 
+They don't seem to have gained much ground in the FIVE YEARS
+since the patch was first posted to Linux, have they?
 
-KOSAKI Motohiro wrote:
-> Hi
-> 
-> I've quick reviewed your patch. but unfortunately I can't write my
-> reviewed-by sign.
-
-Not a problem, atm I'm happy about any review and comment :-)
-
->> Subject: [PATCH][RFC] mm: make working set portion that is protected tunable v2
->> From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
->>
->> *updates in v2*
->> - use do_div
->>
->> This patch creates a knob to help users that have workloads suffering from the
->> fix 1:1 active inactive ratio brought into the kernel by "56e49d21 vmscan:
->> evict use-once pages first".
->> It also provides the tuning mechanisms for other users that want an even bigger
->> working set to be protected.
-> 
-> We certainly need no knob. because typical desktop users use various
-> application,
-> various workload. then, the knob doesn't help them.
-
-Briefly - We had discussed non desktop scenarios where like a day load 
-that builds up the working set to 50% and a nightly backup job which 
-then is unable to use that protected 50% when sequentially reading a lot 
-of disks and due to that doesn't finish before morning.
-
-The knob should help those people that know their system would suffer 
-from this or similar cases to e.g. set the protected ratio smaller or 
-even to zero if wanted.
-
-As mentioned before, being able to gain back those protected 50% would 
-be even better - if it can be done in a way not hurting the original 
-intention of protecting them.
-
-I personally just don't feel too good knowing that 50% of my memory 
-might hang around unused for many hours while they could be of some use.
-I absolutely agree with the old intention and see how the patch helped 
-with the latency issue Elladan brought up in the past - but it just 
-looks way too aggressive to protect it "forever" for some server use cases.
-
-> Probably, I've missed previous discussion. I'm going to find your previous mail.
-
-The discussion ends at http://lkml.org/lkml/2010/4/22/38 - feel free to 
-click through it.
-
--- 
-
-Grusse / regards, Christian Ehrhardt
-IBM Linux Technology Center, System z Linux Performance
+Maybe it's because memory-to-memory copy using a CPU
+is so fast (especially for page-ish quantities of data)
+and is a small percentage of CPU utilization these days?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
