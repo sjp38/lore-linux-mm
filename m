@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D40D36B01F1
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:11:24 -0400 (EDT)
-Date: Mon, 26 Apr 2010 23:11:03 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
-	PageSwapCache pages
-Message-ID: <20100426221102.GB8459@csn.ul.ie>
-References: <1271947206.2100.216.camel@barrios-desktop> <20100422154443.GD30306@csn.ul.ie> <20100423183135.GT32034@random.random> <20100423192311.GC14351@csn.ul.ie> <20100423193948.GU32034@random.random> <20100423213549.GV32034@random.random> <20100424105226.GF14351@csn.ul.ie> <20100424111340.GB32034@random.random> <20100424115936.GG14351@csn.ul.ie> <4BD60B80.8050605@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 18C386B01F1
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:18:46 -0400 (EDT)
+Message-ID: <4BD61147.40709@tauceti.net>
+Date: Tue, 27 Apr 2010 00:18:47 +0200
+From: Robert Wimmer <kernel@tauceti.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4BD60B80.8050605@redhat.com>
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain>
+In-Reply-To: <1272315854.8984.125.camel@localhost.localdomain>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 26, 2010 at 05:54:08PM -0400, Rik van Riel wrote:
-> On 04/24/2010 07:59 AM, Mel Gorman wrote:
->> On Sat, Apr 24, 2010 at 01:13:40PM +0200, Andrea Arcangeli wrote:
->
->>> Also keep in mind expand_downwards which also adjusts
->>> vm_start/vm_pgoff the same way (and without mmap_sem write mode).
->>
->> Will keep it in mind. It's taking the anon_vma lock but once again,
->> there might be more than one anon_vma to worry about and the proper
->> locking still isn't massively clear to me.
->
-> The locking for the anon_vma_chain->same_vma list is
-> essentially the same as what was used before in mmap
-> and anon_vma_prepare.
->
-> Either the mmap_sem is held for write, or the mmap_sem
-> is held for reading and the page_table_lock is held.
->
-> What exactly is the problem that migration is seeing?
->
 
-There are two problems.
+> Sure. In addition to what you did above, please do
+>
+> mount -t debugfs none /sys/kernel/debug
+>
+> and then cat the contents of the pseudofile at
+>
+> /sys/kernel/debug/tracing/stack_trace
+>
+> Please do this more or less immediately after you've finished mounting
+> the NFSv4 client.
+>   
 
-Migration isn't holding the mmap_sem for write, for read or the pagetable
-lock. It locks the page, unmaps it, puts a migration PTE in place that looks
-like a swap entry, copies it and remaps it under the pagetable lock. At no
-point does it hold the mmap_sem, but it needs to be sure it finds all the
-migration pte it created. Because there are multiple anon_vma's, the locking
-is tricky and unclear. I have one patch that locks the anon_vmas as it finds
-them but is prepared to start over in the event of contention.
+I've uploaded the stack trace. It was generated
+directly after mounting. Here are the stacks:
 
-The second appears to be migration ptes that get copied during fork().
-This is easier to handle.
+After mounting:
+https://bugzilla.kernel.org/attachment.cgi?id=26153
+After the soft lockup:
+https://bugzilla.kernel.org/attachment.cgi?id=26154
+The dmesg output of the soft lockup:
+https://bugzilla.kernel.org/attachment.cgi?id=26155
 
-I'm testing two patches at the moment and after 8 hours have seen no problem
-even though the races are being detected (and handled). If it survives the
-night, I'll post them.
+> Does your server have the 'crossmnt' or 'nohide' flags set, or does it
+> use the 'refer' export option anywhere? If so, then we might have to
+> test further, since those may trigger the NFSv4 submount feature.
+>   
+The server has the following settings:
+rw,nohide,insecure,async,no_subtree_check,no_root_squash
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks!
+Robert
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
