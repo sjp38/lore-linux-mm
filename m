@@ -1,47 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 416D66B01E3
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:04:44 -0400 (EDT)
-Date: Tue, 27 Apr 2010 01:04:12 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/2] Fix migration races in rmap_walk()
-Message-ID: <20100426230412.GL8860@random.random>
-References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 391706B01EF
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:05:31 -0400 (EDT)
+Received: by iwn30 with SMTP id 30so1834156iwn.28
+        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:05:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
+References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+	 <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
+Date: Tue, 27 Apr 2010 08:05:26 +0900
+Message-ID: <z2y28c262361004261605ha101b4aek7116f7a6a1d5b92@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the
+	wrong VMA information
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 26, 2010 at 11:37:56PM +0100, Mel Gorman wrote:
-> The other issues raised about expand_downwards will need to be re-examined to
-> see if they still exist and transparent hugepage support will need further
-> thinking to see if split_huge_page() can deal with these situations.
-
-So patch 1 is for aa.git too, and patch 2 is only for mainline with
-the new anon-vma changes (patch 2 not needed in current aa.git, and if
-I apply it, it'll deadlock so...) right?
-
-split_huge_page is somewhat simpler and more strict in its checking
-than migrate.c in this respect, and yes patch 2 will also need to be
-extended to cover split_huge_page the moment I stop backing out the
-new anon-vma code (but it won't be any different, whatever works for
-migrate will also work for split_huge_page later).
-
-For now I'm much more interested in patch 1 and I'll leave patch 2 to
-mainline digestion and check it later hope to find all issues fixed by
-the time transparent hugepage gets merged.
-
-About patch 1 it's very interesting because I looked at the race
-against fork and migrate yesterday and I didn't see issues but I'm
-going to read your patch 1 in detail now to understand what is the
-problem you're fixing.
-
-Good you posted this fast, so I can try to help ;)
-Andrea
+T24gVHVlLCBBcHIgMjcsIDIwMTAgYXQgNzozNyBBTSwgTWVsIEdvcm1hbiA8bWVsQGNzbi51bC5p
+ZT4gd3JvdGU6Cj4gdm1hX2FkanVzdCgpIGlzIHVwZGF0aW5nIGFub24gVk1BIGluZm9ybWF0aW9u
+IHdpdGhvdXQgYW55IGxvY2tzIHRha2VuLgo+IEluIGNvbnRyYXN0LCBmaWxlLWJhY2tlZCBtYXBw
+aW5ncyB1c2UgdGhlIGlfbW1hcF9sb2NrIGFuZCB0aGlzIGxhY2sgb2YKPiBsb2NraW5nIGNhbiBy
+ZXN1bHQgaW4gcmFjZXMgd2l0aCBwYWdlIG1pZ3JhdGlvbi4gRHVyaW5nIHJtYXBfd2FsaygpLAo+
+IHZtYV9hZGRyZXNzKCkgY2FuIHJldHVybiAtRUZBVUxUIGZvciBhbiBhZGRyZXNzIHRoYXQgd2ls
+bCBzb29uIGJlIHZhbGlkLgo+IFRoaXMgbGVhdmVzIGEgZGFuZ2xpbmcgbWlncmF0aW9uIFBURSBi
+ZWhpbmQgd2hpY2ggY2FuIGxhdGVyIGNhdXNlIGEgQlVHX09OCj4gdG8gdHJpZ2dlciB3aGVuIHRo
+ZSBwYWdlIGlzIGZhdWx0ZWQgaW4uCj4KPiBXaXRoIHRoZSByZWNlbnQgYW5vbl92bWEgY2hhbmdl
+cywgdGhlcmUgY2FuIGJlIG1vcmUgdGhhbiBvbmUgYW5vbl92bWEtPmxvY2sKPiB0aGF0IGNhbiBi
+ZSB0YWtlbiBpbiBhIGFub25fdm1hX2NoYWluIGJ1dCBhIHNlY29uZCBsb2NrIGNhbm5vdCBiZSBz
+cGlubmVkCj4gdXBvbiBpbiBjYXNlIG9mIGRlYWRsb2NrLiBJbnN0ZWFkLCB0aGUgcm1hcCB3YWxr
+ZXIgdHJpZXMgdG8gdGFrZSBsb2NrcyBvZgo+IGRpZmZlcmVudCBhbm9uX3ZtYSdzLiBJZiB0aGUg
+YXR0ZW1wdCBmYWlscywgdGhlIG9wZXJhdGlvbiBpcyByZXN0YXJ0ZWQuCj4KPiBTaWduZWQtb2Zm
+LWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVsLmllPgo+IC0tLQo+IMKgbW0va3NtLmMgwqB8IMKg
+IDEzICsrKysrKysrKysrKysKPiDCoG1tL21tYXAuYyB8IMKgIMKgNiArKysrKysKPiDCoG1tL3Jt
+YXAuYyB8IMKgIDIyICsrKysrKysrKysrKysrKysrKystLS0KPiDCoDMgZmlsZXMgY2hhbmdlZCwg
+MzggaW5zZXJ0aW9ucygrKSwgMyBkZWxldGlvbnMoLSkKPgo+IGRpZmYgLS1naXQgYS9tbS9rc20u
+YyBiL21tL2tzbS5jCj4gaW5kZXggMzY2NmQ0My4uYmFhNWI0ZCAxMDA2NDQKPiAtLS0gYS9tbS9r
+c20uYwo+ICsrKyBiL21tL2tzbS5jCj4gQEAgLTE2NzQsOSArMTY3NCwyMiBAQCBhZ2FpbjoKPiDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoHNwaW5fbG9jaygmYW5vbl92bWEtPmxvY2spOwo+IMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgbGlzdF9mb3JfZWFjaF9lbnRyeSh2bWFjLCAmYW5vbl92bWEtPmhl
+YWQsIHNhbWVfYW5vbl92bWEpIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oHZtYSA9IHZtYWMtPnZtYTsKPiArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCAvKiBTZWUgY29tbWVudCBpbiBtbS9ybWFwLmMjcm1hcF93YWxrX2Fub24gb24gbG9ja2luZyAq
+Lwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGFub25fdm1hICE9IHZt
+YS0+YW5vbl92bWEpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIGlmICghc3Bpbl90cnlsb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKSkgewo+ICsgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgc3Bp
+bl91bmxvY2soJmFub25fdm1hLT5sb2NrKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGdvdG8gYWdhaW47Cj4gKyDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9Cj4gKyDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCB9Cj4gKwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgaWYgKHJtYXBfaXRlbS0+YWRkcmVzcyA8IHZtYS0+dm1fc3RhcnQgfHwKPiDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJtYXBfaXRlbS0+YWRkcmVzcyA+PSB2bWEt
+PnZtX2VuZCkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oGNvbnRpbnVlOwo+ICsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChh
+bm9uX3ZtYSAhPSB2bWEtPmFub25fdm1hKQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl91bmxvY2soJnZtYS0+YW5vbl92bWEtPmxvY2spOwo+ICsK
+PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoC8qCj4gwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgKiBJbml0aWFsbHkgd2UgZXhhbWluZSBvbmx5IHRoZSB2bWEg
+d2hpY2ggY292ZXJzIHRoaXMKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAq
+IHJtYXBfaXRlbTsgYnV0IGxhdGVyLCBpZiB0aGVyZSBpcyBzdGlsbCB3b3JrIHRvIGRvLAo+IGRp
+ZmYgLS1naXQgYS9tbS9tbWFwLmMgYi9tbS9tbWFwLmMKPiBpbmRleCBmOTBlYTkyLi42MWQ2ZjFk
+IDEwMDY0NAo+IC0tLSBhL21tL21tYXAuYwo+ICsrKyBiL21tL21tYXAuYwo+IEBAIC01NzgsNiAr
+NTc4LDkgQEAgYWdhaW46IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgcmVtb3ZlX25l
+eHQgPSAxICsgKGVuZCA+IG5leHQtPnZtX2VuZCk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9
+Cj4gwqAgwqAgwqAgwqB9Cj4KPiArIMKgIMKgIMKgIGlmICh2bWEtPmFub25fdm1hKQo+ICsgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl9sb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKTsKPiArCj4g
+wqAgwqAgwqAgwqBpZiAocm9vdCkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgZmx1c2hfZGNh
+Y2hlX21tYXBfbG9jayhtYXBwaW5nKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHZtYV9wcmlv
+X3RyZWVfcmVtb3ZlKHZtYSwgcm9vdCk7Cj4gQEAgLTYyMCw2ICs2MjMsOSBAQCBhZ2FpbjogwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqByZW1vdmVfbmV4dCA9IDEgKyAoZW5kID4gbmV4
+dC0+dm1fZW5kKTsKPiDCoCDCoCDCoCDCoGlmIChtYXBwaW5nKQo+IMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgc3Bpbl91bmxvY2soJm1hcHBpbmctPmlfbW1hcF9sb2NrKTsKPgo+ICsgwqAgwqAgwqAg
+aWYgKHZtYS0+YW5vbl92bWEpCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX3VubG9jaygm
+dm1hLT5hbm9uX3ZtYS0+bG9jayk7Cj4gKwo+IMKgIMKgIMKgIMKgaWYgKHJlbW92ZV9uZXh0KSB7
+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoZmlsZSkgewo+IMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgZnB1dChmaWxlKTsKPiBkaWZmIC0tZ2l0IGEvbW0vcm1hcC5jIGIv
+bW0vcm1hcC5jCj4gaW5kZXggODVmMjAzZS4uYmMzMTNhNiAxMDA2NDQKPiAtLS0gYS9tbS9ybWFw
+LmMKPiArKysgYi9tbS9ybWFwLmMKPiBAQCAtMTM2OCwxNSArMTM2OCwzMSBAQCBzdGF0aWMgaW50
+IHJtYXBfd2Fsa19hbm9uKHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgKCpybWFwX29uZSkoc3RydWN0
+IHBhZ2UgKiwKPiDCoCDCoCDCoCDCoCAqIGFyZSBob2xkaW5nIG1tYXBfc2VtLiBVc2VycyB3aXRo
+b3V0IG1tYXBfc2VtIGFyZSByZXF1aXJlZCB0bwo+IMKgIMKgIMKgIMKgICogdGFrZSBhIHJlZmVy
+ZW5jZSBjb3VudCB0byBwcmV2ZW50IHRoZSBhbm9uX3ZtYSBkaXNhcHBlYXJpbmcKPiDCoCDCoCDC
+oCDCoCAqLwo+ICtyZXRyeToKPiDCoCDCoCDCoCDCoGFub25fdm1hID0gcGFnZV9hbm9uX3ZtYShw
+YWdlKTsKPiDCoCDCoCDCoCDCoGlmICghYW5vbl92bWEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqByZXR1cm4gcmV0Owo+IMKgIMKgIMKgIMKgc3Bpbl9sb2NrKCZhbm9uX3ZtYS0+bG9jayk7Cj4g
+wqAgwqAgwqAgwqBsaXN0X2Zvcl9lYWNoX2VudHJ5KGF2YywgJmFub25fdm1hLT5oZWFkLCBzYW1l
+X2Fub25fdm1hKSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzdHJ1Y3Qgdm1fYXJlYV9zdHJ1
+Y3QgKnZtYSA9IGF2Yy0+dm1hOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgdW5zaWduZWQgbG9u
+ZyBhZGRyZXNzID0gdm1hX2FkZHJlc3MocGFnZSwgdm1hKTsKPiAtIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIGlmIChhZGRyZXNzID09IC1FRkFVTFQpCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCBjb250aW51ZTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcg
+YWRkcmVzczsKPiArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCAvKgo+ICsgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAqIEd1YXJkIGFnYWluc3QgZGVhZGxvY2tzIGJ5IG5vdCBzcGlubmluZyBhZ2Fp
+bnN0Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCogdm1hLT5hbm9uX3ZtYS0+bG9jay4gSWYg
+Y29udGVudGlvbiBpcyBmb3VuZCwgcmVsZWFzZSBvdXIKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgKiBsb2NrIGFuZCB0cnkgYWdhaW4gdW50aWwgVk1BIGxpc3QgY2FuIGJlIHRyYXZlcnNlZCB3
+aXRob3V0Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCogY29udGVudGlvbi4KPiArIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgKi8KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChhbm9uX3Zt
+YSAhPSB2bWEtPmFub25fdm1hKSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCBpZiAoIXNwaW5fdHJ5bG9jaygmdm1hLT5hbm9uX3ZtYS0+bG9jaykpIHsKPiArIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKCZhbm9uX3Zt
+YS0+bG9jayk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCBnb3RvIHJldHJ5Owo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYWRkcmVzcyA9
+IHZtYV9hZGRyZXNzKHBhZ2UsIHZtYSk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoYW5v
+bl92bWEgIT0gdm1hLT5hbm9uX3ZtYSkKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIHNwaW5fdW5sb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKTsKPiArCgppZiAoYWRkcmVzcyA9
+PSAtRUZBVUxUKQogICAgICAgIGNvbnRpbnVlOwoKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJl
+dCA9IHJtYXBfb25lKHBhZ2UsIHZtYSwgYWRkcmVzcywgYXJnKTsKPiDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoGlmIChyZXQgIT0gU1dBUF9BR0FJTikKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoGJyZWFrOwo+IC0tCj4gMS42LjUKPgo+CgoKCi0tIApLaW5kIHJlZ2FyZHMsCk1p
+bmNoYW4gS2ltCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
