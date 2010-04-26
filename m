@@ -1,158 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A2CCC6B01E3
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 17:00:17 -0400 (EDT)
-Date: Mon, 26 Apr 2010 16:00:41 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: [PATCH] - New round-robin rotor for SLAB allocations
-Message-ID: <20100426210041.GA6580@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E6D0F6B01EE
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 17:04:19 -0400 (EDT)
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <4BD5F6C5.8080605@tauceti.net>
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net>
+	 <20100419131718.GB16918@redhat.com>
+	 <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
+	 <20100421094249.GC30855@redhat.com>
+	 <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net>
+	 <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net>
+	 <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net>
+	 <20100425204916.GA12686@redhat.com>
+	 <1272284154.4252.34.camel@localhost.localdomain>
+	 <4BD5F6C5.8080605@tauceti.net>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 26 Apr 2010 17:04:14 -0400
+Message-ID: <1272315854.8984.125.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cl@linux-foundation.org
+To: Robert Wimmer <kernel@tauceti.net>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-We have observed several workloads running on multi-node systems where
-memory is assigned unevenly across the nodes in the system. There are
-numerous reasons for this but one is the round-robin rotor in
-cpuset_mem_spread_node().
+On Mon, 2010-04-26 at 22:25 +0200, Robert Wimmer wrote:=20
+> I've tried with NFSv3 now. With v4 the error normally occur
+> within 5 minutes. The VM is now running for one hour and no
+> soft lockup so far. So I would say it can't be reproduced with
+> v3.
 
-For example, a simple test that writes a multi-page file will allocate pages
-on nodes 0 2 4 6 ... Odd nodes are skipped.  (Sometimes it allocates on
-odd nodes & skips even nodes).
+Thanks! That's useful info.
 
-An example is shown below. The program "lfile" writes a file consisting of
-10 pages. The program then mmaps the file & uses get_mempolicy(...,
-MPOL_F_NODE) to determine the nodes where the file pages were allocated.
-The output is shown below:
+> >   - Have you tried running with stack tracing enabled?
+> >  =20
+>=20
+> Can you explain this a little bit more please? CONFIG_STACKTRACE=3Dy
+> was already enabled. I've now enabled
+>=20
+> CONFIG_USER_STACKTRACE_SUPPORT=3Dy
+> CONFIG_NOP_TRACER=3Dy
+> CONFIG_HAVE_FTRACE_NMI_ENTER=3Dy
+> CONFIG_HAVE_FUNCTION_TRACER=3Dy
+> CONFIG_HAVE_FUNCTION_GRAPH_TRACER=3Dy
+> CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST=3Dy
+> CONFIG_HAVE_DYNAMIC_FTRACE=3Dy
+> CONFIG_HAVE_FTRACE_MCOUNT_RECORD=3Dy
+> CONFIG_HAVE_FTRACE_SYSCALLS=3Dy
+> CONFIG_FTRACE_NMI_ENTER=3Dy
+> CONFIG_CONTEXT_SWITCH_TRACER=3Dy
+> CONFIG_GENERIC_TRACER=3Dy
+> CONFIG_FTRACE=3Dy
+> CONFIG_FUNCTION_TRACER=3Dy
+> CONFIG_FUNCTION_GRAPH_TRACER=3Dy
+> CONFIG_FTRACE_SYSCALLS=3Dy
+> CONFIG_STACK_TRACER=3Dy
+> CONFIG_KMEMTRACE=3Dy
+> CONFIG_DYNAMIC_FTRACE=3Dy
+> CONFIG_FTRACE_MCOUNT_RECORD=3Dy
+> CONFIG_HAVE_MMIOTRACE_SUPPORT=3Dy
+>=20
+> and run
+>=20
+> echo 1 > /proc/sys/kernel/stack_tracer_enabled
+>=20
+> But the output is mostly the same in dmesg/
+> var/log/messages. Can you please guide me how I can
+> enable the stack tracing you need?
 
-	# ./lfile
-	 allocated on nodes: 2 4 6 0 1 2 6 0 2
+Sure. In addition to what you did above, please do
 
+mount -t debugfs none /sys/kernel/debug
 
+and then cat the contents of the pseudofile at
 
-There is a single rotor that is used for allocating both file pages & slab
-pages.  Writing the file allocates both a data page & a slab page
-(buffer_head).  This advances the RR rotor 2 nodes for each page
-allocated.
+/sys/kernel/debug/tracing/stack_trace
 
-A quick confirmation seems to confirm this is the cause of the uneven
-allocation:
+Please do this more or less immediately after you've finished mounting
+the NFSv4 client.
 
-	# echo 0 >/dev/cpuset/memory_spread_slab
-	# ./lfile
-	 allocated on nodes: 6 7 8 9 0 1 2 3 4 5
+Does your server have the 'crossmnt' or 'nohide' flags set, or does it
+use the 'refer' export option anywhere? If so, then we might have to
+test further, since those may trigger the NFSv4 submount feature.
 
-
-This patch introduces a second rotor that is used for slab allocations.
-
-
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-
-
----
- include/linux/cpuset.h |    6 ++++++
- include/linux/sched.h  |    1 +
- kernel/cpuset.c        |   20 ++++++++++++++++----
- mm/slab.c              |    2 +-
- 4 files changed, 24 insertions(+), 5 deletions(-)
-
-Index: linux/include/linux/cpuset.h
-===================================================================
---- linux.orig/include/linux/cpuset.h	2010-04-26 14:03:40.000000000 -0500
-+++ linux/include/linux/cpuset.h	2010-04-26 15:05:02.574948748 -0500
-@@ -69,6 +69,7 @@ extern void cpuset_task_status_allowed(s
- 					struct task_struct *task);
- 
- extern int cpuset_mem_spread_node(void);
-+extern int cpuset_slab_spread_node(void);
- 
- static inline int cpuset_do_page_mem_spread(void)
- {
-@@ -158,6 +159,11 @@ static inline int cpuset_mem_spread_node
- {
- 	return 0;
- }
-+
-+static inline int cpuset_slab_spread_node(void)
-+{
-+	return 0;
-+}
- 
- static inline int cpuset_do_page_mem_spread(void)
- {
-Index: linux/include/linux/sched.h
-===================================================================
---- linux.orig/include/linux/sched.h	2010-04-26 14:03:40.000000000 -0500
-+++ linux/include/linux/sched.h	2010-04-26 15:04:38.208227585 -0500
-@@ -1421,6 +1421,7 @@ struct task_struct {
- #ifdef CONFIG_CPUSETS
- 	nodemask_t mems_allowed;	/* Protected by alloc_lock */
- 	int cpuset_mem_spread_rotor;
-+	int cpuset_slab_spread_rotor;
- #endif
- #ifdef CONFIG_CGROUPS
- 	/* Control Group info protected by css_set_lock */
-Index: linux/kernel/cpuset.c
-===================================================================
---- linux.orig/kernel/cpuset.c	2010-04-26 14:03:40.000000000 -0500
-+++ linux/kernel/cpuset.c	2010-04-26 15:04:38.246928404 -0500
-@@ -2427,7 +2427,8 @@ void cpuset_unlock(void)
- }
- 
- /**
-- * cpuset_mem_spread_node() - On which node to begin search for a page
-+ * cpuset_mem_spread_node() - On which node to begin search for a file page
-+ * cpuset_slab_spread_node() - On which node to begin search for a slab page
-  *
-  * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
-  * tasks in a cpuset with is_spread_page or is_spread_slab set),
-@@ -2452,16 +2453,27 @@ void cpuset_unlock(void)
-  * See kmem_cache_alloc_node().
-  */
- 
--int cpuset_mem_spread_node(void)
-+static int cpuset_spread_node(int *rotor)
- {
- 	int node;
- 
--	node = next_node(current->cpuset_mem_spread_rotor, current->mems_allowed);
-+	node = next_node(*rotor, current->mems_allowed);
- 	if (node == MAX_NUMNODES)
- 		node = first_node(current->mems_allowed);
--	current->cpuset_mem_spread_rotor = node;
-+	*rotor = node;
- 	return node;
- }
-+
-+int cpuset_mem_spread_node(void)
-+{
-+	return cpuset_spread_node(&current->cpuset_mem_spread_rotor);
-+}
-+
-+int cpuset_slab_spread_node(void)
-+{
-+	return cpuset_spread_node(&current->cpuset_slab_spread_rotor);
-+}
-+
- EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
- 
- /**
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c	2010-04-26 14:03:40.000000000 -0500
-+++ linux/mm/slab.c	2010-04-26 15:05:34.343755521 -0500
-@@ -3242,7 +3242,7 @@ static void *alternate_node_alloc(struct
- 		return NULL;
- 	nid_alloc = nid_here = numa_node_id();
- 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
--		nid_alloc = cpuset_mem_spread_node();
-+		nid_alloc = cpuset_slab_spread_node();
- 	else if (current->mempolicy)
- 		nid_alloc = slab_node(current->mempolicy);
- 	if (nid_alloc != nid_here)
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
