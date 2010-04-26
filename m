@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id F31526B01E3
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 00:31:59 -0400 (EDT)
-Received: by iwn40 with SMTP id 40so2897372iwn.1
-        for <linux-mm@kvack.org>; Sun, 25 Apr 2010 21:31:59 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6EFDC6B01E3
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 02:02:02 -0400 (EDT)
+Message-ID: <4BD52C4F.40505@redhat.com>
+Date: Mon, 26 Apr 2010 09:01:51 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20100426115347.2ee2a917.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100423095922.GJ30306@csn.ul.ie> <20100423155801.GA14351@csn.ul.ie>
-	 <20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100424104324.GD14351@csn.ul.ie>
-	 <20100426084901.15c09a29.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100426115347.2ee2a917.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 26 Apr 2010 13:31:59 +0900
-Message-ID: <h2g28c262361004252131i4b38be55y92fffd9747b3166@mail.gmail.com>
-Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default> <4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default> <4BD43182.1040508@redhat.com> <c5062f3a-3232-4b21-b032-2ee1f2485ff0@default 4BD44E74.2020506@redhat.com> <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default>
+In-Reply-To: <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 26, 2010 at 11:53 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 26 Apr 2010 08:49:01 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
->> On Sat, 24 Apr 2010 11:43:24 +0100
->> Mel Gorman <mel@csn.ul.ie> wrote:
->
->> > It looks nice but it still broke after 28 hours of running. The
->> > seq-counter is still insufficient to catch all changes that are made to
->> > the list. I'm beginning to wonder if a) this really can be fully safely
->> > locked with the anon_vma changes and b) if it has to be a spinlock to
->> > catch the majority of cases but still a lazy cleanup if there happens to
->> > be a race. It's unsatisfactory and I'm expecting I'll either have some
->> > insight to the new anon_vma changes that allow it to be locked or Rik
->> > knows how to restore the original behaviour which as Andrea pointed out
->> > was safe.
->> >
->> Ouch. Hmm, how about the race in fork() I pointed out ?
->>
-> Forget this. Sorry for noise.
+On 04/25/2010 06:29 PM, Dan Magenheimer wrote:
+>>> While I admit that I started this whole discussion by implying
+>>> that frontswap (and cleancache) might be useful for SSDs, I think
+>>> we are going far astray here.  Frontswap is synchronous for a
+>>> reason: It uses real RAM, but RAM that is not directly addressable
+>>> by a (guest) kernel.  SSD's (at least today) are still I/O devices;
+>>> even though they may be very fast, they still live on a PCI (or
+>>> slower) bus and use DMA.  Frontswap is not intended for use with
+>>> I/O devices.
+>>>
+>>> Today's memory technologies are either RAM that can be addressed
+>>> by the kernel, or I/O devices that sit on an I/O bus.  The
+>>> exotic memories that I am referring to may be a hybrid:
+>>> memory that is fast enough to live on a QPI/hypertransport,
+>>> but slow enough that you wouldn't want to randomly mix and
+>>> hand out to userland apps some pages from "exotic RAM" and some
+>>> pages from "normal RAM".  Such memory makes no sense today
+>>> because OS's wouldn't know what to do with it.  But it MAY
+>>> make sense with frontswap (and cleancache).
+>>>
+>>> Nevertheless, frontswap works great today with a bare-metal
+>>> hypervisor.  I think it stands on its own merits, regardless
+>>> of one's vision of future SSD/memory technologies.
+>>>        
+>> Even when frontswapping to RAM on a bare metal hypervisor it makes
+>> sense
+>> to use an async API, in case you have a DMA engine on board.
+>>      
+> When pages are 2MB, this may be true.  When pages are 4KB and
+> copied individually, it may take longer to program a DMA engine
+> than to just copy 4KB.
+>    
 
-Yes. It was due to my wrong explanation.
-Sorry for that, Kame.
+Of course, you have to use a batching API, like virtio or Xen's rings, 
+to avoid the overhead.
+
+> But in any case, frontswap works fine on all existing machines
+> today.  If/when most commodity CPUs have an asynchronous RAM DMA
+> engine, an asynchronous API may be appropriate.  Or the existing
+> swap API might be appropriate. Or the synchronous frontswap API
+> may work fine too.  Speculating further about non-existent
+> hardware that might exist in the (possibly far) future is irrelevant
+> to the proposed patch, which works today on all existing x86 hardware
+> and on shipping software.
+>    
+
+dma engines are present on commodity hardware now:
+
+http://en.wikipedia.org/wiki/I/O_Acceleration_Technology
+
+I don't know if consumer machines have them, but servers certainly do.  
+modprobe ioatdma.
 
 
 -- 
-Kind regards,
-Minchan Kim
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
