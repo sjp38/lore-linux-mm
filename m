@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5F14D6B01FE
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 07:59:03 -0400 (EDT)
-Received: by bwz23 with SMTP id 23so11555565bwz.6
-        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 04:59:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4BD57213.7060207@linux.vnet.ibm.com>
-References: <20100322235053.GD9590@csn.ul.ie>
-	 <20100419214412.GB5336@cmpxchg.org>
-	 <4BCD55DA.2020000@linux.vnet.ibm.com>
-	 <20100420153202.GC5336@cmpxchg.org> <4BCDE2F0.3010009@redhat.com>
-	 <4BCE7DD1.70900@linux.vnet.ibm.com>
-	 <4BCEAAC6.7070602@linux.vnet.ibm.com> <4BCEFB4C.1070206@redhat.com>
-	 <4BCFEAD0.4010708@linux.vnet.ibm.com>
-	 <4BD57213.7060207@linux.vnet.ibm.com>
-Date: Mon, 26 Apr 2010 20:59:30 +0900
-Message-ID: <p2y2f11576a1004260459jcaf79962p50e4d29f990019ee@mail.gmail.com>
-Subject: Re: Subject: [PATCH][RFC] mm: make working set portion that is
-	protected tunable v2
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8597F6B01FF
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:15:21 -0400 (EDT)
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <20100425204916.GA12686@redhat.com>
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net>
+	 <20100419131718.GB16918@redhat.com>
+	 <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
+	 <20100421094249.GC30855@redhat.com>
+	 <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net>
+	 <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net>
+	 <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net>
+	 <20100425204916.GA12686@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 26 Apr 2010 08:15:54 -0400
+Message-ID: <1272284154.4252.34.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, gregkh@novell.com, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-kernel@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Robert Wimmer <kernel@tauceti.net>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Sun, 2010-04-25 at 23:49 +0300, Michael S. Tsirkin wrote:=20
+> So, it's an NFS-related regression, which is consistent with the bisect
+> results. I guess someone who knows about NFS will have to look at it...
+> BTW, you probably want to label the bug as regression.
+>=20
+> On Sun, Apr 25, 2010 at 10:41:59PM +0200, Robert Wimmer wrote:
+> > I've added CONFIG_KALLSYMS and CONFIG_KALLSYMS_ALL
+> > to my .config. I've uploaded the dmesg output. Maybe it
+> > helps a little bit:
+> >=20
+> > https://bugzilla.kernel.org/attachment.cgi?id=3D26138
+> >=20
+> > - Robert
+> >=20
 
-I've quick reviewed your patch. but unfortunately I can't write my
-reviewed-by sign.
+That last trace is just saying that the NFSv4 reboot recovery code is
+crashing (which is hardly surprising if the memory management is hosed).
 
-> Subject: [PATCH][RFC] mm: make working set portion that is protected tunable v2
-> From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
->
-> *updates in v2*
-> - use do_div
->
-> This patch creates a knob to help users that have workloads suffering from the
-> fix 1:1 active inactive ratio brought into the kernel by "56e49d21 vmscan:
-> evict use-once pages first".
-> It also provides the tuning mechanisms for other users that want an even bigger
-> working set to be protected.
+The initial bisection makes little sense to me: it is basically blaming
+a page allocation problem on a change to the NFSv4 mount code. The only
+way I can see that possibly happen is if you are hitting a stack
+overflow.
+So 2 questions:
 
-We certainly need no knob. because typical desktop users use various
-application,
-various workload. then, the knob doesn't help them.
+  - Are you able to reproduce the bug when using NFSv3 instead?
+  - Have you tried running with stack tracing enabled?
 
-Probably, I've missed previous discussion. I'm going to find your previous mail.
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
