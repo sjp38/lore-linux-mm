@@ -1,56 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 89F796B01E3
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:15:41 -0400 (EDT)
-Received: by iwn30 with SMTP id 30so1841913iwn.28
-        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:15:43 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A1BF26B01F1
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:28:53 -0400 (EDT)
+Received: by ywh26 with SMTP id 26so1440484ywh.12
+        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:28:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1272321478-28481-2-git-send-email-mel@csn.ul.ie>
 References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
-	 <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
-Date: Tue, 27 Apr 2010 08:15:43 +0900
-Message-ID: <h2y28c262361004261615j3b1aa5f7kbe3f2eb0a30e99a5@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the
-	wrong VMA information
+	 <1272321478-28481-2-git-send-email-mel@csn.ul.ie>
+Date: Tue, 27 Apr 2010 08:28:52 +0900
+Message-ID: <n2t28c262361004261628y1d6e53fbw505a78818c0d5228@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm,migration: During fork(), wait for migration to
+	end if migration PTE is encountered
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 27, 2010 at 7:37 AM, Mel Gorman <mel@csn.ul.ie> wrote:
-> vma_adjust() is updating anon VMA information without any locks taken.
-> In contrast, file-backed mappings use the i_mmap_lock and this lack of
-> locking can result in races with page migration. During rmap_walk(),
-> vma_address() can return -EFAULT for an address that will soon be valid.
-> This leaves a dangling migration PTE behind which can later cause a BUG_ON
-> to trigger when the page is faulted in.
->
-> With the recent anon_vma changes, there can be more than one anon_vma->lock
-> that can be taken in a anon_vma_chain but a second lock cannot be spinned
-> upon in case of deadlock. Instead, the rmap walker tries to take locks of
-> different anon_vma's. If the attempt fails, the operation is restarted.
->
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-
-Actually, I am worry about rollback approach like this.
-If we don't often need anon_vmas serializing, that's enough.
-But I am not sure how often we need locking of anon_vmas like this.
-Whenever we need it, we have to use rollback approach like this in future.
-In my opinion, it's not good.
-
-Rik, can't we make anon_vma locks more simple?
-Anyway, Mel's patch is best now.
-
-I hope improving locks of anon_vmas without rollback approach in near future.
-
-Thanks, Mel.
-
-
--- 
-Kind regards,
-Minchan Kim
+T24gVHVlLCBBcHIgMjcsIDIwMTAgYXQgNzozNyBBTSwgTWVsIEdvcm1hbiA8bWVsQGNzbi51bC5p
+ZT4gd3JvdGU6Cj4gRnJvbTogS0FNRVpBV0EgSGlyb3l1a2kgPGthbWV6YXdhLmhpcm95dUBqcC5m
+dWppdHN1LmNvbT4KPgo+IEZyb206IEtBTUVaQVdBIEhpcm95dWtpIDxrYW1lemF3YS5oaXJveXVA
+anAuZnVqaXRzdS5jb20+Cj4KPiBBdCBwYWdlIG1pZ3JhdGlvbiwgd2UgcmVwbGFjZSBwdGUgd2l0
+aCBtaWdyYXRpb25fZW50cnksIHdoaWNoIGhhcwo+IHNpbWlsYXIgZm9ybWF0IGFzIHN3YXBfZW50
+cnkgYW5kIHJlcGxhY2UgaXQgd2l0aCByZWFsIHBmbiBhdCB0aGUKPiBlbmQgb2YgbWlncmF0aW9u
+LiBCdXQgdGhlcmUgaXMgYSByYWNlIHdpdGggZm9yaygpJ3MgY29weV9wYWdlX3JhbmdlKCkuCj4K
+PiBBc3N1bWUgcGFnZSBtaWdyYWlvbiBvbiBDUFUgQSBhbmQgZm9yayBpbiBDUFUgQi4gT24gQ1BV
+IEEsIGEgcGFnZSBvZgo+IGEgcHJvY2VzcyBpcyB1bmRlciBtaWdyYXRpb24uIE9uIENQVSBCLCBh
+IHBhZ2UncyBwdGUgaXMgdW5kZXIgY29weS4KPgo+IMKgIMKgIMKgIMKgQ1BVQSDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoENQVSBCCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqBkb19mb3JrKCkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoGNvcHlfbW0oKSAoZnJvbSBwcm9jZXNzIDEgdG8gcHJvY2VzczIp
+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpbnNlcnQg
+bmV3IHZtYSB0byBtbWFwX2xpc3QgKGlmIGlub2RlL2Fub25fdm1hKQo+IMKgIMKgIMKgIMKgcHRl
+X2xvY2socHJvY2VzczEpCj4gwqAgwqAgwqAgwqB1bm1hcCBhIHBhZ2UKPiDCoCDCoCDCoCDCoGlu
+c2VydCBtaWdyYXRpb25fZW50cnkKPiDCoCDCoCDCoCDCoHB0ZV91bmxvY2socHJvY2VzczEpCj4K
+PiDCoCDCoCDCoCDCoG1pZ3JhdGUgcGFnZSBjb3B5Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjb3B5X3BhZ2VfcmFuZ2UKPiDCoCDCoCDCoCDCoHJlbWFw
+IG5ldyBwYWdlIGJ5IHJtYXBfd2FsaygpCj4gwqAgwqAgwqAgwqBwdGVfbG9jayhwcm9jZXNzMikK
+PiDCoCDCoCDCoCDCoGZvdW5kIG5vIHB0ZS4KPiDCoCDCoCDCoCDCoHB0ZV91bmxvY2socHJvY2Vz
+czIpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBwdGUg
+bG9jayhwcm9jZXNzMikKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oCDCoCDCoHB0ZSBsb2NrKHByb2Nlc3MxKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgY29weSBtaWdyYXRpb24gZW50cnkgdG8gcHJvY2VzczIKPiDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHB0ZSB1bmxvY2socHJv
+Y2VzczEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBw
+dGUgdW5sb2tjKHByb2Nlc3MyKQo+IMKgIMKgIMKgIMKgcHRlX2xvY2socHJvY2VzczEpCj4gwqAg
+wqAgwqAgwqByZXBsYWNlIG1pZ3JhdGlvbiBlbnRyeQo+IMKgIMKgIMKgIMKgdG8gbmV3IHBhZ2Un
+cyBwdGUuCj4gwqAgwqAgwqAgwqBwdGVfdW5sb2NrKHByb2Nlc3MxKQo+Cj4gVGhlbiwgc29tZSBz
+ZXJpYWxpemF0aW9uIGlzIG5lY2Vzc2FyeS4gSUlVQywgdGhpcyBpcyB2ZXJ5IHJhcmUgZXZlbnQg
+YnV0Cj4gaXQgaXMgcmVwcm9kdWNpYmxlIGlmIGEgbG90IG9mIG1pZ3JhdGlvbiBpcyBoYXBwZW5p
+bmcgYSBsb3Qgd2l0aCB0aGUKPiBmb2xsb3dpbmcgcHJvZ3JhbSBydW5uaW5nIGluIHBhcmFsbGVs
+Lgo+Cj4gwqAgwqAjaW5jbHVkZSA8c3RkaW8uaD4KPiDCoCDCoCNpbmNsdWRlIDxzdHJpbmcuaD4K
+PiDCoCDCoCNpbmNsdWRlIDxzdGRsaWIuaD4KPiDCoCDCoCNpbmNsdWRlIDxzeXMvbW1hbi5oPgo+
+Cj4gwqAgwqAjZGVmaW5lIFNJWkUgKDI0KjEwNDg1NzZVTCkKPiDCoCDCoCNkZWZpbmUgQ0hJTERS
+RU4gMTAwCj4gwqAgwqBpbnQgbWFpbigpCj4gwqAgwqB7Cj4gwqAgwqAgwqAgwqAgwqAgwqBpbnQg
+aSA9IDA7Cj4gwqAgwqAgwqAgwqAgwqAgwqBwaWRfdCBwaWRzW0NISUxEUkVOXTsKPiDCoCDCoCDC
+oCDCoCDCoCDCoGNoYXIgKmJ1ZiA9IG1tYXAoTlVMTCwgU0laRSwgUFJPVF9SRUFEfFBST1RfV1JJ
+VEUsCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBNQVBfUFJJVkFU
+RXxNQVBfQU5PTllNT1VTLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgMCwgMCk7Cj4gwqAgwqAgwqAgwqAgwqAgwqBpZiAoYnVmID09IE1BUF9GQUlMRUQpIHsKPiDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHBlcnJvcigibW1hcCIpOwo+IMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgZXhpdCgtMSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDC
+oCDCoCDCoCDCoCDCoHdoaWxlICgrK2kpIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oGludCBqID0gaSAlIENISUxEUkVOOwo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBp
+ZiAoaiA9PSAwKSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBw
+cmludGYoIldhaXRpbmcgb24gY2hpbGRyZW5cbiIpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgZm9yIChqID0gMDsgaiA8IENISUxEUkVOOyBqKyspIHsKPiDCoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG1lbXNldChi
+dWYsIGksIFNJWkUpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgaWYgKHBpZHNbal0gIT0gLTEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB3YWl0cGlkKHBpZHNbal0s
+IE5VTEwsIDApOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgfQo+
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaiA9IDA7Cj4gwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
+oGlmICgocGlkc1tqXSA9IGZvcmsoKSkgPT0gMCkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgbWVtc2V0KGJ1ZiwgaSwgU0laRSk7Cj4gwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBleGl0KEVYSVRfU1VDQ0VTUyk7Cj4gwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDCoCDCoCDC
+oCDCoCDCoG11bm1hcChidWYsIFNJWkUpOwo+IMKgIMKgfQo+Cj4gY29weV9wYWdlX3JhbmdlKCkg
+Y2FuIHdhaXQgZm9yIHRoZSBlbmQgb2YgbWlncmF0aW9uLgo+Cj4gU2lnbmVkLW9mZi1ieTogS0FN
+RVpBV0EgSGlyb3l1a2kgPGthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbT4KPiBTaWduZWQt
+b2ZmLWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVsLmllPgpSZXZpZXdlZC1ieSA6IE1pbmNoYW4g
+S2ltIDxtaW5jaGFuLmtpbUBnbWFpbC5jb20+CgotLSAKS2luZCByZWdhcmRzLApNaW5jaGFuIEtp
+bQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
