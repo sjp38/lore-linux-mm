@@ -1,151 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C48586B01F4
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:37:48 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/2] mm,migration: During fork(), wait for migration to end if migration PTE is encountered
-Date: Mon, 26 Apr 2010 23:37:57 +0100
-Message-Id: <1272321478-28481-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 416D66B01E3
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:04:44 -0400 (EDT)
+Date: Tue, 27 Apr 2010 01:04:12 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/2] Fix migration races in rmap_walk()
+Message-ID: <20100426230412.GL8860@random.random>
 References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Mon, Apr 26, 2010 at 11:37:56PM +0100, Mel Gorman wrote:
+> The other issues raised about expand_downwards will need to be re-examined to
+> see if they still exist and transparent hugepage support will need further
+> thinking to see if split_huge_page() can deal with these situations.
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+So patch 1 is for aa.git too, and patch 2 is only for mainline with
+the new anon-vma changes (patch 2 not needed in current aa.git, and if
+I apply it, it'll deadlock so...) right?
 
-At page migration, we replace pte with migration_entry, which has
-similar format as swap_entry and replace it with real pfn at the
-end of migration. But there is a race with fork()'s copy_page_range().
+split_huge_page is somewhat simpler and more strict in its checking
+than migrate.c in this respect, and yes patch 2 will also need to be
+extended to cover split_huge_page the moment I stop backing out the
+new anon-vma code (but it won't be any different, whatever works for
+migrate will also work for split_huge_page later).
 
-Assume page migraion on CPU A and fork in CPU B. On CPU A, a page of
-a process is under migration. On CPU B, a page's pte is under copy.
+For now I'm much more interested in patch 1 and I'll leave patch 2 to
+mainline digestion and check it later hope to find all issues fixed by
+the time transparent hugepage gets merged.
 
-	CPUA			CPU B
-				do_fork()
-				copy_mm() (from process 1 to process2)
-				insert new vma to mmap_list (if inode/anon_vma)
-	pte_lock(process1)
-	unmap a page
-	insert migration_entry
-	pte_unlock(process1)
+About patch 1 it's very interesting because I looked at the race
+against fork and migrate yesterday and I didn't see issues but I'm
+going to read your patch 1 in detail now to understand what is the
+problem you're fixing.
 
-	migrate page copy
-				copy_page_range
-	remap new page by rmap_walk()
-	pte_lock(process2)
-	found no pte.
-	pte_unlock(process2)
-				pte lock(process2)
-				pte lock(process1)
-				copy migration entry to process2
-				pte unlock(process1)
-				pte unlokc(process2)
-	pte_lock(process1)
-	replace migration entry
-	to new page's pte.
-	pte_unlock(process1)
-
-Then, some serialization is necessary. IIUC, this is very rare event but
-it is reproducible if a lot of migration is happening a lot with the
-following program running in parallel.
-
-    #include <stdio.h>
-    #include <string.h>
-    #include <stdlib.h>
-    #include <sys/mman.h>
-
-    #define SIZE (24*1048576UL)
-    #define CHILDREN 100
-    int main()
-    {
-	    int i = 0;
-	    pid_t pids[CHILDREN];
-	    char *buf = mmap(NULL, SIZE, PROT_READ|PROT_WRITE,
-			    MAP_PRIVATE|MAP_ANONYMOUS,
-			    0, 0);
-	    if (buf == MAP_FAILED) {
-		    perror("mmap");
-		    exit(-1);
-	    }
-
-	    while (++i) {
-		    int j = i % CHILDREN;
-
-		    if (j == 0) {
-			    printf("Waiting on children\n");
-			    for (j = 0; j < CHILDREN; j++) {
-				    memset(buf, i, SIZE);
-				    if (pids[j] != -1)
-					    waitpid(pids[j], NULL, 0);
-			    }
-			    j = 0;
-		    }
-
-		    if ((pids[j] = fork()) == 0) {
-			    memset(buf, i, SIZE);
-			    exit(EXIT_SUCCESS);
-		    }
-	    }
-
-	    munmap(buf, SIZE);
-    }
-
-copy_page_range() can wait for the end of migration.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/memory.c |   24 +++++++++++++++---------
- 1 files changed, 15 insertions(+), 9 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 833952d..36dadd4 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -675,15 +675,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			}
- 			if (likely(!non_swap_entry(entry)))
- 				rss[MM_SWAPENTS]++;
--			else if (is_write_migration_entry(entry) &&
--					is_cow_mapping(vm_flags)) {
--				/*
--				 * COW mappings require pages in both parent
--				 * and child to be set to read.
--				 */
--				make_migration_entry_read(&entry);
--				pte = swp_entry_to_pte(entry);
--				set_pte_at(src_mm, addr, src_pte, pte);
-+			else {
-+				BUG();
- 			}
- 		}
- 		goto out_set_pte;
-@@ -760,6 +753,19 @@ again:
- 			progress++;
- 			continue;
- 		}
-+		if (unlikely(!pte_present(*src_pte) && !pte_file(*src_pte))) {
-+			entry = pte_to_swp_entry(*src_pte);
-+			if (is_migration_entry(entry)) {
-+				/*
-+				 * Because copying pte has the race with
-+				 * pte rewriting of migraton, release lock
-+				 * and retry.
-+				 */
-+				progress = 0;
-+				entry.val = 0;
-+				break;
-+			}
-+		}
- 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
- 							vma, addr, rss);
- 		if (entry.val)
--- 
-1.6.5
+Good you posted this fast, so I can try to help ;)
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
