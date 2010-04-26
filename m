@@ -1,120 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 391706B01EF
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:05:31 -0400 (EDT)
-Received: by iwn30 with SMTP id 30so1834156iwn.28
-        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:05:26 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 89F796B01E3
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:15:41 -0400 (EDT)
+Received: by iwn30 with SMTP id 30so1841913iwn.28
+        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:15:43 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
 References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
 	 <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
-Date: Tue, 27 Apr 2010 08:05:26 +0900
-Message-ID: <z2y28c262361004261605ha101b4aek7116f7a6a1d5b92@mail.gmail.com>
+Date: Tue, 27 Apr 2010 08:15:43 +0900
+Message-ID: <h2y28c262361004261615j3b1aa5f7kbe3f2eb0a30e99a5@mail.gmail.com>
 Subject: Re: [PATCH 2/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the
 	wrong VMA information
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-T24gVHVlLCBBcHIgMjcsIDIwMTAgYXQgNzozNyBBTSwgTWVsIEdvcm1hbiA8bWVsQGNzbi51bC5p
-ZT4gd3JvdGU6Cj4gdm1hX2FkanVzdCgpIGlzIHVwZGF0aW5nIGFub24gVk1BIGluZm9ybWF0aW9u
-IHdpdGhvdXQgYW55IGxvY2tzIHRha2VuLgo+IEluIGNvbnRyYXN0LCBmaWxlLWJhY2tlZCBtYXBw
-aW5ncyB1c2UgdGhlIGlfbW1hcF9sb2NrIGFuZCB0aGlzIGxhY2sgb2YKPiBsb2NraW5nIGNhbiBy
-ZXN1bHQgaW4gcmFjZXMgd2l0aCBwYWdlIG1pZ3JhdGlvbi4gRHVyaW5nIHJtYXBfd2FsaygpLAo+
-IHZtYV9hZGRyZXNzKCkgY2FuIHJldHVybiAtRUZBVUxUIGZvciBhbiBhZGRyZXNzIHRoYXQgd2ls
-bCBzb29uIGJlIHZhbGlkLgo+IFRoaXMgbGVhdmVzIGEgZGFuZ2xpbmcgbWlncmF0aW9uIFBURSBi
-ZWhpbmQgd2hpY2ggY2FuIGxhdGVyIGNhdXNlIGEgQlVHX09OCj4gdG8gdHJpZ2dlciB3aGVuIHRo
-ZSBwYWdlIGlzIGZhdWx0ZWQgaW4uCj4KPiBXaXRoIHRoZSByZWNlbnQgYW5vbl92bWEgY2hhbmdl
-cywgdGhlcmUgY2FuIGJlIG1vcmUgdGhhbiBvbmUgYW5vbl92bWEtPmxvY2sKPiB0aGF0IGNhbiBi
-ZSB0YWtlbiBpbiBhIGFub25fdm1hX2NoYWluIGJ1dCBhIHNlY29uZCBsb2NrIGNhbm5vdCBiZSBz
-cGlubmVkCj4gdXBvbiBpbiBjYXNlIG9mIGRlYWRsb2NrLiBJbnN0ZWFkLCB0aGUgcm1hcCB3YWxr
-ZXIgdHJpZXMgdG8gdGFrZSBsb2NrcyBvZgo+IGRpZmZlcmVudCBhbm9uX3ZtYSdzLiBJZiB0aGUg
-YXR0ZW1wdCBmYWlscywgdGhlIG9wZXJhdGlvbiBpcyByZXN0YXJ0ZWQuCj4KPiBTaWduZWQtb2Zm
-LWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVsLmllPgo+IC0tLQo+IMKgbW0va3NtLmMgwqB8IMKg
-IDEzICsrKysrKysrKysrKysKPiDCoG1tL21tYXAuYyB8IMKgIMKgNiArKysrKysKPiDCoG1tL3Jt
-YXAuYyB8IMKgIDIyICsrKysrKysrKysrKysrKysrKystLS0KPiDCoDMgZmlsZXMgY2hhbmdlZCwg
-MzggaW5zZXJ0aW9ucygrKSwgMyBkZWxldGlvbnMoLSkKPgo+IGRpZmYgLS1naXQgYS9tbS9rc20u
-YyBiL21tL2tzbS5jCj4gaW5kZXggMzY2NmQ0My4uYmFhNWI0ZCAxMDA2NDQKPiAtLS0gYS9tbS9r
-c20uYwo+ICsrKyBiL21tL2tzbS5jCj4gQEAgLTE2NzQsOSArMTY3NCwyMiBAQCBhZ2FpbjoKPiDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoHNwaW5fbG9jaygmYW5vbl92bWEtPmxvY2spOwo+IMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgbGlzdF9mb3JfZWFjaF9lbnRyeSh2bWFjLCAmYW5vbl92bWEtPmhl
-YWQsIHNhbWVfYW5vbl92bWEpIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oHZtYSA9IHZtYWMtPnZtYTsKPiArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCAvKiBTZWUgY29tbWVudCBpbiBtbS9ybWFwLmMjcm1hcF93YWxrX2Fub24gb24gbG9ja2luZyAq
-Lwo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKGFub25fdm1hICE9IHZt
-YS0+YW5vbl92bWEpIHsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIGlmICghc3Bpbl90cnlsb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKSkgewo+ICsgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgc3Bp
-bl91bmxvY2soJmFub25fdm1hLT5sb2NrKTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGdvdG8gYWdhaW47Cj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB9Cj4gKyDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCB9Cj4gKwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgaWYgKHJtYXBfaXRlbS0+YWRkcmVzcyA8IHZtYS0+dm1fc3RhcnQgfHwKPiDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJtYXBfaXRlbS0+YWRkcmVzcyA+PSB2bWEt
-PnZtX2VuZCkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oGNvbnRpbnVlOwo+ICsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChh
-bm9uX3ZtYSAhPSB2bWEtPmFub25fdm1hKQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl91bmxvY2soJnZtYS0+YW5vbl92bWEtPmxvY2spOwo+ICsK
-PiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoC8qCj4gwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgKiBJbml0aWFsbHkgd2UgZXhhbWluZSBvbmx5IHRoZSB2bWEg
-d2hpY2ggY292ZXJzIHRoaXMKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCAq
-IHJtYXBfaXRlbTsgYnV0IGxhdGVyLCBpZiB0aGVyZSBpcyBzdGlsbCB3b3JrIHRvIGRvLAo+IGRp
-ZmYgLS1naXQgYS9tbS9tbWFwLmMgYi9tbS9tbWFwLmMKPiBpbmRleCBmOTBlYTkyLi42MWQ2ZjFk
-IDEwMDY0NAo+IC0tLSBhL21tL21tYXAuYwo+ICsrKyBiL21tL21tYXAuYwo+IEBAIC01NzgsNiAr
-NTc4LDkgQEAgYWdhaW46IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgcmVtb3ZlX25l
-eHQgPSAxICsgKGVuZCA+IG5leHQtPnZtX2VuZCk7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9
-Cj4gwqAgwqAgwqAgwqB9Cj4KPiArIMKgIMKgIMKgIGlmICh2bWEtPmFub25fdm1hKQo+ICsgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgc3Bpbl9sb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKTsKPiArCj4g
-wqAgwqAgwqAgwqBpZiAocm9vdCkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgZmx1c2hfZGNh
-Y2hlX21tYXBfbG9jayhtYXBwaW5nKTsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHZtYV9wcmlv
-X3RyZWVfcmVtb3ZlKHZtYSwgcm9vdCk7Cj4gQEAgLTYyMCw2ICs2MjMsOSBAQCBhZ2FpbjogwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqByZW1vdmVfbmV4dCA9IDEgKyAoZW5kID4gbmV4
-dC0+dm1fZW5kKTsKPiDCoCDCoCDCoCDCoGlmIChtYXBwaW5nKQo+IMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgc3Bpbl91bmxvY2soJm1hcHBpbmctPmlfbW1hcF9sb2NrKTsKPgo+ICsgwqAgwqAgwqAg
-aWYgKHZtYS0+YW5vbl92bWEpCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBzcGluX3VubG9jaygm
-dm1hLT5hbm9uX3ZtYS0+bG9jayk7Cj4gKwo+IMKgIMKgIMKgIMKgaWYgKHJlbW92ZV9uZXh0KSB7
-Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpZiAoZmlsZSkgewo+IMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgZnB1dChmaWxlKTsKPiBkaWZmIC0tZ2l0IGEvbW0vcm1hcC5jIGIv
-bW0vcm1hcC5jCj4gaW5kZXggODVmMjAzZS4uYmMzMTNhNiAxMDA2NDQKPiAtLS0gYS9tbS9ybWFw
-LmMKPiArKysgYi9tbS9ybWFwLmMKPiBAQCAtMTM2OCwxNSArMTM2OCwzMSBAQCBzdGF0aWMgaW50
-IHJtYXBfd2Fsa19hbm9uKHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgKCpybWFwX29uZSkoc3RydWN0
-IHBhZ2UgKiwKPiDCoCDCoCDCoCDCoCAqIGFyZSBob2xkaW5nIG1tYXBfc2VtLiBVc2VycyB3aXRo
-b3V0IG1tYXBfc2VtIGFyZSByZXF1aXJlZCB0bwo+IMKgIMKgIMKgIMKgICogdGFrZSBhIHJlZmVy
-ZW5jZSBjb3VudCB0byBwcmV2ZW50IHRoZSBhbm9uX3ZtYSBkaXNhcHBlYXJpbmcKPiDCoCDCoCDC
-oCDCoCAqLwo+ICtyZXRyeToKPiDCoCDCoCDCoCDCoGFub25fdm1hID0gcGFnZV9hbm9uX3ZtYShw
-YWdlKTsKPiDCoCDCoCDCoCDCoGlmICghYW5vbl92bWEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqByZXR1cm4gcmV0Owo+IMKgIMKgIMKgIMKgc3Bpbl9sb2NrKCZhbm9uX3ZtYS0+bG9jayk7Cj4g
-wqAgwqAgwqAgwqBsaXN0X2Zvcl9lYWNoX2VudHJ5KGF2YywgJmFub25fdm1hLT5oZWFkLCBzYW1l
-X2Fub25fdm1hKSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBzdHJ1Y3Qgdm1fYXJlYV9zdHJ1
-Y3QgKnZtYSA9IGF2Yy0+dm1hOwo+IC0gwqAgwqAgwqAgwqAgwqAgwqAgwqAgdW5zaWduZWQgbG9u
-ZyBhZGRyZXNzID0gdm1hX2FkZHJlc3MocGFnZSwgdm1hKTsKPiAtIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIGlmIChhZGRyZXNzID09IC1FRkFVTFQpCj4gLSDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCBjb250aW51ZTsKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHVuc2lnbmVkIGxvbmcg
-YWRkcmVzczsKPiArCj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCAvKgo+ICsgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAqIEd1YXJkIGFnYWluc3QgZGVhZGxvY2tzIGJ5IG5vdCBzcGlubmluZyBhZ2Fp
-bnN0Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCogdm1hLT5hbm9uX3ZtYS0+bG9jay4gSWYg
-Y29udGVudGlvbiBpcyBmb3VuZCwgcmVsZWFzZSBvdXIKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgKiBsb2NrIGFuZCB0cnkgYWdhaW4gdW50aWwgVk1BIGxpc3QgY2FuIGJlIHRyYXZlcnNlZCB3
-aXRob3V0Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCogY29udGVudGlvbi4KPiArIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgKi8KPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChhbm9uX3Zt
-YSAhPSB2bWEtPmFub25fdm1hKSB7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCBpZiAoIXNwaW5fdHJ5bG9jaygmdm1hLT5hbm9uX3ZtYS0+bG9jaykpIHsKPiArIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwaW5fdW5sb2NrKCZhbm9uX3Zt
-YS0+bG9jayk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCBnb3RvIHJldHJ5Owo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgfQo+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgYWRkcmVzcyA9
-IHZtYV9hZGRyZXNzKHBhZ2UsIHZtYSk7Cj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBpZiAoYW5v
-bl92bWEgIT0gdm1hLT5hbm9uX3ZtYSkKPiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIHNwaW5fdW5sb2NrKCZ2bWEtPmFub25fdm1hLT5sb2NrKTsKPiArCgppZiAoYWRkcmVzcyA9
-PSAtRUZBVUxUKQogICAgICAgIGNvbnRpbnVlOwoKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHJl
-dCA9IHJtYXBfb25lKHBhZ2UsIHZtYSwgYWRkcmVzcywgYXJnKTsKPiDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoGlmIChyZXQgIT0gU1dBUF9BR0FJTikKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoGJyZWFrOwo+IC0tCj4gMS42LjUKPgo+CgoKCi0tIApLaW5kIHJlZ2FyZHMsCk1p
-bmNoYW4gS2ltCg==
+On Tue, Apr 27, 2010 at 7:37 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+> vma_adjust() is updating anon VMA information without any locks taken.
+> In contrast, file-backed mappings use the i_mmap_lock and this lack of
+> locking can result in races with page migration. During rmap_walk(),
+> vma_address() can return -EFAULT for an address that will soon be valid.
+> This leaves a dangling migration PTE behind which can later cause a BUG_ON
+> to trigger when the page is faulted in.
+>
+> With the recent anon_vma changes, there can be more than one anon_vma->lock
+> that can be taken in a anon_vma_chain but a second lock cannot be spinned
+> upon in case of deadlock. Instead, the rmap walker tries to take locks of
+> different anon_vma's. If the attempt fails, the operation is restarted.
+>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+Actually, I am worry about rollback approach like this.
+If we don't often need anon_vmas serializing, that's enough.
+But I am not sure how often we need locking of anon_vmas like this.
+Whenever we need it, we have to use rollback approach like this in future.
+In my opinion, it's not good.
+
+Rik, can't we make anon_vma locks more simple?
+Anyway, Mel's patch is best now.
+
+I hope improving locks of anon_vmas without rollback approach in near future.
+
+Thanks, Mel.
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
