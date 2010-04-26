@@ -1,50 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B9ABF6B0208
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 09:48:29 -0400 (EDT)
-Message-ID: <4BD599A7.6090202@redhat.com>
-Date: Mon, 26 Apr 2010 16:48:23 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A50E06B01F9
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 09:50:11 -0400 (EDT)
+Received: by pwi10 with SMTP id 10so2371685pwi.14
+        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 06:50:07 -0700 (PDT)
+Message-ID: <4BD59956.7050508@vflare.org>
+Date: Mon, 26 Apr 2010 19:17:02 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
 Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default> <4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default> <4BD43182.1040508@redhat.com> <c5062f3a-3232-4b21-b032-2ee1f2485ff0@default> <4BD44E74.2020506@redhat.com> <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default 4BD52C4F.40505@redhat.com> <f038ee35-8b34-4305-b93a-49383c86f83e@default>
-In-Reply-To: <f038ee35-8b34-4305-b93a-49383c86f83e@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default 4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <4BD24E37.30204@vflare.org> <4BD33822.2000604@redhat.com> <4BD3B2D1.8080203@vflare.org> <4BD4329A.9010509@redhat.com> <4BD4684E.9040802@vflare.org> <4BD52D55.3070803@redhat.com>
+In-Reply-To: <4BD52D55.3070803@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Avi Kivity <avi@redhat.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 04/26/2010 03:45 PM, Dan Magenheimer wrote:
->> dma engines are present on commodity hardware now:
+On 04/26/2010 11:36 AM, Avi Kivity wrote:
+> On 04/25/2010 07:05 PM, Nitin Gupta wrote:
 >>
->> http://en.wikipedia.org/wiki/I/O_Acceleration_Technology
->>
->> I don't know if consumer machines have them, but servers certainly do.
->> modprobe ioatdma.
->>      
-> They don't seem to have gained much ground in the FIVE YEARS
-> since the patch was first posted to Linux, have they?
->    
+>>>> Increasing the frequency of discards is also not an option:
+>>>>    - Creating discard bio requests themselves need memory and these
+>>>> swap devices
+>>>> come into picture only under low memory conditions.
+>>>>
+>>>>        
+>>> That's fine, swap works under low memory conditions by using reserves.
+>>>
+>>>      
+>> Ok, but still all this bio allocation and block layer overhead seems
+>> unnecessary and is easily avoidable. I think frontswap code needs
+>> clean up but at least it avoids all this bio overhead.
+>>    
+> 
+> Ok.  I agree it is silly to go through the block layer and end up
+> servicing it within the kernel.
+> 
+>>>>    - We need to regularly scan swap_map to issue these discards.
+>>>> Increasing discard
+>>>> frequency also means more frequent scanning (which will still not be
+>>>> fast enough
+>>>> for ramzswap needs).
+>>>>
+>>>>        
+>>> How does frontswap do this?  Does it maintain its own data structures?
+>>>
+>>>      
+>> frontswap simply calls frontswap_flush_page() in swap_entry_free()
+>> i.e. as
+>> soon as a swap slot is freed. No bio allocation etc.
+>>    
+> 
+> The same code could also issue the discard?
+> 
 
-Why do you say this?  Servers have them and AFAIK networking uses them.  
-There are other uses of the API in the code, but I don't know how much 
-of this is for bulk copies.
 
-> Maybe it's because memory-to-memory copy using a CPU
-> is so fast (especially for page-ish quantities of data)
-> and is a small percentage of CPU utilization these days?
->    
+No, we cannot issue discard bio at this place since swap_lock
+spinlock is held.
 
-Copies take a small percentage of cpu because a lot of care goes into 
-avoiding them, or placing them near the place where the copy is used.  
-They certainly show up in high speed networking.
 
-A page-sized copy is small, but many of them will be expensive.
-
--- 
-error compiling committee.c: too many arguments to function
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
