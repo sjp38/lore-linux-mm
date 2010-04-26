@@ -1,70 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BD0CE6B01E3
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 02:06:22 -0400 (EDT)
-Message-ID: <4BD52D55.3070803@redhat.com>
-Date: Mon, 26 Apr 2010 09:06:13 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <20100422134249.GA2963@ca-server1.us.oracle.com> <4BD06B31.9050306@redhat.com> <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default 4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <4BD24E37.30204@vflare.org> <4BD33822.2000604@redhat.com> <4BD3B2D1.8080203@vflare.org> <4BD4329A.9010509@redhat.com> <4BD4684E.9040802@vflare.org>
-In-Reply-To: <4BD4684E.9040802@vflare.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AC0396B01E3
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 05:32:42 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3Q9WeF9019765
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 26 Apr 2010 18:32:40 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D8EB545DE58
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:32:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B3DD145DE53
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:32:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 993031DB8019
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:32:39 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 10E7B1DB8014
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 18:32:39 +0900 (JST)
+Date: Mon, 26 Apr 2010 18:28:38 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
+Message-Id: <20100426182838.2cab9844.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100426084901.15c09a29.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100423095922.GJ30306@csn.ul.ie>
+	<20100423155801.GA14351@csn.ul.ie>
+	<20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100424104324.GD14351@csn.ul.ie>
+	<20100426084901.15c09a29.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/25/2010 07:05 PM, Nitin Gupta wrote:
->
->>> Increasing the frequency of discards is also not an option:
->>>    - Creating discard bio requests themselves need memory and these
->>> swap devices
->>> come into picture only under low memory conditions.
->>>
->>>        
->> That's fine, swap works under low memory conditions by using reserves.
->>
->>      
-> Ok, but still all this bio allocation and block layer overhead seems
-> unnecessary and is easily avoidable. I think frontswap code needs
-> clean up but at least it avoids all this bio overhead.
->    
+On Mon, 26 Apr 2010 08:49:01 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Ok.  I agree it is silly to go through the block layer and end up 
-servicing it within the kernel.
+> On Sat, 24 Apr 2010 11:43:24 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 
->>>    - We need to regularly scan swap_map to issue these discards.
->>> Increasing discard
->>> frequency also means more frequent scanning (which will still not be
->>> fast enough
->>> for ramzswap needs).
->>>
->>>        
->> How does frontswap do this?  Does it maintain its own data structures?
->>
->>      
-> frontswap simply calls frontswap_flush_page() in swap_entry_free() i.e. as
-> soon as a swap slot is freed. No bio allocation etc.
->    
+> > It looks nice but it still broke after 28 hours of running. The
+> > seq-counter is still insufficient to catch all changes that are made to
+> > the list. I'm beginning to wonder if a) this really can be fully safely
+> > locked with the anon_vma changes and b) if it has to be a spinlock to
+> > catch the majority of cases but still a lazy cleanup if there happens to
+> > be a race. It's unsatisfactory and I'm expecting I'll either have some
+> > insight to the new anon_vma changes that allow it to be locked or Rik
+> > knows how to restore the original behaviour which as Andrea pointed out
+> > was safe.
+> > 
+> Ouch. 
 
-The same code could also issue the discard?
+Ok, reproduced. Here is status in my test + printk().
 
->> Even for copying to RAM an async API is wanted, so you can dma it
->> instead of copying.
->>
->>      
-> Maybe incremental development is better? Stabilize and refine existing
-> code and gradually move to async API, if required in future?
->    
+ * A race doesn't seem to happen if swap=off. 
+    I need to swapon to cause the bug.
+ * Before unmap, mapcount=1, SwapCache for anonymous memory.
+   old page's flag was SWAPCACHE, Active, Uptodate, Referenced, Locked.
+ * After remap, mapcount=0, return code=0.
+   new page's flag after remap was SwapCache, Active, Dirty, Uptodate, Referenced.
 
-Incremental development is fine, especially for ramzswap where the APIs 
-are all internal.  I'm more worried about external interfaces, these 
-stick around a lot longer and if not done right they're a pain forever.
+(Hmm, dirty bit can be added by try_to_unamp().)
 
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
