@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BEB776B0204
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:47:07 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B4E6B0206
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:51:25 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <f038ee35-8b34-4305-b93a-49383c86f83e@default>
-Date: Mon, 26 Apr 2010 05:45:57 -0700 (PDT)
+Message-ID: <2634f2cb-3e7e-4c86-b7ef-cf4a3f1e0d8a@default>
+Date: Mon, 26 Apr 2010 05:50:26 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
 References: <20100422134249.GA2963@ca-server1.us.oracle.com>
@@ -12,32 +12,32 @@ References: <20100422134249.GA2963@ca-server1.us.oracle.com>
  <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default>
  <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
  <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
- <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default>
- <4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default>
- <4BD43182.1040508@redhat.com> <c5062f3a-3232-4b21-b032-2ee1f2485ff0@default>
- <4BD44E74.2020506@redhat.com> <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default
- 4BD52C4F.40505@redhat.com>
-In-Reply-To: <4BD52C4F.40505@redhat.com>
+ <4BD1B427.9010905@redhat.com> <4BD24E37.30204@vflare.org>
+ <4BD33822.2000604@redhat.com> <4BD3B2D1.8080203@vflare.org>
+ <4BD4329A.9010509@redhat.com> <4BD4684E.9040802@vflare.org
+ 4BD52D55.3070803@redhat.com>
+In-Reply-To: <4BD52D55.3070803@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Avi Kivity <avi@redhat.com>, ngupta@vflare.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> dma engines are present on commodity hardware now:
+> > Maybe incremental development is better? Stabilize and refine
+> existing
+> > code and gradually move to async API, if required in future?
 >=20
-> http://en.wikipedia.org/wiki/I/O_Acceleration_Technology
->=20
-> I don't know if consumer machines have them, but servers certainly do.
-> modprobe ioatdma.
+> Incremental development is fine, especially for ramzswap where the APIs
+> are all internal.  I'm more worried about external interfaces, these
+> stick around a lot longer and if not done right they're a pain forever.
 
-They don't seem to have gained much ground in the FIVE YEARS
-since the patch was first posted to Linux, have they?
+Well if you are saying that your primary objection to the
+frontswap synchronous API is that it is exposed to modules via
+some EXPORT_SYMBOLs, we can certainly fix that, at least
+unless/until there are other pseudo-RAM devices that can use it.
 
-Maybe it's because memory-to-memory copy using a CPU
-is so fast (especially for page-ish quantities of data)
-and is a small percentage of CPU utilization these days?
+Would that resolve your concerns?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
