@@ -1,110 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A16B26B01E3
-	for <linux-mm@kvack.org>; Sun, 25 Apr 2010 19:53:05 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3PNr2wU004218
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 26 Apr 2010 08:53:03 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADA0445DE52
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:53:02 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AF0445DE51
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:53:02 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 626251DB8043
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:53:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FF021DB803F
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 08:52:59 +0900 (JST)
-Date: Mon, 26 Apr 2010 08:49:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][mm][PATCH] fix migration race in rmap_walk
-Message-Id: <20100426084901.15c09a29.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100424104324.GD14351@csn.ul.ie>
-References: <20100423120148.9ffa5881.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100423095922.GJ30306@csn.ul.ie>
-	<20100423155801.GA14351@csn.ul.ie>
-	<20100424110200.b491ec5f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100424104324.GD14351@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E00016B01E3
+	for <linux-mm@kvack.org>; Sun, 25 Apr 2010 20:32:45 -0400 (EDT)
+Subject: Locking between writeback and truncate paths?
+From: "Theodore Ts'o" <tytso@mit.edu>
+Message-Id: <E1O6CFc-0006Y2-SY@closure.thunk.org>
+Date: Sun, 25 Apr 2010 20:32:40 -0400
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Apr 2010 11:43:24 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
 
-> On Sat, Apr 24, 2010 at 11:02:00AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 23 Apr 2010 16:58:01 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> > > > I had considered this idea as well as it is vaguely similar to how zones get
-> > > > resized with a seqlock. I was hoping that the existing locking on anon_vma
-> > > > would be usable by backing off until uncontended but maybe not so lets
-> > > > check out this approach.
-> > > > 
-> > > 
-> > > A possible combination of the two approaches is as follows. It uses the
-> > > anon_vma lock mostly except where the anon_vma differs between the page
-> > > and the VMAs being walked in which case it uses the seq counter. I've
-> > > had it running a few hours now without problems but I'll leave it
-> > > running at least 24 hours.
-> > > 
-> > ok, I'll try this, too.
-> > 
-> > 
-> > > ==== CUT HERE ====
-> > >  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information by protecting against vma_adjust with a combination of locks and seq counter
-> > > 
-> > > vma_adjust() is updating anon VMA information without any locks taken.
-> > > In constract, file-backed mappings use the i_mmap_lock. This lack of
-> > > locking can result in races with page migration. During rmap_walk(),
-> > > vma_address() can return -EFAULT for an address that will soon be valid.
-> > > This leaves a dangling migration PTE behind which can later cause a
-> > > BUG_ON to trigger when the page is faulted in.
-> > > 
-> > > With the recent anon_vma changes, there is no single anon_vma->lock that
-> > > can be taken that is safe for rmap_walk() to guard against changes by
-> > > vma_adjust(). Instead, a lock can be taken on one VMA while changes
-> > > happen to another.
-> > > 
-> > > What this patch does is protect against updates with a combination of
-> > > locks and seq counters. First, the vma->anon_vma lock is taken by
-> > > vma_adjust() and the sequence counter starts. The lock is released and
-> > > the sequence ended when the VMA updates are complete.
-> > > 
-> > > The lock serialses rmap_walk_anon when the page and VMA share the same
-> > > anon_vma. Where the anon_vmas do not match, the seq counter is checked.
-> > > If a change is noticed, rmap_walk_anon drops its locks and starts again
-> > > from scratch as the VMA list may have changed. The dangling migration
-> > > PTE bug was not triggered after several hours of stress testing with
-> > > this patch applied.
-> > > 
-> > > [kamezawa.hiroyu@jp.fujitsu.com: Use of a seq counter]
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > 
-> > I think this patch is nice!
-> > 
-> 
-> It looks nice but it still broke after 28 hours of running. The
-> seq-counter is still insufficient to catch all changes that are made to
-> the list. I'm beginning to wonder if a) this really can be fully safely
-> locked with the anon_vma changes and b) if it has to be a spinlock to
-> catch the majority of cases but still a lazy cleanup if there happens to
-> be a race. It's unsatisfactory and I'm expecting I'll either have some
-> insight to the new anon_vma changes that allow it to be locked or Rik
-> knows how to restore the original behaviour which as Andrea pointed out
-> was safe.
-> 
-Ouch. Hmm, how about the race in fork() I pointed out ?
+Has anyone looked into whether it might make sense to have have a lock
+which which blocks vmtruncate() from racing against the writeback code?
+Arguments in favor of the status quo is that if the inode happens to be
+undergoing writeback, and we know we're about to truncate the sucker,
+it's best if we can stop the writeback ASAP and avoid the wasted work.
 
-Thanks,
--Kame
+However, modern file systems have to do multiple pass against the page
+cache; first to find out how many dirty pages are present so that the
+delayed allocation can be efficiently targetted against the free space
+on disk; then the file system has to allocate the necessary extent, and
+the finally the buffer heads attached to the pages need to be populated
+and the page sent out for writeback.  However what if while this is
+happening, on another CPU, some of the pages are truncated and then
+(perhaps on a 3rd CPU) the pages are written to again once again subject
+to delayed allocation?
+
+Right now, ext4 doesn't protect against this; I'm working on it fixing
+it.  But fixing it in the file system, while possible, is nasty, since
+it means that we have to constantly recheck against file systems
+get_blocks() filesystem against every single page, after locking each
+page, just in case the we happen to be racing against a truncate.  I
+suppose I could put in a lock to prevent the fs-level truncate from
+completing until the inode's writeback is complete, but then it's still
+possible that we will have allocated too much space (since the truncate
+happened right after we finished counting out the delalloc pages), and
+we need to make sure extent is marked uninitalized lest we crash right
+after the allocate and before the truncate takes place.  Ugh!
+
+I'm prety sure I can make it work, but it won't necessarily be the
+fastest thing in the world, and it will require taking a bunch of extra
+locks, some of them for every single page being written.  It would be
+simpler to simply add a mutual exclusion between truncate and writeback;
+which has a downside, as I've acknowledged --- but which case is more
+common and thus worth optimizing for?  The normal writeback case, or
+being able to avoid some extra disk writes in the case where the
+truncate is issued exactly while the write back code is processing the
+inode?
+
+Any thoughts or suggestions would be greatly appreciated.  I've looked
+at the xfs and btrfs code for some ideas, but dealing with current
+writeback and truncate is nasty, especially if there's a subsequent
+delalloc write happening in parallel with the writeback and immediately
+after the truncate.  After studying the code quite extensively over the
+weekend, I'm still not entirely sure that XFS and btrfs gets this case
+right (I know ext4 currently doesn't).  Of course, it's not clear
+whether users will trip against this in practice, but it's nevertheless
+still a botch, and I'm wondering if it's simpler to avoid the concurrent
+vmtruncate/writeback case entirely.
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
