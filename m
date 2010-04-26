@@ -1,91 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A1BF26B01F1
-	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:28:53 -0400 (EDT)
-Received: by ywh26 with SMTP id 26so1440484ywh.12
-        for <linux-mm@kvack.org>; Mon, 26 Apr 2010 16:28:53 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1272321478-28481-2-git-send-email-mel@csn.ul.ie>
-References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
-	 <1272321478-28481-2-git-send-email-mel@csn.ul.ie>
-Date: Tue, 27 Apr 2010 08:28:52 +0900
-Message-ID: <n2t28c262361004261628y1d6e53fbw505a78818c0d5228@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm,migration: During fork(), wait for migration to
-	end if migration PTE is encountered
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3576B6B01F2
+	for <linux-mm@kvack.org>; Mon, 26 Apr 2010 19:29:16 -0400 (EDT)
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <4BD61147.40709@tauceti.net>
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net>
+	 <20100419131718.GB16918@redhat.com>
+	 <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
+	 <20100421094249.GC30855@redhat.com>
+	 <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net>
+	 <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net>
+	 <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net>
+	 <20100425204916.GA12686@redhat.com>
+	 <1272284154.4252.34.camel@localhost.localdomain>
+	 <4BD5F6C5.8080605@tauceti.net>
+	 <1272315854.8984.125.camel@localhost.localdomain>
+	 <4BD61147.40709@tauceti.net>
+Content-Type: multipart/mixed; boundary="=-VJUQJgQ37UgEeLWr5kvS"
+Date: Mon, 26 Apr 2010 19:28:56 -0400
+Message-ID: <1272324536.16814.45.camel@localhost.localdomain>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Robert Wimmer <kernel@tauceti.net>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVHVlLCBBcHIgMjcsIDIwMTAgYXQgNzozNyBBTSwgTWVsIEdvcm1hbiA8bWVsQGNzbi51bC5p
-ZT4gd3JvdGU6Cj4gRnJvbTogS0FNRVpBV0EgSGlyb3l1a2kgPGthbWV6YXdhLmhpcm95dUBqcC5m
-dWppdHN1LmNvbT4KPgo+IEZyb206IEtBTUVaQVdBIEhpcm95dWtpIDxrYW1lemF3YS5oaXJveXVA
-anAuZnVqaXRzdS5jb20+Cj4KPiBBdCBwYWdlIG1pZ3JhdGlvbiwgd2UgcmVwbGFjZSBwdGUgd2l0
-aCBtaWdyYXRpb25fZW50cnksIHdoaWNoIGhhcwo+IHNpbWlsYXIgZm9ybWF0IGFzIHN3YXBfZW50
-cnkgYW5kIHJlcGxhY2UgaXQgd2l0aCByZWFsIHBmbiBhdCB0aGUKPiBlbmQgb2YgbWlncmF0aW9u
-LiBCdXQgdGhlcmUgaXMgYSByYWNlIHdpdGggZm9yaygpJ3MgY29weV9wYWdlX3JhbmdlKCkuCj4K
-PiBBc3N1bWUgcGFnZSBtaWdyYWlvbiBvbiBDUFUgQSBhbmQgZm9yayBpbiBDUFUgQi4gT24gQ1BV
-IEEsIGEgcGFnZSBvZgo+IGEgcHJvY2VzcyBpcyB1bmRlciBtaWdyYXRpb24uIE9uIENQVSBCLCBh
-IHBhZ2UncyBwdGUgaXMgdW5kZXIgY29weS4KPgo+IMKgIMKgIMKgIMKgQ1BVQSDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoENQVSBCCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqBkb19mb3JrKCkKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoGNvcHlfbW0oKSAoZnJvbSBwcm9jZXNzIDEgdG8gcHJvY2VzczIp
-Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBpbnNlcnQg
-bmV3IHZtYSB0byBtbWFwX2xpc3QgKGlmIGlub2RlL2Fub25fdm1hKQo+IMKgIMKgIMKgIMKgcHRl
-X2xvY2socHJvY2VzczEpCj4gwqAgwqAgwqAgwqB1bm1hcCBhIHBhZ2UKPiDCoCDCoCDCoCDCoGlu
-c2VydCBtaWdyYXRpb25fZW50cnkKPiDCoCDCoCDCoCDCoHB0ZV91bmxvY2socHJvY2VzczEpCj4K
-PiDCoCDCoCDCoCDCoG1pZ3JhdGUgcGFnZSBjb3B5Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBjb3B5X3BhZ2VfcmFuZ2UKPiDCoCDCoCDCoCDCoHJlbWFw
-IG5ldyBwYWdlIGJ5IHJtYXBfd2FsaygpCj4gwqAgwqAgwqAgwqBwdGVfbG9jayhwcm9jZXNzMikK
-PiDCoCDCoCDCoCDCoGZvdW5kIG5vIHB0ZS4KPiDCoCDCoCDCoCDCoHB0ZV91bmxvY2socHJvY2Vz
-czIpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBwdGUg
-bG9jayhwcm9jZXNzMikKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoHB0ZSBsb2NrKHByb2Nlc3MxKQo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgY29weSBtaWdyYXRpb24gZW50cnkgdG8gcHJvY2VzczIKPiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHB0ZSB1bmxvY2socHJv
-Y2VzczEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBw
-dGUgdW5sb2tjKHByb2Nlc3MyKQo+IMKgIMKgIMKgIMKgcHRlX2xvY2socHJvY2VzczEpCj4gwqAg
-wqAgwqAgwqByZXBsYWNlIG1pZ3JhdGlvbiBlbnRyeQo+IMKgIMKgIMKgIMKgdG8gbmV3IHBhZ2Un
-cyBwdGUuCj4gwqAgwqAgwqAgwqBwdGVfdW5sb2NrKHByb2Nlc3MxKQo+Cj4gVGhlbiwgc29tZSBz
-ZXJpYWxpemF0aW9uIGlzIG5lY2Vzc2FyeS4gSUlVQywgdGhpcyBpcyB2ZXJ5IHJhcmUgZXZlbnQg
-YnV0Cj4gaXQgaXMgcmVwcm9kdWNpYmxlIGlmIGEgbG90IG9mIG1pZ3JhdGlvbiBpcyBoYXBwZW5p
-bmcgYSBsb3Qgd2l0aCB0aGUKPiBmb2xsb3dpbmcgcHJvZ3JhbSBydW5uaW5nIGluIHBhcmFsbGVs
-Lgo+Cj4gwqAgwqAjaW5jbHVkZSA8c3RkaW8uaD4KPiDCoCDCoCNpbmNsdWRlIDxzdHJpbmcuaD4K
-PiDCoCDCoCNpbmNsdWRlIDxzdGRsaWIuaD4KPiDCoCDCoCNpbmNsdWRlIDxzeXMvbW1hbi5oPgo+
-Cj4gwqAgwqAjZGVmaW5lIFNJWkUgKDI0KjEwNDg1NzZVTCkKPiDCoCDCoCNkZWZpbmUgQ0hJTERS
-RU4gMTAwCj4gwqAgwqBpbnQgbWFpbigpCj4gwqAgwqB7Cj4gwqAgwqAgwqAgwqAgwqAgwqBpbnQg
-aSA9IDA7Cj4gwqAgwqAgwqAgwqAgwqAgwqBwaWRfdCBwaWRzW0NISUxEUkVOXTsKPiDCoCDCoCDC
-oCDCoCDCoCDCoGNoYXIgKmJ1ZiA9IG1tYXAoTlVMTCwgU0laRSwgUFJPVF9SRUFEfFBST1RfV1JJ
-VEUsCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBNQVBfUFJJVkFU
-RXxNQVBfQU5PTllNT1VTLAo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgMCwgMCk7Cj4gwqAgwqAgwqAgwqAgwqAgwqBpZiAoYnVmID09IE1BUF9GQUlMRUQpIHsKPiDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoHBlcnJvcigibW1hcCIpOwo+IMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgZXhpdCgtMSk7Cj4gwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDC
-oCDCoCDCoCDCoCDCoHdoaWxlICgrK2kpIHsKPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oGludCBqID0gaSAlIENISUxEUkVOOwo+Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBp
-ZiAoaiA9PSAwKSB7Cj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBw
-cmludGYoIldhaXRpbmcgb24gY2hpbGRyZW5cbiIpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgZm9yIChqID0gMDsgaiA8IENISUxEUkVOOyBqKyspIHsKPiDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoG1lbXNldChi
-dWYsIGksIFNJWkUpOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgaWYgKHBpZHNbal0gIT0gLTEpCj4gwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB3YWl0cGlkKHBpZHNbal0s
-IE5VTEwsIDApOwo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgfQo+
-IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgaiA9IDA7Cj4gwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oGlmICgocGlkc1tqXSA9IGZvcmsoKSkgPT0gMCkgewo+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIMKgIMKgIMKgIMKgIMKgbWVtc2V0KGJ1ZiwgaSwgU0laRSk7Cj4gwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBleGl0KEVYSVRfU1VDQ0VTUyk7Cj4gwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqB9Cj4gwqAgwqAgwqAgwqAgwqAgwqB9Cj4KPiDCoCDCoCDCoCDC
-oCDCoCDCoG11bm1hcChidWYsIFNJWkUpOwo+IMKgIMKgfQo+Cj4gY29weV9wYWdlX3JhbmdlKCkg
-Y2FuIHdhaXQgZm9yIHRoZSBlbmQgb2YgbWlncmF0aW9uLgo+Cj4gU2lnbmVkLW9mZi1ieTogS0FN
-RVpBV0EgSGlyb3l1a2kgPGthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbT4KPiBTaWduZWQt
-b2ZmLWJ5OiBNZWwgR29ybWFuIDxtZWxAY3NuLnVsLmllPgpSZXZpZXdlZC1ieSA6IE1pbmNoYW4g
-S2ltIDxtaW5jaGFuLmtpbUBnbWFpbC5jb20+CgotLSAKS2luZCByZWdhcmRzLApNaW5jaGFuIEtp
-bQo=
+
+--=-VJUQJgQ37UgEeLWr5kvS
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Tue, 2010-04-27 at 00:18 +0200, Robert Wimmer wrote:=20
+> > Sure. In addition to what you did above, please do
+> >
+> > mount -t debugfs none /sys/kernel/debug
+> >
+> > and then cat the contents of the pseudofile at
+> >
+> > /sys/kernel/debug/tracing/stack_trace
+> >
+> > Please do this more or less immediately after you've finished mounting
+> > the NFSv4 client.
+> >  =20
+>=20
+> I've uploaded the stack trace. It was generated
+> directly after mounting. Here are the stacks:
+>=20
+> After mounting:
+> https://bugzilla.kernel.org/attachment.cgi?id=3D26153
+> After the soft lockup:
+> https://bugzilla.kernel.org/attachment.cgi?id=3D26154
+> The dmesg output of the soft lockup:
+> https://bugzilla.kernel.org/attachment.cgi?id=3D26155
+>=20
+> > Does your server have the 'crossmnt' or 'nohide' flags set, or does it
+> > use the 'refer' export option anywhere? If so, then we might have to
+> > test further, since those may trigger the NFSv4 submount feature.
+> >  =20
+> The server has the following settings:
+> rw,nohide,insecure,async,no_subtree_check,no_root_squash
+>=20
+> Thanks!
+> Robert
+>=20
+>=20
+
+That second trace is more than 5.5K deep, more than half of which is
+socket overhead :-(((.
+
+The process stack does not appear to have overflowed, however that trace
+doesn't include any IRQ stack overhead.
+
+OK... So what happens if we get rid of half of that trace by forcing
+asynchronous tasks such as this to run entirely in rpciod instead of
+first trying to run in the process context?
+
+See the attachment...
+
+--=-VJUQJgQ37UgEeLWr5kvS
+Content-Disposition: attachment; filename="linux-2.6.34-000-reduce_async_rpc_stack_usage.dif"
+Content-Type: text/plain; name="linux-2.6.34-000-reduce_async_rpc_stack_usage.dif"; charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+U1VOUlBDOiBSZWR1Y2UgYXN5bmNocm9ub3VzIFJQQyB0YXNrIHN0YWNrIHVzYWdlDQoNCkZyb206
+IFRyb25kIE15a2xlYnVzdCA8VHJvbmQuTXlrbGVidXN0QG5ldGFwcC5jb20+DQoNCldlIHNob3Vs
+ZCBqdXN0IGZhcm0gb3V0IGFzeW5jaHJvbm91cyBSUEMgdGFza3MgaW1tZWRpYXRlbHkgdG8gcnBj
+aW9kLi4uDQoNClNpZ25lZC1vZmYtYnk6IFRyb25kIE15a2xlYnVzdCA8VHJvbmQuTXlrbGVidXN0
+QG5ldGFwcC5jb20+DQotLS0NCg0KIG5ldC9zdW5ycGMvc2NoZWQuYyB8ICAgIDcgKysrKysrLQ0K
+IDEgZmlsZXMgY2hhbmdlZCwgNiBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9ucygtKQ0KDQoNCmRp
+ZmYgLS1naXQgYS9uZXQvc3VucnBjL3NjaGVkLmMgYi9uZXQvc3VucnBjL3NjaGVkLmMNCmluZGV4
+IGM4OTc5Y2UuLjIyYTA5N2YgMTAwNjQ0DQotLS0gYS9uZXQvc3VucnBjL3NjaGVkLmMNCisrKyBi
+L25ldC9zdW5ycGMvc2NoZWQuYw0KQEAgLTcyMCw3ICs3MjAsMTIgQEAgdm9pZCBycGNfZXhlY3V0
+ZShzdHJ1Y3QgcnBjX3Rhc2sgKnRhc2spDQogew0KIAlycGNfc2V0X2FjdGl2ZSh0YXNrKTsNCiAJ
+cnBjX3NldF9ydW5uaW5nKHRhc2spOw0KLQlfX3JwY19leGVjdXRlKHRhc2spOw0KKwlpZiAoUlBD
+X0lTX0FTWU5DKHRhc2spKSB7DQorCQlJTklUX1dPUksoJnRhc2stPnUudGtfd29yaywgcnBjX2Fz
+eW5jX3NjaGVkdWxlKTsNCisJCXF1ZXVlX3dvcmsocnBjaW9kX3dvcmtxdWV1ZSwgJnRhc2stPnUu
+dGtfd29yayk7DQorDQorCX0gZWxzZQ0KKwkJX19ycGNfZXhlY3V0ZSh0YXNrKTsNCiB9DQogDQog
+c3RhdGljIHZvaWQgcnBjX2FzeW5jX3NjaGVkdWxlKHN0cnVjdCB3b3JrX3N0cnVjdCAqd29yaykN
+Cg==
+
+
+--=-VJUQJgQ37UgEeLWr5kvS--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
