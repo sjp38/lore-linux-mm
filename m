@@ -1,45 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 27 Apr 2010 07:28:42 -0400
+Date: Tue, 27 Apr 2010 07:36:39 -0400
 From: Benjamin LaHaise <bcrl@lhnet.ca>
 Subject: Re: I am an emotional amoeba who loves Erika-with-a-k and Erika-with-a-k loves me.
-Message-ID: <20100427112842.GQ5724@kvack.org>
-References: <20100427063547.GL5724@kvack.org> <71097.1272365836@localhost>
+Message-ID: <20100427113639.GU5724@kvack.org>
+References: <20100427063547.GL5724@kvack.org> <71097.1272365836@localhost> <u2k84144f021004270431ke981e355i6e82688bfe3842aa@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <71097.1272365836@localhost>
+In-Reply-To: <u2k84144f021004270431ke981e355i6e82688bfe3842aa@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Valdis.Kletnieks@vt.edu
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Valdis.Kletnieks@vt.edu, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 27, 2010 at 06:57:16AM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Tue, 27 Apr 2010 02:35:47 EDT, Benjamin LaHaise said:
-> > I am an emotional amoeba Erika loves because I love Erika, and we care 
-> > about each other more than anyone we've ever met because we love 
-> > technology more than our friends and family.
-> 
-> Doood - Facebook has a "It's Complicated" button. Use it. We don't really
-> care - we debug hardware and software, not liveware.
+On Tue, Apr 27, 2010 at 02:31:50PM +0300, Pekka Enberg wrote:
+> I care but there's not much I can do unless he posts the complete oops
+> and his .config.
 
-Agreed.  But she values the respect and standing that I have had in this 
-community.  Being able to admit where I stand in public is a huge sign of 
-trust in her keeping her word.  Like I said, she's smarter than me; it's 
-taken me 11 years to try to play the game we started 12 years ago.  But 
-each of us deserves to be shown respect, something I didn't learn until 
-this day.  Saying this in public is an important development for me.  Heck, 
-the it's complicated button is on the level of being a blockbuster true love 
-drama (think Hackers, but as a real life true story).
-
-Sorry for the distration.  People who know me will know that when I say 
-Erika-with-a-k deserves the respect of this community for her own merit as 
-a talented hacker know that I rarely pay such compliments.  Many people 
-here have my respect.  I want to be shown that same respect myself and to/by 
-the person I love.
-
-For what it's worth, liveware can be hacked.  I'm in awe of someone who 
-showed me her elite hacker skills in a way that is life changing.  She 
-hacked my brain and it took me 11 years to defuse her virus.  Elite. =-)
+This happened on Brain v2.0 released February 7th, 1998.  The only relevant 
+config option was CONFIG_MALE=y.  The backtrace will be coming out in blog 
+form at some time in the near future, but I had to store it in my verbal 
+memory for lack of a serial console.  If anyone has any hints on how to 
+install netconsole on current Brain modules, I'd greatly appreciate a 
+detailed HOWTO on the subject.
 
 		-ben
 
