@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D136B01EE
-	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 17:30:57 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A83A96B01F2
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 17:30:58 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/3] mm,migration: During fork(), wait for migration to end if migration PTE is encountered
-Date: Tue, 27 Apr 2010 22:30:50 +0100
-Message-Id: <1272403852-10479-2-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/3] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information
+Date: Tue, 27 Apr 2010 22:30:51 +0100
+Message-Id: <1272403852-10479-3-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
 References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,138 +13,151 @@ To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+vma_adjust() is updating anon VMA information without any locks taken.
+In contrast, file-backed mappings use the i_mmap_lock and this lack of
+locking can result in races with page migration. During rmap_walk(),
+vma_address() can return -EFAULT for an address that will soon be valid.
+This leaves a dangling migration PTE behind which can later cause a BUG_ON
+to trigger when the page is faulted in.
 
-At page migration, we replace pte with migration_entry, which has
-similar format as swap_entry and replace it with real pfn at the
-end of migration. But there is a race with fork()'s copy_page_range().
+With the recent anon_vma changes, there can be more than one anon_vma->lock
+that can be taken in a anon_vma_chain but a second lock cannot be spinned
+upon in case of deadlock. Instead, the rmap walker tries to take locks of
+different anon_vma's. If the attempt fails, the operation is restarted.
 
-Assume page migraion on CPU A and fork in CPU B. On CPU A, a page of
-a process is under migration. On CPU B, a page's pte is under copy.
-
-	CPUA			CPU B
-				do_fork()
-				copy_mm() (from process 1 to process2)
-				insert new vma to mmap_list (if inode/anon_vma)
-	pte_lock(process1)
-	unmap a page
-	insert migration_entry
-	pte_unlock(process1)
-
-	migrate page copy
-				copy_page_range
-	remap new page by rmap_walk()
-	pte_lock(process2)
-	found no pte.
-	pte_unlock(process2)
-				pte lock(process2)
-				pte lock(process1)
-				copy migration entry to process2
-				pte unlock(process1)
-				pte unlokc(process2)
-	pte_lock(process1)
-	replace migration entry
-	to new page's pte.
-	pte_unlock(process1)
-
-Then, some serialization is necessary. IIUC, this is very rare event but
-it is reproducible if a lot of migration is happening a lot with the
-following program running in parallel.
-
-    #include <stdio.h>
-    #include <string.h>
-    #include <stdlib.h>
-    #include <sys/mman.h>
-
-    #define SIZE (24*1048576UL)
-    #define CHILDREN 100
-    int main()
-    {
-	    int i = 0;
-	    pid_t pids[CHILDREN];
-	    char *buf = mmap(NULL, SIZE, PROT_READ|PROT_WRITE,
-			    MAP_PRIVATE|MAP_ANONYMOUS,
-			    0, 0);
-	    if (buf == MAP_FAILED) {
-		    perror("mmap");
-		    exit(-1);
-	    }
-
-	    while (++i) {
-		    int j = i % CHILDREN;
-
-		    if (j == 0) {
-			    printf("Waiting on children\n");
-			    for (j = 0; j < CHILDREN; j++) {
-				    memset(buf, i, SIZE);
-				    if (pids[j] != -1)
-					    waitpid(pids[j], NULL, 0);
-			    }
-			    j = 0;
-		    }
-
-		    if ((pids[j] = fork()) == 0) {
-			    memset(buf, i, SIZE);
-			    exit(EXIT_SUCCESS);
-		    }
-	    }
-
-	    munmap(buf, SIZE);
-    }
-
-copy_page_range() can wait for the end of migration.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- mm/memory.c |   25 +++++++++++++++----------
- 1 files changed, 15 insertions(+), 10 deletions(-)
+ mm/ksm.c  |   22 ++++++++++++++++++++--
+ mm/mmap.c |    6 ++++++
+ mm/rmap.c |   28 +++++++++++++++++++++++-----
+ 3 files changed, 49 insertions(+), 7 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 833952d..800d77f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -675,16 +675,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			}
- 			if (likely(!non_swap_entry(entry)))
- 				rss[MM_SWAPENTS]++;
--			else if (is_write_migration_entry(entry) &&
--					is_cow_mapping(vm_flags)) {
--				/*
--				 * COW mappings require pages in both parent
--				 * and child to be set to read.
--				 */
--				make_migration_entry_read(&entry);
--				pte = swp_entry_to_pte(entry);
--				set_pte_at(src_mm, addr, src_pte, pte);
--			}
-+			else
-+				BUG();
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 3666d43..0c09927 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1668,15 +1668,28 @@ int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
+ again:
+ 	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+ 		struct anon_vma *anon_vma = rmap_item->anon_vma;
++		struct anon_vma *locked_vma;
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+ 		spin_lock(&anon_vma->lock);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
++
++			/* See comment in mm/rmap.c#rmap_walk_anon on locking */
++			locked_vma = NULL;
++			if (anon_vma != vma->anon_vma) {
++				locked_vma = vma->anon_vma;
++				if (!spin_trylock(&locked_vma->lock)) {
++					spin_unlock(&anon_vma->lock);
++					goto again;
++				}
++			}
++
+ 			if (rmap_item->address < vma->vm_start ||
+ 			    rmap_item->address >= vma->vm_end)
+-				continue;
++				goto next_vma;
++
+ 			/*
+ 			 * Initially we examine only the vma which covers this
+ 			 * rmap_item; but later, if there is still work to do,
+@@ -1684,9 +1697,14 @@ again:
+ 			 * were forked from the original since ksmd passed.
+ 			 */
+ 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
+-				continue;
++				goto next_vma;
+ 
+ 			ret = rmap_one(page, vma, rmap_item->address, arg);
++
++next_vma:
++			if (locked_vma)
++				spin_unlock(&locked_vma->lock);
++
+ 			if (ret != SWAP_AGAIN) {
+ 				spin_unlock(&anon_vma->lock);
+ 				goto out;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..61d6f1d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -578,6 +578,9 @@ again:			remove_next = 1 + (end > next->vm_end);
  		}
- 		goto out_set_pte;
  	}
-@@ -760,6 +752,19 @@ again:
- 			progress++;
- 			continue;
- 		}
-+		if (unlikely(!pte_present(*src_pte) && !pte_file(*src_pte))) {
-+			entry = pte_to_swp_entry(*src_pte);
-+			if (is_migration_entry(entry)) {
-+				/*
-+				 * Because copying pte has the race with
-+				 * pte rewriting of migraton, release lock
-+				 * and retry.
-+				 */
-+				progress = 0;
-+				entry.val = 0;
-+				break;
+ 
++	if (vma->anon_vma)
++		spin_lock(&vma->anon_vma->lock);
++
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +623,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (vma->anon_vma)
++		spin_unlock(&vma->anon_vma->lock);
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 85f203e..f7ed89f 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1358,7 +1358,7 @@ int try_to_munlock(struct page *page)
+ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+-	struct anon_vma *anon_vma;
++	struct anon_vma *anon_vma, *locked_vma;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1368,16 +1368,34 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
+ 	 */
++retry:
+ 	anon_vma = page_anon_vma(page);
+ 	if (!anon_vma)
+ 		return ret;
+ 	spin_lock(&anon_vma->lock);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+-		unsigned long address = vma_address(page, vma);
+-		if (address == -EFAULT)
+-			continue;
+-		ret = rmap_one(page, vma, address, arg);
++		unsigned long address;
++
++		/*
++		 * Guard against deadlocks by not spinning against
++		 * vma->anon_vma->lock. On contention release and retry
++		 */
++		locked_vma = NULL;
++		if (anon_vma != vma->anon_vma) {
++			locked_vma = vma->anon_vma;
++			if (!spin_trylock(&locked_vma->lock)) {
++				spin_unlock(&anon_vma->lock);
++				goto retry;
 +			}
 +		}
- 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
- 							vma, addr, rss);
- 		if (entry.val)
++		address = vma_address(page, vma);
++		if (address != -EFAULT)
++			ret = rmap_one(page, vma, address, arg);
++
++		if (locked_vma)
++			spin_unlock(&locked_vma->lock);
++
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
 -- 
 1.6.5
 
