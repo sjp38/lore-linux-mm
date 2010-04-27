@@ -1,202 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7007C6B01EF
-	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 06:29:27 -0400 (EDT)
-Date: Tue, 27 Apr 2010 11:29:05 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
-	the wrong VMA information
-Message-ID: <20100427102905.GE4895@csn.ul.ie>
-References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie> <1272321478-28481-3-git-send-email-mel@csn.ul.ie> <20100427090706.7ca68e12.kamezawa.hiroyu@jp.fujitsu.com> <20100427125040.634f56b3.kamezawa.hiroyu@jp.fujitsu.com> <20100427085951.GB4895@csn.ul.ie> <20100427180949.673350f2.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100427180949.673350f2.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1DCAB6B01E3
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 06:45:50 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3RAjmCj005847
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 27 Apr 2010 19:45:48 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 386FE45DE51
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 19:45:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1608C45DE4F
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 19:45:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E825E1DB803E
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 19:45:47 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 99FEE1DB8038
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 19:45:47 +0900 (JST)
+Date: Tue, 27 Apr 2010 19:41:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 04/14] mm,migration: Allow the migration of
+ PageSwapCache  pages
+Message-Id: <20100427194139.63ef0864.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100427094002.GD4895@csn.ul.ie>
+References: <20100422195153.d91c1c9e.kamezawa.hiroyu@jp.fujitsu.com>
+	<1271946226.2100.211.camel@barrios-desktop>
+	<1271947206.2100.216.camel@barrios-desktop>
+	<20100422154443.GD30306@csn.ul.ie>
+	<20100423183135.GT32034@random.random>
+	<20100423192311.GC14351@csn.ul.ie>
+	<20100423193948.GU32034@random.random>
+	<20100423213549.GV32034@random.random>
+	<20100424105226.GF14351@csn.ul.ie>
+	<20100425144113.GB5789@random.random>
+	<20100427094002.GD4895@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 27, 2010 at 06:09:49PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 27 Apr 2010 09:59:51 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, 27 Apr 2010 10:40:02 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
+
+> On Sun, Apr 25, 2010 at 04:41:13PM +0200, Andrea Arcangeli wrote:
+> > On Sat, Apr 24, 2010 at 11:52:27AM +0100, Mel Gorman wrote:
+> > > It should be. I expect that's why you have never seen the bugon in
+> > > swapops.
+> > 
+> > Oh I just got the very crash you're talking about with aa.git with
+> > your v8 code. Weird that I never reproduced it before! I think it's
+> > because I fixed gcc to be fully backed by hugepages always (without
+> > khugepaged) and I was rebuilding a couple of packages, and that now
+> > triggers memory compaction much more, but mixed with heavy
+> > fork/execve. This is the only instability I managed to reproduce over
+> > 24 hours of stress testing and it's clearly not related to transparent
+> > hugepage support but it's either a bug in migrate.c (more likely) or
+> > memory compaction.
+> > 
+> > Note that I'm running with the 2.6.33 anon-vma code, so it will
+> > relieve you to know it's not the anon-vma recent changes causing this
+> > (well I can't rule out anon-vma bugs, but if it's anon-vma, it's a
+> > longstanding one).
+> > 
+> > kernel BUG at include/linux/swapops.h:105!
+> > invalid opcode: 0000 [#1] SMP 
+> > last sysfs file: /sys/devices/pci0000:00/0000:00:12.0/host0/target0:0:0/0:0:0:0/block/sr0/size
+> > CPU 0 
+> > Modules linked in: nls_iso8859_1 loop twofish twofish_common tun bridge stp llc bnep sco rfcomm l2cap bluetooth snd_seq_dummy snd_seq_oss snd_seq_midi_event snd_seq snd_seq_device snd_pcm_oss snd_mixer_oss usbhid gspca_pac207 gspca_main videodev v4l1_compat v4l2_compat_ioctl32 snd_hda_codec_realtek ohci_hcd snd_hda_intel ehci_hcd usbcore snd_hda_codec snd_pcm snd_timer snd snd_page_alloc sg psmouse sr_mod pcspkr
+> > 
+> > Pid: 13351, comm: basename Not tainted 2.6.34-rc5 #23 M2A-VM/System Product Name
+> > RIP: 0010:[<ffffffff810e66b0>]  [<ffffffff810e66b0>] migration_entry_wait+0x170/0x180
+> > RSP: 0000:ffff88009ab6fa58  EFLAGS: 00010246
+> > RAX: ffffea0000000000 RBX: ffffea000234eed8 RCX: ffff8800aaa95298
+> > RDX: 00000000000a168d RSI: ffff88000411ae28 RDI: ffffea00025550a8
+> > RBP: ffffea0002555098 R08: ffff88000411ae28 R09: 0000000000000000
+> > R10: 0000000000000008 R11: 0000000000000009 R12: 00000000aaa95298
+> > R13: 00007ffff8a53000 R14: ffff88000411ae28 R15: ffff88011108a7c0
+> > FS:  00002adf29469b90(0000) GS:ffff880001a00000(0000) knlGS:0000000055700d50
+> > CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> > CR2: 00007ffff8a53000 CR3: 0000000004f80000 CR4: 00000000000006f0
+> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> > Process basename (pid: 13351, threadinfo ffff88009ab6e000, task ffff88009ab96c70)
+> > Stack:
+> > ffff8800aaa95280 ffffffff810ce472 ffff8801134a7ce8 0000000000000000
+> > <0> 00000000142d1a3e ffffffff810c2e35 79f085e9c08a4db7 62d38944fd014000
+> > <0> 76b07a274b0c057a ffffea00025649f8 f8000000000a168d d19934e84d2a74f3
+> > Call Trace:
+> > [<ffffffff810ce472>] ? page_add_new_anon_rmap+0x72/0xc0
+> > [<ffffffff810c2e35>] ? handle_pte_fault+0x7a5/0x7d0
+> > [<ffffffff8150506d>] ? do_page_fault+0x13d/0x420
+> > [<ffffffff8150215f>] ? page_fault+0x1f/0x30
+> > [<ffffffff81273bfb>] ? strnlen_user+0x4b/0x80
+> > [<ffffffff81131f4e>] ? load_elf_binary+0x12be/0x1c80
+> > [<ffffffff810f426d>] ? search_binary_handler+0xad/0x2c0
+> > [<ffffffff810f5ce7>] ? do_execve+0x247/0x320
+> > [<ffffffff8100ab16>] ? sys_execve+0x36/0x60
+> > [<ffffffff8100314a>] ? stub_execve+0x6a/0xc0
+> > Code: 5e ff ff ff 8d 41 01 89 4c 24 08 89 44 24 04 8b 74 24 04 8b 44 24 08 f0 0f b1 32 89 44 24 0c 8b 44 24 0c 39 c8 74 a4 89 c1 eb d1 <0f> 0b eb fe 66 66 66 2e 0f 1f 84 00 00 00 00 00 41 54 49 89 d4 
+> > RIP  [<ffffffff810e66b0>] migration_entry_wait+0x170/0x180
+> > RSP <ffff88009ab6fa58>
+> > ---[ end trace 840ce8bc6f6dc402 ]---
+> > 
+> > It doesn't look like a coincidence the page that had the migration PTE
+> > set was the argv in the user stack during execve. The bug has to be
+> > there. Or maybe it's a coincidence and it will mislead us. If you've
+> > other stack traces please post them so I can have more info (I'll post
+> > more stack traces if I get them again, it doesn't look easy to
+> > reproduce, supposedly the bug has always been there since the first
+> > time I used memory compaction, and this is the first time I reproduce
+> > it).
+> > 
 > 
-> > On Tue, Apr 27, 2010 at 12:50:40PM +0900, KAMEZAWA Hiroyuki wrote:
-> > > On Tue, 27 Apr 2010 09:07:06 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > On Mon, 26 Apr 2010 23:37:58 +0100
-> > > > Mel Gorman <mel@csn.ul.ie> wrote:
-> > > > 
-> > > > > vma_adjust() is updating anon VMA information without any locks taken.
-> > > > > In contrast, file-backed mappings use the i_mmap_lock and this lack of
-> > > > > locking can result in races with page migration. During rmap_walk(),
-> > > > > vma_address() can return -EFAULT for an address that will soon be valid.
-> > > > > This leaves a dangling migration PTE behind which can later cause a BUG_ON
-> > > > > to trigger when the page is faulted in.
-> > > > > 
-> > > > > With the recent anon_vma changes, there can be more than one anon_vma->lock
-> > > > > that can be taken in a anon_vma_chain but a second lock cannot be spinned
-> > > > > upon in case of deadlock. Instead, the rmap walker tries to take locks of
-> > > > > different anon_vma's. If the attempt fails, the operation is restarted.
-> > > > > 
-> > > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > 
-> > > > Ok, acquiring vma->anon_vma->spin_lock always sounds very safe.
-> > > > (but slow.)
-> > > > 
-> > > > I'll test this, too.
-> > > > 
-> > > > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > 
-> > > 
-> > > Sorry. reproduced. It seems the same bug before patch. 
-> > > mapcount 1 -> unmap -> remap -> mapcount 0. And it was SwapCache.
-> > > 
-> > 
-> > Same here, reproduced after 18 hours.
-> > 
-> Hmm. It seems rmap_one() is called and the race is not in vma_address()
-> but in remap_migration_pte().
+> The oopses I am getting look very similar. The page is encountered in
+> the stack while copying the arguements in. I don't think it's a
+> coincidence.
+> 
 
-It could have been in both but the vma lock should have been held across
-the rmap_one. It still reproduces but it's still the right thing to do.
-This is the current version of patch 2/2.
+Hmm. booby trap aronude here ?
+==
+static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+{
+....
+       /*
+         * cover the whole range: [new_start, old_end)
+         */
+        if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
+                return -ENOMEM;
 
-==== CUT HERE ====
+        /*
+         * move the page tables downwards, on failure we rely on
+         * process cleanup to remove whatever mess we made.
+         */
+        if (length != move_page_tables(vma, old_start,
+                                       vma, new_start, length))
+                return -ENOMEM;
+...
+        /*
+         * Shrink the vma to just the new range.  Always succeeds.
+         */
+        vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
 
-[PATCH] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information
+	
+==
 
-vma_adjust() is updating anon VMA information without any locks taken.
-In contrast, file-backed mappings use the i_mmap_lock and this lack of
-locking can result in races with page migration. During rmap_walk(),
-vma_address() can return -EFAULT for an address that will soon be valid.
-This leaves a dangling migration PTE behind which can later cause a BUG_ON
-to trigger when the page is faulted in.
+I think we have wrong vma_address() -> "pte"
+==
+	=== (A) ===
+	vma_adjust().  ---- (*)
+	=== (B) ===
+	move_pte().
+==
 
-With the recent anon_vma changes, there can be more than one anon_vma->lock
-that can be taken in a anon_vma_chain but a second lock cannot be spinned
-upon in case of deadlock. Instead, the rmap walker tries to take locks of
-different anon_vma's. If the attempt fails, the operation is restarted.
+	vma_address(page, vma)
+	=> address = vma->vm_start + ((page->index << shift) - vma->vm_pgoff) << PAGE_SHIFT);
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/ksm.c  |   19 +++++++++++++++++--
- mm/mmap.c |    6 ++++++
- mm/rmap.c |   27 +++++++++++++++++++++++----
- 3 files changed, 46 insertions(+), 6 deletions(-)
+So, vma_address() in zone (A) and vma_address in (B) will return different address.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 3666d43..87c7531 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1674,9 +1674,19 @@ again:
- 		spin_lock(&anon_vma->lock);
- 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
- 			vma = vmac->vma;
-+
-+			/* See comment in mm/rmap.c#rmap_walk_anon on locking */
-+			if (anon_vma != vma->anon_vma) {
-+				if (!spin_trylock(&vma->anon_vma->lock)) {
-+					spin_unlock(&anon_vma->lock);
-+					goto again;
-+				}
-+			}
-+
- 			if (rmap_item->address < vma->vm_start ||
- 			    rmap_item->address >= vma->vm_end)
--				continue;
-+				goto next_vma;
-+
- 			/*
- 			 * Initially we examine only the vma which covers this
- 			 * rmap_item; but later, if there is still work to do,
-@@ -1684,9 +1694,14 @@ again:
- 			 * were forked from the original since ksmd passed.
- 			 */
- 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
--				continue;
-+				goto next_vma;
- 
- 			ret = rmap_one(page, vma, rmap_item->address, arg);
-+
-+next_vma:
-+			if (anon_vma != vma->anon_vma)
-+				spin_unlock(&vma->anon_vma->lock);
-+
- 			if (ret != SWAP_AGAIN) {
- 				spin_unlock(&anon_vma->lock);
- 				goto out;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f90ea92..61d6f1d 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -578,6 +578,9 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		}
- 	}
- 
-+	if (vma->anon_vma)
-+		spin_lock(&vma->anon_vma->lock);
-+
- 	if (root) {
- 		flush_dcache_mmap_lock(mapping);
- 		vma_prio_tree_remove(vma, root);
-@@ -620,6 +623,9 @@ again:			remove_next = 1 + (end > next->vm_end);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
- 
-+	if (vma->anon_vma)
-+		spin_unlock(&vma->anon_vma->lock);
-+
- 	if (remove_next) {
- 		if (file) {
- 			fput(file);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 85f203e..7c2b7a9 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1368,18 +1368,37 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
- 	 * are holding mmap_sem. Users without mmap_sem are required to
- 	 * take a reference count to prevent the anon_vma disappearing
- 	 */
-+retry:
- 	anon_vma = page_anon_vma(page);
- 	if (!anon_vma)
- 		return ret;
- 	spin_lock(&anon_vma->lock);
- 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
- 		struct vm_area_struct *vma = avc->vma;
--		unsigned long address = vma_address(page, vma);
--		if (address == -EFAULT)
--			continue;
--		ret = rmap_one(page, vma, address, arg);
-+		unsigned long address;
-+
-+		/*
-+		 * Guard against deadlocks by not spinning against
-+		 * vma->anon_vma->lock. If contention is found, release our lock and
-+		 * try again until VMA list can be traversed without worrying about
-+		 * the details of the VMA changing underneath us.
-+		 */
-+		if (anon_vma != vma->anon_vma) {
-+			if (!spin_trylock(&vma->anon_vma->lock)) {
-+				spin_unlock(&anon_vma->lock);
-+				goto retry;
-+			}
-+		}
-+		address = vma_address(page, vma);
-+		if (address != -EFAULT)
-+			ret = rmap_one(page, vma, address, arg);
-+
-+		if (anon_vma != vma->anon_vma)
-+			spin_unlock(&vma->anon_vma->lock);
-+
- 		if (ret != SWAP_AGAIN)
- 			break;
-+		
- 	}
- 	spin_unlock(&anon_vma->lock);
- 	return ret;
+When pte inludes migration_pte, this seems critical. Because an address pointed
+by vma_address() in zone (B) will not contain migration_pte until
+move_ptes() ends.
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
