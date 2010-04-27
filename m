@@ -1,65 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 321496B01EE
-	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 10:46:52 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id 19so1001483fgg.8
-        for <linux-mm@kvack.org>; Tue, 27 Apr 2010 07:46:50 -0700 (PDT)
-Message-ID: <4BD6F81B.1010606@vflare.org>
-Date: Tue, 27 Apr 2010 20:13:39 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 77D9F6B01E3
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 11:38:29 -0400 (EDT)
+Date: Tue, 27 Apr 2010 17:37:59 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+Message-ID: <20100427153759.GZ8860@random.random>
+References: <1272321478-28481-1-git-send-email-mel@csn.ul.ie>
+ <1272321478-28481-3-git-send-email-mel@csn.ul.ie>
+ <20100427090706.7ca68e12.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100427125040.634f56b3.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100427085951.GB4895@csn.ul.ie>
+ <20100427180949.673350f2.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100427102905.GE4895@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <53c81c97-b30f-4081-91a1-7cef1879c6fa@default> <4BD07594.9080905@redhat.com> <b1036777-129b-4531-a730-1e9e5a87cea9@default> <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default4BD336CF.1000103@redhat.com> <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default> <20100427125502.GA3681@ucw.cz>
-In-Reply-To: <20100427125502.GA3681@ucw.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100427102905.GE4895@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 04/27/2010 06:25 PM, Pavel Machek wrote:
-> 
->>> Can we extend it?  Adding new APIs is easy, but harder to maintain in
->>> the long term.
->>
->> Umm... I think the difference between a "new" API and extending
->> an existing one here is a choice of semantics.  As designed, frontswap
->> is an extremely simple, only-very-slightly-intrusive set of hooks that
->> allows swap pages to, under some conditions, go to pseudo-RAM instead
-> ...
->> "Extending" the existing swap API, which has largely been untouched for
->> many years, seems like a significantly more complex and error-prone
->> undertaking that will affect nearly all Linux users with a likely long
->> bug tail.  And, by the way, there is no existence proof that it
->> will be useful.
-> 
->> Seems like a no-brainer to me.
-> 
-> Stop right here. Instead of improving existing swap api, you just
-> create one because it is less work.
-> 
-> We do not want apis to cummulate; please just fix the existing one.
+On Tue, Apr 27, 2010 at 11:29:05AM +0100, Mel Gorman wrote:
+> It could have been in both but the vma lock should have been held across
+> the rmap_one. It still reproduces but it's still the right thing to do.
+> This is the current version of patch 2/2.
 
+Well, keep in mind I reproduced the swapops bug with 2.6.33 anon-vma
+code, it's unlikely that focusing on patch 2 you'll fix bug in
+swapops.h. If this is a bug in the new anon-vma code, it needs fixing
+of course! But I doubt this bug is related to swapops in execve on the
+bprm->p args.
 
-I'm a bit confused: What do you mean by 'existing swap API'?
-Frontswap simply hooks in swap_readpage() and swap_writepage() to
-call frontswap_{get,put}_page() respectively. Now to avoid a hardcoded
-implementation of these function, it introduces struct frontswap_ops
-so that custom implementations fronswap get/put/etc. functions can be
-provided. This allows easy implementation of swap-to-hypervisor,
-in-memory-compressed-swapping etc. with common set of hooks.
-
-So, how frontswap approach can be seen as introducing a new API?
-
-Thanks,
-Nitin
-
-
-
-
-
+I've yet to check in detail patch 1 sorry, I'll let you know my
+opinion about it as soon as I checked it in detail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
