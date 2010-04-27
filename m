@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E96626B01E3
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D136B01EE
 	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 17:30:57 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/3] mm,migration: Remove straggling migration PTEs when page tables are being moved after the VMA has already moved
-Date: Tue, 27 Apr 2010 22:30:52 +0100
-Message-Id: <1272403852-10479-4-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 1/3] mm,migration: During fork(), wait for migration to end if migration PTE is encountered
+Date: Tue, 27 Apr 2010 22:30:50 +0100
+Message-Id: <1272403852-10479-2-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
 References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,133 +13,138 @@ To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Cc: Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-During exec(), a temporary stack is setup and moved later to its final
-location. There is a race between migration and exec whereby a migration
-PTE can be placed in the temporary stack. When this VMA is moved under the
-lock, migration no longer knows where the PTE is, fails to remove the PTE
-and the migration PTE gets copied to the new location.  This later causes
-a bug when the migration PTE is discovered but the page is not locked.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This patch handles the situation by removing the migration PTE when page
-tables are being moved in case migration fails to find them. The alternative
-would require significant modification to vma_adjust() and the locks taken
-to ensure a VMA move and page table copy is atomic with respect to migration.
+At page migration, we replace pte with migration_entry, which has
+similar format as swap_entry and replace it with real pfn at the
+end of migration. But there is a race with fork()'s copy_page_range().
 
+Assume page migraion on CPU A and fork in CPU B. On CPU A, a page of
+a process is under migration. On CPU B, a page's pte is under copy.
+
+	CPUA			CPU B
+				do_fork()
+				copy_mm() (from process 1 to process2)
+				insert new vma to mmap_list (if inode/anon_vma)
+	pte_lock(process1)
+	unmap a page
+	insert migration_entry
+	pte_unlock(process1)
+
+	migrate page copy
+				copy_page_range
+	remap new page by rmap_walk()
+	pte_lock(process2)
+	found no pte.
+	pte_unlock(process2)
+				pte lock(process2)
+				pte lock(process1)
+				copy migration entry to process2
+				pte unlock(process1)
+				pte unlokc(process2)
+	pte_lock(process1)
+	replace migration entry
+	to new page's pte.
+	pte_unlock(process1)
+
+Then, some serialization is necessary. IIUC, this is very rare event but
+it is reproducible if a lot of migration is happening a lot with the
+following program running in parallel.
+
+    #include <stdio.h>
+    #include <string.h>
+    #include <stdlib.h>
+    #include <sys/mman.h>
+
+    #define SIZE (24*1048576UL)
+    #define CHILDREN 100
+    int main()
+    {
+	    int i = 0;
+	    pid_t pids[CHILDREN];
+	    char *buf = mmap(NULL, SIZE, PROT_READ|PROT_WRITE,
+			    MAP_PRIVATE|MAP_ANONYMOUS,
+			    0, 0);
+	    if (buf == MAP_FAILED) {
+		    perror("mmap");
+		    exit(-1);
+	    }
+
+	    while (++i) {
+		    int j = i % CHILDREN;
+
+		    if (j == 0) {
+			    printf("Waiting on children\n");
+			    for (j = 0; j < CHILDREN; j++) {
+				    memset(buf, i, SIZE);
+				    if (pids[j] != -1)
+					    waitpid(pids[j], NULL, 0);
+			    }
+			    j = 0;
+		    }
+
+		    if ((pids[j] = fork()) == 0) {
+			    memset(buf, i, SIZE);
+			    exit(EXIT_SUCCESS);
+		    }
+	    }
+
+	    munmap(buf, SIZE);
+    }
+
+copy_page_range() can wait for the end of migration.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/migrate.h |    7 +++++++
- mm/migrate.c            |    2 +-
- mm/mremap.c             |   29 +++++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+), 1 deletions(-)
+ mm/memory.c |   25 +++++++++++++++----------
+ 1 files changed, 15 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 7a07b17..05d2292 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -22,6 +22,8 @@ extern int migrate_prep(void);
- extern int migrate_vmas(struct mm_struct *mm,
- 		const nodemask_t *from, const nodemask_t *to,
- 		unsigned long flags);
-+extern int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
-+			unsigned long addr, void *old);
- #else
- #define PAGE_MIGRATION 0
- 
-@@ -42,5 +44,10 @@ static inline int migrate_vmas(struct mm_struct *mm,
- #define migrate_page NULL
- #define fail_migrate_page NULL
- 
-+static inline int remove_migration_pte(struct page *new,
-+		struct vm_area_struct *vma, unsigned long addr, void *old)
-+{
-+}
-+
- #endif /* CONFIG_MIGRATION */
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 4afd6fe..053fd39 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -75,7 +75,7 @@ void putback_lru_pages(struct list_head *l)
- /*
-  * Restore a potential migration pte to a working pte entry
-  */
--static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
-+int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 				 unsigned long addr, void *old)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-diff --git a/mm/mremap.c b/mm/mremap.c
-index cde56ee..601bba0 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -13,12 +13,14 @@
- #include <linux/ksm.h>
- #include <linux/mman.h>
- #include <linux/swap.h>
-+#include <linux/swapops.h>
- #include <linux/capability.h>
- #include <linux/fs.h>
- #include <linux/highmem.h>
- #include <linux/security.h>
- #include <linux/syscalls.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/migrate.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -78,10 +80,13 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 	pte_t *old_pte, *new_pte, pte;
- 	spinlock_t *old_ptl, *new_ptl;
- 	unsigned long old_start;
-+	swp_entry_t entry;
-+	struct page *page;
- 
- 	old_start = old_addr;
- 	mmu_notifier_invalidate_range_start(vma->vm_mm,
- 					    old_start, old_end);
-+restart:
- 	if (vma->vm_file) {
- 		/*
- 		 * Subtle point from Rajesh Venkatasubramanian: before
-@@ -111,6 +116,12 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 				   new_pte++, new_addr += PAGE_SIZE) {
- 		if (pte_none(*old_pte))
+diff --git a/mm/memory.c b/mm/memory.c
+index 833952d..800d77f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -675,16 +675,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			}
+ 			if (likely(!non_swap_entry(entry)))
+ 				rss[MM_SWAPENTS]++;
+-			else if (is_write_migration_entry(entry) &&
+-					is_cow_mapping(vm_flags)) {
+-				/*
+-				 * COW mappings require pages in both parent
+-				 * and child to be set to read.
+-				 */
+-				make_migration_entry_read(&entry);
+-				pte = swp_entry_to_pte(entry);
+-				set_pte_at(src_mm, addr, src_pte, pte);
+-			}
++			else
++				BUG();
+ 		}
+ 		goto out_set_pte;
+ 	}
+@@ -760,6 +752,19 @@ again:
+ 			progress++;
  			continue;
-+		if (unlikely(!pte_present(*old_pte))) {
-+			entry = pte_to_swp_entry(*old_pte);
-+			if (is_migration_entry(entry))
+ 		}
++		if (unlikely(!pte_present(*src_pte) && !pte_file(*src_pte))) {
++			entry = pte_to_swp_entry(*src_pte);
++			if (is_migration_entry(entry)) {
++				/*
++				 * Because copying pte has the race with
++				 * pte rewriting of migraton, release lock
++				 * and retry.
++				 */
++				progress = 0;
++				entry.val = 0;
 +				break;
++			}
 +		}
-+
- 		pte = ptep_clear_flush(vma, old_addr, old_pte);
- 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
- 		set_pte_at(mm, new_addr, new_pte, pte);
-@@ -123,6 +134,24 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 	pte_unmap_unlock(old_pte - 1, old_ptl);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
-+
-+	/*
-+	 * In this context, we cannot call migration_entry_wait() as we
-+	 * are racing with migration. If migration finishes between when
-+	 * PageLocked was checked and migration_entry_wait takes the
-+	 * locks, it'll BUG. Instead, lock the page and remove the PTE
-+	 * before restarting.
-+	 */
-+	if (old_addr != old_end) {
-+		page = pfn_to_page(swp_offset(entry));
-+		get_page(page);
-+		lock_page(page);
-+		remove_migration_pte(page, vma, old_addr, page);
-+		unlock_page(page);
-+		put_page(page);
-+		goto restart;
-+	}
-+
- 	mmu_notifier_invalidate_range_end(vma->vm_mm, old_start, old_end);
- }
- 
+ 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+ 							vma, addr, rss);
+ 		if (entry.val)
 -- 
 1.6.5
 
