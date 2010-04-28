@@ -1,159 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2041C6B01EE
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:04:35 -0400 (EDT)
-Date: Wed, 28 Apr 2010 10:04:32 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH v2] - Randomize node rotor used in
-	cpuset_mem_spread_node()
-Message-ID: <20100428150432.GA3137@sgi.com>
-References: <20100428131158.GA2648@sgi.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 73F196B01EE
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:16:27 -0400 (EDT)
+Date: Wed, 28 Apr 2010 16:46:26 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 3/3] mm,migration: Remove straggling migration PTEs
+ when page tables are being moved after the VMA has already moved
+Message-ID: <20100428144626.GP510@random.random>
+References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
+ <1272403852-10479-4-git-send-email-mel@csn.ul.ie>
+ <20100428173054.7b6716cf.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100428131158.GA2648@sgi.com>
+In-Reply-To: <20100428173054.7b6716cf.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Some workloads that create a large number of small files tend to assign
-too many pages to node 0 (multi-node systems). Part of the reason is that
-the rotor (in cpuset_mem_spread_node()) used to assign nodes starts
-at node 0 for newly created tasks.
+On Wed, Apr 28, 2010 at 05:30:54PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 27 Apr 2010 22:30:52 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > During exec(), a temporary stack is setup and moved later to its final
+> > location. There is a race between migration and exec whereby a migration
+> > PTE can be placed in the temporary stack. When this VMA is moved under the
+> > lock, migration no longer knows where the PTE is, fails to remove the PTE
+> > and the migration PTE gets copied to the new location.  This later causes
+> > a bug when the migration PTE is discovered but the page is not locked.
+> > 
+> > This patch handles the situation by removing the migration PTE when page
+> > tables are being moved in case migration fails to find them. The alternative
+> > would require significant modification to vma_adjust() and the locks taken
+> > to ensure a VMA move and page table copy is atomic with respect to migration.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> Here is my final proposal (before going vacation.)
+> 
+> I think this is very simple. The biggest problem is when move_page_range
+> fails, setup_arg_pages pass it all to exit() ;)
+> 
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> This is an band-aid patch for avoiding unmap->remap of stack pages
+> while it's udner exec(). At exec, pages for stack is moved by
+> setup_arg_pages(). Under this, (vma,page)<->address relationship
+> can be in broken state.
+> Moreover, if moving ptes fails, pages with not-valid-rmap remains
+> in the page table and objrmap for the page is completely broken
+> until exit() frees all up.
+> 
+> This patch adds vma->broken_rmap. If broken_rmap != 0, vma_address()
+> returns -EFAULT always and try_to_unmap() fails.
+> (IOW, the pages for stack are pinned until setup_arg_pages() ends.)
+> 
+> And this prevents page migration because the page's mapcount never
+> goes to 0 until exec() fixes it up.
 
-This patch changes the rotor to be initialized to a random node number
-of the cpuset.
-
-NOTE: this patch is on TOP of the previous patch:
-	[PATCH] - New round-robin rotor for SLAB allocations
-	http://marc.info/?l=linux-mm&m=127231565321947&w=2
-
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-
-
----
-
-V2 - initial patch was generated against the wrong tree. This patch is based
-on linux-next.
-
-
-
- arch/x86/mm/numa.c       |   17 +++++++++++++++++
- include/linux/bitmap.h   |    1 +
- include/linux/nodemask.h |    5 +++++
- kernel/fork.c            |    4 ++++
- lib/bitmap.c             |   19 +++++++++++++++++++
- 5 files changed, 46 insertions(+)
-
-Index: linux/arch/x86/mm/numa.c
-===================================================================
---- linux.orig/arch/x86/mm/numa.c	2010-04-28 09:44:52.422898844 -0500
-+++ linux/arch/x86/mm/numa.c	2010-04-28 09:49:39.282899779 -0500
-@@ -2,6 +2,7 @@
- #include <linux/topology.h>
- #include <linux/module.h>
- #include <linux/bootmem.h>
-+#include <linux/random.h>
- 
- #ifdef CONFIG_DEBUG_PER_CPU_MAPS
- # define DBG(x...) printk(KERN_DEBUG x)
-@@ -65,3 +66,19 @@ const struct cpumask *cpumask_of_node(in
- }
- EXPORT_SYMBOL(cpumask_of_node);
- #endif
-+
-+/*
-+ * Return the bit number of a random bit set in the nodemask.
-+ *   (returns -1 if nodemask is empty)
-+ */
-+int __node_random(const nodemask_t *maskp)
-+{
-+	int w, bit = -1;
-+
-+	w = nodes_weight(*maskp);
-+	if (w)
-+		bit = bitmap_find_nth_bit(maskp->bits,
-+			get_random_int() % w, MAX_NUMNODES);
-+	return bit;
-+}
-+EXPORT_SYMBOL(__node_random);
-Index: linux/include/linux/bitmap.h
-===================================================================
---- linux.orig/include/linux/bitmap.h	2010-04-28 09:44:52.494903609 -0500
-+++ linux/include/linux/bitmap.h	2010-04-28 09:45:24.952154639 -0500
-@@ -141,6 +141,7 @@ extern int bitmap_find_free_region(unsig
- extern void bitmap_release_region(unsigned long *bitmap, int pos, int order);
- extern int bitmap_allocate_region(unsigned long *bitmap, int pos, int order);
- extern void bitmap_copy_le(void *dst, const unsigned long *src, int nbits);
-+extern int bitmap_find_nth_bit(const unsigned long *bitmap, int n, int bits);
- 
- #define BITMAP_LAST_WORD_MASK(nbits)					\
- (									\
-Index: linux/include/linux/nodemask.h
-===================================================================
---- linux.orig/include/linux/nodemask.h	2010-04-28 09:44:52.494903609 -0500
-+++ linux/include/linux/nodemask.h	2010-04-28 09:45:24.984152911 -0500
-@@ -66,6 +66,8 @@
-  * int num_online_nodes()		Number of online Nodes
-  * int num_possible_nodes()		Number of all possible Nodes
-  *
-+ * int node_random(mask)              Random node with set bit in mask
-+ *
-  * int node_online(node)		Is some node online?
-  * int node_possible(node)		Is some node possible?
-  *
-@@ -267,6 +269,9 @@ static inline int __first_unset_node(con
- 			find_first_zero_bit(maskp->bits, MAX_NUMNODES));
- }
- 
-+#define node_random(mask) __node_random(&(mask))
-+extern int __node_random(const nodemask_t *maskp);
-+
- #define NODE_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(MAX_NUMNODES)
- 
- #if MAX_NUMNODES <= BITS_PER_LONG
-Index: linux/kernel/fork.c
-===================================================================
---- linux.orig/kernel/fork.c	2010-04-28 09:44:52.494903609 -0500
-+++ linux/kernel/fork.c	2010-04-28 09:49:39.282899779 -0500
-@@ -1079,6 +1079,10 @@ static struct task_struct *copy_process(
-  	}
- 	mpol_fix_fork_child_flag(p);
- #endif
-+#ifdef CONFIG_CPUSETS
-+	p->cpuset_mem_spread_rotor = node_random(p->mems_allowed);
-+	p->cpuset_slab_spread_rotor = node_random(p->mems_allowed);
-+#endif
- #ifdef CONFIG_TRACE_IRQFLAGS
- 	p->irq_events = 0;
- #ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-Index: linux/lib/bitmap.c
-===================================================================
---- linux.orig/lib/bitmap.c	2010-04-28 09:44:52.494903609 -0500
-+++ linux/lib/bitmap.c	2010-04-28 09:49:39.282899779 -0500
-@@ -1098,3 +1098,22 @@ void bitmap_copy_le(void *dst, const uns
- 	}
- }
- EXPORT_SYMBOL(bitmap_copy_le);
-+
-+/**
-+ * bitmap_find_nth_bit(buf, ord, bits)
-+ *	@buf: pointer to bitmap
-+ *	@n: ordinal bit position (n-th set bit, n >= 0)
-+ * @nbits: number of bits in the bitmap
-+ *
-+ * find the Nth bit that is set in the bitmap
-+ * Value of @n should be in range 0 <= @n < weight(buf), else
-+ * results are undefined.
-+ *
-+ * The bit positions 0 through @bits are valid positions in @buf.
-+ */
-+int bitmap_find_nth_bit(const unsigned long *bitmap, int n, int bits)
-+{
-+	return bitmap_ord_to_pos(bitmap, n, bits);
-+}
-+EXPORT_SYMBOL(bitmap_find_nth_bit);
-+
+I don't get it, I don't see the pinning and returning -EFAULT is not
+solution for things that cannot fail (i.e. remove_migration_ptes and
+split_huge_page). Plus there's no point to return failure to rmap_walk
+when we can just stop the rmap_walk with the proper lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
