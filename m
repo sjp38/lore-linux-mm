@@ -1,38 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 839396B01F2
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 12:17:13 -0400 (EDT)
-Message-Id: <20100428161636.272097923@szeredi.hu>
-Date: Wed, 28 Apr 2010 18:16:36 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E68716B01F3
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 12:17:15 -0400 (EDT)
+Message-Id: <20100428161708.365052108@szeredi.hu>
+References: <20100428161636.272097923@szeredi.hu>
+Date: Wed, 28 Apr 2010 18:16:38 +0200
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [RFC PATCH 0/6] fuse: implement zero copy read
+Subject: [RFC PATCH 2/6] mm: export remove_from_page_cache() to modules
+Content-Disposition: inline; filename=export-remove_from_page_cache.patch
 Sender: owner-linux-mm@kvack.org
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-This series implements splice(2) to the fuse device.  With this it's
-possible to move pages directly into the page cache of the fuse
-filesystem without ever having to copy the contents.
+This is needed to enable moving pages into the page cache in fuse with
+splice(..., SPLICE_F_MOVE).
 
-The next series will implement splicing from the fuse device for zero
-copy write operations.
+Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
+---
+ mm/filemap.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-Testing shows improved bandwidth and reduced system time (as
-expected).  However there's still some overhead in shuffling pages
-between caches.  Further improvements could be achieved by
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c	2010-04-26 11:33:57.000000000 +0200
++++ linux-2.6/mm/filemap.c	2010-04-28 15:50:30.000000000 +0200
+@@ -151,6 +151,7 @@ void remove_from_page_cache(struct page
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	mem_cgroup_uncharge_cache_page(page);
+ }
++EXPORT_SYMBOL(remove_from_page_cache);
+ 
+ static int sync_page(void *word)
+ {
 
- - implementing replace_page_cache_page() which atomically removes an
-   old page and replaces it with a new one
-
- - implementing splice a-la O_DIRECT which, instead of populating the
-   page cache, would just send/receive data directly in pipe buffers.
-
-Comments?
-
-Thanks,
-Miklos
---
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
