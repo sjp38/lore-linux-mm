@@ -1,176 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C750B6B01EE
-	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 22:53:49 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o3S2rkhn025351
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 28 Apr 2010 11:53:46 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF04445DE56
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:53:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B949C45DE52
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:53:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BCCA1DB8056
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:53:45 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D32F1DB804C
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:53:45 +0900 (JST)
-Date: Wed, 28 Apr 2010 11:49:44 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3] mm,migration: Remove straggling migration PTEs when
- page tables are being moved after the VMA has already moved
-Message-Id: <20100428114944.3570105f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100428024227.GN510@random.random>
-References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
-	<1272403852-10479-4-git-send-email-mel@csn.ul.ie>
-	<20100427223004.GF8860@random.random>
-	<20100427225852.GH8860@random.random>
-	<20100428102928.a3b25066.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100428014434.GM510@random.random>
-	<20100428111248.2797801c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100428024227.GN510@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 76C006B01EE
+	for <linux-mm@kvack.org>; Tue, 27 Apr 2010 23:38:47 -0400 (EDT)
+Date: Wed, 28 Apr 2010 13:38:29 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+Message-ID: <20100428033829.GE9783@dastard>
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com>
+ <1271118255-21070-2-git-send-email-david@fromorbit.com>
+ <20100418001514.GA26575@infradead.org>
+ <20100419140039.GQ5683@laptop>
+ <20100420004149.GA14744@dastard>
+ <20100420083840.GR5683@laptop>
+ <20100420103216.GK15130@dastard>
+ <20100421084004.GS5683@laptop>
+ <20100422163211.GA2478@infradead.org>
+ <20100422163801.GZ5683@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100422163801.GZ5683@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Apr 2010 04:42:27 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Wed, Apr 28, 2010 at 11:12:48AM +0900, KAMEZAWA Hiroyuki wrote:
-> > The page can be replaced with migration_pte before the 1st vma_adjust.
+On Fri, Apr 23, 2010 at 02:38:01AM +1000, Nick Piggin wrote:
+> On Thu, Apr 22, 2010 at 12:32:11PM -0400, Christoph Hellwig wrote:
+> > On Wed, Apr 21, 2010 at 06:40:04PM +1000, Nick Piggin wrote:
+> > > I'm saying that dynamic registration is no good, if we don't have a
+> > > way to order the shrinkers.
 > > 
-> > The key is 
-> > 	(vma, page) <-> address <-> pte <-> page
-> > relationship.
+> > We can happily throw in a priority field into the shrinker structure,
+> > but at this stage in the release process I'd rather have an as simple
+> > as possible fix for the regression.  And just adding the context pointer
+> > which is a no-op for all existing shrinkers fits that scheme very well.
 > > 
-> > 	vma_adjust() 
-> > 	(*)
-> > 	move_pagetables();
-> > 	(**)
-> > 	vma_adjust();
-> > 
-> > At (*), vma_address(vma, page) retruns a _new_ address. But pte is not
-> > updated. This is ciritcal for rmap_walk. We're safe at (**).
+> > If it makes you happier I can queue up a patch to add the priorities
+> > for 2.6.35.  I think figuring out any meaningful priorities will be
+> > much harder than that, though.
 > 
-> Yes I agree we can move the unlock at (**) because the last vma_adjust
-> is only there to truncate the vm_end. In fact it looks super
-> heavyweight to call vma_adjust for that instead of just using
-> vma->vm_end = new_end considering we're under mmap_sem, full anonymous
-> etc... In fact I think even the first vma_adjust looks too
-> heavyweight and it doesn't bring any simplicity or added safety
-> considering this works in place and there's nothing to wonder about
-> vm_next or vma_merge or vm_file or anything that vma_adjust is good at.
-> 
-> So the confusion I had about vm_pgoff is because all things that moves
-> vm_start down, also move vm_pgoff down like stack growsdown but of
-> course those don't move the pages down too, so we must not alter
-> vm_pgoff here just vm_start along with the pagetables inside the
-> anon_vma lock to be fully safe. Also I forgot to unlock in case of
-> -ENOMEM ;)
-> 
-> this is a new try, next is for a later time... hope this helps!
-> 
-> Thanks!
-> 
-> ----
-> Subject: fix race between shift_arg_pages and rmap_walk
-> 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> migrate.c requires rmap to be able to find all ptes mapping a page at
-> all times, otherwise the migration entry can be instantiated, but it
-> can't be removed if the second rmap_walk fails to find the page.
-> 
-> So shift_arg_pages must run atomically with respect of rmap_walk, and
-> it's enough to run it under the anon_vma lock to make it atomic.
-> 
-> And split_huge_page() will have the same requirements as migrate.c
-> already has.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> I don't understand, it should be implemented like just all the other
+> shrinkers AFAIKS. Like the dcache one that has to shrink multiple
+> superblocks. There is absolutely no requirement for this API change
+> to implement it in XFS.
 
-Seems good.
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Well, I've gone and done this global shrinker because I need a fix
+for the problem before .34 releases, not because I like it.
 
-I'll test this and report if I see trouble again.
+Now my problem is that the accepted method of using global shrinkers
+(i.e. split nr_to-scan into portions based on per-fs usage) is
+causing a regression compared to not having a shrinker at all. The
+context based shrinker did not cause this regression, either.
 
-Unfortunately, I'll have a week of holidays (in Japan) in 4/29-5/05,
-my office is nearly closed. So, please consider no-mail-from-me is
-good information.
+The regression is oom-killer panics with "no killable tasks" - it
+kills my 1GB RAM VM dead.  Without a shrinker or with the context
+based shrinkers I will see one or two dd processes getting
+OOM-killed maybe once every 10 or so runs on this VM, but the machine
+continues to stay up. The global shrinker is turning this into a
+panic, and it is happening about twice as often.
 
+To fix this I've had to remove all the code that proportions the
+reclaim across all the XFS filesystems in the system. Basically it
+now walks from the first filesystem in the list to the last every
+time and effectively it only reclaims from the first filesystem it
+finds with reclaimable inodes.
 
-Thanks,
--Kame
+This is exactly the behaviour the context based shrinkers give me,
+without the need for adding global lists, additional locking and
+traverses. Also, context based shrinkers won't re-traverse all the
+filesystems, avoiding the potential for starving some filesystems of
+shrinker based reclaim if filesystems earlier in the list are
+putting more inodes into reclaim concurrently.
 
+Given that this behaviour matches pretty closely to the reasons I've
+already given for preferring context based per-fs shrinkers than a
+global shrinker and list, can we please move forward with this API
+change, Nick?
 
-> ---
-> 
-> diff --git a/fs/exec.c b/fs/exec.c
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -55,6 +55,7 @@
->  #include <linux/fsnotify.h>
->  #include <linux/fs_struct.h>
->  #include <linux/pipe_fs_i.h>
-> +#include <linux/rmap.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/mmu_context.h>
-> @@ -502,6 +503,7 @@ static int shift_arg_pages(struct vm_are
->  	unsigned long length = old_end - old_start;
->  	unsigned long new_start = old_start - shift;
->  	unsigned long new_end = old_end - shift;
-> +	unsigned long moved_length;
->  	struct mmu_gather *tlb;
->  
->  	BUG_ON(new_start > new_end);
-> @@ -514,16 +516,26 @@ static int shift_arg_pages(struct vm_are
->  		return -EFAULT;
->  
->  	/*
-> +	 * Stop the rmap walk or it won't find the stack pages, we've
-> +	 * to keep the lock hold until all pages are moved to the new
-> +	 * vm_start so their page->index will be always found
-> +	 * consistent with the unchanged vm_pgoff.
-> +	 */
-> +	spin_lock(&vma->anon_vma->lock);
-> +
-> +	/*
->  	 * cover the whole range: [new_start, old_end)
->  	 */
-> -	vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL);
-> +	vma->vm_start = new_start;
->  
->  	/*
->  	 * move the page tables downwards, on failure we rely on
->  	 * process cleanup to remove whatever mess we made.
->  	 */
-> -	if (length != move_page_tables(vma, old_start,
-> -				       vma, new_start, length))
-> +	moved_length = move_page_tables(vma, old_start,
-> +					vma, new_start, length);
-> +	spin_unlock(&vma->anon_vma->lock);
-> +	if (length != moved_length) 
->  		return -ENOMEM;
->  
->  	lru_add_drain();
-> @@ -549,7 +561,7 @@ static int shift_arg_pages(struct vm_are
->  	/*
->  	 * shrink the vma to just the new range.
->  	 */
-> -	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
-> +	vma->vm_end = new_end;
->  
->  	return 0;
->  }
-> 
+As it is, I'm going to cross my fingers and ship this global
+shrinker because of time limitations, but I certainly hoping that
+for .35 we can move to context based shrinking....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
