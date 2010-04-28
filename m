@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AA416B01F6
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 05:17:40 -0400 (EDT)
-Date: Wed, 28 Apr 2010 10:17:18 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3] Fix migration races in rmap_walk() V2
-Message-ID: <20100428091718.GC15815@csn.ul.ie>
-References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1004271723090.24133@router.home> <20100427223242.GG8860@random.random>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2D6A26B01EE
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 05:39:58 -0400 (EDT)
+Message-ID: <4BD80260.3050501@redhat.com>
+Date: Wed, 28 Apr 2010 12:39:44 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100427223242.GG8860@random.random>
+Subject: Re: [PATCH 1/2] mm: add context argument to shrinker callback
+References: <1271118255-21070-1-git-send-email-david@fromorbit.com> <1271118255-21070-2-git-send-email-david@fromorbit.com>
+In-Reply-To: <1271118255-21070-2-git-send-email-david@fromorbit.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 28, 2010 at 12:32:42AM +0200, Andrea Arcangeli wrote:
-> On Tue, Apr 27, 2010 at 05:27:36PM -0500, Christoph Lameter wrote:
-> > Can we simply wait like in the fault path?
-> 
-> There is no bug there, no need to wait either. I already audited it
-> before, and I didn't see any bug. Unless you can show a bug with CPU A
-> running the rmap_walk on process1 before process2, there is no bug to
-> fix there.
-> 
+On 04/13/2010 03:24 AM, Dave Chinner wrote:
+> From: Dave Chinner<dchinner@redhat.com>
+>
+> The current shrinker implementation requires the registered callback
+> to have global state to work from. This makes it difficult to shrink
+> caches that are not global (e.g. per-filesystem caches). Add a
+> context argument to the shrinker callback so that it can easily be
+> used in such situations.
+>    
 
-Yes, this patch is now dropped.
+> @@ -995,7 +995,8 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+>    * querying the cache size, so a fastpath for that case is appropriate.
+>    */
+>   struct shrinker {
+> -	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
+> +	int (*shrink)(void *ctx, int nr_to_scan, gfp_t gfp_mask);
+> +	void *ctx;	/* user callback context */
+>   	int seeks;	/* seeks to recreate an obj */
+>    
 
-> > 
-> > > Patch 3 notes that while a VMA is moved under the anon_vma lock, the page
-> > > 	tables are not similarly protected. Where migration PTEs are
-> > > 	encountered, they are cleaned up.
-> > 
-> > This means they are copied / moved etc and "cleaned" up in a state when
-> > the page was unlocked. Migration entries are not supposed to exist when
-> > a page is not locked.
-> 
-> patch 3 is real, and the first thought I had was to lock down the page
-> before running vma_adjust and unlock after move_page_tables. But these
-> are virtual addresses. Maybe there's a simpler way to keep migration
-> away while we run those two operations.
-> 
 
-I see there is a large discussion on that patch so I'll read that rather
-than commenting here.
+It's nicer (and slightly cheaper) to have
+
+   int (*shrink)(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask);
+   /* no void *ctx; */
+
+Clients can use container_of() to reach their context from the shrinker 
+argument.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
