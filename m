@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F5B26B01F4
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:24:18 -0400 (EDT)
-Date: Wed, 28 Apr 2010 16:23:54 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/3] Fix migration races in rmap_walk() V2
-Message-ID: <20100428152354.GH15815@csn.ul.ie>
-References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1004271723090.24133@router.home> <20100427223242.GG8860@random.random> <20100428091345.496ca4c4.kamezawa.hiroyu@jp.fujitsu.com> <20100428002056.GH510@random.random> <20100428142356.GF15815@csn.ul.ie> <20100428145737.GG15815@csn.ul.ie> <20100428151614.GQ510@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 588AB6B01F5
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 11:35:54 -0400 (EDT)
+Date: Wed, 28 Apr 2010 17:35:25 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/3] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+Message-ID: <20100428153525.GR510@random.random>
+References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
+ <1272403852-10479-3-git-send-email-mel@csn.ul.ie>
+ <20100427231007.GA510@random.random>
+ <20100428091555.GB15815@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100428151614.GQ510@random.random>
+In-Reply-To: <20100428091555.GB15815@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 28, 2010 at 05:16:14PM +0200, Andrea Arcangeli wrote:
-> On Wed, Apr 28, 2010 at 03:57:38PM +0100, Mel Gorman wrote:
-> > On Wed, Apr 28, 2010 at 03:23:56PM +0100, Mel Gorman wrote:
-> > > On Wed, Apr 28, 2010 at 02:20:56AM +0200, Andrea Arcangeli wrote:
-> > > > On Wed, Apr 28, 2010 at 09:13:45AM +0900, KAMEZAWA Hiroyuki wrote:
-> > > > > Doing some check in move_ptes() after vma_adjust() is not safe.
-> > > > > IOW, when vma's information and information in page-table is incosistent...objrmap
-> > > > > is broken and migartion will cause panic.
-> > > > > 
-> > > > > Then...I think there are 2 ways.
-> > > > >   1. use seqcounter in "mm_struct" as previous patch and lock it at mremap.
-> > > > > or
-> > > > >   2. get_user_pages_fast() when do remap.
-> > > > 
-> > > > 3 take the anon_vma->lock
-> > > > 
-> > > 
-> > > <SNIP>
-> > >
-> > > Here is a different version of the same basic idea to skip temporary VMAs
-> > > during migration. Maybe go with this?
-> > > 
-> > > +static bool is_vma_temporary_stack(struct vm_area_struct *vma)
-> > > +{
-> > > +	if (vma->vm_flags != VM_STACK_FLAGS)
-> > > +		return false;
-> > > +
-> > > +	/*
-> > > +	 * Only during exec will the total VM consumed by a process
-> > > +	 * be exacly the same as the stack
-> > > +	 */
-> > > +	if (vma->vm_mm->stack_vm == 1 && vma->vm_mm->total_vm == 1)
-> > > +		return true;
-> > > +
-> > > +	return false;
-> > > +}
-> > > +
-> > 
-> > The assumptions on the vm flags is of course totally wrong. VM_EXEC might
-> > be applied as well as default flags from the mm.  The following is the same
-> > basic idea, skip VMAs belonging to processes in exec rather than trying
-> > to hold anon_vma->lock across move_page_tables(). Not tested yet.
-> 
-> This is better than the other, that made it look like people could set
-> broken rmap at arbitrary times, at least this shows it's ok only
-> during execve before anything run, but if we can't take the anon-vma
-> lock really better than having to make these special checks inside
-> every rmap_walk that has to be accurate, we should just delay the
-> linkage of the stack vma into its anon-vma, until after the move_pages.
-> 
+On Wed, Apr 28, 2010 at 10:15:55AM +0100, Mel Gorman wrote:
+> It became unconditional because I wasn't sure of the optimisation versus the
+> new anon_vma changes (doesn't matter, should have been safe). At the time
 
-Is it possible to delay the linkage like that? As arguments get copied into
-the temporary stack before it gets moved, I'd have expected the normal fault
-path to prepare and attach the anon_vma. We could special case it but
-that isn't very palatable either.
+Changeset 287d97ac032136724143cde8d5964b414d562ee3 is meant to explain
+the removal of the lock but I don't get it from the comments. Or at
+least I don't get from that comment why we can't resurrect the plain
+old deleted code that looked fine to me. Like there is no reason to
+take the lock if start == vma->vm_start.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> So, the VMA list does not appear to be messed up but there still needs
+> to be protection against modification of VMA details that are already on
+> the list. For that, the seq counter would have been enough and
+> lighter-weight than acquiring the anon_vma->lock every time in
+> vma_adjust().
+> 
+> I'll drop this patch again as the execve race looks the most important.
+
+You mean you're dropping patch 2 too? I agree dropping patch 1 but
+to me the having to take all the anon_vma locks for every
+vma->anon_vma->lock that we walk seems a must, otherwise
+expand_downwards and vma_adjust won't be ok, plus we need to re-add
+the anon_vma lock to vma_adjust, it can't be safe to alter vm_pgoff
+and vm_start outside of the anon_vma->lock. Or I am mistaken?
+
+Patch 2 wouldn't help the swapops crash we reproduced because at that
+point the anon_vma of the stack is the local one, it's just after
+execve.
+
+vma_adjust and expand_downards would alter vm_pgoff and vm_start while
+taking only the vma->anon_vma->lock where the vma->anon_vma is the
+_local_ one of the vma.  But a vma in mainline can be indexed in
+infinite anon_vmas, so to prevent breaking migration
+vma_adjust/expand_downards the rmap_walk would need to take _all_
+anon_vma->locks for every anon_vma that the vma is indexed into. Or
+alternatively like you implemented rmap_walk would need to check if
+the vma we found in the rmap_walk is different from the original
+anon_vma and to take the vma->anon_vma->lock (so taking the
+anon_vma->lock of the local anon_vma of every vma) before it can
+actually read the vma->vm_pgoff/vm_start inside vma_address.
+
+If the above is right it also means the new anon-vma changes also break
+the whole locking of transparent hugepage, see wait_split_huge_page,
+it does a spin_unlock_wait(&anon_vma->lock) thinking that waiting the
+"local" anon-vma is enough, when in fact the hugepage may be shared
+and belonging to the parent parent_vma->anon_vma and not to the local
+one of the last child that is waiting on the wrong lock. So I may have
+to rewrite this part of the thp locking to solve this. And for me it's
+not enough to just taking more locks inside the rmap walks inside
+split_huge_page as I used the anon_vma lock outside too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
