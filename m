@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 78D9C6B0200
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 00:02:50 -0400 (EDT)
-Message-ID: <4BD90529.3090401@cn.fujitsu.com>
-Date: Thu, 29 Apr 2010 12:03:53 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EFE1F6B0202
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 01:20:05 -0400 (EDT)
+Date: Wed, 28 Apr 2010 07:55:39 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+Message-ID: <20100428055538.GA1730@ucw.cz>
+References: <4BD16D09.2030803@redhat.com>
+ <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
+ <4BD1A74A.2050003@redhat.com>
+ <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
+ <4BD1B427.9010905@redhat.com>
+ <4BD1B626.7020702@redhat.com>
+ <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>
+ <4BD3377E.6010303@redhat.com>
+ <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>
+ <ce808441-fae6-4a33-8335-f7702740097a@default>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
-References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com> <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ce808441-fae6-4a33-8335-f7702740097a@default>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-on 2010-4-23 16:45, David Rientjes wrote:
-> On Fri, 23 Apr 2010, Miao Xie wrote:
+Hi!
+
+> > Seems frontswap is like a reverse balloon, where the balloon is in
+> > hypervisor space instead of the guest space.
 > 
->> Suppose the current mempolicy nodes is 0-2, we can remap it from 0-2 to 2,
->> then we can remap it from 2 to 1, but we can't remap it from 2 to 0-2.
->>
->> that is to say it can't be remaped to a large set of allowed nodes, and the task
->> just can use the small set of nodes for ever, even the large set of nodes is allowed,
->> I think it is unreasonable.
->>
-> 
-> That's been the behavior for at least three years so changing it from 
-> under the applications isn't acceptable, see 
-> Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
-> the two flags that are defined that can be used to adjust the behavior.
+> That's a reasonable analogy.  Frontswap serves nicely as an
+> emergency safety valve when a guest has given up (too) much of
+> its memory via ballooning but unexpectedly has an urgent need
+> that can't be serviced quickly enough by the balloon driver.
 
-Is the flags what you said MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES? 
-But the codes that I changed isn't under MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES.
-The documentation doesn't say what we should do if either of these two flags is not set. 
+wtf? So lets fix the ballooning driver instead?
 
-Furthermore, in order to fix no node to alloc memory, when we want to update mempolicy
-and mems_allowed, we expand the set of nodes first (set all the newly nodes) and
-shrink the set of nodes lazily(clean disallowed nodes).
-But remap() breaks the expanding, so if we don't remove remap(), the problem can't be
-fixed. Otherwise, cpuset has to do the rebinding by itself and the code is ugly.
-Like this:
+There's no reason it could not be as fast as frontswap, right?
+Actually I'd expect it to be faster -- it can deal with big chunks.
 
-static void cpuset_change_task_nodemask(struct task_struct *tsk, nodemask_t *newmems)
-{
-	nodemask_t tmp;
-	...
-	/* expand the set of nodes */
-	if (!mpol_store_user_nodemask(tsk->mempolicy)) {
-		nodes_remap(tmp, ...);
-		nodes_or(tsk->mempolicy->v.nodes, tsk->mempolicy->v.nodes, tmp);
-	}
-	...
-
-	/* shrink the set of nodes */
-	if (!mpol_store_user_nodemask(tsk->mempolicy))
-		tsk->mempolicy->v.nodes = tmp;
-}
-
-
-Thanks
-Miao
-> 
-> The pol->v.nodes = nodes_empty(tmp) ? *nodes : tmp fix is welcome, 
-> however, as a standalone patch.
-
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
