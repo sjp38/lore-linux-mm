@@ -1,350 +1,328 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1776B01F7
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 12:17:31 -0400 (EDT)
-Message-Id: <20100428161719.653316888@szeredi.hu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1C16B01F8
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 12:17:38 -0400 (EDT)
+Message-Id: <20100428161722.896102829@szeredi.hu>
 References: <20100428161636.272097923@szeredi.hu>
-Date: Wed, 28 Apr 2010 18:16:41 +0200
+Date: Wed, 28 Apr 2010 18:16:42 +0200
 From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: [RFC PATCH 5/6] fuse: support splice() writing to fuse device
-Content-Disposition: inline; filename=fuse-dev-support-splice.patch
+Subject: [RFC PATCH 6/6] fuse: allow splice to move pages
+Content-Disposition: inline; filename=fuse-dev-steal-page.patch
 Sender: owner-linux-mm@kvack.org
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Allow userspace filesystem implementation to use splice() to write to
-the fuse device.  The semantics of using splice() are:
+When splicing buffers to the fuse device with SPLICE_F_MOVE, try to
+move pages from the pipe buffer into the page cache.  This allows
+populating the fuse filesystem's cache without ever touching the page
+contents, i.e. zero copy read capability.
 
- 1) buffer the message header and data in a temporary pipe
- 2) with a *single* splice() call move the message from the temporary pipe
-    to the fuse device
+The following steps are performed when trying to move a page into the
+page cache:
 
-The READ reply message has the most interesting use for this, since
-now the data from an arbitrary file descriptor (which could be a
-regular file, a block device or a socket) can be tranferred into the
-fuse device without having to go through a userspace buffer.  It will
-also allow zero copy moving of pages.
+ - buf->ops->confirm() to make sure the new page is uptodate
+ - buf->ops->steal() to try to remove the new page from it's previous place
+ - remove_from_page_cache() on the old page
+ - add_to_page_cache_locked() on the new page
 
-One caveat is that the protocol on the fuse device requires the length
-of the whole message to be written into the header.  But the length of
-the data transferred into the temporary pipe may not be known in
-advance.  The current library implementation works around this by
-using vmplice to write the header and modifying the header after
-splicing the data into the pipe (error handling omitted):
+If any of the above steps fail (non fatally) then the code falls back
+to copying the page.  In particular ->steal() will fail if there are
+external references (other than the page cache and the pipe buffer) to
+the page.
 
-	struct fuse_out_header out;
+Also since the remove_from_page_cache() + add_to_page_cache_locked()
+are non-atomic it is possible that the page cache is repopulated in
+between the two and add_to_page_cache_locked() will fail.  This could
+be fixed by creating a new atomic replace_page_cache_page() function.
 
-	iov.iov_base = &out;
-	iov.iov_len = sizeof(struct fuse_out_header);
-	vmsplice(pip[1], &iov, 1, 0);
-	len = splice(input_fd, input_offset, pip[1], NULL, len, 0);
-	/* retrospectively modify the header: */
-	out.len = len + sizeof(struct fuse_out_header);
-	splice(pip[0], NULL, fuse_chan_fd(req->ch), NULL, out.len, flags);
+fuse_readpages_end() needed to be reworked so it works even if
+page->mapping is NULL for some or all pages which can happen if the
+add_to_page_cache_locked() failed.
 
-This works since vmsplice only saves a pointer to the data, it does
-not copy the data itself.
-
-Since pipes are currently limited to 16 pages and messages need to be
-spliced atomically, the length of the data is limited to 15 pages (or
-60kB for 4k pages).
+A number of sanity checks were added to make sure the stolen pages
+don't have weird flags set, etc...  These could be moved into generic
+splice/steal code.
 
 Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
 ---
- fs/fuse/dev.c        |  169 +++++++++++++++++++++++++++++++++++++++++----------
- include/linux/fuse.h |    5 +
- 2 files changed, 142 insertions(+), 32 deletions(-)
+ fs/fuse/dev.c    |  151 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ fs/fuse/file.c   |   28 ++++++----
+ fs/fuse/fuse_i.h |    3 +
+ 3 files changed, 167 insertions(+), 15 deletions(-)
 
 Index: linux-2.6/fs/fuse/dev.c
 ===================================================================
---- linux-2.6.orig/fs/fuse/dev.c	2010-04-23 16:16:56.000000000 +0200
-+++ linux-2.6/fs/fuse/dev.c	2010-04-23 16:17:00.000000000 +0200
-@@ -16,6 +16,7 @@
- #include <linux/pagemap.h>
+--- linux-2.6.orig/fs/fuse/dev.c	2010-04-28 15:51:09.000000000 +0200
++++ linux-2.6/fs/fuse/dev.c	2010-04-28 17:14:35.000000000 +0200
+@@ -17,6 +17,8 @@
  #include <linux/file.h>
  #include <linux/slab.h>
-+#include <linux/pipe_fs_i.h>
+ #include <linux/pipe_fs_i.h>
++#include <linux/swap.h>
++#include <linux/splice.h>
  
  MODULE_ALIAS_MISCDEV(FUSE_MINOR);
  
-@@ -498,6 +499,9 @@ struct fuse_copy_state {
- 	int write;
- 	struct fuse_req *req;
- 	const struct iovec *iov;
-+	struct pipe_buffer *pipebufs;
-+	struct pipe_buffer *currbuf;
-+	struct pipe_inode_info *pipe;
- 	unsigned long nr_segs;
- 	unsigned long seglen;
- 	unsigned long addr;
-@@ -522,7 +526,14 @@ static void fuse_copy_init(struct fuse_c
- /* Unmap and put previous page of userspace buffer */
- static void fuse_copy_finish(struct fuse_copy_state *cs)
- {
--	if (cs->mapaddr) {
-+	if (cs->currbuf) {
-+		struct pipe_buffer *buf = cs->currbuf;
-+
-+		buf->ops->unmap(cs->pipe, buf, cs->mapaddr);
-+
-+		cs->currbuf = NULL;
-+		cs->mapaddr = NULL;
-+	} else if (cs->mapaddr) {
- 		kunmap_atomic(cs->mapaddr, KM_USER0);
- 		if (cs->write) {
- 			flush_dcache_page(cs->pg);
-@@ -544,23 +555,39 @@ static int fuse_copy_fill(struct fuse_co
+@@ -509,6 +511,7 @@ struct fuse_copy_state {
+ 	void *mapaddr;
+ 	void *buf;
+ 	unsigned len;
++	unsigned move_pages:1;
+ };
  
- 	unlock_request(cs->fc, cs->req);
- 	fuse_copy_finish(cs);
--	if (!cs->seglen) {
-+	if (cs->pipebufs) {
-+		struct pipe_buffer *buf = cs->pipebufs;
-+
-+		err = buf->ops->confirm(cs->pipe, buf);
-+		if (err)
-+			return err;
-+
- 		BUG_ON(!cs->nr_segs);
--		cs->seglen = cs->iov[0].iov_len;
--		cs->addr = (unsigned long) cs->iov[0].iov_base;
--		cs->iov++;
-+		cs->currbuf = buf;
-+		cs->mapaddr = buf->ops->map(cs->pipe, buf, 1);
-+		cs->len = buf->len;
-+		cs->buf = cs->mapaddr + buf->offset;
-+		cs->pipebufs++;
- 		cs->nr_segs--;
-+	} else {
-+		if (!cs->seglen) {
-+			BUG_ON(!cs->nr_segs);
-+			cs->seglen = cs->iov[0].iov_len;
-+			cs->addr = (unsigned long) cs->iov[0].iov_base;
-+			cs->iov++;
-+			cs->nr_segs--;
-+		}
-+		err = get_user_pages_fast(cs->addr, 1, cs->write, &cs->pg);
-+		if (err < 0)
-+			return err;
-+		BUG_ON(err != 1);
-+		offset = cs->addr % PAGE_SIZE;
-+		cs->mapaddr = kmap_atomic(cs->pg, KM_USER0);
-+		cs->buf = cs->mapaddr + offset;
-+		cs->len = min(PAGE_SIZE - offset, cs->seglen);
-+		cs->seglen -= cs->len;
-+		cs->addr += cs->len;
- 	}
--	err = get_user_pages_fast(cs->addr, 1, cs->write, &cs->pg);
--	if (err < 0)
--		return err;
--	BUG_ON(err != 1);
--	offset = cs->addr % PAGE_SIZE;
--	cs->mapaddr = kmap_atomic(cs->pg, KM_USER0);
--	cs->buf = cs->mapaddr + offset;
--	cs->len = min(PAGE_SIZE - offset, cs->seglen);
--	cs->seglen -= cs->len;
--	cs->addr += cs->len;
- 
- 	return lock_request(cs->fc, cs->req);
+ static void fuse_copy_init(struct fuse_copy_state *cs, struct fuse_conn *fc,
+@@ -609,13 +612,135 @@ static int fuse_copy_do(struct fuse_copy
+ 	return ncpy;
  }
-@@ -984,23 +1011,17 @@ static int copy_out_args(struct fuse_cop
-  * it from the list and copy the rest of the buffer to the request.
-  * The request is finished by calling request_end()
+ 
++static int fuse_check_page(struct page *page)
++{
++	if (page_mapcount(page) ||
++	    page->mapping != NULL ||
++	    page_count(page) != 1 ||
++	    (page->flags & PAGE_FLAGS_CHECK_AT_PREP &
++	     ~(1 << PG_locked |
++	       1 << PG_referenced |
++	       1 << PG_uptodate |
++	       1 << PG_lru |
++	       1 << PG_active |
++	       1 << PG_reclaim))) {
++		printk(KERN_WARNING "fuse: trying to steal weird page\n");
++		printk(KERN_WARNING "  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
++		return 1;
++	}
++	return 0;
++}
++
++static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
++{
++	int err;
++	struct page *oldpage = *pagep;
++	struct page *newpage;
++	struct pipe_buffer *buf = cs->pipebufs;
++	struct address_space *mapping;
++	pgoff_t index;
++
++	unlock_request(cs->fc, cs->req);
++	fuse_copy_finish(cs);
++
++	err = buf->ops->confirm(cs->pipe, buf);
++	if (err)
++		return err;
++
++	BUG_ON(!cs->nr_segs);
++	cs->currbuf = buf;
++	cs->len = buf->len;
++	cs->pipebufs++;
++	cs->nr_segs--;
++
++	if (cs->len != PAGE_SIZE)
++		goto out_fallback;
++
++	if (buf->ops->steal(cs->pipe, buf) != 0)
++		goto out_fallback;
++
++	newpage = buf->page;
++
++	if (WARN_ON(!PageUptodate(newpage)))
++		return -EIO;
++
++	ClearPageMappedToDisk(newpage);
++
++	if (fuse_check_page(newpage) != 0)
++		goto out_fallback_unlock;
++
++	mapping = oldpage->mapping;
++	index = oldpage->index;
++
++	/*
++	 * This is a new and locked page, it shouldn't be mapped or
++	 * have any special flags on it
++	 */
++	if (WARN_ON(page_mapped(oldpage)))
++		goto out_fallback_unlock;
++	if (WARN_ON(page_has_private(oldpage)))
++		goto out_fallback_unlock;
++	if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
++		goto out_fallback_unlock;
++	if (WARN_ON(PageMlocked(oldpage)))
++		goto out_fallback_unlock;
++
++	remove_from_page_cache(oldpage);
++	page_cache_release(oldpage);
++
++	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
++	if (err) {
++		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
++		goto out_fallback_unlock;
++	}
++	page_cache_get(newpage);
++
++	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
++		lru_cache_add_file(newpage);
++
++	err = 0;
++	spin_lock(&cs->fc->lock);
++	if (cs->req->aborted)
++		err = -ENOENT;
++	else
++		*pagep = newpage;
++	spin_unlock(&cs->fc->lock);
++
++	if (err) {
++		unlock_page(newpage);
++		page_cache_release(newpage);
++		return err;
++	}
++
++	unlock_page(oldpage);
++	page_cache_release(oldpage);
++	cs->len = 0;
++
++	return 0;
++
++out_fallback_unlock:
++	unlock_page(newpage);
++out_fallback:
++	cs->mapaddr = buf->ops->map(cs->pipe, buf, 1);
++	cs->buf = cs->mapaddr + buf->offset;
++
++	err = lock_request(cs->fc, cs->req);
++	if (err)
++		return err;
++
++	return 1;
++}
++
+ /*
+  * Copy a page in the request to/from the userspace buffer.  Must be
+  * done atomically
   */
--static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
--			       unsigned long nr_segs, loff_t pos)
-+static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
-+				 struct fuse_copy_state *cs, size_t nbytes)
+-static int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
++static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
+ 			  unsigned offset, unsigned count, int zeroing)
  {
- 	int err;
--	size_t nbytes = iov_length(iov, nr_segs);
- 	struct fuse_req *req;
- 	struct fuse_out_header oh;
--	struct fuse_copy_state cs;
--	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
--	if (!fc)
--		return -EPERM;
- 
--	fuse_copy_init(&cs, fc, 0, NULL, iov, nr_segs);
- 	if (nbytes < sizeof(struct fuse_out_header))
- 		return -EINVAL;
- 
--	err = fuse_copy_one(&cs, &oh, sizeof(oh));
-+	err = fuse_copy_one(cs, &oh, sizeof(oh));
- 	if (err)
- 		goto err_finish;
- 
-@@ -1013,7 +1034,7 @@ static ssize_t fuse_dev_write(struct kio
- 	 * and error contains notification code.
- 	 */
- 	if (!oh.unique) {
--		err = fuse_notify(fc, oh.error, nbytes - sizeof(oh), &cs);
-+		err = fuse_notify(fc, oh.error, nbytes - sizeof(oh), cs);
- 		return err ? err : nbytes;
++	int err;
++	struct page *page = *pagep;
++
+ 	if (page && zeroing && count < PAGE_SIZE) {
+ 		void *mapaddr = kmap_atomic(page, KM_USER1);
+ 		memset(mapaddr, 0, PAGE_SIZE);
+@@ -623,9 +748,16 @@ static int fuse_copy_page(struct fuse_co
  	}
+ 	while (count) {
+ 		if (!cs->len) {
+-			int err = fuse_copy_fill(cs);
+-			if (err)
+-				return err;
++			if (cs->move_pages && page &&
++			    offset == 0 && count == PAGE_SIZE) {
++				err = fuse_try_move_page(cs, pagep);
++				if (err <= 0)
++					return err;
++			} else {
++				err = fuse_copy_fill(cs);
++				if (err)
++					return err;
++			}
+ 		}
+ 		if (page) {
+ 			void *mapaddr = kmap_atomic(page, KM_USER1);
+@@ -650,8 +782,10 @@ static int fuse_copy_pages(struct fuse_c
+ 	unsigned count = min(nbytes, (unsigned) PAGE_SIZE - offset);
  
-@@ -1032,7 +1053,7 @@ static ssize_t fuse_dev_write(struct kio
+ 	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
+-		struct page *page = req->pages[i];
+-		int err = fuse_copy_page(cs, page, offset, count, zeroing);
++		int err;
++
++		err = fuse_copy_page(cs, &req->pages[i], offset, count,
++				     zeroing);
+ 		if (err)
+ 			return err;
  
- 	if (req->aborted) {
- 		spin_unlock(&fc->lock);
--		fuse_copy_finish(&cs);
-+		fuse_copy_finish(cs);
- 		spin_lock(&fc->lock);
- 		request_end(fc, req);
- 		return -ENOENT;
-@@ -1049,7 +1070,7 @@ static ssize_t fuse_dev_write(struct kio
- 			queue_interrupt(fc, req);
- 
- 		spin_unlock(&fc->lock);
--		fuse_copy_finish(&cs);
-+		fuse_copy_finish(cs);
- 		return nbytes;
- 	}
- 
-@@ -1057,11 +1078,11 @@ static ssize_t fuse_dev_write(struct kio
- 	list_move(&req->list, &fc->io);
+@@ -1079,6 +1213,8 @@ static ssize_t fuse_dev_do_write(struct
  	req->out.h = oh;
  	req->locked = 1;
--	cs.req = req;
-+	cs->req = req;
+ 	cs->req = req;
++	if (!req->out.page_replace)
++		cs->move_pages = 0;
  	spin_unlock(&fc->lock);
  
--	err = copy_out_args(&cs, &req->out, nbytes);
--	fuse_copy_finish(&cs);
-+	err = copy_out_args(cs, &req->out, nbytes);
-+	fuse_copy_finish(cs);
+ 	err = copy_out_args(cs, &req->out, nbytes);
+@@ -1177,6 +1313,9 @@ static ssize_t fuse_dev_splice_write(str
+ 	cs.nr_segs = nbuf;
+ 	cs.pipe = pipe;
  
- 	spin_lock(&fc->lock);
- 	req->locked = 0;
-@@ -1077,10 +1098,95 @@ static ssize_t fuse_dev_write(struct kio
-  err_unlock:
- 	spin_unlock(&fc->lock);
-  err_finish:
--	fuse_copy_finish(&cs);
-+	fuse_copy_finish(cs);
- 	return err;
- }
++	if (flags & SPLICE_F_MOVE)
++		cs.move_pages = 1;
++
+ 	ret = fuse_dev_do_write(fc, &cs, len);
  
-+static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
-+			      unsigned long nr_segs, loff_t pos)
-+{
-+	struct fuse_copy_state cs;
-+	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
-+	if (!fc)
-+		return -EPERM;
-+
-+	fuse_copy_init(&cs, fc, 0, NULL, iov, nr_segs);
-+
-+	return fuse_dev_do_write(fc, &cs, iov_length(iov, nr_segs));
-+}
-+
-+static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
-+				     struct file *out, loff_t *ppos,
-+				     size_t len, unsigned int flags)
-+{
-+	unsigned nbuf;
-+	unsigned idx;
-+	struct pipe_buffer bufs[PIPE_BUFFERS];
-+	struct fuse_copy_state cs;
-+	struct fuse_conn *fc;
-+	size_t rem;
-+	ssize_t ret;
-+
-+	fc = fuse_get_conn(out);
-+	if (!fc)
-+		return -EPERM;
-+
-+	pipe_lock(pipe);
-+	nbuf = 0;
-+	rem = 0;
-+	for (idx = 0; idx < pipe->nrbufs && rem < len; idx++)
-+		rem += pipe->bufs[(pipe->curbuf + idx) % PIPE_BUFFERS].len;
-+
-+	if (rem < len) {
-+		pipe_unlock(pipe);
-+		return -EINVAL;
-+	}
-+
-+	rem = len;
-+	while (rem) {
-+		struct pipe_buffer *ibuf;
-+		struct pipe_buffer *obuf;
-+
-+		BUG_ON(nbuf >= PIPE_BUFFERS);
-+		BUG_ON(!pipe->nrbufs);
-+		ibuf = &pipe->bufs[pipe->curbuf];
-+		obuf = &bufs[nbuf];
-+
-+		if (rem >= ibuf->len) {
-+			*obuf = *ibuf;
-+			ibuf->ops = NULL;
-+			pipe->curbuf = (pipe->curbuf + 1) % PIPE_BUFFERS;
-+			pipe->nrbufs--;
-+		} else {
-+			ibuf->ops->get(pipe, ibuf);
-+			*obuf = *ibuf;
-+			obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-+			obuf->len = rem;
-+			ibuf->offset += obuf->len;
-+			ibuf->len -= obuf->len;
-+		}
-+		nbuf++;
-+		rem -= obuf->len;
-+	}
-+	pipe_unlock(pipe);
-+
-+	memset(&cs, 0, sizeof(struct fuse_copy_state));
-+	cs.fc = fc;
-+	cs.write = 0;
-+	cs.pipebufs = bufs;
-+	cs.nr_segs = nbuf;
-+	cs.pipe = pipe;
-+
-+	ret = fuse_dev_do_write(fc, &cs, len);
-+
-+	for (idx = 0; idx < nbuf; idx++) {
-+		struct pipe_buffer *buf = &bufs[idx];
-+		buf->ops->release(pipe, buf);
-+	}
-+
-+	return ret;
-+}
-+
- static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
- {
- 	unsigned mask = POLLOUT | POLLWRNORM;
-@@ -1224,6 +1330,7 @@ const struct file_operations fuse_dev_op
- 	.aio_read	= fuse_dev_read,
- 	.write		= do_sync_write,
- 	.aio_write	= fuse_dev_write,
-+	.splice_write	= fuse_dev_splice_write,
- 	.poll		= fuse_dev_poll,
- 	.release	= fuse_dev_release,
- 	.fasync		= fuse_dev_fasync,
-Index: linux-2.6/include/linux/fuse.h
+ 	for (idx = 0; idx < nbuf; idx++) {
+Index: linux-2.6/fs/fuse/file.c
 ===================================================================
---- linux-2.6.orig/include/linux/fuse.h	2010-04-23 16:15:44.000000000 +0200
-+++ linux-2.6/include/linux/fuse.h	2010-04-23 16:17:00.000000000 +0200
-@@ -34,6 +34,9 @@
-  * 7.13
-  *  - make max number of background requests and congestion threshold
-  *    tunables
-+ *
-+ * 7.14
-+ *  - add splice support to fuse device
-  */
+--- linux-2.6.orig/fs/fuse/file.c	2010-04-28 15:50:35.000000000 +0200
++++ linux-2.6/fs/fuse/file.c	2010-04-28 17:14:35.000000000 +0200
+@@ -517,17 +517,26 @@ static void fuse_readpages_end(struct fu
+ 	int i;
+ 	size_t count = req->misc.read.in.size;
+ 	size_t num_read = req->out.args[0].size;
+-	struct inode *inode = req->pages[0]->mapping->host;
++	struct address_space *mapping = NULL;
  
- #ifndef _LINUX_FUSE_H
-@@ -65,7 +68,7 @@
- #define FUSE_KERNEL_VERSION 7
+-	/*
+-	 * Short read means EOF.  If file size is larger, truncate it
+-	 */
+-	if (!req->out.h.error && num_read < count) {
+-		loff_t pos = page_offset(req->pages[0]) + num_read;
+-		fuse_read_update_size(inode, pos, req->misc.read.attr_ver);
+-	}
++	for (i = 0; mapping == NULL && i < req->num_pages; i++)
++		mapping = req->pages[i]->mapping;
++
++	if (mapping) {
++		struct inode *inode = mapping->host;
  
- /** Minor version number of this interface */
--#define FUSE_KERNEL_MINOR_VERSION 13
-+#define FUSE_KERNEL_MINOR_VERSION 14
+-	fuse_invalidate_attr(inode); /* atime changed */
++		/*
++		 * Short read means EOF. If file size is larger, truncate it
++		 */
++		if (!req->out.h.error && num_read < count) {
++			loff_t pos;
++
++			pos = page_offset(req->pages[0]) + num_read;
++			fuse_read_update_size(inode, pos,
++					      req->misc.read.attr_ver);
++		}
++		fuse_invalidate_attr(inode); /* atime changed */
++	}
  
- /** The node ID of the root inode */
- #define FUSE_ROOT_ID 1
+ 	for (i = 0; i < req->num_pages; i++) {
+ 		struct page *page = req->pages[i];
+@@ -551,6 +560,7 @@ static void fuse_send_readpages(struct f
+ 
+ 	req->out.argpages = 1;
+ 	req->out.page_zeroing = 1;
++	req->out.page_replace = 1;
+ 	fuse_read_fill(req, file, pos, count, FUSE_READ);
+ 	req->misc.read.attr_ver = fuse_get_attr_version(fc);
+ 	if (fc->async_read) {
+Index: linux-2.6/fs/fuse/fuse_i.h
+===================================================================
+--- linux-2.6.orig/fs/fuse/fuse_i.h	2010-04-26 11:33:57.000000000 +0200
++++ linux-2.6/fs/fuse/fuse_i.h	2010-04-28 17:14:35.000000000 +0200
+@@ -177,6 +177,9 @@ struct fuse_out {
+ 	/** Zero partially or not copied pages */
+ 	unsigned page_zeroing:1;
+ 
++	/** Pages may be replaced with new ones */
++	unsigned page_replace:1;
++
+ 	/** Number or arguments */
+ 	unsigned numargs;
+ 
 
 -- 
 
