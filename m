@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 288E16B0215
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 09:02:43 -0400 (EDT)
-Date: Thu, 29 Apr 2010 15:02:31 +0200
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1C3976B0216
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 09:04:34 -0400 (EDT)
+Date: Thu, 29 Apr 2010 15:04:12 +0200
 From: Pavel Machek <pavel@ucw.cz>
 Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-Message-ID: <20100429130231.GA1661@ucw.cz>
-References: <4BD1A74A.2050003@redhat.com>
+Message-ID: <20100429130411.GB1661@ucw.cz>
+References: <b1036777-129b-4531-a730-1e9e5a87cea9@default>
+ <4BD16D09.2030803@redhat.com>
+ <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
+ <4BD1A74A.2050003@redhat.com>
  <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
  <4BD1B427.9010905@redhat.com>
- <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default>
- <4BD336CF.1000103@redhat.com>
+ <b559c57a-0acb-4338-af21-dbfc3b3c0de5@default4BD336CF.1000103@redhat.com>
  <d1bb78ca-5ef6-4a8d-af79-a265f2d4339c@default>
- <4BD43182.1040508@redhat.com>
- <c5062f3a-3232-4b21-b032-2ee1f2485ff0@default4BD44E74.2020506@redhat.com>
- <7264e3c0-15fe-4b70-a3d8-2c36a2b934df@default20100427125624.GB3681@ucw.cz>
- <36b23d5c-ca25-44b5-be9f-b7ceaab0dd2e@default>
+ <20100427125502.GA3681@ucw.cz>
+ <4BD6F81B.1010606@vflare.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <36b23d5c-ca25-44b5-be9f-b7ceaab0dd2e@default>
+In-Reply-To: <4BD6F81B.1010606@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-
+On Tue 2010-04-27 20:13:39, Nitin Gupta wrote:
+> On 04/27/2010 06:25 PM, Pavel Machek wrote:
+> > 
+> >>> Can we extend it?  Adding new APIs is easy, but harder to maintain in
+> >>> the long term.
+> >>
+> >> Umm... I think the difference between a "new" API and extending
+> >> an existing one here is a choice of semantics.  As designed, frontswap
+> >> is an extremely simple, only-very-slightly-intrusive set of hooks that
+> >> allows swap pages to, under some conditions, go to pseudo-RAM instead
+> > ...
+> >> "Extending" the existing swap API, which has largely been untouched for
+> >> many years, seems like a significantly more complex and error-prone
+> >> undertaking that will affect nearly all Linux users with a likely long
+> >> bug tail.  And, by the way, there is no existence proof that it
+> >> will be useful.
+> > 
+> >> Seems like a no-brainer to me.
+> > 
 > > Stop right here. Instead of improving existing swap api, you just
 > > create one because it is less work.
 > > 
 > > We do not want apis to cummulate; please just fix the existing one.
 > 
-> > If we added all the apis that worked when proposed, we'd have
-> > unmaintanable mess by about 1996.
-> > 
-> > Why can't frontswap just use existing swap api?
 > 
-> Hi Pavel!
-> 
-> The existing swap API as it stands is inadequate for an efficient
-> synchronous interface (e.g. for swapping to RAM).  Both Nitin
-> and I independently have found this to be true.  But swap-to-RAM
+> I'm a bit confused: What do you mean by 'existing swap API'?
+> Frontswap simply hooks in swap_readpage() and swap_writepage() to
+> call frontswap_{get,put}_page() respectively. Now to avoid a hardcoded
+> implementation of these function, it introduces struct frontswap_ops
+> so that custom implementations fronswap get/put/etc. functions can be
+> provided. This allows easy implementation of swap-to-hypervisor,
+> in-memory-compressed-swapping etc. with common set of hooks.
 
-So... how much slower is swapping to RAM over current interface when
-compared to proposed interface, and how much is that slower than just
-using the memory directly?
-								Pavel
+Yes, and that set of hooks is new API, right?
+
+									Pavel
 -- 
 (english) http://www.livejournal.com/~pavelmachek
 (cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
