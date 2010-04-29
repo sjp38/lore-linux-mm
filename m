@@ -1,48 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EFE1F6B0202
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 01:20:05 -0400 (EDT)
-Date: Wed, 28 Apr 2010 07:55:39 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-Message-ID: <20100428055538.GA1730@ucw.cz>
-References: <4BD16D09.2030803@redhat.com>
- <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
- <4BD1A74A.2050003@redhat.com>
- <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
- <4BD1B427.9010905@redhat.com>
- <4BD1B626.7020702@redhat.com>
- <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>
- <4BD3377E.6010303@redhat.com>
- <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>
- <ce808441-fae6-4a33-8335-f7702740097a@default>
+	by kanga.kvack.org (Postfix) with SMTP id E28646B0204
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 02:42:39 -0400 (EDT)
+Received: by iwn40 with SMTP id 40so6290337iwn.1
+        for <linux-mm@kvack.org>; Wed, 28 Apr 2010 23:42:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ce808441-fae6-4a33-8335-f7702740097a@default>
+In-Reply-To: <z2g28c262361004281955h29bc20edndb8da9c7cb5ff1db@mail.gmail.com>
+References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
+	 <20100428155558.GI15815@csn.ul.ie>
+	 <20100428162305.GX510@random.random>
+	 <20100428134719.32e8011b@annuminas.surriel.com>
+	 <20100428142510.09984e15@annuminas.surriel.com>
+	 <20100428161711.5a815fa8@annuminas.surriel.com>
+	 <20100428165734.6541bab3@annuminas.surriel.com>
+	 <y2s28c262361004281728we31e3b9fsd2427aacdc76a9e7@mail.gmail.com>
+	 <4BD8EA85.2000209@redhat.com>
+	 <z2g28c262361004281955h29bc20edndb8da9c7cb5ff1db@mail.gmail.com>
+Date: Thu, 29 Apr 2010 15:42:37 +0900
+Message-ID: <j2q28c262361004282342h324e83e7qeeaf823de860b8b8@mail.gmail.com>
+Subject: Re: [RFC PATCH -v3] take all anon_vma locks in anon_vma_lock
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Thu, Apr 29, 2010 at 11:55 AM, Minchan Kim <minchan.kim@gmail.com> wrote=
+:
+> On Thu, Apr 29, 2010 at 11:10 AM, Rik van Riel <riel@redhat.com> wrote:
+>> On 04/28/2010 08:28 PM, Minchan Kim wrote:
+>>>
+>>> On Thu, Apr 29, 2010 at 5:57 AM, Rik van Riel<riel@redhat.com> =C2=A0wr=
+ote:
+>>>>
+>>>> Take all the locks for all the anon_vmas in anon_vma_lock, this proper=
+ly
+>>>> excludes migration and the transparent hugepage code from VMA changes
+>>>> done
+>>>> by mmap/munmap/mprotect/expand_stack/etc...
+>>>>
+>>>> Unfortunately, this requires adding a new lock (mm->anon_vma_chain_loc=
+k),
+>>>> otherwise we have an unavoidable lock ordering conflict. =C2=A0This ch=
+anges
+>>>> the
+>>>> locking rules for the "same_vma" list to be either mm->mmap_sem for
+>>>> write,
+>>>> or mm->mmap_sem for read plus the new mm->anon_vma_chain lock. =C2=A0T=
+his
+>>>> limits
+>>>> the place where the new lock is taken to 2 locations - anon_vma_prepar=
+e
+>>>> and
+>>>> expand_downwards.
+>>>>
+>>>> Document the locking rules for the same_vma list in the anon_vma_chain
+>>>> and
+>>>> remove the anon_vma_lock call from expand_upwards, which does not need
+>>>> it.
+>>>>
+>>>> Signed-off-by: Rik van Riel<riel@redhat.com>
+>>>
+>>> This patch makes things simple. So I like this.
+>>> Actually, I wanted this all-at-once locks approach.
+>>> But I was worried about that how the patch affects AIM 7 workload
+>>> which is cause of anon_vma_chain about scalability by Rik.
+>>> But now Rik himself is sending the patch. So I assume the patch
+>>> couldn't decrease scalability of the workload heavily.
+>>
+>> The thing is, the number of anon_vmas attached to a VMA is
+>> small (depth of the tree, so for apache or aim the typical
+>> depth is 2). This N is between 1 and 3.
+>>
+>> The problem we had originally is the _width_ of the tree,
+>> where every sibling process was attached to the same anon_vma
+>> and the rmap code had to walk the page tables of all the
+>> processes, for every privately owned page in each child process.
+>> For large server workloads, this N is between a few hundred and
+>> a few thousand.
+>>
+>> What matters most at this point is correctness - we need to be
+>> able to exclude rmap walks when messing with a VMA in any way
+>> that breaks lookups, because rmap walks for page migration and
+>> hugepage conversion have to be 100% reliable.
+>>
+>> That is not a constraint I had in mind with the original
+>> anon_vma changes, so the code needs to be fixed up now...
+>
+> Yes. I understand it.
+>
+> When you tried anon_vma_chain patches as I pointed out, what I have a
+> concern is parent's vma not child's one.
+> The vma of parent still has N anon_vma.
+> AFAIR, you said it's trade-off and would be good than old at least.
+> I agreed. =C2=A0But I just want to remind you because this makes worse. =
+=C2=A0:)
+> The corner case is that we have to hold locks of N.
+>
+> Do I miss something?
+> Really, Can't we ignore that case latency although this happen infrequent=
+ly?
+> I am not against this patch. I just want to listen your opinion.
 
-> > Seems frontswap is like a reverse balloon, where the balloon is in
-> > hypervisor space instead of the guest space.
-> 
-> That's a reasonable analogy.  Frontswap serves nicely as an
-> emergency safety valve when a guest has given up (too) much of
-> its memory via ballooning but unexpectedly has an urgent need
-> that can't be serviced quickly enough by the balloon driver.
+me/ slaps self.
 
-wtf? So lets fix the ballooning driver instead?
+It's about height of tree and I can't imagine high height of
+scenario.(fork->fork->fork->...->fork)
+So as Rik pointed out, It's a not big overhead about latency latency,
+at least. I think.
 
-There's no reason it could not be as fast as frontswap, right?
-Actually I'd expect it to be faster -- it can deal with big chunks.
+I supports this approach.
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
