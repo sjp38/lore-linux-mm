@@ -1,133 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CADF96B0218
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 09:43:37 -0400 (EDT)
-Subject: Re: vmalloc performance
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
-References: <1271089672.7196.63.camel@localhost.localdomain>
-	 <1271249354.7196.66.camel@localhost.localdomain>
-	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
-	 <1271262948.2233.14.camel@barrios-desktop>
-	 <1271320388.2537.30.camel@localhost>
-	 <1271350270.2013.29.camel@barrios-desktop>
-	 <1271427056.7196.163.camel@localhost.localdomain>
-	 <1271603649.2100.122.camel@barrios-desktop>
-	 <1271681929.7196.175.camel@localhost.localdomain>
-	 <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 29 Apr 2010 14:43:22 +0100
-Message-Id: <1272548602.7196.371.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id DEADF6B021A
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 10:43:22 -0400 (EDT)
+Date: Thu, 29 Apr 2010 16:41:36 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Transparent Hugepage Support #22
+Message-ID: <20100429144136.GA22108@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
 
-On Mon, 2010-04-19 at 23:12 +0900, Minchan Kim wrote:
-> On Mon, Apr 19, 2010 at 9:58 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
-> > Hi,
-> >
-> > On Mon, 2010-04-19 at 00:14 +0900, Minchan Kim wrote:
-> >> On Fri, 2010-04-16 at 15:10 +0100, Steven Whitehouse wrote:
-> >> > Hi,
-> >> >
-> >> > On Fri, 2010-04-16 at 01:51 +0900, Minchan Kim wrote:
-> >> > [snip]
-> >> > > Thanks for the explanation. It seems to be real issue.
-> >> > >
-> >> > > I tested to see effect with flush during rb tree search.
-> >> > >
-> >> > > Before I applied your patch, the time is 50300661 us.
-> >> > > After your patch, 11569357 us.
-> >> > > After my debug patch, 6104875 us.
-> >> > >
-> >> > > I tested it as changing threshold value.
-> >> > >
-> >> > > threshold time
-> >> > > 1000              13892809
-> >> > > 500               9062110
-> >> > > 200               6714172
-> >> > > 100               6104875
-> >> > > 50                6758316
-> >> > >
-> >> > My results show:
-> >> >
-> >> > threshold        time
-> >> > 100000           139309948
-> >> > 1000             13555878
-> >> > 500              10069801
-> >> > 200              7813667
-> >> > 100              18523172
-> >> > 50               18546256
-> >> >
-> >> > > And perf shows smp_call_function is very low percentage.
-> >> > >
-> >> > > In my cases, 100 is best.
-> >> > >
-> >> > Looks like 200 for me.
-> >> >
-> >> > I think you meant to use the non _minmax version of proc_dointvec too?
-> >>
-> >> Yes. My fault :)
-> >>
-> >> > Although it doesn't make any difference for this basic test.
-> >> >
-> >> > The original reporter also has 8 cpu cores I've discovered. In his case
-> >> > divided by 4 cpus where as mine are divided by 2 cpus, but I think that
-> >> > makes no real difference in this case.
-> >> >
-> >> > I'll try and get some further test results ready shortly. Many thanks
-> >> > for all your efforts in tracking this down,
-> >> >
-> >> > Steve.
-> >>
-> >> I voted "free area cache".
-> > My results with this patch are:
-> >
-> > vmalloc took 5419238 us
-> > vmalloc took 5432874 us
-> > vmalloc took 5425568 us
-> > vmalloc took 5423867 us
-> >
-> > So thats about a third of the time it took with my original patch, so
-> > very much going in the right direction :-)
-> 
-> Good. :)
-> 
-> >
-> > I did get a compile warning:
-> >  CC      mm/vmalloc.o
-> > mm/vmalloc.c: In function a??__free_vmap_areaa??:
-> > mm/vmalloc.c:454: warning: unused variable a??preva??
-> >
-> > ....harmless, but it should be fixed before the final version,
-> 
-> Of course. It's not formal patch but for showing concept  . :)
-> 
-> Thanks for consuming precious your time. :)
-> As Nick comments, I have to do further work.
-> Maybe Nick could do it faster than me.
-> Anyway, I hope it can solve your problem.
-> 
-> Thanks, Steven.
-> 
-> >
-> > Steve.
-> >
-> >
+first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
+or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
+later: git fetch; git checkout -f origin/master; git diff a41f0dcfdbebeac21b42e152d3ed9f4bf20070a3
 
-Your latest patch has now been run though the GFS2 tests which
-originally triggered my investigation. It seems to solve the problem
-completely. Maybe thanks for your efforts in helping us find and fix the
-problem. The next question is what remains to be done in order to get
-the patch into a form suitable for upstream merge?
+The tree is rebased and git pull won't work.
 
-Steve.
+http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc5/transparent_hugepage-22
+http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc5/transparent_hugepage-22.gz
 
+This fixes the swapops.h crash in migrate.c:migration_entry_wait
+(Kame/Mel if you could test if you can still reproduce your memory
+compaction crash on aa.git let me know, this fix is here
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=patch;h=6efa1dfa5152ef8d7f26beb188d6877525a9dd03). It
+also fixes potential memory corruption when swapping out hugepage
+backed kvm (host_level wasn't read inside the mmu notifier protected
+critical section of the page fault). It cleanups some bits in
+khugepaged and notably it's removing
+transparent_hugepage/khugepaged/enabled. Now khugepaged is started
+automatically if transparent_hugepage/enabled is set to
+"always|madvise" and it exits if it's set to "never" (I found it too
+confusing to have it separated and an unnecessary annoyance having to
+change two files instead of just one). I removed the dependency on
+embedded to set transparent hugepage support to N at compile time, and
+I leave the default to N to reduce as much as possible the risk while
+merging the feature.
+
+All reports I have says it's very stable (the only two open issues in
+migrate vs execve and in the kvm patch should be fixed in #22).
+
+There is no easy way this can work with the new anon-vma code until I
+adapt it significantly (as an example see how wait_split_huge_page is
+implemented right now
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=blob_plain;f=include/linux/huge_mm.h;hb=HEAD),
+and I'll have to consider if it's possible to move completely away
+from the anon-vma lock and use compound_lock or something else. For
+now this has to run on the old stable anon-vma code to be stable.
+
+I added more details to the generic document.
+
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=blob_plain;f=Documentation/vm/transhuge.txt;hb=HEAD
+
+If anybody wants a patchbomb let me know.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
