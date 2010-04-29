@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 755D76B01F4
-	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 19:28:10 -0400 (EDT)
-Subject: Re: [PATCH v2] - Randomize node rotor used in
- cpuset_mem_spread_node()
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20100428161244.5d351395.akpm@linux-foundation.org>
-References: <20100428131158.GA2648@sgi.com> <20100428150432.GA3137@sgi.com>
-	 <20100428154034.fb823484.akpm@linux-foundation.org>
-	 <1272495846.21962.1090.camel@calx>
-	 <20100428161244.5d351395.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 28 Apr 2010 18:28:05 -0500
-Message-ID: <1272497285.21962.1110.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 027D36B01F6
+	for <linux-mm@kvack.org>; Wed, 28 Apr 2010 20:28:27 -0400 (EDT)
+Received: by iwn40 with SMTP id 40so5925913iwn.1
+        for <linux-mm@kvack.org>; Wed, 28 Apr 2010 17:28:26 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100428165734.6541bab3@annuminas.surriel.com>
+References: <1272403852-10479-1-git-send-email-mel@csn.ul.ie>
+	 <20100427231007.GA510@random.random>
+	 <20100428091555.GB15815@csn.ul.ie>
+	 <20100428153525.GR510@random.random>
+	 <20100428155558.GI15815@csn.ul.ie>
+	 <20100428162305.GX510@random.random>
+	 <20100428134719.32e8011b@annuminas.surriel.com>
+	 <20100428142510.09984e15@annuminas.surriel.com>
+	 <20100428161711.5a815fa8@annuminas.surriel.com>
+	 <20100428165734.6541bab3@annuminas.surriel.com>
+Date: Thu, 29 Apr 2010 09:28:25 +0900
+Message-ID: <y2s28c262361004281728we31e3b9fsd2427aacdc76a9e7@mail.gmail.com>
+Subject: Re: [RFC PATCH -v3] take all anon_vma locks in anon_vma_lock
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stephen Hemminger <shemminger@vyatta.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-04-28 at 16:12 -0700, Andrew Morton wrote:
-> On Wed, 28 Apr 2010 18:04:06 -0500
-> Matt Mackall <mpm@selenic.com> wrote:
-> 
-> > > I suspect random32() would suffice here.  It avoids depleting the
-> > > entropy pool altogether.
-> > 
-> > I wouldn't worry about that. get_random_int() touches the urandom pool,
-> > which will always leave entropy around. Also, Ted and I decided over a
-> > year ago that we should drop the whole entropy accounting framework,
-> > which I'll get around to some rainy weekend.
-> 
-> hm, so why does random32() exist?  Speed?
+On Thu, Apr 29, 2010 at 5:57 AM, Rik van Riel <riel@redhat.com> wrote:
+> Take all the locks for all the anon_vmas in anon_vma_lock, this properly
+> excludes migration and the transparent hugepage code from VMA changes don=
+e
+> by mmap/munmap/mprotect/expand_stack/etc...
+>
+> Unfortunately, this requires adding a new lock (mm->anon_vma_chain_lock),
+> otherwise we have an unavoidable lock ordering conflict. =C2=A0This chang=
+es the
+> locking rules for the "same_vma" list to be either mm->mmap_sem for write=
+,
+> or mm->mmap_sem for read plus the new mm->anon_vma_chain lock. =C2=A0This=
+ limits
+> the place where the new lock is taken to 2 locations - anon_vma_prepare a=
+nd
+> expand_downwards.
+>
+> Document the locking rules for the same_vma list in the anon_vma_chain an=
+d
+> remove the anon_vma_lock call from expand_upwards, which does not need it=
+.
+>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Yep. There are lots of RNG uses that aren't security sensitive and this
-is one: the kernel won't be DoSed by an attacker that gets all pages
-preferentially allocated on one node. Performance will suffer, but it's
-reasonably bounded.
+This patch makes things simple. So I like this.
+Actually, I wanted this all-at-once locks approach.
+But I was worried about that how the patch affects AIM 7 workload
+which is cause of anon_vma_chain about scalability by Rik.
+But now Rik himself is sending the patch. So I assume the patch
+couldn't decrease scalability of the workload heavily.
 
-One of my goals is to call these sorts of trade-offs out in the API, ie:
+Let's wait result of test if Rik doesn't have a problem of AIM7.
 
-get_fast_random_u32()
-get_fast_random_bytes()
-get_secure_random_u32()
-get_secure_random_bytes()
-
--- 
-http://selenic.com : development and support for Mercurial and Linux
-
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
