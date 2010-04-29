@@ -1,90 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 994B96B0224
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 14:03:35 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o3TI3U6c006887
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:30 -0700
-Received: from pzk39 (pzk39.prod.google.com [10.243.19.167])
-	by wpaz5.hot.corp.google.com with ESMTP id o3TI3RUs011483
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:29 -0700
-Received: by pzk39 with SMTP id 39so3109633pzk.7
-        for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:27 -0700 (PDT)
-Date: Thu, 29 Apr 2010 11:03:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
-In-Reply-To: <4BD90529.3090401@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
-References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com> <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com> <4BD90529.3090401@cn.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E13EE6B0203
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 14:54:02 -0400 (EDT)
+Message-ID: <4BD9D5BE.4010000@redhat.com>
+Date: Thu, 29 Apr 2010 21:53:50 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <4BD16D09.2030803@redhat.com> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> <4BD1A74A.2050003@redhat.com> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com> <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default> <4BD3377E.6010303@redhat.com> <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com> <ce808441-fae6-4a33-8335-f7702740097a@default> <20100428055538.GA1730@ucw.cz>
+In-Reply-To: <20100428055538.GA1730@ucw.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Apr 2010, Miao Xie wrote:
+On 04/28/2010 08:55 AM, Pavel Machek wrote:
+>
+>> That's a reasonable analogy.  Frontswap serves nicely as an
+>> emergency safety valve when a guest has given up (too) much of
+>> its memory via ballooning but unexpectedly has an urgent need
+>> that can't be serviced quickly enough by the balloon driver.
+>>      
+> wtf? So lets fix the ballooning driver instead?
+>    
 
-> > That's been the behavior for at least three years so changing it from 
-> > under the applications isn't acceptable, see 
-> > Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
-> > the two flags that are defined that can be used to adjust the behavior.
-> 
-> Is the flags what you said MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES? 
-> But the codes that I changed isn't under MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES.
-> The documentation doesn't say what we should do if either of these two flags is not set. 
-> 
+You can't have a negative balloon size.  The two models are not equivalent.
 
-MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES allow you to adjust the 
-behavior of the rebind: the former requires specific nodes to be assigned 
-to the mempolicy and could suppress the rebind completely, if necessary; 
-the latter ensures the mempolicy nodemask has a certain weight as nodes 
-are assigned in a round-robin manner.  The behavior that you're referring 
-to is provided via MPOL_F_RELATIVE_NODES, which guarantees whatever weight 
-is passed via set_mempolicy() will be preserved when mems are added to a 
-cpuset.
+Balloon allows you to give up a page for which you have a struct page.  
+Frontswap (and swap) allows you to gain a page for which you don't have 
+a struct page, but you can't access it directly.  The similarity is that 
+in both cases the host may want the guest to give up a page, but cannot 
+force it.
 
-Regardless of whether the behavior is documented when either flag is 
-passed, we can't change the long-standing default behavior that people use 
-when their cpuset mems are rebound: we can only extend the functionality 
-and the behavior you're seeking is already available with a 
-MPOL_F_RELATIVE_NODES flag modifier.
+> There's no reason it could not be as fast as frontswap, right?
+> Actually I'd expect it to be faster -- it can deal with big chunks.
+>    
 
-> Furthermore, in order to fix no node to alloc memory, when we want to update mempolicy
-> and mems_allowed, we expand the set of nodes first (set all the newly nodes) and
-> shrink the set of nodes lazily(clean disallowed nodes).
+There's no reason for swapping and ballooning to behave differently when 
+swap backing storage is RAM (they probably do now since swap was tuned 
+for disks, not flash, but that's a bug if it's true).
 
-That's a cpuset implementation choice, not a mempolicy one; mempolicies 
-have nothing to do with an empty current->mems_allowed.
-
-> But remap() breaks the expanding, so if we don't remove remap(), the problem can't be
-> fixed. Otherwise, cpuset has to do the rebinding by itself and the code is ugly.
-> Like this:
-> 
-> static void cpuset_change_task_nodemask(struct task_struct *tsk, nodemask_t *newmems)
-> {
-> 	nodemask_t tmp;
-> 	...
-> 	/* expand the set of nodes */
-> 	if (!mpol_store_user_nodemask(tsk->mempolicy)) {
-> 		nodes_remap(tmp, ...);
-> 		nodes_or(tsk->mempolicy->v.nodes, tsk->mempolicy->v.nodes, tmp);
-> 	}
-> 	...
-> 
-> 	/* shrink the set of nodes */
-> 	if (!mpol_store_user_nodemask(tsk->mempolicy))
-> 		tsk->mempolicy->v.nodes = tmp;
-> }
-> 
-
-I don't see why this is even necessary, the mempolicy code could simply 
-return numa_node_id() when nodes_empty(current->mempolicy->v.nodes) to 
-close the race.
-
- [ Your pseudo-code is also lacking task_lock(tsk), which is required to 
-   safely dereference tsk->mempolicy, and this is only available so far in 
-   -mm since the oom killer rewrite. ]
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
