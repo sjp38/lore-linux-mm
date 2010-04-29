@@ -1,37 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5922C6B0220
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 12:21:51 -0400 (EDT)
-Date: Thu, 29 Apr 2010 18:21:20 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
- and rmap_walk() during migration by not migrating temporary stacks
-Message-ID: <20100429162120.GC22108@random.random>
-References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
- <1272529930-29505-3-git-send-email-mel@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1272529930-29505-3-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C9E346B0222
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 12:57:45 -0400 (EDT)
+Subject: Re: [PATCH 2/8] numa:  x86_64:  use generic percpu var
+ numa_node_id() implementation
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <4BCA74D8.3030503@kernel.org>
+References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
+	 <20100415173003.8801.48519.sendpatchset@localhost.localdomain>
+	 <alpine.DEB.2.00.1004161144350.8664@router.home>
+	 <4BCA74D8.3030503@kernel.org>
+Content-Type: text/plain
+Date: Thu, 29 Apr 2010 12:56:48 -0400
+Message-Id: <1272560208.4927.39.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Sun, 2010-04-18 at 11:56 +0900, Tejun Heo wrote:
+> On 04/17/2010 01:46 AM, Christoph Lameter wrote:
+> > Maybe provide a generic function to set the node for cpu X?
+> 
+> Yeap, seconded.  Also, why not use numa_node_id() in
+> common.c::cpu_init()?
 
-did you see my proposed fix? I'm running with it applied, I'd be
-interested if you can test it. Surely it will also work for new
-anon-vma code in upstream, because at that point there's just 1
-anon-vma and nothing else attached to the vma.
+Tejun:  do you mean:
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=6efa1dfa5152ef8d7f26beb188d6877525a9dd03
+#ifdef CONFIG_NUMA
+        if (cpu != 0 && percpu_read(numa_node) == 0 &&
+........................^ here?
+            early_cpu_to_node(cpu) != NUMA_NO_NODE)
+                set_numa_node(early_cpu_to_node(cpu));
+#endif
 
-I think it's wrong to try to handle the race in rmap walk by making
-magic checks on vm_flags VM_GROWSDOWN|GROWSUP and
-vma->vm_mm->map_count == 1, when we can fix it fully and simply in
-exec.c by indexing two vmas in the same anon-vma with a different
-vm_start so the pages will be found at all times by the rmap_walk.
+Looks like 'numa_node_id()' would work there.
+
+But, I wonder what the "cpu != 0 && percpu_read(numa_node) == 0" is
+trying to do?
+
+E.g., is "cpu != 0" testing "cpu != boot_cpu_id"?  Is there an implicit
+assumption that the boot cpu is zero?  Or just a non-zero cpuid is
+obviously initialized?
+
+And the "percpu_read(numa_node) == 0" is testing that this cpu's
+'numa_node' MAY not be initialized?  0 is a valid node id for !0 cpu
+ids.  But it's OK to reinitialize numa_node in that case.
+
+Just trying to grok the intent.  Maybe someone will chime in.
+
+Anyway, if the intent is to test the percpu 'numa_node' for
+initialization, using numa_node_id() might obscure this even more.
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
