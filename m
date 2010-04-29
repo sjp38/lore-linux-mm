@@ -1,60 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C9E346B0222
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 12:57:45 -0400 (EDT)
-Subject: Re: [PATCH 2/8] numa:  x86_64:  use generic percpu var
- numa_node_id() implementation
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <4BCA74D8.3030503@kernel.org>
-References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>
-	 <20100415173003.8801.48519.sendpatchset@localhost.localdomain>
-	 <alpine.DEB.2.00.1004161144350.8664@router.home>
-	 <4BCA74D8.3030503@kernel.org>
-Content-Type: text/plain
-Date: Thu, 29 Apr 2010 12:56:48 -0400
-Message-Id: <1272560208.4927.39.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 994B96B0224
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 14:03:35 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o3TI3U6c006887
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:30 -0700
+Received: from pzk39 (pzk39.prod.google.com [10.243.19.167])
+	by wpaz5.hot.corp.google.com with ESMTP id o3TI3RUs011483
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:29 -0700
+Received: by pzk39 with SMTP id 39so3109633pzk.7
+        for <linux-mm@kvack.org>; Thu, 29 Apr 2010 11:03:27 -0700 (PDT)
+Date: Thu, 29 Apr 2010 11:03:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
+In-Reply-To: <4BD90529.3090401@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
+References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com> <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com> <4BD90529.3090401@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Miao Xie <miaox@cn.fujitsu.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2010-04-18 at 11:56 +0900, Tejun Heo wrote:
-> On 04/17/2010 01:46 AM, Christoph Lameter wrote:
-> > Maybe provide a generic function to set the node for cpu X?
+On Thu, 29 Apr 2010, Miao Xie wrote:
+
+> > That's been the behavior for at least three years so changing it from 
+> > under the applications isn't acceptable, see 
+> > Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
+> > the two flags that are defined that can be used to adjust the behavior.
 > 
-> Yeap, seconded.  Also, why not use numa_node_id() in
-> common.c::cpu_init()?
+> Is the flags what you said MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES? 
+> But the codes that I changed isn't under MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES.
+> The documentation doesn't say what we should do if either of these two flags is not set. 
+> 
 
-Tejun:  do you mean:
+MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES allow you to adjust the 
+behavior of the rebind: the former requires specific nodes to be assigned 
+to the mempolicy and could suppress the rebind completely, if necessary; 
+the latter ensures the mempolicy nodemask has a certain weight as nodes 
+are assigned in a round-robin manner.  The behavior that you're referring 
+to is provided via MPOL_F_RELATIVE_NODES, which guarantees whatever weight 
+is passed via set_mempolicy() will be preserved when mems are added to a 
+cpuset.
 
-#ifdef CONFIG_NUMA
-        if (cpu != 0 && percpu_read(numa_node) == 0 &&
-........................^ here?
-            early_cpu_to_node(cpu) != NUMA_NO_NODE)
-                set_numa_node(early_cpu_to_node(cpu));
-#endif
+Regardless of whether the behavior is documented when either flag is 
+passed, we can't change the long-standing default behavior that people use 
+when their cpuset mems are rebound: we can only extend the functionality 
+and the behavior you're seeking is already available with a 
+MPOL_F_RELATIVE_NODES flag modifier.
 
-Looks like 'numa_node_id()' would work there.
+> Furthermore, in order to fix no node to alloc memory, when we want to update mempolicy
+> and mems_allowed, we expand the set of nodes first (set all the newly nodes) and
+> shrink the set of nodes lazily(clean disallowed nodes).
 
-But, I wonder what the "cpu != 0 && percpu_read(numa_node) == 0" is
-trying to do?
+That's a cpuset implementation choice, not a mempolicy one; mempolicies 
+have nothing to do with an empty current->mems_allowed.
 
-E.g., is "cpu != 0" testing "cpu != boot_cpu_id"?  Is there an implicit
-assumption that the boot cpu is zero?  Or just a non-zero cpuid is
-obviously initialized?
+> But remap() breaks the expanding, so if we don't remove remap(), the problem can't be
+> fixed. Otherwise, cpuset has to do the rebinding by itself and the code is ugly.
+> Like this:
+> 
+> static void cpuset_change_task_nodemask(struct task_struct *tsk, nodemask_t *newmems)
+> {
+> 	nodemask_t tmp;
+> 	...
+> 	/* expand the set of nodes */
+> 	if (!mpol_store_user_nodemask(tsk->mempolicy)) {
+> 		nodes_remap(tmp, ...);
+> 		nodes_or(tsk->mempolicy->v.nodes, tsk->mempolicy->v.nodes, tmp);
+> 	}
+> 	...
+> 
+> 	/* shrink the set of nodes */
+> 	if (!mpol_store_user_nodemask(tsk->mempolicy))
+> 		tsk->mempolicy->v.nodes = tmp;
+> }
+> 
 
-And the "percpu_read(numa_node) == 0" is testing that this cpu's
-'numa_node' MAY not be initialized?  0 is a valid node id for !0 cpu
-ids.  But it's OK to reinitialize numa_node in that case.
+I don't see why this is even necessary, the mempolicy code could simply 
+return numa_node_id() when nodes_empty(current->mempolicy->v.nodes) to 
+close the race.
 
-Just trying to grok the intent.  Maybe someone will chime in.
-
-Anyway, if the intent is to test the percpu 'numa_node' for
-initialization, using numa_node_id() might obscure this even more.
-
-Lee
+ [ Your pseudo-code is also lacking task_lock(tsk), which is required to 
+   safely dereference tsk->mempolicy, and this is only available so far in 
+   -mm since the oom killer rewrite. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
