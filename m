@@ -1,150 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9B35A6B022C
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 16:09:53 -0400 (EDT)
-Date: Thu, 29 Apr 2010 15:09:51 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH v3] - Randomize node rotor used in
-	cpuset_mem_spread_node()
-Message-ID: <20100429200950.GB8929@sgi.com>
-References: <20100428131158.GA2648@sgi.com> <20100428150432.GA3137@sgi.com> <20100428154034.fb823484.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100428154034.fb823484.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id C3FC86B020E
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 21:51:17 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e37.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o3U1hrQr006937
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 19:43:53 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3U1jR4o110356
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 19:45:27 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3U1jQAE002011
+	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 19:45:26 -0600
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100428055538.GA1730@ucw.cz>
+References: <4BD16D09.2030803@redhat.com>
+	 <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
+	 <4BD1A74A.2050003@redhat.com>
+	 <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
+	 <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com>
+	 <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>
+	 <4BD3377E.6010303@redhat.com>
+	 <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>
+	 <ce808441-fae6-4a33-8335-f7702740097a@default>
+	 <20100428055538.GA1730@ucw.cz>
+Content-Type: text/plain
+Date: Thu, 29 Apr 2010 18:45:24 -0700
+Message-Id: <1272591924.23895.807.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2010-04-28 at 07:55 +0200, Pavel Machek wrote:
+> > > Seems frontswap is like a reverse balloon, where the balloon is in
+> > > hypervisor space instead of the guest space.
+> > 
+> > That's a reasonable analogy.  Frontswap serves nicely as an
+> > emergency safety valve when a guest has given up (too) much of
+> > its memory via ballooning but unexpectedly has an urgent need
+> > that can't be serviced quickly enough by the balloon driver.
+> 
+> wtf? So lets fix the ballooning driver instead?
+> 
+> There's no reason it could not be as fast as frontswap, right?
+> Actually I'd expect it to be faster -- it can deal with big chunks.
 
-Some workloads that create a large number of small files tend to assign
-too many pages to node 0 (multi-node systems). Part of the reason is that
-the rotor (in cpuset_mem_spread_node()) used to assign nodes starts
-at node 0 for newly created tasks.
+Frontswap and things like CMM2[1] have some fundamental advantages over
+swapping and ballooning.  First of all, there are serious limits on
+ballooning.  It's difficult for a guest to span a very wide range of
+memory sizes without also including memory hotplug in the mix.  The ~1%
+'struct page' penalty alone causes issues here.
 
-This patch changes the rotor to be initialized to a random node number
-of the cpuset.
+A large portion of CMM2's gain came from the fact that you could take
+memory away from guests without _them_ doing any work.  If the system is
+experiencing a load spike, you increase load even more by making the
+guests swap.  If you can just take some of their memory away, you can
+smooth that spike out.  CMM2 and frontswap do that.  The guests
+explicitly give up page contents that the hypervisor does not have to
+first consult with the guest before discarding.
 
-NOTE: this patch is on TOP of the previous patch:
-	[PATCH] - New round-robin rotor for SLAB allocations
-	http://marc.info/?l=linux-mm&m=127231565321947&w=2
+[1] http://www.kernel.org/doc/ols/2006/ols2006v2-pages-321-336.pdf 
 
-Signed-off-by: Jack Steiner <steiner@sgi.com>
-
-
----
-
-V2 - initial patch was generated against the wrong tree. This patch is based
-on linux-next.
-
-V3 - Eliminate new function bitmap_find_nth_bit(). Rename bitmap_ord_to_pos()
-and export it.
-
-
-
- arch/x86/mm/numa.c       |   17 +++++++++++++++++
- include/linux/bitmap.h   |    1 +
- include/linux/nodemask.h |    5 +++++
- kernel/fork.c            |    4 ++++
- lib/bitmap.c             |    2 +-
- 5 files changed, 28 insertions(+), 1 deletion(-)
-
-Index: linux/arch/x86/mm/numa.c
-===================================================================
---- linux.orig/arch/x86/mm/numa.c	2010-04-28 09:59:10.158899192 -0500
-+++ linux/arch/x86/mm/numa.c	2010-04-29 13:53:48.531783017 -0500
-@@ -2,6 +2,7 @@
- #include <linux/topology.h>
- #include <linux/module.h>
- #include <linux/bootmem.h>
-+#include <linux/random.h>
- 
- #ifdef CONFIG_DEBUG_PER_CPU_MAPS
- # define DBG(x...) printk(KERN_DEBUG x)
-@@ -65,3 +66,19 @@ const struct cpumask *cpumask_of_node(in
- }
- EXPORT_SYMBOL(cpumask_of_node);
- #endif
-+
-+/*
-+ * Return the bit number of a random bit set in the nodemask.
-+ *   (returns -1 if nodemask is empty)
-+ */
-+int __node_random(const nodemask_t *maskp)
-+{
-+	int w, bit = -1;
-+
-+	w = nodes_weight(*maskp);
-+	if (w)
-+		bit = bitmap_ord_to_pos(maskp->bits,
-+			get_random_int() % w, MAX_NUMNODES);
-+	return bit;
-+}
-+EXPORT_SYMBOL(__node_random);
-Index: linux/include/linux/bitmap.h
-===================================================================
---- linux.orig/include/linux/bitmap.h	2010-04-28 09:59:10.158899192 -0500
-+++ linux/include/linux/bitmap.h	2010-04-29 13:54:04.639408240 -0500
-@@ -141,6 +141,7 @@ extern int bitmap_find_free_region(unsig
- extern void bitmap_release_region(unsigned long *bitmap, int pos, int order);
- extern int bitmap_allocate_region(unsigned long *bitmap, int pos, int order);
- extern void bitmap_copy_le(void *dst, const unsigned long *src, int nbits);
-+extern int bitmap_ord_to_pos(const unsigned long *bitmap, int n, int bits);
- 
- #define BITMAP_LAST_WORD_MASK(nbits)					\
- (									\
-Index: linux/include/linux/nodemask.h
-===================================================================
---- linux.orig/include/linux/nodemask.h	2010-04-28 09:59:10.158899192 -0500
-+++ linux/include/linux/nodemask.h	2010-04-28 10:01:42.878971800 -0500
-@@ -66,6 +66,8 @@
-  * int num_online_nodes()		Number of online Nodes
-  * int num_possible_nodes()		Number of all possible Nodes
-  *
-+ * int node_random(mask)              Random node with set bit in mask
-+ *
-  * int node_online(node)		Is some node online?
-  * int node_possible(node)		Is some node possible?
-  *
-@@ -267,6 +269,9 @@ static inline int __first_unset_node(con
- 			find_first_zero_bit(maskp->bits, MAX_NUMNODES));
- }
- 
-+#define node_random(mask) __node_random(&(mask))
-+extern int __node_random(const nodemask_t *maskp);
-+
- #define NODE_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(MAX_NUMNODES)
- 
- #if MAX_NUMNODES <= BITS_PER_LONG
-Index: linux/kernel/fork.c
-===================================================================
---- linux.orig/kernel/fork.c	2010-04-28 09:59:10.158899192 -0500
-+++ linux/kernel/fork.c	2010-04-28 10:03:11.580014823 -0500
-@@ -1079,6 +1079,10 @@ static struct task_struct *copy_process(
-  	}
- 	mpol_fix_fork_child_flag(p);
- #endif
-+#ifdef CONFIG_CPUSETS
-+	p->cpuset_mem_spread_rotor = node_random(p->mems_allowed);
-+	p->cpuset_slab_spread_rotor = node_random(p->mems_allowed);
-+#endif
- #ifdef CONFIG_TRACE_IRQFLAGS
- 	p->irq_events = 0;
- #ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-Index: linux/lib/bitmap.c
-===================================================================
---- linux.orig/lib/bitmap.c	2010-04-28 09:59:10.158899192 -0500
-+++ linux/lib/bitmap.c	2010-04-29 13:53:28.270906295 -0500
-@@ -672,7 +672,7 @@ static int bitmap_pos_to_ord(const unsig
-  *
-  * The bit positions 0 through @bits are valid positions in @buf.
-  */
--static int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
-+int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
- {
- 	int pos = 0;
- 
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
