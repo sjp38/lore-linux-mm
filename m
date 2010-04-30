@@ -1,64 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 07DD76B0244
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 13:01:35 -0400 (EDT)
-Date: Fri, 30 Apr 2010 19:00:37 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Transparent Hugepage Support #22
-Message-ID: <20100430170037.GJ22108@random.random>
-References: <20100429144136.GA22108@random.random>
- <20100430085427.GA11032@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100430085427.GA11032@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D7B6B0247
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 13:10:51 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e37.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o3UH99PT008811
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 11:09:09 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o3UHAdiZ116924
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 11:10:41 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o3UHAcG1000959
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 11:10:38 -0600
+Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <10e6761a-fb7a-421d-97fc-1f3b6cd94622@default>
+References: <4BD16D09.2030803@redhat.com> >
+	 <b01d7882-1a72-4ba9-8f46-ba539b668f56@default> >
+	 <4BD1A74A.2050003@redhat.com> >
+	 <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default> >
+	 <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com> >
+	 <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default> >
+	 <4BD3377E.6010303@redhat.com> >
+	 <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com> >
+	 <ce808441-fae6-4a33-8335-f7702740097a@default> >
+	 <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz>
+	 <4BDA8324.7090409@redhat.com>
+	 <084f72bf-21fd-4721-8844-9d10cccef316@default 4BDB026E.1030605@redhat.com>
+	 <10e6761a-fb7a-421d-97fc-1f3b6cd94622@default>
+Content-Type: text/plain
+Date: Fri, 30 Apr 2010 10:10:36 -0700
+Message-Id: <1272647436.23895.2625.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Avi Kivity <avi@redhat.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 30, 2010 at 10:54:27AM +0200, Ingo Molnar wrote:
-> It would be nice and informative to have two diffstats in the announcement:
-> 
-> - an 'absolute' one that shows all the hugetlb changes relative to upstream 
->   (or relative to -mm, whichever tree you use as a base),
+On Fri, 2010-04-30 at 09:43 -0700, Dan Magenheimer wrote:
+> And, importantly, "have your host expose a device which is write
+> cached by host memory"... you are implying that all guest swapping
+> should be done to a device managed/controlled by the host?  That
+> eliminates guest swapping to directIO/SRIOV devices doesn't it?
 
-That's easy, I will do next times. I'm based on mainline right now.
+If you have a single swap device, sure.  But, I can also see a case
+where you have a "fast" swap and "slow" swap.
 
-> - and [if possible] a 'delta' one that shows the diffstat to the previous
->   version you've announced. [say in this current case the #21..#22 delta 
->   diffstat] [this might not always be easy to provide, when the upstream base 
->   changes.]
+The part of the argument about frontswap is that I like is the lack
+sizing exposed to the guest.  When you're dealing with swap-only, you
+are stuck adding or removing swap devices if you want to "grow/shrink"
+the memory footprint.  If the host (or whatever is backing the
+frontswap) wants to change the sizes, they're fairly free to.
 
-I've revision control on the quilt patchset, I can send the diffstat
-of the quilt patchset.
+The part that bothers me it is that it just pushes the problem
+elsewhere.  For KVM, we still have to figure out _somewhere_ what to do
+with all those pages.  It's nice that the host would have the freedom to
+either swap or keep them around, but it doesn't really fix the problem.
 
-You can also monitor the changes by running:
+I do see the lack of sizing exposed to the guest as being a bad thing,
+too.  Let's say we saved 25% of system RAM to back a frontswap-type
+device on a KVM host.  The first time a user boots up their set of VMs
+and 25% of their RAM is gone, they're going to start complaining,
+despite the fact that their 25% smaller systems may end up being faster.
 
-git fetch
-git diff origin/master
+I think I'd be more convinced if we saw this thing actually get used
+somehow.  How is a ram-backed frontswap better than a /dev/ramX-backed
+swap file in practice?
 
-before "git checkout origin/master".
-
-but as you said that will also show the new mainline changes mixed
-with my changes.
-
-> That way people can see the general direction and scope from the email, 
-> without having to fetch any of the trees.
-
-It's informative yes, but I hope that people really fetch the tree,
-review the changes with "git log -p" or just blind test it and run
-some benchmark. Many already did and that is the only way to get
-feedback (positive or negative) and to be sure that we're going into
-the right direction. The only feedback I got so far from people
-testing the tree has been exceedingly positive which in addition to
-the benchmarks I run myself, makes me more confident this is going in
-the right direction and helping a wider scope of workloads. The
-research I did initially on the prefault logic I think helped me
-keeping things simpler and more efficient and I think the decision
-that it was worth it do larger copy-page/clear-page only if we also
-get something more than a prefault speedup in return (as those copies
-slowdown the page faults and trashes the cache) is paying off.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
