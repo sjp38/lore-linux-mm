@@ -1,66 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7ECCA6B021B
-	for <linux-mm@kvack.org>; Thu, 29 Apr 2010 23:52:41 -0400 (EDT)
-Date: Fri, 30 Apr 2010 05:52:38 +0200 (CEST)
-From: Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
-Subject: Re: swapping when there's a free memory
-In-Reply-To: <20100427103517.ae0658cf.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.1.10.1004300543290.13905@artax.karlin.mff.cuni.cz>
-References: <alpine.DEB.1.10.1004220248280.19246@artax.karlin.mff.cuni.cz> <20100425071349.GA1275@ucw.cz> <20100426153333.93c03e98.akpm@linux-foundation.org> <20100427103517.ae0658cf.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4F96B0232
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 00:59:04 -0400 (EDT)
+Message-ID: <4BDA6362.4030505@kernel.org>
+Date: Fri, 30 Apr 2010 06:58:10 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 2/8] numa:  x86_64:  use generic percpu var numa_node_id()
+ implementation
+References: <20100415172950.8801.60358.sendpatchset@localhost.localdomain>	 <20100415173003.8801.48519.sendpatchset@localhost.localdomain>	 <alpine.DEB.2.00.1004161144350.8664@router.home>	 <4BCA74D8.3030503@kernel.org> <1272560208.4927.39.camel@useless.americas.hpqcorp.net>
+In-Reply-To: <1272560208.4927.39.camel@useless.americas.hpqcorp.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-numa@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, andi@firstfloor.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, eric.whitney@hp.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+Hello,
 
-
-On Tue, 27 Apr 2010, KAMEZAWA Hiroyuki wrote:
-
-> On Mon, 26 Apr 2010 15:33:33 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On 04/29/2010 06:56 PM, Lee Schermerhorn wrote:
+> Tejun:  do you mean:
 > 
-> > On Sun, 25 Apr 2010 09:13:49 +0200
-> > Pavel Machek <pavel@ucw.cz> wrote:
-> > 
-> > > Hi!
-> > > 
-> > > > I captured this output of vmstat. The machine was freeing cache and 
-> > > > swapping out pages even when there was a plenty of free memory.
-> > > > 
-> > > > The machine is sparc64 with 1GB RAM with 2.6.34-rc4. This abnormal 
-> > > > swapping happened during running spadfsck --- a fsck program for a custom 
-> > > > filesystem that caches most reads in its internal cache --- so it reads 
-> > > > buffers and allocates memory at the same time.
-> > > > 
-> > > > Note that sparc64 doesn't have any low/high memory zones, so it couldn't 
-> > > > be explained by filling one zone and needing to allocate pages in it.
-> > > 
-> > > Fragmented memory + high-order allocation?
-> > 
-> > Yeah, could be.  I wonder which slab/slub/slob implementation you're
-> > using, and what page sizes it uses for dentries, inodes, etc.  Can you
-> > have a poke in /prob/slabinfo?
+> #ifdef CONFIG_NUMA
+>         if (cpu != 0 && percpu_read(numa_node) == 0 &&
+> ........................^ here?
+>             early_cpu_to_node(cpu) != NUMA_NO_NODE)
+>                 set_numa_node(early_cpu_to_node(cpu));
+> #endif
+> 
+> Looks like 'numa_node_id()' would work there.
 
-It uses one page-per-slab for dentries and two for inodes. But there was 
-certainly no dentry or inode-based load --- the machine runs without X 
-with minimum daemons, there is no major background work. There was just a 
-process reading 128-kbyte blocks from a raw device and caching them in its 
-userspace that triggered this. Can it be that kernel uses high-order 
-allocations for reading from a buffer cache?
+Yeah, it just looked weird to use raw variable when an access wrapper
+is there.
 
-> And please /proc/buddyinfo and /proc/zoneinfo when the system is swappy.
+> But, I wonder what the "cpu != 0 && percpu_read(numa_node) == 0" is
+> trying to do?
 
-It happens rarely, I don't know if I catch it at the right time. The 
-report I sent, was what I found in a scrollback of vmstat. I didn't catch 
-it in real time.
+That I have don't have any clue about.  :-)
 
-> Thanks,
-> -Kame
+> Just trying to grok the intent.  Maybe someone will chime in.
 
-Mikulas
+Christoph?  Mel?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
