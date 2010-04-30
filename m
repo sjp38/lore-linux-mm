@@ -1,132 +1,292 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3A13B6B024C
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 14:24:51 -0400 (EDT)
-Message-ID: <4BDB2069.4000507@redhat.com>
-Date: Fri, 30 Apr 2010 21:24:41 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 65EBD6B024F
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 14:30:14 -0400 (EDT)
+Date: Fri, 30 Apr 2010 20:28:53 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/2] Fix migration races in rmap_walk() V3
+Message-ID: <20100430182853.GK22108@random.random>
+References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <4BD16D09.2030803@redhat.com>> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>> <4BD1A74A.2050003@redhat.com>> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>> <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com>> <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>> <4BD3377E.6010303@redhat.com>> <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>> <ce808441-fae6-4a33-8335-f7702740097a@default>> <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz 4BDA8324.7090409@redhat.com> <084f72bf-21fd-4721-8844-9d10cccef316@default> <4BDB026E.1030605@redhat.com> <4BDB18CE.2090608@goop.org>
-In-Reply-To: <4BDB18CE.2090608@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 04/30/2010 08:52 PM, Jeremy Fitzhardinge wrote:
-> On 04/30/2010 09:16 AM, Avi Kivity wrote:
->    
->> Given that whenever frontswap fails you need to swap anyway, it is
->> better for the host to never fail a frontswap request and instead back
->> it with disk storage if needed.  This way you avoid a pointless vmexit
->> when you're out of memory.  Since it's disk backed it needs to be
->> asynchronous and batched.
->>      
-> I'd argue the opposite.  There's no point in having the host do swapping
-> on behalf of guests if guests can do it themselves; it's just a
-> duplication of functionality.
+Hi,
 
-The problem with relying on the guest to swap is that it's voluntary.  
-The guest may not be able to do it.  When the hypervisor needs memory 
-and guests don't cooperate, it has to swap.
+with mainline + my exec-migrate race fix + your patch1 in this series,
+and the below patches, THP should work safe also on top of new
+anon-vma code. I'm keeping them incremental but I'll keep them applied
+also in aa.git as these patches should work for both the new and old
+anon-vma semantics (if there are rejects they're minor). aa.git will
+stick longer with old anon-vma code to avoid testing too much stuff at
+the same time.
 
-But I'm not suggesting that the host swap on behalf on the guest.  
-Rather, the guest swaps to (what it sees as) a device with a large 
-write-back cache; the host simply manages that cache.
+I'm sending the changes below for review.
 
-> You end up having two IO paths for each
-> guest, and the resulting problems in trying to account for the IO,
-> rate-limit it, etc.  If you can simply say "all guest disk IO happens
-> via this single interface", its much easier to manage.
->    
+I think I'll also try to use quilt guards to maintain two trees one
+with new anon-vma ready for merging and one with the old
+anon-vma. aa.git origin/master will stick to the old anon-vma code.
 
-With tmem you have to account for that memory, make sure it's 
-distributed fairly, claim it back when you need it (requiring guest 
-cooperation), live migrate and save/restore it.  It's a much larger 
-change than introducing a write-back device for swapping (which has the 
-benefit of working with unmodified guests).
+Thanks,
+Andrea
 
-> If frontswap has value, it's because its providing a new facility to
-> guests that doesn't already exist and can't be easily emulated with
-> existing interfaces.
->
-> It seems to me the great strengths of the synchronous interface are:
->
->      * it matches the needs of an existing implementation (tmem in Xen)
->      * it is simple to understand within the context of the kernel code
->        it's used in
->
-> Simplicity is important, because it allows the mm code to be understood
-> and maintained without having to have a deep understanding of
-> virtualization.
+---
+Subject: update to the new anon-vma semantics
 
-If we use the existing paths, things are even simpler, and we match more 
-needs (hypervisors with dma engines, the ability to reclaim memory 
-without guest cooperation).
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-> One of the problems with CMM2 was that it puts a lot of
-> intricate constraints on the mm code which can be easily broken, which
-> would only become apparent in subtle edge cases in a CMM2-using
-> environment.  An addition async frontswap-like interface - while not as
-> complex as CMM2 - still makes things harder for mm maintainers.
->    
+The new anon-vma code broke for example wait_split_huge_page because the
+vma->anon_vma->lock isn't necessarily the one that split_huge_page holds.
+split_huge_page holds the page->mapping/anon_vma->lock if "page" is a shared
+readonly hugepage.
 
-No doubt CMM2 is hard to swallow.
+The code that works with the new anon-vma code also works with the old one, so
+it's better to apply it uncoditionally so it gets more testing also on top of
+the old anon-vma code.
 
-> The downside is that it may not match some implementation in which the
-> get/put operations could take a long time (ie, physical IO to a slow
-> mechanical device).  But a general Linux principle is not to overdesign
-> interfaces for hypothetical users, only for real needs.
->    
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-> Do you think that you would be able to use frontswap in kvm if it were
-> an async interface, but not otherwise?  Or are you arguing a hypothetical?
->    
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -74,24 +74,13 @@ extern int handle_pte_fault(struct mm_st
+ 			    pte_t *pte, pmd_t *pmd, unsigned int flags);
+ extern int split_huge_page(struct page *page);
+ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
++extern void wait_split_huge_page(struct mm_struct *mm, pmd_t *pmd);
+ #define split_huge_page_pmd(__mm, __pmd)				\
+ 	do {								\
+ 		pmd_t *____pmd = (__pmd);				\
+ 		if (unlikely(pmd_trans_huge(*____pmd)))			\
+ 			__split_huge_page_pmd(__mm, ____pmd);		\
+ 	}  while (0)
+-#define wait_split_huge_page(__anon_vma, __pmd)				\
+-	do {								\
+-		pmd_t *____pmd = (__pmd);				\
+-		spin_unlock_wait(&(__anon_vma)->lock);			\
+-		/*							\
+-		 * spin_unlock_wait() is just a loop in C and so the	\
+-		 * CPU can reorder anything around it.			\
+-		 */							\
+-		smp_mb();						\
+-		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+-		       pmd_trans_huge(*____pmd));			\
+-	} while (0)
+ #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+ #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+ #if HPAGE_PMD_ORDER > MAX_ORDER
+@@ -118,7 +107,7 @@ static inline int split_huge_page(struct
+ }
+ #define split_huge_page_pmd(__mm, __pmd)	\
+ 	do { } while (0)
+-#define wait_split_huge_page(__anon_vma, __pmd)	\
++#define wait_split_huge_page(__mm, __pmd)	\
+ 	do { } while (0)
+ #define PageTransHuge(page) 0
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -162,6 +162,9 @@ int try_to_munlock(struct page *);
+  */
+ struct anon_vma *page_lock_anon_vma(struct page *page);
+ void page_unlock_anon_vma(struct anon_vma *anon_vma);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++void wait_page_lock_anon_vma(struct page *page);
++#endif
+ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
+ 
+ /*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -314,7 +314,7 @@ int copy_huge_pmd(struct mm_struct *dst_
+ 		spin_unlock(&src_mm->page_table_lock);
+ 		spin_unlock(&dst_mm->page_table_lock);
+ 
+-		wait_split_huge_page(vma->anon_vma, src_pmd); /* src_vma */
++		wait_split_huge_page(src_mm, src_pmd); /* src_vma */
+ 		goto out;
+ 	}
+ 	src_page = pmd_page(pmd);
+@@ -551,8 +551,7 @@ int zap_huge_pmd(struct mmu_gather *tlb,
+ 	if (likely(pmd_trans_huge(*pmd))) {
+ 		if (unlikely(pmd_trans_splitting(*pmd))) {
+ 			spin_unlock(&tlb->mm->page_table_lock);
+-			wait_split_huge_page(vma->anon_vma,
+-					     pmd);
++			wait_split_huge_page(tlb->mm, pmd);
+ 		} else {
+ 			struct page *page;
+ 			pgtable_t pgtable;
+@@ -879,3 +878,35 @@ void __split_huge_page_pmd(struct mm_str
+ 	put_page(page);
+ 	BUG_ON(pmd_trans_huge(*pmd));
+ }
++
++void wait_split_huge_page(struct mm_struct *mm, pmd_t *pmd)
++{
++	struct page *page;
++
++	spin_lock(&mm->page_table_lock);
++	if (unlikely(!pmd_trans_huge(*pmd))) {
++		spin_unlock(&mm->page_table_lock);
++		VM_BUG_ON(pmd_trans_splitting(*pmd));
++		return;
++	}
++	page = pmd_page(*pmd);
++	get_page(page);
++	spin_unlock(&mm->page_table_lock);
++
++	/*
++	 * The vma->anon_vma->lock is the wrong lock if the page is shared,
++	 * the anon_vma->lock pointed by page->mapping is the right one.
++	 */
++	wait_page_lock_anon_vma(page);
++
++	put_page(page);
++
++	/*
++	 * spin_unlock_wait() is just a loop in C and so the
++	 * CPU can reorder anything around it.
++	 */
++	smp_mb();
++
++	BUG_ON(pmd_trans_huge(*pmd));
++	VM_BUG_ON(pmd_trans_splitting(*pmd));
++}
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -400,7 +400,7 @@ int __pte_alloc(struct mm_struct *mm, st
+ 		pmd_t *pmd, unsigned long address)
+ {
+ 	pgtable_t new = pte_alloc_one(mm, address);
+-	int wait_split_huge_page;
++	int need_wait_split_huge_page;
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+@@ -420,18 +420,18 @@ int __pte_alloc(struct mm_struct *mm, st
+ 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
+ 
+ 	spin_lock(&mm->page_table_lock);
+-	wait_split_huge_page = 0;
++	need_wait_split_huge_page = 0;
+ 	if (likely(pmd_none(*pmd))) {	/* Has another populated it ? */
+ 		mm->nr_ptes++;
+ 		pmd_populate(mm, pmd, new);
+ 		new = NULL;
+ 	} else if (unlikely(pmd_trans_splitting(*pmd)))
+-		wait_split_huge_page = 1;
++		need_wait_split_huge_page = 1;
+ 	spin_unlock(&mm->page_table_lock);
+ 	if (new)
+ 		pte_free(mm, new);
+-	if (wait_split_huge_page)
+-		wait_split_huge_page(vma->anon_vma, pmd);
++	if (need_wait_split_huge_page)
++		wait_split_huge_page(mm, pmd);
+ 	return 0;
+ }
+ 
+@@ -1302,7 +1302,7 @@ struct page *follow_page(struct vm_area_
+ 		if (likely(pmd_trans_huge(*pmd))) {
+ 			if (unlikely(pmd_trans_splitting(*pmd))) {
+ 				spin_unlock(&mm->page_table_lock);
+-				wait_split_huge_page(vma->anon_vma, pmd);
++				wait_split_huge_page(mm, pmd);
+ 			} else {
+ 				page = follow_trans_huge_pmd(mm, address,
+ 							     pmd, flags);
+diff --git a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -225,6 +225,30 @@ void page_unlock_anon_vma(struct anon_vm
+ 	rcu_read_unlock();
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/*
++ * Getting a lock on a stable anon_vma from a page off the LRU is
++ * tricky: page_lock_anon_vma rely on RCU to guard against the races.
++ */
++void wait_page_lock_anon_vma(struct page *page)
++{
++	struct anon_vma *anon_vma;
++	unsigned long anon_mapping;
++
++	rcu_read_lock();
++	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
++	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
++		goto out;
++	if (!page_mapped(page))
++		goto out;
++
++	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
++	spin_unlock_wait(&anon_vma->lock);
++out:
++	rcu_read_unlock();
++}
++#endif
++
+ /*
+  * At what user virtual address is page expected in @vma?
+  * Returns virtual address or -EFAULT if page's index/offset is not
 
-For kvm (or Xen, with some modifications) all of the benefits of 
-frontswap/tmem can be achieved with the ordinary swap.  It would need 
-trim/discard support to avoid writing back freed data, but that's good 
-for flash as well.
 
-The advantages are:
-- just works
-- old guests
-- <1 exit/page (since it's batched)
-- no extra overhead if no free memory
-- can use dma engine (since it's asynchronous)
 
->> At this point we're back with the ordinary swap API.  Simply have your
->> host expose a device which is write cached by host memory, you'll have
->> all the benefits of frontswap with none of the disadvantages, and with
->> no changes to guest code.
->>      
-> Yes, that's comfortably within the "guests page themselves" model.
-> Setting up a block device for the domain which is backed by pagecache
-> (something we usually try hard to avoid) is pretty straightforward.  But
-> it doesn't work well for Xen unless the blkback domain is sized so that
-> it has all of Xen's free memory in its pagecache.
->    
 
-Could be easily achieved with ballooning?
+----
+Subject: adapt mincore to anon_vma chain semantics
 
-> That said, it does concern me that the host/hypervisor is left holding
-> the bag on frontswapped pages.  A evil/uncooperative/lazy can just pump
-> a whole lot of pages into the frontswap pool and leave them there.   I
-> guess this is mitigated by the fact that the API is designed such that
-> they can't update or read the data without also allowing the hypervisor
-> to drop the page (updates can fail destructively, and reads are also
-> destructive), so the guest can't use it as a clumsy extension of their
-> normal dedicated memory.
->    
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Eventually you'll have to swap frontswap pages, or kill uncooperative 
-guests.  At which point all of the simplicity is gone.
+wait_split_huge_page interface changed.
 
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -905,7 +905,7 @@ int mincore_huge_pmd(struct vm_area_stru
+ 		ret = !pmd_trans_splitting(*pmd);
+ 		spin_unlock(&vma->vm_mm->page_table_lock);
+ 		if (unlikely(!ret))
+-			wait_split_huge_page(vma->anon_vma, pmd);
++			wait_split_huge_page(vma->vm_mm, pmd);
+ 		else {
+ 			/*
+ 			 * All logical pages in the range are present
+-----
+Subject: adapt mprotect to anon_vma chain semantics
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+wait_split_huge_page interface changed.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -929,7 +929,7 @@ int change_huge_pmd(struct vm_area_struc
+ 	if (likely(pmd_trans_huge(*pmd))) {
+ 		if (unlikely(pmd_trans_splitting(*pmd))) {
+ 			spin_unlock(&mm->page_table_lock);
+-			wait_split_huge_page(vma->anon_vma, pmd);
++			wait_split_huge_page(mm, pmd);
+ 		} else {
+ 			pmd_t entry;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
