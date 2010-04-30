@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C9A6B0243
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 12:45:25 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 07DD76B0244
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 13:01:35 -0400 (EDT)
+Date: Fri, 30 Apr 2010 19:00:37 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Transparent Hugepage Support #22
+Message-ID: <20100430170037.GJ22108@random.random>
+References: <20100429144136.GA22108@random.random>
+ <20100430085427.GA11032@elte.hu>
 MIME-Version: 1.0
-Message-ID: <10e6761a-fb7a-421d-97fc-1f3b6cd94622@default>
-Date: Fri, 30 Apr 2010 09:43:55 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <4BD16D09.2030803@redhat.com>>
- <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>>
- <4BD1A74A.2050003@redhat.com>>
- <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>> <4BD1B427.9010905@redhat.com>
- <4BD1B626.7020702@redhat.com>>
- <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>>
- <4BD3377E.6010303@redhat.com>>
- <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>>
- <ce808441-fae6-4a33-8335-f7702740097a@default>>
- <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz>
- <4BDA8324.7090409@redhat.com> <084f72bf-21fd-4721-8844-9d10cccef316@default
- 4BDB026E.1030605@redhat.com>
-In-Reply-To: <4BDB026E.1030605@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100430085427.GA11032@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-(I'll back down on the CMM2 comparisons until I can go
-back and read the paper :-)
+On Fri, Apr 30, 2010 at 10:54:27AM +0200, Ingo Molnar wrote:
+> It would be nice and informative to have two diffstats in the announcement:
+> 
+> - an 'absolute' one that shows all the hugetlb changes relative to upstream 
+>   (or relative to -mm, whichever tree you use as a base),
 
-> >> [frontswap is] really
-> >> not very different from a synchronous swap device.
-> >>
-> > Not to beat a dead horse, but there is a very key difference:
-> > The size and availability of frontswap is entirely dynamic;
-> > any page-to-be-swapped can be rejected at any time even if
-> > a page was previously successfully swapped to the same index.
-> > Every other swap device is much more static so the swap code
-> > assumes a static device.  Existing swap code can account for
-> > "bad blocks" on a static device, but this is far from sufficient
-> > to handle the dynamicity needed by frontswap.
->=20
-> Given that whenever frontswap fails you need to swap anyway, it is
-> better for the host to never fail a frontswap request and instead back
-> it with disk storage if needed.  This way you avoid a pointless vmexit
-> when you're out of memory.  Since it's disk backed it needs to be
-> asynchronous and batched.
->=20
-> At this point we're back with the ordinary swap API.  Simply have your
-> host expose a device which is write cached by host memory, you'll have
-> all the benefits of frontswap with none of the disadvantages, and with
-> no changes to guest .
+That's easy, I will do next times. I'm based on mainline right now.
 
-I think you are making a number of possibly false assumptions here:
-1) The host [the frontswap backend may not even be a hypervisor]
-2) can back it with disk storage [not if it is a bare-metal hypervisor]
-3) avoid a pointless vmexit [no vmexit for a non-VMX (e.g. PV) guest]
-4) when you're out of memory [how can this be determined outside of
-   the hypervisor?]
+> - and [if possible] a 'delta' one that shows the diffstat to the previous
+>   version you've announced. [say in this current case the #21..#22 delta 
+>   diffstat] [this might not always be easy to provide, when the upstream base 
+>   changes.]
 
-And, importantly, "have your host expose a device which is write
-cached by host memory"... you are implying that all guest swapping
-should be done to a device managed/controlled by the host?  That
-eliminates guest swapping to directIO/SRIOV devices doesn't it?
+I've revision control on the quilt patchset, I can send the diffstat
+of the quilt patchset.
 
-Anyway, I think we can see now why frontswap might not be a good
-match for a hosted hypervisor (KVM), but that doesn't make it
-any less useful for a bare-metal hypervisor (or TBD for in-kernel
-compressed swap and TBD for possible future pseudo-RAM technologies).
+You can also monitor the changes by running:
 
-Dan
+git fetch
+git diff origin/master
+
+before "git checkout origin/master".
+
+but as you said that will also show the new mainline changes mixed
+with my changes.
+
+> That way people can see the general direction and scope from the email, 
+> without having to fetch any of the trees.
+
+It's informative yes, but I hope that people really fetch the tree,
+review the changes with "git log -p" or just blind test it and run
+some benchmark. Many already did and that is the only way to get
+feedback (positive or negative) and to be sure that we're going into
+the right direction. The only feedback I got so far from people
+testing the tree has been exceedingly positive which in addition to
+the benchmarks I run myself, makes me more confident this is going in
+the right direction and helping a wider scope of workloads. The
+research I did initially on the prefault logic I think helped me
+keeping things simpler and more efficient and I think the decision
+that it was worth it do larger copy-page/clear-page only if we also
+get something more than a prefault speedup in return (as those copies
+slowdown the page faults and trashes the cache) is paying off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
