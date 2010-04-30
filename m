@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 06FE36003C2
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 03:13:53 -0400 (EDT)
-Message-ID: <4BDA8324.7090409@redhat.com>
-Date: Fri, 30 Apr 2010 10:13:40 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E746B0235
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 04:54:55 -0400 (EDT)
+Date: Fri, 30 Apr 2010 10:54:27 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: Transparent Hugepage Support #22
+Message-ID: <20100430085427.GA11032@elte.hu>
+References: <20100429144136.GA22108@random.random>
 MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <4BD16D09.2030803@redhat.com>	 <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>	 <4BD1A74A.2050003@redhat.com>	 <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>	 <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com>	 <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>	 <4BD3377E.6010303@redhat.com>	 <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>	 <ce808441-fae6-4a33-8335-f7702740097a@default>	 <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz>
-In-Reply-To: <1272591924.23895.807.camel@nimitz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100429144136.GA22108@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Pavel Machek <pavel@ucw.cz>, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On 04/30/2010 04:45 AM, Dave Hansen wrote:
->
-> A large portion of CMM2's gain came from the fact that you could take
-> memory away from guests without _them_ doing any work.  If the system is
-> experiencing a load spike, you increase load even more by making the
-> guests swap.  If you can just take some of their memory away, you can
-> smooth that spike out.  CMM2 and frontswap do that.  The guests
-> explicitly give up page contents that the hypervisor does not have to
-> first consult with the guest before discarding.
->    
 
-Frontswap does not do this.  Once a page has been frontswapped, the host 
-is committed to retaining it until the guest releases it.  It's really 
-not very different from a synchronous swap device.
+* Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-I think cleancache allows the hypervisor to drop pages without the 
-guest's immediate knowledge, but I'm not sure.
+> If anybody wants a patchbomb let me know.
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+It would be nice and informative to have two diffstats in the announcement:
+
+- an 'absolute' one that shows all the hugetlb changes relative to upstream 
+  (or relative to -mm, whichever tree you use as a base),
+
+- and [if possible] a 'delta' one that shows the diffstat to the previous
+  version you've announced. [say in this current case the #21..#22 delta 
+  diffstat] [this might not always be easy to provide, when the upstream base 
+  changes.]
+
+That way people can see the general direction and scope from the email, 
+without having to fetch any of the trees.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
