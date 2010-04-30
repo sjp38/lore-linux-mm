@@ -1,128 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0082B6B0238
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 11:21:21 -0400 (EDT)
-Date: Fri, 30 Apr 2010 17:19:40 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 00 of 41] Transparent Hugepage Support #17
-Message-ID: <20100430151940.GG22108@random.random>
-References: <4BC0CFF4.5000207@redhat.com>
- <20100410194751.GA23751@elte.hu>
- <4BC0DE84.3090305@redhat.com>
- <4BC0E2C4.8090101@redhat.com>
- <20100410204756.GR5708@random.random>
- <4BC0E6ED.7040100@redhat.com>
- <20100411010540.GW5708@random.random>
- <20100425192739.GG5789@random.random>
- <20100426180110.GC8860@random.random>
- <20100430095543.GB3423@elte.hu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B2F26B023B
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 12:00:20 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <084f72bf-21fd-4721-8844-9d10cccef316@default>
+Date: Fri, 30 Apr 2010 08:59:55 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+References: <4BD16D09.2030803@redhat.com>>
+ <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>>
+ <4BD1A74A.2050003@redhat.com>>
+ <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>> <4BD1B427.9010905@redhat.com>
+ <4BD1B626.7020702@redhat.com>>
+ <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>>
+ <4BD3377E.6010303@redhat.com>>
+ <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>>
+ <ce808441-fae6-4a33-8335-f7702740097a@default>>
+ <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz
+ 4BDA8324.7090409@redhat.com>
+In-Reply-To: <4BDA8324.7090409@redhat.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100430095543.GB3423@elte.hu>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Avi Kivity <avi@redhat.com>, Mike Galbraith <efault@gmx.de>, Jason Garrett-Glaser <darkshikari@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ulrich Drepper <drepper@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>
+To: Avi Kivity <avi@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 30, 2010 at 11:55:43AM +0200, Ingo Molnar wrote:
-> 
-> * Andrea Arcangeli <aarcange@redhat.com> wrote:
-> 
-> > Now tried with a kernel compile with gcc patched as in prev email
-> > (stock glibc and no glibc environment parameters). Without rebooting
-> > (still plenty of hugepages as usual).
-> > 
-> > always:
-> > 
-> > real    4m7.280s
-> > real    4m7.520s
-> > 
-> > never:
-> > 
-> > real    4m13.754s
-> > real    4m14.095s
-> > 
-> > So the kernel now builds 2.3% faster. As expected nothing huge here
-> > because of gcc not using several hundred hundred mbytes of ram (unlike
-> > translate.o or other more pathological files), and there's lots of
-> > cpu time spent not just in gcc.
-> > 
-> > Clearly this is not done for gcc (but for JVM and other workloads with
-> > larger working sets), but even a kernel build running more than 2%
-> > faster I think is worth mentioning as it confirms we're heading
-> > towards the right direction.
-> 
-> Was this done on a native/host kernel?
+> > A large portion of CMM2's gain came from the fact that you could take
+> > memory away from guests without _them_ doing any work.  If the system
+> is
+> > experiencing a load spike, you increase load even more by making the
+> > guests swap.  If you can just take some of their memory away, you can
+> > smooth that spike out.  CMM2 and frontswap do that.  The guests
+> > explicitly give up page contents that the hypervisor does not have to
+> > first consult with the guest before discarding.
+>=20
+> Frontswap does not do this.  Once a page has been frontswapped, the
+> host
+> is committed to retaining it until the guest releases it.
 
-Correct, no virt, just bare metal.
+Dave or others can correct me if I am wrong, but I think CMM2 also
+handles dirty pages that must be retained by the hypervisor.  The
+difference between CMM2 (for dirty pages) and frontswap is that
+CMM2 sets hints that can be handled asynchronously while frontswap
+provides explicit hooks that synchronously succeed/fail.
 
-> I.e. do everyday kernel hackers gain 2.3% of kbuild performance from this?
+In fact, Avi, CMM2 is probably a fairly good approximation of what
+the asynchronous interface you are suggesting might look like.
+In other words, feasible but much much more complex than frontswap.
 
-Yes I already get benefit from this in my work.
+> [frontswap is] really
+> not very different from a synchronous swap device.
 
-> 
-> I find that a very large speedup - it's much more than what i'd have expected.
->
-> Are you absolutely 100% sure it's real? If yes, it would be nice to underline 
+Not to beat a dead horse, but there is a very key difference:
+The size and availability of frontswap is entirely dynamic;
+any page-to-be-swapped can be rejected at any time even if
+a page was previously successfully swapped to the same index.
+Every other swap device is much more static so the swap code
+assumes a static device.  Existing swap code can account for
+"bad blocks" on a static device, but this is far from sufficient
+to handle the dynamicity needed by frontswap.
 
-200% sure, at least on the phenom X4 with 1 socket 4 cores and 800mhz
-ddr2 ram! Why don't you try yourself? You've just to use aa.git + the
-gcc patch I posted applied to gcc and nothing else. This is what I'm
-using in all my systems to actively benefit from it already.
+> I think cleancache allows the hypervisor to drop pages without the
+> guest's immediate knowledge, but I'm not sure.
 
-I've also seen numbers on JVM benchmarks even on host much bigger than
-10% with zero userland modifications (as long as the allocation is
-done in big chunks everything works automatic and critical regions are
-usually allocated in big chunks, even gcc has the GGC_QUIRE_SIZE but
-it had to be tuned from 1m to 2m and aligned).
-
-The only crash I had was the one I fixed in the last release that was
-a race between migrate.c and exec.c that would trigger even without
-THP or memory compaction, I had zero problems so far.
-
-> that by gathering some sort of 'perf stat --repeat 3 --all' kind of 
-> always/never comparison of those kernel builds, so that we can see where the 
-> +2.3% comes from.
-
-I can do that. I wasn't sure if perf would deal well with such a macro
-benchmark, I didn't try yet.
-
-> I'd expect to see roughly the same instruction count (within noise), but a ~3% 
-> reduced cycle count (due to fewer/faster TLB fills).
-
-Also note, before I did the few liner patch to gcc so it always use
-transparent hugepages in its garbage collector code, the kernel build
-was a little slower with transparent hugepage = always. The reason is
-likely that make or cpp or gcc itself, were trashing the cache in
-hugepage cows for data accesses that didn't benefit from the hugetlb,
-that's my best estimate. Faulting more than 4k at time is not always
-beneficial for cows, this is why it's pointless to try to implement
-any optimistic prefault logic, because it can backfired on you by just
-trashing the cache more. My design ensures every single time we
-optimistically fault 2m at once, we also get more than just that
-optimistic-fault initial speedup (and unwanted cache trashing and more
-latency in the fault because of larger clear-page copy-page) but we
-get _much_ more and longstanding: the hugetlb and faster tlb miss. I
-never pay the cost of optimistic fault, unless I get a _lot_ more in
-return than just entering/exiting the kernel fewer times. In fact the
-moment gcc uses hugepages it's not like such cow-cache-trashing cost
-goes away, but hugepages TLB effect likely leads to >2.3% gain but
-part of it is spent in offseting any minor slowdown in the cows. I
-also suspect that with enabled=madvise and madvise called by gcc
-ggc-page.c, things may be even faster than 2.3% in fact. But it
-entirely depends on the cpu cache sizes, on xeon it may be bigger than
-2.3% gain as the cache trashing may not materialize there anywhere, so
-I'm sticking to the always option.
-
-Paolo has been very nice sending the gcc extreme tests too, those may
-achieve > 10% speedups (considering translate.o of qemu is at 10%
-speedup already). I just didn't run those yet because translate.o was
-much closer to real life scenario (in fact it is real life for the
-better or the worse), but in the future I'll try those gcc tests too
-as they're emulating what a real app will have to do in similar
-circumstances. They're pathological for gcc, but business as usual for
-everything else HPC.
+Yes, cleancache can drop pages at any time because (as the
+name implies) only clean pages can be put into cleancache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
