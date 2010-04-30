@@ -1,201 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D68226004A3
-	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 19:05:49 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 46F306004A3
+	for <linux-mm@kvack.org>; Fri, 30 Apr 2010 19:05:50 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/5] vmscan: remove isolate_pages callback scan control
-Date: Sat,  1 May 2010 01:05:32 +0200
-Message-Id: <20100430224316.121105897@cmpxchg.org>
+Subject: [patch 5/5] vmscan: remove may_swap scan control
+Date: Sat,  1 May 2010 01:05:33 +0200
+Message-Id: <20100430224316.198324471@cmpxchg.org>
 In-Reply-To: <20100430222009.379195565@cmpxchg.org>
 References: <20100430222009.379195565@cmpxchg.org>
 References: <20100430222009.379195565@cmpxchg.org>
-Content-Disposition: inline; filename=vmscan-remove-isolate_pages-callback-scan-control.patch
+Content-Disposition: inline; filename=vmscan-remove-may_swap-scan-control.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For now, we have global isolation vs. memory control group isolation,
-do not allow the reclaim entry function to set an arbitrary page
-isolation callback, we do not need that flexibility.
-
-And since we already pass around the group descriptor for the memory
-control group isolation case, just use it to decide which one of the
-two isolator functions to use.
-
-The decisions can be merged into nearby branches, so no extra cost
-there.  In fact, we save the indirect calls.
+The may_swap scan control flag can be naturally merged into the
+swappiness parameter: swap only if swappiness is non-zero.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h |   13 ++++++-----
- mm/vmscan.c                |   52 ++++++++++++++++++++++++---------------------
- 2 files changed, 35 insertions(+), 30 deletions(-)
+ include/linux/swap.h |    4 ++--
+ mm/memcontrol.c      |   13 +++++++++----
+ mm/vmscan.c          |   27 +++++++++------------------
+ 3 files changed, 20 insertions(+), 24 deletions(-)
 
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -248,10 +248,10 @@ static inline void lru_cache_add_active_
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+-						  gfp_t gfp_mask, bool noswap,
++						  gfp_t gfp_mask,
+ 						  unsigned int swappiness);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+-						gfp_t gfp_mask, bool noswap,
++						gfp_t gfp_mask,
+ 						unsigned int swappiness,
+ 						struct zone *zone,
+ 						int nid);
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1234,6 +1234,8 @@ static int mem_cgroup_hierarchical_recla
+ 		noswap = true;
+ 
+ 	while (1) {
++		unsigned int swappiness;
++
+ 		victim = mem_cgroup_select_victim(root_mem);
+ 		if (victim == root_mem) {
+ 			loop++;
+@@ -1268,13 +1270,16 @@ static int mem_cgroup_hierarchical_recla
+ 			continue;
+ 		}
+ 		/* we use swappiness of local cgroup */
++		if (noswap)
++			swappiness = 0;
++		else
++			swappiness = get_swappiness(victim);
+ 		if (check_soft)
+ 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
+-				noswap, get_swappiness(victim), zone,
+-				zone->zone_pgdat->node_id);
++				swappiness, zone, zone->zone_pgdat->node_id);
+ 		else
+ 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
+-						noswap, get_swappiness(victim));
++							swappiness);
+ 		css_put(&victim->css);
+ 		/*
+ 		 * At shrinking usage, we can't check we should stop here or
+@@ -2966,7 +2971,7 @@ try_to_free:
+ 			goto out;
+ 		}
+ 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
+-						false, get_swappiness(mem));
++							get_swappiness(mem));
+ 		if (!progress) {
+ 			nr_retries--;
+ 			/* maybe some writeback is necessary */
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -82,12 +82,6 @@ struct scan_control {
- 	 * are scanned.
- 	 */
- 	nodemask_t	*nodemask;
+@@ -65,9 +65,6 @@ struct scan_control {
+ 
+ 	int may_writepage;
+ 
+-	/* Can pages be swapped as part of reclaim? */
+-	int may_swap;
 -
--	/* Pluggable isolate pages callback */
--	unsigned long (*isolate_pages)(unsigned long nr, struct list_head *dst,
--			unsigned long *scanned, int order, int mode,
--			struct zone *z, struct mem_cgroup *mem_cont,
--			int active, int file);
- };
+ 	int swappiness;
  
- #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-@@ -1000,7 +994,6 @@ static unsigned long isolate_pages_globa
- 					struct list_head *dst,
- 					unsigned long *scanned, int order,
- 					int mode, struct zone *z,
--					struct mem_cgroup *mem_cont,
- 					int active, int file)
- {
- 	int lru = LRU_BASE;
-@@ -1144,11 +1137,11 @@ static unsigned long shrink_inactive_lis
- 		unsigned long nr_anon;
- 		unsigned long nr_file;
+ 	int order;
+@@ -1545,7 +1542,7 @@ static void get_scan_count(struct zone *
+ 	int noswap = 0;
  
--		nr_taken = sc->isolate_pages(SWAP_CLUSTER_MAX,
--			     &page_list, &nr_scan, sc->order, mode,
--				zone, sc->mem_cgroup, 0, file);
--
- 		if (scanning_global_lru(sc)) {
-+			nr_taken = isolate_pages_global(SWAP_CLUSTER_MAX,
-+							&page_list, &nr_scan,
-+							sc->order, mode,
-+							zone, 0, file);
- 			zone->pages_scanned += nr_scan;
- 			if (current_is_kswapd())
- 				__count_zone_vm_events(PGSCAN_KSWAPD, zone,
-@@ -1156,6 +1149,16 @@ static unsigned long shrink_inactive_lis
- 			else
- 				__count_zone_vm_events(PGSCAN_DIRECT, zone,
- 						       nr_scan);
-+		} else {
-+			nr_taken = mem_cgroup_isolate_pages(SWAP_CLUSTER_MAX,
-+							&page_list, &nr_scan,
-+							sc->order, mode,
-+							zone, sc->mem_cgroup,
-+							0, file);
-+			/*
-+			 * mem_cgroup_isolate_pages() keeps track of
-+			 * scanned pages on its own.
-+			 */
- 		}
- 
- 		if (nr_taken == 0)
-@@ -1333,16 +1336,23 @@ static void shrink_active_list(unsigned 
- 
- 	lru_add_drain();
- 	spin_lock_irq(&zone->lru_lock);
--	nr_taken = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
--					ISOLATE_ACTIVE, zone,
--					sc->mem_cgroup, 1, file);
--	/*
--	 * zone->pages_scanned is used for detect zone's oom
--	 * mem_cgroup remembers nr_scan by itself.
--	 */
- 	if (scanning_global_lru(sc)) {
-+		nr_taken = isolate_pages_global(nr_pages, &l_hold,
-+						&pgscanned, sc->order,
-+						ISOLATE_ACTIVE, zone,
-+						1, file);
- 		zone->pages_scanned += pgscanned;
-+	} else {
-+		nr_taken = mem_cgroup_isolate_pages(nr_pages, &l_hold,
-+						&pgscanned, sc->order,
-+						ISOLATE_ACTIVE, zone,
-+						sc->mem_cgroup, 1, file);
-+		/*
-+		 * mem_cgroup_isolate_pages() keeps track of
-+		 * scanned pages on its own.
-+		 */
- 	}
-+
- 	reclaim_stat->recent_scanned[file] += nr_taken;
- 
- 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
-@@ -1864,7 +1874,6 @@ unsigned long try_to_free_pages(struct z
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+-	if (!sc->may_swap || (nr_swap_pages <= 0)) {
++	if (!sc->swappiness || (nr_swap_pages <= 0)) {
+ 		noswap = 1;
+ 		fraction[0] = 0;
+ 		fraction[1] = 1;
+@@ -1870,7 +1867,6 @@ unsigned long try_to_free_pages(struct z
+ 		.gfp_mask = gfp_mask,
+ 		.may_writepage = !laptop_mode,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.may_swap = 1,
  		.swappiness = vm_swappiness,
  		.order = order,
  		.mem_cgroup = NULL,
--		.isolate_pages = isolate_pages_global,
- 		.nodemask = nodemask,
- 	};
+@@ -1883,13 +1879,11 @@ unsigned long try_to_free_pages(struct z
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
  
-@@ -1884,7 +1893,6 @@ unsigned long mem_cgroup_shrink_node_zon
+ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+-						gfp_t gfp_mask, bool noswap,
+-						unsigned int swappiness,
+-						struct zone *zone, int nid)
++					gfp_t gfp_mask, unsigned int swappiness,
++					struct zone *zone, int nid)
+ {
+ 	struct scan_control sc = {
+ 		.may_writepage = !laptop_mode,
+-		.may_swap = !noswap,
  		.swappiness = swappiness,
  		.order = 0,
  		.mem_cgroup = mem,
--		.isolate_pages = mem_cgroup_isolate_pages,
- 	};
- 	nodemask_t nm  = nodemask_of_node(nid);
+@@ -1913,14 +1907,11 @@ unsigned long mem_cgroup_shrink_node_zon
+ }
  
-@@ -1917,7 +1925,6 @@ unsigned long try_to_free_mem_cgroup_pag
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+-					   gfp_t gfp_mask,
+-					   bool noswap,
+-					   unsigned int swappiness)
++					gfp_t gfp_mask, unsigned int swappiness)
+ {
+ 	struct zonelist *zonelist;
+ 	struct scan_control sc = {
+ 		.may_writepage = !laptop_mode,
+-		.may_swap = !noswap,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
  		.swappiness = swappiness,
  		.order = 0,
- 		.mem_cgroup = mem_cont,
--		.isolate_pages = mem_cgroup_isolate_pages,
- 		.nodemask = NULL, /* we don't care the placement */
- 	};
- 
-@@ -1994,7 +2001,6 @@ static unsigned long balance_pgdat(pg_da
- 		.swappiness = vm_swappiness,
- 		.order = order,
- 		.mem_cgroup = NULL,
--		.isolate_pages = isolate_pages_global,
- 	};
- 	/*
- 	 * temp_priority is used to remember the scanning priority at which
-@@ -2372,7 +2378,6 @@ unsigned long shrink_all_memory(unsigned
+@@ -1992,7 +1983,6 @@ static unsigned long balance_pgdat(pg_da
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+-		.may_swap = 1,
+ 		/*
+ 		 * kswapd doesn't want to be bailed out while reclaim. because
+ 		 * we want to put equal scanning pressure on each zone.
+@@ -2372,7 +2362,6 @@ unsigned long shrink_all_memory(unsigned
+ 	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+-		.may_swap = 1,
+ 		.may_writepage = 1,
+ 		.nr_to_reclaim = nr_to_reclaim,
  		.hibernation_mode = 1,
- 		.swappiness = vm_swappiness,
- 		.order = 0,
--		.isolate_pages = isolate_pages_global,
- 	};
- 	struct zonelist * zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
- 	struct task_struct *p = current;
-@@ -2556,7 +2561,6 @@ static int __zone_reclaim(struct zone *z
+@@ -2554,16 +2543,18 @@ static int __zone_reclaim(struct zone *z
+ 	struct reclaim_state reclaim_state;
+ 	int priority;
+ 	struct scan_control sc = {
+-		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+-		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+ 		.nr_to_reclaim = max_t(unsigned long, nr_pages,
+ 				       SWAP_CLUSTER_MAX),
  		.gfp_mask = gfp_mask,
- 		.swappiness = vm_swappiness,
+-		.swappiness = vm_swappiness,
  		.order = order,
--		.isolate_pages = isolate_pages_global,
  	};
  	unsigned long slab_reclaimable;
  
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -25,6 +25,13 @@ struct page_cgroup;
- struct page;
- struct mm_struct;
- 
-+extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
-+					struct list_head *dst,
-+					unsigned long *scanned, int order,
-+					int mode, struct zone *z,
-+					struct mem_cgroup *mem_cont,
-+					int active, int file);
++	if (zone_reclaim_mode & RECLAIM_WRITE)
++		sc.may_writepage = 1;
++	if (zone_reclaim_mode & RECLAIM_SWAP)
++		sc.swappiness = vm_swappiness;
 +
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- /*
-  * All "charge" functions with gfp_mask should use GFP_KERNEL or
-@@ -64,12 +71,6 @@ extern void mem_cgroup_uncharge_cache_pa
- extern int mem_cgroup_shmem_charge_fallback(struct page *page,
- 			struct mm_struct *mm, gfp_t gfp_mask);
- 
--extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
--					struct list_head *dst,
--					unsigned long *scanned, int order,
--					int mode, struct zone *z,
--					struct mem_cgroup *mem_cont,
--					int active, int file);
- extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
- int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
- 
+ 	disable_swap_token();
+ 	cond_resched();
+ 	/*
 
 
 --
