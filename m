@@ -1,168 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CE8696B0224
-	for <linux-mm@kvack.org>; Sat,  1 May 2010 04:29:03 -0400 (EDT)
-Message-ID: <4BDBE643.6020302@redhat.com>
-Date: Sat, 01 May 2010 11:28:51 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D2A716B021F
+	for <linux-mm@kvack.org>; Sat,  1 May 2010 05:40:07 -0400 (EDT)
+Date: Sat, 1 May 2010 11:39:26 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
+ and rmap_walk() during migration by not migrating temporary stacks
+Message-ID: <20100501093926.GA19891@random.random>
+References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
+ <1272529930-29505-3-git-send-email-mel@csn.ul.ie>
+ <20100429162120.GC22108@random.random>
+ <20100430192235.GL22108@random.random>
 MIME-Version: 1.0
-Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <4BD16D09.2030803@redhat.com>> <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>> <4BD1A74A.2050003@redhat.com>> <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>> <4BD1B427.9010905@redhat.com> <4BD1B626.7020702@redhat.com>> <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>> <4BD3377E.6010303@redhat.com>> <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>> <ce808441-fae6-4a33-8335-f7702740097a@default>> <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz 4BDA8324.7090409@redhat.com> <084f72bf-21fd-4721-8844-9d10cccef316@default> <4BDB026E.1030605@redhat.com> <4BDB18CE.2090608@goop.org> <4BDB2069.4000507@redhat.com> <4BDB2883.8070606@goop.org>
-In-Reply-To: <4BDB2883.8070606@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100430192235.GL22108@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On 04/30/2010 09:59 PM, Jeremy Fitzhardinge wrote:
-> On 04/30/2010 11:24 AM, Avi Kivity wrote:
->    
->>> I'd argue the opposite.  There's no point in having the host do swapping
->>> on behalf of guests if guests can do it themselves; it's just a
->>> duplication of functionality.
->>>        
->>
->> The problem with relying on the guest to swap is that it's voluntary.
->> The guest may not be able to do it.  When the hypervisor needs memory
->> and guests don't cooperate, it has to swap.
->>      
-> Or fail whatever operation its trying to do.  You can only use
-> overcommit to fake unlimited resources for so long before you need a
-> government bailout.
->    
+On Fri, Apr 30, 2010 at 09:22:35PM +0200, Andrea Arcangeli wrote:
+> I'm building a mergeable THP+memory compaction tree ready for mainline
+> merging based on new anon-vma code, so I'm integrating your patch1 and
+> this below should be the port of my alternate fix to your patch2 to
+> fix the longstanding crash in migrate (not a bug in new anon-vma code
+> but longstanding). patch1 is instead about the bugs introduced by the
+> new anon-vma code that might crash migrate (even without memory
+> compaction and/or THP) the same way as the bug fixed by the below.
 
-Keep your commitment below RAM+swap and you'll be fine.  We want to 
-overcommit RAM, not total storage.
+I noticed I didn't qrefresh to sync the patch to the working dir and I
+had some change in working dir not picked up in the patch. A
+INIT_LIST_HEAD was missing and this was the patch I actually tested.
 
->>> You end up having two IO paths for each
->>> guest, and the resulting problems in trying to account for the IO,
->>> rate-limit it, etc.  If you can simply say "all guest disk IO happens
->>> via this single interface", its much easier to manage.
->>>
->>>        
->> With tmem you have to account for that memory, make sure it's
->> distributed fairly, claim it back when you need it (requiring guest
->> cooperation), live migrate and save/restore it.  It's a much larger
->> change than introducing a write-back device for swapping (which has
->> the benefit of working with unmodified guests).
->>      
-> Well, with caveats.  To be useful with migration the backing store needs
-> to be shared like other storage, so you can't use a specific host-local
-> fast (ssd) swap device.
+===
+Subject: fix race between shift_arg_pages and rmap_walk
 
-Live migration of local storage is possible (qemu does it).
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-> And because the device is backed by pagecache
-> with delayed writes, it has much weaker integrity guarantees than a
-> normal device, so you need to be sure that the guests are only going to
-> use it for swap.  Sure, these are deployment issues rather than code
-> ones, but they're still issues.
->    
+migrate.c requires rmap to be able to find all ptes mapping a page at
+all times, otherwise the migration entry can be instantiated, but it
+can't be removed if the second rmap_walk fails to find the page.
 
-You advertise it as a disk with write cache, so the guest is obliged to 
-flush the cache if it wants a guarantee.  When it does, you flush your 
-cache as well.  For swap, the guest will not issue any flushes.  This is 
-already supported by qemu with cache=writeback.
+And split_huge_page() will have the same requirements as migrate.c
+already has.
 
-I agree care is needed here.  You don't want to use the device for 
-anything else.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
->>> If frontswap has value, it's because its providing a new facility to
->>> guests that doesn't already exist and can't be easily emulated with
->>> existing interfaces.
->>>
->>> It seems to me the great strengths of the synchronous interface are:
->>>
->>>       * it matches the needs of an existing implementation (tmem in Xen)
->>>       * it is simple to understand within the context of the kernel code
->>>         it's used in
->>>
->>> Simplicity is important, because it allows the mm code to be understood
->>> and maintained without having to have a deep understanding of
->>> virtualization.
->>>        
->> If we use the existing paths, things are even simpler, and we match
->> more needs (hypervisors with dma engines, the ability to reclaim
->> memory without guest cooperation).
->>      
-> Well, you still can't reclaim memory; you can write it out to storage.
-> It may be cheaper/byte, but it's still a resource dedicated to the
-> guest.  But that's just a consequence of allowing overcommit, and to
-> what extent you're happy to allow it.
->    
-
-In general you want to run on RAM.  To maximise your RAM, you do things 
-like page sharing and ballooning.  Both can fail, increasing the demand 
-for RAM.  At that time you either kill a guest or swap to disk.
-
-Consider a frontswap/tmem on bare-metal hypervisor cluster.  Presumably 
-you give most of your free memory to guests.  A node dies.  Now you need 
-to start its guests on the surviving nodes, but you're at the mercy of 
-your guests to give up their tmem.
-
-With an ordinary swap approach, you first flush cache to disk, and if 
-that's not sufficient you start paging out guest memory.  You take a 
-performance hit but you keep your guests running.
-
-> What kind of DMA engine do you have in mind?  Are there practical
-> memory->memory DMA engines that would be useful in this context?
->    
-
-I/OAT (driver ioatdma).
-
-When you don't have a  lot of memory free, you can also switch from 
-write cache to O_DIRECT, so you use the storage controller's dma engine 
-to transfer pages to disk.
-
->>> Yes, that's comfortably within the "guests page themselves" model.
->>> Setting up a block device for the domain which is backed by pagecache
->>> (something we usually try hard to avoid) is pretty straightforward.  But
->>> it doesn't work well for Xen unless the blkback domain is sized so that
->>> it has all of Xen's free memory in its pagecache.
->>>
->>>        
->> Could be easily achieved with ballooning?
->>      
-> It could be achieved with ballooning, but it isn't completely trivial.
-> It wouldn't work terribly well with a driver domain setup, unless all
-> the swap-devices turned out to be backed by the same domain (which in
-> turn would need to know how to balloon in response to overall system
-> demand).  The partitioning of the pagecache among the guests would be at
-> the mercy of the mm subsystem rather than subject to any specific QoS or
-> other per-domain policies you might want to put in place (maybe fiddling
-> around with [fm]advise could get you some control over that).
->    
-
-See Documentation/cgroups/memory.txt.
-
->>> That said, it does concern me that the host/hypervisor is left holding
->>> the bag on frontswapped pages.  A evil/uncooperative/lazy can just pump
->>> a whole lot of pages into the frontswap pool and leave them there.   I
->>> guess this is mitigated by the fact that the API is designed such that
->>> they can't update or read the data without also allowing the hypervisor
->>> to drop the page (updates can fail destructively, and reads are also
->>> destructive), so the guest can't use it as a clumsy extension of their
->>> normal dedicated memory.
->>>
->>>        
->> Eventually you'll have to swap frontswap pages, or kill uncooperative
->> guests.  At which point all of the simplicity is gone.
->>      
-> Killing guests is pretty simple.
-
-Migrating to a hypervisor that doesn't kill guests isn't.
-
-> Presumably the oom killer will get kvm
-> processes like anything else?
->    
-
-Yes.  Of course, you want your management code never to allow this to 
-happen.
-
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+diff --git a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -55,6 +55,7 @@
+ #include <linux/fsnotify.h>
+ #include <linux/fs_struct.h>
+ #include <linux/pipe_fs_i.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -503,7 +504,9 @@ static int shift_arg_pages(struct vm_are
+ 	unsigned long length = old_end - old_start;
+ 	unsigned long new_start = old_start - shift;
+ 	unsigned long new_end = old_end - shift;
++	unsigned long moved_length;
+ 	struct mmu_gather *tlb;
++	struct vm_area_struct *tmp_vma;
+ 
+ 	BUG_ON(new_start > new_end);
+ 
+@@ -515,17 +518,46 @@ static int shift_arg_pages(struct vm_are
+ 		return -EFAULT;
+ 
+ 	/*
++	 * We need to create a fake temporary vma and index it in the
++	 * anon_vma list in order to allow the pages to be reachable
++	 * at all times by the rmap walk for migrate, while
++	 * move_page_tables() is running.
++	 */
++	tmp_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
++	if (!tmp_vma)
++		return -ENOMEM;
++	*tmp_vma = *vma;
++	INIT_LIST_HEAD(&tmp_vma->anon_vma_chain);
++	if (unlikely(anon_vma_clone(tmp_vma, vma))) {
++		kmem_cache_free(vm_area_cachep, tmp_vma);
++		return -ENOMEM;
++	}
++
++	/*
+ 	 * cover the whole range: [new_start, old_end)
++	 *
++	 * The vma is attached only to vma->anon_vma so one lock is
++	 * enough. Even this lock might be removed and we could run it
++	 * out of order but it's nicer to make atomic updates to
++	 * vm_start and so we won't need a smb_wmb() before calling
++	 * move_page_tables.
+ 	 */
+-	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
+-		return -ENOMEM;
++	spin_lock(&vma->anon_vma->lock);
++	vma->vm_start = new_start;
++	spin_unlock(&vma->anon_vma->lock);
+ 
+ 	/*
+ 	 * move the page tables downwards, on failure we rely on
+ 	 * process cleanup to remove whatever mess we made.
+ 	 */
+-	if (length != move_page_tables(vma, old_start,
+-				       vma, new_start, length))
++	moved_length = move_page_tables(vma, old_start,
++					vma, new_start, length);
++
++	/* rmap walk will already find all pages using the new_start */
++	unlink_anon_vmas(tmp_vma);
++	kmem_cache_free(vm_area_cachep, tmp_vma);
++
++	if (length != moved_length) 
+ 		return -ENOMEM;
+ 
+ 	lru_add_drain();
+@@ -551,7 +583,7 @@ static int shift_arg_pages(struct vm_are
+ 	/*
+ 	 * Shrink the vma to just the new range.  Always succeeds.
+ 	 */
+-	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
++	vma->vm_end = new_end;
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
