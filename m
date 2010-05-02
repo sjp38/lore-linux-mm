@@ -1,362 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9E1EB6006AB
-	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:30:02 -0400 (EDT)
-Received: by pzk28 with SMTP id 28so509630pzk.11
-        for <linux-mm@kvack.org>; Sun, 02 May 2010 10:30:00 -0700 (PDT)
-Subject: [PATCH] cache last free vmap_area to avoid restarting beginning
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0914C6006AB
+	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:40:44 -0400 (EDT)
+Received: by iwn31 with SMTP id 31so1808573iwn.27
+        for <linux-mm@kvack.org>; Sun, 02 May 2010 10:40:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100429162120.GC22108@random.random>
+References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
+	 <1272529930-29505-3-git-send-email-mel@csn.ul.ie>
+	 <20100429162120.GC22108@random.random>
+Date: Mon, 3 May 2010 02:40:44 +0900
+Message-ID: <m2j28c262361005021040q118934b8j1f2f0146c9217a0f@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
+	and rmap_walk() during migration by not migrating temporary stacks
 From: Minchan Kim <minchan.kim@gmail.com>
-In-Reply-To: <1272548602.7196.371.camel@localhost.localdomain>
-References: <1271089672.7196.63.camel@localhost.localdomain>
-	 <1271249354.7196.66.camel@localhost.localdomain>
-	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
-	 <1271262948.2233.14.camel@barrios-desktop>
-	 <1271320388.2537.30.camel@localhost>
-	 <1271350270.2013.29.camel@barrios-desktop>
-	 <1271427056.7196.163.camel@localhost.localdomain>
-	 <1271603649.2100.122.camel@barrios-desktop>
-	 <1271681929.7196.175.camel@localhost.localdomain>
-	 <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
-	 <1272548602.7196.371.camel@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 03 May 2010 02:29:54 +0900
-Message-ID: <1272821394.2100.224.camel@barrios-desktop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Steven Whitehouse <swhiteho@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-04-29 at 14:43 +0100, Steven Whitehouse wrote:
-> Hi,
-> 
-> On Mon, 2010-04-19 at 23:12 +0900, Minchan Kim wrote:
-> > On Mon, Apr 19, 2010 at 9:58 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
-> > > Hi,
-> > >
-> > > On Mon, 2010-04-19 at 00:14 +0900, Minchan Kim wrote:
-> > >> On Fri, 2010-04-16 at 15:10 +0100, Steven Whitehouse wrote:
-> > >> > Hi,
-> > >> >
-> > >> > On Fri, 2010-04-16 at 01:51 +0900, Minchan Kim wrote:
-> > >> > [snip]
-> > >> > > Thanks for the explanation. It seems to be real issue.
-> > >> > >
-> > >> > > I tested to see effect with flush during rb tree search.
-> > >> > >
-> > >> > > Before I applied your patch, the time is 50300661 us.
-> > >> > > After your patch, 11569357 us.
-> > >> > > After my debug patch, 6104875 us.
-> > >> > >
-> > >> > > I tested it as changing threshold value.
-> > >> > >
-> > >> > > threshold time
-> > >> > > 1000              13892809
-> > >> > > 500               9062110
-> > >> > > 200               6714172
-> > >> > > 100               6104875
-> > >> > > 50                6758316
-> > >> > >
-> > >> > My results show:
-> > >> >
-> > >> > threshold        time
-> > >> > 100000           139309948
-> > >> > 1000             13555878
-> > >> > 500              10069801
-> > >> > 200              7813667
-> > >> > 100              18523172
-> > >> > 50               18546256
-> > >> >
-> > >> > > And perf shows smp_call_function is very low percentage.
-> > >> > >
-> > >> > > In my cases, 100 is best.
-> > >> > >
-> > >> > Looks like 200 for me.
-> > >> >
-> > >> > I think you meant to use the non _minmax version of proc_dointvec too?
-> > >>
-> > >> Yes. My fault :)
-> > >>
-> > >> > Although it doesn't make any difference for this basic test.
-> > >> >
-> > >> > The original reporter also has 8 cpu cores I've discovered. In his case
-> > >> > divided by 4 cpus where as mine are divided by 2 cpus, but I think that
-> > >> > makes no real difference in this case.
-> > >> >
-> > >> > I'll try and get some further test results ready shortly. Many thanks
-> > >> > for all your efforts in tracking this down,
-> > >> >
-> > >> > Steve.
-> > >>
-> > >> I voted "free area cache".
-> > > My results with this patch are:
-> > >
-> > > vmalloc took 5419238 us
-> > > vmalloc took 5432874 us
-> > > vmalloc took 5425568 us
-> > > vmalloc took 5423867 us
-> > >
-> > > So thats about a third of the time it took with my original patch, so
-> > > very much going in the right direction :-)
-> > 
-> > Good. :)
-> > 
-> > >
-> > > I did get a compile warning:
-> > >  CC      mm/vmalloc.o
-> > > mm/vmalloc.c: In function a??__free_vmap_areaa??:
-> > > mm/vmalloc.c:454: warning: unused variable a??preva??
-> > >
-> > > ....harmless, but it should be fixed before the final version,
-> > 
-> > Of course. It's not formal patch but for showing concept  . :)
-> > 
-> > Thanks for consuming precious your time. :)
-> > As Nick comments, I have to do further work.
-> > Maybe Nick could do it faster than me.
-> > Anyway, I hope it can solve your problem.
-> > 
-> > Thanks, Steven.
-> > 
-> > >
-> > > Steve.
-> > >
-> > >
-> 
-> Your latest patch has now been run though the GFS2 tests which
-> originally triggered my investigation. It seems to solve the problem
-> completely. Maybe thanks for your efforts in helping us find and fix the
-> problem. The next question is what remains to be done in order to get
-> the patch into a form suitable for upstream merge?
-> 
-> Steve.
-> 
-Hi, Steven. 
+On Fri, Apr 30, 2010 at 1:21 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hi Mel,
+>
+> did you see my proposed fix? I'm running with it applied, I'd be
+> interested if you can test it. Surely it will also work for new
+> anon-vma code in upstream, because at that point there's just 1
+> anon-vma and nothing else attached to the vma.
+>
+> http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=6efa1dfa5152ef8d7f26beb188d6877525a9dd03
+>
+> I think it's wrong to try to handle the race in rmap walk by making
+> magic checks on vm_flags VM_GROWSDOWN|GROWSUP and
+> vma->vm_mm->map_count == 1, when we can fix it fully and simply in
+> exec.c by indexing two vmas in the same anon-vma with a different
+> vm_start so the pages will be found at all times by the rmap_walk.
+>
 
-Sorry for lazy response.
-I wanted to submit the patch which implement Nick's request whole.
-And unfortunately, I am so busy now. 
-But if it's urgent, I want to submit this one firstly and 
-at next version, maybe I will submit remained TODO things 
-after middle of May.
+I like this approach than exclude temporal stack while migration.
 
-I think this patch can't make regression other usages.
-Nick. What do you think about?
+If we look it through viewpoint of performance, Mel and Kame's one
+look good and simple. But If I look it through viewpoint of
+correctness, Andrea's one looks good.
+I mean Mel's approach is that problem is here but let us solve it with
+there. it makes dependency between here and there. And In future, if
+temporal stack and rmap code might be problem, we also should solve it
+in there. :)
 
-== CUT_HERE ==
->From c93437583b5ff476fcfe13901898f981baa672d8 Mon Sep 17 00:00:00 2001
-From: Minchan Kim <minchan.kim@gmail.com>
-Date: Mon, 3 May 2010 01:43:30 +0900
-Subject: [PATCH] cache last free vmap_area to avoid restarting beginning.
-
-Steven Whitehouse reported that GFS2 had a regression about vmalloc.
-He measured some test module to compare vmalloc speed on the two cases.
-
-1. lazy TLB flush
-2. disable lazy TLB flush by hard coding
-
-1)
-vmalloc took 148798983 us
-vmalloc took 151664529 us
-vmalloc took 152416398 us
-vmalloc took 151837733 us
-
-2)
-vmalloc took 15363634 us
-vmalloc took 15358026 us
-vmalloc took 15240955 us
-vmalloc took 15402302 us
-
-You can refer test module and Steven's patch
-with https://bugzilla.redhat.com/show_bug.cgi?id=581459.
-
-The cause is that lazy TLB flush can delay release vmap_area.
-OTOH, To find free vmap_area is always started from beginnig of rbnode.
-So before lazy TLB flush happens, searching free vmap_area could take
-long time.
-
-Steven's experiment can do 9 times faster than old.
-But Always disable lazy TLB flush is not good.
-
-This patch caches next free vmap_area to accelerate.
-In my test case, following as.
-
-The result is following as.
-
-1) vanilla
-elapsed time                    # search of rbtree
-vmalloc took 49121724 us                5535
-vmalloc took 50675245 us                5535
-vmalloc took 48987711 us                5535
-vmalloc took 54232479 us                5535
-vmalloc took 50258117 us                5535
-vmalloc took 49424859 us                5535
-
-3) Steven's patch
-
-elapsed time                    # search of rbtree
-vmalloc took 11363341 us                62
-vmalloc took 12798868 us                62
-vmalloc took 13247942 us                62
-vmalloc took 11434647 us                62
-vmalloc took 13221733 us                62
-vmalloc took 12134019 us                62
-
-2) my patch(vmap cache)
-elapsed time                    # search of rbtree
-vmalloc took 5159893 us                 8
-vmalloc took 5124434 us                 8
-vmalloc took 5123291 us                 8
-vmalloc took 5145396 us                 12
-vmalloc took 5163605 us                 8
-vmalloc took 5945663 us                 8
-
-Nick commented some advise.
-"
-- invalidating the cache in the case of vstart being decreased.
-- Don't unconditionally reset the cache to the last vm area freed,
- because you might have a higher area freed after a lower area. Only
- reset if the freed area is lower.
-- Do keep a cached hole size, so smaller lookups can restart a full
- search.
-- refactoring rbtree search code to manage alloc_vmap_area complexity
-"
-
-Now, it's on my TODO list.
-
-Cc: Nick Piggin <npiggin@suse.de>
-Reported-by: Steven Whitehouse <swhiteho@redhat.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Tested-by: Steven Whitehouse <swhiteho@redhat.com>
----
- mm/vmalloc.c |   49 +++++++++++++++++++++++++++++++++++--------------
- 1 files changed, 35 insertions(+), 14 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index ae00746..56f09ec 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -263,6 +263,7 @@ struct vmap_area {
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
- static struct rb_root vmap_area_root = RB_ROOT;
-+static struct rb_node *free_vmap_cache;
- static LIST_HEAD(vmap_area_list);
- static unsigned long vmap_area_pcpu_hole;
- 
-@@ -319,6 +320,7 @@ static void __insert_vmap_area(struct vmap_area *va)
- 
- static void purge_vmap_area_lazy(void);
- 
-+unsigned long max_lookup_count;
- /*
-  * Allocate a region of KVA of the specified size and alignment, within the
-  * vstart and vend.
-@@ -332,6 +334,8 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	struct rb_node *n;
- 	unsigned long addr;
- 	int purged = 0;
-+	int lookup_cache = 0;
-+	struct vmap_area *first;
- 
- 	BUG_ON(!size);
- 	BUG_ON(size & ~PAGE_MASK);
-@@ -342,29 +346,42 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 		return ERR_PTR(-ENOMEM);
- 
- retry:
-+	first = NULL;
- 	addr = ALIGN(vstart, align);
- 
- 	spin_lock(&vmap_area_lock);
- 	if (addr + size - 1 < addr)
- 		goto overflow;
- 
--	/* XXX: could have a last_hole cache */
- 	n = vmap_area_root.rb_node;
--	if (n) {
--		struct vmap_area *first = NULL;
-+	if (free_vmap_cache && !purged) {
-+		struct vmap_area *cache;
-+		cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+		if (cache->va_start >= addr && cache->va_end < vend) {
-+			lookup_cache = 1;
-+			n = free_vmap_cache;
-+		}
-+	}
- 
--		do {
--			struct vmap_area *tmp;
--			tmp = rb_entry(n, struct vmap_area, rb_node);
--			if (tmp->va_end >= addr) {
--				if (!first && tmp->va_start < addr + size)
-+	if (n) {
-+		if (!lookup_cache) {
-+			do {
-+				struct vmap_area *tmp;
-+				tmp = rb_entry(n, struct vmap_area, rb_node);
-+				if (tmp->va_end >= addr) {
-+					if (!first && tmp->va_start < addr + size)
-+						first = tmp;
-+					n = n->rb_left;
-+				} else {
- 					first = tmp;
--				n = n->rb_left;
--			} else {
--				first = tmp;
--				n = n->rb_right;
--			}
--		} while (n);
-+					n = n->rb_right;
-+				}
-+			} while (n);
-+		}
-+		else {
-+			first = rb_entry(n, struct vmap_area, rb_node);
-+			addr = first->va_start;
-+		}
- 
- 		if (!first)
- 			goto found;
-@@ -396,6 +413,7 @@ overflow:
- 		if (!purged) {
- 			purge_vmap_area_lazy();
- 			purged = 1;
-+			lookup_cache = 0;
- 			goto retry;
- 		}
- 		if (printk_ratelimit())
-@@ -412,6 +430,7 @@ overflow:
- 	va->va_end = addr + size;
- 	va->flags = 0;
- 	__insert_vmap_area(va);
-+	free_vmap_cache = &va->rb_node;
- 	spin_unlock(&vmap_area_lock);
- 
- 	return va;
-@@ -426,7 +445,9 @@ static void rcu_free_va(struct rcu_head *head)
- 
- static void __free_vmap_area(struct vmap_area *va)
- {
-+	struct rb_node *prev;
- 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-+	free_vmap_cache = rb_prev(&va->rb_node);
- 	rb_erase(&va->rb_node, &vmap_area_root);
- 	RB_CLEAR_NODE(&va->rb_node);
- 	list_del_rcu(&va->list);
--- 
-1.7.0.5
-
-
-
-
+So I support this one.
 
 -- 
 Kind regards,
 Minchan Kim
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
