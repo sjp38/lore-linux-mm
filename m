@@ -1,94 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C2CF76006AB
-	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:22:39 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A42256006AB
+	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:28:57 -0400 (EDT)
+Received: by iwn31 with SMTP id 31so1800977iwn.27
+        for <linux-mm@kvack.org>; Sun, 02 May 2010 10:28:56 -0700 (PDT)
 MIME-Version: 1.0
-Message-ID: <b6cfd097-1003-47ce-9f1c-278835ba52d2@default>
-Date: Sun, 2 May 2010 10:22:23 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <4BD16D09.2030803@redhat.com>>
- <b01d7882-1a72-4ba9-8f46-ba539b668f56@default>>
- <4BD1A74A.2050003@redhat.com>>
- <4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>> <4BD1B427.9010905@redhat.com>
- <4BD1B626.7020702@redhat.com>>
- <5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>>
- <4BD3377E.6010303@redhat.com>>
- <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>>
- <ce808441-fae6-4a33-8335-f7702740097a@default>>
- <20100428055538.GA1730@ucw.cz> <1272591924.23895.807.camel@nimitz>
- <4BDA8324.7090409@redhat.com> <084f72bf-21fd-4721-8844-9d10cccef316@default>
- <4BDB026E.1030605@redhat.com> <4BDB18CE.2090608@goop.org>
- <4BDB2069.4000507@redhat.com> <3a62a058-7976-48d7-acd2-8c6a8312f10f@default>
- <4BDD3079.5060101@vflare.org> <b09a9cc6-8481-4dd3-8374-68ff6fb714d9@default
- 4BDDACF5.90601@redhat.com>
-In-Reply-To: <4BDDACF5.90601@redhat.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <1272529930-29505-2-git-send-email-mel@csn.ul.ie>
+References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
+	 <1272529930-29505-2-git-send-email-mel@csn.ul.ie>
+Date: Mon, 3 May 2010 02:28:56 +0900
+Message-ID: <k2z28c262361005021028w31775ebah7c27411bb411b9f8@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: Take all anon_vma locks in anon_vma_lock
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: ngupta@vflare.org, Jeremy Fitzhardinge <jeremy@goop.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> It's bad, but it's better than ooming.
->=20
-> The same thing happens with vcpus: you run 10 guests on one core, if
-> they all wake up, your cpu is suddenly 10x slower and has 30000x
-> interrupt latency (30ms vs 1us, assuming 3ms timeslices).  Your disks
-> become slower as well.
->=20
-> It's worse with memory, so you try to swap as a last resort.  However,
-> swap is still faster than a crashed guest.
+On Thu, Apr 29, 2010 at 5:32 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> From: Rik van Riel <riel@redhat.com>
+>
+> Take all the locks for all the anon_vmas in anon_vma_lock, this properly
+> excludes migration and the transparent hugepage code from VMA changes don=
+e
+> by mmap/munmap/mprotect/expand_stack/etc...
+>
+> Unfortunately, this requires adding a new lock (mm->anon_vma_chain_lock),
+> otherwise we have an unavoidable lock ordering conflict. =C2=A0This chang=
+es the
+> locking rules for the "same_vma" list to be either mm->mmap_sem for write=
+,
+> or mm->mmap_sem for read plus the new mm->anon_vma_chain lock. =C2=A0This=
+ limits
+> the place where the new lock is taken to 2 locations - anon_vma_prepare a=
+nd
+> expand_downwards.
+>
+> Document the locking rules for the same_vma list in the anon_vma_chain an=
+d
+> remove the anon_vma_lock call from expand_upwards, which does not need it=
+.
+>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Your analogy only holds when the host administrator is either
-extremely greedy or stupid.  My analogy only requires some
-statistical bad luck: Multiple guests with peaks and valleys
-of memory requirements happen to have their peaks align.
+I like this one.
 
-> > Third, host swapping makes live migration much more difficult.
-> > Either the host swap disk must be accessible to all machines
-> > or data sitting on a local disk MUST be migrated along with
-> > RAM (which is not impossible but complicates live migration
-> > substantially).
->=20
-> kvm does live migration with swapping, and has no special code to
-> integrate them.
->  :
-> Don't know about vmware, but kvm supports page sharing, swapping, and
-> live migration simultaneously.
+Although it try to lock the number of anon_vmas attached to a VMA ,
+it's small so latency couldn't be big. :)
+It's height problem not width problem of tree. :)
 
-Hmmm... I'll bet I can break it pretty easily.  I think the
-case you raised that you thought would cause host OOM'ing
-will cause kvm live migration to fail.
-
-Or maybe not... when a guest is in the middle of a live migration,
-I believe (in Xen), the entire guest memory allocation (possibly
-excluding ballooned-out pages) must be simultaneously in RAM briefly
-in BOTH the host and target machine.  That is, live migration is
-not "pipelined".  Is this also true of KVM?  If so, your
-statement above is just waiting a corner case to break it.
-And if not, I expect you've got fault tolerance issues.
-
-> > If you talk to VMware customers (especially web-hosting services)
-> > that have attempted to use overcommit technologies that require
-> > host-swapping, you will find that they quickly become allergic
-> > to memory overcommit and turn it off.  The end users (users of
-> > the VMs that inexplicably grind to a halt) complain loudly.
-> > As a result, RAM has become a bottleneck in many many systems,
-> > which ultimately reduces the utility of servers and the value
-> > of virtualization.
->=20
-> Choosing the correct overcommit ratio is certainly not an easy task.
-> However, just hoping that memory will be available when you need it is
-> not a good solution.
-
-Choosing the _optimal_ overcommit ratio is impossible without a
-prescient knowledge of the workload in each guest.  Hoping memory
-will be available is certainly not a good solution, but if memory
-is not available guest swapping is much better than host swapping.
-And making RAM usage as dynamic as possible and live migration
-as easy as possible are keys to maximizing the benefits (and
-limiting the problems) of virtualization.
+Thanks, Rik.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
