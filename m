@@ -1,61 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A42256006AB
-	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:28:57 -0400 (EDT)
-Received: by iwn31 with SMTP id 31so1800977iwn.27
-        for <linux-mm@kvack.org>; Sun, 02 May 2010 10:28:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1272529930-29505-2-git-send-email-mel@csn.ul.ie>
-References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
-	 <1272529930-29505-2-git-send-email-mel@csn.ul.ie>
-Date: Mon, 3 May 2010 02:28:56 +0900
-Message-ID: <k2z28c262361005021028w31775ebah7c27411bb411b9f8@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: Take all anon_vma locks in anon_vma_lock
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1EB6006AB
+	for <linux-mm@kvack.org>; Sun,  2 May 2010 13:30:02 -0400 (EDT)
+Received: by pzk28 with SMTP id 28so509630pzk.11
+        for <linux-mm@kvack.org>; Sun, 02 May 2010 10:30:00 -0700 (PDT)
+Subject: [PATCH] cache last free vmap_area to avoid restarting beginning
 From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1272548602.7196.371.camel@localhost.localdomain>
+References: <1271089672.7196.63.camel@localhost.localdomain>
+	 <1271249354.7196.66.camel@localhost.localdomain>
+	 <m2g28c262361004140813j5d70a80fy1882d01436d136a6@mail.gmail.com>
+	 <1271262948.2233.14.camel@barrios-desktop>
+	 <1271320388.2537.30.camel@localhost>
+	 <1271350270.2013.29.camel@barrios-desktop>
+	 <1271427056.7196.163.camel@localhost.localdomain>
+	 <1271603649.2100.122.camel@barrios-desktop>
+	 <1271681929.7196.175.camel@localhost.localdomain>
+	 <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
+	 <1272548602.7196.371.camel@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 03 May 2010 02:29:54 +0900
+Message-ID: <1272821394.2100.224.camel@barrios-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Steven Whitehouse <swhiteho@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 29, 2010 at 5:32 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> From: Rik van Riel <riel@redhat.com>
->
-> Take all the locks for all the anon_vmas in anon_vma_lock, this properly
-> excludes migration and the transparent hugepage code from VMA changes don=
-e
-> by mmap/munmap/mprotect/expand_stack/etc...
->
-> Unfortunately, this requires adding a new lock (mm->anon_vma_chain_lock),
-> otherwise we have an unavoidable lock ordering conflict. =C2=A0This chang=
-es the
-> locking rules for the "same_vma" list to be either mm->mmap_sem for write=
-,
-> or mm->mmap_sem for read plus the new mm->anon_vma_chain lock. =C2=A0This=
- limits
-> the place where the new lock is taken to 2 locations - anon_vma_prepare a=
-nd
-> expand_downwards.
->
-> Document the locking rules for the same_vma list in the anon_vma_chain an=
-d
-> remove the anon_vma_lock call from expand_upwards, which does not need it=
-.
->
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+On Thu, 2010-04-29 at 14:43 +0100, Steven Whitehouse wrote:
+> Hi,
+> 
+> On Mon, 2010-04-19 at 23:12 +0900, Minchan Kim wrote:
+> > On Mon, Apr 19, 2010 at 9:58 PM, Steven Whitehouse <swhiteho@redhat.com> wrote:
+> > > Hi,
+> > >
+> > > On Mon, 2010-04-19 at 00:14 +0900, Minchan Kim wrote:
+> > >> On Fri, 2010-04-16 at 15:10 +0100, Steven Whitehouse wrote:
+> > >> > Hi,
+> > >> >
+> > >> > On Fri, 2010-04-16 at 01:51 +0900, Minchan Kim wrote:
+> > >> > [snip]
+> > >> > > Thanks for the explanation. It seems to be real issue.
+> > >> > >
+> > >> > > I tested to see effect with flush during rb tree search.
+> > >> > >
+> > >> > > Before I applied your patch, the time is 50300661 us.
+> > >> > > After your patch, 11569357 us.
+> > >> > > After my debug patch, 6104875 us.
+> > >> > >
+> > >> > > I tested it as changing threshold value.
+> > >> > >
+> > >> > > threshold time
+> > >> > > 1000              13892809
+> > >> > > 500               9062110
+> > >> > > 200               6714172
+> > >> > > 100               6104875
+> > >> > > 50                6758316
+> > >> > >
+> > >> > My results show:
+> > >> >
+> > >> > threshold        time
+> > >> > 100000           139309948
+> > >> > 1000             13555878
+> > >> > 500              10069801
+> > >> > 200              7813667
+> > >> > 100              18523172
+> > >> > 50               18546256
+> > >> >
+> > >> > > And perf shows smp_call_function is very low percentage.
+> > >> > >
+> > >> > > In my cases, 100 is best.
+> > >> > >
+> > >> > Looks like 200 for me.
+> > >> >
+> > >> > I think you meant to use the non _minmax version of proc_dointvec too?
+> > >>
+> > >> Yes. My fault :)
+> > >>
+> > >> > Although it doesn't make any difference for this basic test.
+> > >> >
+> > >> > The original reporter also has 8 cpu cores I've discovered. In his case
+> > >> > divided by 4 cpus where as mine are divided by 2 cpus, but I think that
+> > >> > makes no real difference in this case.
+> > >> >
+> > >> > I'll try and get some further test results ready shortly. Many thanks
+> > >> > for all your efforts in tracking this down,
+> > >> >
+> > >> > Steve.
+> > >>
+> > >> I voted "free area cache".
+> > > My results with this patch are:
+> > >
+> > > vmalloc took 5419238 us
+> > > vmalloc took 5432874 us
+> > > vmalloc took 5425568 us
+> > > vmalloc took 5423867 us
+> > >
+> > > So thats about a third of the time it took with my original patch, so
+> > > very much going in the right direction :-)
+> > 
+> > Good. :)
+> > 
+> > >
+> > > I did get a compile warning:
+> > >  CC      mm/vmalloc.o
+> > > mm/vmalloc.c: In function a??__free_vmap_areaa??:
+> > > mm/vmalloc.c:454: warning: unused variable a??preva??
+> > >
+> > > ....harmless, but it should be fixed before the final version,
+> > 
+> > Of course. It's not formal patch but for showing concept  . :)
+> > 
+> > Thanks for consuming precious your time. :)
+> > As Nick comments, I have to do further work.
+> > Maybe Nick could do it faster than me.
+> > Anyway, I hope it can solve your problem.
+> > 
+> > Thanks, Steven.
+> > 
+> > >
+> > > Steve.
+> > >
+> > >
+> 
+> Your latest patch has now been run though the GFS2 tests which
+> originally triggered my investigation. It seems to solve the problem
+> completely. Maybe thanks for your efforts in helping us find and fix the
+> problem. The next question is what remains to be done in order to get
+> the patch into a form suitable for upstream merge?
+> 
+> Steve.
+> 
+Hi, Steven. 
 
-I like this one.
+Sorry for lazy response.
+I wanted to submit the patch which implement Nick's request whole.
+And unfortunately, I am so busy now. 
+But if it's urgent, I want to submit this one firstly and 
+at next version, maybe I will submit remained TODO things 
+after middle of May.
 
-Although it try to lock the number of anon_vmas attached to a VMA ,
-it's small so latency couldn't be big. :)
-It's height problem not width problem of tree. :)
+I think this patch can't make regression other usages.
+Nick. What do you think about?
 
-Thanks, Rik.
---=20
+== CUT_HERE ==
+>From c93437583b5ff476fcfe13901898f981baa672d8 Mon Sep 17 00:00:00 2001
+From: Minchan Kim <minchan.kim@gmail.com>
+Date: Mon, 3 May 2010 01:43:30 +0900
+Subject: [PATCH] cache last free vmap_area to avoid restarting beginning.
+
+Steven Whitehouse reported that GFS2 had a regression about vmalloc.
+He measured some test module to compare vmalloc speed on the two cases.
+
+1. lazy TLB flush
+2. disable lazy TLB flush by hard coding
+
+1)
+vmalloc took 148798983 us
+vmalloc took 151664529 us
+vmalloc took 152416398 us
+vmalloc took 151837733 us
+
+2)
+vmalloc took 15363634 us
+vmalloc took 15358026 us
+vmalloc took 15240955 us
+vmalloc took 15402302 us
+
+You can refer test module and Steven's patch
+with https://bugzilla.redhat.com/show_bug.cgi?id=581459.
+
+The cause is that lazy TLB flush can delay release vmap_area.
+OTOH, To find free vmap_area is always started from beginnig of rbnode.
+So before lazy TLB flush happens, searching free vmap_area could take
+long time.
+
+Steven's experiment can do 9 times faster than old.
+But Always disable lazy TLB flush is not good.
+
+This patch caches next free vmap_area to accelerate.
+In my test case, following as.
+
+The result is following as.
+
+1) vanilla
+elapsed time                    # search of rbtree
+vmalloc took 49121724 us                5535
+vmalloc took 50675245 us                5535
+vmalloc took 48987711 us                5535
+vmalloc took 54232479 us                5535
+vmalloc took 50258117 us                5535
+vmalloc took 49424859 us                5535
+
+3) Steven's patch
+
+elapsed time                    # search of rbtree
+vmalloc took 11363341 us                62
+vmalloc took 12798868 us                62
+vmalloc took 13247942 us                62
+vmalloc took 11434647 us                62
+vmalloc took 13221733 us                62
+vmalloc took 12134019 us                62
+
+2) my patch(vmap cache)
+elapsed time                    # search of rbtree
+vmalloc took 5159893 us                 8
+vmalloc took 5124434 us                 8
+vmalloc took 5123291 us                 8
+vmalloc took 5145396 us                 12
+vmalloc took 5163605 us                 8
+vmalloc took 5945663 us                 8
+
+Nick commented some advise.
+"
+- invalidating the cache in the case of vstart being decreased.
+- Don't unconditionally reset the cache to the last vm area freed,
+ because you might have a higher area freed after a lower area. Only
+ reset if the freed area is lower.
+- Do keep a cached hole size, so smaller lookups can restart a full
+ search.
+- refactoring rbtree search code to manage alloc_vmap_area complexity
+"
+
+Now, it's on my TODO list.
+
+Cc: Nick Piggin <npiggin@suse.de>
+Reported-by: Steven Whitehouse <swhiteho@redhat.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Tested-by: Steven Whitehouse <swhiteho@redhat.com>
+---
+ mm/vmalloc.c |   49 +++++++++++++++++++++++++++++++++++--------------
+ 1 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ae00746..56f09ec 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -263,6 +263,7 @@ struct vmap_area {
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+ static struct rb_root vmap_area_root = RB_ROOT;
++static struct rb_node *free_vmap_cache;
+ static LIST_HEAD(vmap_area_list);
+ static unsigned long vmap_area_pcpu_hole;
+ 
+@@ -319,6 +320,7 @@ static void __insert_vmap_area(struct vmap_area *va)
+ 
+ static void purge_vmap_area_lazy(void);
+ 
++unsigned long max_lookup_count;
+ /*
+  * Allocate a region of KVA of the specified size and alignment, within the
+  * vstart and vend.
+@@ -332,6 +334,8 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	struct rb_node *n;
+ 	unsigned long addr;
+ 	int purged = 0;
++	int lookup_cache = 0;
++	struct vmap_area *first;
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(size & ~PAGE_MASK);
+@@ -342,29 +346,42 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 		return ERR_PTR(-ENOMEM);
+ 
+ retry:
++	first = NULL;
+ 	addr = ALIGN(vstart, align);
+ 
+ 	spin_lock(&vmap_area_lock);
+ 	if (addr + size - 1 < addr)
+ 		goto overflow;
+ 
+-	/* XXX: could have a last_hole cache */
+ 	n = vmap_area_root.rb_node;
+-	if (n) {
+-		struct vmap_area *first = NULL;
++	if (free_vmap_cache && !purged) {
++		struct vmap_area *cache;
++		cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++		if (cache->va_start >= addr && cache->va_end < vend) {
++			lookup_cache = 1;
++			n = free_vmap_cache;
++		}
++	}
+ 
+-		do {
+-			struct vmap_area *tmp;
+-			tmp = rb_entry(n, struct vmap_area, rb_node);
+-			if (tmp->va_end >= addr) {
+-				if (!first && tmp->va_start < addr + size)
++	if (n) {
++		if (!lookup_cache) {
++			do {
++				struct vmap_area *tmp;
++				tmp = rb_entry(n, struct vmap_area, rb_node);
++				if (tmp->va_end >= addr) {
++					if (!first && tmp->va_start < addr + size)
++						first = tmp;
++					n = n->rb_left;
++				} else {
+ 					first = tmp;
+-				n = n->rb_left;
+-			} else {
+-				first = tmp;
+-				n = n->rb_right;
+-			}
+-		} while (n);
++					n = n->rb_right;
++				}
++			} while (n);
++		}
++		else {
++			first = rb_entry(n, struct vmap_area, rb_node);
++			addr = first->va_start;
++		}
+ 
+ 		if (!first)
+ 			goto found;
+@@ -396,6 +413,7 @@ overflow:
+ 		if (!purged) {
+ 			purge_vmap_area_lazy();
+ 			purged = 1;
++			lookup_cache = 0;
+ 			goto retry;
+ 		}
+ 		if (printk_ratelimit())
+@@ -412,6 +430,7 @@ overflow:
+ 	va->va_end = addr + size;
+ 	va->flags = 0;
+ 	__insert_vmap_area(va);
++	free_vmap_cache = &va->rb_node;
+ 	spin_unlock(&vmap_area_lock);
+ 
+ 	return va;
+@@ -426,7 +445,9 @@ static void rcu_free_va(struct rcu_head *head)
+ 
+ static void __free_vmap_area(struct vmap_area *va)
+ {
++	struct rb_node *prev;
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
++	free_vmap_cache = rb_prev(&va->rb_node);
+ 	rb_erase(&va->rb_node, &vmap_area_root);
+ 	RB_CLEAR_NODE(&va->rb_node);
+ 	list_del_rcu(&va->list);
+-- 
+1.7.0.5
+
+
+
+
+
+-- 
 Kind regards,
 Minchan Kim
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
