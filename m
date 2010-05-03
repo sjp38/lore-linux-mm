@@ -1,48 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DED1C6007B8
-	for <linux-mm@kvack.org>; Mon,  3 May 2010 13:19:09 -0400 (EDT)
-Date: Mon, 3 May 2010 19:18:37 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A71F26007B8
+	for <linux-mm@kvack.org>; Mon,  3 May 2010 13:19:56 -0400 (EDT)
+Date: Mon, 3 May 2010 10:17:26 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 1/2] mm: Take all anon_vma locks in anon_vma_lock
-Message-ID: <20100503171837.GG19891@random.random>
-References: <20100503121743.653e5ecc@annuminas.surriel.com>
- <20100503121847.7997d280@annuminas.surriel.com>
- <1272905712.1642.150.camel@laptop>
- <20100503170230.GF19891@random.random>
- <1272906679.1642.152.camel@laptop>
+In-Reply-To: <4BDEFF9E.6080508@redhat.com>
+Message-ID: <alpine.LFD.2.00.1005030958140.5478@i5.linux-foundation.org>
+References: <20100503121743.653e5ecc@annuminas.surriel.com> <20100503121847.7997d280@annuminas.surriel.com> <alpine.LFD.2.00.1005030940490.5478@i5.linux-foundation.org> <4BDEFF9E.6080508@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1272906679.1642.152.camel@laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: akpm@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 03, 2010 at 07:11:19PM +0200, Peter Zijlstra wrote:
-> On Mon, 2010-05-03 at 19:02 +0200, Andrea Arcangeli wrote:
-> > On Mon, May 03, 2010 at 06:55:12PM +0200, Peter Zijlstra wrote:
-> > > This does leave me worrying about concurrent faults poking at
-> > > vma->vm_end without synchronization.
+
+
+On Mon, 3 May 2010, Rik van Riel wrote:
 > > 
-> > I didn't check this patch in detail yet. I agree it can be removed and
-> > I think it can be safely replaced with the page_table_lock.
+> > Pretty much same comments as for the other one. Why are we pandering to
+> > the case that is/should be unusual?
 > 
-> Sure, it could probably be replaced with the ptl, but a single
-> anon_vma->lock would I think be better since there's more of them.
+> In this case, because the fix from the migration side is
+> difficult and fragile, while fixing things from the mmap
+> side is straightforward.
+> 
+> I believe the overhead of patch 1/2 should be minimal
+> as well, because the locks we take are the _depth_ of
+> the process tree (truncated every exec), not the width.
 
-ptl not enough, or it'd break if stack grows fast more than the size
-of one pmd, page_table_lock enough instead.
+Quite frankly, I think it's totally insane to walk a list of all 
+anon_vma's that are associated with one vma, just to lock them all.
 
-Keeping anon_vma lock is sure fine with me ;), I was informally asked
-if it was a must have, and I couldn't foresee any problem in
-_replacing_ it (not removing) with page_table_lock (which I hope I
-mentioned in my answer ;). But I never had an interest to remove it,
-just I couldn't find any good reason to keep it either other than
-"paranoid just in case", which is good enough justification to me ;)
-considering these archs are uncommon and by definition gets less
-testing.
+Tell me why you just don't put the lock in the vma itself then? Walking a 
+list in order to lock multiple things is something we should _never_ do 
+under any normal circumstances.
+
+I can see why you'd want to do this in theory (the "other side" of the 
+locker might have to lock just the _one_ anon_vma), but if your argument 
+is that the list is usually not very deep ("one"?), then there is no 
+advantage, because putting the lock in the anon_vma vs the vma will get 
+the same kind of contention.
+
+And if the list _is_ deep, then walking the list to lock them all is a 
+crime against humanity.
+
+So explain.
+
+> As for patch 2/2, Mel has an alternative approach for that:
+> 
+> http://lkml.org/lkml/2010/4/30/198
+> 
+> Does Mel's patch seem more reasonable to you?
+
+Well, I certainly think that seems to be a lot more targeted, and not add 
+new allocations in a path that I think is already one of the more 
+expensive ones. Yes, you can argue that execve() is already so expensive 
+that a few more allocations don't matter, and you migth be right, but 
+that's how things get to be too expensive to begin with.
+
+That said, I do still wonder why we shouldn't just say that the person who 
+wants the safety is the one that should do the extra work.
+
+In particular, why don't we just make rmap_walk() be the one that locks 
+all the anon_vma's? Instead of locking just one? THAT is the function that 
+cares. THAT is the function that should do proper locking and not expect 
+others to do extra unnecessary locking.
+
+So again, my gut feel is that if the lock just were in the vma itself, 
+then the "normal" users would have just one natural lock, while the 
+special case users (rmap_walk_anon) would have to lock each vma it 
+traverses. That would seem to be the more natural way to lock things.
+
+I dunno. There may well be reasons why it doesn't work, like just the 
+allocation lifetime rules for vma's vs anon_vma's. I'm not claiming I've 
+thought this true. I just get a feeling of "that isn't right" when I look 
+at the original 2/2 patch, and while Mel's patch certainly looks better, 
+it seems to be a bit ad-hoc and hacky to me.
+
+Btw, Mel's patch doesn't really match the description of 2/2. 2/2 says 
+that all pages must always be findable in rmap. Mel's patch seems to 
+explicitly say "we want to ignore that thing that is busy for execve". Are 
+we just avoiding a BUG_ON()? Is perhaps the BUG_ON() buggy?
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
