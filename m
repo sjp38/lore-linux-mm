@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5C192600794
-	for <linux-mm@kvack.org>; Mon,  3 May 2010 12:20:09 -0400 (EDT)
-Date: Mon, 3 May 2010 12:17:43 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 44C3A600794
+	for <linux-mm@kvack.org>; Mon,  3 May 2010 12:20:11 -0400 (EDT)
+Date: Mon, 3 May 2010 12:19:29 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 0/2] Fix migration races in rmap_walk() V4
-Message-ID: <20100503121743.653e5ecc@annuminas.surriel.com>
+Subject: [PATCH 2/2] mm: fix race between shift_arg_pages and rmap_walk
+Message-ID: <20100503121929.260ed5ee@annuminas.surriel.com>
+In-Reply-To: <20100503121743.653e5ecc@annuminas.surriel.com>
+References: <20100503121743.653e5ecc@annuminas.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,91 +16,104 @@ To: akpm@linux-foundation.org
 Cc: torvalds@linux-foundation.org, Mel Gorman <mel@csn.ul.ie>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew, I'm posting this version since Mel is out today and Andrea and I
-would really like to get this fixed before 2.6.34 :)
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Here is Mel's 0/2 text, plus my changelog update:
+migrate.c requires rmap to be able to find all ptes mapping a page at
+all times, otherwise the migration entry can be instantiated, but it
+can't be removed if the second rmap_walk fails to find the page.
 
-The sloppy cleanup of migration PTEs in V2 was to no ones liking, the fork()
-change was unnecessary and Rik devised a locking scheme for anon_vma that
-was more robust for transparent hugepage support than was purposed in V2.
+And split_huge_page() will have the same requirements as migrate.c
+already has.
 
-Andrew, patch one of this series is about the correctness of locking of
-anon_vma with respect to migration. While I am not aware of any reproduction
-cases, it is potentially racy. Rik will probably release another versions
-so I'm not expecting this one to be picked up but I'm including it for
-completeness.
+The fix is to instantiate a temporary vma during shift_arg_pages.
+Every page can be found in either the old or the new VMA.  This
+essentially is a light-weight implementation of mremap.
 
-Patch two of this series addresses the swapops bug reported that is a race
-between migration due to compaction and execve where pages get migrated from
-the temporary stack before it is moved. Technically, it would be best if the
-anon_vma lock was held while the temporary stack is moved but it would make
-exec significantly more complex, particularly in move_page_tables to handle
-a corner case in migration. I don't think adding complexity is justified. If
-there are no objections, please pick it up and place it between the patches
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Minchan Kim <minchan.kim@gmail.com>
 
-	mmmigration-allow-the-migration-of-pageswapcache-pages.patch
-	mm-allow-config_migration-to-be-set-without-config_numa-or-memory-hot-remove.patch
-
-Unfortunately, I'll be offline for a few days but should be back online
-Tuesday.
-
-Changelog since V3
-  o Rediff against the latest upstream tree
-  o Improve the patch changelog a little (thanks Peterz)
-
-Changelog since V2
-  o Drop fork changes
-  o Avoid pages in temporary stacks during exec instead of migration pte
-    lazy cleanup
-  o Drop locking-related patch and replace with Rik's
-
-Changelog since V1
-  o Handle the execve race
-  o Be sure that rmap_walk() releases the correct VMA lock
-  o Hold the anon_vma lock for the address lookup and the page remap
-  o Add reviewed-bys
-
-There are a number of races between migration and other operations that mean a
-migration PTE can be left behind. Broadly speaking, migration works by locking
-a page, unmapping it, putting a migration PTE in place that looks like a swap
-entry, copying the page and remapping the page removing the old migration PTE.
-If a fault occurs, the faulting process waits until migration completes.
-
-The problem is that there are some races that either allow migration PTEs to
-be copied or a migration PTE to be left behind. Migration still completes and
-the page is unlocked but later a fault will call migration_entry_to_page()
-and BUG() because the page is not locked. This series aims to close some
-of these races.
-
-Patch 1 notes that with the anon_vma changes, taking one lock is not
-	necessarily enough to guard against changes in all VMAs on a list.
-	It introduces a new lock to allow taking the locks on all anon_vmas
-	to exclude migration from VMA changes.
-
-Patch 2 notes that while a VMA is moved under the anon_vma lock, the page
-	tables are not similarly protected. To avoid migration PTEs being left
-	behind, pages within a temporary stack are simply not migrated.
-
-The reproduction case was as follows;
-
-1. Run kernel compilation in a loop
-2. Start four processes, each of which creates one mapping. The three stress
-   different aspects of the problem. The operations they undertake are;
-	a) Forks a hundred children, each of which faults the mapping
-		Purpose: stress tests migration pte removal
-	b) Forks a hundred children, each which punches a hole in the mapping
-	   and faults what remains
-		Purpose: stress test VMA manipulations during migration
-	c) Forks a hundred children, each of which execs and calls echo
-		Purpose: stress test the execve race
-	d) Size the mapping to be 1.5 times physical memory. Constantly
-	   memset it
-		Purpose: stress swapping
-3. Constantly compact memory using /proc/sys/vm/compact_memory so migration
-   is active all the time. In theory, you could also force this using
-   sys_move_pages or memory hot-remove but it'd be nowhere near as easy
-   to test.
+diff --git a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -55,6 +55,7 @@
+ #include <linux/fsnotify.h>
+ #include <linux/fs_struct.h>
+ #include <linux/pipe_fs_i.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -503,7 +504,9 @@ static int shift_arg_pages(struct vm_are
+ 	unsigned long length = old_end - old_start;
+ 	unsigned long new_start = old_start - shift;
+ 	unsigned long new_end = old_end - shift;
++	unsigned long moved_length;
+ 	struct mmu_gather *tlb;
++	struct vm_area_struct *tmp_vma;
+ 
+ 	BUG_ON(new_start > new_end);
+ 
+@@ -515,17 +518,46 @@ static int shift_arg_pages(struct vm_are
+ 		return -EFAULT;
+ 
+ 	/*
++	 * We need to create a fake temporary vma and index it in the
++	 * anon_vma list in order to allow the pages to be reachable
++	 * at all times by the rmap walk for migrate, while
++	 * move_page_tables() is running.
++	 */
++	tmp_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
++	if (!tmp_vma)
++		return -ENOMEM;
++	*tmp_vma = *vma;
++	INIT_LIST_HEAD(&tmp_vma->anon_vma_chain);
++	if (unlikely(anon_vma_clone(tmp_vma, vma))) {
++		kmem_cache_free(vm_area_cachep, tmp_vma);
++		return -ENOMEM;
++	}
++
++	/*
+ 	 * cover the whole range: [new_start, old_end)
++	 *
++	 * The vma is attached only to vma->anon_vma so one lock is
++	 * enough. Even this lock might be removed and we could run it
++	 * out of order but it's nicer to make atomic updates to
++	 * vm_start and so we won't need a smb_wmb() before calling
++	 * move_page_tables.
+ 	 */
+-	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
+-		return -ENOMEM;
++	spin_lock(&vma->anon_vma->lock);
++	vma->vm_start = new_start;
++	spin_unlock(&vma->anon_vma->lock);
+ 
+ 	/*
+ 	 * move the page tables downwards, on failure we rely on
+ 	 * process cleanup to remove whatever mess we made.
+ 	 */
+-	if (length != move_page_tables(vma, old_start,
+-				       vma, new_start, length))
++	moved_length = move_page_tables(vma, old_start,
++					vma, new_start, length);
++
++	/* rmap walk will already find all pages using the new_start */
++	unlink_anon_vmas(tmp_vma);
++	kmem_cache_free(vm_area_cachep, tmp_vma);
++
++	if (length != moved_length) 
+ 		return -ENOMEM;
+ 
+ 	lru_add_drain();
+@@ -551,7 +583,7 @@ static int shift_arg_pages(struct vm_are
+ 	/*
+ 	 * Shrink the vma to just the new range.  Always succeeds.
+ 	 */
+-	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
++	vma->vm_end = new_end;
+ 
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
