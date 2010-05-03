@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FFA4600794
-	for <linux-mm@kvack.org>; Mon,  3 May 2010 12:36:09 -0400 (EDT)
-Date: Mon, 3 May 2010 09:34:14 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E53EB600794
+	for <linux-mm@kvack.org>; Mon,  3 May 2010 12:39:05 -0400 (EDT)
+Date: Mon, 3 May 2010 09:37:17 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 2/2] mm: fix race between shift_arg_pages and rmap_walk
-In-Reply-To: <20100503121929.260ed5ee@annuminas.surriel.com>
-Message-ID: <alpine.LFD.2.00.1005030928350.5478@i5.linux-foundation.org>
-References: <20100503121743.653e5ecc@annuminas.surriel.com> <20100503121929.260ed5ee@annuminas.surriel.com>
+In-Reply-To: <alpine.LFD.2.00.1005030928350.5478@i5.linux-foundation.org>
+Message-ID: <alpine.LFD.2.00.1005030935100.5478@i5.linux-foundation.org>
+References: <20100503121743.653e5ecc@annuminas.surriel.com> <20100503121929.260ed5ee@annuminas.surriel.com> <alpine.LFD.2.00.1005030928350.5478@i5.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,22 +17,27 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Mon, 3 May 2010, Rik van Riel wrote:
+On Mon, 3 May 2010, Linus Torvalds wrote:
 > 
-> migrate.c requires rmap to be able to find all ptes mapping a page at
-> all times, otherwise the migration entry can be instantiated, but it
-> can't be removed if the second rmap_walk fails to find the page.
+> It looks like it makes execve() do a totally insane "create and then 
+> immediately destroy temporary vma and anon_vma chain" for a case that is 
+> unlikely to ever matter. 
+> 
+> In fact, for a case that isn't even normally _enabled_, namely migration.
+> 
+> Why would we want to slow down execve() for that?
 
-Please correct me if I'm wrong, but this patch looks like pure and utter 
-garbage.
+Alternate suggestions:
 
-It looks like it makes execve() do a totally insane "create and then 
-immediately destroy temporary vma and anon_vma chain" for a case that is 
-unlikely to ever matter. 
+ - clean up the patch so that it is explicitly abouy migration, and 
+   doesn't even get enabled for anything else.
 
-In fact, for a case that isn't even normally _enabled_, namely migration.
+ - make the migration code take the VM lock for writing (why doesn't it 
+   already?) and never race with things like this in the first place.
 
-Why would we want to slow down execve() for that?
+ - explain why the new code isn't any slower.
+
+Hmm?
 
 		Linus
 
