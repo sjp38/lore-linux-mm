@@ -1,66 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 293C8600794
-	for <linux-mm@kvack.org>; Mon,  3 May 2010 11:22:44 -0400 (EDT)
-Received: by pzk28 with SMTP id 28so860606pzk.11
-        for <linux-mm@kvack.org>; Mon, 03 May 2010 08:22:31 -0700 (PDT)
-From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH] Cleanup migrate case in try_to_unmap_one
-Date: Mon,  3 May 2010 20:49:17 +0530
-Message-Id: <1272899957-11604-1-git-send-email-ngupta@vflare.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0F2B1600794
+	for <linux-mm@kvack.org>; Mon,  3 May 2010 11:33:35 -0400 (EDT)
+Date: Mon, 3 May 2010 17:33:01 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/2] Fix migration races in rmap_walk() V3
+Message-ID: <20100503153301.GD19891@random.random>
+References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
+ <20100430182853.GK22108@random.random>
+ <20100501135110.GP20640@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100501135110.GP20640@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Remove duplicate handling of TTU_MIGRATE case for
-anonymous and filesystem pages.
+On Sat, May 01, 2010 at 03:51:10PM +0200, Johannes Weiner wrote:
+> On Fri, Apr 30, 2010 at 08:28:53PM +0200, Andrea Arcangeli wrote:
+> > Subject: adapt mprotect to anon_vma chain semantics
+> > 
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > wait_split_huge_page interface changed.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > ---
+> > 
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -929,7 +929,7 @@ int change_huge_pmd(struct vm_area_struc
+> >  	if (likely(pmd_trans_huge(*pmd))) {
+> >  		if (unlikely(pmd_trans_splitting(*pmd))) {
+> >  			spin_unlock(&mm->page_table_lock);
+> > -			wait_split_huge_page(vma->anon_vma, pmd);
+> > +			wait_split_huge_page(mm, pmd);
+> 
+> That makes mprotect-vma-arg obsolete, I guess.
 
-Signed-off-by: Nitin Gupta <ngupta@vflare.org>
----
- mm/rmap.c |   17 ++++-------------
- 1 files changed, 4 insertions(+), 13 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 07fc947..8ccfe4a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -946,6 +946,10 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			dec_mm_counter(mm, MM_FILEPAGES);
- 		set_pte_at(mm, address, pte,
- 				swp_entry_to_pte(make_hwpoison_entry(page)));
-+	} else if (PAGE_MIGRATION && (TTU_ACTION(flags) == TTU_MIGRATION)) {
-+		swp_entry_t entry;
-+		entry = make_migration_entry(page, pte_write(pteval));
-+		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 	} else if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 
-@@ -967,22 +971,9 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			}
- 			dec_mm_counter(mm, MM_ANONPAGES);
- 			inc_mm_counter(mm, MM_SWAPENTS);
--		} else if (PAGE_MIGRATION) {
--			/*
--			 * Store the pfn of the page in a special migration
--			 * pte. do_swap_page() will wait until the migration
--			 * pte is removed and then restart fault handling.
--			 */
--			BUG_ON(TTU_ACTION(flags) != TTU_MIGRATION);
--			entry = make_migration_entry(page, pte_write(pteval));
- 		}
- 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 		BUG_ON(pte_file(*pte));
--	} else if (PAGE_MIGRATION && (TTU_ACTION(flags) == TTU_MIGRATION)) {
--		/* Establish migration entry for a file page */
--		swp_entry_t entry;
--		entry = make_migration_entry(page, pte_write(pteval));
--		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
- 	} else
- 		dec_mm_counter(mm, MM_FILEPAGES);
- 
--- 
-1.6.6.1
+Well it's needed for flush_tlb_range. Also normally we could run a
+single invlpg on x86 to invalidate huge pmd tlbs, but I read some
+errata for some x86, and I didn't want to take risks plus this is
+common code so I can't just run a common code flush_tlb_page. In
+mincore_huge_pmd probably we could pass vma->vm_mm instead of vma (as
+there is not flush_tlb_range), I can change it if you prefer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
