@@ -1,47 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 207016B022C
-	for <linux-mm@kvack.org>; Sun,  2 May 2010 17:06:37 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F255A6006AB
+	for <linux-mm@kvack.org>; Mon,  3 May 2010 02:11:22 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <ae6823b2-09ad-4e9d-ad7e-40922cf9b6c9@default>
-Date: Sun, 2 May 2010 14:05:59 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
-References: <1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>
- <ce808441-fae6-4a33-8335-f7702740097a@default> <20100428055538.GA1730@ucw.cz>
- <1272591924.23895.807.camel@nimitz> <4BDA8324.7090409@redhat.com>
- <084f72bf-21fd-4721-8844-9d10cccef316@default> <4BDB026E.1030605@redhat.com>
- <4BDB18CE.2090608@goop.org4BDB2069.4000507@redhat.com>
- <3a62a058-7976-48d7-acd2-8c6a8312f10f@default20100502071059.GF1790@ucw.cz>
- <47d6b5d9-beb5-4e49-9910-064d6f7b13e5@default
- 20100502200615.GA9051@elf.ucw.cz>
-In-Reply-To: <20100502200615.GA9051@elf.ucw.cz>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Date: Mon, 03 May 2010 10:11:18 +0200
+From: kernel <kernel@tauceti.net>
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+In-Reply-To: <4BD76B81.2070606@tauceti.net>
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain> <4BD61147.40709@tauceti.net> <1272324536.16814.45.camel@localhost.localdomain> <4BD76B81.2070606@tauceti.net>
+Message-ID: <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net>
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Avi Kivity <avi@redhat.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: "Michael S. Tsirkin\" <mst@redhat.com>, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org," <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> From: Pavel Machek [mailto:pavel@ucw.cz]
->=20
-> > > So what needs to be said here is 'frontswap is XX times faster than
-> > > swap_ops based solution on workload YY'.
-> >
-> > Are you asking me to demonstrate that swap-to-hypervisor-RAM is
-> > faster than swap-to-disk?
->=20
-> I would like comparison of swap-to-frontswap vs. swap-to-RAMdisk.
-> =09=09=09=09=09=09=09=09=09Pavel
+Anything we can do to investigate this further?
 
-Well, it's not really apples-to-apples because swap-to-RAMdisk
-is copying to a chunk of RAM with a known permanently-fixed size
-so it SHOULD be faster than swap-to-hypervisor, and should
-*definitely* be faster than swap-to-in-kernel-compressed-RAM
-but I suppose it is still an interesting comparison.  I'll
-see what I can do, but it will probably be a couple days to
-figure out how to measure it (e.g. without accidentally measuring
-any swap-to-disk).
+Thanks!
+Robert
+
+
+On Wed, 28 Apr 2010 00:56:01 +0200, Robert Wimmer <kernel@tauceti.net>
+wrote:
+> I've applied the patch against the kernel which I got
+> from "git clone ...." resulted in a kernel 2.6.34-rc5.
+> 
+> The stack trace after mounting NFS is here:
+> https://bugzilla.kernel.org/attachment.cgi?id=26166
+> /var/log/messages after soft lockup:
+> https://bugzilla.kernel.org/attachment.cgi?id=26167
+> 
+> I hope that there is any usefull information in there.
+> 
+> Thanks!
+> Robert
+> 
+> On 04/27/10 01:28, Trond Myklebust wrote:
+>> On Tue, 2010-04-27 at 00:18 +0200, Robert Wimmer wrote: 
+>>   
+>>>> Sure. In addition to what you did above, please do
+>>>>
+>>>> mount -t debugfs none /sys/kernel/debug
+>>>>
+>>>> and then cat the contents of the pseudofile at
+>>>>
+>>>> /sys/kernel/debug/tracing/stack_trace
+>>>>
+>>>> Please do this more or less immediately after you've finished
+mounting
+>>>> the NFSv4 client.
+>>>>   
+>>>>       
+>>> I've uploaded the stack trace. It was generated
+>>> directly after mounting. Here are the stacks:
+>>>
+>>> After mounting:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26153
+>>> After the soft lockup:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26154
+>>> The dmesg output of the soft lockup:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26155
+>>>
+>>>     
+>>>> Does your server have the 'crossmnt' or 'nohide' flags set, or does
+it
+>>>> use the 'refer' export option anywhere? If so, then we might have to
+>>>> test further, since those may trigger the NFSv4 submount feature.
+>>>>   
+>>>>       
+>>> The server has the following settings:
+>>> rw,nohide,insecure,async,no_subtree_check,no_root_squash
+>>>
+>>> Thanks!
+>>> Robert
+>>>
+>>>
+>>>     
+>> That second trace is more than 5.5K deep, more than half of which is
+>> socket overhead :-(((.
+>>
+>> The process stack does not appear to have overflowed, however that
+trace
+>> doesn't include any IRQ stack overhead.
+>>
+>> OK... So what happens if we get rid of half of that trace by forcing
+>> asynchronous tasks such as this to run entirely in rpciod instead of
+>> first trying to run in the process context?
+>>
+>> See the attachment...
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
