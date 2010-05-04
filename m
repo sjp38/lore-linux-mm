@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1690F6B0289
-	for <linux-mm@kvack.org>; Tue,  4 May 2010 19:51:25 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o44NpLKg022070
-	for <linux-mm@kvack.org>; Tue, 4 May 2010 16:51:22 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 035316B028B
+	for <linux-mm@kvack.org>; Tue,  4 May 2010 19:56:05 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id o44NtxKS015828
+	for <linux-mm@kvack.org>; Tue, 4 May 2010 16:56:00 -0700
 Received: from pvc30 (pvc30.prod.google.com [10.241.209.158])
-	by wpaz37.hot.corp.google.com with ESMTP id o44NpJva019102
-	for <linux-mm@kvack.org>; Tue, 4 May 2010 16:51:20 -0700
-Received: by pvc30 with SMTP id 30so568064pvc.13
-        for <linux-mm@kvack.org>; Tue, 04 May 2010 16:51:19 -0700 (PDT)
-Date: Tue, 4 May 2010 16:51:14 -0700 (PDT)
+	by kpbe19.cbf.corp.google.com with ESMTP id o44NtvQn030016
+	for <linux-mm@kvack.org>; Tue, 4 May 2010 16:55:58 -0700
+Received: by pvc30 with SMTP id 30so539737pvc.27
+        for <linux-mm@kvack.org>; Tue, 04 May 2010 16:55:57 -0700 (PDT)
+Date: Tue, 4 May 2010 16:55:53 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] memcg: make oom killer a no-op when no killable task
+Subject: Re: [patch -mm] memcg: make oom killer a no-op when no killable task
  can be found
-Message-ID: <alpine.DEB.2.00.1005041650040.13683@chino.kir.corp.google.com>
+In-Reply-To: <20100421121758.af52f6e0.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1005041655360.13683@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004061426420.28700@chino.kir.corp.google.com> <20100407092050.48c8fc3d.kamezawa.hiroyu@jp.fujitsu.com> <20100407205418.FB90.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1004081036520.25592@chino.kir.corp.google.com>
+ <20100421121758.af52f6e0.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, anfei <anfei.zhou@gmail.com>, nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It's pointless to try to kill current if select_bad_process() did not
-find an eligible task to kill in mem_cgroup_out_of_memory() since it's
-guaranteed that current is a member of the memcg that is oom and it is,
-by definition, unkillable.
+On Wed, 21 Apr 2010, Andrew Morton wrote:
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |    5 +----
- 1 files changed, 1 insertions(+), 4 deletions(-)
+> 
+> fyi, I still consider these patches to be in the "stuck" state.  So we
+> need to get them unstuck.
+> 
+> 
+> Hiroyuki (and anyone else): could you please summarise in the briefest
+> way possible what your objections are to Daivd's oom-killer changes?
+> 
+> I'll start: we don't change the kernel ABI.  Ever.  And when we _do_
+> change it we don't change it without warning.
+> 
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -512,12 +512,9 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- 	read_lock(&tasklist_lock);
- retry:
- 	p = select_bad_process(&points, limit, mem, CONSTRAINT_NONE, NULL);
--	if (PTR_ERR(p) == -1UL)
-+	if (!p || PTR_ERR(p) == -1UL)
- 		goto out;
- 
--	if (!p)
--		p = current;
--
- 	if (oom_kill_process(p, gfp_mask, 0, points, limit, mem,
- 				"Memory cgroup out of memory"))
- 		goto retry;
+Have we resolved all of the outstanding discussion concerning the oom 
+killer rewrite?  I'm not aware of any pending issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
