@@ -1,93 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CEC3B6B0260
-	for <linux-mm@kvack.org>; Tue,  4 May 2010 06:32:34 -0400 (EDT)
-Date: Tue, 4 May 2010 11:32:13 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
-	and rmap_walk() during migration by not migrating temporary stacks
-Message-ID: <20100504103213.GB20979@csn.ul.ie>
-References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie> <1272529930-29505-3-git-send-email-mel@csn.ul.ie> <20100429162120.GC22108@random.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C4F646B026B
+	for <linux-mm@kvack.org>; Tue,  4 May 2010 06:53:07 -0400 (EDT)
+Message-ID: <4BDFFCB9.5010402@cn.fujitsu.com>
+Date: Tue, 04 May 2010 18:53:45 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100429162120.GC22108@random.random>
+Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
+References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com> <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com> <4BD90529.3090401@cn.fujitsu.com> <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 29, 2010 at 06:21:20PM +0200, Andrea Arcangeli wrote:
-> Hi Mel,
+on 2010-4-30 2:03, David Rientjes wrote:
+> On Thu, 29 Apr 2010, Miao Xie wrote:
 > 
-> did you see my proposed fix?
-
-I did when I got back - sorry for the delay. The patchset I sent out was what
-I had fully tested and was confident worked. I picked up the version of the
-patch that was sent to Linus by Rik for merging.
-
-> I'm running with it applied, I'd be
-> interested if you can test it.
-
-Unfortunately, the same bug triggers after about 18 minutes. The objective of
-your fix is very simple - have a VMA covering the new range so that rmap can
-find it. However, no lock is held during move_page_tables() because of the
-need to call the page allocator. Due to the lack of locking, is it possible
-that something like the following is happening?
-
-Exec Process				Migration Process
-begin move_page_tables
-					begin rmap walk
-					take anon_vma locks
-					find new location of pte (do nothing)
-copy migration pte to new location
-#### Bad PTE now in place
-					find old location of pte
-					remove old migration pte
-					release anon_vma locks
-remove temporary VMA
-some time later, bug on migration pte
-
-Even with the care taken, a migration PTE got copied and then left behind. What
-I haven't confirmed at this point is if the ordering of the walk in "migration
-process" is correct in the above scenario. The order is important for
-the race as described to happen.
-
-If the above is wrong, there is still a race somewhere else.
-
-> Surely it will also work for new
-> anon-vma code in upstream, because at that point there's just 1
-> anon-vma and nothing else attached to the vma.
+>>> That's been the behavior for at least three years so changing it from 
+>>> under the applications isn't acceptable, see 
+>>> Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
+>>> the two flags that are defined that can be used to adjust the behavior.
+>>
+>> Is the flags what you said MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES? 
+>> But the codes that I changed isn't under MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES.
+>> The documentation doesn't say what we should do if either of these two flags is not set. 
+>>
 > 
-> http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=6efa1dfa5152ef8d7f26beb188d6877525a9dd03
+> MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES allow you to adjust the 
+> behavior of the rebind: the former requires specific nodes to be assigned 
+> to the mempolicy and could suppress the rebind completely, if necessary; 
+> the latter ensures the mempolicy nodemask has a certain weight as nodes 
+> are assigned in a round-robin manner.  The behavior that you're referring 
+> to is provided via MPOL_F_RELATIVE_NODES, which guarantees whatever weight 
+> is passed via set_mempolicy() will be preserved when mems are added to a 
+> cpuset.
 > 
-> I think it's wrong to try to handle the race in rmap walk by making
-> magic checks on vm_flags VM_GROWSDOWN|GROWSUP and
-> vma->vm_mm->map_count == 1,
-
-How bad is that magic check really? Is there a scenario when it's
-the wrong thing to do?
-
-I agree that migration skipping specific pages of the temporary stack is
-unfortunate and having exec-aware informtion in migration is an odd dependency
-at best. On the other hand, it's not as bad as skipping other regions as exec
-will finish and allow the pages to be moved again. The impact to compaction
-or transparent support would appear to be minimal.
-
-> when we can fix it fully and simply in
-> exec.c by indexing two vmas in the same anon-vma with a different
-> vm_start so the pages will be found at all times by the rmap_walk.
+> Regardless of whether the behavior is documented when either flag is 
+> passed, we can't change the long-standing default behavior that people use 
+> when their cpuset mems are rebound: we can only extend the functionality 
+> and the behavior you're seeking is already available with a 
+> MPOL_F_RELATIVE_NODES flag modifier.
 > 
+>> Furthermore, in order to fix no node to alloc memory, when we want to update mempolicy
+>> and mems_allowed, we expand the set of nodes first (set all the newly nodes) and
+>> shrink the set of nodes lazily(clean disallowed nodes).
+> 
+> That's a cpuset implementation choice, not a mempolicy one; mempolicies 
+> have nothing to do with an empty current->mems_allowed.
+> 
+>> But remap() breaks the expanding, so if we don't remove remap(), the problem can't be
+>> fixed. Otherwise, cpuset has to do the rebinding by itself and the code is ugly.
+>> Like this:
+>>
+>> static void cpuset_change_task_nodemask(struct task_struct *tsk, nodemask_t *newmems)
+>> {
+>> 	nodemask_t tmp;
+>> 	...
+>> 	/* expand the set of nodes */
+>> 	if (!mpol_store_user_nodemask(tsk->mempolicy)) {
+>> 		nodes_remap(tmp, ...);
+>> 		nodes_or(tsk->mempolicy->v.nodes, tsk->mempolicy->v.nodes, tmp);
+>> 	}
+>> 	...
+>>
+>> 	/* shrink the set of nodes */
+>> 	if (!mpol_store_user_nodemask(tsk->mempolicy))
+>> 		tsk->mempolicy->v.nodes = tmp;
+>> }
+>>
+> 
+> I don't see why this is even necessary, the mempolicy code could simply 
+> return numa_node_id() when nodes_empty(current->mempolicy->v.nodes) to 
+> close the race.
+> 
+>  [ Your pseudo-code is also lacking task_lock(tsk), which is required to 
+>    safely dereference tsk->mempolicy, and this is only available so far in 
+>    -mm since the oom killer rewrite. ]
 
-If it can be simply fixed in exec, then I'll agree. Your patch looked simple
-but unfortunately it doesn't fix the problem and it does introduce another
-call to kmalloc() in the exec path. It's probably something that would only
-be noticed by microbenchmarks though so I'm less concerned about that aspect.
+I updated it and remade a new patchset, could you review it for me?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks
+Miao
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
