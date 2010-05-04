@@ -1,90 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C4F646B026B
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id ED3576B026C
 	for <linux-mm@kvack.org>; Tue,  4 May 2010 06:53:07 -0400 (EDT)
-Message-ID: <4BDFFCB9.5010402@cn.fujitsu.com>
-Date: Tue, 04 May 2010 18:53:45 +0800
+Message-ID: <4BDFFCC4.5000106@cn.fujitsu.com>
+Date: Tue, 04 May 2010 18:53:56 +0800
 From: Miao Xie <miaox@cn.fujitsu.com>
 Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: fix bugs of mpol_rebind_nodemask()
-References: <4BD05929.8040900@cn.fujitsu.com> <alpine.DEB.2.00.1004221415090.25350@chino.kir.corp.google.com> <4BD0F797.6020704@cn.fujitsu.com> <alpine.DEB.2.00.1004230141400.2190@chino.kir.corp.google.com> <4BD90529.3090401@cn.fujitsu.com> <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1004291054010.24062@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH -V2 0/2] fix oom happening when changing cpuset'mems(was:
+ [regression] cpuset,mm: update tasks' mems_allowed in time (58568d2))
+Content-Type: multipart/mixed;
+ boundary="------------080901000208050906050704"
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-on 2010-4-30 2:03, David Rientjes wrote:
-> On Thu, 29 Apr 2010, Miao Xie wrote:
-> 
->>> That's been the behavior for at least three years so changing it from 
->>> under the applications isn't acceptable, see 
->>> Documentation/vm/numa_memory_policy.txt regarding mempolicy rebinds and 
->>> the two flags that are defined that can be used to adjust the behavior.
->>
->> Is the flags what you said MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES? 
->> But the codes that I changed isn't under MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES.
->> The documentation doesn't say what we should do if either of these two flags is not set. 
->>
-> 
-> MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES allow you to adjust the 
-> behavior of the rebind: the former requires specific nodes to be assigned 
-> to the mempolicy and could suppress the rebind completely, if necessary; 
-> the latter ensures the mempolicy nodemask has a certain weight as nodes 
-> are assigned in a round-robin manner.  The behavior that you're referring 
-> to is provided via MPOL_F_RELATIVE_NODES, which guarantees whatever weight 
-> is passed via set_mempolicy() will be preserved when mems are added to a 
-> cpuset.
-> 
-> Regardless of whether the behavior is documented when either flag is 
-> passed, we can't change the long-standing default behavior that people use 
-> when their cpuset mems are rebound: we can only extend the functionality 
-> and the behavior you're seeking is already available with a 
-> MPOL_F_RELATIVE_NODES flag modifier.
-> 
->> Furthermore, in order to fix no node to alloc memory, when we want to update mempolicy
->> and mems_allowed, we expand the set of nodes first (set all the newly nodes) and
->> shrink the set of nodes lazily(clean disallowed nodes).
-> 
-> That's a cpuset implementation choice, not a mempolicy one; mempolicies 
-> have nothing to do with an empty current->mems_allowed.
-> 
->> But remap() breaks the expanding, so if we don't remove remap(), the problem can't be
->> fixed. Otherwise, cpuset has to do the rebinding by itself and the code is ugly.
->> Like this:
->>
->> static void cpuset_change_task_nodemask(struct task_struct *tsk, nodemask_t *newmems)
->> {
->> 	nodemask_t tmp;
->> 	...
->> 	/* expand the set of nodes */
->> 	if (!mpol_store_user_nodemask(tsk->mempolicy)) {
->> 		nodes_remap(tmp, ...);
->> 		nodes_or(tsk->mempolicy->v.nodes, tsk->mempolicy->v.nodes, tmp);
->> 	}
->> 	...
->>
->> 	/* shrink the set of nodes */
->> 	if (!mpol_store_user_nodemask(tsk->mempolicy))
->> 		tsk->mempolicy->v.nodes = tmp;
->> }
->>
-> 
-> I don't see why this is even necessary, the mempolicy code could simply 
-> return numa_node_id() when nodes_empty(current->mempolicy->v.nodes) to 
-> close the race.
-> 
->  [ Your pseudo-code is also lacking task_lock(tsk), which is required to 
->    safely dereference tsk->mempolicy, and this is only available so far in 
->    -mm since the oom killer rewrite. ]
+This is a multi-part message in MIME format.
+--------------080901000208050906050704
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-I updated it and remade a new patchset, could you review it for me?
+Nick Piggin reported that the allocator may see an empty nodemask when changing
+cpuset's mems[1]. It happens only on the kernel that do not do atomic nodemask_t
+stores. (MAX_NUMNODES > BITS_PER_LONG)
+
+But I found that there is also a problem on the kernel that can do atomic
+nodemask_t stores. The problem is that the allocator can't find a node to
+alloc page when changing cpuset's mems though there is a lot of free memory.
+The reason is like this:
+(mpol: mempolicy)
+	task1			task1's mpol	task2
+	alloc page		1
+	  alloc on node0? NO	1
+				1		change mems from 1 to 0
+				1		rebind task1's mpol
+				0-1		  set new bits
+				0	  	  clear disallowed bits
+	  alloc on node1? NO	0
+	  ...
+	can't alloc page
+	  goto oom
+
+I can use the attached program reproduce it by the following step:
+# mkdir /dev/cpuset
+# mount -t cpuset cpuset /dev/cpuset
+# mkdir /dev/cpuset/1
+# echo `cat /dev/cpuset/cpus` > /dev/cpuset/1/cpus
+# echo `cat /dev/cpuset/mems` > /dev/cpuset/1/mems
+# echo $$ > /dev/cpuset/1/tasks
+# numactl --membind=`cat /dev/cpuset/mems` ./cpuset_mem_hog <nr_tasks> &
+   <nr_tasks> = max(nr_cpus - 1, 1)
+# killall -s SIGUSR1 cpuset_mem_hog
+# ./change_mems.sh
+
+several hours later, oom will happen though there is a lot of free memory.
+
+This patchset fixes this problem by expanding the nodes range first(set newly
+allowed bits) and shrink it lazily(clear newly disallowed bits). So we use a
+variable to tell the write-side task that read-side task is reading nodemask,
+and the write-side task clears newly disallowed nodes after read-side task ends
+the current memory allocation.
+
+Changelog since V1:
+- restructure the mempolicy's rebind functions, and split the rebind work to
+  two steps because the rebind functions may breaks the first step - expanding
+  the nodes range.
 
 Thanks
 Miao
+
+[1] http://lkml.org/lkml/2010/2/18/111
+
+[PATCH 1/2] mempolicy: restructure rebinding-mempolicy functions
+[PATCH 2/2] cpuset,mm: fix no node to alloc memory when changing cpuset's mems
+
+--------------080901000208050906050704
+Content-Type: application/gzip;
+ name="reproduce_prog.tar.gz"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="reproduce_prog.tar.gz"
+
+H4sIAHwx0UsAA+1Xe0/bSBDPv/anGAJCTpqH7eYhHQQpKqFCAoLyOO7EIWuxN8kKx478gHLX
+fvfOrO2QB4iexBWd6p8UeT3v2ZnZrGv1gC8C34ltbuFzWi+8PXREu91Mnq31Z4qCYXxsNUzT
+MHSjoBsNQ28WoPkfxLKFOIxYAFCYC+Z/EfxFudf4/1PUNutvL+KQR9acz62ZP63Zb+CDCtxq
+NV6q/8eWYWb119u41o222dILoL+B71fxi9d/V3i2GzscDsPIEX5tdqSukVxxu06LPYHkTblA
+eNN1mh09Lvg6iQfBhp6YeszdoD2GdVINt8lYqWib+sDEM9T5nHlEVXcdPhEeh/HFeNg7VhTL
+YhGGextH3LJA02IP+90plVT13ndZJFwOwouAe84BkYQDGOWMeY7LA0NLrEgJCt4vqf+o37bk
+zGflFLQJHTAOSIM46YxppC0FUJRmT+rg4kBVXN+bwoJNeSj+5vgee2SOOyAZZeY4AVLJWEDy
+qpLJoqMpj7I3rUQ8MQEN1fl8ET2ieW0/cVOCQ9BLqqJgfTSjAsVVmVIRVWVgcbjABJZKZPBh
+Rtul7SC9BBi/QvGgZ9z8hXYxPjurLGOHMhh6BS4H/ZE16HWP4WuyvhqcjnoVVFWU8+6ldTk4
+/b076iGX3roX/Ys/z/vjYQWqGJhOocgsEj8dKXTSPT3rHSf+FdyFZItxvcB8/EArUjQwYRiq
+U/vLk/koym3A2R2tvuEPC0G5klX08uWkvRG3VJnHHqWVCG2xsaTkPA68pBJZiZnwNFqwYGpX
+wJ7hWVMu48u9LDhxvIiFd2FaRfFUTcxDT9+o8WMSwUGLbdkezI6E70HIcF9CZiJvIRzsnDI+
+wqzY5BR2OmCuVtdfSE0RwkOATVQrylImUaBPFvmCFO+vjZtl16Tcw856o6RkNBXOmeumpigC
+agKk+HamWgbaLn+iyTBLtGVkeIeEV01KJRZxkFbSqiV2MddayKx0xtDDymAePNfdifwc/b/e
+4kvzE5dNw2zvE5PJXmvD08/j4QC19+WuU38/ZzeVXlo1XwrafD5o898Fbf5I0KYM2vzRoCd+
+AJqQ9kCgdNqiID58SOaMinMtblACRe+05VxmdHKQDGQ2hInc1hiuzuvTSAJ3QzyGs/5Ai6VU
+mOYrOzazsSM5QW2ehJk4XvYzTVR2UFWrAo7SHlbuhOtmAVcg3afMZqqQWKlWE5v0T4MVksO4
+TPnq9KT3B55hx1rKgP19uCLScNQdjYcZubSe7vZ58T7//9v3P+zOKaf7X1gLZ2/i47X7v9lo
+Le//egPviUarbZr5/e9nYHenfiu8ejhT1U+XeGfBf+d+f9Qp1h1+n34LFFVsZevzoD++7BT3
+VqTqRlE9750PrRP8B0bWUqxO3VNUJbNT1HGVzNM1GHCjOj5eheyZD3vEh6PkKY2oilTZ07Qd
+ScSpcXyPv9Ns/ArYmv9zdocXZvctG11+/zVe/P7Tcfaf5p/OCaPZbObffz8FeN/6TVWmtg2b
+H/5Q9Tdoqmq7nHkoH8yhOtnkvncqOXLkyJEjR44cOXLkyJEjR44cOXLkyJFjBd8BQ7XGowAo
+AAA=
+--------------080901000208050906050704--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
