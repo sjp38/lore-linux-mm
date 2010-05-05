@@ -1,54 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 282BE6B0258
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 15:58:03 -0400 (EDT)
-Date: Wed, 5 May 2010 21:57:32 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the wrong VMA information
-Message-ID: <20100505195732.GD5941@random.random>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
- <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
- <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>
- <20100505145620.GP20979@csn.ul.ie>
- <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505155454.GT20979@csn.ul.ie>
- <20100505161319.GQ5835@random.random>
- <1273086685.1642.252.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1273086685.1642.252.camel@laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 55F6A62008B
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 17:03:14 -0400 (EDT)
+Received: by yxe32 with SMTP id 32so2423313yxe.11
+        for <linux-mm@kvack.org>; Wed, 05 May 2010 14:03:13 -0700 (PDT)
+From: Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br>
+Subject: [PATCH] MM: Fix NR_SECTION_ROOTS == 0 when using using sparsemem extreme.
+Date: Wed,  5 May 2010 18:02:46 -0300
+Message-Id: <1273093366-3388-1-git-send-email-mroberto@cpti.cetuc.puc-rio.br>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: mroberto@cpti.cetuc.puc-rio.br, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Stephen Rothwell <sfr@canb.auug.org.au>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, Sergei Shtylyov <sshtylyov@mvista.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 09:11:25PM +0200, Peter Zijlstra wrote:
-> On Wed, 2010-05-05 at 18:13 +0200, Andrea Arcangeli wrote:
-> > On Wed, May 05, 2010 at 04:54:54PM +0100, Mel Gorman wrote:
-> > > I'm still thinking of the ordering but one possibility would be to use a mutex
-> > 
-> > I can't take mutex in split_huge_page... so I'd need to use an other solution.
-> 
-> So how's that going to work out for my make anon_vma->lock a mutex
-> patches?
+Got this while compiling for ARM/SA1100:
 
-I'm not seeing much problem after all, even if you only switch the
-anon_vma->lock (you switch both so it's quite different), unmap_vmas
-may end up calling split_huge_page_pmd in zap_pmd_range only if the
-vma is full anonymous (I don't allow hugepages in MAP_PRIVATE yet) so
-there would be no i_mmap_lock held. But clearly if you switch _both_
-it's even safer. In any case when we make that change, it'll require
-to call split_huge_page_pmd and split_huge_page only in preemptive
-points, and there is no such requirement today, and clearly when all
-vm locking goes preemptive it'll be much natural and lower risk to
-remove that requirement from split_huge_page too.
+mm/sparse.c: In function '__section_nr':
+mm/sparse.c:135: warning: 'root' is used uninitialized in this function
 
-Also I think if we start taking mutex in anon_vma the i_mmap_lock
-should switch too at the same time. I suspect it's an arbitrary choice
-that we've to take always the i_mmap_lock before the anon_vma locks in
-mmap.c so it makes sense they move in tandem.
+This patch follows Russell King's suggestion for a new calculation for
+NR_SECTION_ROOTS. Thanks also to Sergei Shtylyov for pointing out the
+existence of the macro DIV_ROUND_UP.
+
+Signed-off-by: Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br>
+---
+ include/linux/mmzone.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index cf9e458..e90ad64 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -972,7 +972,7 @@ struct mem_section {
+ #endif
+ 
+ #define SECTION_NR_TO_ROOT(sec)	((sec) / SECTIONS_PER_ROOT)
+-#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
++#define NR_SECTION_ROOTS	DIV_ROUND_UP(NR_MEM_SECTIONS, SECTIONS_PER_ROOT)
+ #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+ 
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
