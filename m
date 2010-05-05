@@ -1,199 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C82836B028E
-	for <linux-mm@kvack.org>; Tue,  4 May 2010 22:05:02 -0400 (EDT)
-Date: Wed, 5 May 2010 02:11:44 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Transparent Hugepage Support #23
-Message-ID: <20100505001144.GB2034@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E49EC6B0221
+	for <linux-mm@kvack.org>; Tue,  4 May 2010 23:20:43 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [10.3.21.3])
+	by smtp-out.google.com with ESMTP id o453KeCu015106
+	for <linux-mm@kvack.org>; Tue, 4 May 2010 20:20:41 -0700
+Received: from gwj17 (gwj17.prod.google.com [10.200.10.17])
+	by hpaq3.eem.corp.google.com with ESMTP id o453KbpB003917
+	for <linux-mm@kvack.org>; Tue, 4 May 2010 20:20:39 -0700
+Received: by gwj17 with SMTP id 17so1956846gwj.29
+        for <linux-mm@kvack.org>; Tue, 04 May 2010 20:20:37 -0700 (PDT)
+Date: Tue, 4 May 2010 20:20:33 -0700
+From: Michel Lespinasse <walken@google.com>
+Subject: rwsem: down_read_unfair() proposal
+Message-ID: <20100505032033.GA19232@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@google.com>, Linux-MM <linux-mm@kvack.org>
+Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog;h=refs/heads/anon_vma_chain
+Hi,
 
-first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-later: git fetch; git checkout -f origin/master
+I am looking at ways to solve the following problem:
 
-To test the anon_vma_chain branch, simply use origin/anon_vma_chain
-instead of origin/master in the above checkout.
+Some cluster monitoring software we use at Google periodically accesses
+files such as /proc/<pid>/exe or /proc/<pid>/maps, which requires
+acquiring that pid's mmap_sem for read. Sometimes when the machines get
+loaded enough, this acquisition can take a long time - typically this
+happens when thread A acquires mmap_sem for reads in do_page_fault and
+gets blocked (either trying to allocate a page or trying to read from
+disk); then thread B tries to acquire mmap_sem for write and gets queued
+behind A; then the monitoring software tries to read /proc/<pid>/maps
+and gets queued behind B due to rwlock fair behavior.
 
-The tree is rebased and git pull won't work.
+We have been using patches that address these issues by allowing the
+/proc/<pid>/exe and /proc/<pid>/maps code paths to acquire the mmap_sem
+for reading in an unfair way, thus allowing the monitoring software to
+bypass thread B and acquire mmap_sem concurrently with thread A.
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc6/transparent_hugepage-23/
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc6/transparent_hugepage-23.gz
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34-rc6/transparent_hugepage-23-anon_vma_chain.gz
+This was easy to implement with the generic rwsem, and looks like it's
+doable with the x86 rwsem implementation as well in a way that would only
+involve changes to the rwsem spinlock-protected slow paths in lib/rwsem.c .
+We are still working on that code but I thought we should ask first how
+the developer community feels about the general idea.
 
-1) Now there are two branches (origin/master and
-   origin/anon_vma_chain) to checkout. origin/master uses the old
-   anon_vma code but it also stopped using vma->anon_vma->lock
-   anywhere in the huge_memory.c/huge_mm.h code, to exercise the new
-   locking that now only uses the page->mapping/anon_vma->lock in both
-   branches. So these patches are applied in both branches for more
-   testing (even if they're only strictly needed in the anon_vma_chain
-   branch).
+For reference, here is one patch we have (against 2.6.33) using
+down_read_unfair() in such a way (but with no x86 specific rwsem
+implementation yet)
 
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=6fef4ed210f321a537fd452b20e9b19a0d55d954
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=3578588348b3f14800a5a24f8e1cc965aee9d8d3
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=403a5b09bf8544da183676c221d6ff225a87566b
 
-2) both branches include the new fix for the exec vs migrate race as
-   there was a little ordering detail noticed by Mel that had to be
-   addressed to make it fully safe (likely the prev patch in #22 only
-   decreased the race window, this seems to finally close it for real
-   as Mel's initial testing also confirmed).
+Author: Ying Han <yinghan@google.com>
 
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=171f9a34ece592c9e78549ce992bcef312b8ec78
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=93a3a408115576075494decf2ae1bacb94181cda     
+    Introduce down_read_unfair()
+    
+    In down_read_unfair(), reader is not waiting non-exclusive lock
+    even a writer on the queue. Apply it to maps & exes in procfs where
+    monitoring program reads frequently.
+    
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 58324c2..d51bc55 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1367,7 +1367,7 @@ struct file *get_mm_exe_file(struct mm_struct *mm)
+ 
+ 	/* We need mmap_sem to protect against races with removal of
+ 	 * VM_EXECUTABLE vmas */
+-	down_read(&mm->mmap_sem);
++	down_read_unfair(&mm->mmap_sem);
+ 	exe_file = mm->exe_file;
+ 	if (exe_file)
+ 		get_file(exe_file);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index f277c4a..118e0cd 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -119,7 +119,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+ 	mm = mm_for_maps(priv->task);
+ 	if (!mm)
+ 		return NULL;
+-	down_read(&mm->mmap_sem);
++	down_read_unfair(&mm->mmap_sem);
+ 
+ 	tail_vma = get_gate_vma(priv->task);
+ 	priv->tail_vma = tail_vma;
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 5d9fd64..2ab484b 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -193,7 +193,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+ 		priv->task = NULL;
+ 		return NULL;
+ 	}
+-	down_read(&mm->mmap_sem);
++	down_read_unfair(&mm->mmap_sem);
+ 
+ 	/* start from the Nth VMA */
+ 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
+diff --git a/include/linux/rwsem-spinlock.h b/include/linux/rwsem-spinlock.h
+index bdfcc25..48199db 100644
+--- a/include/linux/rwsem-spinlock.h
++++ b/include/linux/rwsem-spinlock.h
+@@ -60,7 +60,8 @@ do {								\
+ 	__init_rwsem((sem), #sem, &__key);			\
+ } while (0)
+ 
+-extern void __down_read(struct rw_semaphore *sem);
++extern void __down_read_fair(struct rw_semaphore *sem);
++extern void __down_read_unfair(struct rw_semaphore *sem);
+ extern int __down_read_trylock(struct rw_semaphore *sem);
+ extern void __down_write(struct rw_semaphore *sem);
+ extern void __down_write_nested(struct rw_semaphore *sem, int subclass);
+diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
+index efd348f..65d666e 100644
+--- a/include/linux/rwsem.h
++++ b/include/linux/rwsem.h
+@@ -20,6 +20,7 @@ struct rw_semaphore;
+ #include <linux/rwsem-spinlock.h> /* use a generic implementation */
+ #else
+ #include <asm/rwsem.h> /* use an arch-specific implementation */
++#error "Missing down_read_unfair support."
+ #endif
+ 
+ /*
+@@ -28,6 +29,11 @@ struct rw_semaphore;
+ extern void down_read(struct rw_semaphore *sem);
+ 
+ /*
++ * lock for reading - skip waitting writers
++ */
++extern void down_read_unfair(struct rw_semaphore *sem);
++
++/*
+  * trylock for reading -- returns 1 if successful, 0 if contention
+  */
+ extern int down_read_trylock(struct rw_semaphore *sem);
+diff --git a/kernel/rwsem.c b/kernel/rwsem.c
+index cae050b..24578c5 100644
+--- a/kernel/rwsem.c
++++ b/kernel/rwsem.c
+@@ -21,12 +21,25 @@ void __sched down_read(struct rw_semaphore *sem)
+ 	might_sleep();
+ 	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
+ 
+-	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
++	LOCK_CONTENDED(sem, __down_read_trylock, __down_read_fair);
+ }
+ 
+ EXPORT_SYMBOL(down_read);
+ 
+ /*
++ * lock for reading - skip waitting writers
++ */
++void __sched down_read_unfair(struct rw_semaphore *sem)
++{
++	might_sleep();
++	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
++
++	LOCK_CONTENDED(sem, __down_read_trylock, __down_read_unfair);
++}
++
++EXPORT_SYMBOL(down_read_unfair);
++
++/*
+  * trylock for reading -- returns 1 if successful, 0 if contention
+  */
+ int down_read_trylock(struct rw_semaphore *sem)
+@@ -112,7 +125,7 @@ void down_read_nested(struct rw_semaphore *sem, int subclass)
+ 	might_sleep();
+ 	rwsem_acquire_read(&sem->dep_map, subclass, 0, _RET_IP_);
+ 
+-	LOCK_CONTENDED(sem, __down_read_trylock, __down_read);
++	LOCK_CONTENDED(sem, __down_read_trylock, __down_read_fair);
+ }
+ 
+ EXPORT_SYMBOL(down_read_nested);
+@@ -121,7 +134,7 @@ void down_read_non_owner(struct rw_semaphore *sem)
+ {
+ 	might_sleep();
+ 
+-	__down_read(sem);
++	__down_read_fair(sem);
+ }
+ 
+ EXPORT_SYMBOL(down_read_non_owner);
+diff --git a/lib/rwsem-spinlock.c b/lib/rwsem-spinlock.c
+index ccf95bf..8c44c08 100644
+--- a/lib/rwsem-spinlock.c
++++ b/lib/rwsem-spinlock.c
+@@ -139,14 +139,14 @@ __rwsem_wake_one_writer(struct rw_semaphore *sem)
+ /*
+  * get a read lock on the semaphore
+  */
+-void __sched __down_read(struct rw_semaphore *sem)
++void __sched __down_read(struct rw_semaphore *sem, int unfair)
+ {
+ 	struct rwsem_waiter waiter;
+ 	struct task_struct *tsk;
+ 
+ 	spin_lock_irq(&sem->wait_lock);
+ 
+-	if (sem->activity >= 0 && list_empty(&sem->wait_list)) {
++	if (sem->activity >= 0 && (unfair || list_empty(&sem->wait_list))) {
+ 		/* granted */
+ 		sem->activity++;
+ 		spin_unlock_irq(&sem->wait_lock);
+@@ -161,7 +161,11 @@ void __sched __down_read(struct rw_semaphore *sem)
+ 	waiter.flags = RWSEM_WAITING_FOR_READ;
+ 	get_task_struct(tsk);
+ 
+-	list_add_tail(&waiter.list, &sem->wait_list);
++	if (unfair) {
++		list_add(&waiter.list, &sem->wait_list);
++	} else {
++		list_add_tail(&waiter.list, &sem->wait_list);
++	}
+ 
+ 	/* we don't need to touch the semaphore struct anymore */
+ 	spin_unlock_irq(&sem->wait_lock);
+@@ -180,6 +184,22 @@ void __sched __down_read(struct rw_semaphore *sem)
+ }
+ 
+ /*
++ * wrapper for fair __down_read
++ */
++void __sched __down_read_fair(struct rw_semaphore *sem)
++{
++	__down_read(sem, 0);
++}
++
++/*
++ * wrapper for unfair __down_read
++ */
++void __sched __down_read_unfair(struct rw_semaphore *sem)
++{
++	__down_read(sem, 1);
++}
++
++/*
+  * trylock for reading -- returns 1 if successful, 0 if contention
+  */
+ int __down_read_trylock(struct rw_semaphore *sem)
 
-3) The anon_vma_chain branch includes Rik's patch to fix migration
-   crashes and split_huge_page crashes without requiring the rmap_walk
-   to take any more lock than the page->mapping/anon_vma->lock as
-   usual. So thanks to this and thanks to the other changes to the
-   locking in point1), split_huge_page has a chance to be safe on the
-   anon_vma_chain code.
 
-   http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commit;h=03606d7ae00b148e01b604f7fce82c74e9566ea3
-
-4) the transparent_hugepage= boot parameter now accepts
-   always|madvise|never and no numbers anymore. it's simpler to use
-   this way and less dependent on internal defines. removed the
-   no_transparent_hugepage parameter, transparent_hugepage=never is
-   simple enough. as usual set_recommended_min_free_kbytes if
-   transparent_hugepage=never is passed at boot. Added the boot param
-   doc to vm/transhuge.txt accordingly.
-
-5) Minor doc cleanups.
-
-So now that it should work safe with anon_vma_chain too, we're aligned
-for merging into -mm or mainline when next window opens.
-
-The big picture document with also the documentation on locking and
-design here:
-
-       http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=blob_plain;f=Documentation/vm/transhuge.txt;hb=HEAD
-
-I left benchmarks out as there are a bit too many.
-
-Let me know what else is needed to comply for future merging so I can
-prepare it in advance. (only thing that comes to mind is to try the
-kernel build with perf to provide further data on the very workload we
-run all the time, and the MAP_ALIGN for mmap suggested by Ulrich but
-it's an independent feature)
-
-Thanks!
-Andrea
-
-----
-Most of the diff from #22 in the source repo (as in the ftp directory)
-involved duplicating some patches to generate a old-anon_vma and
-new-anon_vma version and to add proper qguards to qselect to maintain
-both trees at the same time.
-
- b/anon-vma-lock-fix                             |  247 ++++++++++++++++++++++++
- b/exec-migrate-race                             |   84 ++++++--
- b/exec-migrate-race-anon_vma-chain              |  146 ++++++++++++++
- b/khugepaged                                    |   43 ----
- b/khugepaged-vma-merge-anon_vma                 |   52 +++++
- b/khugepaged-vma-merge-anon_vma-chain           |   52 +++++
- b/mincore-break-do_mincore-into-logical-pieces  |    2 
- b/mincore-cleanups                              |    2 
- b/mincore-do-nested-page-table-walks            |    2 
- b/mincore-pass-ranges-as-startend-address-pairs |    2 
- b/mincore-transhuge-anon_vma-chain              |   69 ++++++
- b/mprotect-transhuge-anon_vma-chain             |   21 ++
- b/series                                        |   19 +
- b/split_huge_page-anon_vma-chain-order          |   58 +++++
- b/split_huge_page-old-anon-vma                  |   39 +++
- b/transparent_hugepage                          |   53 +++--
- b/transparent_hugepage-anon_vma-chain           |  203 +++++++++++++++++++
- b/transparent_hugepage-doc                      |   20 +
- b/transparent_hugepage_vmstat                   |   14 -
- b/transparent_hugepage_vmstat-anon_vma-chain    |  129 ++++++++++++
- page-anon-vma                                   |   39 ---
- 21 files changed, 1166 insertions(+), 130 deletions(-)
-
-anon_vma_chain version (so not to include the backout diff):
-
- Documentation/cgroups/memory.txt      |    4 
- Documentation/sysctl/vm.txt           |   25 
- Documentation/vm/transhuge.txt        |  283 ++++
- arch/alpha/include/asm/mman.h         |    2 
- arch/mips/include/asm/mman.h          |    2 
- arch/parisc/include/asm/mman.h        |    2 
- arch/powerpc/mm/gup.c                 |   12 
- arch/x86/include/asm/paravirt.h       |   23 
- arch/x86/include/asm/paravirt_types.h |    6 
- arch/x86/include/asm/pgtable-2level.h |    9 
- arch/x86/include/asm/pgtable-3level.h |   23 
- arch/x86/include/asm/pgtable.h        |  144 ++
- arch/x86/include/asm/pgtable_64.h     |   14 
- arch/x86/include/asm/pgtable_types.h  |    3 
- arch/x86/kernel/paravirt.c            |    3 
- arch/x86/kernel/vm86_32.c             |    1 
- arch/x86/kvm/mmu.c                    |   21 
- arch/x86/kvm/paging_tmpl.h            |    4 
- arch/x86/mm/gup.c                     |   25 
- arch/x86/mm/pgtable.c                 |   66 +
- arch/xtensa/include/asm/mman.h        |    2 
- drivers/base/node.c                   |    3 
- fs/Kconfig                            |    2 
- fs/exec.c                             |   37 
- fs/proc/meminfo.c                     |   14 
- fs/proc/page.c                        |   14 
- include/asm-generic/mman-common.h     |    2 
- include/asm-generic/pgtable.h         |  130 ++
- include/linux/compaction.h            |   89 +
- include/linux/gfp.h                   |   14 
- include/linux/huge_mm.h               |  132 ++
- include/linux/khugepaged.h            |   66 +
- include/linux/memory_hotplug.h        |   14 
- include/linux/mm.h                    |   90 +
- include/linux/mm_inline.h             |   13 
- include/linux/mm_types.h              |    3 
- include/linux/mmu_notifier.h          |   40 
- include/linux/mmzone.h                |   10 
- include/linux/page-flags.h            |   36 
- include/linux/rmap.h                  |   30 
- include/linux/sched.h                 |    1 
- include/linux/swap.h                  |    8 
- include/linux/vmstat.h                |    4 
- kernel/fork.c                         |   12 
- kernel/futex.c                        |   67 -
- kernel/sysctl.c                       |   25 
- mm/Kconfig                            |   56 
- mm/Makefile                           |    2 
- mm/compaction.c                       |  622 +++++++++
- mm/huge_memory.c                      | 2199 ++++++++++++++++++++++++++++++++++
- mm/hugetlb.c                          |   69 -
- mm/ksm.c                              |   48 
- mm/madvise.c                          |    8 
- mm/memcontrol.c                       |   88 -
- mm/memory-failure.c                   |    2 
- mm/memory.c                           |  179 ++
- mm/memory_hotplug.c                   |   14 
- mm/mempolicy.c                        |   14 
- mm/migrate.c                          |   66 -
- mm/mincore.c                          |  303 ++--
- mm/mmap.c                             |    5 
- mm/mprotect.c                         |   20 
- mm/mremap.c                           |    8 
- mm/page_alloc.c                       |  132 +-
- mm/pagewalk.c                         |    1 
- mm/rmap.c                             |  120 +
- mm/sparse.c                           |    4 
- mm/swap.c                             |  116 +
- mm/swap_state.c                       |    6 
- mm/swapfile.c                         |    2 
- mm/vmscan.c                           |   42 
- mm/vmstat.c                           |  256 +++
- 72 files changed, 5454 insertions(+), 458 deletions(-)
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
