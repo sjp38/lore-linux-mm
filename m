@@ -1,126 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E1D26B029B
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 13:37:34 -0400 (EDT)
-Date: Wed, 5 May 2010 10:34:03 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BE20B62008B
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 13:53:32 -0400 (EDT)
+Date: Wed, 5 May 2010 18:53:11 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the wrong VMA information
-In-Reply-To: <20100505155454.GT20979@csn.ul.ie>
-Message-ID: <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org>
+	the wrong VMA information
+Message-ID: <20100505175311.GU20979@csn.ul.ie>
 References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505155454.GT20979@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Wed, 5 May 2010, Mel Gorman wrote:
+On Wed, May 05, 2010 at 08:31:42AM -0700, Linus Torvalds wrote:
+> That said, I do wonder if we could _make_ the ordering reliable. I did 
+> that for the 'same_vma' one, because I wanted to be able to verify that 
+> chains were consistent (and we also needed to be able to find the "oldest 
+> anon_vma" for the case of re-instantiating pages that migth exist in 
+> multiple different anon_vma's).
 > 
-> I'm still thinking of the ordering but one possibility would be to use a mutex
-> similar to mm_all_locks_mutex to force the serialisation of rmap_walk instead
-> of the trylock-and-retry. That way, the ordering wouldn't matter. It would
-> slow migration if multiple processes are migrating pages by some unknowable
-> quantity but it would avoid livelocking.
+> Any ideas?
+> 
 
-Hmm.. An idea is starting to take form..
+If the same_vma list is properly ordered then maybe something like the
+following is allowed?
 
-How about something like this?
+(This patch is on top of mm,migration: Prevent rmap_walk_[anon|ksm]
+seeing the wrong VMA information)
 
- - the lock is per-anon_vma
+At least it booted and did not immediately kill itself during migration.
+It's less clear what to do for KSM but I'm ignoring it for the moment.
 
-BUT
+==== CUT HERE ====
+mm,migration: In rmap_walk, always take the locks in the same order
 
- - you always lock the _deepest_ anon_vma you can find.
+---
+ include/linux/rmap.h |   32 ++++++++++++++++++++++++++++++++
+ mm/ksm.c             |    5 +----
+ mm/rmap.c            |   13 ++-----------
+ 3 files changed, 35 insertions(+), 15 deletions(-)
 
-That means just a single lock. And the "deepest" anon_vma is well-defined 
-for all anon_vma's, because each same_anon_vma chain is always rooted in 
-the original anon_vma that caused it.
-
->From the vma, it's simply
-	avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-	anon_vma = avc->anon_vma;
-
-and once you take that lock, you know you've gotten the lock for all 
-chains related to that page. We _know_ that every single vma that is 
-associated with that anon_vma must have a chain that eventually ends in 
-that entry.
-
-So I wonder if the locking can't be just something like this:
-
-   struct anon_vma *lock_anon_vma_root(struct page *page)
-   {
-	struct anon_vma *anon_vma, *root;
-
-	rcu_read_lock();
-	anon_vma = page_anon_vma(page);
-	if (!anon_vma)
-		return ret;
-	/* Make sure the anon_vma 'same_anon_vma' list is stable! */
-	spin_lock(&anon_vma->lock);
-	root = NULL;
-	if (!list_empty(&anon_vma->head)) {
-		struct anon_vma_chain *avc;
-		struct vm_area_struct *vma;
-		struct anon_vma *root;
-		avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
-		vma = avc->vma;
-		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-		root = avc->anon_vma;
-	}
-	/* We already locked it - anon_vma _was_ the root */
-	if (root == anon_vma)
-		return root;
-	spin_unlock(&anon_vma->lock);
-	if (root) {
-		spin_lock(&root->lock);
-		return root;
-	}
-	rcu_read_unlock();
-	return NULL;
-   }
-
-and
-
-   void unlock_anon_vma_root(struct anon_vma *root)
-   {
-	spin_unlock(&root->lock);
-	rcu_read_unlock();
-   }
-
-or something. I agree that the above is not _beautiful_, and it's not 
-exactly simple, but it does seem to have the absolutely huge advantage 
-that it is a nice O(1) thing that only ever takes a single lock and has no 
-nesting. And while the code looks complicated, it's based on a pretty 
-simple constraint on the anon_vma's that we already require (ie that all 
-related anon_vma chains have to end up at the same root anon_vma).
-
-In other words: _any_ vma that is associated with _any_ related anon_vma 
-will always end up feeding up to the same root anon_vma.
-
-I do think other people should think this through. And it needs a comment 
-that really explains all this.
-
-(And the code above is written in my email editor - it has not been 
-tested, compiled, or anythign else. It may _look_ like real code, but 
-think of it as pseudo-code where the explanation for the code is more 
-important than the exact details.
-
-NOTE NOTE NOTE! In particular, I think that the 'rcu_read_lock()' and the 
-actual lookup of the anon_vma (ie the "anon_vma = page_anon_vma(page)") 
-part should probably be in the callers. I put it in the pseudo-code itself 
-to just show how you go from a 'struct page' to the "immediate" anon_vma 
-it is associated with, and from that to the "root" anon_vma of the whole 
-chain.
-
-And maybe I'm too clever for myself, and I've made some fundamental 
-mistake that means that the above doesn't work.
-
-			Linus
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 7721674..749aaca 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -99,6 +99,38 @@ static inline struct anon_vma *page_anon_vma(struct page *page)
+ 	return page_rmapping(page);
+ }
+ 
++static inline struct anon_vma *page_anon_vma_lock_oldest(struct page *page)
++{
++	struct anon_vma *anon_vma, *oldest_anon_vma;
++	struct anon_vma_chain *avc, *oldest_avc;
++
++	/* Get the pages anon_vma */
++	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
++					    PAGE_MAPPING_ANON)
++		return NULL;
++	anon_vma = page_rmapping(page);
++	if (!anon_vma)
++		return NULL;
++
++	spin_lock(&anon_vma->lock);
++
++	/*
++	 * Get the oldest anon_vma on the list by depending on the ordering
++	 * of the same_vma list setup by __page_set_anon_rmap
++	 */
++	avc = list_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
++	oldest_avc = list_entry(avc->vma->anon_vma_chain.prev,
++				struct anon_vma_chain, same_vma);
++	oldest_anon_vma = oldest_avc->anon_vma;
++
++	if (anon_vma != oldest_anon_vma) {
++		spin_lock(&oldest_anon_vma->lock);
++		spin_unlock(&anon_vma->lock);
++	}
++
++	return oldest_anon_vma;
++}
++
+ static inline void anon_vma_lock(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 0c09927..113f972 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1680,10 +1680,7 @@ again:
+ 			locked_vma = NULL;
+ 			if (anon_vma != vma->anon_vma) {
+ 				locked_vma = vma->anon_vma;
+-				if (!spin_trylock(&locked_vma->lock)) {
+-					spin_unlock(&anon_vma->lock);
+-					goto again;
+-				}
++				spin_lock(&locked_vma->lock);
+ 			}
+ 
+ 			if (rmap_item->address < vma->vm_start ||
+diff --git a/mm/rmap.c b/mm/rmap.c
+index f7ed89f..ae37a63 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1368,26 +1368,17 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
+ 	 */
+-retry:
+-	anon_vma = page_anon_vma(page);
++	anon_vma = page_anon_vma_lock_oldest(page);
+ 	if (!anon_vma)
+ 		return ret;
+-	spin_lock(&anon_vma->lock);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+ 		unsigned long address;
+ 
+-		/*
+-		 * Guard against deadlocks by not spinning against
+-		 * vma->anon_vma->lock. On contention release and retry
+-		 */
+ 		locked_vma = NULL;
+ 		if (anon_vma != vma->anon_vma) {
+ 			locked_vma = vma->anon_vma;
+-			if (!spin_trylock(&locked_vma->lock)) {
+-				spin_unlock(&anon_vma->lock);
+-				goto retry;
+-			}
++			spin_lock(&locked_vma->lock);
+ 		}
+ 		address = vma_address(page, vma);
+ 		if (address != -EFAULT)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
