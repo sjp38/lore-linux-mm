@@ -1,71 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 589836B023B
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 14:17:49 -0400 (EDT)
-Date: Wed, 5 May 2010 19:17:28 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 673066B0255
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 14:36:13 -0400 (EDT)
+Date: Wed, 5 May 2010 11:34:05 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
-	the wrong VMA information
-Message-ID: <20100505181728.GW20979@csn.ul.ie>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org> <20100505175311.GU20979@csn.ul.ie> <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org>
+ the wrong VMA information
+In-Reply-To: <20100505181456.GV20979@csn.ul.ie>
+Message-ID: <alpine.LFD.2.00.1005051118540.27218@i5.linux-foundation.org>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
+ <20100505155454.GT20979@csn.ul.ie> <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org> <20100505181456.GV20979@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 11:02:25AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Wed, 5 May 2010, Mel Gorman wrote:
-> > 
-> > If the same_vma list is properly ordered then maybe something like the
-> > following is allowed?
-> 
-> Heh. This is the same logic I just sent out. However:
-> 
-> > +	anon_vma = page_rmapping(page);
-> > +	if (!anon_vma)
-> > +		return NULL;
-> > +
-> > +	spin_lock(&anon_vma->lock);
-> 
-> RCU should guarantee that this spin_lock() is valid, but:
-> 
-> > +	/*
-> > +	 * Get the oldest anon_vma on the list by depending on the ordering
-> > +	 * of the same_vma list setup by __page_set_anon_rmap
-> > +	 */
-> > +	avc = list_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
-> 
-> We're not guaranteed that the 'anon_vma->head' list is non-empty.
-> 
-> Somebody could have freed the list and the anon_vma and we have a stale 
-> 'page->anon_vma' (that has just not been _released_ yet). 
-> 
 
-Ahh, fair point. I asked in the other mail was the empty list check
-necessary - it is. Thanks
 
-> And shouldn't that be 'list_first_entry'? Or &anon_vma->head.next?
+On Wed, 5 May 2010, Mel Gorman wrote:
 > 
+> In the direction I was taking, only rmap_walk took the deepest lock (I called
+> it oldest but hey) and would take other anon_vma locks as well. The objective
+> was to make sure the order the locks were taken in was correct.
+>
+> I think you are suggesting that any anon_vma lock that is taken should always
+> take the deepest lock. Am I right and is that necessary? The downsides is that
+> there is a single lock that is hotter. The upside is that rmap_walk no longer
+> has different semantics as vma_adjust and friends because it's the same lock.
 
-Should have been list_first_entry.
+I could personally go either way, I don't really care that deeply.
 
-> How did that line actually work for you? Or was it just a "it boots", but 
-> no actual testing of the rmap walk?
+I think you could easily just take the root lock in the rmap_walk_anon/ksm 
+paths, and _also_ take the individual locks as you walk it (safe, since 
+now the root lock avoids the ABBA issue - you only need to compare the 
+individual lock against the root lock to not take it twice, of course).
+
+Or you could take the "heavy lock" approach that Andrea was arguing for, 
+but rather than iterating you'd just take the root lock.
+
+I absolutely _hated_ the "iterate over all locks in the normal case" idea, 
+but with the root lock it's much more targeted and no longer is about 
+nested locks of the same type.
+
+So the things I care about are just:
+
+ - I hate that "retry" logic that made things more complex and had the 
+   livelock problem.
+
+   The "root lock" helper function certainly wouldn't be any fewer lines 
+   than your retry version, but it's a clearly separate locking function, 
+   rather than mixed in with the walking code. And it doesn't do livelock.
+
+ - I detest "take all locks" in normal paths. I'm ok with it for special 
+   case code (and I think the migrate code counts as special case), but I 
+   think it was really horribly and fundamentally wrong in that "mm: Take 
+   all anon_vma locks in anon_vma_lock" patch I saw.
+
+but whether we want to take the root lock in "anon_vma_lock()" or not is 
+just a "detail" as far as I'm concerned. It's no longer "horribly wrong". 
+It might have scalability issues etc, of course, but likely only under 
+insane loads.
+
+So either way works for me. 
+
+> > 	if (!list_empty(&anon_vma->head)) {
 > 
+> Can it be empty? I didn't think it was possible as the anon_vma must
+> have at least it's own chain.
 
-It's currently running a migration-related stress test without any
-deadlocks or lockdep wobbly so far.
+Ok, so that was answered in the other email - I think it's necessary in 
+the general case, although depending on exactly _how_ the page was looked 
+up, that may not be true.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+If you have guarantees that the page is still mapped (thanks for page 
+table lock or something) and the anon_vma can't go away (just a read lock 
+on a mm_sem that was used to look up the page would also be sufficient), 
+that list_empty() check is unnecessary.
+
+So it's a bit context-dependent.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
