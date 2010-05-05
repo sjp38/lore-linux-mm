@@ -1,149 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE85620089
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0785362008B
 	for <linux-mm@kvack.org>; Wed,  5 May 2010 09:14:46 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/2] Fix migration races in rmap_walk() V5
-Date: Wed,  5 May 2010 14:14:39 +0100
-Message-Id: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information
+Date: Wed,  5 May 2010 14:14:40 +0100
+Message-Id: <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-So, V4 wasn't to everyone liking so here is another variation of the fix
-needed for migration-related races on VMA adjustments. From V4, patch 1 is
-a different approach where as patch 2 is the same except a minor bug on
-anon_vma ordering is fixed. If these can be agreed upon, it'd be nice to
-get a fix in for 2.6.34.
+vma_adjust() is updating anon VMA information without locks being taken.
+In contrast, file-backed mappings use the i_mmap_lock and this lack of
+locking can result in races with users of rmap_walk such as page migration.
+vma_address() can return -EFAULT for an address that will soon be valid.
+For migration, this potentially leaves a dangling migration PTE behind
+which can later cause a BUG_ON to trigger when the page is faulted in.
 
-Changelog since V4
-  o Switch back anon_vma locking to put bulk of locking in rmap_walk
-  o Fix anon_vma lock ordering in exec vs migration race
+With the recent anon_vma changes, there can be more than one anon_vma->lock
+to take in a anon_vma_chain but a second lock cannot be spinned upon in case
+of deadlock. The rmap walker tries to take locks of different anon_vma's
+but if the attempt fails, locks are released and the operation is restarted.
 
-Changelog since V3
-  o Rediff against the latest upstream tree
-  o Improve the patch changelog a little (thanks Peterz)
+For vma_adjust(), the locking behaviour prior to the anon_vma is restored
+so that rmap_walk() can be sure of the integrity of the VMA information and
+lists when the anon_vma lock is held. With this patch, the vma->anon_vma->lock
+is taken if
 
-Changelog since V2
-  o Drop fork changes
-  o Avoid pages in temporary stacks during exec instead of migration pte
-    lazy cleanup
-  o Drop locking-related patch and replace with Rik's
+	a) If there is any overlap with the next VMA due to the adjustment
+	b) If there is a new VMA is being inserted into the address space
+	c) If the start of the VMA is being changed so that the
+	   relationship between vm_start and vm_pgoff is preserved
+	   for vma_address()
 
-Changelog since V1
-  o Handle the execve race
-  o Be sure that rmap_walk() releases the correct VMA lock
-  o Hold the anon_vma lock for the address lookup and the page remap
-  o Add reviewed-bys
-
-Broadly speaking, migration works by locking a page, unmapping it, putting
-a migration PTE in place that looks like a swap entry, copying the page and
-remapping the page removing the old migration PTE before unlocking the page.
-If a fault occurs, the faulting process waits until migration completes.
-
-The problem is that there are some races that either allow migration PTEs
-to be left left behind. Migration still completes and the page is unlocked
-but later a fault will call migration_entry_to_page() and BUG() because the
-page is not locked. It's not possible to just clean up the migration PTE
-because the page it points to has been potentially freed and reused. This
-series aims to close the races.
-
-Patch 1 of this series is about the of locking of anon_vma in migration
-versus vma_adjust. While I am not aware of any reproduction cases, it is
-potentially racy. This patch is an alternative to Rik's more comprehensive
-locking approach posted at http://lkml.org/lkml/2010/5/3/155 and uses
-trylock-and-retry logic in rmap_walk until it can lock all the anon_vmas
-without contention. In vma_adjust, the anon_vma locks are acquired under
-similar conditions to 2.6.33. The rmap_walk changes potentially slows
-down migration and aspects of page reclaim a little but they are the less
-important path.
-
-Patch 2 of this series addresses the swapops bug reported that is a race
-between migration and execve where pages get migrated from the temporary
-stack before it is moved. To avoid migration PTEs being left behind,
-a temporary VMA is put in place so that a migration PTE in either the
-temporary stack or the relocated stack can be found.
-
-The reproduction case for the races was as follows;
-
-1. Run kernel compilation in a loop
-2. Start four processes, each of which creates one mapping. The three stress
-   different aspects of the problem. The operations they undertake are;
-	a) Forks a hundred children, each of which faults the mapping
-		Purpose: stress tests migration pte removal
-	b) Forks a hundred children, each which punches a hole in the mapping
-	   and faults what remains
-		Purpose: stress test VMA manipulations during migration
-	c) Forks a hundred children, each of which execs and calls echo
-		Purpose: stress test the execve race
-	d) Size the mapping to be 1.5 times physical memory. Constantly
-	   memset it
-		Purpose: stress swapping
-3. Constantly compact memory using /proc/sys/vm/compact_memory so migration
-   is active all the time. In theory, you could also force this using
-   sys_move_pages or memory hot-remove but it'd be nowhere near as easy
-   to test.
-
-Compaction is the easiest way to trigger these bugs which is not going to
-be in 2.6.34 but in theory the problem also affects memory hot-remove.
-
-There were some concerns with patch 2 that performance would be impacted. To
-check if this was the case I ran kernbench, aim9 and sysbench. AIM9 in
-particular was of interest as it has an exec microbenchmark.
-
-             kernbench-vanilla    fixraces-v5r1
-Elapsed mean     103.40 ( 0.00%)   103.35 ( 0.05%)
-Elapsed stddev     0.09 ( 0.00%)     0.13 (-55.72%)
-User    mean     313.50 ( 0.00%)   313.15 ( 0.11%)
-User    stddev     0.61 ( 0.00%)     0.20 (66.70%)
-System  mean      55.50 ( 0.00%)    55.85 (-0.64%)
-System  stddev     0.48 ( 0.00%)     0.15 (68.98%)
-CPU     mean     356.25 ( 0.00%)   356.50 (-0.07%)
-CPU     stddev     0.43 ( 0.00%)     0.50 (-15.47%)
-
-Nothing special there and kernbench is fork+exec heavy. The patched kernel
-is slightly faster on wall time but it's well within the noise. System time
-is slightly slower but again, it's within the noise.
-
-AIM9
-                  aim9-vanilla    fixraces-v5r1
-creat-clo     116813.86 ( 0.00%)  117980.34 ( 0.99%)
-page_test     270923.33 ( 0.00%)  268668.56 (-0.84%)
-brk_test     2551558.07 ( 0.00%) 2649450.00 ( 3.69%)
-signal_test   279866.67 ( 0.00%)  279533.33 (-0.12%)
-exec_test        226.67 ( 0.00%)     232.67 ( 2.58%)
-fork_test       4261.91 ( 0.00%)    4110.98 (-3.67%)
-link_test      53534.78 ( 0.00%)   54076.49 ( 1.00%)
-
-So, here exec and fork aren't showing up major worries. exec is faster but
-these tests can be so sensitive to starting conditions that I tend not to
-read much into them unless there are major differences.
-
-SYSBENCH
-              sysbench-vanilla    fixraces-v5r1
-           1 14177.73 ( 0.00%) 14218.41 ( 0.29%)
-           2 27647.23 ( 0.00%) 27774.14 ( 0.46%)
-           3 31395.69 ( 0.00%) 31499.95 ( 0.33%)
-           4 49866.54 ( 0.00%) 49713.49 (-0.31%)
-           5 49919.58 ( 0.00%) 49524.21 (-0.80%)
-           6 49532.97 ( 0.00%) 49397.60 (-0.27%)
-           7 49465.79 ( 0.00%) 49384.14 (-0.17%)
-           8 49483.33 ( 0.00%) 49186.49 (-0.60%)
-
-These figures also show no differences worth talking about.
-
-While the extra allocation in patch 2 would appear to slow down exec somewhat,
-it's not by any amount that matters. As it is in exec, it means that anon_vmas
-have likely been freed very recently so the allocation will be cache-hot and
-cpu-local. It is possible to special-case migration to avoid migrating pages
-in the temporary stack, but fixing it in exec is a more maintainable approach.
-
- fs/exec.c |   37 +++++++++++++++++++++++++++++++++----
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
  mm/ksm.c  |   22 ++++++++++++++++++++--
  mm/mmap.c |    9 +++++++++
  mm/rmap.c |   28 +++++++++++++++++++++++-----
- 4 files changed, 85 insertions(+), 11 deletions(-)
+ 3 files changed, 52 insertions(+), 7 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 3666d43..0c09927 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1668,15 +1668,28 @@ int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
+ again:
+ 	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+ 		struct anon_vma *anon_vma = rmap_item->anon_vma;
++		struct anon_vma *locked_vma;
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+ 		spin_lock(&anon_vma->lock);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
++
++			/* See comment in mm/rmap.c#rmap_walk_anon on locking */
++			locked_vma = NULL;
++			if (anon_vma != vma->anon_vma) {
++				locked_vma = vma->anon_vma;
++				if (!spin_trylock(&locked_vma->lock)) {
++					spin_unlock(&anon_vma->lock);
++					goto again;
++				}
++			}
++
+ 			if (rmap_item->address < vma->vm_start ||
+ 			    rmap_item->address >= vma->vm_end)
+-				continue;
++				goto next_vma;
++
+ 			/*
+ 			 * Initially we examine only the vma which covers this
+ 			 * rmap_item; but later, if there is still work to do,
+@@ -1684,9 +1697,14 @@ again:
+ 			 * were forked from the original since ksmd passed.
+ 			 */
+ 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
+-				continue;
++				goto next_vma;
+ 
+ 			ret = rmap_one(page, vma, rmap_item->address, arg);
++
++next_vma:
++			if (locked_vma)
++				spin_unlock(&locked_vma->lock);
++
+ 			if (ret != SWAP_AGAIN) {
+ 				spin_unlock(&anon_vma->lock);
+ 				goto out;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..d635132 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -505,6 +505,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 	struct vm_area_struct *next = vma->vm_next;
+ 	struct vm_area_struct *importer = NULL;
+ 	struct address_space *mapping = NULL;
++	struct anon_vma *anon_vma = NULL;
+ 	struct prio_tree_root *root = NULL;
+ 	struct file *file = vma->vm_file;
+ 	long adjust_next = 0;
+@@ -578,6 +579,11 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
+ 
++	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
++		anon_vma = vma->anon_vma;
++		spin_lock(&anon_vma->lock);
++	}
++
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +626,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (anon_vma)
++		spin_unlock(&anon_vma->lock);
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 85f203e..f7ed89f 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1358,7 +1358,7 @@ int try_to_munlock(struct page *page)
+ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+-	struct anon_vma *anon_vma;
++	struct anon_vma *anon_vma, *locked_vma;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1368,16 +1368,34 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
+ 	 */
++retry:
+ 	anon_vma = page_anon_vma(page);
+ 	if (!anon_vma)
+ 		return ret;
+ 	spin_lock(&anon_vma->lock);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+-		unsigned long address = vma_address(page, vma);
+-		if (address == -EFAULT)
+-			continue;
+-		ret = rmap_one(page, vma, address, arg);
++		unsigned long address;
++
++		/*
++		 * Guard against deadlocks by not spinning against
++		 * vma->anon_vma->lock. On contention release and retry
++		 */
++		locked_vma = NULL;
++		if (anon_vma != vma->anon_vma) {
++			locked_vma = vma->anon_vma;
++			if (!spin_trylock(&locked_vma->lock)) {
++				spin_unlock(&anon_vma->lock);
++				goto retry;
++			}
++		}
++		address = vma_address(page, vma);
++		if (address != -EFAULT)
++			ret = rmap_one(page, vma, address, arg);
++
++		if (locked_vma)
++			spin_unlock(&locked_vma->lock);
++
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
