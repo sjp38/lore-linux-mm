@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E31EB600374
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 07:22:12 -0400 (EDT)
-From: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Subject: [PATCH 2/2] mm: memcontrol - uninitialised return value
-Date: Wed,  5 May 2010 14:21:49 +0300
-Message-Id: <1273058509-16625-2-git-send-email-ext-phil.2.carmody@nokia.com>
-In-Reply-To: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
-References: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9EC28600374
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 08:19:42 -0400 (EDT)
+Date: Wed, 5 May 2010 14:19:08 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] fix count_vm_event preempt in memory compaction direct
+ reclaim
+Message-ID: <20100505121908.GA5835@random.random>
+References: <1271797276-31358-1-git-send-email-mel@csn.ul.ie>
+ <1271797276-31358-13-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1271797276-31358-13-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyu@jp.fujitsu.com
-Cc: akpm@linux-foundation.org, kirill@shutemov.name, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Phil Carmody <ext-phil.2.carmody@nokia.com>
+On Tue, Apr 20, 2010 at 10:01:14PM +0100, Mel Gorman wrote:
+> +		if (page) {
+> +			__count_vm_event(COMPACTSUCCESS);
+> +			return page;
 
-Only an out of memory error will cause ret to be set.
+==
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
-Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
+Preempt is enabled so it must use count_vm_event.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 90e32b2..09af773 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3464,7 +3464,7 @@ static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
- 	int type = MEMFILE_TYPE(cft->private);
- 	u64 usage;
- 	int size = 0;
--	int i, j, ret;
-+	int i, j, ret = 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1768,7 +1768,7 @@ __alloc_pages_direct_compact(gfp_t gfp_m
+ 				alloc_flags, preferred_zone,
+ 				migratetype);
+ 		if (page) {
+-			__count_vm_event(COMPACTSUCCESS);
++			count_vm_event(COMPACTSUCCESS);
+ 			return page;
+ 		}
  
- 	mutex_lock(&memcg->thresholds_lock);
- 	if (type == _MEM)
--- 
-1.6.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
