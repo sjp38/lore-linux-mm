@@ -1,46 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8CAFA62008B
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 12:13:50 -0400 (EDT)
-Date: Wed, 5 May 2010 18:13:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the wrong VMA information
-Message-ID: <20100505161319.GQ5835@random.random>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
- <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
- <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>
- <20100505145620.GP20979@csn.ul.ie>
- <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505155454.GT20979@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with ESMTP id 0108C62008B
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 12:16:40 -0400 (EDT)
+Date: Thu, 6 May 2010 02:16:32 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] cache last free vmap_area to avoid restarting beginning
+Message-ID: <20100505161632.GB5378@laptop>
+References: <1271262948.2233.14.camel@barrios-desktop>
+ <1271320388.2537.30.camel@localhost>
+ <1271350270.2013.29.camel@barrios-desktop>
+ <1271427056.7196.163.camel@localhost.localdomain>
+ <1271603649.2100.122.camel@barrios-desktop>
+ <1271681929.7196.175.camel@localhost.localdomain>
+ <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
+ <1272548602.7196.371.camel@localhost.localdomain>
+ <1272821394.2100.224.camel@barrios-desktop>
+ <1273063728.7196.385.camel@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100505155454.GT20979@csn.ul.ie>
+In-Reply-To: <1273063728.7196.385.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 04:54:54PM +0100, Mel Gorman wrote:
-> I'm still thinking of the ordering but one possibility would be to use a mutex
+On Wed, May 05, 2010 at 01:48:48PM +0100, Steven Whitehouse wrote:
+> Hi,
+> 
+> On Mon, 2010-05-03 at 02:29 +0900, Minchan Kim wrote:
+> > Hi, Steven. 
+> > 
+> > Sorry for lazy response.
+> > I wanted to submit the patch which implement Nick's request whole.
+> > And unfortunately, I am so busy now. 
+> > But if it's urgent, I want to submit this one firstly and 
+> > at next version, maybe I will submit remained TODO things 
+> > after middle of May.
+> > 
+> > I think this patch can't make regression other usages.
+> > Nick. What do you think about?
+> > 
+> I guess the question is whether the remaining items are essential for
+> correct functioning of this patch, or whether they are "it would be nice
+> if" items. I suspect that they are the latter (I'm not a VM expert, but
+> from the brief descriptions it looks like that to me) in which case I'd
+> suggest send the currently existing patch first and the following up
+> with the remaining changes later.
+> 
+> We have got a nice speed up with your current patch and so far as I'm
+> aware not introduced any new bugs or regressions with it.
+> 
+> Nick, does that sound ok?
 
-I can't take mutex in split_huge_page... so I'd need to use an other solution.
+Just got around to looking at it again. I definitely agree we need to
+fix the regression, however I'm concerned about introducing other
+possible problems while doing that.
 
-> Not yet.
+The following patch should (modulo bugs, but it's somewhat tested) give
+no difference in the allocation patterns, so won't introduce virtual
+memory layout changes.
 
-Rik's patch that takes the locks in the faster path is preferable to
-me, it's just simpler, you know the really "strong" long is the
-page->mapping/anon_vma->lock and nothing else. You've a page, you take
-that lock, you're done for that very page.
+Any chance you could test it?
 
-Sure that means updating vm_start/vm_pgoff then requires locking all
-anon_vmas that the vma registered into, but that's conceptually
-simpler and it doesn't alter the page_lock_anon_vma semantics. Now I
-wonder if you said the same_anon_vma is in order, but the same_vma is
-not, if it's safe to lock the same_vma in list order in anon_vma_lock,
-I didn't experience problems on the anon_vma_chain branch but
-anon_vma_lock disables all lockdep lock inversion checking.
+---
+ mm/vmalloc.c |   49 +++++++++++++++++++++++++++++++++++--------------
+ 1 files changed, 35 insertions(+), 14 deletions(-)
+
+Index: linux-2.6/mm/vmalloc.c
+===================================================================
+--- linux-2.6.orig/mm/vmalloc.c
++++ linux-2.6/mm/vmalloc.c
+@@ -262,8 +262,13 @@ struct vmap_area {
+ };
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+-static struct rb_root vmap_area_root = RB_ROOT;
+ static LIST_HEAD(vmap_area_list);
++static struct rb_root vmap_area_root = RB_ROOT;
++
++static struct rb_node *free_vmap_cache;
++static unsigned long cached_hole_size;
++static unsigned long cached_start;
++
+ static unsigned long vmap_area_pcpu_hole;
+ 
+ static struct vmap_area *__find_vmap_area(unsigned long addr)
+@@ -332,6 +337,7 @@ static struct vmap_area *alloc_vmap_area
+ 	struct rb_node *n;
+ 	unsigned long addr;
+ 	int purged = 0;
++	struct vmap_area *first;
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(size & ~PAGE_MASK);
+@@ -348,11 +354,23 @@ retry:
+ 	if (addr + size - 1 < addr)
+ 		goto overflow;
+ 
+-	/* XXX: could have a last_hole cache */
+-	n = vmap_area_root.rb_node;
+-	if (n) {
+-		struct vmap_area *first = NULL;
++	if (size <= cached_hole_size || addr < cached_start || !free_vmap_cache) {
++		cached_hole_size = 0;
++		cached_start = addr;
++		free_vmap_cache = NULL;
++	}
+ 
++	/* find starting point for our search */
++	if (free_vmap_cache) {
++		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++		addr = ALIGN(first->va_end + PAGE_SIZE, align);
++
++	} else {
++		n = vmap_area_root.rb_node;
++		if (!n)
++			goto found;
++
++		first = NULL;
+ 		do {
+ 			struct vmap_area *tmp;
+ 			tmp = rb_entry(n, struct vmap_area, rb_node);
+@@ -369,26 +387,36 @@ retry:
+ 		if (!first)
+ 			goto found;
+ 
+-		if (first->va_end < addr) {
++		if (first->va_start < addr) {
++			BUG_ON(first->va_end < addr);
+ 			n = rb_next(&first->rb_node);
++			addr = ALIGN(first->va_end + PAGE_SIZE, align);
+ 			if (n)
+ 				first = rb_entry(n, struct vmap_area, rb_node);
+ 			else
+ 				goto found;
+ 		}
++		BUG_ON(first->va_start < addr);
++		if (addr + cached_hole_size < first->va_start)
++			cached_hole_size = first->va_start - addr;
++	}
+ 
+-		while (addr + size > first->va_start && addr + size <= vend) {
+-			addr = ALIGN(first->va_end + PAGE_SIZE, align);
+-			if (addr + size - 1 < addr)
+-				goto overflow;
++	/* from the starting point, walk areas until a suitable hole is found */
+ 
+-			n = rb_next(&first->rb_node);
+-			if (n)
+-				first = rb_entry(n, struct vmap_area, rb_node);
+-			else
+-				goto found;
+-		}
++	while (addr + size > first->va_start && addr + size <= vend) {
++		if (addr + cached_hole_size < first->va_start)
++			cached_hole_size = first->va_start - addr;
++		addr = ALIGN(first->va_end + PAGE_SIZE, align);
++		if (addr + size - 1 < addr)
++			goto overflow;
++
++		n = rb_next(&first->rb_node);
++		if (n)
++			first = rb_entry(n, struct vmap_area, rb_node);
++		else
++			goto found;
+ 	}
++
+ found:
+ 	if (addr + size > vend) {
+ overflow:
+@@ -412,6 +440,7 @@ overflow:
+ 	va->va_end = addr + size;
+ 	va->flags = 0;
+ 	__insert_vmap_area(va);
++	free_vmap_cache = &va->rb_node;
+ 	spin_unlock(&vmap_area_lock);
+ 
+ 	return va;
+@@ -427,6 +456,21 @@ static void rcu_free_va(struct rcu_head
+ static void __free_vmap_area(struct vmap_area *va)
+ {
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
++
++	if (free_vmap_cache) {
++		if (va->va_end < cached_start) {
++			cached_hole_size = 0;
++			cached_start = 0;
++			free_vmap_cache = NULL;
++		} else {
++			struct vmap_area *cache;
++			cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++			if (va->va_start <= cache->va_start) {
++				free_vmap_cache = rb_prev(&va->rb_node);
++				cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++			}
++		}
++	}
+ 	rb_erase(&va->rb_node, &vmap_area_root);
+ 	RB_CLEAR_NODE(&va->rb_node);
+ 	list_del_rcu(&va->list);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
