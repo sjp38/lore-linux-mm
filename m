@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D8FD62008B
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 13:59:53 -0400 (EDT)
-Date: Wed, 5 May 2010 10:57:18 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6526B62008B
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 14:04:44 -0400 (EDT)
+Date: Wed, 5 May 2010 11:02:25 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
  the wrong VMA information
-In-Reply-To: <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org>
-Message-ID: <alpine.LFD.2.00.1005051050590.27218@i5.linux-foundation.org>
+In-Reply-To: <20100505175311.GU20979@csn.ul.ie>
+Message-ID: <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org>
 References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505155454.GT20979@csn.ul.ie> <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org>
+ <20100505175311.GU20979@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,40 +19,36 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Wed, 5 May 2010, Linus Torvalds wrote:
+On Wed, 5 May 2010, Mel Gorman wrote:
 > 
-> From the vma, it's simply
-> 	avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-> 	anon_vma = avc->anon_vma;
-> 
-> and once you take that lock, you know you've gotten the lock for all 
-> chains related to that page. We _know_ that every single vma that is 
-> associated with that anon_vma must have a chain that eventually ends in 
-> that entry.
+> If the same_vma list is properly ordered then maybe something like the
+> following is allowed?
 
-To clarify: here "is associated with that anon_vma" is basically about the 
-whole forest of anon_vma/vma links. Different vma's can be associated with 
-different anon_vma's, and pages can be associated with anon_vma's that can 
-in turn reach other anon_vma's and many other vma's.
+Heh. This is the same logic I just sent out. However:
 
-But regardless of _how_ you walk the chains between anon_vma's and vma's 
-(including walking "back-pointers" that don't even exist except 
-conceptually for the pointer going the other way), any relationship will 
-have started at _some_ root vma.
+> +	anon_vma = page_rmapping(page);
+> +	if (!anon_vma)
+> +		return NULL;
+> +
+> +	spin_lock(&anon_vma->lock);
 
-IOW, the root anon_vma is directly 1:1 related to "do these vma/anon_vma's 
-relate in _any_ way". If it's the same root anon_vma, then there is a 
-historical relationship. And if the root anon_vma's are different, then 
-there cannot be any relationship at all.
+RCU should guarantee that this spin_lock() is valid, but:
 
-So locking the root anon_vma is both minimal _and_ sufficient. Any locking 
-scheme (traversing the lists) would eventually end up hitting that root 
-entry (minimal locking), and at the same time that root entry is also 
-guaranteed to be the same for all related entities (ie it's sufficient to 
-lock the root entry if everybody else also looks up their root and locks 
-it).
+> +	/*
+> +	 * Get the oldest anon_vma on the list by depending on the ordering
+> +	 * of the same_vma list setup by __page_set_anon_rmap
+> +	 */
+> +	avc = list_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
 
-I think. Tell me if I'm wrong.
+We're not guaranteed that the 'anon_vma->head' list is non-empty.
+
+Somebody could have freed the list and the anon_vma and we have a stale 
+'page->anon_vma' (that has just not been _released_ yet). 
+
+And shouldn't that be 'list_first_entry'? Or &anon_vma->head.next?
+
+How did that line actually work for you? Or was it just a "it boots", but 
+no actual testing of the rmap walk?
 
 			Linus
 
