@@ -1,205 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0108C62008B
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 12:16:40 -0400 (EDT)
-Date: Thu, 6 May 2010 02:16:32 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] cache last free vmap_area to avoid restarting beginning
-Message-ID: <20100505161632.GB5378@laptop>
-References: <1271262948.2233.14.camel@barrios-desktop>
- <1271320388.2537.30.camel@localhost>
- <1271350270.2013.29.camel@barrios-desktop>
- <1271427056.7196.163.camel@localhost.localdomain>
- <1271603649.2100.122.camel@barrios-desktop>
- <1271681929.7196.175.camel@localhost.localdomain>
- <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
- <1272548602.7196.371.camel@localhost.localdomain>
- <1272821394.2100.224.camel@barrios-desktop>
- <1273063728.7196.385.camel@localhost.localdomain>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E1D26B029B
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 13:37:34 -0400 (EDT)
+Date: Wed, 5 May 2010 10:34:03 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+In-Reply-To: <20100505155454.GT20979@csn.ul.ie>
+Message-ID: <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
+ <20100505155454.GT20979@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1273063728.7196.385.camel@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 01:48:48PM +0100, Steven Whitehouse wrote:
-> Hi,
+
+
+On Wed, 5 May 2010, Mel Gorman wrote:
 > 
-> On Mon, 2010-05-03 at 02:29 +0900, Minchan Kim wrote:
-> > Hi, Steven. 
-> > 
-> > Sorry for lazy response.
-> > I wanted to submit the patch which implement Nick's request whole.
-> > And unfortunately, I am so busy now. 
-> > But if it's urgent, I want to submit this one firstly and 
-> > at next version, maybe I will submit remained TODO things 
-> > after middle of May.
-> > 
-> > I think this patch can't make regression other usages.
-> > Nick. What do you think about?
-> > 
-> I guess the question is whether the remaining items are essential for
-> correct functioning of this patch, or whether they are "it would be nice
-> if" items. I suspect that they are the latter (I'm not a VM expert, but
-> from the brief descriptions it looks like that to me) in which case I'd
-> suggest send the currently existing patch first and the following up
-> with the remaining changes later.
-> 
-> We have got a nice speed up with your current patch and so far as I'm
-> aware not introduced any new bugs or regressions with it.
-> 
-> Nick, does that sound ok?
+> I'm still thinking of the ordering but one possibility would be to use a mutex
+> similar to mm_all_locks_mutex to force the serialisation of rmap_walk instead
+> of the trylock-and-retry. That way, the ordering wouldn't matter. It would
+> slow migration if multiple processes are migrating pages by some unknowable
+> quantity but it would avoid livelocking.
 
-Just got around to looking at it again. I definitely agree we need to
-fix the regression, however I'm concerned about introducing other
-possible problems while doing that.
+Hmm.. An idea is starting to take form..
 
-The following patch should (modulo bugs, but it's somewhat tested) give
-no difference in the allocation patterns, so won't introduce virtual
-memory layout changes.
+How about something like this?
 
-Any chance you could test it?
+ - the lock is per-anon_vma
 
----
- mm/vmalloc.c |   49 +++++++++++++++++++++++++++++++++++--------------
- 1 files changed, 35 insertions(+), 14 deletions(-)
+BUT
 
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -262,8 +262,13 @@ struct vmap_area {
- };
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
--static struct rb_root vmap_area_root = RB_ROOT;
- static LIST_HEAD(vmap_area_list);
-+static struct rb_root vmap_area_root = RB_ROOT;
-+
-+static struct rb_node *free_vmap_cache;
-+static unsigned long cached_hole_size;
-+static unsigned long cached_start;
-+
- static unsigned long vmap_area_pcpu_hole;
- 
- static struct vmap_area *__find_vmap_area(unsigned long addr)
-@@ -332,6 +337,7 @@ static struct vmap_area *alloc_vmap_area
- 	struct rb_node *n;
- 	unsigned long addr;
- 	int purged = 0;
-+	struct vmap_area *first;
- 
- 	BUG_ON(!size);
- 	BUG_ON(size & ~PAGE_MASK);
-@@ -348,11 +354,23 @@ retry:
- 	if (addr + size - 1 < addr)
- 		goto overflow;
- 
--	/* XXX: could have a last_hole cache */
--	n = vmap_area_root.rb_node;
--	if (n) {
--		struct vmap_area *first = NULL;
-+	if (size <= cached_hole_size || addr < cached_start || !free_vmap_cache) {
-+		cached_hole_size = 0;
-+		cached_start = addr;
-+		free_vmap_cache = NULL;
-+	}
- 
-+	/* find starting point for our search */
-+	if (free_vmap_cache) {
-+		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-+
-+	} else {
-+		n = vmap_area_root.rb_node;
-+		if (!n)
-+			goto found;
-+
-+		first = NULL;
- 		do {
- 			struct vmap_area *tmp;
- 			tmp = rb_entry(n, struct vmap_area, rb_node);
-@@ -369,26 +387,36 @@ retry:
- 		if (!first)
- 			goto found;
- 
--		if (first->va_end < addr) {
-+		if (first->va_start < addr) {
-+			BUG_ON(first->va_end < addr);
- 			n = rb_next(&first->rb_node);
-+			addr = ALIGN(first->va_end + PAGE_SIZE, align);
- 			if (n)
- 				first = rb_entry(n, struct vmap_area, rb_node);
- 			else
- 				goto found;
- 		}
-+		BUG_ON(first->va_start < addr);
-+		if (addr + cached_hole_size < first->va_start)
-+			cached_hole_size = first->va_start - addr;
-+	}
- 
--		while (addr + size > first->va_start && addr + size <= vend) {
--			addr = ALIGN(first->va_end + PAGE_SIZE, align);
--			if (addr + size - 1 < addr)
--				goto overflow;
-+	/* from the starting point, walk areas until a suitable hole is found */
- 
--			n = rb_next(&first->rb_node);
--			if (n)
--				first = rb_entry(n, struct vmap_area, rb_node);
--			else
--				goto found;
--		}
-+	while (addr + size > first->va_start && addr + size <= vend) {
-+		if (addr + cached_hole_size < first->va_start)
-+			cached_hole_size = first->va_start - addr;
-+		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-+		if (addr + size - 1 < addr)
-+			goto overflow;
-+
-+		n = rb_next(&first->rb_node);
-+		if (n)
-+			first = rb_entry(n, struct vmap_area, rb_node);
-+		else
-+			goto found;
- 	}
-+
- found:
- 	if (addr + size > vend) {
- overflow:
-@@ -412,6 +440,7 @@ overflow:
- 	va->va_end = addr + size;
- 	va->flags = 0;
- 	__insert_vmap_area(va);
-+	free_vmap_cache = &va->rb_node;
- 	spin_unlock(&vmap_area_lock);
- 
- 	return va;
-@@ -427,6 +456,21 @@ static void rcu_free_va(struct rcu_head
- static void __free_vmap_area(struct vmap_area *va)
- {
- 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-+
-+	if (free_vmap_cache) {
-+		if (va->va_end < cached_start) {
-+			cached_hole_size = 0;
-+			cached_start = 0;
-+			free_vmap_cache = NULL;
-+		} else {
-+			struct vmap_area *cache;
-+			cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+			if (va->va_start <= cache->va_start) {
-+				free_vmap_cache = rb_prev(&va->rb_node);
-+				cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+			}
-+		}
-+	}
- 	rb_erase(&va->rb_node, &vmap_area_root);
- 	RB_CLEAR_NODE(&va->rb_node);
- 	list_del_rcu(&va->list);
+ - you always lock the _deepest_ anon_vma you can find.
+
+That means just a single lock. And the "deepest" anon_vma is well-defined 
+for all anon_vma's, because each same_anon_vma chain is always rooted in 
+the original anon_vma that caused it.
+
+>From the vma, it's simply
+	avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
+	anon_vma = avc->anon_vma;
+
+and once you take that lock, you know you've gotten the lock for all 
+chains related to that page. We _know_ that every single vma that is 
+associated with that anon_vma must have a chain that eventually ends in 
+that entry.
+
+So I wonder if the locking can't be just something like this:
+
+   struct anon_vma *lock_anon_vma_root(struct page *page)
+   {
+	struct anon_vma *anon_vma, *root;
+
+	rcu_read_lock();
+	anon_vma = page_anon_vma(page);
+	if (!anon_vma)
+		return ret;
+	/* Make sure the anon_vma 'same_anon_vma' list is stable! */
+	spin_lock(&anon_vma->lock);
+	root = NULL;
+	if (!list_empty(&anon_vma->head)) {
+		struct anon_vma_chain *avc;
+		struct vm_area_struct *vma;
+		struct anon_vma *root;
+		avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
+		vma = avc->vma;
+		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
+		root = avc->anon_vma;
+	}
+	/* We already locked it - anon_vma _was_ the root */
+	if (root == anon_vma)
+		return root;
+	spin_unlock(&anon_vma->lock);
+	if (root) {
+		spin_lock(&root->lock);
+		return root;
+	}
+	rcu_read_unlock();
+	return NULL;
+   }
+
+and
+
+   void unlock_anon_vma_root(struct anon_vma *root)
+   {
+	spin_unlock(&root->lock);
+	rcu_read_unlock();
+   }
+
+or something. I agree that the above is not _beautiful_, and it's not 
+exactly simple, but it does seem to have the absolutely huge advantage 
+that it is a nice O(1) thing that only ever takes a single lock and has no 
+nesting. And while the code looks complicated, it's based on a pretty 
+simple constraint on the anon_vma's that we already require (ie that all 
+related anon_vma chains have to end up at the same root anon_vma).
+
+In other words: _any_ vma that is associated with _any_ related anon_vma 
+will always end up feeding up to the same root anon_vma.
+
+I do think other people should think this through. And it needs a comment 
+that really explains all this.
+
+(And the code above is written in my email editor - it has not been 
+tested, compiled, or anythign else. It may _look_ like real code, but 
+think of it as pseudo-code where the explanation for the code is more 
+important than the exact details.
+
+NOTE NOTE NOTE! In particular, I think that the 'rcu_read_lock()' and the 
+actual lookup of the anon_vma (ie the "anon_vma = page_anon_vma(page)") 
+part should probably be in the callers. I put it in the pseudo-code itself 
+to just show how you go from a 'struct page' to the "immediate" anon_vma 
+it is associated with, and from that to the "root" anon_vma of the whole 
+chain.
+
+And maybe I'm too clever for myself, and I've made some fundamental 
+mistake that means that the above doesn't work.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
