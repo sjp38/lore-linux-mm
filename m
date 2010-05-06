@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CCA1620096
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 10:08:37 -0400 (EDT)
-Date: Thu, 6 May 2010 07:06:08 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A8A20620096
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 10:17:52 -0400 (EDT)
+Date: Thu, 6 May 2010 07:15:31 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the  wrong VMA information
-In-Reply-To: <p2s28c262361005060247m2983625clff01aeaa1668402f@mail.gmail.com>
-Message-ID: <alpine.LFD.2.00.1005060703540.901@i5.linux-foundation.org>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>  <1273065281-13334-2-git-send-email-mel@csn.ul.ie>  <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>  <20100505145620.GP20979@csn.ul.ie>  <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
-  <20100505175311.GU20979@csn.ul.ie>  <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org>  <20100506002255.GY20979@csn.ul.ie> <p2s28c262361005060247m2983625clff01aeaa1668402f@mail.gmail.com>
+ the wrong VMA information
+In-Reply-To: <20100506100208.GB20979@csn.ul.ie>
+Message-ID: <alpine.LFD.2.00.1005060707050.901@i5.linux-foundation.org>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
+ <20100505175311.GU20979@csn.ul.ie> <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org> <20100506002255.GY20979@csn.ul.ie> <alpine.LFD.2.00.1005051737290.901@i5.linux-foundation.org> <20100506100208.GB20979@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 
 
-On Thu, 6 May 2010, Minchan Kim wrote:
-> > + A  A  A  A */
-> > + A  A  A  avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
+On Thu, 6 May 2010, Mel Gorman wrote:
+> > 
+> > What makes this ok is the fact that it must be running under the RCU read 
+> > lock, and anon_vma's thus cannot be released.
 > 
-> Dumb question.
-> 
-> I can't understand why we should use list_first_entry.
+> This is very subtle in itself. RCU guarantees that the anon_vma exists
+> but does it guarantee that it's the same one we expect and that it
+> hasn't been freed and reused?
 
-It's not that we "should" use list_entry_first. It's that we want to find 
-_any_ entry on the list, and the most natural one is the first one.
+Nothing. And we shouldn't care.
 
-So we could take absolutely any 'avc' entry that is reachable from the 
-anon_vma, and use that to look up _any_ 'vma' that is associated with that 
-anon_vma. And then, from _any_ of those vma's, we know how to get to the 
-"root anon_vma" - the one that they are all associated with.
+If it's been freed and re-used, then all the anon_vma's (and vma's) 
+associated with the original anon_vma (and page) have been free'd.
 
-So no, there's absolutely nothing special about the first entry. It's 
-just a random easily found one.
+And that, in turn, means that we don't really need to lock anything at 
+all. The fact that we end up locking an anon_vma that _used_ to be the 
+root anon_vma is immaterial - the lock won't _help_, but it shouldn't hurt 
+either, since it's still a valid spinlock.
 
-		Linus
+Now, the above is only true as far as the anon_vma itself is concerned. 
+It's entirely possible that any _other_ data structures would need to be 
+double-checked after getting the lock. For example, is the _page_ still 
+associated with that anon_vma? But that's an external issue as far as the 
+anon_vma locking is concerned - presumably the 'rmap_walk()' caller will 
+have made sure that the page itself is stable somehow.
+
+				Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
