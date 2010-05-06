@@ -1,170 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 47DB562009A
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 17:30:56 -0400 (EDT)
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <4BE33259.3000609@tauceti.net>
-References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net>
-	 <20100419131718.GB16918@redhat.com>
-	 <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
-	 <20100421094249.GC30855@redhat.com>
-	 <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net>
-	 <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net>
-	 <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net>
-	 <20100425204916.GA12686@redhat.com>
-	 <1272284154.4252.34.camel@localhost.localdomain>
-	 <4BD5F6C5.8080605@tauceti.net>
-	 <1272315854.8984.125.camel@localhost.localdomain>
-	 <4BD61147.40709@tauceti.net>
-	 <1272324536.16814.45.camel@localhost.localdomain>
-	 <4BD76B81.2070606@tauceti.net>
-	 <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net>
-	 <4BE33259.3000609@tauceti.net>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 06 May 2010 17:30:38 -0400
-Message-ID: <1273181438.22155.26.camel@localhost.localdomain>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A04156B020F
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 19:20:58 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 0/2] Fix migration races in rmap_walk() V7
+Date: Fri,  7 May 2010 00:20:51 +0100
+Message-Id: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Robert Wimmer <kernel@tauceti.net>
-Cc: mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Sorry. I've been caught up in work in the past few days.
+No major change since V6, just looks nicer.
 
-I can certainly help with the soft lockup if you are able to supply
-either a dump that includes all threads stuck in the NFS, or a (binary)
-wireshark dump that shows the NFSv4 traffic between the client and
-server around the time of the hang.
+Changelog since V6
+  o Make the nested anon_vma lock taking prettier
 
-Cheers
-  Trond
+Changelog since V5
+  o Have rmap_walk take anon_vma locks in order starting from the "root"
+  o Ensure that mm_take_all_locks locks VMAs in the same order
 
-On Thu, 2010-05-06 at 23:19 +0200, Robert Wimmer wrote:=20
-> I don't know if someone is still interested in this
-> but I think Trond isn't further interested because
-> the last error was of cource a "page allocation
-> failure" and not a "soft lookup" which Trond was
-> trying to solve. But the patch was for 2.6.34 and
-> the "soft lookup" comes up only with some 2.6.30 and
-> maybe some 2.6.31 kernel versions. But the first error
-> I reported was a "page allocation failure" which
-> all kernels >=3D 2.6.32 produces with this configuration
-> I use (NFSv4).
->=20
-> Michael suggested to first solve the "soft lookup"
-> before further investigating the "page allocation
-> failure". We know that the "soft lookup" only
-> pop's up with NFSv4 and not v3. I really want to
-> use v4 but since I'm not a kernel hacker someone
-> must guide me what to try next.
->=20
-> I know that you're all have a lot of other work to
-> do but if there're no ideas left what to do next
-> it's maybe best to close the bug for now and I stay with
-> kernel 2.6.30 for now or go back to NFS v3 if I
-> upgrade to a newer kernel. Maybe the error will
-> be fixed "by accident" in >=3D 2.6.35 ;-)=20
->=20
-> Thanks!
-> Robert
->=20
->=20
->=20
-> On 05/03/10 10:11, kernel@tauceti.net wrote:
-> > Anything we can do to investigate this further?
-> >
-> > Thanks!
-> > Robert
-> >
-> >
-> > On Wed, 28 Apr 2010 00:56:01 +0200, Robert Wimmer <kernel@tauceti.net>
-> > wrote:
-> >  =20
-> >> I've applied the patch against the kernel which I got
-> >> from "git clone ...." resulted in a kernel 2.6.34-rc5.
-> >>
-> >> The stack trace after mounting NFS is here:
-> >> https://bugzilla.kernel.org/attachment.cgi?id=3D26166
-> >> /var/log/messages after soft lockup:
-> >> https://bugzilla.kernel.org/attachment.cgi?id=3D26167
-> >>
-> >> I hope that there is any usefull information in there.
-> >>
-> >> Thanks!
-> >> Robert
-> >>
-> >> On 04/27/10 01:28, Trond Myklebust wrote:
-> >>    =20
-> >>> On Tue, 2010-04-27 at 00:18 +0200, Robert Wimmer wrote:=20
-> >>>  =20
-> >>>      =20
-> >>>>> Sure. In addition to what you did above, please do
-> >>>>>
-> >>>>> mount -t debugfs none /sys/kernel/debug
-> >>>>>
-> >>>>> and then cat the contents of the pseudofile at
-> >>>>>
-> >>>>> /sys/kernel/debug/tracing/stack_trace
-> >>>>>
-> >>>>> Please do this more or less immediately after you've finished
-> >>>>>          =20
-> > mounting
-> >  =20
-> >>>>> the NFSv4 client.
-> >>>>>  =20
-> >>>>>      =20
-> >>>>>          =20
-> >>>> I've uploaded the stack trace. It was generated
-> >>>> directly after mounting. Here are the stacks:
-> >>>>
-> >>>> After mounting:
-> >>>> https://bugzilla.kernel.org/attachment.cgi?id=3D26153
-> >>>> After the soft lockup:
-> >>>> https://bugzilla.kernel.org/attachment.cgi?id=3D26154
-> >>>> The dmesg output of the soft lockup:
-> >>>> https://bugzilla.kernel.org/attachment.cgi?id=3D26155
-> >>>>
-> >>>>    =20
-> >>>>        =20
-> >>>>> Does your server have the 'crossmnt' or 'nohide' flags set, or does
-> >>>>>          =20
-> > it
-> >  =20
-> >>>>> use the 'refer' export option anywhere? If so, then we might have t=
-o
-> >>>>> test further, since those may trigger the NFSv4 submount feature.
-> >>>>>  =20
-> >>>>>      =20
-> >>>>>          =20
-> >>>> The server has the following settings:
-> >>>> rw,nohide,insecure,async,no_subtree_check,no_root_squash
-> >>>>
-> >>>> Thanks!
-> >>>> Robert
-> >>>>
-> >>>>
-> >>>>    =20
-> >>>>        =20
-> >>> That second trace is more than 5.5K deep, more than half of which is
-> >>> socket overhead :-(((.
-> >>>
-> >>> The process stack does not appear to have overflowed, however that
-> >>>      =20
-> > trace
-> >  =20
-> >>> doesn't include any IRQ stack overhead.
-> >>>
-> >>> OK... So what happens if we get rid of half of that trace by forcing
-> >>> asynchronous tasks such as this to run entirely in rpciod instead of
-> >>> first trying to run in the process context?
-> >>>
-> >>> See the attachment...
-> >>>
-> >>>      =20
->=20
+Changelog since V4
+  o Switch back anon_vma locking to put bulk of locking in rmap_walk
+  o Fix anon_vma lock ordering in exec vs migration race
 
+Changelog since V3
+  o Rediff against the latest upstream tree
+  o Improve the patch changelog a little (thanks Peterz)
+
+Changelog since V2
+  o Drop fork changes
+  o Avoid pages in temporary stacks during exec instead of migration pte
+    lazy cleanup
+  o Drop locking-related patch and replace with Rik's
+
+Changelog since V1
+  o Handle the execve race
+  o Be sure that rmap_walk() releases the correct VMA lock
+  o Hold the anon_vma lock for the address lookup and the page remap
+  o Add reviewed-bys
+
+Broadly speaking, migration works by locking a page, unmapping it, putting
+a migration PTE in place that looks like a swap entry, copying the page and
+remapping the page removing the old migration PTE before unlocking the page.
+If a fault occurs, the faulting process waits until migration completes.
+
+The problem is that there are some races that either allow migration PTEs
+to be left left behind. Migration still completes and the page is unlocked
+but later a fault will call migration_entry_to_page() and BUG() because the
+page is not locked. It's not possible to just clean up the migration PTE
+because the page it points to has been potentially freed and reused. This
+series aims to close the races.
+
+Patch 1 of this series is about the of locking of anon_vma in migration versus
+vma_adjust. While I am not aware of any reproduction cases, it is potentially
+racy. This patch is an alternative to Rik's "heavy lock" approach posted
+at http://lkml.org/lkml/2010/5/3/155. With the patch, rmap_walk finds the
+"root" anon_vma and starts locking from there, locking each new anon_vma
+as it finds it. As long as the order is preserved, there is no deadlock.
+In vma_adjust, the anon_vma locks are acquired under similar conditions
+to 2.6.33 so that walkers will block until VMA changes are complete. The
+rmap_walk changes potentially slows down migration and aspects of page
+reclaim a little but they are the less important path.
+
+Patch 2 of this series addresses the swapops bug reported that is a race
+between migration and execve where pages get migrated from the temporary
+stack before it is moved. To avoid migration PTEs being left behind,
+a temporary VMA is put in place so that a migration PTE in either the
+temporary stack or the relocated stack can be found.
+
+The reproduction case for the races was as follows;
+
+1. Run kernel compilation in a loop
+2. Start four processes, each of which creates one mapping. The three stress
+   different aspects of the problem. The operations they undertake are;
+	a) Forks a hundred children, each of which faults the mapping
+		Purpose: stress tests migration pte removal
+	b) Forks a hundred children, each which punches a hole in the mapping
+	   and faults what remains
+		Purpose: stress test VMA manipulations during migration
+	c) Forks a hundred children, each of which execs and calls echo
+		Purpose: stress test the execve race
+	d) Size the mapping to be 1.5 times physical memory. Constantly
+	   memset it
+		Purpose: stress swapping
+3. Constantly compact memory using /proc/sys/vm/compact_memory so migration
+   is active all the time. In theory, you could also force this using
+   sys_move_pages or memory hot-remove but it'd be nowhere near as easy
+   to test.
+
+Compaction is the easiest way to trigger these bugs which is not going to
+be in 2.6.34 but in theory the problem also affects memory hot-remove.
+
+There were some concerns with patch 2 that performance would be impacted. To
+check if this was the case I ran kernbench, aim9 and sysbench. AIM9 in
+particular was of interest as it has an exec microbenchmark.
+
+             kernbench-vanilla    fixraces-v5r1
+Elapsed mean     103.40 ( 0.00%)   103.35 ( 0.05%)
+Elapsed stddev     0.09 ( 0.00%)     0.13 (-55.72%)
+User    mean     313.50 ( 0.00%)   313.15 ( 0.11%)
+User    stddev     0.61 ( 0.00%)     0.20 (66.70%)
+System  mean      55.50 ( 0.00%)    55.85 (-0.64%)
+System  stddev     0.48 ( 0.00%)     0.15 (68.98%)
+CPU     mean     356.25 ( 0.00%)   356.50 (-0.07%)
+CPU     stddev     0.43 ( 0.00%)     0.50 (-15.47%)
+
+Nothing special there and kernbench is fork+exec heavy. The patched kernel
+is slightly faster on wall time but it's well within the noise. System time
+is slightly slower but again, it's within the noise.
+
+AIM9
+                  aim9-vanilla    fixraces-v5r1
+creat-clo     116813.86 ( 0.00%)  117980.34 ( 0.99%)
+page_test     270923.33 ( 0.00%)  268668.56 (-0.84%)
+brk_test     2551558.07 ( 0.00%) 2649450.00 ( 3.69%)
+signal_test   279866.67 ( 0.00%)  279533.33 (-0.12%)
+exec_test        226.67 ( 0.00%)     232.67 ( 2.58%)
+fork_test       4261.91 ( 0.00%)    4110.98 (-3.67%)
+link_test      53534.78 ( 0.00%)   54076.49 ( 1.00%)
+
+So, here exec and fork aren't showing up major worries. exec is faster but
+these tests can be so sensitive to starting conditions that I tend not to
+read much into them unless there are major differences.
+
+SYSBENCH
+              sysbench-vanilla    fixraces-v5r1
+           1 14177.73 ( 0.00%) 14218.41 ( 0.29%)
+           2 27647.23 ( 0.00%) 27774.14 ( 0.46%)
+           3 31395.69 ( 0.00%) 31499.95 ( 0.33%)
+           4 49866.54 ( 0.00%) 49713.49 (-0.31%)
+           5 49919.58 ( 0.00%) 49524.21 (-0.80%)
+           6 49532.97 ( 0.00%) 49397.60 (-0.27%)
+           7 49465.79 ( 0.00%) 49384.14 (-0.17%)
+           8 49483.33 ( 0.00%) 49186.49 (-0.60%)
+
+These figures also show no differences worth talking about.
+
+While the extra allocation in patch 2 would appear to slow down exec somewhat,
+it's not by any amount that matters. As it is in exec, it means that anon_vmas
+have likely been freed very recently so the allocation will be cache-hot and
+cpu-local. It is possible to special-case migration to avoid migrating pages
+in the temporary stack, but fixing it in exec is a more maintainable approach.
+
+ fs/exec.c            |   37 ++++++++++++++++++++--
+ include/linux/rmap.h |    2 +
+ mm/ksm.c             |   20 ++++++++++--
+ mm/mmap.c            |   14 +++++++-
+ mm/rmap.c            |   81 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 5 files changed, 137 insertions(+), 17 deletions(-)
+
+Andrea Arcangeli (1):
+  mm,migration: Fix race between shift_arg_pages and rmap_walk by
+    guaranteeing rmap_walk finds PTEs created within the temporary
+    stack
+
+Mel Gorman (1):
+  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA
+    information
+
+ fs/exec.c            |   37 +++++++++++++++++--
+ include/linux/rmap.h |    4 ++
+ mm/ksm.c             |   13 ++++++-
+ mm/mmap.c            |   14 ++++++-
+ mm/rmap.c            |   97 ++++++++++++++++++++++++++++++++++++++++++++++----
+ 5 files changed, 151 insertions(+), 14 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
