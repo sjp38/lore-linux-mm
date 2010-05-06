@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 868E36B023F
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 02:23:06 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o466N3kE026493
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 6 May 2010 15:23:03 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CD07345DE59
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:23:02 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F9DC45DE61
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:23:02 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F1911DB803F
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:23:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E0B6D1DB8040
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:22:58 +0900 (JST)
-Date: Thu, 6 May 2010 15:18:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm: memcontrol - uninitialised return value
-Message-Id: <20100506151858.cf3a5fe7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1273058509-16625-2-git-send-email-ext-phil.2.carmody@nokia.com>
-References: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
-	<1273058509-16625-2-git-send-email-ext-phil.2.carmody@nokia.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1700A6B0241
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 02:32:10 -0400 (EDT)
+Date: Thu, 6 May 2010 09:27:55 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: virtio: put last_used and last_avail index into ring itself.
+Message-ID: <20100506062755.GC8363@redhat.com>
+References: <cover.1257349249.git.mst@redhat.com> <200911091647.29655.rusty@rustcorp.com.au> <20100504182236.GA14141@redhat.com> <201005061022.13815.rusty@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201005061022.13815.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Phil Carmody <ext-phil.2.carmody@nokia.com>
-Cc: balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, kirill@shutemov.name, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  5 May 2010 14:21:49 +0300
-Phil Carmody <ext-phil.2.carmody@nokia.com> wrote:
-
-> From: Phil Carmody <ext-phil.2.carmody@nokia.com>
+On Thu, May 06, 2010 at 10:22:12AM +0930, Rusty Russell wrote:
+> On Wed, 5 May 2010 03:52:36 am Michael S. Tsirkin wrote:
+> > > virtio: put last_used and last_avail index into ring itself.
+> > > 
+> > > Generally, the other end of the virtio ring doesn't need to see where
+> > > you're up to in consuming the ring.  However, to completely understand
+> > > what's going on from the outside, this information must be exposed.
+> > > For example, if you want to save and restore a virtio_ring, but you're
+> > > not the consumer because the kernel is using it directly.
+> > > 
+> > > Fortunately, we have room to expand: the ring is always a whole number
+> > > of pages and there's hundreds of bytes of padding after the avail ring
+> > > and the used ring, whatever the number of descriptors (which must be a
+> > > power of 2).
+> > > 
+> > > We add a feature bit so the guest can tell the host that it's writing
+> > > out the current value there, if it wants to use that.
+> > > 
+> > > Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+> > 
+> > I've been looking at this patch some more (more on why
+> > later), and I wonder: would it be better to add some
+> > alignment to the last used index address, so that
+> > if we later add more stuff at the tail, it all
+> > fits in a single cache line?
 > 
-> Only an out of memory error will cause ret to be set.
-> 
-> Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
-> Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
+> In theory, but not in practice.  We don't have many rings, so the
+> difference between 1 and 2 cache lines is not very much.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Fair enough.
+
+> > We use a new feature bit anyway, so layout change should not be
+> > a problem.
+> > 
+> > Since I raised the question of caches: for used ring,
+> > the ring is not aligned to 64 bit, so on CPUs with 64 bit
+> > or larger cache lines, used entries will often cross
+> > cache line boundaries. Am I right and might it
+> > have been better to align ring entries to cache line boundaries?
+> > 
+> > What do you think?
+> 
+> I think everyone is settled on 128 byte cache lines for the forseeable
+> future, so it's not really an issue.
+> 
+> Cheers,
+> Rusty.
+
+You mean with 64 bit descriptors we will be bouncing a cache line
+between host and guest, anyway?
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
