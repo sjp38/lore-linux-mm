@@ -1,60 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 721436B0214
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 19:27:01 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id o46NQwc5017900
-	for <linux-mm@kvack.org>; Thu, 6 May 2010 16:26:58 -0700
-Received: from ywh39 (ywh39.prod.google.com [10.192.8.39])
-	by hpaq5.eem.corp.google.com with ESMTP id o46NQt5G006045
-	for <linux-mm@kvack.org>; Thu, 6 May 2010 16:26:57 -0700
-Received: by ywh39 with SMTP id 39so321245ywh.21
-        for <linux-mm@kvack.org>; Thu, 06 May 2010 16:26:55 -0700 (PDT)
-Message-ID: <4BE3503A.2000309@google.com>
-Date: Thu, 06 May 2010 16:26:50 -0700
-From: Mike Waychison <mikew@google.com>
-MIME-Version: 1.0
-Subject: Re: rwsem: down_read_unfair() proposal
-References: <20100505032033.GA19232@google.com> <22933.1273053820@redhat.com> <20100505103646.GA32643@google.com>
-In-Reply-To: <20100505103646.GA32643@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1F35D6200AA
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 19:56:26 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o46NuOUx002879
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 7 May 2010 08:56:24 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BE5F45DE5A
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 08:56:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AEDBF45DE59
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 08:56:23 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 90E3A1DB8043
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 08:56:23 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BD1F1DB8062
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 08:56:23 +0900 (JST)
+Date: Fri, 7 May 2010 08:52:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+Message-Id: <20100507085219.5821f721.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100506094621.GZ20979@csn.ul.ie>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+	<1273065281-13334-2-git-send-email-mel@csn.ul.ie>
+	<20100506163837.bf6587ef.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100506094621.GZ20979@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Michel Lespinasse wrote:
-> On Wed, May 05, 2010 at 11:03:40AM +0100, David Howells wrote:
->> If the system is as heavily loaded as you say, how do you prevent
->> writer starvation?  Or do things just grind along until sufficient
->> threads are queued waiting for a write lock?
+On Thu, 6 May 2010 10:46:21 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
+
+> On Thu, May 06, 2010 at 04:38:37PM +0900, KAMEZAWA Hiroyuki wrote:
+> > On Wed,  5 May 2010 14:14:40 +0100
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > 
+> > > vma_adjust() is updating anon VMA information without locks being taken.
+> > > In contrast, file-backed mappings use the i_mmap_lock and this lack of
+> > > locking can result in races with users of rmap_walk such as page migration.
+> > > vma_address() can return -EFAULT for an address that will soon be valid.
+> > > For migration, this potentially leaves a dangling migration PTE behind
+> > > which can later cause a BUG_ON to trigger when the page is faulted in.
+> > > 
+> > > With the recent anon_vma changes, there can be more than one anon_vma->lock
+> > > to take in a anon_vma_chain but a second lock cannot be spinned upon in case
+> > > of deadlock. The rmap walker tries to take locks of different anon_vma's
+> > > but if the attempt fails, locks are released and the operation is restarted.
+> > > 
+> > > For vma_adjust(), the locking behaviour prior to the anon_vma is restored
+> > > so that rmap_walk() can be sure of the integrity of the VMA information and
+> > > lists when the anon_vma lock is held. With this patch, the vma->anon_vma->lock
+> > > is taken if
+> > > 
+> > > 	a) If there is any overlap with the next VMA due to the adjustment
+> > > 	b) If there is a new VMA is being inserted into the address space
+> > > 	c) If the start of the VMA is being changed so that the
+> > > 	   relationship between vm_start and vm_pgoff is preserved
+> > > 	   for vma_address()
+> > > 
+> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > 
+> > I'm sorry I couldn't catch all details but can I make a question ?
 > 
-> Reader/Writer fairness is not disabled in the general case - it only is
-> for a few specific readers such as /proc/<pid>/maps. In particular, the
-> do_page_fault path, which holds a read lock on mmap_sem for potentially long
-> (~disk latency) periods of times, still uses a fair down_read() call.
-> In comparison, the /proc/<pid>/maps path which we made unfair does not
-> normally hold the mmap_sem for very long (it does not end up hitting disk);
-> so it's been working out well for us in practice.
+> Of course.
+> 
+> > Why seq_counter is bad finally ? I can't understand why we have
+> > to lock anon_vma with risks of costs, which is mysterious struct now.
+> > 
+> > Adding a new to mm_struct is too bad ?
+> > 
+> 
+> It's not the biggest problem. I'm not totally against this approach but
+> some of the problems I had were;
+> 
+> 1. It introduced new locking. anon_vmas would be covered by RCU,
+>    spinlocks and seqlock - each of which is used in different
+>    circumstances. The last patch I posted doesn't drastically
+>    alter the locking. It just says that if you are taking multiple
+>    locks, you must start from the "root" anon_vma.
+> 
+ok. I just thought a lock-system which we have to find "which lock should I
+take" is not very good.
+
+
+> 2. I wasn't sure if it was usable by transparent hugepage support.
+>    Andrea?
+
+Hmm.
+
+> 
+> 3. I had similar concerns about it livelocking like the
+>    trylock-and-retry although it's not terrible.
+> 
+Agreed.
+
+> 4. I couldn't convince myself at the time that it wasn't possible for
+>    someone to manipulate the list while it was being walked and a VMA would be
+>    missed. For example, if fork() was called while rmap_walk was happening,
+>    were we guaranteed to find the VMAs added to the list?  I admit I didn't
+>    fully investigate this question at the time as I was still getting to
+>    grips with anon_vma. I can reinvestigate if you think the "lock the root
+>    anon_vma first when taking multiple locks" has a bad cost that is
+>    potentially resolved with seqcounter
+> 
+If no regressions in measurement, I have no objections.
+
+> 5. It added a field to mm_struct. It's the smallest of concerns though.
+> 
+> Do you think it's a better approach and should be revisited?
+> 
 > 
 
-FWIW, these sorts of block-ups are usually really pronounce on machines 
-with harddrives that take _forever_ to respond to SMART commands (which 
-are done via PIO, and which can serialize many drives when they are 
-hidden behind a port multiplier).  We've seen cases where hard faults 
-can take unusually long on an otherwise non-busy machines (~10 seconds?).
+If everyone think seqlock is simple, I think it should be. But it seems you all are
+going ahead with anon_vma->lock approach. 
+(Basically, it's ok to me if it works. We may be able to make it better in later.)
 
-The other case we have problems with mmap_sem from a cluster monitoring 
-perspective occurs when we get blocked up behind a task that is having 
-problems dying from oom.  We have a variety of hacks used internally to 
-cover these cases, though I think we (David and I?) figured that it'd 
-make more sense to fix the dependencies on down_read(&current->mmap_sem) 
-in the do_exit() path.  For instance, it really makes no sense to 
-coredump when we are being oom killed (and thus we should be able to 
-skip the mmap_sem dependency there..).
+I'll check your V7.
 
-Mike Waychison
+Thank you for answering.
+
+Regards,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
