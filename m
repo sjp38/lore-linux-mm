@@ -1,170 +1,308 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A04156B020F
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E65C46B0210
 	for <linux-mm@kvack.org>; Thu,  6 May 2010 19:20:58 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/2] Fix migration races in rmap_walk() V7
-Date: Fri,  7 May 2010 00:20:51 +0100
-Message-Id: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information
+Date: Fri,  7 May 2010 00:20:52 +0100
+Message-Id: <1273188053-26029-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
+References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-No major change since V6, just looks nicer.
+vma_adjust() is updating anon VMA information without locks being taken.
+In contrast, file-backed mappings use the i_mmap_lock and this lack of
+locking can result in races with users of rmap_walk such as page migration.
+vma_address() can return -EFAULT for an address that will soon be valid.
+For migration, this potentially leaves a dangling migration PTE behind
+which can later cause a BUG_ON to trigger when the page is faulted in.
 
-Changelog since V6
-  o Make the nested anon_vma lock taking prettier
+With the recent anon_vma changes, there can be more than one anon_vma->lock
+to take when walking a list of anon_vma_chains but as the order of anon_vmas
+cannot be guaranteed, rmap_walk cannot take multiple locks without
+potentially deadlocking.
 
-Changelog since V5
-  o Have rmap_walk take anon_vma locks in order starting from the "root"
-  o Ensure that mm_take_all_locks locks VMAs in the same order
+To resolve this problem, this patch has rmap_walk walk the anon_vma_chain
+list but always starting from the "root" anon_vma which is the oldest
+anon_vma in the list. It starts by locking the anon_vma lock associated
+with a page. It then finds the "root" anon_vma using the anon_vma_chains
+"same_vma" list as it is strictly ordered. The root anon_vma lock is taken
+and rmap_walk traverses the list. This allows multiple locks to be taken
+as the list is always traversed in the same direction.
 
-Changelog since V4
-  o Switch back anon_vma locking to put bulk of locking in rmap_walk
-  o Fix anon_vma lock ordering in exec vs migration race
+As spotted by Rik, to avoid any deadlocks versus mmu_notify, the order that
+anon_vmas is locked in by mm_take_all_locks is reversed by this patch so that
+both rmap_walk and mm_take_all_locks lock anon_vmas in the order of old->new.
 
-Changelog since V3
-  o Rediff against the latest upstream tree
-  o Improve the patch changelog a little (thanks Peterz)
+For vma_adjust(), the locking behaviour prior to the anon_vma is restored
+so that rmap_walk() can be sure of the integrity of the VMA information and
+lists when the anon_vma lock is held. With this patch, the vma->anon_vma->lock
+is taken if
 
-Changelog since V2
-  o Drop fork changes
-  o Avoid pages in temporary stacks during exec instead of migration pte
-    lazy cleanup
-  o Drop locking-related patch and replace with Rik's
+	a) If there is any overlap with the next VMA due to the adjustment
+	b) If there is a new VMA is being inserted into the address space
+	c) If the start of the VMA is being changed so that the
+	   relationship between vm_start and vm_pgoff is preserved
+	   for vma_address()
 
-Changelog since V1
-  o Handle the execve race
-  o Be sure that rmap_walk() releases the correct VMA lock
-  o Hold the anon_vma lock for the address lookup and the page remap
-  o Add reviewed-bys
-
-Broadly speaking, migration works by locking a page, unmapping it, putting
-a migration PTE in place that looks like a swap entry, copying the page and
-remapping the page removing the old migration PTE before unlocking the page.
-If a fault occurs, the faulting process waits until migration completes.
-
-The problem is that there are some races that either allow migration PTEs
-to be left left behind. Migration still completes and the page is unlocked
-but later a fault will call migration_entry_to_page() and BUG() because the
-page is not locked. It's not possible to just clean up the migration PTE
-because the page it points to has been potentially freed and reused. This
-series aims to close the races.
-
-Patch 1 of this series is about the of locking of anon_vma in migration versus
-vma_adjust. While I am not aware of any reproduction cases, it is potentially
-racy. This patch is an alternative to Rik's "heavy lock" approach posted
-at http://lkml.org/lkml/2010/5/3/155. With the patch, rmap_walk finds the
-"root" anon_vma and starts locking from there, locking each new anon_vma
-as it finds it. As long as the order is preserved, there is no deadlock.
-In vma_adjust, the anon_vma locks are acquired under similar conditions
-to 2.6.33 so that walkers will block until VMA changes are complete. The
-rmap_walk changes potentially slows down migration and aspects of page
-reclaim a little but they are the less important path.
-
-Patch 2 of this series addresses the swapops bug reported that is a race
-between migration and execve where pages get migrated from the temporary
-stack before it is moved. To avoid migration PTEs being left behind,
-a temporary VMA is put in place so that a migration PTE in either the
-temporary stack or the relocated stack can be found.
-
-The reproduction case for the races was as follows;
-
-1. Run kernel compilation in a loop
-2. Start four processes, each of which creates one mapping. The three stress
-   different aspects of the problem. The operations they undertake are;
-	a) Forks a hundred children, each of which faults the mapping
-		Purpose: stress tests migration pte removal
-	b) Forks a hundred children, each which punches a hole in the mapping
-	   and faults what remains
-		Purpose: stress test VMA manipulations during migration
-	c) Forks a hundred children, each of which execs and calls echo
-		Purpose: stress test the execve race
-	d) Size the mapping to be 1.5 times physical memory. Constantly
-	   memset it
-		Purpose: stress swapping
-3. Constantly compact memory using /proc/sys/vm/compact_memory so migration
-   is active all the time. In theory, you could also force this using
-   sys_move_pages or memory hot-remove but it'd be nowhere near as easy
-   to test.
-
-Compaction is the easiest way to trigger these bugs which is not going to
-be in 2.6.34 but in theory the problem also affects memory hot-remove.
-
-There were some concerns with patch 2 that performance would be impacted. To
-check if this was the case I ran kernbench, aim9 and sysbench. AIM9 in
-particular was of interest as it has an exec microbenchmark.
-
-             kernbench-vanilla    fixraces-v5r1
-Elapsed mean     103.40 ( 0.00%)   103.35 ( 0.05%)
-Elapsed stddev     0.09 ( 0.00%)     0.13 (-55.72%)
-User    mean     313.50 ( 0.00%)   313.15 ( 0.11%)
-User    stddev     0.61 ( 0.00%)     0.20 (66.70%)
-System  mean      55.50 ( 0.00%)    55.85 (-0.64%)
-System  stddev     0.48 ( 0.00%)     0.15 (68.98%)
-CPU     mean     356.25 ( 0.00%)   356.50 (-0.07%)
-CPU     stddev     0.43 ( 0.00%)     0.50 (-15.47%)
-
-Nothing special there and kernbench is fork+exec heavy. The patched kernel
-is slightly faster on wall time but it's well within the noise. System time
-is slightly slower but again, it's within the noise.
-
-AIM9
-                  aim9-vanilla    fixraces-v5r1
-creat-clo     116813.86 ( 0.00%)  117980.34 ( 0.99%)
-page_test     270923.33 ( 0.00%)  268668.56 (-0.84%)
-brk_test     2551558.07 ( 0.00%) 2649450.00 ( 3.69%)
-signal_test   279866.67 ( 0.00%)  279533.33 (-0.12%)
-exec_test        226.67 ( 0.00%)     232.67 ( 2.58%)
-fork_test       4261.91 ( 0.00%)    4110.98 (-3.67%)
-link_test      53534.78 ( 0.00%)   54076.49 ( 1.00%)
-
-So, here exec and fork aren't showing up major worries. exec is faster but
-these tests can be so sensitive to starting conditions that I tend not to
-read much into them unless there are major differences.
-
-SYSBENCH
-              sysbench-vanilla    fixraces-v5r1
-           1 14177.73 ( 0.00%) 14218.41 ( 0.29%)
-           2 27647.23 ( 0.00%) 27774.14 ( 0.46%)
-           3 31395.69 ( 0.00%) 31499.95 ( 0.33%)
-           4 49866.54 ( 0.00%) 49713.49 (-0.31%)
-           5 49919.58 ( 0.00%) 49524.21 (-0.80%)
-           6 49532.97 ( 0.00%) 49397.60 (-0.27%)
-           7 49465.79 ( 0.00%) 49384.14 (-0.17%)
-           8 49483.33 ( 0.00%) 49186.49 (-0.60%)
-
-These figures also show no differences worth talking about.
-
-While the extra allocation in patch 2 would appear to slow down exec somewhat,
-it's not by any amount that matters. As it is in exec, it means that anon_vmas
-have likely been freed very recently so the allocation will be cache-hot and
-cpu-local. It is possible to special-case migration to avoid migrating pages
-in the temporary stack, but fixing it in exec is a more maintainable approach.
-
- fs/exec.c            |   37 ++++++++++++++++++++--
- include/linux/rmap.h |    2 +
- mm/ksm.c             |   20 ++++++++++--
- mm/mmap.c            |   14 +++++++-
- mm/rmap.c            |   81 +++++++++++++++++++++++++++++++++++++++++++++-----
- 5 files changed, 137 insertions(+), 17 deletions(-)
-
-Andrea Arcangeli (1):
-  mm,migration: Fix race between shift_arg_pages and rmap_walk by
-    guaranteeing rmap_walk finds PTEs created within the temporary
-    stack
-
-Mel Gorman (1):
-  mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA
-    information
-
- fs/exec.c            |   37 +++++++++++++++++--
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
  include/linux/rmap.h |    4 ++
  mm/ksm.c             |   13 ++++++-
  mm/mmap.c            |   14 ++++++-
  mm/rmap.c            |   97 ++++++++++++++++++++++++++++++++++++++++++++++----
- 5 files changed, 151 insertions(+), 14 deletions(-)
+ 4 files changed, 118 insertions(+), 10 deletions(-)
+
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 7721674..1dc949f 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -121,6 +121,10 @@ int  anon_vma_prepare(struct vm_area_struct *);
+ void unlink_anon_vmas(struct vm_area_struct *);
+ int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+ int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
++struct anon_vma *anon_vma_lock_nested(struct anon_vma *prev,
++			struct anon_vma *next, struct anon_vma *root);
++struct anon_vma *anon_vma_lock_root(struct anon_vma *anon_vma);
++struct anon_vma *page_anon_vma_lock_root(struct page *page);
+ void __anon_vma_link(struct vm_area_struct *);
+ void anon_vma_free(struct anon_vma *);
+ 
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 3666d43..1db8656 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1655,6 +1655,7 @@ int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
+ {
+ 	struct stable_node *stable_node;
+ 	struct hlist_node *hlist;
++	struct anon_vma *nested_anon_vma = NULL;
+ 	struct rmap_item *rmap_item;
+ 	int ret = SWAP_AGAIN;
+ 	int search_new_forks = 0;
+@@ -1671,9 +1672,16 @@ again:
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+-		spin_lock(&anon_vma->lock);
++		anon_vma = anon_vma_lock_root(anon_vma);
++		if (nested_anon_vma) {
++			spin_unlock(&nested_anon_vma->lock);
++			nested_anon_vma = NULL;
++		}
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
++			nested_anon_vma = anon_vma_lock_nested(nested_anon_vma,
++						vma->anon_vma, anon_vma);
++
+ 			if (rmap_item->address < vma->vm_start ||
+ 			    rmap_item->address >= vma->vm_end)
+ 				continue;
+@@ -1697,6 +1705,9 @@ again:
+ 	if (!search_new_forks++)
+ 		goto again;
+ out:
++	if (nested_anon_vma)
++		spin_unlock(&nested_anon_vma->lock);
++
+ 	return ret;
+ }
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..b447d5b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -505,6 +505,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 	struct vm_area_struct *next = vma->vm_next;
+ 	struct vm_area_struct *importer = NULL;
+ 	struct address_space *mapping = NULL;
++	struct anon_vma *anon_vma = NULL;
+ 	struct prio_tree_root *root = NULL;
+ 	struct file *file = vma->vm_file;
+ 	long adjust_next = 0;
+@@ -578,6 +579,11 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
+ 
++	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
++		anon_vma = vma->anon_vma;
++		spin_lock(&anon_vma->lock);
++	}
++
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +626,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (anon_vma)
++		spin_unlock(&anon_vma->lock);
++
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+@@ -2556,8 +2565,9 @@ int mm_take_all_locks(struct mm_struct *mm)
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		if (signal_pending(current))
+ 			goto out_unlock;
++		/* Lock the anon_vmas in the same order rmap_walk would */
+ 		if (vma->anon_vma)
+-			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++			list_for_each_entry_reverse(avc, &vma->anon_vma_chain, same_vma)
+ 				vm_lock_anon_vma(mm, avc->anon_vma);
+ 	}
+ 
+@@ -2620,7 +2630,7 @@ void mm_drop_all_locks(struct mm_struct *mm)
+ 
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		if (vma->anon_vma)
+-			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++			list_for_each_entry_reverse(avc, &vma->anon_vma_chain, same_vma)
+ 				vm_unlock_anon_vma(avc->anon_vma);
+ 		if (vma->vm_file && vma->vm_file->f_mapping)
+ 			vm_unlock_mapping(vma->vm_file->f_mapping);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 85f203e..2e65a75 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -236,6 +236,81 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ 	return -ENOMEM;
+ }
+ 
++/*
++ * When walking an anon_vma_chain and locking each anon_vma encountered,
++ * this function is responsible for checking if the next VMA is the
++ * same as the root, locking it if not and released the previous lock
++ * if necessary.
++ *
++ * It is assumed the caller has locked the root anon_vma
++ */
++struct anon_vma *anon_vma_lock_nested(struct anon_vma *prev,
++			struct anon_vma *next, struct anon_vma *root)
++{
++	if (prev)
++		spin_unlock(&prev->lock);
++	if (next == root)
++		return NULL;
++	spin_lock_nested(&next->lock, SINGLE_DEPTH_NESTING);
++	return next;
++}
++
++/*
++ * Given an anon_vma, find the root of the chain, lock it and return the
++ * root. This must be called with the rcu_read_lock held
++ */
++struct anon_vma *anon_vma_lock_root(struct anon_vma *anon_vma)
++{
++	struct anon_vma *root_anon_vma;
++	struct anon_vma_chain *avc, *root_avc;
++	struct vm_area_struct *vma;
++
++	/* Lock the same_anon_vma list and make sure we are on a chain */
++	spin_lock(&anon_vma->lock);
++	if (list_empty(&anon_vma->head)) {
++		spin_unlock(&anon_vma->lock);
++		return NULL;
++	}
++
++	/*
++	 * Get the root anon_vma on the list by depending on the ordering
++	 * of the same_vma list setup by __page_set_anon_rmap. Basically
++	 * we are doing
++	 *
++	 * local anon_vma -> local vma -> root vma -> root anon_vma
++	 */
++	avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
++	vma = avc->vma;
++	root_avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
++	root_anon_vma = root_avc->anon_vma;
++
++	/* Get the lock of the root anon_vma */
++	if (anon_vma != root_anon_vma) {
++		VM_BUG_ON(!rcu_read_lock_held());
++		spin_unlock(&anon_vma->lock);
++		spin_lock(&root_anon_vma->lock);
++	}
++
++	return root_anon_vma;
++}
++
++/*
++ * From the anon_vma associated with this page, find and lock the
++ * deepest anon_vma on the list. This allows multiple anon_vma locks
++ * to be taken by guaranteeing the locks are taken in the same order
++ */
++struct anon_vma *page_anon_vma_lock_root(struct page *page)
++{
++	struct anon_vma *anon_vma;
++
++	/* Get the local anon_vma */
++	anon_vma = page_anon_vma(page);
++	if (!anon_vma)
++		return NULL;
++
++	return anon_vma_lock_root(anon_vma);
++}
++
+ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
+ {
+ 	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
+@@ -326,7 +401,7 @@ void page_unlock_anon_vma(struct anon_vma *anon_vma)
+  * Returns virtual address or -EFAULT if page's index/offset is not
+  * within the range mapped the @vma.
+  */
+-static inline unsigned long
++static noinline unsigned long
+ vma_address(struct page *page, struct vm_area_struct *vma)
+ {
+ 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+@@ -1359,6 +1434,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+ 	struct anon_vma *anon_vma;
++	struct anon_vma *nested_anon_vma = NULL;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1368,19 +1444,26 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
+ 	 */
+-	anon_vma = page_anon_vma(page);
++	anon_vma = page_anon_vma_lock_root(page);
+ 	if (!anon_vma)
+ 		return ret;
+-	spin_lock(&anon_vma->lock);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+-		unsigned long address = vma_address(page, vma);
+-		if (address == -EFAULT)
+-			continue;
+-		ret = rmap_one(page, vma, address, arg);
++		unsigned long address;
++
++		nested_anon_vma = anon_vma_lock_nested(nested_anon_vma,
++						vma->anon_vma, anon_vma);
++		address = vma_address(page, vma);
++		if (address != -EFAULT)
++			ret = rmap_one(page, vma, address, arg);
++
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
++
++	if (nested_anon_vma)
++		spin_unlock(&nested_anon_vma->lock);
++
+ 	spin_unlock(&anon_vma->lock);
+ 	return ret;
+ }
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
