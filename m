@@ -1,56 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 82204620084
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 06:37:27 -0400 (EDT)
-Date: Thu, 6 May 2010 11:37:05 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id 1B1B76B01F9
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 07:03:44 -0400 (EDT)
+Date: Thu, 6 May 2010 12:03:23 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
 	the wrong VMA information
-Message-ID: <20100506103705.GD20979@csn.ul.ie>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org> <20100505155454.GT20979@csn.ul.ie> <20100505161319.GQ5835@random.random>
+Message-ID: <20100506110322.GE20979@csn.ul.ie>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org> <20100505155454.GT20979@csn.ul.ie> <alpine.LFD.2.00.1005051007140.27218@i5.linux-foundation.org> <20100505181456.GV20979@csn.ul.ie> <alpine.LFD.2.00.1005051118540.27218@i5.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100505161319.GQ5835@random.random>
+In-Reply-To: <alpine.LFD.2.00.1005051118540.27218@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 06:13:19PM +0200, Andrea Arcangeli wrote:
-> On Wed, May 05, 2010 at 04:54:54PM +0100, Mel Gorman wrote:
-> > I'm still thinking of the ordering but one possibility would be to use a mutex
+On Wed, May 05, 2010 at 11:34:05AM -0700, Linus Torvalds wrote:
 > 
-> I can't take mutex in split_huge_page... so I'd need to use an other solution.
 > 
-> > Not yet.
+> On Wed, 5 May 2010, Mel Gorman wrote:
+> > 
+> > In the direction I was taking, only rmap_walk took the deepest lock (I called
+> > it oldest but hey) and would take other anon_vma locks as well. The objective
+> > was to make sure the order the locks were taken in was correct.
+> >
+> > I think you are suggesting that any anon_vma lock that is taken should always
+> > take the deepest lock. Am I right and is that necessary? The downsides is that
+> > there is a single lock that is hotter. The upside is that rmap_walk no longer
+> > has different semantics as vma_adjust and friends because it's the same lock.
 > 
-> Rik's patch that takes the locks in the faster path is preferable to
-> me, it's just simpler, you know the really "strong" long is the
-> page->mapping/anon_vma->lock and nothing else.
-
-The hatchet-job mutex is off the table so it's down to
-
-start-with-root-anon_vma-and-lock-in-order-when-walking-list (what I last posted)
-take-all-anon_vma-locks-when-changing-vmas (Rik's)
-use-seq-counter-to-spot-changes-to-VMAs-when-walking-list (Kamezawa-san's approach)
-
-Any strong preference?
-
-I still haven't read the other comments Linus made so I don't have a strong
-preference yet. Either Rik's or the patch I posted should be enough for
-migration to not get tripped up as far as I can see.
-
-> You've a page, you take
-> that lock, you're done for that very page.
+> I could personally go either way, I don't really care that deeply.
 > 
-> Sure that means updating vm_start/vm_pgoff then requires locking all
-> anon_vmas that the vma registered into, but that's conceptually
-> simpler and it doesn't alter the page_lock_anon_vma semantics. Now I
-> wonder if you said the same_anon_vma is in order, but the same_vma is
-> not, if it's safe to lock the same_vma in list order in anon_vma_lock,
-> I didn't experience problems on the anon_vma_chain branch but
-> anon_vma_lock disables all lockdep lock inversion checking.
+> I think you could easily just take the root lock in the rmap_walk_anon/ksm 
+> paths, and _also_ take the individual locks as you walk it (safe, since 
+> now the root lock avoids the ABBA issue - you only need to compare the 
+> individual lock against the root lock to not take it twice, of course).
+> 
+
+This is what I'm currently doing.
+
+> Or you could take the "heavy lock" approach that Andrea was arguing for, 
+> but rather than iterating you'd just take the root lock.
+> 
+
+Initially, I thought the problem with this was making the root anon_vma
+lock hotter. It didn't seem that big of a deal but it was there. The greater
+problem was that the RCU lock is needed to exchange the local anon_vma lock
+with the root anon_vma lock. So the "heavy lock" approach is actually quite
+heavy because it involves two spinlocks, the RCU lock and the root lock
+being hotter.
+
+Right now, I'm thinking that only rmap_walk taking the root anon_vma
+lock and taking multiple locks as it walks is nicer. I believe it's
+sufficient for migration but it also needs to be sufficient for
+transparent hugepage support.
+
+> I absolutely _hated_ the "iterate over all locks in the normal case" idea, 
+> but with the root lock it's much more targeted and no longer is about 
+> nested locks of the same type.
+> 
+> So the things I care about are just:
+> 
+>  - I hate that "retry" logic that made things more complex and had the 
+>    livelock problem.
+> 
+
+Dumped.
+
+>    The "root lock" helper function certainly wouldn't be any fewer lines 
+>    than your retry version, but it's a clearly separate locking function, 
+>    rather than mixed in with the walking code. And it doesn't do livelock.
+> 
+
+Agreed.
+
+>  - I detest "take all locks" in normal paths. I'm ok with it for special 
+>    case code (and I think the migrate code counts as special case), but I 
+>    think it was really horribly and fundamentally wrong in that "mm: Take 
+>    all anon_vma locks in anon_vma_lock" patch I saw.
+> 
+> but whether we want to take the root lock in "anon_vma_lock()" or not is 
+> just a "detail" as far as I'm concerned. It's no longer "horribly wrong". 
+> It might have scalability issues etc, of course, but likely only under 
+> insane loads.
+> 
+
+I think this approach of always taking the root lock would be neater in a
+number of respects because from a page, there would be the "one true lock".
+If RCU was not involved, it would be particularly nice.
+
+Part of PeterZ's "replace anon_vma lock with mutex" involves proper
+reference counting of anon_vma. If even the reference count part was
+polished, it would allow us to always take the root anon_vma lock
+without RCU because it would be
+
+lock local_anon_vma
+find root_anon_vma
+get root_anon_vma
+unlock local_anon_vma
+lock root anon_vma
+put root_anon_vma
+
+So maybe when anon_vma is reference counted, it'd be best to switch to
+always locking the root anon_vma.
+
+For the moment though, I reckon it's best to only have rmap_walk
+concerned with the root anon_vma and have it take multiple locks.
+
+> So either way works for me. 
+> 
+> > > 	if (!list_empty(&anon_vma->head)) {
+> > 
+> > Can it be empty? I didn't think it was possible as the anon_vma must
+> > have at least it's own chain.
+> 
+> Ok, so that was answered in the other email - I think it's necessary in 
+> the general case, although depending on exactly _how_ the page was looked 
+> up, that may not be true.
+> 
+> If you have guarantees that the page is still mapped (thanks for page 
+> table lock or something) and the anon_vma can't go away (just a read lock 
+> on a mm_sem that was used to look up the page would also be sufficient), 
+> that list_empty() check is unnecessary.
+> 
+> So it's a bit context-dependent.
+> 
+> 			Linus
 > 
 
 -- 
