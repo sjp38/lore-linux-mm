@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 601586B02B8
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:34:34 -0400 (EDT)
-Message-ID: <4BE2E167.2030806@redhat.com>
-Date: Thu, 06 May 2010 11:33:59 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D4DB96B02BA
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:45:34 -0400 (EDT)
+Message-ID: <4BE2E3F9.9090708@redhat.com>
+Date: Thu, 06 May 2010 11:44:57 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm,compaction: Do not schedule work on other CPUs for
- compaction
-References: <20100506150808.GC8704@csn.ul.ie>
-In-Reply-To: <20100506150808.GC8704@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+References: <1273159987-10167-1-git-send-email-mel@csn.ul.ie> <1273159987-10167-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1273159987-10167-2-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 05/06/2010 11:08 AM, Mel Gorman wrote:
-> Migration normally requires a call to migrate_prep() as a preparation
-> step. This schedules work on all CPUs for pagevecs to be drained. This
-> makes sense for move_pages and memory hot-remove but is unnecessary
-> for memory compaction.
->
-> To avoid queueing work on multiple CPUs, this patch introduces
-> migrate_prep_local() which drains just local pagevecs.
->
-> This patch can be either merged with mmcompaction-memory-compaction-core.patch
-> or placed immediately after it to clarify why migrate_prep_local() was
-> introduced.
->
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+On 05/06/2010 11:33 AM, Mel Gorman wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> @@ -1368,16 +1424,25 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+>   	 * are holding mmap_sem. Users without mmap_sem are required to
+>   	 * take a reference count to prevent the anon_vma disappearing
+>   	 */
+> -	anon_vma = page_anon_vma(page);
+> +	anon_vma = page_anon_vma_lock_root(page);
+>   	if (!anon_vma)
+>   		return ret;
+> -	spin_lock(&anon_vma->lock);
+>   	list_for_each_entry(avc,&anon_vma->head, same_anon_vma) {
+
+One conceptual problem here.  By taking the oldest anon_vma,
+instead of the anon_vma of the page, we may end up searching
+way too many processes.
+
+Eg. if the page is the page of a child process in a forking
+server workload, the above code will end up searching the
+parent and all of the siblings - even for a private page, in
+the child process's private anon_vma.
+
+For an Apache or Oracle system with 1000 clients (and child
+processes), that could be quite a drag - searching 1000 times
+as many processes as we should.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
