@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DDBDD6B0265
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 20:44:33 -0400 (EDT)
-Date: Wed, 5 May 2010 17:42:19 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the wrong VMA information
-In-Reply-To: <20100506002255.GY20979@csn.ul.ie>
-Message-ID: <alpine.LFD.2.00.1005051737290.901@i5.linux-foundation.org>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie> <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505175311.GU20979@csn.ul.ie> <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org> <20100506002255.GY20979@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CE3256B0299
+	for <linux-mm@kvack.org>; Wed,  5 May 2010 20:52:24 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: virtio: put last_used and last_avail index into ring itself.
+Date: Thu, 6 May 2010 10:22:12 +0930
+References: <cover.1257349249.git.mst@redhat.com> <200911091647.29655.rusty@rustcorp.com.au> <20100504182236.GA14141@redhat.com>
+In-Reply-To: <20100504182236.GA14141@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201005061022.13815.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: netdev@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@elte.hu, linux-mm@kvack.org, akpm@linux-foundation.org, hpa@zytor.com, gregory.haskins@gmail.com, s.hetze@linux-ag.com, Daniel Walker <dwalker@fifo99.com>, Eric Dumazet <eric.dumazet@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 5 May 2010 03:52:36 am Michael S. Tsirkin wrote:
+> > virtio: put last_used and last_avail index into ring itself.
+> > 
+> > Generally, the other end of the virtio ring doesn't need to see where
+> > you're up to in consuming the ring.  However, to completely understand
+> > what's going on from the outside, this information must be exposed.
+> > For example, if you want to save and restore a virtio_ring, but you're
+> > not the consumer because the kernel is using it directly.
+> > 
+> > Fortunately, we have room to expand: the ring is always a whole number
+> > of pages and there's hundreds of bytes of padding after the avail ring
+> > and the used ring, whatever the number of descriptors (which must be a
+> > power of 2).
+> > 
+> > We add a feature bit so the guest can tell the host that it's writing
+> > out the current value there, if it wants to use that.
+> > 
+> > Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+> 
+> I've been looking at this patch some more (more on why
+> later), and I wonder: would it be better to add some
+> alignment to the last used index address, so that
+> if we later add more stuff at the tail, it all
+> fits in a single cache line?
 
+In theory, but not in practice.  We don't have many rings, so the
+difference between 1 and 2 cache lines is not very much.
 
-On Thu, 6 May 2010, Mel Gorman wrote:
-> +	/*
-> +	 * Get the root anon_vma on the list by depending on the ordering
-> +	 * of the same_vma list setup by __page_set_anon_rmap. Basically
-> +	 * we are doing
-> +	 *
-> +	 * local anon_vma -> local vma -> deepest vma -> anon_vma
-> +	 */
-> +	avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
-> +	vma = avc->vma;
-> +	root_avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-> +	root_anon_vma = root_avc->anon_vma;
-> +	if (!root_anon_vma) {
-> +		/* XXX: Can this happen? Don't think so but get confirmation */
-> +		WARN_ON_ONCE(1);
-> +		return anon_vma;
-> +	}
+> We use a new feature bit anyway, so layout change should not be
+> a problem.
+> 
+> Since I raised the question of caches: for used ring,
+> the ring is not aligned to 64 bit, so on CPUs with 64 bit
+> or larger cache lines, used entries will often cross
+> cache line boundaries. Am I right and might it
+> have been better to align ring entries to cache line boundaries?
+> 
+> What do you think?
 
-No, that can't happen. If you find an avc struct, it _will_ have a 
-anon_vma pointer. So there's no point in testing for NULL. If some bug 
-happens, you're much better off with the oops than with the warning.
+I think everyone is settled on 128 byte cache lines for the forseeable
+future, so it's not really an issue.
 
-> +	/* Get the lock of the root anon_vma */
-> +	if (anon_vma != root_anon_vma) {
-> +		/*
-> +		 * XXX: This doesn't seem safe. What prevents root_anon_vma
-> +		 * getting freed from underneath us? Not much but if
-> +		 * we take the second lock first, there is a deadlock
-> +		 * possibility if there are multiple callers of rmap_walk
-> +		 */
-> +		spin_unlock(&anon_vma->lock);
-> +		spin_lock(&root_anon_vma->lock);
-> +	}
-
-What makes this ok is the fact that it must be running under the RCU read 
-lock, and anon_vma's thus cannot be released. My version of the code made 
-that explicit. Yours does not, and doesn't even have comments about the 
-fact that it needs to be called RCU read-locked. Tssk, tssk.
-
-Please don't just assume locking. Either lock it, or say "this must be 
-called with so-and-so held". Not just a silent "this would be buggy if 
-anybody ever called it without the RCU lock".
-
-		Linus
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
