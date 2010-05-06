@@ -1,155 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BDE36B02B2
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:33:14 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A2E66B02B3
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:33:16 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 0/2] Fix migration races in rmap_walk() V6
-Date: Thu,  6 May 2010 16:33:05 +0100
-Message-Id: <1273159987-10167-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary stack
+Date: Thu,  6 May 2010 16:33:07 +0100
+Message-Id: <1273159987-10167-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1273159987-10167-1-git-send-email-mel@csn.ul.ie>
+References: <1273159987-10167-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Patch 1 of this series is the biggest change. Instead of the trylock+retry
-logic, it finds the "root" anon_vma and locks all anon_vmas encountered. As
-long as walkers taking multiple locks use the same order, there is no
-deadlock. Stress-tests based on compaction have been running a while with
-these patches applied without problems.
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Changelog since V5
-  o Have rmap_walk take anon_vma locks in order starting from the "root"
-  o Ensure that mm_take_all_locks locks VMAs in the same order
+Page migration requires rmap to be able to find all migration ptes
+created by migration. If the second rmap_walk clearing migration PTEs
+misses an entry, it is left dangling causing a BUG_ON to trigger during
+fault. For example;
 
-Changelog since V4
-  o Switch back anon_vma locking to put bulk of locking in rmap_walk
-  o Fix anon_vma lock ordering in exec vs migration race
+[  511.201534] kernel BUG at include/linux/swapops.h:105!
+[  511.201534] invalid opcode: 0000 [#1] PREEMPT SMP
+[  511.201534] last sysfs file: /sys/block/sde/size
+[  511.201534] CPU 0
+[  511.201534] Modules linked in: kvm_amd kvm dm_crypt loop i2c_piix4 serio_raw tpm_tis shpchp evdev tpm i2c_core pci_hotplug tpm_bios wmi processor button ext3 jbd mbcache dm_mirror dm_region_hash dm_log dm_snapshot dm_mod raid10 raid456 async_raid6_recov async_pq raid6_pq async_xor xor async_memcpy async_tx raid1 raid0 multipath linear md_mod sg sr_mod cdrom sd_mod ata_generic ahci libahci libata ide_pci_generic ehci_hcd ide_core r8169 mii ohci_hcd scsi_mod floppy thermal fan thermal_sys
+[  511.888526]
+[  511.888526] Pid: 20431, comm: date Not tainted 2.6.34-rc4-mm1-fix-swapops #6 GA-MA790GP-UD4H/GA-MA790GP-UD4H
+[  511.888526] RIP: 0010:[<ffffffff811094ff>]  [<ffffffff811094ff>] migration_entry_wait+0xc1/0x129
+[  512.173545] RSP: 0018:ffff880037b979d8  EFLAGS: 00010246
+[  512.198503] RAX: ffffea0000000000 RBX: ffffea0001a2ba10 RCX: 0000000000029830
+[  512.329617] RDX: 0000000001a2ba10 RSI: ffffffff818264b8 RDI: 000000000ef45c3e
+[  512.380001] RBP: ffff880037b97a08 R08: ffff880078003f00 R09: ffff880037b979e8
+[  512.380001] R10: ffffffff8114ddaa R11: 0000000000000246 R12: 0000000037304000
+[  512.380001] R13: ffff88007a9ed5c8 R14: f800000000077a2e R15: 000000000ef45c3e
+[  512.380001] FS:  00007f3d346866e0(0000) GS:ffff880002200000(0000) knlGS:0000000000000000
+[  512.380001] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  512.380001] CR2: 00007fff6abec9c1 CR3: 0000000037a15000 CR4: 00000000000006f0
+[  512.380001] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  513.004775] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[  513.068415] Process date (pid: 20431, threadinfo ffff880037b96000, task ffff880078003f00)
+[  513.068415] Stack:
+[  513.068415]  ffff880037b97b98 ffff880037b97a18 ffff880037b97be8 0000000000000c00
+[  513.228068] <0> ffff880037304f60 00007fff6abec9c1 ffff880037b97aa8 ffffffff810e951a
+[  513.228068] <0> ffff880037b97a88 0000000000000246 0000000000000000 ffffffff8130c5c2
+[  513.228068] Call Trace:
+[  513.228068]  [<ffffffff810e951a>] handle_mm_fault+0x3f8/0x76a
+[  513.228068]  [<ffffffff8130c5c2>] ? do_page_fault+0x26a/0x46e
+[  513.228068]  [<ffffffff8130c7a2>] do_page_fault+0x44a/0x46e
+[  513.720755]  [<ffffffff8130875d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[  513.789278]  [<ffffffff8114ddaa>] ? load_elf_binary+0x14a1/0x192b
+[  513.851506]  [<ffffffff813099b5>] page_fault+0x25/0x30
+[  513.851506]  [<ffffffff8114ddaa>] ? load_elf_binary+0x14a1/0x192b
+[  513.851506]  [<ffffffff811c1e27>] ? strnlen_user+0x3f/0x57
+[  513.851506]  [<ffffffff8114de33>] load_elf_binary+0x152a/0x192b
+[  513.851506]  [<ffffffff8111329b>] search_binary_handler+0x173/0x313
+[  513.851506]  [<ffffffff8114c909>] ? load_elf_binary+0x0/0x192b
+[  513.851506]  [<ffffffff81114896>] do_execve+0x219/0x30a
+[  513.851506]  [<ffffffff8111887f>] ? getname+0x14d/0x1b3
+[  513.851506]  [<ffffffff8100a5c6>] sys_execve+0x43/0x5e
+[  514.483501]  [<ffffffff8100320a>] stub_execve+0x6a/0xc0
+[  514.548357] Code: 74 05 83 f8 1f 75 68 48 b8 ff ff ff ff ff ff ff 07 48 21 c2 48 b8 00 00 00 00 00 ea ff ff 48 6b d2 38 48 8d 1c 02 f6 03 01 75 04 <0f> 0b eb fe 8b 4b 08 48 8d 73 08 85 c9 74 35 8d 41 01 89 4d e0
+[  514.704292] RIP  [<ffffffff811094ff>] migration_entry_wait+0xc1/0x129
+[  514.808221]  RSP <ffff880037b979d8>
+[  514.906179] ---[ end trace 4f88495edc224d6b ]---
 
-Changelog since V3
-  o Rediff against the latest upstream tree
-  o Improve the patch changelog a little (thanks Peterz)
+This particular BUG_ON is caused by a race between shift_arg_pages and
+migration. During exec, a temporary stack is created and later moved to
+its final location. If migration selects a page within the temporary stack,
+the page tables and migration PTE can be copied to the new location before
+rmap_walk is able to find the copy. This leaves a dangling migration PTE
+behind that later triggers the bug.
 
-Changelog since V2
-  o Drop fork changes
-  o Avoid pages in temporary stacks during exec instead of migration pte
-    lazy cleanup
-  o Drop locking-related patch and replace with Rik's
+This patch fixes the problem by using two VMAs - one which covers the
+temporary stack and the other which covers the new location. This guarantees
+that rmap can always find the migration PTE even if it is copied while
+rmap_walk is taking place.
 
-Changelog since V1
-  o Handle the execve race
-  o Be sure that rmap_walk() releases the correct VMA lock
-  o Hold the anon_vma lock for the address lookup and the page remap
-  o Add reviewed-bys
+[mel@csn.ul.ie: Tested and rewrote changelog]
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ fs/exec.c |   37 +++++++++++++++++++++++++++++++++----
+ 1 files changed, 33 insertions(+), 4 deletions(-)
 
-Broadly speaking, migration works by locking a page, unmapping it, putting
-a migration PTE in place that looks like a swap entry, copying the page and
-remapping the page removing the old migration PTE before unlocking the page.
-If a fault occurs, the faulting process waits until migration completes.
-
-The problem is that there are some races that either allow migration PTEs
-to be left left behind. Migration still completes and the page is unlocked
-but later a fault will call migration_entry_to_page() and BUG() because the
-page is not locked. It's not possible to just clean up the migration PTE
-because the page it points to has been potentially freed and reused. This
-series aims to close the races.
-
-Patch 1 of this series is about the of locking of anon_vma in migration versus
-vma_adjust. While I am not aware of any reproduction cases, it is potentially
-racy. This patch is an alternative to Rik's "heavy lock" approach posted
-at http://lkml.org/lkml/2010/5/3/155. With the patch, rmap_walk finds the
-"root" anon_vma and starts locking from there, locking each new anon_vma
-as it finds it. As long as the order is preserved, there is no deadlock.
-In vma_adjust, the anon_vma locks are acquired under similar conditions
-to 2.6.33 so that walkers will block until VMA changes are complete. The
-rmap_walk changes potentially slows down migration and aspects of page
-reclaim a little but they are the less important path.
-
-Patch 2 of this series addresses the swapops bug reported that is a race
-between migration and execve where pages get migrated from the temporary
-stack before it is moved. To avoid migration PTEs being left behind,
-a temporary VMA is put in place so that a migration PTE in either the
-temporary stack or the relocated stack can be found.
-
-The reproduction case for the races was as follows;
-
-1. Run kernel compilation in a loop
-2. Start four processes, each of which creates one mapping. The three stress
-   different aspects of the problem. The operations they undertake are;
-	a) Forks a hundred children, each of which faults the mapping
-		Purpose: stress tests migration pte removal
-	b) Forks a hundred children, each which punches a hole in the mapping
-	   and faults what remains
-		Purpose: stress test VMA manipulations during migration
-	c) Forks a hundred children, each of which execs and calls echo
-		Purpose: stress test the execve race
-	d) Size the mapping to be 1.5 times physical memory. Constantly
-	   memset it
-		Purpose: stress swapping
-3. Constantly compact memory using /proc/sys/vm/compact_memory so migration
-   is active all the time. In theory, you could also force this using
-   sys_move_pages or memory hot-remove but it'd be nowhere near as easy
-   to test.
-
-Compaction is the easiest way to trigger these bugs which is not going to
-be in 2.6.34 but in theory the problem also affects memory hot-remove.
-
-There were some concerns with patch 2 that performance would be impacted. To
-check if this was the case I ran kernbench, aim9 and sysbench. AIM9 in
-particular was of interest as it has an exec microbenchmark.
-
-             kernbench-vanilla    fixraces-v5r1
-Elapsed mean     103.40 ( 0.00%)   103.35 ( 0.05%)
-Elapsed stddev     0.09 ( 0.00%)     0.13 (-55.72%)
-User    mean     313.50 ( 0.00%)   313.15 ( 0.11%)
-User    stddev     0.61 ( 0.00%)     0.20 (66.70%)
-System  mean      55.50 ( 0.00%)    55.85 (-0.64%)
-System  stddev     0.48 ( 0.00%)     0.15 (68.98%)
-CPU     mean     356.25 ( 0.00%)   356.50 (-0.07%)
-CPU     stddev     0.43 ( 0.00%)     0.50 (-15.47%)
-
-Nothing special there and kernbench is fork+exec heavy. The patched kernel
-is slightly faster on wall time but it's well within the noise. System time
-is slightly slower but again, it's within the noise.
-
-AIM9
-                  aim9-vanilla    fixraces-v5r1
-creat-clo     116813.86 ( 0.00%)  117980.34 ( 0.99%)
-page_test     270923.33 ( 0.00%)  268668.56 (-0.84%)
-brk_test     2551558.07 ( 0.00%) 2649450.00 ( 3.69%)
-signal_test   279866.67 ( 0.00%)  279533.33 (-0.12%)
-exec_test        226.67 ( 0.00%)     232.67 ( 2.58%)
-fork_test       4261.91 ( 0.00%)    4110.98 (-3.67%)
-link_test      53534.78 ( 0.00%)   54076.49 ( 1.00%)
-
-So, here exec and fork aren't showing up major worries. exec is faster but
-these tests can be so sensitive to starting conditions that I tend not to
-read much into them unless there are major differences.
-
-SYSBENCH
-              sysbench-vanilla    fixraces-v5r1
-           1 14177.73 ( 0.00%) 14218.41 ( 0.29%)
-           2 27647.23 ( 0.00%) 27774.14 ( 0.46%)
-           3 31395.69 ( 0.00%) 31499.95 ( 0.33%)
-           4 49866.54 ( 0.00%) 49713.49 (-0.31%)
-           5 49919.58 ( 0.00%) 49524.21 (-0.80%)
-           6 49532.97 ( 0.00%) 49397.60 (-0.27%)
-           7 49465.79 ( 0.00%) 49384.14 (-0.17%)
-           8 49483.33 ( 0.00%) 49186.49 (-0.60%)
-
-These figures also show no differences worth talking about.
-
-While the extra allocation in patch 2 would appear to slow down exec somewhat,
-it's not by any amount that matters. As it is in exec, it means that anon_vmas
-have likely been freed very recently so the allocation will be cache-hot and
-cpu-local. It is possible to special-case migration to avoid migrating pages
-in the temporary stack, but fixing it in exec is a more maintainable approach.
-
- fs/exec.c            |   37 ++++++++++++++++++++--
- include/linux/rmap.h |    2 +
- mm/ksm.c             |   20 ++++++++++--
- mm/mmap.c            |   14 +++++++-
- mm/rmap.c            |   81 +++++++++++++++++++++++++++++++++++++++++++++-----
- 5 files changed, 137 insertions(+), 17 deletions(-)
+diff --git a/fs/exec.c b/fs/exec.c
+index 725d7ef..fd0abff 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -55,6 +55,7 @@
+ #include <linux/fsnotify.h>
+ #include <linux/fs_struct.h>
+ #include <linux/pipe_fs_i.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -503,7 +504,9 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+ 	unsigned long length = old_end - old_start;
+ 	unsigned long new_start = old_start - shift;
+ 	unsigned long new_end = old_end - shift;
++	unsigned long moved_length;
+ 	struct mmu_gather *tlb;
++	struct vm_area_struct *tmp_vma;
+ 
+ 	BUG_ON(new_start > new_end);
+ 
+@@ -515,17 +518,43 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+ 		return -EFAULT;
+ 
+ 	/*
++	 * We need to create a fake temporary vma and index it in the
++	 * anon_vma list in order to allow the pages to be reachable
++	 * at all times by the rmap walk for migrate, while
++	 * move_page_tables() is running.
++	 */
++	tmp_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
++	if (!tmp_vma)
++		return -ENOMEM;
++	*tmp_vma = *vma;
++	INIT_LIST_HEAD(&tmp_vma->anon_vma_chain);
++	/*
+ 	 * cover the whole range: [new_start, old_end)
+ 	 */
+-	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
++	tmp_vma->vm_start = new_start;
++	/*
++	 * The tmp_vma destination of the copy (with the new vm_start)
++	 * has to be at the end of the anon_vma list for the rmap_walk
++	 * to find the moved pages at all times.
++	 */
++	if (unlikely(anon_vma_clone(tmp_vma, vma))) {
++		kmem_cache_free(vm_area_cachep, tmp_vma);
+ 		return -ENOMEM;
++	}
+ 
+ 	/*
+ 	 * move the page tables downwards, on failure we rely on
+ 	 * process cleanup to remove whatever mess we made.
+ 	 */
+-	if (length != move_page_tables(vma, old_start,
+-				       vma, new_start, length))
++	moved_length = move_page_tables(vma, old_start,
++					vma, new_start, length);
++
++	vma->vm_start = new_start;
++	/* rmap walk will already find all pages using the new_start */
++	unlink_anon_vmas(tmp_vma);
++	kmem_cache_free(vm_area_cachep, tmp_vma);
++
++	if (length != moved_length)
+ 		return -ENOMEM;
+ 
+ 	lru_add_drain();
+@@ -551,7 +580,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+ 	/*
+ 	 * Shrink the vma to just the new range.  Always succeeds.
+ 	 */
+-	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
++	vma->vm_end = new_end;
+ 
+ 	return 0;
+ }
+-- 
+1.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
