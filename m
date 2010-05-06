@@ -1,85 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E4A466B029C
-	for <linux-mm@kvack.org>; Wed,  5 May 2010 21:24:07 -0400 (EDT)
-Received: by vws3 with SMTP id 3so1636997vws.14
-        for <linux-mm@kvack.org>; Wed, 05 May 2010 18:24:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4BE14335.10702@ru.mvista.com>
-References: <k2ncecb6d8f1004191627w3cd36450xf797f746460abb09@mail.gmail.com>
-	 <20100420155122.6f2c26eb.akpm@linux-foundation.org>
-	 <20100420230719.GB1432@n2100.arm.linux.org.uk>
-	 <4BE14335.10702@ru.mvista.com>
-Date: Thu, 6 May 2010 10:24:06 +0900
-Message-ID: <p2g9c9fda241005051824k54e70136v8324d135b44c71b5@mail.gmail.com>
-Subject: Re: Suspicious compilation warning
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7909A6B0239
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 02:22:19 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o466MH83005426
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 6 May 2010 15:22:17 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C8F8C45DE51
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:22:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8B2A45DE4F
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:22:16 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C3CC1DB803F
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:22:16 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FF341DB8046
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 15:22:16 +0900 (JST)
+Date: Thu, 6 May 2010 15:18:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mm: remove unnecessary use of atomic
+Message-Id: <20100506151813.b4e625d2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
+References: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Sergei Shtylyov <sshtylyov@mvista.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Stephen Rothwell <sfr@canb.auug.org.au>, Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Phil Carmody <ext-phil.2.carmody@nokia.com>
+Cc: balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, kirill@shutemov.name, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 5, 2010 at 7:06 PM, Sergei Shtylyov <sshtylyov@mvista.com> wrot=
-e:
-> Hello.
->
-> Russell King - ARM Linux wrote:
->
->>>> I get this warning while compiling for ARM/SA1100:
->>>>
->>>> mm/sparse.c: In function '__section_nr':
->>>> mm/sparse.c:135: warning: 'root' is used uninitialized in this functio=
-n
->>>>
->>>> With a small patch in fs/proc/meminfo.c, I find that NR_SECTION_ROOTS
->>>> is zero, which certainly explains the warning.
->>>>
->>>> # cat /proc/meminfo
->>>> NR_SECTION_ROOTS=3D0
->>>> NR_MEM_SECTIONS=3D32
->>>> SECTIONS_PER_ROOT=3D512
->>>> SECTIONS_SHIFT=3D5
->>>> MAX_PHYSMEM_BITS=3D32
->>>>
->>>
->>> hm, who owns sparsemem nowadays? Nobody identifiable.
->>>
->>> Does it make physical sense to have SECTIONS_PER_ROOT > NR_MEM_SECTIONS=
-?
->>>
->>
->> Well, it'll be about this number on everything using sparsemem extreme:
->>
->> #define SECTIONS_PER_ROOT =A0 =A0 =A0 (PAGE_SIZE / sizeof (struct mem_se=
-ction))
->>
->> and with only 32 sections, this is going to give a NR_SECTION_ROOTS valu=
-e
->> of zero. =A0I think the calculation of NR_SECTIONS_ROOTS is wrong.
->>
->> #define NR_SECTION_ROOTS =A0 =A0 =A0 =A0(NR_MEM_SECTIONS / SECTIONS_PER_=
-ROOT)
->>
->> Clearly if we have 1 mem section, we want to have one section root, so
->> I think this division should round up any fractional part, thusly:
->>
->> #define NR_SECTION_ROOTS =A0 =A0 =A0 =A0((NR_MEM_SECTIONS + SECTIONS_PER=
-_ROOT - 1)
->> / SECTIONS_PER_ROOT)
->>
->
-> =A0There's DIV_ROUND_UP() macro for this kind of calculation.
+On Wed,  5 May 2010 14:21:48 +0300
+Phil Carmody <ext-phil.2.carmody@nokia.com> wrote:
 
-Hi,
+> From: Phil Carmody <ext-phil.2.carmody@nokia.com>
+> 
+> The bottom 4 hunks are atomically changing memory to which there
+> are no aliases as it's freshly allocated, so there's no need to
+> use atomic operations.
+> 
+> The other hunks are just atomic_read and atomic_set, and do not
+> involve any read-modify-write. The use of atomic_{read,set}
+> doesn't prevent a read/write or write/write race, so if a race
+> were possible (I'm not saying one is), then it would still be
+> there even with atomic_set.
+> 
+> See:
+> http://digitalvampire.org/blog/index.php/2007/05/13/atomic-cargo-cults/
+> 
+> Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
+> Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
 
-It tested with my board and working.
-Just curious. If NR_SECTION_ROOTS is zero and uninitialized then
-what's problem? Since we boot and working without patch.
-
-Thank you,
-Kyungmin Park
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
