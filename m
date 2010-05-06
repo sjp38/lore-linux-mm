@@ -1,61 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BFC06B02A9
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 10:25:54 -0400 (EDT)
-Date: Thu, 6 May 2010 15:25:31 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7876B02AA
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:08:30 -0400 (EDT)
+Date: Thu, 6 May 2010 16:08:09 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
-	the wrong VMA information
-Message-ID: <20100506142531.GB8704@csn.ul.ie>
-References: <1273065281-13334-2-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org> <20100505145620.GP20979@csn.ul.ie> <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org> <20100505175311.GU20979@csn.ul.ie> <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org> <20100506002255.GY20979@csn.ul.ie> <alpine.LFD.2.00.1005051737290.901@i5.linux-foundation.org> <20100506100208.GB20979@csn.ul.ie> <alpine.LFD.2.00.1005060707050.901@i5.linux-foundation.org>
+Subject: [PATCH] mm,compaction: Do not schedule work on other CPUs for
+	compaction
+Message-ID: <20100506150808.GC8704@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1005060707050.901@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 06, 2010 at 07:15:31AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Thu, 6 May 2010, Mel Gorman wrote:
-> > > 
-> > > What makes this ok is the fact that it must be running under the RCU read 
-> > > lock, and anon_vma's thus cannot be released.
-> > 
-> > This is very subtle in itself. RCU guarantees that the anon_vma exists
-> > but does it guarantee that it's the same one we expect and that it
-> > hasn't been freed and reused?
-> 
-> Nothing. And we shouldn't care.
-> 
-> If it's been freed and re-used, then all the anon_vma's (and vma's) 
-> associated with the original anon_vma (and page) have been free'd.
-> 
-> And that, in turn, means that we don't really need to lock anything at 
-> all. The fact that we end up locking an anon_vma that _used_ to be the 
-> root anon_vma is immaterial - the lock won't _help_, but it shouldn't hurt 
-> either, since it's still a valid spinlock.
-> 
+Migration normally requires a call to migrate_prep() as a preparation
+step. This schedules work on all CPUs for pagevecs to be drained. This
+makes sense for move_pages and memory hot-remove but is unnecessary
+for memory compaction.
 
-I can't see any problem with the logic.
+To avoid queueing work on multiple CPUs, this patch introduces
+migrate_prep_local() which drains just local pagevecs.
 
-> Now, the above is only true as far as the anon_vma itself is concerned. 
-> It's entirely possible that any _other_ data structures would need to be 
-> double-checked after getting the lock. For example, is the _page_ still 
-> associated with that anon_vma? But that's an external issue as far as the 
-> anon_vma locking is concerned - presumably the 'rmap_walk()' caller will 
-> have made sure that the page itself is stable somehow.
-> 
+This patch can be either merged with mmcompaction-memory-compaction-core.patch
+or placed immediately after it to clarify why migrate_prep_local() was
+introduced.
 
-It does, by having the page locked as it performs the walk.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ include/linux/migrate.h |    2 ++
+ mm/compaction.c         |    2 +-
+ mm/migrate.c            |   11 ++++++++++-
+ 3 files changed, 13 insertions(+), 2 deletions(-)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 05d2292..6dec3ef 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -19,6 +19,7 @@ extern int fail_migrate_page(struct address_space *,
+ 			struct page *, struct page *);
+ 
+ extern int migrate_prep(void);
++extern int migrate_prep_local(void);
+ extern int migrate_vmas(struct mm_struct *mm,
+ 		const nodemask_t *from, const nodemask_t *to,
+ 		unsigned long flags);
+@@ -32,6 +33,7 @@ static inline int migrate_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, int offlining) { return -ENOSYS; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
++static inline int migrate_prep_local(void) { return -ENOSYS; }
+ 
+ static inline int migrate_vmas(struct mm_struct *mm,
+ 		const nodemask_t *from, const nodemask_t *to,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index bd13560..94cce51 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -383,7 +383,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	cc->free_pfn = cc->migrate_pfn + zone->spanned_pages;
+ 	cc->free_pfn &= ~(pageblock_nr_pages-1);
+ 
+-	migrate_prep();
++	migrate_prep_local();
+ 
+ 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
+ 		unsigned long nr_migrate, nr_remaining;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 053fd39..d99ec15 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -40,7 +40,8 @@
+ 
+ /*
+  * migrate_prep() needs to be called before we start compiling a list of pages
+- * to be migrated using isolate_lru_page().
++ * to be migrated using isolate_lru_page(). If scheduling work on other CPUs is
++ * undesirable, use migrate_prep_local()
+  */
+ int migrate_prep(void)
+ {
+@@ -55,6 +56,14 @@ int migrate_prep(void)
+ 	return 0;
+ }
+ 
++/* Do the necessary work of migrate_prep but not if it involves other CPUs */
++int migrate_prep_local(void)
++{
++	lru_add_drain();
++
++	return 0;
++}
++
+ /*
+  * Add isolated pages on the list back to the LRU under page lock
+  * to avoid leaking evictable pages back onto unevictable list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
