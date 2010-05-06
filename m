@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A2E66B02B3
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:33:16 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5FA6B02B5
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:33:21 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary stack
-Date: Thu,  6 May 2010 16:33:07 +0100
-Message-Id: <1273159987-10167-3-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the wrong VMA information
+Date: Thu,  6 May 2010 16:33:06 +0100
+Message-Id: <1273159987-10167-2-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1273159987-10167-1-git-send-email-mel@csn.ul.ie>
 References: <1273159987-10167-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,155 +13,273 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+vma_adjust() is updating anon VMA information without locks being taken
+unlike what happened in 2.6.33.  In contrast, file-backed mappings use
+the i_mmap_lock and this lack of locking can result in races with users of
+rmap_walk such as page migration.  vma_address() can return -EFAULT for an
+address that will soon be valid.  For migration, this potentially leaves
+a dangling migration PTE behind which can later cause a BUG_ON to trigger
+when the page is faulted in.
 
-Page migration requires rmap to be able to find all migration ptes
-created by migration. If the second rmap_walk clearing migration PTEs
-misses an entry, it is left dangling causing a BUG_ON to trigger during
-fault. For example;
+With the recent anon_vma changes, there can be more than one anon_vma->lock
+to take when walking a list of anon_vma_chains. As rmap_walk begins with
+the anon_vma a page is associated with, the order of anon_vmas cannot be
+guaranteed and multiple locks cannot be taken without potentially deadlocking.
 
-[  511.201534] kernel BUG at include/linux/swapops.h:105!
-[  511.201534] invalid opcode: 0000 [#1] PREEMPT SMP
-[  511.201534] last sysfs file: /sys/block/sde/size
-[  511.201534] CPU 0
-[  511.201534] Modules linked in: kvm_amd kvm dm_crypt loop i2c_piix4 serio_raw tpm_tis shpchp evdev tpm i2c_core pci_hotplug tpm_bios wmi processor button ext3 jbd mbcache dm_mirror dm_region_hash dm_log dm_snapshot dm_mod raid10 raid456 async_raid6_recov async_pq raid6_pq async_xor xor async_memcpy async_tx raid1 raid0 multipath linear md_mod sg sr_mod cdrom sd_mod ata_generic ahci libahci libata ide_pci_generic ehci_hcd ide_core r8169 mii ohci_hcd scsi_mod floppy thermal fan thermal_sys
-[  511.888526]
-[  511.888526] Pid: 20431, comm: date Not tainted 2.6.34-rc4-mm1-fix-swapops #6 GA-MA790GP-UD4H/GA-MA790GP-UD4H
-[  511.888526] RIP: 0010:[<ffffffff811094ff>]  [<ffffffff811094ff>] migration_entry_wait+0xc1/0x129
-[  512.173545] RSP: 0018:ffff880037b979d8  EFLAGS: 00010246
-[  512.198503] RAX: ffffea0000000000 RBX: ffffea0001a2ba10 RCX: 0000000000029830
-[  512.329617] RDX: 0000000001a2ba10 RSI: ffffffff818264b8 RDI: 000000000ef45c3e
-[  512.380001] RBP: ffff880037b97a08 R08: ffff880078003f00 R09: ffff880037b979e8
-[  512.380001] R10: ffffffff8114ddaa R11: 0000000000000246 R12: 0000000037304000
-[  512.380001] R13: ffff88007a9ed5c8 R14: f800000000077a2e R15: 000000000ef45c3e
-[  512.380001] FS:  00007f3d346866e0(0000) GS:ffff880002200000(0000) knlGS:0000000000000000
-[  512.380001] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  512.380001] CR2: 00007fff6abec9c1 CR3: 0000000037a15000 CR4: 00000000000006f0
-[  512.380001] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  513.004775] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  513.068415] Process date (pid: 20431, threadinfo ffff880037b96000, task ffff880078003f00)
-[  513.068415] Stack:
-[  513.068415]  ffff880037b97b98 ffff880037b97a18 ffff880037b97be8 0000000000000c00
-[  513.228068] <0> ffff880037304f60 00007fff6abec9c1 ffff880037b97aa8 ffffffff810e951a
-[  513.228068] <0> ffff880037b97a88 0000000000000246 0000000000000000 ffffffff8130c5c2
-[  513.228068] Call Trace:
-[  513.228068]  [<ffffffff810e951a>] handle_mm_fault+0x3f8/0x76a
-[  513.228068]  [<ffffffff8130c5c2>] ? do_page_fault+0x26a/0x46e
-[  513.228068]  [<ffffffff8130c7a2>] do_page_fault+0x44a/0x46e
-[  513.720755]  [<ffffffff8130875d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
-[  513.789278]  [<ffffffff8114ddaa>] ? load_elf_binary+0x14a1/0x192b
-[  513.851506]  [<ffffffff813099b5>] page_fault+0x25/0x30
-[  513.851506]  [<ffffffff8114ddaa>] ? load_elf_binary+0x14a1/0x192b
-[  513.851506]  [<ffffffff811c1e27>] ? strnlen_user+0x3f/0x57
-[  513.851506]  [<ffffffff8114de33>] load_elf_binary+0x152a/0x192b
-[  513.851506]  [<ffffffff8111329b>] search_binary_handler+0x173/0x313
-[  513.851506]  [<ffffffff8114c909>] ? load_elf_binary+0x0/0x192b
-[  513.851506]  [<ffffffff81114896>] do_execve+0x219/0x30a
-[  513.851506]  [<ffffffff8111887f>] ? getname+0x14d/0x1b3
-[  513.851506]  [<ffffffff8100a5c6>] sys_execve+0x43/0x5e
-[  514.483501]  [<ffffffff8100320a>] stub_execve+0x6a/0xc0
-[  514.548357] Code: 74 05 83 f8 1f 75 68 48 b8 ff ff ff ff ff ff ff 07 48 21 c2 48 b8 00 00 00 00 00 ea ff ff 48 6b d2 38 48 8d 1c 02 f6 03 01 75 04 <0f> 0b eb fe 8b 4b 08 48 8d 73 08 85 c9 74 35 8d 41 01 89 4d e0
-[  514.704292] RIP  [<ffffffff811094ff>] migration_entry_wait+0xc1/0x129
-[  514.808221]  RSP <ffff880037b979d8>
-[  514.906179] ---[ end trace 4f88495edc224d6b ]---
+To resolve this problem, this patch has rmap_walk walk the anon_vma_chain
+list but always starting from the "root" anon_vma which is the oldest
+anon_vma in the list. It starts by locking the anon_vma lock associated
+with a page. It then finds the "root" anon_vma using the anon_vma_chains
+"same_vma" list as it is strictly ordered. The root anon_vma lock is taken
+and rmap_walk traverses the list. This allows multiple locks to be taken
+as the list is always traversed in the same direction.
 
-This particular BUG_ON is caused by a race between shift_arg_pages and
-migration. During exec, a temporary stack is created and later moved to
-its final location. If migration selects a page within the temporary stack,
-the page tables and migration PTE can be copied to the new location before
-rmap_walk is able to find the copy. This leaves a dangling migration PTE
-behind that later triggers the bug.
+As spotted by Rik, to avoid any deadlocks versus mmu_notify, the order that
+anon_vmas is locked in by mm_take_all_locks is reversed by this patch so that
+both rmap_walk and mm_take_all_locks lock anon_vmas in the order of
+old to new.
 
-This patch fixes the problem by using two VMAs - one which covers the
-temporary stack and the other which covers the new location. This guarantees
-that rmap can always find the migration PTE even if it is copied while
-rmap_walk is taking place.
+For vma_adjust(), the locking behaviour prior to the anon_vma is restored
+so that rmap_walk() can be sure of the integrity of the VMA information and
+lists when the anon_vma lock is held. With this patch, the vma->anon_vma->lock
+is taken if
 
-[mel@csn.ul.ie: Tested and rewrote changelog]
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+	a) If there is any overlap with the next VMA due to the adjustment
+	b) If there is a new VMA is being inserted into the address space
+	c) If the start of the VMA is being changed so that the
+	   relationship between vm_start and vm_pgoff is preserved
+	   for vma_address()
+
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- fs/exec.c |   37 +++++++++++++++++++++++++++++++++----
- 1 files changed, 33 insertions(+), 4 deletions(-)
+ include/linux/rmap.h |    2 +
+ mm/ksm.c             |   20 ++++++++++--
+ mm/mmap.c            |   14 +++++++-
+ mm/rmap.c            |   81 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 4 files changed, 104 insertions(+), 13 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index 725d7ef..fd0abff 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -55,6 +55,7 @@
- #include <linux/fsnotify.h>
- #include <linux/fs_struct.h>
- #include <linux/pipe_fs_i.h>
-+#include <linux/rmap.h>
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 7721674..6d4d5f7 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -121,6 +121,8 @@ int  anon_vma_prepare(struct vm_area_struct *);
+ void unlink_anon_vmas(struct vm_area_struct *);
+ int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+ int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
++struct anon_vma *anon_vma_lock_root(struct anon_vma *anon_vma);
++struct anon_vma *page_anon_vma_lock_root(struct page *page);
+ void __anon_vma_link(struct vm_area_struct *);
+ void anon_vma_free(struct anon_vma *);
  
- #include <asm/uaccess.h>
- #include <asm/mmu_context.h>
-@@ -503,7 +504,9 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
- 	unsigned long length = old_end - old_start;
- 	unsigned long new_start = old_start - shift;
- 	unsigned long new_end = old_end - shift;
-+	unsigned long moved_length;
- 	struct mmu_gather *tlb;
-+	struct vm_area_struct *tmp_vma;
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 3666d43..d16b459 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1668,15 +1668,24 @@ int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
+ again:
+ 	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+ 		struct anon_vma *anon_vma = rmap_item->anon_vma;
++		struct anon_vma *locked_vma;
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
  
- 	BUG_ON(new_start > new_end);
+-		spin_lock(&anon_vma->lock);
++		anon_vma = anon_vma_lock_root(anon_vma);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
++
++			locked_vma = NULL;
++			if (anon_vma != vma->anon_vma) {
++				locked_vma = vma->anon_vma;
++				spin_lock_nested(&locked_vma->lock, SINGLE_DEPTH_NESTING);
++			}
++
+ 			if (rmap_item->address < vma->vm_start ||
+ 			    rmap_item->address >= vma->vm_end)
+-				continue;
++				goto next_vma;
++
+ 			/*
+ 			 * Initially we examine only the vma which covers this
+ 			 * rmap_item; but later, if there is still work to do,
+@@ -1684,9 +1693,14 @@ again:
+ 			 * were forked from the original since ksmd passed.
+ 			 */
+ 			if ((rmap_item->mm == vma->vm_mm) == search_new_forks)
+-				continue;
++				goto next_vma;
  
-@@ -515,17 +518,43 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
- 		return -EFAULT;
+ 			ret = rmap_one(page, vma, rmap_item->address, arg);
++
++next_vma:
++			if (locked_vma)
++				spin_unlock(&locked_vma->lock);
++
+ 			if (ret != SWAP_AGAIN) {
+ 				spin_unlock(&anon_vma->lock);
+ 				goto out;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f90ea92..b447d5b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -505,6 +505,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ 	struct vm_area_struct *next = vma->vm_next;
+ 	struct vm_area_struct *importer = NULL;
+ 	struct address_space *mapping = NULL;
++	struct anon_vma *anon_vma = NULL;
+ 	struct prio_tree_root *root = NULL;
+ 	struct file *file = vma->vm_file;
+ 	long adjust_next = 0;
+@@ -578,6 +579,11 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
  
- 	/*
-+	 * We need to create a fake temporary vma and index it in the
-+	 * anon_vma list in order to allow the pages to be reachable
-+	 * at all times by the rmap walk for migrate, while
-+	 * move_page_tables() is running.
-+	 */
-+	tmp_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-+	if (!tmp_vma)
-+		return -ENOMEM;
-+	*tmp_vma = *vma;
-+	INIT_LIST_HEAD(&tmp_vma->anon_vma_chain);
-+	/*
- 	 * cover the whole range: [new_start, old_end)
- 	 */
--	if (vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL))
-+	tmp_vma->vm_start = new_start;
-+	/*
-+	 * The tmp_vma destination of the copy (with the new vm_start)
-+	 * has to be at the end of the anon_vma list for the rmap_walk
-+	 * to find the moved pages at all times.
-+	 */
-+	if (unlikely(anon_vma_clone(tmp_vma, vma))) {
-+		kmem_cache_free(vm_area_cachep, tmp_vma);
- 		return -ENOMEM;
++	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
++		anon_vma = vma->anon_vma;
++		spin_lock(&anon_vma->lock);
 +	}
- 
- 	/*
- 	 * move the page tables downwards, on failure we rely on
- 	 * process cleanup to remove whatever mess we made.
- 	 */
--	if (length != move_page_tables(vma, old_start,
--				       vma, new_start, length))
-+	moved_length = move_page_tables(vma, old_start,
-+					vma, new_start, length);
 +
-+	vma->vm_start = new_start;
-+	/* rmap walk will already find all pages using the new_start */
-+	unlink_anon_vmas(tmp_vma);
-+	kmem_cache_free(vm_area_cachep, tmp_vma);
+ 	if (root) {
+ 		flush_dcache_mmap_lock(mapping);
+ 		vma_prio_tree_remove(vma, root);
+@@ -620,6 +626,9 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 
++	if (anon_vma)
++		spin_unlock(&anon_vma->lock);
 +
-+	if (length != moved_length)
- 		return -ENOMEM;
+ 	if (remove_next) {
+ 		if (file) {
+ 			fput(file);
+@@ -2556,8 +2565,9 @@ int mm_take_all_locks(struct mm_struct *mm)
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		if (signal_pending(current))
+ 			goto out_unlock;
++		/* Lock the anon_vmas in the same order rmap_walk would */
+ 		if (vma->anon_vma)
+-			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++			list_for_each_entry_reverse(avc, &vma->anon_vma_chain, same_vma)
+ 				vm_lock_anon_vma(mm, avc->anon_vma);
+ 	}
  
- 	lru_add_drain();
-@@ -551,7 +580,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
- 	/*
- 	 * Shrink the vma to just the new range.  Always succeeds.
- 	 */
--	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
-+	vma->vm_end = new_end;
+@@ -2620,7 +2630,7 @@ void mm_drop_all_locks(struct mm_struct *mm)
  
- 	return 0;
+ 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+ 		if (vma->anon_vma)
+-			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++			list_for_each_entry_reverse(avc, &vma->anon_vma_chain, same_vma)
+ 				vm_unlock_anon_vma(avc->anon_vma);
+ 		if (vma->vm_file && vma->vm_file->f_mapping)
+ 			vm_unlock_mapping(vma->vm_file->f_mapping);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 85f203e..b511710 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -236,6 +236,62 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+ 	return -ENOMEM;
  }
+ 
++/*
++ * Given an anon_vma, find the root of the chain, lock it and return it.
++ * This must be called with the rcu_read_lock held
++ */
++struct anon_vma *anon_vma_lock_root(struct anon_vma *anon_vma)
++{
++	struct anon_vma *root_anon_vma;
++	struct anon_vma_chain *avc, *root_avc;
++	struct vm_area_struct *vma;
++
++	/* Lock the same_anon_vma list and make sure we are on a chain */
++	spin_lock(&anon_vma->lock);
++	if (list_empty(&anon_vma->head)) {
++		spin_unlock(&anon_vma->lock);
++		return NULL;
++	}
++
++	/*
++	 * Get the root anon_vma on the list by depending on the ordering
++	 * of the same_vma list setup by __page_set_anon_rmap. Basically
++	 * we are doing
++	 *
++	 * local anon_vma -> local vma -> root vma -> root anon_vma
++	 */
++	avc = list_first_entry(&anon_vma->head, struct anon_vma_chain, same_anon_vma);
++	vma = avc->vma;
++	root_avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
++	root_anon_vma = root_avc->anon_vma;
++
++	/* Get the lock of the root anon_vma */
++	if (anon_vma != root_anon_vma) {
++		VM_BUG_ON(!rcu_read_lock_held());
++		spin_unlock(&anon_vma->lock);
++		spin_lock(&root_anon_vma->lock);
++	}
++
++	return root_anon_vma;
++}
++
++/*
++ * From the anon_vma associated with this page, find and lock the
++ * deepest anon_vma on the list. This allows multiple anon_vma locks
++ * to be taken by guaranteeing the locks are taken in the same order
++ */
++struct anon_vma *page_anon_vma_lock_root(struct page *page)
++{
++	struct anon_vma *anon_vma;
++
++	/* Get the local anon_vma */
++	anon_vma = page_anon_vma(page);
++	if (!anon_vma)
++		return NULL;
++
++	return anon_vma_lock_root(anon_vma);
++}
++
+ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
+ {
+ 	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
+@@ -1358,7 +1414,7 @@ int try_to_munlock(struct page *page)
+ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+ {
+-	struct anon_vma *anon_vma;
++	struct anon_vma *anon_vma, *locked_vma;
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1368,16 +1424,25 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	 * are holding mmap_sem. Users without mmap_sem are required to
+ 	 * take a reference count to prevent the anon_vma disappearing
+ 	 */
+-	anon_vma = page_anon_vma(page);
++	anon_vma = page_anon_vma_lock_root(page);
+ 	if (!anon_vma)
+ 		return ret;
+-	spin_lock(&anon_vma->lock);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+-		unsigned long address = vma_address(page, vma);
+-		if (address == -EFAULT)
+-			continue;
+-		ret = rmap_one(page, vma, address, arg);
++		unsigned long address;
++
++		locked_vma = NULL;
++		if (anon_vma != vma->anon_vma) {
++			locked_vma = vma->anon_vma;
++			spin_lock_nested(&locked_vma->lock, SINGLE_DEPTH_NESTING);
++		}
++		address = vma_address(page, vma);
++		if (address != -EFAULT)
++			ret = rmap_one(page, vma, address, arg);
++
++		if (locked_vma)
++			spin_unlock(&locked_vma->lock);
++
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
 -- 
 1.6.5
 
