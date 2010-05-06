@@ -1,60 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E71BD62009A
-	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:52:03 -0400 (EDT)
-Date: Thu, 6 May 2010 16:51:43 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
-	the wrong VMA information
-Message-ID: <20100506155143.GD8704@csn.ul.ie>
-References: <1273159987-10167-1-git-send-email-mel@csn.ul.ie> <1273159987-10167-2-git-send-email-mel@csn.ul.ie> <4BE2E3F9.9090708@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 417B962009A
+	for <linux-mm@kvack.org>; Thu,  6 May 2010 11:59:58 -0400 (EDT)
+Received: by gxk10 with SMTP id 10so74491gxk.10
+        for <linux-mm@kvack.org>; Thu, 06 May 2010 08:59:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4BE2E3F9.9090708@redhat.com>
+In-Reply-To: <alpine.LFD.2.00.1005060703540.901@i5.linux-foundation.org>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+	 <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
+	 <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>
+	 <20100505145620.GP20979@csn.ul.ie>
+	 <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
+	 <20100505175311.GU20979@csn.ul.ie>
+	 <alpine.LFD.2.00.1005051058380.27218@i5.linux-foundation.org>
+	 <20100506002255.GY20979@csn.ul.ie>
+	 <p2s28c262361005060247m2983625clff01aeaa1668402f@mail.gmail.com>
+	 <alpine.LFD.2.00.1005060703540.901@i5.linux-foundation.org>
+Date: Fri, 7 May 2010 00:59:55 +0900
+Message-ID: <s2j28c262361005060859ga196a23eq8f4ee0c8ce5f3ea9@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing the
+	wrong VMA information
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 06, 2010 at 11:44:57AM -0400, Rik van Riel wrote:
-> On 05/06/2010 11:33 AM, Mel Gorman wrote:
+On Thu, May 6, 2010 at 11:06 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
->> @@ -1368,16 +1424,25 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
->>   	 * are holding mmap_sem. Users without mmap_sem are required to
->>   	 * take a reference count to prevent the anon_vma disappearing
->>   	 */
->> -	anon_vma = page_anon_vma(page);
->> +	anon_vma = page_anon_vma_lock_root(page);
->>   	if (!anon_vma)
->>   		return ret;
->> -	spin_lock(&anon_vma->lock);
->>   	list_for_each_entry(avc,&anon_vma->head, same_anon_vma) {
 >
-> One conceptual problem here.  By taking the oldest anon_vma,
-> instead of the anon_vma of the page, we may end up searching
-> way too many processes.
+> On Thu, 6 May 2010, Minchan Kim wrote:
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> > + =C2=A0 =C2=A0 =C2=A0 avc =3D list_first_entry(&anon_vma->head, struc=
+t anon_vma_chain, same_anon_vma);
+>>
+>> Dumb question.
+>>
+>> I can't understand why we should use list_first_entry.
 >
-> Eg. if the page is the page of a child process in a forking
-> server workload, the above code will end up searching the
-> parent and all of the siblings - even for a private page, in
-> the child process's private anon_vma.
+> It's not that we "should" use list_entry_first. It's that we want to find
+> _any_ entry on the list, and the most natural one is the first one.
 >
-> For an Apache or Oracle system with 1000 clients (and child
-> processes), that could be quite a drag - searching 1000 times
-> as many processes as we should.
+> So we could take absolutely any 'avc' entry that is reachable from the
+> anon_vma, and use that to look up _any_ 'vma' that is associated with tha=
+t
+> anon_vma. And then, from _any_ of those vma's, we know how to get to the
+> "root anon_vma" - the one that they are all associated with.
+>
+> So no, there's absolutely nothing special about the first entry. It's
+> just a random easily found one.
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Linus
 >
 
-That does indeed suck. If we were always locking the root anon_vma, we'd get
-away with it but that would involve introducing RCU into the munmap/mmap/etc
-path. Is there any way around this problem or will migration just have to
-take it on the chin until anon_vma is reference counted and we can
-cheaply lock the root anon_vma?
+Thanks, Linus and Mel.
+You understood my question correctly. :)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+My concern was following case.
+
+Child process does mmap new VMA but anon_vma is reused nearer child's
+VMA which is linked parent's VMA by fork.
+In that case, anon_vma_prepare calls list_add not list_add_tail.
+ex) list_add(&avc->same_anon_vma, &anon_vma->head);
+
+It means list_first_entry is the new VMA not old VMA and new VMA's
+root_avc isn't linked at parent's one. It means we are locking each
+other locks. That's why I have a question.
+
+But I carefully looked at the reusable_anon_vma and found
+list_is_singular. I remember Linus changed it to make problem simple.
+So in my scenario, new VMA can't share old VMA's anon_vma.
+
+So my story is broken.
+If I miss something, please, correct me. :)
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
