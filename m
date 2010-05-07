@@ -1,362 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A957F6B0279
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 02:54:46 -0400 (EDT)
-Message-ID: <4BE3B932.9060608@cs.columbia.edu>
-Date: Fri, 07 May 2010 02:54:42 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3CA966200B2
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 03:19:22 -0400 (EDT)
+Message-ID: <4BE3BEE6.9080106@linux.intel.com>
+Date: Fri, 07 May 2010 15:19:02 +0800
+From: minskey guo <chaohong_guo@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v21 020/100] c/r: documentation
-References: <1272723382-19470-1-git-send-email-orenl@cs.columbia.edu>	<1272723382-19470-21-git-send-email-orenl@cs.columbia.edu> <4BE32640.8010402@oracle.com>
-In-Reply-To: <4BE32640.8010402@oracle.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] permit to online CPUs before local memory comes online
+References: <1272344264.28378.3.camel@minskey-desktop>
+In-Reply-To: <1272344264.28378.3.camel@minskey-desktop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Serge Hallyn <serue@us.ibm.com>, Matt Helsley <matthltc@us.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, linux-api@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>
+To: linux-mm@kvack.org, "Kleen, Andi" <andi.kleen@intel.com>, akpm@linux-foundation.org
+Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Could you please help me review this patch and give me
+some inputs ? such as,  is it  acceptable to do that,
+I mean, online CPUs  of  a NUMA node without local
+memory
 
-Thanks for reading carefully through and pointing out
-glitches and inconsistencies. I'll fix it for next post.
+The patch is against upstream vanilla kernel.
 
-Oren.
+I mis-spelled the mail address of linux-mm when I sent
+the email for the first time,  please forgive me
+if you receive two copies.
 
 
-On 05/06/2010 04:27 PM, Randy Dunlap wrote:
-> On Sat,  1 May 2010 10:15:02 -0400 Oren Laadan wrote:
-> 
->> Covers application checkpoint/restart, overall design, interfaces,
->> usage, shared objects, and and checkpoint image format.
->>
->> Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
->> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
->> Acked-by: Serge E. Hallyn <serue@us.ibm.com>
->> Tested-by: Serge E. Hallyn <serue@us.ibm.com>
->> ---
->>  Documentation/checkpoint/checkpoint.c      |   38 +++
->>  Documentation/checkpoint/readme.txt        |  370 ++++++++++++++++++++++++++++
->>  Documentation/checkpoint/self_checkpoint.c |   69 +++++
->>  Documentation/checkpoint/self_restart.c    |   40 +++
->>  Documentation/checkpoint/usage.txt         |  247 +++++++++++++++++++
->>  5 files changed, 764 insertions(+), 0 deletions(-)
->>  create mode 100644 Documentation/checkpoint/checkpoint.c
->>  create mode 100644 Documentation/checkpoint/readme.txt
->>  create mode 100644 Documentation/checkpoint/self_checkpoint.c
->>  create mode 100644 Documentation/checkpoint/self_restart.c
->>  create mode 100644 Documentation/checkpoint/usage.txt
-> 
->> diff --git a/Documentation/checkpoint/readme.txt b/Documentation/checkpoint/readme.txt
->> new file mode 100644
->> index 0000000..4fa5560
->> --- /dev/null
->> +++ b/Documentation/checkpoint/readme.txt
->> @@ -0,0 +1,370 @@
->> +
-> ...
->> +In contrast, when checkpointing a subtree of a container it is up to
->> +the user to ensure that dependencies either don't exist or can be
->> +safely ignored. This is useful, for instance, for HPC scenarios or
->> +even a user that would like to periodically checkpoint a long-running
-> 
->                who
-> 
->> +batch job.
->> +
-> ...
-> 
->> +
->> +Checkpoint image format
->> +=======================
->> +
-> ...
-> 
->> +
->> +The container configuration section containers information that is
-> 
->                                        contains
-> 
->> +global to the container. Security (LSM) configuration is one example.
->> +Network configuration and container-wide mounts may also go here, so
->> +that the userspace restart coordinator can re-create a suitable
->> +environment.
->> +
-> ...
-> 
->> +
->> +Then the state of all tasks is saved, in the order that they appear in
->> +the tasks array above. For each state, we save data like task_struct,
->> +namespaces, open files, memory layout, memory contents, cpu state,
-> 
->                                                            CPU (throughout, please)
-> 
->> +signals and signal handlers, etc. For resources that are shared among
->> +multiple processes, we first checkpoint said resource (and only once),
->> +and in the task data we give a reference to it. More about shared
->> +resources below.
->> +
-> ...
-> 
->> +
->> +Shared objects
->> +==============
->> +
->> +Many resources may be shared by multiple tasks (e.g. file descriptors,
->> +memory address space, etc), or even have multiple references from
-> 
->                          etc.),
-> 
->> +other resources (e.g. a single inode that represents two ends of a
->> +pipe).
->> +
-> ...
-> 
->> +Memory contents format
->> +======================
->> +
->> +The memory contents of a given memory address space (->mm) is dumped
-> 
->                                                               are (I think)
-> 
->> +as a sequence of vma objects, represented by 'struct ckpt_hdr_vma'.
->> +This header details the vma properties, and a reference to a file
->> +(if file backed) or an inode (or shared memory) object.
->> +
->> +The vma header is followed by the actual contents - but only those
->> +pages that need to be saved, i.e. dirty pages. They are written in
->> +chunks of data, where each chunks contains a header that indicates
-> 
->                               chunk
-> 
->> +that number of pages in the chunk, followed by an array of virtual
-> 
->    the
-> 
->> +addresses and then an array of actual page contents. The last chunk
->> +holds zero pages.
->> +
-> ...
-> 
->> +Kernel interfaces
->> +=================
->> +
->> +* To checkpoint a vma, the 'struct vm_operations_struct' needs to
->> +  provide a method ->checkpoint:
->> +    int checkpoint(struct ckpt_ctx *, struct vma_struct *)
->> +  Restart requires a matching (exported) restore:
->> +    int restore(struct ckpt_ctx *, struct mm_struct *, struct ckpt_hdr_vma *)
->> +
->> +* To checkpoint a file, the 'struct file_operations' needs to provide
->> +  the methods ->checkpoint and ->collect:
->> +    int checkpoint(struct ckpt_ctx *, struct file *)
->> +    int collect(struct ckpt_ctx *, struct file *)
->> +  Restart requires a matching (exported) restore:
->> +    int restore(struct ckpt_ctx *, struct ckpt_hdr_file *)
->> +  For most file systems, generic_file_{checkpoint,restore}() can be
->> +  used.
->> +
->> +* To checkpoint a socket, the 'struct proto_ops' needs to provide
-> 
->      To checkpoint/restart a socket,
-> 
->> +  the methods ->checkpoint, ->collect and ->restore:
->> +    int checkpoint(struct ckpt_ctx *ctx, struct socket *sock);
->> +    int collect(struct ckpt_ctx *ctx, struct socket *sock);
->> +    int restore(struct ckpt_ctx *, struct socket *sock, struct ckpt_hdr_socket *h)
-> 
-> 
->> diff --git a/Documentation/checkpoint/usage.txt b/Documentation/checkpoint/usage.txt
->> new file mode 100644
->> index 0000000..c6fc045
->> --- /dev/null
->> +++ b/Documentation/checkpoint/usage.txt
->> @@ -0,0 +1,247 @@
->> +
->> +	      How to use Checkpoint-Restart
->> +	=========================================
->> +
->> +
->> +API
->> +===
->> +
->> +The API consists of three new system calls:
->> +
->> +* long checkpoint(pid_t pid, int fd, unsigned long flag, int logfd);
-> 
->                                                       flags,
-> 
->> +
->> + Checkpoint a (sub-)container whose root task is identified by @pid,
->> + to the open file indicated by @fd. If @logfd isn't -1, it indicates
->> + an open file to which error and debug messages are written. @flags
->> + may be one or more of:
->> +   - CHECKPOINT_SUBTREE : allow checkpoint of sub-container
->> + (other value are not allowed).
->> +
->> + Returns: a positive checkpoint identifier (ckptid) upon success, 0 if
->> + it returns from a restart, and -1 if an error occurs. The ckptid will
->> + uniquely identify a checkpoint image, for as long as the checkpoint
->> + is kept in the kernel (e.g. if one wishes to keep a checkpoint, or a
->> + partial checkpoint, residing in kernel memory).
->> +
->> +* long sys_restart(pid_t pid, int fd, unsigned long flags, int logfd);
->> +
->> + Restart a process hierarchy from a checkpoint image that is read from
->> + the blob stored in the file indicated by @fd.  If @logfd isn't -1, it
->> + indicates an open file to which error and debug messages are written.
->> + @flags will have future meaning (must be 0 for now). @pid indicates
->> + the root of the hierarchy as seen in the coordinator's pid-namespace,
->> + and is expected to be a child of the coordinator. @flags may be one
->> + or more of:
->> +   - RESTART_TASKSELF : (self) restart of a single process
->> +   - RESTART_FROEZN : processes remain frozen once restart completes
-> 
->                 FROZEN ?
-> 
->> +   - RESTART_GHOST : process is a ghost (placeholder for a pid)
-> 
-> about @flags:  Above says both of these:
-> a) @flags will have future meaning (must be 0 for now)
-> b) @flags may be one or more of:
-> 
-> so please decide which one it is ;)
-> 
->> + (Note that this argument may mean 'ckptid' to identify an in-kernel
->> + checkpoint image, with some @flags in the future).
->> +
->> + Returns: -1 if an error occurs, 0 on success when restarting from a
->> + "self" checkpoint, and return value of system call at the time of the
->> + checkpoint when restarting from an "external" checkpoint.
->> +
-> ...
->> +
->> +Sysctl/proc
->> +===========
->> +
->> +/proc/sys/kernel/ckpt_unpriv_allowed		[default = 1]
->> +  controls whether c/r operation is allowed for unprivileged users
-> 
->                       C/R
-> 
->> +
->> +
->> +Operation
->> +=========
->> +
->> +The granularity of a checkpoint usually is a process hierarchy. The
->> +'pid' argument is interpreted in the caller's pid namespace. So to
->> +checkpoint a container whose init task (pid 1 in that pidns) appears
->> +as pid 3497 the caller's pidns, the caller must use pid 3497. Passing
->> +pid 1 will attempt to checkpoint the caller's container, and if the
->> +caller isn't privileged and init is owned by root, it will fail.
->> +
->> +Unless the CHECKPOINT_SUBTREE flag is set, if the caller passes a pid
->> +which does not refer to a container's init task, then sys_checkpoint()
->> +would return -EINVAL.
-> 
->    returns -EINVAL.
-> 
-> ...
-> 
->> +
->> +
->> +User tools
->> +==========
->> +
->> +* checkpoint(1): a tool to perform a checkpoint of a container/subtree
->> +* restart(1): a tool to restart a container/subtree
->> +* ckptinfo: a tool to examine a checkpoint image
->> +
->> +It is best to use the dedicated user tools for checkpoint and restart.
->> +
->> +If you insist, then here is a code snippet that illustrates how a
->> +checkpoint is initiated by a process inside a container - the logic is
->> +similar to fork():
->> +	...
->> +	ckptid = checkpoint(0, ...);
->> +	switch (crid) {
-> 
-> 	       (ckptid) ?
-> 
->> +	case -1:
->> +		perror("checkpoint failed");
->> +		break;
->> +	default:
->> +		fprintf(stderr, "checkpoint succeeded, CRID=%d\n", ret);
-> 
-> s/ret/ckptid/ ?
-> 
->> +		/* proceed with execution after checkpoint */
->> +		...
->> +		break;
->> +	case 0:
->> +		fprintf(stderr, "returned after restart\n");
->> +		/* proceed with action required following a restart */
->> +		...
->> +		break;
->> +	}
->> +	...
->> +
->> +And to initiate a restart, the process in an empty container can use
->> +logic similar to execve():
->> +	...
->> +	if (restart(pid, ...) < 0)
->> +		perror("restart failed");
->> +	/* only get here if restart failed */
->> +	...
->> +
->> +Note, that the code also supports "self" checkpoint, where a process
-> 
->    Note that
-> 
->> +can checkpoint itself. This mode does not capture the relationships of
->> +the task with other tasks, or any shared resources. It is useful for
->> +application that wish to be able to save and restore their state.
-> 
->    applications
-> 
->> +They will either not use (or care about) shared resources, or they
->> +will be aware of the operations and adapt suitably after a restart.
->> +The code above can also be used for "self" checkpoint.
->> +
->> +
->> +You may find the following sample programs useful:
->> +
->> +* checkpoint.c: accepts a 'pid' and checkpoint that task to stdout
-> 
->                                        checkpoints
-> 
->> +* self_checkpoint.c: a simple test program doing self-checkpoint
->> +* self_restart.c: restarts a (self-) checkpoint image from stdin
->> +
->> +See also the utilities 'checkpoint' and 'restart' (from user-cr).
->> +
->> +
->> +"External" checkpoint
->> +=====================
->> +
->> +To do "external" checkpoint, you need to first freeze that other task
->> +either using the freezer cgroup.
-> 
-> eh?  cannot parse that.
-> 
->> +
->> +Restart does not preserve the original PID yet, (because we haven't
->> +solved yet the fork-with-specific-pid issue). In a real scenario, you
->> +probably want to first create a new names space, and have the init
-> 
->                                        namespace,
-> 
->> +task there call 'sys_restart()'.
->> +
->> +I tested it this way:
-> 
-> ...
-> 
+thanks,
+-minskey
+
+
+On 04/27/2010 12:57 PM, minskey wrote:
+>
+>
+> This patch enables users to online CPUs even if the CPUs belongs to
+> a numa node which doesn't have onlined local memory.
+>
+> The zonlists(pg_data_t.node_zonelists[]) of a numa node are created
+> either in system boot/init period, or at the time of local memory
+> online.  For a numa node without onlined local memory, its zonelists
+> are not initialized at present. As a result, any memory allocation
+> operations executed by CPUs within this node will fail. In fact, an
+> out-of-memory error is triggered when attempt to online CPUs before
+> memory comes to online.
+>
+> This patch tries to create zonelists for such numa nodes, so that
+> the memory allocation for this node can be fallback'ed to other
+> nodes.
+>
+> Signed-off-by: minskey guo<chaohong.guo@intel.com>
 > ---
-> ~Randy
-> *** Remember to use Documentation/SubmitChecklist when testing your code ***
-> 
+>   include/linux/memory_hotplug.h |    1 +
+>   kernel/cpu.c                   |   26 ++++++++++++++++++++++++++
+>   mm/memory_hotplug.c            |   25 +++++++++++++++++++++++++
+>   3 files changed, 52 insertions(+), 0 deletions(-)
+>
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 35b07b7..864035f 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -202,6 +202,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
+>   }
+>   #endif /* CONFIG_MEMORY_HOTREMOVE */
+>
+> +extern int mem_online_node(int nid);
+>   extern int add_memory(int nid, u64 start, u64 size);
+>   extern int arch_add_memory(int nid, u64 start, u64 size);
+>   extern int remove_memory(u64 start, u64 size);
+> diff --git a/kernel/cpu.c b/kernel/cpu.c
+> index f8cced2..c31b9cb 100644
+> --- a/kernel/cpu.c
+> +++ b/kernel/cpu.c
+> @@ -335,6 +335,12 @@ out_notify:
+>   int __cpuinit cpu_up(unsigned int cpu)
+>   {
+>   	int err = 0;
+> +
+> +#ifdef	CONFIG_MEMORY_HOTPLUG
+> +	int nid;
+> +	pg_data_t	*pgdat;
+> +#endif
+> +
+>   	if (!cpu_possible(cpu)) {
+>   		printk(KERN_ERR "can't online cpu %d because it is not "
+>   			"configured as may-hotadd at boot time\n", cpu);
+> @@ -345,6 +351,26 @@ int __cpuinit cpu_up(unsigned int cpu)
+>   		return -EINVAL;
+>   	}
+>
+> +#ifdef	CONFIG_MEMORY_HOTPLUG
+> +	nid = cpu_to_node(cpu);
+> +	if (!node_online(nid)) {
+> +		err = mem_online_node(nid);
+> +		if (err)
+> +			return err;
+> +	}
+> +
+> +	pgdat = NODE_DATA(nid);
+> +	if (!pgdat) {
+> +		printk(KERN_ERR
+> +			"Can't online cpu %d due to NULL pgdat\n", cpu);
+> +		return -ENOMEM;
+> +	}
+> +
+> +	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
+> +		build_all_zonelists();
+> +	}
+> +#endif
+> +
+>   	cpu_maps_update_begin();
+>
+>   	if (cpu_hotplug_disabled) {
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index be211a5..2d24bef 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -482,6 +482,31 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
+>   }
+>
+>
+> +/*
+> + * called by cpu_up() to online a node without onlined memory.
+> + */
+> +int mem_online_node(int nid)
+> +{
+> +	pg_data_t	*pgdat;
+> +	int	ret;
+> +
+> +	lock_system_sleep();
+> +	pgdat = hotadd_new_pgdat(nid, 0);
+> +	if (pgdat) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+> +	node_set_online(nid);
+> +	ret = register_one_node(nid);
+> +	BUG_ON(ret);
+> +
+> +out:
+> +	unlock_system_sleep();
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL_GPL(mem_online_node);
+> +
+> +
+>   /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+>   int __ref add_memory(int nid, u64 start, u64 size)
+>   {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
