@@ -1,261 +1,423 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 606726200BD
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 17:07:23 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id o47L7FOx003703
-	for <linux-mm@kvack.org>; Fri, 7 May 2010 14:07:16 -0700
-Received: from ywh17 (ywh17.prod.google.com [10.192.8.17])
-	by kpbe20.cbf.corp.google.com with ESMTP id o47L7DcC007696
-	for <linux-mm@kvack.org>; Fri, 7 May 2010 14:07:14 -0700
-Received: by ywh17 with SMTP id 17so933926ywh.22
-        for <linux-mm@kvack.org>; Fri, 07 May 2010 14:07:13 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E1206200BD
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 17:09:31 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp04.au.ibm.com (8.14.3/8.13.1) with ESMTP id o47L5RAB026112
+	for <linux-mm@kvack.org>; Sat, 8 May 2010 07:05:27 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o47L9R1k1872060
+	for <linux-mm@kvack.org>; Sat, 8 May 2010 07:09:27 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o47L9Q2Z003076
+	for <linux-mm@kvack.org>; Sat, 8 May 2010 07:09:27 +1000
+Date: Sat, 8 May 2010 02:39:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][BUGFIX] memcg: fix file_mapped counting at migraton
+Message-ID: <20100507210920.GB3296@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100507152606.c5fef2f1.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <l2pcc557aab1005070446y1f9c8169v58a3f7847676eaa@mail.gmail.com>
-References: <l2pcc557aab1005070446y1f9c8169v58a3f7847676eaa@mail.gmail.com>
-Date: Fri, 7 May 2010 14:07:13 -0700
-Message-ID: <p2l6599ad831005071407yaa994357s1261317cc7f552b@mail.gmail.com>
-Subject: Re: [PATCH] cgroups: make cftype.unregister_event() void-returning
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100507152606.c5fef2f1.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, containers@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Phil Carmody <ext-phil.2.carmody@nokia.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-I like the principle. I think this patch leaks arrays, though.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-05-07 15:26:06]:
 
-I think the sequence:
-
-register;register;unregister;unregister
-
-will leak the array of size 2. Using the notation Ax, Bx, Cx, etc to
-represent distinct buffers of size x, we have:
-
-initially: size =3D 0, thresholds =3D NULL, spare =3D NULL
-register: size =3D 1, thresholds =3D A1, spare =3D NULL
-register: size =3D 2, thresholds =3D B2, spare =3D A1
-unregister: size =3D 1, thresholds =3D A1, spare =3D B2
-unregister: size =3D 0, thresholds =3D NULL, spare =3D A1 (B2 is leaked)
-
-In the case when you're unregistering and the size goes down to 0, you
-need to free the spare before doing the swap. Maybe get rid of the
-thresholds_new local variable, and instead in the if(!size) {} branch
-just free and the spare buffer and set its pointer to NULL? Then at
-swap_buffers:, unconditionally swap the two.
-
-Also, I think the code would be cleaner if you created a structure to
-hold a primary threshold and its spare; then you could have one for
-each threshold set, and just pass that to the register/unregister
-functions, rather than them having to be aware of how the type maps to
-the primary and backup array pointers.
-
-Paul
-
-On Fri, May 7, 2010 at 4:46 AM, Kirill A. Shutemov <kirill@shutemov.name> w=
-rote:
-> Since we unable to handle error returned by cftype.unregister_event()
-> properly, let's make the callback void-returning.
+> 
+> It seems Mel's fix will go ahead, soon. (it works well) So, we can do
+> test migration by compaction, again. Let's start to fix memcg.
+> This is a patch under a test in my box (-mm + Mel's fix).
+> 
+> ==
+> At page migration, the new page is unlocked before calling end_migration().
+> This is mis-understanding with page-migration code of memcg.
+> (it worked but...)
+> This has small race and we need to fix this race. By this,
+> FILE_MAPPED of migrated file cache is not properly updated, now.
+> 
+> This patch is for fixing the race by changing algorithm.
+> 
+> At migrating mapped file, events happens in following sequence.
+> 
+>  1. allocate a new page.
+>  2. get memcg of an old page.
+>  3. charge ageinst a new page before migration. But at this point,
+>     no changes to new page's page_cgroup, no commit-charge.
+>  4. page migration replaces radix-tree, old-page and new-page.
+>  5. page migration remaps the new page if the old page was mapped.
+>  6. Here, the new page is unlocked.
+>  7. memcg commits the charge for newpage, Mark page cgroup as USED.
+> 
+> Because "commit" happens after page-remap, we can count FILE_MAPPED
+> at "5", we can lose file_mapped accounting information within this
+> small race. FILE_MAPPED is updated only when mapcount changes 0->1.
+> So, if we don't catch this 0->1 event, we can underflow FILE_MAPPED
+> at 1->0 event.
+> 
+> We may be able to avoid underflow by some small technique but
+> we should catch mapcount 0->1 event. To catch this, we have to
+> make page_cgroup of new page as "USED".
+> 
+> BTW, historically, above implemntation comes from migration-failure
+> of anonymous page. Because we charge both of old page and new page
+> with mapcount=0, we can't catch
+>   - the page is really freed before remap.
+>   - migration fails but it's freed before remap
+> or .....corner cases.
+> 
+> For fixing all, this changes parepare/end migration.
+> 
+> New migration sequence with memcg is:
+> 
+>  1. allocate a new page.
+>  2. mark PageCgroupMigration to the old page.
+>  3. charge against a new page onto the old page's memcg. (here, new page's pc
+>     is marked as PageCgroupUsed.)
+>  4. mark PageCgroupMigration to the old page.
+> 
+> If page_cgroup is marked as PageCgroupMigration, it's uncahrged until
+> it's cleared.
+> 
+>  5. page migration replaces radix-tree, page table, etc...
+>  6. At remapping, new page's page_cgroup is now makrked as "USED"
+>     We can catch 0->1 event and FILE_MAPPED will be properly updated.
+>     And we can catch SWAPOUT event after unlock this and freeing this
+>     page by unmap() can be caught.
+> 
+>  7. Clear PageCgroupMigration of the old page.
+> 
+> By this:
+> At migration success of Anon:
+>  - The new page is properly charged. If not-mapped after remap,
+>    uncharge() will be called.
+>  - The file cache is properly charged. FILE_MAPPED event can be caught.
+> 
+> At migration failure of Anon:
+>  - The old page stays as charged. If not mapped after remap,
+>    uncharge() will called. The corner case is SWAPOUT. But, while migraion,
+>    it's locked. So, we have no race with it.
+> 
+> Then, for what MIGRATION flag is ?
+>   Without it, at migration failure, we may have to charge old page again
+>   because it may be fully unmapped. "charge" means that we have to dive into
+>   memory reclaim or something complated. So, it's better to avoid
+>   charge it again. Before this patch, __commit_charge() was working for
+>   both of the old/new page and fixed up all. But this technique has some
+>   racy condtion around FILE_MAPPED and SWAPOUT etc...
+>   Now, the kernel use MIGRATION flag and don't uncharge old page until
+>   the end of migration.
+> 
+> 
+> I hope this change will make memcg's page migration much simpler.
+> This page migration has caused several troubles. Worth to add
+> a flag for simplification.
 >
-> mem_cgroup_unregister_event() has been rewritten to be "never fail"
-> function. On mem_cgroup_usage_register_event() we save old buffer
-> for thresholds array and reuse it in mem_cgroup_usage_unregister_event()
-> to avoid allocation.
->
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+
+Yep it is, the explanation and race is getting very complex. I am glad
+you are looking at it so closely. I wonder if we can simplify some of
+this, may be deserves a closer look later.
+
+> Changelog: 2010/04/20
+>  - fixed SWAPOUT case.
+>  - added texts for explanation.
+>  - removed MIGRAION flag onto new page.
+> 
+> Changelog: 2010/04/15
+>  - updated against  mm-of-the-moment snapshot 2010-04-15-14-42
+>    + Nishimura's fix. memcg-fix-prepare-migration-fix.patch
+>  - fixed some typos.
+>  - handle migration failure of anon page.
+> 
+> Changelog: 2010/04/14
+>  - updated onto the latest mmotm + page-compaction, etc...
+>  - fixed __try_charge() bypass case.
+>  - use CHARGE_TYPE_FORCE for uncharging an unused page.
+> 
+> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
-> =A0include/linux/cgroup.h | =A0 =A02 +-
-> =A0kernel/cgroup.c =A0 =A0 =A0 =A0| =A0 =A01 -
-> =A0mm/memcontrol.c =A0 =A0 =A0 =A0| =A0 64 ++++++++++++++++++++++++++++++=
-------------------
-> =A03 files changed, 41 insertions(+), 26 deletions(-)
->
-> diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-> index 8f78073..0c62160 100644
-> --- a/include/linux/cgroup.h
-> +++ b/include/linux/cgroup.h
-> @@ -397,7 +397,7 @@ struct cftype {
-> =A0 =A0 =A0 =A0 * This callback must be implemented, if you want provide
-> =A0 =A0 =A0 =A0 * notification functionality.
-> =A0 =A0 =A0 =A0 */
-> - =A0 =A0 =A0 int (*unregister_event)(struct cgroup *cgrp, struct cftype =
-*cft,
-> + =A0 =A0 =A0 void (*unregister_event)(struct cgroup *cgrp, struct cftype=
- *cft,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct eventfd_ctx *eventf=
-d);
-> =A0};
->
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index 06dbf97..6675e8c 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -2988,7 +2988,6 @@ static void cgroup_event_remove(struct work_struct =
-*work)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0remove);
-> =A0 =A0 =A0 =A0struct cgroup *cgrp =3D event->cgrp;
->
-> - =A0 =A0 =A0 /* TODO: check return code */
-> =A0 =A0 =A0 =A0event->cft->unregister_event(cgrp, event->cft, event->even=
-tfd);
->
-> =A0 =A0 =A0 =A0eventfd_ctx_put(event->eventfd);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8cb2722..0a37b5d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -226,9 +226,19 @@ struct mem_cgroup {
-> =A0 =A0 =A0 =A0/* thresholds for memory usage. RCU-protected */
-> =A0 =A0 =A0 =A0struct mem_cgroup_threshold_ary *thresholds;
->
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Preallocated buffer to be used in mem_cgroup_unregiste=
-r_event()
-> + =A0 =A0 =A0 =A0* to make it "never fail".
-> + =A0 =A0 =A0 =A0* It must be able to store at least thresholds->size - 1=
- entries.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 struct mem_cgroup_threshold_ary *__thresholds;
-> +
-> =A0 =A0 =A0 =A0/* thresholds for mem+swap usage. RCU-protected */
-> =A0 =A0 =A0 =A0struct mem_cgroup_threshold_ary *memsw_thresholds;
->
-> + =A0 =A0 =A0 /* the same as __thresholds, but for memsw_thresholds */
-> + =A0 =A0 =A0 struct mem_cgroup_threshold_ary *__memsw_thresholds;
-> +
-> =A0 =A0 =A0 =A0/* For oom notifier event fd */
-> =A0 =A0 =A0 =A0struct list_head oom_notify;
->
-> @@ -3575,17 +3585,27 @@ static int
-> mem_cgroup_usage_register_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0else
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->memsw_thresholds=
-, thresholds_new);
->
-> - =A0 =A0 =A0 /* To be sure that nobody uses thresholds before freeing it=
- */
-> + =A0 =A0 =A0 /* To be sure that nobody uses thresholds */
-> =A0 =A0 =A0 =A0synchronize_rcu();
->
-> - =A0 =A0 =A0 kfree(thresholds);
-> + =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0* Free old preallocated buffer and use thresholds as new
-> + =A0 =A0 =A0 =A0* preallocated buffer.
-> + =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 if (type =3D=3D _MEM) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(memcg->__thresholds);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__thresholds =3D thresholds;
-> + =A0 =A0 =A0 } else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(memcg->__memsw_thresholds);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__memsw_thresholds =3D thresholds;
-> + =A0 =A0 =A0 }
-> =A0unlock:
-> =A0 =A0 =A0 =A0mutex_unlock(&memcg->thresholds_lock);
->
-> =A0 =A0 =A0 =A0return ret;
-> =A0}
->
-> -static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> +static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0struct cftype *cft, struct eventfd_ctx *eventfd)
-> =A0{
-> =A0 =A0 =A0 =A0struct mem_cgroup *memcg =3D mem_cgroup_from_cont(cgrp);
-> @@ -3593,7 +3613,7 @@ static int
-> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0int type =3D MEMFILE_TYPE(cft->private);
-> =A0 =A0 =A0 =A0u64 usage;
-> =A0 =A0 =A0 =A0int size =3D 0;
-> - =A0 =A0 =A0 int i, j, ret =3D 0;
-> + =A0 =A0 =A0 int i, j;
->
-> =A0 =A0 =A0 =A0mutex_lock(&memcg->thresholds_lock);
-> =A0 =A0 =A0 =A0if (type =3D=3D _MEM)
-> @@ -3623,17 +3643,15 @@ static int
-> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0/* Set thresholds array to NULL if we don't have threshold=
-s */
-> =A0 =A0 =A0 =A0if (!size) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0thresholds_new =3D NULL;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto assign;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto swap_buffers;
-> =A0 =A0 =A0 =A0}
->
-> - =A0 =A0 =A0 /* Allocate memory for new array of thresholds */
-> - =A0 =A0 =A0 thresholds_new =3D kmalloc(sizeof(*thresholds_new) +
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size * sizeof(struct mem_cg=
-roup_threshold),
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 GFP_KERNEL);
-> - =A0 =A0 =A0 if (!thresholds_new) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOMEM;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto unlock;
-> - =A0 =A0 =A0 }
-> + =A0 =A0 =A0 /* Use preallocated buffer for new array of thresholds */
-> + =A0 =A0 =A0 if (type =3D=3D _MEM)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 thresholds_new =3D memcg->__thresholds;
-> + =A0 =A0 =A0 else
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 thresholds_new =3D memcg->__memsw_threshold=
-s;
-> +
-> =A0 =A0 =A0 =A0thresholds_new->size =3D size;
->
-> =A0 =A0 =A0 =A0/* Copy thresholds and find current threshold */
-> @@ -3654,20 +3672,20 @@ static int
-> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0j++;
-> =A0 =A0 =A0 =A0}
->
-> -assign:
-> - =A0 =A0 =A0 if (type =3D=3D _MEM)
-> +swap_buffers:
-> + =A0 =A0 =A0 /* Swap thresholds array and preallocated buffer */
-> + =A0 =A0 =A0 if (type =3D=3D _MEM) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__thresholds =3D thresholds;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->thresholds, thre=
-sholds_new);
-> - =A0 =A0 =A0 else
-> + =A0 =A0 =A0 } else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__memsw_thresholds =3D thresholds;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->memsw_thresholds=
-, thresholds_new);
-> + =A0 =A0 =A0 }
->
-> - =A0 =A0 =A0 /* To be sure that nobody uses thresholds before freeing it=
- */
-> + =A0 =A0 =A0 /* To be sure that nobody uses thresholds */
-> =A0 =A0 =A0 =A0synchronize_rcu();
->
-> - =A0 =A0 =A0 kfree(thresholds);
-> -unlock:
-> =A0 =A0 =A0 =A0mutex_unlock(&memcg->thresholds_lock);
+>  include/linux/memcontrol.h  |    6 +
+>  include/linux/page_cgroup.h |    5 +
+>  mm/memcontrol.c             |  145 +++++++++++++++++++++++++++++++-------------
+>  mm/migrate.c                |    2 
+>  4 files changed, 115 insertions(+), 43 deletions(-)
+> 
+> Index: linux-2.6.34-rc4-mm1/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.34-rc4-mm1.orig/mm/memcontrol.c
+> +++ linux-2.6.34-rc4-mm1/mm/memcontrol.c
+> @@ -2278,7 +2278,8 @@ __mem_cgroup_uncharge_common(struct page
+>  	switch (ctype) {
+>  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+>  	case MEM_CGROUP_CHARGE_TYPE_DROP:
+> -		if (page_mapped(page))
+> +		/* See mem_cgroup_prepare_migration() */
+> +		if (page_mapped(page) || PageCgroupMigration(pc))
+>  			goto unlock_out;
+>  		break;
+>  	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
+> @@ -2501,10 +2502,12 @@ static inline int mem_cgroup_move_swap_a
+>   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+>   * page belongs to.
+>   */
+> -int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+> +int mem_cgroup_prepare_migration(struct page *page,
+> +	struct page *newpage, struct mem_cgroup **ptr)
+>  {
+>  	struct page_cgroup *pc;
+>  	struct mem_cgroup *mem = NULL;
+> +	enum charge_type ctype;
+>  	int ret = 0;
+> 
+>  	if (mem_cgroup_disabled())
+> @@ -2515,69 +2518,131 @@ int mem_cgroup_prepare_migration(struct 
+>  	if (PageCgroupUsed(pc)) {
+>  		mem = pc->mem_cgroup;
+>  		css_get(&mem->css);
+> +		/*
+> +		 * At migrationg an anonymous page, its mapcount goes down
+> +		 * to 0 and uncharge() will be called. But, even if it's fully
+> +		 * unmapped, migration may fail and this page has to be
+> +		 * charged again. We set MIGRATION flag here and delay uncharge
+> +		 * until end_migration() is called
+> +		 *
+> +		 * Corner Case Thinking
+> +		 * A)
+> +		 * When the old page was mapped as Anon and it's unmap-and-freed
+> +		 * while migration was ongoing, it's not uncharged until
+> +		 * end_migration(). Both of old and new page will be uncharged
+> +		 * at end_migration() because it's not mapped and not SwapCache.
+> +		 *
+> +		 * B)
+> +		 * When the old page was mapped but migraion fails, the kernel
+> +		 * remap it. The charge for it is kept by MIGRATION flag even
+> +		 * if mapcount goes down to 0, we can do remap successfully
+> +		 * without charging it again.
+> +		 * If the kernel doesn't remap it because it's unmapped,
+> +		 * we can check it at end_migration(), no new charge happens
+> +		 * at end_migration().
+> +		 *
+> +		 * C)
+> +		 * The "old" page is under lock_page() until the end of
+> +		 * migration, so, the old page itself will not be swapped-out.
+> +		 * But the new page can be.
+> +		 * etc...
+> +		 */
+> +		if (PageAnon(page))
+> +			SetPageCgroupMigration(pc);
+>  	}
+>  	unlock_page_cgroup(pc);
+> +	/*
+> +	 * If the page is not charged at this point,
+> +	 * we return here.
+> +	 */
+> +	if (!mem)
+> +		return 0;
+> 
+>  	*ptr = mem;
+> -	if (mem) {
+> -		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+> -		css_put(&mem->css);
+> +	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+> +	css_put(&mem->css);/* drop extra refcnt */
+> +	if (ret || *ptr == NULL) {
+> +		if (PageAnon(page)) {
+> +			lock_page_cgroup(pc);
+> +			ClearPageCgroupMigration(pc);
+> +			unlock_page_cgroup(pc);
+> +			/*
+> +		 	 * The old page may be fully unmapped while we kept it.
+> +		 	 */
+> +			mem_cgroup_uncharge_page(page);
+> +		}
+> +		return -ENOMEM;
+>  	}
+> +	/*
+> + 	 * We charge new page before it's mapped. So, even if unlock_page()
+> + 	 * is called far before end_migration, we can catch all events on
+> + 	 * this new page. In the case new page is migrated but not remapped,
+> + 	 * new page's mapcount will be finally 0 and we call uncharge in
+> + 	 * end_migration().
+> +  	 */
+> +	pc = lookup_page_cgroup(newpage);
+> +	if (PageAnon(page))
+> +		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+> +	else if (page_is_file_cache(page))
+> +		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> +	else
+> +		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> +	__mem_cgroup_commit_charge(mem, pc, ctype);
+>  	return ret;
+>  }
+> 
+>  /* remove redundant charge if migration failed*/
+>  void mem_cgroup_end_migration(struct mem_cgroup *mem,
+> -		struct page *oldpage, struct page *newpage)
+> +	struct page *oldpage, struct page *newpage)
+>  {
+> -	struct page *target, *unused;
+> +	struct page *used, *unused;
+>  	struct page_cgroup *pc;
+> -	enum charge_type ctype;
+> 
+>  	if (!mem)
+>  		return;
+> +	/* blocks rmdir() */
+>  	cgroup_exclude_rmdir(&mem->css);
+>  	/* at migration success, oldpage->mapping is NULL. */
+>  	if (oldpage->mapping) {
+> -		target = oldpage;
+> -		unused = NULL;
+> +		used = oldpage;
+> +		unused = newpage;
+>  	} else {
+> -		target = newpage;
+> +		used = newpage;
+>  		unused = oldpage;
+>  	}
 > -
-> - =A0 =A0 =A0 return ret;
-> =A0}
->
-> =A0static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
-> @@ -3695,7 +3713,7 @@ static int mem_cgroup_oom_register_event(struct
-> cgroup *cgrp,
-> =A0 =A0 =A0 =A0return 0;
-> =A0}
->
-> -static int mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
-> +static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0struct cftype *cft, struct eventfd_ctx *eventfd)
-> =A0{
-> =A0 =A0 =A0 =A0struct mem_cgroup *mem =3D mem_cgroup_from_cont(cgrp);
-> @@ -3714,8 +3732,6 @@ static int
-> mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
-> =A0 =A0 =A0 =A0}
->
-> =A0 =A0 =A0 =A0mutex_unlock(&memcg_oom_mutex);
+> -	if (PageAnon(target))
+> -		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+> -	else if (page_is_file_cache(target))
+> -		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> -	else
+> -		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
 > -
-> - =A0 =A0 =A0 return 0;
-> =A0}
->
-> =A0static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+> -	/* unused page is not on radix-tree now. */
+> -	if (unused)
+> -		__mem_cgroup_uncharge_common(unused, ctype);
+> -
+> -	pc = lookup_page_cgroup(target);
+>  	/*
+> -	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
+> -	 * So, double-counting is effectively avoided.
+> +	 * We disallowed uncharge of pages under migration because mapcount
+> +	 * of the page goes down to zero, temporarly.
+> +	 * Clear the flag and check the page should be charged.
+>  	 */
+> -	__mem_cgroup_commit_charge(mem, pc, ctype);
+> -
+> +	pc = lookup_page_cgroup(unused);
+> +	/* This flag itself is not racy, so, check it before lock */
+> +	if (PageCgroupMigration(pc)) {
+> +		lock_page_cgroup(pc);
+> +		ClearPageCgroupMigration(pc);
+> +		unlock_page_cgroup(pc);
+> +	}
+> +	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+> +
+> +	pc = lookup_page_cgroup(used);
+> +	if (PageCgroupMigration(pc)) {
+> +		lock_page_cgroup(pc);
+> +		ClearPageCgroupMigration(pc);
+> +		unlock_page_cgroup(pc);
+> +	}
+
+Could you please explain the double check for PageCgroupMigration?
+
+>  	/*
+> -	 * Both of oldpage and newpage are still under lock_page().
+> -	 * Then, we don't have to care about race in radix-tree.
+> -	 * But we have to be careful that this page is unmapped or not.
+> -	 *
+> -	 * There is a case for !page_mapped(). At the start of
+> -	 * migration, oldpage was mapped. But now, it's zapped.
+> -	 * But we know *target* page is not freed/reused under us.
+> -	 * mem_cgroup_uncharge_page() does all necessary checks.
+> -	 */
+> -	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+> -		mem_cgroup_uncharge_page(target);
+> +	 * If a page is a file cache, radix-tree replacement is very atomic
+> + 	 * and we can skip this check. When it was an Anon page, its mapcount
+> + 	 * goes down to 0. But because we added MIGRATION flage, it's not
+> + 	 * uncharged yet. There are several case but page->mapcount check
+> + 	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
+> + 	 * check. (see prepare_charge() also)
+> + 	 */
+> +	if (PageAnon(used))
+> +		mem_cgroup_uncharge_page(used);
+>  	/*
+> -	 * At migration, we may charge account against cgroup which has no tasks
+> +	 * At migration, we may charge account against cgroup which has no
+> +	 * tasks.
+>  	 * So, rmdir()->pre_destroy() can be called while we do this charge.
+>  	 * In that case, we need to call pre_destroy() again. check it here.
+>  	 */
+> Index: linux-2.6.34-rc4-mm1/mm/migrate.c
+> ===================================================================
+> --- linux-2.6.34-rc4-mm1.orig/mm/migrate.c
+> +++ linux-2.6.34-rc4-mm1/mm/migrate.c
+> @@ -581,7 +581,7 @@ static int unmap_and_move(new_page_t get
+>  	}
+> 
+>  	/* charge against new page */
+> -	charge = mem_cgroup_prepare_migration(page, &mem);
+> +	charge = mem_cgroup_prepare_migration(page, newpage, &mem);
+>  	if (charge == -ENOMEM) {
+>  		rc = -ENOMEM;
+>  		goto unlock;
+> Index: linux-2.6.34-rc4-mm1/include/linux/memcontrol.h
+> ===================================================================
+> --- linux-2.6.34-rc4-mm1.orig/include/linux/memcontrol.h
+> +++ linux-2.6.34-rc4-mm1/include/linux/memcontrol.h
+> @@ -89,7 +89,8 @@ int mm_match_cgroup(const struct mm_stru
+>  extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
+> 
+>  extern int
+> -mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
+> +mem_cgroup_prepare_migration(struct page *page,
+> +	struct page *newpage, struct mem_cgroup **ptr);
+>  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>  	struct page *oldpage, struct page *newpage);
+> 
+> @@ -228,7 +229,8 @@ static inline struct cgroup_subsys_state
+>  }
+> 
+>  static inline int
+> -mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+> +mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+> +	struct mem_cgroup **ptr)
+>  {
+>  	return 0;
+>  }
+> Index: linux-2.6.34-rc4-mm1/include/linux/page_cgroup.h
+> ===================================================================
+> --- linux-2.6.34-rc4-mm1.orig/include/linux/page_cgroup.h
+> +++ linux-2.6.34-rc4-mm1/include/linux/page_cgroup.h
+> @@ -40,6 +40,7 @@ enum {
+>  	PCG_USED, /* this object is in use. */
+>  	PCG_ACCT_LRU, /* page has been accounted for */
+>  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+> +	PCG_MIGRATION, /* under page migration */
+>  };
+> 
+>  #define TESTPCGFLAG(uname, lname)			\
+> @@ -79,6 +80,10 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
+>  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+>  TESTPCGFLAG(FileMapped, FILE_MAPPED)
+> 
+> +SETPCGFLAG(Migration, MIGRATION)
+> +CLEARPCGFLAG(Migration, MIGRATION)
+> +TESTPCGFLAG(Migration, MIGRATION)
+> +
+>  static inline int page_cgroup_nid(struct page_cgroup *pc)
+>  {
+>  	return page_to_nid(pc->page);
+> 
 > --
-> 1.7.0.4
->
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
