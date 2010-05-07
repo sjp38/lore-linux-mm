@@ -1,78 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 928EA6200B0
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 01:15:25 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id 22so466702fge.8
-        for <linux-mm@kvack.org>; Thu, 06 May 2010 22:15:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100507100729.a6589d8a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1273058509-16625-1-git-send-email-ext-phil.2.carmody@nokia.com>
-	 <1273058509-16625-2-git-send-email-ext-phil.2.carmody@nokia.com>
-	 <20100506142417.6d317068.akpm@linux-foundation.org>
-	 <20100507100729.a6589d8a.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 7 May 2010 08:15:22 +0300
-Message-ID: <t2ucc557aab1005062215p41f6086p21a19710d528d034@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: memcontrol - uninitialised return value
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 08C4B6B0239
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 01:53:46 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o475riEm023804
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 7 May 2010 14:53:44 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D971845DE51
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 14:53:43 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B5CC145DE4F
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 14:53:43 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 984601DB8015
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 14:53:43 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 520251DB8014
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 14:53:43 +0900 (JST)
+Date: Fri, 7 May 2010 14:49:37 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+Message-Id: <20100507144937.2266df7d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100507085219.5821f721.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+	<1273065281-13334-2-git-send-email-mel@csn.ul.ie>
+	<20100506163837.bf6587ef.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100506094621.GZ20979@csn.ul.ie>
+	<20100507085219.5821f721.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Phil Carmody <ext-phil.2.carmody@nokia.com>, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 7, 2010 at 4:07 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 6 May 2010 14:24:17 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> On Wed, =C2=A05 May 2010 14:21:49 +0300
->> Phil Carmody <ext-phil.2.carmody@nokia.com> wrote:
->>
->> > From: Phil Carmody <ext-phil.2.carmody@nokia.com>
->> >
->> > Only an out of memory error will cause ret to be set.
->> >
->> > Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
->> > Signed-off-by: Phil Carmody <ext-phil.2.carmody@nokia.com>
->> > ---
->> > =C2=A0mm/memcontrol.c | =C2=A0 =C2=A02 +-
->> > =C2=A01 files changed, 1 insertions(+), 1 deletions(-)
->> >
->> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> > index 90e32b2..09af773 100644
->> > --- a/mm/memcontrol.c
->> > +++ b/mm/memcontrol.c
->> > @@ -3464,7 +3464,7 @@ static int mem_cgroup_unregister_event(struct cg=
-roup *cgrp, struct cftype *cft,
->> > =C2=A0 =C2=A0 int type =3D MEMFILE_TYPE(cft->private);
->> > =C2=A0 =C2=A0 u64 usage;
->> > =C2=A0 =C2=A0 int size =3D 0;
->> > - =C2=A0 int i, j, ret;
->> > + =C2=A0 int i, j, ret =3D 0;
->> >
->> > =C2=A0 =C2=A0 mutex_lock(&memcg->thresholds_lock);
->> > =C2=A0 =C2=A0 if (type =3D=3D _MEM)
->>
->> afacit the return value of cftype.unregister_event() is always ignored
->> anyway. =C2=A0Perhaps it should be changed to void-returning, or fixed.
->>
->>
-> Ah, it's now "TODO". But hmm...."unregister_event()" is called by workque=
-ue.
-> (for avoiding race?)
+On Fri, 7 May 2010 08:52:19 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Because it can be called from atomic context.
+> On Thu, 6 May 2010 10:46:21 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 
-> I think unregister_event should be "void" and mem_cgroup_unregister_event=
-()
-> should be implemented as "never fail" function.
->
-> I'll try by myself....but if someone knows this event notifier implementa=
-tion well,
-> please.
+> > 5. It added a field to mm_struct. It's the smallest of concerns though.
+> > 
+> > Do you think it's a better approach and should be revisited?
+> > 
+> > 
+> 
+> If everyone think seqlock is simple, I think it should be. But it seems you all are
+> going ahead with anon_vma->lock approach. 
+> (Basically, it's ok to me if it works. We may be able to make it better in later.)
+> 
+> I'll check your V7.
+> 
+> Thank you for answering.
 
-Ok, better if I'll do it.
+plz forget about seq_counter. we may have to add "retry" path for avoiding
+dead lock. If so, using anon_vma->lock in proper manner seems sane.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
