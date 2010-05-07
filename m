@@ -1,261 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CECD6200B2
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 06:46:38 -0400 (EDT)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e32.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o47AdSij014595
-	for <linux-mm@kvack.org>; Fri, 7 May 2010 04:39:28 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o47AkXmj141624
-	for <linux-mm@kvack.org>; Fri, 7 May 2010 04:46:33 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o47AkWhQ010746
-	for <linux-mm@kvack.org>; Fri, 7 May 2010 04:46:32 -0600
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: [PATCH] Split executable and non-executable mmap tracking
-Date: Fri,  7 May 2010 10:05:35 +0100
-Message-Id: <1273223135-22695-1-git-send-email-ebmunson@us.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 304D26200B2
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 07:46:29 -0400 (EDT)
+Received: by pzk28 with SMTP id 28so488582pzk.11
+        for <linux-mm@kvack.org>; Fri, 07 May 2010 04:46:27 -0700 (PDT)
+MIME-Version: 1.0
+Date: Fri, 7 May 2010 14:46:27 +0300
+Message-ID: <l2pcc557aab1005070446y1f9c8169v58a3f7847676eaa@mail.gmail.com>
+Subject: [PATCH] cgroups: make cftype.unregister_event() void-returning
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: mingo@elte.hu
-Cc: a.p.zijlstra@chello.nl, acme@redhat.com, arjan@linux.intel.com, anton@samba.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric B Munson <ebmunson@us.ibm.com>
+To: linux-mm@kvack.org, containers@lists.linux-foundation.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Phil Carmody <ext-phil.2.carmody@nokia.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch splits tracking of executable and non-executable mmaps.
-Executable mmaps are tracked normally and non-executable are
-tracked when --data is used.
+Since we unable to handle error returned by cftype.unregister_event()
+properly, let's make the callback void-returning.
 
-Signed-off-by: Anton Blanchard <anton@samba.org>
+mem_cgroup_unregister_event() has been rewritten to be "never fail"
+function. On mem_cgroup_usage_register_event() we save old buffer
+for thresholds array and reuse it in mem_cgroup_usage_unregister_event()
+to avoid allocation.
 
-Updated code for stable perf ABI
-Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
 ---
- fs/exec.c                   |    1 +
- include/linux/perf_event.h  |   12 +++---------
- kernel/perf_event.c         |   34 +++++++++++++++++++++++++---------
- mm/mmap.c                   |    2 ++
- tools/perf/builtin-record.c |    6 ++++--
- tools/perf/builtin-top.c    |    2 +-
- 6 files changed, 36 insertions(+), 21 deletions(-)
+ include/linux/cgroup.h |    2 +-
+ kernel/cgroup.c        |    1 -
+ mm/memcontrol.c        |   64 ++++++++++++++++++++++++++++++------------------
+ 3 files changed, 41 insertions(+), 26 deletions(-)
 
-diff --git a/fs/exec.c b/fs/exec.c
-index 49cdaa1..5ad4f69 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -648,6 +648,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index 8f78073..0c62160 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -397,7 +397,7 @@ struct cftype {
+ 	 * This callback must be implemented, if you want provide
+ 	 * notification functionality.
+ 	 */
+-	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
++	void (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
+ 			struct eventfd_ctx *eventfd);
+ };
+
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 06dbf97..6675e8c 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -2988,7 +2988,6 @@ static void cgroup_event_remove(struct work_struct *work)
+ 			remove);
+ 	struct cgroup *cgrp = event->cgrp;
+
+-	/* TODO: check return code */
+ 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
+
+ 	eventfd_ctx_put(event->eventfd);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 8cb2722..0a37b5d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -226,9 +226,19 @@ struct mem_cgroup {
+ 	/* thresholds for memory usage. RCU-protected */
+ 	struct mem_cgroup_threshold_ary *thresholds;
+
++	/*
++	 * Preallocated buffer to be used in mem_cgroup_unregister_event()
++	 * to make it "never fail".
++	 * It must be able to store at least thresholds->size - 1 entries.
++	 */
++	struct mem_cgroup_threshold_ary *__thresholds;
++
+ 	/* thresholds for mem+swap usage. RCU-protected */
+ 	struct mem_cgroup_threshold_ary *memsw_thresholds;
+
++	/* the same as __thresholds, but for memsw_thresholds */
++	struct mem_cgroup_threshold_ary *__memsw_thresholds;
++
+ 	/* For oom notifier event fd */
+ 	struct list_head oom_notify;
+
+@@ -3575,17 +3585,27 @@ static int
+mem_cgroup_usage_register_event(struct cgroup *cgrp,
  	else
- 		stack_base = vma->vm_start - stack_expand;
- #endif
-+	current->mm->start_stack = bprm->p;
- 	ret = expand_stack(vma, stack_base);
- 	if (ret)
- 		ret = -EFAULT;
-diff --git a/include/linux/perf_event.h b/include/linux/perf_event.h
-index c8e3754..b8f59cc 100644
---- a/include/linux/perf_event.h
-+++ b/include/linux/perf_event.h
-@@ -197,6 +197,7 @@ struct perf_event_attr {
- 				exclude_hv     :  1, /* ditto hypervisor      */
- 				exclude_idle   :  1, /* don't count when idle */
- 				mmap           :  1, /* include mmap data     */
-+				mmap_exec      :  1, /* include exec mmap data*/
- 				comm	       :  1, /* include comm data     */
- 				freq           :  1, /* use freq, not period  */
- 				inherit_stat   :  1, /* per task counts       */
-@@ -204,7 +205,7 @@ struct perf_event_attr {
- 				task           :  1, /* trace fork/exit       */
- 				watermark      :  1, /* wakeup_watermark      */
- 
--				__reserved_1   : 49;
-+				__reserved_1   : 48;
- 
- 	union {
- 		__u32		wakeup_events;	  /* wakeup every n events */
-@@ -894,14 +895,7 @@ perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
- 	}
- }
- 
--extern void __perf_event_mmap(struct vm_area_struct *vma);
--
--static inline void perf_event_mmap(struct vm_area_struct *vma)
--{
--	if (vma->vm_flags & VM_EXEC)
--		__perf_event_mmap(vma);
--}
--
-+extern void perf_event_mmap(struct vm_area_struct *vma);
- extern void perf_event_comm(struct task_struct *tsk);
- extern void perf_event_fork(struct task_struct *tsk);
- 
-diff --git a/kernel/perf_event.c b/kernel/perf_event.c
-index 3d1552d..b3f49e6 100644
---- a/kernel/perf_event.c
-+++ b/kernel/perf_event.c
-@@ -1832,6 +1832,8 @@ static void free_event(struct perf_event *event)
- 
- 	if (!event->parent) {
- 		atomic_dec(&nr_events);
-+		if (event->attr.mmap_exec)
-+			atomic_dec(&nr_mmap_events);
- 		if (event->attr.mmap)
- 			atomic_dec(&nr_mmap_events);
- 		if (event->attr.comm)
-@@ -3354,7 +3356,7 @@ perf_event_read_event(struct perf_event *event,
- /*
-  * task tracking -- fork/exit
-  *
-- * enabled by: attr.comm | attr.mmap | attr.task
-+ * enabled by: attr.comm | attr.mmap | attr.mmap_exec | attr.task
-  */
- 
- struct perf_task_event {
-@@ -3414,7 +3416,8 @@ static int perf_event_task_match(struct perf_event *event)
- 	if (event->cpu != -1 && event->cpu != smp_processor_id())
- 		return 0;
- 
--	if (event->attr.comm || event->attr.mmap || event->attr.task)
-+	if (event->attr.comm || event->attr.mmap ||
-+	    event->attr.mmap_exec || event->attr.task)
- 		return 1;
- 
- 	return 0;
-@@ -3639,7 +3642,8 @@ static void perf_event_mmap_output(struct perf_event *event,
- }
- 
- static int perf_event_mmap_match(struct perf_event *event,
--				   struct perf_mmap_event *mmap_event)
-+				   struct perf_mmap_event *mmap_event,
-+				   int executable)
- {
- 	if (event->state < PERF_EVENT_STATE_INACTIVE)
- 		return 0;
-@@ -3647,19 +3651,21 @@ static int perf_event_mmap_match(struct perf_event *event,
- 	if (event->cpu != -1 && event->cpu != smp_processor_id())
- 		return 0;
- 
--	if (event->attr.mmap)
-+	if ((executable && event->attr.mmap_exec) ||
-+	    (!executable && event->attr.mmap))
- 		return 1;
- 
- 	return 0;
- }
- 
- static void perf_event_mmap_ctx(struct perf_event_context *ctx,
--				  struct perf_mmap_event *mmap_event)
-+				  struct perf_mmap_event *mmap_event,
-+				  int executable)
- {
- 	struct perf_event *event;
- 
- 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
--		if (perf_event_mmap_match(event, mmap_event))
-+		if (perf_event_mmap_match(event, mmap_event, executable))
- 			perf_event_mmap_output(event, mmap_event);
- 	}
- }
-@@ -3703,6 +3709,14 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
- 		if (!vma->vm_mm) {
- 			name = strncpy(tmp, "[vdso]", sizeof(tmp));
- 			goto got_name;
-+		} else if (vma->vm_start <= vma->vm_mm->start_brk &&
-+				vma->vm_end >= vma->vm_mm->brk) {
-+			name = strncpy(tmp, "[heap]", sizeof(tmp));
-+			goto got_name;
-+		} else if (vma->vm_start <= vma->vm_mm->start_stack &&
-+				vma->vm_end >= vma->vm_mm->start_stack) {
-+			name = strncpy(tmp, "[stack]", sizeof(tmp));
-+			goto got_name;
- 		}
- 
- 		name = strncpy(tmp, "//anon", sizeof(tmp));
-@@ -3719,17 +3733,17 @@ got_name:
- 
- 	rcu_read_lock();
- 	cpuctx = &get_cpu_var(perf_cpu_context);
--	perf_event_mmap_ctx(&cpuctx->ctx, mmap_event);
-+	perf_event_mmap_ctx(&cpuctx->ctx, mmap_event, vma->vm_flags & VM_EXEC);
- 	ctx = rcu_dereference(current->perf_event_ctxp);
- 	if (ctx)
--		perf_event_mmap_ctx(ctx, mmap_event);
-+		perf_event_mmap_ctx(ctx, mmap_event, vma->vm_flags & VM_EXEC);
- 	put_cpu_var(perf_cpu_context);
- 	rcu_read_unlock();
- 
- 	kfree(buf);
- }
- 
--void __perf_event_mmap(struct vm_area_struct *vma)
-+void perf_event_mmap(struct vm_area_struct *vma)
- {
- 	struct perf_mmap_event mmap_event;
- 
-@@ -4641,6 +4655,8 @@ done:
- 		atomic_inc(&nr_events);
- 		if (event->attr.mmap)
- 			atomic_inc(&nr_mmap_events);
-+		if (event->attr.mmap_exec)
-+			atomic_inc(&nr_mmap_events);
- 		if (event->attr.comm)
- 			atomic_inc(&nr_comm_events);
- 		if (event->attr.task)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 456ec6f..6ceee1d 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1781,6 +1781,7 @@ static int expand_downwards(struct vm_area_struct *vma,
- 		if (!error) {
- 			vma->vm_start = address;
- 			vma->vm_pgoff -= grow;
-+			perf_event_mmap(vma);
- 		}
- 	}
- 	anon_vma_unlock(vma);
-@@ -2208,6 +2209,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 	vma->vm_page_prot = vm_get_page_prot(flags);
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- out:
-+	perf_event_mmap(vma);
- 	mm->total_vm += len >> PAGE_SHIFT;
- 	if (flags & VM_LOCKED) {
- 		if (!mlock_vma_pages_range(vma, addr, addr + len))
-diff --git a/tools/perf/builtin-record.c b/tools/perf/builtin-record.c
-index 3b8b638..ff0b351 100644
---- a/tools/perf/builtin-record.c
-+++ b/tools/perf/builtin-record.c
-@@ -260,8 +260,10 @@ static void create_counter(int counter, int cpu, pid_t pid)
- 	if (inherit_stat)
- 		attr->inherit_stat = 1;
- 
--	if (sample_address)
-+	if (sample_address) {
- 		attr->sample_type	|= PERF_SAMPLE_ADDR;
-+		attr->mmap = track;
+ 		rcu_assign_pointer(memcg->memsw_thresholds, thresholds_new);
+
+-	/* To be sure that nobody uses thresholds before freeing it */
++	/* To be sure that nobody uses thresholds */
+ 	synchronize_rcu();
+
+-	kfree(thresholds);
++	/*
++	 * Free old preallocated buffer and use thresholds as new
++	 * preallocated buffer.
++	 */
++	if (type == _MEM) {
++		kfree(memcg->__thresholds);
++		memcg->__thresholds = thresholds;
++	} else {
++		kfree(memcg->__memsw_thresholds);
++		memcg->__memsw_thresholds = thresholds;
 +	}
- 
- 	if (call_graph)
- 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
-@@ -272,7 +274,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
- 		attr->sample_type	|= PERF_SAMPLE_CPU;
+ unlock:
+ 	mutex_unlock(&memcg->thresholds_lock);
+
+ 	return ret;
+ }
+
+-static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
++static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+ 	struct cftype *cft, struct eventfd_ctx *eventfd)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+@@ -3593,7 +3613,7 @@ static int
+mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+ 	int type = MEMFILE_TYPE(cft->private);
+ 	u64 usage;
+ 	int size = 0;
+-	int i, j, ret = 0;
++	int i, j;
+
+ 	mutex_lock(&memcg->thresholds_lock);
+ 	if (type == _MEM)
+@@ -3623,17 +3643,15 @@ static int
+mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+ 	/* Set thresholds array to NULL if we don't have thresholds */
+ 	if (!size) {
+ 		thresholds_new = NULL;
+-		goto assign;
++		goto swap_buffers;
  	}
- 
--	attr->mmap		= track;
-+	attr->mmap_exec		= track;
- 	attr->comm		= track;
- 	attr->inherit		= inherit;
- 	attr->disabled		= 1;
-diff --git a/tools/perf/builtin-top.c b/tools/perf/builtin-top.c
-index 1f52932..2cddcb5 100644
---- a/tools/perf/builtin-top.c
-+++ b/tools/perf/builtin-top.c
-@@ -1142,7 +1142,7 @@ static void start_counter(int i, int counter)
+
+-	/* Allocate memory for new array of thresholds */
+-	thresholds_new = kmalloc(sizeof(*thresholds_new) +
+-			size * sizeof(struct mem_cgroup_threshold),
+-			GFP_KERNEL);
+-	if (!thresholds_new) {
+-		ret = -ENOMEM;
+-		goto unlock;
+-	}
++	/* Use preallocated buffer for new array of thresholds */
++	if (type == _MEM)
++		thresholds_new = memcg->__thresholds;
++	else
++		thresholds_new = memcg->__memsw_thresholds;
++
+ 	thresholds_new->size = size;
+
+ 	/* Copy thresholds and find current threshold */
+@@ -3654,20 +3672,20 @@ static int
+mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+ 		j++;
  	}
- 
- 	attr->inherit		= (cpu < 0) && inherit;
--	attr->mmap		= 1;
-+	attr->mmap_exec		= 1;
- 
- try_again:
- 	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
+
+-assign:
+-	if (type == _MEM)
++swap_buffers:
++	/* Swap thresholds array and preallocated buffer */
++	if (type == _MEM) {
++		memcg->__thresholds = thresholds;
+ 		rcu_assign_pointer(memcg->thresholds, thresholds_new);
+-	else
++	} else {
++		memcg->__memsw_thresholds = thresholds;
+ 		rcu_assign_pointer(memcg->memsw_thresholds, thresholds_new);
++	}
+
+-	/* To be sure that nobody uses thresholds before freeing it */
++	/* To be sure that nobody uses thresholds */
+ 	synchronize_rcu();
+
+-	kfree(thresholds);
+-unlock:
+ 	mutex_unlock(&memcg->thresholds_lock);
+-
+-	return ret;
+ }
+
+ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+@@ -3695,7 +3713,7 @@ static int mem_cgroup_oom_register_event(struct
+cgroup *cgrp,
+ 	return 0;
+ }
+
+-static int mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
++static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+ 	struct cftype *cft, struct eventfd_ctx *eventfd)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+@@ -3714,8 +3732,6 @@ static int
+mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+ 	}
+
+ 	mutex_unlock(&memcg_oom_mutex);
+-
+-	return 0;
+ }
+
+ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
 -- 
 1.7.0.4
 
