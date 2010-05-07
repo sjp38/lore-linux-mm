@@ -1,31 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 689F36B024B
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 10:09:03 -0400 (EDT)
-Date: Fri, 7 May 2010 17:07:59 +0300
-From: Ozgur Yuksel <ozgur.yuksel@oracle.com>
-Subject: Re: [Bugme-new] [Bug 15610] New: fsck leads to swapper - BUG:
- unable to handle kernel NULL pointer dereference & panic
-Message-ID: <20100507140759.GA22664@oracle.com>
-References: <bug-15610-10286@https.bugzilla.kernel.org/>
- <20100322100954.5ecaec4b.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 122DB6B02CA
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 10:21:27 -0400 (EDT)
+Date: Fri, 7 May 2010 07:18:39 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and
+ rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary
+ stack
+In-Reply-To: <20100507131924.e75db6fc.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.LFD.2.00.1005070715100.901@i5.linux-foundation.org>
+References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie> <1273188053-26029-3-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005061836110.901@i5.linux-foundation.org> <20100507105712.18fc90c4.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.LFD.2.00.1005061905230.901@i5.linux-foundation.org> <20100507131924.e75db6fc.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100322100954.5ecaec4b.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-During bisecting, I needed to switch to another environment (Xen HVM - Fedora 
-12) where I could never reproduce the problem there. I cannot proceed on
-analysis on the original environment as it is my main workstation. 
 
-FWIW I can confirm the problem did not reproduce on 2.6.34-rc3 on the original
-environment too. 
 
-Ozgur Yuksel
+On Fri, 7 May 2010, KAMEZAWA Hiroyuki wrote:
+> 
+> Hmm, is this too slow ? This is the simplest one I have.
+
+Well, it may be as slow (or slower) than Andrea's, but at least it is 
+_clean_ and actually removes code. So if we can't do it better, I'd 
+certainly prefer this to the horribly hacky one.
+
+That said, I still think we could easily just split up 
+"move_page_tables()" into two functions - one that just does the page 
+table allocation, and one that actually moves the entries.
+
+In fact, I think that would even clean up the error case for move_vma() 
+too - the page table entry movement itself could never fail, so you never 
+end up with that insane "move back" case.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
