@@ -1,350 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 82AC36B022B
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 13:42:25 -0400 (EDT)
-Date: Fri, 7 May 2010 13:42:19 -0400
-From: Josef Bacik <josef@redhat.com>
-Subject: [PATCH 5/5] Btrfs: add basic DIO read support V2
-Message-ID: <20100507174219.GF3360@localhost.localdomain>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 606726200BD
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 17:07:23 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id o47L7FOx003703
+	for <linux-mm@kvack.org>; Fri, 7 May 2010 14:07:16 -0700
+Received: from ywh17 (ywh17.prod.google.com [10.192.8.17])
+	by kpbe20.cbf.corp.google.com with ESMTP id o47L7DcC007696
+	for <linux-mm@kvack.org>; Fri, 7 May 2010 14:07:14 -0700
+Received: by ywh17 with SMTP id 17so933926ywh.22
+        for <linux-mm@kvack.org>; Fri, 07 May 2010 14:07:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <l2pcc557aab1005070446y1f9c8169v58a3f7847676eaa@mail.gmail.com>
+References: <l2pcc557aab1005070446y1f9c8169v58a3f7847676eaa@mail.gmail.com>
+Date: Fri, 7 May 2010 14:07:13 -0700
+Message-ID: <p2l6599ad831005071407yaa994357s1261317cc7f552b@mail.gmail.com>
+Subject: Re: [PATCH] cgroups: make cftype.unregister_event() void-returning
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: hch@infradead.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, containers@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Phil Carmody <ext-phil.2.carmody@nokia.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-V1->V2
--Use __blockdev_direct_IO instead of helper
--Use KM_IRQ0 for kmap instead of KM_USER0
+I like the principle. I think this patch leaks arrays, though.
 
-This provides basic DIO support for reads only.  It does not do any of the work
-to recover from mismatching checksums, that will come later.  A few design
-changes have been made from Jim's code (sorry Jim!)
+I think the sequence:
 
-1) Use the generic direct-io code.  Jim originally re-wrote all the generic DIO
-code in order to account for all of BTRFS's oddities, but thanks to that work it
-seems like the best bet is to just ignore compression and such and just opt to
-fallback on buffered IO.
+register;register;unregister;unregister
 
-2) Fallback on buffered IO for compressed or inline extents.  Jim's code did
-it's own buffering to make dio with compressed extents work.  Now we just
-fallback onto normal buffered IO.
+will leak the array of size 2. Using the notation Ax, Bx, Cx, etc to
+represent distinct buffers of size x, we have:
 
-3) Lock the entire range during DIO.  I originally had it so we would lock the
-extents as get_block was called, and then unlock them as the endio function was
-called, which worked great, but if we ever had an error in the submit_io hook,
-we could have locked an extent that would never be submitted for IO, so we
-wouldn't be able to unlock it, so this solution fixed that problem and made it a
-bit cleaner.
+initially: size =3D 0, thresholds =3D NULL, spare =3D NULL
+register: size =3D 1, thresholds =3D A1, spare =3D NULL
+register: size =3D 2, thresholds =3D B2, spare =3D A1
+unregister: size =3D 1, thresholds =3D A1, spare =3D B2
+unregister: size =3D 0, thresholds =3D NULL, spare =3D A1 (B2 is leaked)
 
-I've tested this with fsx and everything works great.  This patch depends on my
-dio and filemap.c patches to work.  Thanks,
+In the case when you're unregistering and the size goes down to 0, you
+need to free the spare before doing the swap. Maybe get rid of the
+thresholds_new local variable, and instead in the if(!size) {} branch
+just free and the spare buffer and set its pointer to NULL? Then at
+swap_buffers:, unconditionally swap the two.
 
-Signed-off-by: Josef Bacik <josef@redhat.com>
----
- fs/btrfs/ctree.h     |    2 +
- fs/btrfs/file-item.c |   25 +++++-
- fs/btrfs/inode.c     |  205 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 227 insertions(+), 5 deletions(-)
+Also, I think the code would be cleaner if you created a structure to
+hold a primary threshold and its spare; then you could have one for
+each threshold set, and just pass that to the register/unregister
+functions, rather than them having to be aware of how the type maps to
+the primary and backup array pointers.
 
-diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 746a724..36994e8 100644
---- a/fs/btrfs/ctree.h
-+++ b/fs/btrfs/ctree.h
-@@ -2257,6 +2257,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
- 		    struct btrfs_root *root, u64 bytenr, u64 len);
- int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
- 			  struct bio *bio, u32 *dst);
-+int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
-+			      struct bio *bio, u64 logical_offset, u32 *dst);
- int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
- 			     struct btrfs_root *root,
- 			     u64 objectid, u64 pos,
-diff --git a/fs/btrfs/file-item.c b/fs/btrfs/file-item.c
-index 54a2550..34ea718 100644
---- a/fs/btrfs/file-item.c
-+++ b/fs/btrfs/file-item.c
-@@ -149,13 +149,14 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
- }
- 
- 
--int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
--			  struct bio *bio, u32 *dst)
-+static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
-+				   struct inode *inode, struct bio *bio,
-+				   u64 logical_offset, u32 *dst, int dio)
- {
- 	u32 sum;
- 	struct bio_vec *bvec = bio->bi_io_vec;
- 	int bio_index = 0;
--	u64 offset;
-+	u64 offset = 0;
- 	u64 item_start_offset = 0;
- 	u64 item_last_offset = 0;
- 	u64 disk_bytenr;
-@@ -174,8 +175,11 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
- 	WARN_ON(bio->bi_vcnt <= 0);
- 
- 	disk_bytenr = (u64)bio->bi_sector << 9;
-+	if (dio)
-+		offset = logical_offset;
- 	while (bio_index < bio->bi_vcnt) {
--		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
-+		if (!dio)
-+			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
- 		ret = btrfs_find_ordered_sum(inode, offset, disk_bytenr, &sum);
- 		if (ret == 0)
- 			goto found;
-@@ -238,6 +242,7 @@ found:
- 		else
- 			set_state_private(io_tree, offset, sum);
- 		disk_bytenr += bvec->bv_len;
-+		offset += bvec->bv_len;
- 		bio_index++;
- 		bvec++;
- 	}
-@@ -245,6 +250,18 @@ found:
- 	return 0;
- }
- 
-+int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
-+			  struct bio *bio, u32 *dst)
-+{
-+	return __btrfs_lookup_bio_sums(root, inode, bio, 0, dst, 0);
-+}
-+
-+int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
-+			      struct bio *bio, u64 offset, u32 *dst)
-+{
-+	return __btrfs_lookup_bio_sums(root, inode, bio, offset, dst, 1);
-+}
-+
- int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
- 			     struct list_head *list)
- {
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 2bfdc64..ebd6cb5 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -4875,11 +4875,214 @@ out:
- 	return em;
- }
- 
-+static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
-+				   struct buffer_head *bh_result, int create)
-+{
-+	struct extent_map *em;
-+	u64 start = iblock << inode->i_blkbits;
-+	u64 len = bh_result->b_size;
-+
-+
-+	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
-+	if (IS_ERR(em))
-+		return PTR_ERR(em);
-+
-+	/*
-+	 * Ok for INLINE and COMPRESSED extents we need to fallback on buffered
-+	 * io.  INLINE is special, and we could probably kludge it in here, but
-+	 * it's still buffered so for safety lets just fall back to the generic
-+	 * buffered path.
-+	 *
-+	 * For COMPRESSED we _have_ to read the entire extent in so we can
-+	 * decompress it, so there will be buffering required no matter what we
-+	 * do, so go ahead and fallback to buffered.
-+	 *
-+	 * We return -ENOTBLK because thats what makes DIO go ahead and go back
-+	 * to buffered IO.  Don't blame me, this is the price we pay for using
-+	 * the generic code.
-+	 */
-+	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags) ||
-+	    em->block_start == EXTENT_MAP_INLINE) {
-+		free_extent_map(em);
-+		return -ENOTBLK;
-+	}
-+
-+	/* Just a good old fashioned hole, return */
-+	if (em->block_start == EXTENT_MAP_HOLE) {
-+		free_extent_map(em);
-+		return 0;
-+	}
-+
-+	/*
-+	 * We use the relative offset in the file so that our own submit bio
-+	 * routine will do the mapping to the real blocks.
-+	 */
-+	bh_result->b_blocknr = start >> inode->i_blkbits;
-+	bh_result->b_size = em->len - (start - em->start);
-+	bh_result->b_bdev = em->bdev;
-+	set_buffer_mapped(bh_result);
-+	set_buffer_boundary(bh_result);
-+
-+	free_extent_map(em);
-+
-+	return 0;
-+}
-+
-+struct btrfs_dio_private {
-+	struct inode *inode;
-+	u64 logical_offset;
-+	u32 *csums;
-+	void *private;
-+};
-+
-+static void btrfs_endio_direct(struct bio *bio, int err)
-+{
-+	struct bio_vec *bvec_end = bio->bi_io_vec + bio->bi_vcnt - 1;
-+	struct bio_vec *bvec = bio->bi_io_vec;
-+	struct btrfs_dio_private *dip = bio->bi_private;
-+	struct inode *inode = dip->inode;
-+	struct btrfs_root *root = BTRFS_I(inode)->root;
-+	u64 start;
-+	u32 *private = dip->csums;
-+
-+	start = dip->logical_offset;
-+	do {
-+		if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-+			struct page *page = bvec->bv_page;
-+			char *kaddr;
-+			u32 csum = ~(u32)0;
-+
-+			kaddr = kmap_atomic(page, KM_IRQ0);
-+			csum = btrfs_csum_data(root, kaddr + bvec->bv_offset,
-+					       csum, bvec->bv_len);
-+			btrfs_csum_final(csum, (char *)&csum);
-+			kunmap_atomic(kaddr, KM_IRQ0);
-+
-+			if (csum != *private) {
-+				printk(KERN_ERR "btrfs csum failed ino %lu off"
-+				      " %llu csum %u private %u\n",
-+				      inode->i_ino, (unsigned long long)start,
-+				      csum, *private);
-+				err = -EIO;
-+			}
-+		}
-+
-+		start += bvec->bv_len;
-+		private++;
-+		bvec++;
-+	} while (bvec <= bvec_end);
-+
-+	bio->bi_private = dip->private;
-+
-+	kfree(dip->csums);
-+	kfree(dip);
-+	dio_end_io(bio, err);
-+}
-+
-+static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode)
-+{
-+	struct btrfs_root *root = BTRFS_I(inode)->root;
-+	struct extent_map *em;
-+	struct btrfs_dio_private *dip;
-+	struct bio_vec *bvec = bio->bi_io_vec;
-+	u64 start;
-+	int skip_sum;
-+	int ret = 0;
-+
-+	dip = kmalloc(sizeof(*dip), GFP_NOFS);
-+	if (!dip) {
-+		bio_endio(bio, -ENOMEM);
-+		return;
-+	}
-+
-+	dip->csums = kmalloc(sizeof(u32) * bio->bi_vcnt, GFP_NOFS);
-+	if (!dip->csums) {
-+		kfree(dip);
-+		bio_endio(bio, -ENOMEM);
-+	}
-+
-+	dip->private = bio->bi_private;
-+	dip->inode = inode;
-+	dip->logical_offset = (u64)bio->bi_sector << 9;
-+
-+	start = dip->logical_offset;
-+	em = btrfs_get_extent(inode, NULL, 0, start, bvec->bv_len, 0);
-+	if (IS_ERR(em)) {
-+		ret = PTR_ERR(em);
-+		goto out_err;
-+	}
-+
-+	if (em->block_start >= EXTENT_MAP_LAST_BYTE) {
-+		printk(KERN_ERR "dio to inode resulted in a bad extent "
-+		       "(%llu) %llu\n", (unsigned long long)em->block_start, start);
-+		ret = -EIO;
-+		free_extent_map(em);
-+		goto out_err;
-+	}
-+
-+	bio->bi_sector =
-+		(em->block_start + (dip->logical_offset - em->start)) >> 9;
-+	bio->bi_private = dip;
-+
-+	free_extent_map(em);
-+	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
-+
-+	bio->bi_end_io = btrfs_endio_direct;
-+
-+	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
-+	if (ret)
-+		goto out_err;
-+
-+	if (!skip_sum)
-+		btrfs_lookup_bio_sums_dio(root, inode, bio,
-+					  dip->logical_offset, dip->csums);
-+
-+	ret = btrfs_map_bio(root, rw, bio, 0, 0);
-+	if (ret)
-+		goto out_err;
-+	return;
-+out_err:
-+	kfree(dip->csums);
-+	kfree(dip);
-+	bio_endio(bio, ret);
-+}
-+
- static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
- 			const struct iovec *iov, loff_t offset,
- 			unsigned long nr_segs)
- {
--	return -EINVAL;
-+	struct file *file = iocb->ki_filp;
-+	struct inode *inode = file->f_mapping->host;
-+	struct extent_state *cached_state = NULL;
-+	struct btrfs_ordered_extent *ordered;
-+	ssize_t ret;
-+
-+	if (rw == WRITE)
-+		return 0;
-+
-+	while (1) {
-+		lock_extent_bits(&BTRFS_I(inode)->io_tree, offset,
-+				 offset + iov_length(iov, nr_segs) - 1, 0,
-+				 &cached_state, GFP_NOFS);
-+		ordered = btrfs_lookup_ordered_extent(inode, offset);
-+		if (!ordered)
-+			break;
-+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, offset,
-+				     offset + iov_length(iov, nr_segs) - 1,
-+				     &cached_state, GFP_NOFS);
-+		btrfs_start_ordered_extent(inode, ordered, 1);
-+		btrfs_put_ordered_extent(ordered);
-+		cond_resched();
-+	}
-+
-+	ret = __blockdev_direct_IO(rw, iocb, inode, NULL, iov, offset, nr_segs,
-+				   btrfs_get_blocks_direct, NULL,
-+				   btrfs_submit_direct, 0);
-+
-+	unlock_extent_cached(&BTRFS_I(inode)->io_tree, offset,
-+			     offset + iov_length(iov, nr_segs) - 1,
-+			     &cached_state, GFP_NOFS);
-+	return ret;
- }
- 
- static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
--- 
-1.6.6.1
+Paul
+
+On Fri, May 7, 2010 at 4:46 AM, Kirill A. Shutemov <kirill@shutemov.name> w=
+rote:
+> Since we unable to handle error returned by cftype.unregister_event()
+> properly, let's make the callback void-returning.
+>
+> mem_cgroup_unregister_event() has been rewritten to be "never fail"
+> function. On mem_cgroup_usage_register_event() we save old buffer
+> for thresholds array and reuse it in mem_cgroup_usage_unregister_event()
+> to avoid allocation.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+> ---
+> =A0include/linux/cgroup.h | =A0 =A02 +-
+> =A0kernel/cgroup.c =A0 =A0 =A0 =A0| =A0 =A01 -
+> =A0mm/memcontrol.c =A0 =A0 =A0 =A0| =A0 64 ++++++++++++++++++++++++++++++=
+------------------
+> =A03 files changed, 41 insertions(+), 26 deletions(-)
+>
+> diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+> index 8f78073..0c62160 100644
+> --- a/include/linux/cgroup.h
+> +++ b/include/linux/cgroup.h
+> @@ -397,7 +397,7 @@ struct cftype {
+> =A0 =A0 =A0 =A0 * This callback must be implemented, if you want provide
+> =A0 =A0 =A0 =A0 * notification functionality.
+> =A0 =A0 =A0 =A0 */
+> - =A0 =A0 =A0 int (*unregister_event)(struct cgroup *cgrp, struct cftype =
+*cft,
+> + =A0 =A0 =A0 void (*unregister_event)(struct cgroup *cgrp, struct cftype=
+ *cft,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct eventfd_ctx *eventf=
+d);
+> =A0};
+>
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 06dbf97..6675e8c 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -2988,7 +2988,6 @@ static void cgroup_event_remove(struct work_struct =
+*work)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0remove);
+> =A0 =A0 =A0 =A0struct cgroup *cgrp =3D event->cgrp;
+>
+> - =A0 =A0 =A0 /* TODO: check return code */
+> =A0 =A0 =A0 =A0event->cft->unregister_event(cgrp, event->cft, event->even=
+tfd);
+>
+> =A0 =A0 =A0 =A0eventfd_ctx_put(event->eventfd);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8cb2722..0a37b5d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -226,9 +226,19 @@ struct mem_cgroup {
+> =A0 =A0 =A0 =A0/* thresholds for memory usage. RCU-protected */
+> =A0 =A0 =A0 =A0struct mem_cgroup_threshold_ary *thresholds;
+>
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Preallocated buffer to be used in mem_cgroup_unregiste=
+r_event()
+> + =A0 =A0 =A0 =A0* to make it "never fail".
+> + =A0 =A0 =A0 =A0* It must be able to store at least thresholds->size - 1=
+ entries.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 struct mem_cgroup_threshold_ary *__thresholds;
+> +
+> =A0 =A0 =A0 =A0/* thresholds for mem+swap usage. RCU-protected */
+> =A0 =A0 =A0 =A0struct mem_cgroup_threshold_ary *memsw_thresholds;
+>
+> + =A0 =A0 =A0 /* the same as __thresholds, but for memsw_thresholds */
+> + =A0 =A0 =A0 struct mem_cgroup_threshold_ary *__memsw_thresholds;
+> +
+> =A0 =A0 =A0 =A0/* For oom notifier event fd */
+> =A0 =A0 =A0 =A0struct list_head oom_notify;
+>
+> @@ -3575,17 +3585,27 @@ static int
+> mem_cgroup_usage_register_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0else
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->memsw_thresholds=
+, thresholds_new);
+>
+> - =A0 =A0 =A0 /* To be sure that nobody uses thresholds before freeing it=
+ */
+> + =A0 =A0 =A0 /* To be sure that nobody uses thresholds */
+> =A0 =A0 =A0 =A0synchronize_rcu();
+>
+> - =A0 =A0 =A0 kfree(thresholds);
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* Free old preallocated buffer and use thresholds as new
+> + =A0 =A0 =A0 =A0* preallocated buffer.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (type =3D=3D _MEM) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(memcg->__thresholds);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__thresholds =3D thresholds;
+> + =A0 =A0 =A0 } else {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 kfree(memcg->__memsw_thresholds);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__memsw_thresholds =3D thresholds;
+> + =A0 =A0 =A0 }
+> =A0unlock:
+> =A0 =A0 =A0 =A0mutex_unlock(&memcg->thresholds_lock);
+>
+> =A0 =A0 =A0 =A0return ret;
+> =A0}
+>
+> -static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> +static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0struct cftype *cft, struct eventfd_ctx *eventfd)
+> =A0{
+> =A0 =A0 =A0 =A0struct mem_cgroup *memcg =3D mem_cgroup_from_cont(cgrp);
+> @@ -3593,7 +3613,7 @@ static int
+> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0int type =3D MEMFILE_TYPE(cft->private);
+> =A0 =A0 =A0 =A0u64 usage;
+> =A0 =A0 =A0 =A0int size =3D 0;
+> - =A0 =A0 =A0 int i, j, ret =3D 0;
+> + =A0 =A0 =A0 int i, j;
+>
+> =A0 =A0 =A0 =A0mutex_lock(&memcg->thresholds_lock);
+> =A0 =A0 =A0 =A0if (type =3D=3D _MEM)
+> @@ -3623,17 +3643,15 @@ static int
+> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0/* Set thresholds array to NULL if we don't have threshold=
+s */
+> =A0 =A0 =A0 =A0if (!size) {
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0thresholds_new =3D NULL;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto assign;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto swap_buffers;
+> =A0 =A0 =A0 =A0}
+>
+> - =A0 =A0 =A0 /* Allocate memory for new array of thresholds */
+> - =A0 =A0 =A0 thresholds_new =3D kmalloc(sizeof(*thresholds_new) +
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 size * sizeof(struct mem_cg=
+roup_threshold),
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 GFP_KERNEL);
+> - =A0 =A0 =A0 if (!thresholds_new) {
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D -ENOMEM;
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto unlock;
+> - =A0 =A0 =A0 }
+> + =A0 =A0 =A0 /* Use preallocated buffer for new array of thresholds */
+> + =A0 =A0 =A0 if (type =3D=3D _MEM)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 thresholds_new =3D memcg->__thresholds;
+> + =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 thresholds_new =3D memcg->__memsw_threshold=
+s;
+> +
+> =A0 =A0 =A0 =A0thresholds_new->size =3D size;
+>
+> =A0 =A0 =A0 =A0/* Copy thresholds and find current threshold */
+> @@ -3654,20 +3672,20 @@ static int
+> mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0j++;
+> =A0 =A0 =A0 =A0}
+>
+> -assign:
+> - =A0 =A0 =A0 if (type =3D=3D _MEM)
+> +swap_buffers:
+> + =A0 =A0 =A0 /* Swap thresholds array and preallocated buffer */
+> + =A0 =A0 =A0 if (type =3D=3D _MEM) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__thresholds =3D thresholds;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->thresholds, thre=
+sholds_new);
+> - =A0 =A0 =A0 else
+> + =A0 =A0 =A0 } else {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 memcg->__memsw_thresholds =3D thresholds;
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_assign_pointer(memcg->memsw_thresholds=
+, thresholds_new);
+> + =A0 =A0 =A0 }
+>
+> - =A0 =A0 =A0 /* To be sure that nobody uses thresholds before freeing it=
+ */
+> + =A0 =A0 =A0 /* To be sure that nobody uses thresholds */
+> =A0 =A0 =A0 =A0synchronize_rcu();
+>
+> - =A0 =A0 =A0 kfree(thresholds);
+> -unlock:
+> =A0 =A0 =A0 =A0mutex_unlock(&memcg->thresholds_lock);
+> -
+> - =A0 =A0 =A0 return ret;
+> =A0}
+>
+> =A0static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+> @@ -3695,7 +3713,7 @@ static int mem_cgroup_oom_register_event(struct
+> cgroup *cgrp,
+> =A0 =A0 =A0 =A0return 0;
+> =A0}
+>
+> -static int mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+> +static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0struct cftype *cft, struct eventfd_ctx *eventfd)
+> =A0{
+> =A0 =A0 =A0 =A0struct mem_cgroup *mem =3D mem_cgroup_from_cont(cgrp);
+> @@ -3714,8 +3732,6 @@ static int
+> mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+> =A0 =A0 =A0 =A0}
+>
+> =A0 =A0 =A0 =A0mutex_unlock(&memcg_oom_mutex);
+> -
+> - =A0 =A0 =A0 return 0;
+> =A0}
+>
+> =A0static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+> --
+> 1.7.0.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
