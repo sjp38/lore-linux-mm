@@ -1,172 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B9D6200BA
-	for <linux-mm@kvack.org>; Fri,  7 May 2010 12:27:08 -0400 (EDT)
-Date: Fri, 7 May 2010 17:26:44 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
-	the wrong VMA information
-Message-ID: <20100507162644.GD4859@csn.ul.ie>
-References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie> <1273188053-26029-2-git-send-email-mel@csn.ul.ie> <20100507095654.a8097967.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AC6B66B0223
+	for <linux-mm@kvack.org>; Fri,  7 May 2010 13:39:56 -0400 (EDT)
+Date: Fri, 7 May 2010 13:39:48 -0400
+From: Josef Bacik <josef@redhat.com>
+Subject: [PATCH 1/5] fs: allow short direct-io reads to be completed via
+	buffered IO V2
+Message-ID: <20100507173948.GB3360@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100507095654.a8097967.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+To: linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: hch@infradead.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 07, 2010 at 09:56:54AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Fri,  7 May 2010 00:20:52 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > vma_adjust() is updating anon VMA information without locks being taken.
-> > In contrast, file-backed mappings use the i_mmap_lock and this lack of
-> > locking can result in races with users of rmap_walk such as page migration.
-> > vma_address() can return -EFAULT for an address that will soon be valid.
-> > For migration, this potentially leaves a dangling migration PTE behind
-> > which can later cause a BUG_ON to trigger when the page is faulted in.
-> > 
-> > <SNIP>
-> 
-> I'm sorry but I don't think I understand this. Could you help me ?
-> 
+V1->V2: Check to see if our current ppos is >= i_size after a short DIO read,
+just in case it was actually a short read and we need to just return.
 
-Hopefully.
+This is similar to what already happens in the write case.  If we have a short
+read while doing O_DIRECT, instead of just returning, fallthrough and try to
+read the rest via buffered IO.  BTRFS needs this because if we encounter a
+compressed or inline extent during DIO, we need to fallback on buffered.  If the
+extent is compressed we need to read the entire thing into memory and
+de-compress it into the users pages.  I have tested this with fsx and everything
+works great.  I also ran xfstests against xfs and btrfs with this patch and
+everything came out as expected.  Thanks,
 
-> IIUC, anon_vma_chain is linked as 2D-mesh
-> 
->             anon_vma1    anon_vma2    anon_vma3
->                 |            |            |
->     vma1 -----  1  --------  2  --------- 3 -----
->                 |            |            |
->     vma2 -----  4  --------  5 ---------- 6 -----
->                 |            |            |
->     vma3 -----  7  --------  8 ---------- 9 -----
-> 
-> 
-> Here,
->   * vertical link is anon_vma->head, avc->same_anon_vma link.
->   * horizontal link is vma->anon_vma_chain, avc->same_vma link.
->   * 1-9 are avcs.
-> 
+Signed-off-by: Josef Bacik <josef@redhat.com>
+---
+ mm/filemap.c |   36 +++++++++++++++++++++++++++++++-----
+ 1 files changed, 31 insertions(+), 5 deletions(-)
 
-I don't think this is quite right for how the "root" anon_vma is
-discovered. The ordering of same_vma is such that the prev pointer
-points to the root anon_vma as described in __page_set_anon_rmap() but
-even so...
-
-> When scanning pages, we may see a page whose anon_vma is anon_vma1
-> or anon_vma2 or anon_vma3. 
->
-
-When we are walking the list for the anon_vma, we also hold the page
-lock and what we're really interested in are ptes mapping that page.
-
-> When we see anon_vma3 in page->mapping, we lock anon_vma1 and chase
-> avc1->avc4->avc7. Then, start from vma1. Next, we visit vma2, we lock anon_vma2.
-> At the last, we visit vma3 and lock anon_vma3.....And all are done under
-> anon_vma1->lock. Right ?
-> 
-
-assuming it's the root lock, sure.
-
-> Hmm, one concern is 
-> 	anon_vma3 -> avc3 -> vma1 -> avc1 -> anon_vma1 chasing.
-> 
-> What will prevent vma1 disappear right after releasling anon_vma3->lock ?
-> 
-
-What does it matter if it disappeared? If it did, it was because it was torn
-down, the PTEs are also gone and a user of rmap_walk should have stopped
-caring. Right?
-
-> ex)
-> a1) At we chase, anon_vma3 -> avc3 -> vma1 -> anon_vma1, link was following.
-> 
->             anon_vma1    anon_vma2    anon_vma3
->                 |            |            |
->     vma1 -----  1  --------  2  --------- 3 -----
->                 |            |            |
->     vma2 -----  4  --------  5 ---------- 6 -----
->                 |            |            |
->     vma3 -----  7  --------  8 ---------- 9 -----
->  
->    We hold lock on anon_vma3.
-> 
-> a2) After releasing anon_vma3 lock. vma1 can be unlinked.
-> 
->             anon_vma1    anon_vma2    anon_vma3
->                 |            |            |
->  vma1 removed.
->                 |            |            |
->     vma2 -----  4  --------  5 ---------- 6 -----
->                 |            |            |
->     vma3 -----  7  --------  8 ---------- 9 -----
-> 
-> But we know anon_vma1->head is not empty, and it's accessable.
-> Then, no problem for our purpose. Right ?
-> 
-
-As the PTEs are also gone, I'm not seeing the problem.
-
-> b1) Another thinking.
-> 
-> At we chase, anon_vma3 -> avc3 -> vma1 -> anon_vma1, link was following.
-> 
->             anon_vma1    anon_vma2    anon_vma3
->                 |            |            |
->     vma1 -----  1  --------  2  --------- 3 -----
->                 |            |            |
->     vma2 -----  4  --------  5 ---------- 6 -----
->                 |            |            |
->     vma3 -----  7  --------  8 ---------- 9 -----
->  
->    We hold lock on anon_vma3. So, 
-> 
->             anon_vma1    anon_vma2    anon_vma3
->                 |            |            |
->     vma1 ----removed -----removed  ------ 3 -----
->                 |            |            |
->     vma2 -----  4  --------  5 ---------- 6 -----
->                 |            |            |
->     vma3 -----  7  --------  8 ---------- 9 -----
-> 
-> we may see half-broken link while we take anon_vma3->lock. In this case,
-> anon_vma1 can be caugt.
-> 
-> Don't we need this ?
-> 
-> 
->  void unlink_anon_vmas(struct vm_area_struct *vma)
->  {
->         struct anon_vma_chain *avc, *next;
-> 
->         /* Unlink each anon_vma chained to the VMA. */
-> -        list_for_each_entry_safe_reverse(avc, next, &vma->anon_vma_chain, same_vma) {
-
-This was meant to be list_for_each_entry_safe(....)
-
-> +        list_for_each_entry_safe_reverse(avc, next, &vma->anon_vma_chain, same_vma) {
->                 anon_vma_unlink(avc);
->                 list_del(&avc->same_vma);
->                 anon_vma_chain_free(avc);
->          }
->  }
-> 
-> head avc should be removed last...  Hmm ? I'm sorry if all are
-> in correct order already.
-> 
-
-I think the ordering is ok. The rmap_walk may find a situation where the
-anon_vmas are being cleaned up but again as the page tables are going
-away at this point, the contents of the PTEs are no longer important.
-
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 140ebda..829ac9c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1263,7 +1263,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ {
+ 	struct file *filp = iocb->ki_filp;
+ 	ssize_t retval;
+-	unsigned long seg;
++	unsigned long seg = 0;
+ 	size_t count;
+ 	loff_t *ppos = &iocb->ki_pos;
+ 
+@@ -1290,21 +1290,47 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 				retval = mapping->a_ops->direct_IO(READ, iocb,
+ 							iov, pos, nr_segs);
+ 			}
+-			if (retval > 0)
++			if (retval > 0) {
+ 				*ppos = pos + retval;
+-			if (retval) {
++				count -= retval;
++			}
++
++			/*
++			 * Btrfs can have a short DIO read if we encounter
++			 * compressed extents, so if there was an error, or if
++			 * we've already read everything we wanted to, or if
++			 * there was a short read because we hit EOF, go ahead
++			 * and return.  Otherwise fallthrough to buffered io for
++			 * the rest of the read.
++			 */
++			if (retval < 0 || !count || *ppos >= size) {
+ 				file_accessed(filp);
+ 				goto out;
+ 			}
+ 		}
+ 	}
+ 
++	count = retval;
+ 	for (seg = 0; seg < nr_segs; seg++) {
+ 		read_descriptor_t desc;
++		loff_t offset = 0;
++
++		/*
++		 * If we did a short DIO read we need to skip the section of the
++		 * iov that we've already read data into.
++		 */
++		if (count) {
++			if (count > iov[seg].iov_len) {
++				count -= iov[seg].iov_len;
++				continue;
++			}
++			offset = count;
++			count = 0;
++		}
+ 
+ 		desc.written = 0;
+-		desc.arg.buf = iov[seg].iov_base;
+-		desc.count = iov[seg].iov_len;
++		desc.arg.buf = iov[seg].iov_base + offset;
++		desc.count = iov[seg].iov_len - offset;
+ 		if (desc.count == 0)
+ 			continue;
+ 		desc.error = 0;
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.6.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
