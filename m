@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 64BFA6B0276
-	for <linux-mm@kvack.org>; Sun,  9 May 2010 21:52:40 -0400 (EDT)
-Date: Sun, 9 May 2010 18:49:32 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and
- rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary
- stack
-In-Reply-To: <20100510104039.98332e67.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.LFD.2.00.1005091847260.3711@i5.linux-foundation.org>
-References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie> <1273188053-26029-3-git-send-email-mel@csn.ul.ie> <alpine.LFD.2.00.1005061836110.901@i5.linux-foundation.org> <20100507105712.18fc90c4.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.LFD.2.00.1005061905230.901@i5.linux-foundation.org> <20100509192145.GI4859@csn.ul.ie> <alpine.LFD.2.00.1005091245000.3711@i5.linux-foundation.org> <20100510094050.8cb79143.kamezawa.hiroyu@jp.fujitsu.com> <alpine.LFD.2.00.1005091827500.3711@i5.linux-foundation.org>
- <alpine.LFD.2.00.1005091831140.3711@i5.linux-foundation.org> <20100510104039.98332e67.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ECFA06B0245
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 00:35:53 -0400 (EDT)
+Subject: numa aware lmb and sparc stuff
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 10 May 2010 14:35:26 +1000
+Message-ID: <1273466126.23699.23.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: David Miller <davem@davemloft.net>
+Cc: Yinghai Lu <yinghai@kernel.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi Dave !
 
+So I'm looking at properly sorting out the interactions between LMB and
+NUMA, among other in order to use that stuff on powerpc (and others) as
+well but also to try to sort out some of that NO_BOOTMEM stuff from
+Yinghai.
 
-On Mon, 10 May 2010, KAMEZAWA Hiroyuki wrote:
->
-> Hmm. vm_flags is still 32bit..(I think it should be long long)
-> 
-> Using combination of existing flags...
-> 
-> #define VM_STACK_INCOMPLETE_SETUP (VM_RAND_READ | VM_SEC_READ)
-> 
-> Can be used instead of checking mapcount, I think.
+Currently, my understanding of how things work on sparc is that you
+construct an array of "struct node_mem_mask" at boot, one for each
+node, which are used to define the base and size of nodes as powers of
+two.
 
-Ahh, yes. We can also do things like not having VM_MAY_READ/WRITE set. 
-That's impossible on a real mapping - even if it's not readable, it is 
-always something you could mprotect to _be_ readable.
+You then pass to lmb_alloc_nid() a pointer to a nid_range() function
+which walks that array to provide node information back to lmb (which in
+my current patch series, I replaced with an arch callback
+lmb_nid_range()).
 
-The point being, we can make the tests more explicit, and less "magic that 
-happens to work". As long as it's ok to just say "don't migrate pages in 
-this mapping yet, because we're still setting it up".
+Now, I'm trying to figure out whether I can replace that later part with
+generic code in lmb.c which would use the early_node_map[] instead.
 
-			Linus
+>From what I can see, your only callsite of lmb_alloc_nid() is in
+allocate_node_data() which is called in your three bootmem init
+variants.
+
+In all three cases, you proceed to call add_node_ranges() which calls
+add_active_range() for the intersection of all lmb and nodes before you
+call allocate_node_data(). This early_node_map[] should be properly
+initialized by the time you get there.
+
+So unless i'm missing something, I should be able to completely remove
+lmb's reliance on that nid_range() callback and instead have lmb itself
+use the various early_node_map[] accessors such as
+for_each_active_range_index_in_nid() or similar.
+
+What do you think ? Am I missing an important part of the picture on
+sparc64 ?
+
+If not, then I should be able to easily make that whole LMB numa thing
+completely arch neutral.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
