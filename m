@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CAFC200013
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 05:57:23 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 71865200013
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 05:57:30 -0400 (EDT)
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 20/25] lmb: Add arch function to control coalescing of lmb memory regions
-Date: Mon, 10 May 2010 19:38:54 +1000
-Message-Id: <1273484339-28911-21-git-send-email-benh@kernel.crashing.org>
-In-Reply-To: <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 13/25] lmb: Add debug markers at the end of the array
+Date: Mon, 10 May 2010 19:38:47 +1000
+Message-Id: <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
+In-Reply-To: <1273484339-28911-13-git-send-email-benh@kernel.crashing.org>
 References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
@@ -20,86 +20,55 @@ References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-11-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-12-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-13-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-18-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-19-git-send-email-benh@kernel.crashing.org>
- <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Some archs such as ARM want to avoid coalescing accross things such
-as the lowmem/highmem boundary or similar. This provides the option
-to control it via an arch callback for which a weak default is provided
-which always allows coalescing.
+Since we allocate one more than needed, why not do a bit of sanity checking
+here to ensure we don't walk past the end of the array ?
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- include/linux/lmb.h |    2 ++
- lib/lmb.c           |   19 ++++++++++++++++++-
- 2 files changed, 20 insertions(+), 1 deletions(-)
+ lib/lmb.c |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/lmb.h b/include/linux/lmb.h
-index e575801..404b49c 100644
---- a/include/linux/lmb.h
-+++ b/include/linux/lmb.h
-@@ -70,6 +70,8 @@ extern void lmb_dump_all(void);
- 
- /* Provided by the architecture */
- extern phys_addr_t lmb_nid_range(phys_addr_t start, phys_addr_t end, int *nid);
-+extern int lmb_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
-+				   phys_addr_t addr2, phys_addr_t size2);
- 
- /**
-  * lmb_set_current_limit - Set the current allocation limit to allow
 diff --git a/lib/lmb.c b/lib/lmb.c
-index 2602683..84ac3a9 100644
+index 27dbb9c..6765a3a 100644
 --- a/lib/lmb.c
 +++ b/lib/lmb.c
-@@ -235,6 +235,12 @@ static int lmb_double_array(struct lmb_type *type)
- 	return 0;
- }
+@@ -13,6 +13,7 @@
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/bitops.h>
++#include <linux/poison.h>
+ #include <linux/lmb.h>
  
-+extern int __weak lmb_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
-+					  phys_addr_t addr2, phys_addr_t size2)
-+{
-+	return 1;
-+}
+ struct lmb lmb;
+@@ -112,6 +113,10 @@ void __init lmb_init(void)
+ 	lmb.reserved.regions	= lmb_reserved_init_regions;
+ 	lmb.reserved.max	= INIT_LMB_REGIONS;
+ 
++	/* Write a marker in the unused last array entry */
++	lmb.memory.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
++	lmb.reserved.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
 +
- static long lmb_add_region(struct lmb_type *type, phys_addr_t base, phys_addr_t size)
+ 	/* Create a dummy zero size LMB which will get coalesced away later.
+ 	 * This simplifies the lmb_add() code below...
+ 	 */
+@@ -131,6 +136,12 @@ void __init lmb_analyze(void)
  {
- 	unsigned long coalesced = 0;
-@@ -256,6 +262,10 @@ static long lmb_add_region(struct lmb_type *type, phys_addr_t base, phys_addr_t
- 			return 0;
+ 	int i;
  
- 		adjacent = lmb_addrs_adjacent(base, size, rgnbase, rgnsize);
-+		/* Check if arch allows coalescing */
-+		if (adjacent != 0 && type == &lmb.memory &&
-+		    !lmb_memory_can_coalesce(base, size, rgnbase, rgnsize))
-+			break;
- 		if (adjacent > 0) {
- 			type->regions[i].base -= size;
- 			type->regions[i].size += size;
-@@ -268,7 +278,14 @@ static long lmb_add_region(struct lmb_type *type, phys_addr_t base, phys_addr_t
- 		}
- 	}
++	/* Check marker in the unused last array entry */
++	WARN_ON(lmb_memory_init_regions[INIT_LMB_REGIONS].base
++		!= (phys_addr_t)RED_INACTIVE);
++	WARN_ON(lmb_reserved_init_regions[INIT_LMB_REGIONS].base
++		!= (phys_addr_t)RED_INACTIVE);
++
+ 	lmb.memory_size = 0;
  
--	if ((i < type->cnt - 1) && lmb_regions_adjacent(type, i, i+1)) {
-+	/* If we plugged a hole, we may want to also coalesce with the
-+	 * next region
-+	 */
-+	if ((i < type->cnt - 1) && lmb_regions_adjacent(type, i, i+1) &&
-+	    ((type != &lmb.memory || lmb_memory_can_coalesce(type->regions[i].base,
-+							     type->regions[i].size,
-+							     type->regions[i+1].base,
-+							     type->regions[i+1].size)))) {
- 		lmb_coalesce_regions(type, i, i+1);
- 		coalesced++;
- 	}
+ 	for (i = 0; i < lmb.memory.cnt; i++)
 -- 
 1.6.3.3
 
