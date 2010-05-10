@@ -1,218 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7EFEC6B0242
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 19:58:57 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4ANwsni006517
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 11 May 2010 08:58:54 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 25CB245DE4F
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0978045DE4C
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E516C1DB8012
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:53 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EAC21DB8014
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:53 +0900 (JST)
-Date: Tue, 11 May 2010 08:54:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v3 -mmotm 1/2] memcg: clean up move charge
-Message-Id: <20100511085446.952fb97f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100510152554.5f8a1be0.akpm@linux-foundation.org>
-References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
-	<20100408141020.47535e5e.nishimura@mxp.nes.nec.co.jp>
-	<20100510152554.5f8a1be0.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 1ED066B0243
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 19:59:56 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so147450pxi.14
+        for <linux-mm@kvack.org>; Mon, 10 May 2010 16:59:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
+References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-12-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-13-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-18-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-19-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
+Date: Mon, 10 May 2010 16:59:53 -0700
+Message-ID: <AANLkTinOVSpCXdkkcCHMdN-HWsImE7_Gcbgg5plnNMss@mail.gmail.com>
+Subject: Re: [PATCH 19/25] lmb: Add array resizing support
+From: Yinghai Lu <yhlu.kernel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 May 2010 15:25:54 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Thu, 8 Apr 2010 14:10:20 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > This patch cleans up move charge code by:
-> > 
-> > - define functions to handle pte for each types, and make is_target_pte_for_mc()
-> >   cleaner.
-> > - instead of checking the MOVE_CHARGE_TYPE_ANON bit, define a function that
-> >   checks the bit.
-> >
-> > ...
-> >
-> 
-> > @@ -4241,13 +4263,15 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
-> >  		if (!ret || !target)
-> >  			put_page(page);
-> >  	}
-> > -	/* throught */
-> > -	if (ent.val && do_swap_account && !ret &&
-> > -			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
-> > -		ret = MC_TARGET_SWAP;
-> > -		if (target)
-> > -			target->ent = ent;
-> > +	/* Threre is a swap entry and a page doesn't exist or isn't charged */
-> > +	if (ent.val && !ret) {
-> > +		if (css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
-> > +			ret = MC_TARGET_SWAP;
-> > +			if (target)
-> > +				target->ent = ent;
-> > +		}
-> >  	}
-> > +
-> >  	return ret;
-> >  }
-> 
-> Are you sure that the test of do_swap_account should be removed here? 
-> it didn't seem to be covered in the changelog.
-> 
-Hmmm...thank you for pointing out. I think it should be checked.
-
-Nishimura-san ?
-
-
-> This patch got somewaht trashed by
-> memcg-fix-css_id-rcu-locking-for-real.patch, which is was sent under the
-> not-very-useful title "[BUGFIX][PATCH 2/2] cgroup/cssid/memcg rcu
-> fixes.  (Was Re: [PATCH tip/core/urgent 08/10] memcg: css_id() must be
-> called under rcu_read_lock()". (the same title as [patch 1/1]).
-> 
-yes, sorry. I sent a revert+new-fix patch...
-I'm sorry if it adds more confusion..
-
-> I reworked memcg-clean-up-move-charge.patch as below:
-> 
-> 
-> 
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> This patch cleans up move charge code by:
-> 
-> - define functions to handle pte for each types, and make
->   is_target_pte_for_mc() cleaner.
-> 
-> - instead of checking the MOVE_CHARGE_TYPE_ANON bit, define a function
->   that checks the bit.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Balbir Singh <balbir@in.ibm.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+On Mon, May 10, 2010 at 2:38 AM, Benjamin Herrenschmidt
+<benh@kernel.crashing.org> wrote:
+> When one of the array gets full, we resize it. After much thinking and
+> a few iterations of that code, I went back to on-demand resizing using
+> the (new) internal lmb_find_base() function, which is pretty much what
+> Yinghai initially proposed, though there some differences in the details.
+>
+> To work this relies on the default alloc limit being set sensibly by
+> the architecture.
+>
+> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 > ---
-> 
->  mm/memcontrol.c |   96 ++++++++++++++++++++++++++++------------------
->  1 file changed, 59 insertions(+), 37 deletions(-)
-> 
-> diff -puN mm/memcontrol.c~memcg-clean-up-move-charge mm/memcontrol.c
-> --- a/mm/memcontrol.c~memcg-clean-up-move-charge
-> +++ a/mm/memcontrol.c
-> @@ -266,6 +266,12 @@ static struct move_charge_struct {
->  	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
->  };
->  
-> +static bool move_anon(void)
+> =A0lib/lmb.c | =A0 93 +++++++++++++++++++++++++++++++++++++++++++++++++++=
++++++++++-
+> =A01 files changed, 92 insertions(+), 1 deletions(-)
+>
+> diff --git a/lib/lmb.c b/lib/lmb.c
+> index 4977888..2602683 100644
+> --- a/lib/lmb.c
+> +++ b/lib/lmb.c
+> @@ -11,6 +11,7 @@
+> =A0*/
+>
+> =A0#include <linux/kernel.h>
+> +#include <linux/slab.h>
+> =A0#include <linux/init.h>
+> =A0#include <linux/bitops.h>
+> =A0#include <linux/poison.h>
+> @@ -24,6 +25,17 @@ static struct lmb_region lmb_reserved_init_regions[INI=
+T_LMB_REGIONS + 1];
+>
+> =A0#define LMB_ERROR =A0 =A0 =A0(~(phys_addr_t)0)
+>
+> +/* inline so we don't get a warning when pr_debug is compiled out */
+> +static inline const char *lmb_type_name(struct lmb_type *type)
 > +{
-> +	return test_bit(MOVE_CHARGE_TYPE_ANON,
-> +					&mc.to->move_charge_at_immigrate);
+> + =A0 =A0 =A0 if (type =3D=3D &lmb.memory)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return "memory";
+> + =A0 =A0 =A0 else if (type =3D=3D &lmb.reserved)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return "reserved";
+> + =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return "unknown";
 > +}
 > +
->  /*
->   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
->   * limit reclaim to prevent infinite loops, if they ever occur.
-> @@ -4185,50 +4191,66 @@ enum mc_target_type {
->  	MC_TARGET_SWAP,
->  };
->  
-> -static int is_target_pte_for_mc(struct vm_area_struct *vma,
-> -		unsigned long addr, pte_t ptent, union mc_target *target)
-> +static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-> +						unsigned long addr, pte_t ptent)
->  {
-> -	struct page *page = NULL;
-> -	struct page_cgroup *pc;
-> -	int ret = 0;
-> -	swp_entry_t ent = { .val = 0 };
-> -	int usage_count = 0;
-> -	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
-> -					&mc.to->move_charge_at_immigrate);
-> +	struct page *page = vm_normal_page(vma, addr, ptent);
->  
-> -	if (!pte_present(ptent)) {
-> -		/* TODO: handle swap of shmes/tmpfs */
-> -		if (pte_none(ptent) || pte_file(ptent))
-> -			return 0;
-> -		else if (is_swap_pte(ptent)) {
-> -			ent = pte_to_swp_entry(ptent);
-> -			if (!move_anon || non_swap_entry(ent))
-> -				return 0;
-> -			usage_count = mem_cgroup_count_swap_user(ent, &page);
-> -		}
-> -	} else {
-> -		page = vm_normal_page(vma, addr, ptent);
-> -		if (!page || !page_mapped(page))
-> -			return 0;
-> +	if (!page || !page_mapped(page))
-> +		return NULL;
-> +	if (PageAnon(page)) {
-> +		/* we don't move shared anon */
-> +		if (!move_anon() || page_mapcount(page) > 2)
-> +			return NULL;
-> +	} else
->  		/*
->  		 * TODO: We don't move charges of file(including shmem/tmpfs)
->  		 * pages for now.
->  		 */
-> -		if (!move_anon || !PageAnon(page))
-> -			return 0;
-> -		if (!get_page_unless_zero(page))
-> -			return 0;
-> -		usage_count = page_mapcount(page);
-> -	}
-> -	if (usage_count > 1) {
-> -		/*
-> -		 * TODO: We don't move charges of shared(used by multiple
-> -		 * processes) pages for now.
-> -		 */
-> +		return NULL;
-> +	if (!get_page_unless_zero(page))
-> +		return NULL;
+> =A0/*
+> =A0* Address comparison utilities
+> =A0*/
+> @@ -156,6 +168,73 @@ static void lmb_coalesce_regions(struct lmb_type *ty=
+pe,
+> =A0 =A0 =A0 =A0lmb_remove_region(type, r2);
+> =A0}
+>
+> +/* Defined below but needed now */
+> +static long lmb_add_region(struct lmb_type *type, phys_addr_t base, phys=
+_addr_t size);
 > +
-> +	return page;
+> +static int lmb_double_array(struct lmb_type *type)
+> +{
+> + =A0 =A0 =A0 struct lmb_region *new_array, *old_array;
+> + =A0 =A0 =A0 phys_addr_t old_size, new_size, addr;
+> + =A0 =A0 =A0 int use_slab =3D slab_is_available();
+> +
+> + =A0 =A0 =A0 pr_debug("lmb: %s array full, doubling...", lmb_type_name(t=
+ype));
+> +
+> + =A0 =A0 =A0 /* Calculate new doubled size */
+> + =A0 =A0 =A0 old_size =3D type->max * sizeof(struct lmb_region);
+> + =A0 =A0 =A0 new_size =3D old_size << 1;
+> +
+> + =A0 =A0 =A0 /* Try to find some space for it.
+> + =A0 =A0 =A0 =A0*
+> + =A0 =A0 =A0 =A0* WARNING: We assume that either slab_is_available() and=
+ we use it or
+> + =A0 =A0 =A0 =A0* we use LMB for allocations. That means that this is un=
+safe to use
+> + =A0 =A0 =A0 =A0* when bootmem is currently active (unless bootmem itsel=
+f is implemented
+> + =A0 =A0 =A0 =A0* on top of LMB which isn't the case yet)
+> + =A0 =A0 =A0 =A0*
+> + =A0 =A0 =A0 =A0* This should however not be an issue for now, as we cur=
+rently only
+> + =A0 =A0 =A0 =A0* call into LMB while it's still active, or much later w=
+hen slab is
+> + =A0 =A0 =A0 =A0* active for memory hotplug operations
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (use_slab) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 new_array =3D kmalloc(new_size, GFP_KERNEL)=
+;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 addr =3D new_array =3D=3D NULL ? LMB_ERROR =
+: __pa(new_array);
+> + =A0 =A0 =A0 } else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 addr =3D lmb_find_base(new_size, sizeof(phy=
+s_addr_t), LMB_ALLOC_ACCESSIBLE);
+> + =A0 =A0 =A0 if (addr =3D=3D LMB_ERROR) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 pr_err("lmb: Failed to double %s array from=
+ %ld to %ld entries !\n",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lmb_type_name(type), type->m=
+ax, type->max * 2);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -1;
+> + =A0 =A0 =A0 }
+> + =A0 =A0 =A0 new_array =3D __va(addr);
+> +
+> + =A0 =A0 =A0 /* Found space, we now need to move the array over before
+> + =A0 =A0 =A0 =A0* we add the reserved region since it may be our reserve=
+d
+> + =A0 =A0 =A0 =A0* array itself that is full.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 memcpy(new_array, type->regions, old_size);
+> + =A0 =A0 =A0 memset(new_array + type->max, 0, old_size);
+> + =A0 =A0 =A0 old_array =3D type->regions;
+> + =A0 =A0 =A0 type->regions =3D new_array;
+> + =A0 =A0 =A0 type->max <<=3D 1;
+> +
+> + =A0 =A0 =A0 /* If we use SLAB that's it, we are done */
+> + =A0 =A0 =A0 if (use_slab)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+> +
+> + =A0 =A0 =A0 /* Add the new reserved region now. Should not fail ! */
+> + =A0 =A0 =A0 BUG_ON(lmb_add_region(&lmb.reserved, addr, new_size) < 0);
+> +
+> + =A0 =A0 =A0 /* If the array wasn't our static init one, then free it. W=
+e only do
+> + =A0 =A0 =A0 =A0* that before SLAB is available as later on, we don't kn=
+ow whether
+> + =A0 =A0 =A0 =A0* to use kfree or free_bootmem_pages(). Shouldn't be a b=
+ig deal
+> + =A0 =A0 =A0 =A0* anyways
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (old_array !=3D lmb_memory_init_regions &&
+> + =A0 =A0 =A0 =A0 =A0 old_array !=3D lmb_reserved_init_regions)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 lmb_free(__pa(old_array), old_size);
+> +
+> + =A0 =A0 =A0 return 0;
 > +}
 > +
-> +static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
-> +			unsigned long addr, pte_t ptent, swp_entry_t *entry)
-> +{
-> +	int usage_count;
-> +	struct page *page = NULL;
-> +	swp_entry_t ent = pte_to_swp_entry(ptent);
+> =A0static long lmb_add_region(struct lmb_type *type, phys_addr_t base, ph=
+ys_addr_t size)
+> =A0{
+> =A0 =A0 =A0 =A0unsigned long coalesced =3D 0;
+> @@ -196,7 +275,11 @@ static long lmb_add_region(struct lmb_type *type, ph=
+ys_addr_t base, phys_addr_t
+>
+> =A0 =A0 =A0 =A0if (coalesced)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return coalesced;
+> - =A0 =A0 =A0 if (type->cnt >=3D type->max)
 > +
-> +	if (!move_anon() || non_swap_entry(ent))
-> +		return NULL;
-> +	usage_count = mem_cgroup_count_swap_user(ent, &page);
-> +	if (usage_count > 1) { /* we don't move shared anon */
->  		if (page)
->  			put_page(page);
-> -		return 0;
-> +		return NULL;
->  	}
-> +	if (do_swap_account)
-> +		entry->val = ent.val;
+> + =A0 =A0 =A0 /* If we are out of space, we fail. It's too late to resize=
+ the array
+> + =A0 =A0 =A0 =A0* but then this shouldn't have happened in the first pla=
+ce.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (WARN_ON(type->cnt >=3D type->max))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return -1;
+>
+> =A0 =A0 =A0 =A0/* Couldn't coalesce the LMB, so add it to the sorted tabl=
+e. */
+> @@ -217,6 +300,14 @@ static long lmb_add_region(struct lmb_type *type, ph=
+ys_addr_t base, phys_addr_t
+> =A0 =A0 =A0 =A0}
+> =A0 =A0 =A0 =A0type->cnt++;
+>
+> + =A0 =A0 =A0 /* The array is full ? Try to resize it. If that fails, we =
+undo
+> + =A0 =A0 =A0 =A0* our allocation and return an error
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if (type->cnt =3D=3D type->max && lmb_double_array(type)) {
 
-Maybe page should be set to NULL here. if !do_swap_account....
+you need to pass base, base+size with lmb_double_array()
 
+otherwise when you are using lmb_reserve(base, size), double_array()
+array could have chance to get
+new buffer that is overlapped with [base, base + size).
 
-Thanks,
--Kame
+to keep it simple, should check_double_array() after lmb_reserve,
+lmb_add, lmb_free (yes, that need it too).
+that was suggested by Michael Ellerman.
+
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
