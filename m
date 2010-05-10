@@ -1,103 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A1EFA6B0276
-	for <linux-mm@kvack.org>; Sun,  9 May 2010 20:36:49 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4A0alfL007842
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 552EB6B0276
+	for <linux-mm@kvack.org>; Sun,  9 May 2010 20:44:58 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4A0itPa011210
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 10 May 2010 09:36:47 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DEE5745DE6E
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:36:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B1E1C45DE4D
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:36:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 95D4B1DB803E
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:36:46 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 374721DB803B
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:36:46 +0900 (JST)
-Date: Mon, 10 May 2010 09:32:41 +0900
+	Mon, 10 May 2010 09:44:56 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BD3745DE56
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:55 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5660245DE54
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:55 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A90A31DB805A
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:54 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B21F1DB8067
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:53 +0900 (JST)
+Date: Mon, 10 May 2010 09:40:50 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and
  rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary
  stack
-Message-Id: <20100510093241.420743a8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100509192145.GI4859@csn.ul.ie>
+Message-Id: <20100510094050.8cb79143.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.LFD.2.00.1005091245000.3711@i5.linux-foundation.org>
 References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
 	<1273188053-26029-3-git-send-email-mel@csn.ul.ie>
 	<alpine.LFD.2.00.1005061836110.901@i5.linux-foundation.org>
 	<20100507105712.18fc90c4.kamezawa.hiroyu@jp.fujitsu.com>
 	<alpine.LFD.2.00.1005061905230.901@i5.linux-foundation.org>
 	<20100509192145.GI4859@csn.ul.ie>
+	<alpine.LFD.2.00.1005091245000.3711@i5.linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 9 May 2010 20:21:45 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Sun, 9 May 2010 12:56:49 -0700 (PDT)
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> On Thu, May 06, 2010 at 07:12:59PM -0700, Linus Torvalds wrote:
+> 
+> 
+> On Sun, 9 May 2010, Mel Gorman wrote:
 > > 
-> > 
-> > On Fri, 7 May 2010, KAMEZAWA Hiroyuki wrote:
-> > > 
-> > > IIUC, move_page_tables() may call "page table allocation" and it cannot be
-> > > done under spinlock.
-> > 
-> > Bah. It only does a "alloc_new_pmd()", and we could easily move that out 
-> > of the loop and pre-allocate the pmd's.
-> > 
-> > If that's the only reason, then it's a really weak one, methinks.
-> > 
+> > It turns out not to be easy to the preallocating of PUDs, PMDs and PTEs
+> > move_page_tables() needs.  To avoid overallocating, it has to follow the same
+> > logic as move_page_tables duplicating some code in the process. The ugliest
+> > aspect of all is passing those pre-allocated pages back into move_page_tables
+> > where they need to be passed down to such functions as __pte_alloc. It turns
+> > extremely messy.
 > 
-> It turns out not to be easy to the preallocating of PUDs, PMDs and PTEs
-> move_page_tables() needs.  To avoid overallocating, it has to follow the same
-> logic as move_page_tables duplicating some code in the process. The ugliest
-> aspect of all is passing those pre-allocated pages back into move_page_tables
-> where they need to be passed down to such functions as __pte_alloc. It turns
-> extremely messy.
+> Umm. What?
 > 
-> I stopped working on it about half way through as it was already too ugly
-> to live and would have similar cost to Kamezawa's much more straight-forward
-> approach of using move_vma().
+> That's crazy talk. I'm not talking about preallocating stuff in order to 
+> pass it in to move_page_tables(). I'm talking about just _creating_ the 
+> dang page tables early - preallocating them IN THE PROCESS VM SPACE.
 > 
-> While using move_vma is straight-forward and solves the problem, it's
-> not as cheap as Andrea's solution. Andrea allocates a temporary VMA and
-> puts it on a list and very little else. It didn't show up any problems
-> in microbenchmarks. Calling move_vma does a lot more work particularly in
-> copy_vma and this slows down exec.
+> IOW, a patch like this (this is a pseudo-patch, totally untested, won't 
+> compile, yadda yadda - you need to actually make the people who call 
+> "move_page_tables()" call that prepare function first etc etc)
 > 
-> With Kamezawa's patch, kernbench was fine on wall time but in System Time,
-> it slowed by up 1.48% in comparison to Andrea's slowing up by 0.64%[1].
+> Yeah, if we care about holes in the page tables, we can certainly copy 
+> more of the move_page_tables() logic, but it certainly doesn't matter for 
+> execve(). This just makes sure that the destination page tables exist 
+> first.
 > 
-> aim9 was slowed as well. Kamezawa's slowed by 2.77% where Andrea's reported
-> faster by 2.58%. While AIM9 is flaky and these figures are barely outside
-> the noise, calling move_vma() is obviously more expensive.
-> 
+IMHO, I think move_page_tables() itself should be implemented as your patch.
 
-Thank you for testing.
+But, move_page_tables()'s failure is not a big problem. At failure,
+exec will abort and no page fault will occur later. What we have to do in
+this migration-patch-series is avoding inconsistent update of sets of
+[page, vma->vm_start, vma->pg_off, ptes] or "dont' migrate pages in exec's
+statk".
 
+Considering cost, as Mel shows, "don't migrate apges in exec's stack" seems
+reasonable. But, I still doubt this check.
 
-> While my solution at http://lkml.org/lkml/2010/4/30/198 is cheapest as it
-> does not touch exec() at all, is_vma_temporary_stack() could be broken in
-> the future if any of the assumptions it makes change.
-> 
-> So what you have is an inverse relationship between magic and
-> performance. Mine has the most magic and is fastest. Kamezawa's has the
-> least magic but slowest and Andrea has the goldilocks factor. Which do
-> you prefer?
-> 
-
-I like the fastest one ;)
++static bool is_vma_temporary_stack(struct vm_area_struct *vma)
++{
++	int maybe_stack = vma->vm_flags & (VM_GROWSDOWN | VM_GROWSUP);
++
++	if (!maybe_stack)
++		return false;
++
++	/* If only the stack is mapped, assume exec is in progress */
++	if (vma->vm_mm->map_count == 1) -------------------(*)
++		return true; 
++
++	return false;
++}
++
+\
+Mel, can (*) be safe even on a.out format (format other than ELFs) ?
 
 Thanks,
 -Kame
+
+
+
+
+
+
+
+> 		Linus
+> 
+> ---
+>  mm/mremap.c |   22 +++++++++++++++++++++-
+>  1 files changed, 21 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index cde56ee..c14505c 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -128,6 +128,26 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+>  
+>  #define LATENCY_LIMIT	(64 * PAGE_SIZE)
+>  
+> +/*
+> + * Preallocate the page tables, so that we can do the actual move
+> + * without any allocations, and thus no error handling etc.
+> + */
+> +int prepare_move_page_tables(struct vm_area_struct *vma,
+> +	unsigned long old_addr, struct vm_area_struct *new_vma,
+> +	unsigned long new_addr, unsigned long len)
+> +{
+> +	unsigned long end_addr = new_addr + len;
+> +
+> +	while (new_addr < end_addr) {
+> +		pmd_t *new_pmd;
+> +		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
+> +		if (!new_pmd)
+> +			return -ENOMEM;
+> +		new_addr = (new_addr + PMD_SIZE) & PMD_MASK;
+> +	}
+> +	return 0;
+> +}
+> +
+>  unsigned long move_page_tables(struct vm_area_struct *vma,
+>  		unsigned long old_addr, struct vm_area_struct *new_vma,
+>  		unsigned long new_addr, unsigned long len)
+> @@ -147,7 +167,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+>  		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
+>  		if (!old_pmd)
+>  			continue;
+> -		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
+> +		new_pmd = get_old_pmd(vma->vm_mm, new_addr);
+>  		if (!new_pmd)
+>  			break;
+>  		next = (new_addr + PMD_SIZE) & PMD_MASK;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
