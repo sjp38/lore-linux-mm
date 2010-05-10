@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 552EB6B0276
-	for <linux-mm@kvack.org>; Sun,  9 May 2010 20:44:58 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8F1B46B0276
+	for <linux-mm@kvack.org>; Sun,  9 May 2010 20:46:46 -0400 (EDT)
 Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4A0itPa011210
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4A0kiw2012074
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 10 May 2010 09:44:56 +0900
+	Mon, 10 May 2010 09:46:44 +0900
 Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BD3745DE56
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:55 +0900 (JST)
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DE50D45DE51
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:46:43 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5660245DE54
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:55 +0900 (JST)
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BD6E145DE4E
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:46:43 +0900 (JST)
 Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A90A31DB805A
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:54 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B21F1DB8067
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:44:53 +0900 (JST)
-Date: Mon, 10 May 2010 09:40:50 +0900
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F2361DB805B
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:46:43 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C7341DB8040
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 09:46:43 +0900 (JST)
+Date: Mon, 10 May 2010 09:42:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 2/2] mm,migration: Fix race between shift_arg_pages and
  rmap_walk by guaranteeing rmap_walk finds PTEs created within the temporary
  stack
-Message-Id: <20100510094050.8cb79143.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20100510094238.5781d6fc.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <alpine.LFD.2.00.1005091245000.3711@i5.linux-foundation.org>
 References: <1273188053-26029-1-git-send-email-mel@csn.ul.ie>
 	<1273188053-26029-3-git-send-email-mel@csn.ul.ie>
@@ -77,7 +77,7 @@ this migration-patch-series is avoding inconsistent update of sets of
 [page, vma->vm_start, vma->pg_off, ptes] or "dont' migrate pages in exec's
 statk".
 
-Considering cost, as Mel shows, "don't migrate apges in exec's stack" seems
+Considering cost, as Mel shows, "don't migrate pages in exec's stack" seems
 reasonable. But, I still doubt this check.
 
 +static bool is_vma_temporary_stack(struct vm_area_struct *vma)
@@ -94,7 +94,8 @@ reasonable. But, I still doubt this check.
 +	return false;
 +}
 +
-\
+
+
 Mel, can (*) be safe even on a.out format (format other than ELFs) ?
 
 Thanks,
