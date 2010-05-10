@@ -1,63 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AF886B0273
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 11:41:02 -0400 (EDT)
-Date: Mon, 10 May 2010 16:40:30 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Suspicious compilation warning
-Message-ID: <20100510154029.GK26611@csn.ul.ie>
-References: <k2ncecb6d8f1004191627w3cd36450xf797f746460abb09@mail.gmail.com> <20100420155122.6f2c26eb.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100420155122.6f2c26eb.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 72763600375
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 12:05:19 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.13.1/8.13.1) with ESMTP id o4AG5A0X023419
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 16:05:10 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4AG5AMJ1212434
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 18:05:10 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o4AG59Qf002913
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 18:05:10 +0200
+Date: Mon, 10 May 2010 18:05:05 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: Frontswap [PATCH 0/4] (was Transcendent Memory): overview
+Message-ID: <20100510180505.3e60e2da@mschwide.boeblingen.de.ibm.com>
+In-Reply-To: <1272643680.23895.2537.camel@nimitz>
+References: <4BD16D09.2030803@redhat.com>
+	<b01d7882-1a72-4ba9-8f46-ba539b668f56@default>
+	<4BD1A74A.2050003@redhat.com>
+	<4830bd20-77b7-46c8-994b-8b4fa9a79d27@default>
+	<4BD1B427.9010905@redhat.com>
+	<4BD1B626.7020702@redhat.com>
+	<5fa93086-b0d7-4603-bdeb-1d6bfca0cd08@default>
+	<4BD3377E.6010303@redhat.com>
+	<1c02a94a-a6aa-4cbb-a2e6-9d4647760e91@default4BD43033.7090706@redhat.com>
+	<ce808441-fae6-4a33-8335-f7702740097a@default>
+	<20100428055538.GA1730@ucw.cz>
+	<1272591924.23895.807.camel@nimitz
+ 4BDA8324.7090409@redhat.com>
+	<084f72bf-21fd-4721-8844-9d10cccef316@default>
+	<1272643680.23895.2537.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br>, linux-arm-kernel@lists.infradead.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, apw@shadowen.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Avi Kivity <avi@redhat.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 20, 2010 at 03:51:22PM -0700, Andrew Morton wrote:
-> On Mon, 19 Apr 2010 20:27:43 -0300
-> Marcelo Jimenez <mroberto@cpti.cetuc.puc-rio.br> wrote:
-> 
-> > I get this warning while compiling for ARM/SA1100:
-> > 
-> > mm/sparse.c: In function '__section_nr':
-> > mm/sparse.c:135: warning: 'root' is used uninitialized in this function
-> > 
-> > With a small patch in fs/proc/meminfo.c, I find that NR_SECTION_ROOTS
-> > is zero, which certainly explains the warning.
-> > 
-> > # cat /proc/meminfo
-> > NR_SECTION_ROOTS=0
-> > NR_MEM_SECTIONS=32
-> > SECTIONS_PER_ROOT=512
-> > SECTIONS_SHIFT=5
-> > MAX_PHYSMEM_BITS=32
-> 
-> hm, who owns sparsemem nowadays? Nobody identifiable.
-> 
+On Fri, 30 Apr 2010 09:08:00 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-The closest entity to a SPARSEMEM owner was Andy Whitcroft but I don't
-believe he is active in mainline at the moment. I used to know SPARSEMEM to
-some extent but my memory is limited at the best of times.
-
-> Does it make physical sense to have SECTIONS_PER_ROOT > NR_MEM_SECTIONS?
+> On Fri, 2010-04-30 at 08:59 -0700, Dan Magenheimer wrote:
+> > Dave or others can correct me if I am wrong, but I think CMM2 also
+> > handles dirty pages that must be retained by the hypervisor.  The
+> > difference between CMM2 (for dirty pages) and frontswap is that
+> > CMM2 sets hints that can be handled asynchronously while frontswap
+> > provides explicit hooks that synchronously succeed/fail.
 > 
+> Once pages were dirtied (or I guess just slightly before), they became
+> volatile, and I don't think the hypervisor could do anything with them.
+> It could still swap them out like usual, but none of the CMM-specific
+> optimizations could be performed.
 
-Yes. NR_MEM_SECTIONS depends on MAX_PHYSMEM_BITS but SECTIONS_PER_ROOT is based
-on PAGE_SIZE. If MAX_PHYSMEM_BITS is particularly small due to architectural
-limitations, it's perfectly possible there are fewer sections that can be
-active (NR_MEM_SECTIONS) than is possible to fit within one root. While
-not physicaly impossible, it was probably not expected.
+Well, almost correct :-)
+A dirty page (or one that is about to become dirty) can be in one of two
+CMMA states:
+1) stable
+This is the case for pages where the kernel is doing some operation on
+the page that will make it dirty, e.g. I/O. Before the kernel can
+allow the operation the page has to be made stable. If the state
+conversion to stable fails because the hypervisor removed the page the
+page needs to get deleted from page cache and recreated from scratch.
+2) potentially-volatile
+This state is used for page cache pages for which a writable mapping
+exists. The page can be removed by the hypervisor as long as the
+physical per-page dirty bit is not set. As soon as the bit is set the
+page is considered stable although the CMMA state still is potentially-
+volatile.
 
-Using DIV_ROUND_UP on SECTIONS_PER_ROOT to ensure NR_MEM_SECTIONS is
-aligned to SECTIONS_PER_ROOT should be a fix for this.
+In both cases the only thing the hypervisor can do with a dirty page is
+to swap it as usual.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
