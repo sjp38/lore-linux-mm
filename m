@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 94E7E6B024E
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 06:40:22 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 964D76B024F
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 06:41:18 -0400 (EDT)
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 15/25] lmb: Define LMB_ERROR internally instead of using ~(phys_addr_t)0
-Date: Mon, 10 May 2010 19:38:49 +1000
-Message-Id: <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
-In-Reply-To: <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 16/25] lmb: Move lmb_init() to the bottom of the file
+Date: Mon, 10 May 2010 19:38:50 +1000
+Message-Id: <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
+In-Reply-To: <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
 References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
@@ -22,73 +22,88 @@ References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-13-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
  <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
+ <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
+It's a real PITA to have to search for it in the middle
+
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- lib/lmb.c |   12 +++++++-----
- 1 files changed, 7 insertions(+), 5 deletions(-)
+ lib/lmb.c |   54 +++++++++++++++++++++++++++---------------------------
+ 1 files changed, 27 insertions(+), 27 deletions(-)
 
 diff --git a/lib/lmb.c b/lib/lmb.c
-index 4882e9a..9fd0145 100644
+index 9fd0145..141d4ab 100644
 --- a/lib/lmb.c
 +++ b/lib/lmb.c
-@@ -22,6 +22,8 @@ static int lmb_debug;
- static struct lmb_region lmb_memory_init_regions[INIT_LMB_REGIONS + 1];
- static struct lmb_region lmb_reserved_init_regions[INIT_LMB_REGIONS + 1];
+@@ -107,33 +107,6 @@ static void lmb_coalesce_regions(struct lmb_type *type,
+ 	lmb_remove_region(type, r2);
+ }
  
-+#define LMB_ERROR	(~(phys_addr_t)0)
-+
- static int __init early_lmb(char *p)
+-void __init lmb_init(void)
+-{
+-	/* Hookup the initial arrays */
+-	lmb.memory.regions	= lmb_memory_init_regions;
+-	lmb.memory.max		= INIT_LMB_REGIONS;
+-	lmb.reserved.regions	= lmb_reserved_init_regions;
+-	lmb.reserved.max	= INIT_LMB_REGIONS;
+-
+-	/* Write a marker in the unused last array entry */
+-	lmb.memory.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
+-	lmb.reserved.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
+-
+-	/* Create a dummy zero size LMB which will get coalesced away later.
+-	 * This simplifies the lmb_add() code below...
+-	 */
+-	lmb.memory.regions[0].base = 0;
+-	lmb.memory.regions[0].size = 0;
+-	lmb.memory.cnt = 1;
+-
+-	/* Ditto. */
+-	lmb.reserved.regions[0].base = 0;
+-	lmb.reserved.regions[0].size = 0;
+-	lmb.reserved.cnt = 1;
+-
+-	lmb.current_limit = LMB_ALLOC_ANYWHERE;
+-}
+-
+ void __init lmb_analyze(void)
  {
- 	if (p && strstr(p, "debug"))
-@@ -326,7 +328,7 @@ static phys_addr_t __init lmb_find_region(phys_addr_t start, phys_addr_t end,
- 		base = lmb_align_down(res_base - size, align);
- 	}
- 
--	return ~(phys_addr_t)0;
-+	return LMB_ERROR;
+ 	int i;
+@@ -517,3 +490,30 @@ void __init lmb_set_current_limit(phys_addr_t limit)
+ 	lmb.current_limit = limit;
  }
  
- phys_addr_t __weak __init lmb_nid_range(phys_addr_t start, phys_addr_t end, int *nid)
-@@ -353,14 +355,14 @@ static phys_addr_t __init lmb_alloc_nid_region(struct lmb_region *mp,
- 		this_end = lmb_nid_range(start, end, &this_nid);
- 		if (this_nid == nid) {
- 			phys_addr_t ret = lmb_find_region(start, this_end, size, align);
--			if (ret != ~(phys_addr_t)0 &&
-+			if (ret != LMB_ERROR &&
- 			    lmb_add_region(&lmb.reserved, start, size) >= 0)
- 				return ret;
- 		}
- 		start = this_end;
- 	}
- 
--	return ~(phys_addr_t)0;
-+	return LMB_ERROR;
- }
- 
- phys_addr_t __init lmb_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
-@@ -379,7 +381,7 @@ phys_addr_t __init lmb_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
- 	for (i = 0; i < mem->cnt; i++) {
- 		phys_addr_t ret = lmb_alloc_nid_region(&mem->regions[i],
- 					       size, align, nid);
--		if (ret != ~(phys_addr_t)0)
-+		if (ret != LMB_ERROR)
- 			return ret;
- 	}
- 
-@@ -430,7 +432,7 @@ phys_addr_t __init __lmb_alloc_base(phys_addr_t size, phys_addr_t align, phys_ad
- 			continue;
- 		base = min(lmbbase + lmbsize, max_addr);
- 		res_base = lmb_find_region(lmbbase, base, size, align);		
--		if (res_base != ~(phys_addr_t)0 &&
-+		if (res_base != LMB_ERROR &&
- 		    lmb_add_region(&lmb.reserved, res_base, size) >= 0)
- 			return res_base;
- 	}
++void __init lmb_init(void)
++{
++	/* Hookup the initial arrays */
++	lmb.memory.regions	= lmb_memory_init_regions;
++	lmb.memory.max		= INIT_LMB_REGIONS;
++	lmb.reserved.regions	= lmb_reserved_init_regions;
++	lmb.reserved.max	= INIT_LMB_REGIONS;
++
++	/* Write a marker in the unused last array entry */
++	lmb.memory.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
++	lmb.reserved.regions[INIT_LMB_REGIONS].base = (phys_addr_t)RED_INACTIVE;
++
++	/* Create a dummy zero size LMB which will get coalesced away later.
++	 * This simplifies the lmb_add() code below...
++	 */
++	lmb.memory.regions[0].base = 0;
++	lmb.memory.regions[0].size = 0;
++	lmb.memory.cnt = 1;
++
++	/* Ditto. */
++	lmb.reserved.regions[0].base = 0;
++	lmb.reserved.regions[0].size = 0;
++	lmb.reserved.cnt = 1;
++
++	lmb.current_limit = LMB_ALLOC_ANYWHERE;
++}
++
 -- 
 1.6.3.3
 
