@@ -1,102 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AEDB76B0242
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 19:37:07 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so1864695pwi.14
-        for <linux-mm@kvack.org>; Mon, 10 May 2010 16:37:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1273484339-28911-22-git-send-email-benh@kernel.crashing.org>
-References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-18-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-19-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-21-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-22-git-send-email-benh@kernel.crashing.org>
-Date: Mon, 10 May 2010 16:37:05 -0700
-Message-ID: <AANLkTimhvJUX2S2eIY8rpw4TnUrDUFicMxEZkLK3hu1N@mail.gmail.com>
-Subject: Re: [PATCH 21/25] lmb: Add "start" argument to lmb_find_base()
-From: Yinghai Lu <yhlu.kernel@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7EFEC6B0242
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 19:58:57 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4ANwsni006517
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 11 May 2010 08:58:54 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 25CB245DE4F
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:54 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0978045DE4C
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:54 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E516C1DB8012
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:53 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EAC21DB8014
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 08:58:53 +0900 (JST)
+Date: Tue, 11 May 2010 08:54:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 -mmotm 1/2] memcg: clean up move charge
+Message-Id: <20100511085446.952fb97f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100510152554.5f8a1be0.akpm@linux-foundation.org>
+References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
+	<20100408141020.47535e5e.nishimura@mxp.nes.nec.co.jp>
+	<20100510152554.5f8a1be0.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 10, 2010 at 2:38 AM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
-> To constraint the search of a region between two boundaries,
-> which will be used by the new NUMA aware allocator among others.
->
-> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> ---
-> =A0lib/lmb.c | =A0 27 ++++++++++++++++-----------
-> =A01 files changed, 16 insertions(+), 11 deletions(-)
->
-> diff --git a/lib/lmb.c b/lib/lmb.c
-> index 84ac3a9..848f908 100644
-> --- a/lib/lmb.c
-> +++ b/lib/lmb.c
-> @@ -117,19 +117,18 @@ static phys_addr_t __init lmb_find_region(phys_addr=
-_t start, phys_addr_t end,
-> =A0 =A0 =A0 =A0return LMB_ERROR;
-> =A0}
->
-> -static phys_addr_t __init lmb_find_base(phys_addr_t size, phys_addr_t al=
-ign, phys_addr_t max_addr)
-> +static phys_addr_t __init lmb_find_base(phys_addr_t size, phys_addr_t al=
-ign,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 phys_addr_t start, phys_addr_t end)
-> =A0{
-> =A0 =A0 =A0 =A0long i;
-> - =A0 =A0 =A0 phys_addr_t base =3D 0;
-> - =A0 =A0 =A0 phys_addr_t res_base;
->
-> =A0 =A0 =A0 =A0BUG_ON(0 =3D=3D size);
->
-> =A0 =A0 =A0 =A0size =3D lmb_align_up(size, align);
->
-> =A0 =A0 =A0 =A0/* Pump up max_addr */
-> - =A0 =A0 =A0 if (max_addr =3D=3D LMB_ALLOC_ACCESSIBLE)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 max_addr =3D lmb.current_limit;
-> + =A0 =A0 =A0 if (end =3D=3D LMB_ALLOC_ACCESSIBLE)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 end =3D lmb.current_limit;
->
-> =A0 =A0 =A0 =A0/* We do a top-down search, this tends to limit memory
-> =A0 =A0 =A0 =A0 * fragmentation by keeping early boot allocs near the
-> @@ -138,13 +137,19 @@ static phys_addr_t __init lmb_find_base(phys_addr_t=
- size, phys_addr_t align, phy
-> =A0 =A0 =A0 =A0for (i =3D lmb.memory.cnt - 1; i >=3D 0; i--) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0phys_addr_t lmbbase =3D lmb.memory.regions=
-[i].base;
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0phys_addr_t lmbsize =3D lmb.memory.regions=
-[i].size;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 phys_addr_t bottom, top, found;
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (lmbsize < size)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0continue;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 base =3D min(lmbbase + lmbsize, max_addr);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 res_base =3D lmb_find_region(lmbbase, base,=
- size, align);
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (res_base !=3D LMB_ERROR)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return res_base;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((lmbbase + lmbsize) <=3D start)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 bottom =3D max(lmbbase, start);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 top =3D min(lmbbase + lmbsize, end);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (bottom >=3D top)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 found =3D lmb_find_region(lmbbase, top, siz=
-e, align);
-                                                               ^^^^^^^^^
-should use bottom  here
+On Mon, 10 May 2010 15:25:54 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-YH
+> On Thu, 8 Apr 2010 14:10:20 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > This patch cleans up move charge code by:
+> > 
+> > - define functions to handle pte for each types, and make is_target_pte_for_mc()
+> >   cleaner.
+> > - instead of checking the MOVE_CHARGE_TYPE_ANON bit, define a function that
+> >   checks the bit.
+> >
+> > ...
+> >
+> 
+> > @@ -4241,13 +4263,15 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+> >  		if (!ret || !target)
+> >  			put_page(page);
+> >  	}
+> > -	/* throught */
+> > -	if (ent.val && do_swap_account && !ret &&
+> > -			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+> > -		ret = MC_TARGET_SWAP;
+> > -		if (target)
+> > -			target->ent = ent;
+> > +	/* Threre is a swap entry and a page doesn't exist or isn't charged */
+> > +	if (ent.val && !ret) {
+> > +		if (css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+> > +			ret = MC_TARGET_SWAP;
+> > +			if (target)
+> > +				target->ent = ent;
+> > +		}
+> >  	}
+> > +
+> >  	return ret;
+> >  }
+> 
+> Are you sure that the test of do_swap_account should be removed here? 
+> it didn't seem to be covered in the changelog.
+> 
+Hmmm...thank you for pointing out. I think it should be checked.
+
+Nishimura-san ?
+
+
+> This patch got somewaht trashed by
+> memcg-fix-css_id-rcu-locking-for-real.patch, which is was sent under the
+> not-very-useful title "[BUGFIX][PATCH 2/2] cgroup/cssid/memcg rcu
+> fixes.  (Was Re: [PATCH tip/core/urgent 08/10] memcg: css_id() must be
+> called under rcu_read_lock()". (the same title as [patch 1/1]).
+> 
+yes, sorry. I sent a revert+new-fix patch...
+I'm sorry if it adds more confusion..
+
+> I reworked memcg-clean-up-move-charge.patch as below:
+> 
+> 
+> 
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+> This patch cleans up move charge code by:
+> 
+> - define functions to handle pte for each types, and make
+>   is_target_pte_for_mc() cleaner.
+> 
+> - instead of checking the MOVE_CHARGE_TYPE_ANON bit, define a function
+>   that checks the bit.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Balbir Singh <balbir@in.ibm.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/memcontrol.c |   96 ++++++++++++++++++++++++++++------------------
+>  1 file changed, 59 insertions(+), 37 deletions(-)
+> 
+> diff -puN mm/memcontrol.c~memcg-clean-up-move-charge mm/memcontrol.c
+> --- a/mm/memcontrol.c~memcg-clean-up-move-charge
+> +++ a/mm/memcontrol.c
+> @@ -266,6 +266,12 @@ static struct move_charge_struct {
+>  	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
+>  };
+>  
+> +static bool move_anon(void)
+> +{
+> +	return test_bit(MOVE_CHARGE_TYPE_ANON,
+> +					&mc.to->move_charge_at_immigrate);
+> +}
+> +
+>  /*
+>   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+>   * limit reclaim to prevent infinite loops, if they ever occur.
+> @@ -4185,50 +4191,66 @@ enum mc_target_type {
+>  	MC_TARGET_SWAP,
+>  };
+>  
+> -static int is_target_pte_for_mc(struct vm_area_struct *vma,
+> -		unsigned long addr, pte_t ptent, union mc_target *target)
+> +static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+> +						unsigned long addr, pte_t ptent)
+>  {
+> -	struct page *page = NULL;
+> -	struct page_cgroup *pc;
+> -	int ret = 0;
+> -	swp_entry_t ent = { .val = 0 };
+> -	int usage_count = 0;
+> -	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
+> -					&mc.to->move_charge_at_immigrate);
+> +	struct page *page = vm_normal_page(vma, addr, ptent);
+>  
+> -	if (!pte_present(ptent)) {
+> -		/* TODO: handle swap of shmes/tmpfs */
+> -		if (pte_none(ptent) || pte_file(ptent))
+> -			return 0;
+> -		else if (is_swap_pte(ptent)) {
+> -			ent = pte_to_swp_entry(ptent);
+> -			if (!move_anon || non_swap_entry(ent))
+> -				return 0;
+> -			usage_count = mem_cgroup_count_swap_user(ent, &page);
+> -		}
+> -	} else {
+> -		page = vm_normal_page(vma, addr, ptent);
+> -		if (!page || !page_mapped(page))
+> -			return 0;
+> +	if (!page || !page_mapped(page))
+> +		return NULL;
+> +	if (PageAnon(page)) {
+> +		/* we don't move shared anon */
+> +		if (!move_anon() || page_mapcount(page) > 2)
+> +			return NULL;
+> +	} else
+>  		/*
+>  		 * TODO: We don't move charges of file(including shmem/tmpfs)
+>  		 * pages for now.
+>  		 */
+> -		if (!move_anon || !PageAnon(page))
+> -			return 0;
+> -		if (!get_page_unless_zero(page))
+> -			return 0;
+> -		usage_count = page_mapcount(page);
+> -	}
+> -	if (usage_count > 1) {
+> -		/*
+> -		 * TODO: We don't move charges of shared(used by multiple
+> -		 * processes) pages for now.
+> -		 */
+> +		return NULL;
+> +	if (!get_page_unless_zero(page))
+> +		return NULL;
+> +
+> +	return page;
+> +}
+> +
+> +static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+> +			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+> +{
+> +	int usage_count;
+> +	struct page *page = NULL;
+> +	swp_entry_t ent = pte_to_swp_entry(ptent);
+> +
+> +	if (!move_anon() || non_swap_entry(ent))
+> +		return NULL;
+> +	usage_count = mem_cgroup_count_swap_user(ent, &page);
+> +	if (usage_count > 1) { /* we don't move shared anon */
+>  		if (page)
+>  			put_page(page);
+> -		return 0;
+> +		return NULL;
+>  	}
+> +	if (do_swap_account)
+> +		entry->val = ent.val;
+
+Maybe page should be set to NULL here. if !do_swap_account....
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
