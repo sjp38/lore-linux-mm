@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 283EB6B0248
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 15:06:38 -0400 (EDT)
-Date: Mon, 10 May 2010 21:05:59 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
- and rmap_walk() during migration by not migrating temporary stacks
-Message-ID: <20100510190559.GD22632@random.random>
-References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
- <1272529930-29505-3-git-send-email-mel@csn.ul.ie>
- <alpine.DEB.2.00.1005012055010.2663@router.home>
- <20100504094522.GA20979@csn.ul.ie>
- <alpine.DEB.2.00.1005101239400.13652@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1005101239400.13652@router.home>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC736B0242
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 17:53:42 -0400 (EDT)
+Subject: Re: [PATCH 03/25] lmb: Introduce for_each_lmb() and new accessors,
+ and use it
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <alpine.LFD.2.00.1005101735560.3401@localhost.localdomain>
+References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-4-git-send-email-benh@kernel.crashing.org>
+	 <alpine.LFD.2.00.1005101735560.3401@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 11 May 2010 07:52:52 +1000
+Message-ID: <1273528372.23699.108.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 10, 2010 at 12:41:07PM -0500, Christoph Lameter wrote:
-> A simple way to disallow migration of pages is to increment the refcount
-> of a page.
+On Mon, 2010-05-10 at 17:39 +0200, Thomas Gleixner wrote:
+> Can you please make this:
+> 
+> #define for_each_lmb(lmb_type, region, __iter)                          \
+>         for (__iter = lmb.lmb_type.regions;                             \
+>              region < (lmb.lmb_type.regions + lmb.lmb_type.cnt);        \
+>              region++)
+> 
+> so we do not have the iterator name hardcoded inside the macro body.
 
-Ok for migrate but it won't prevent to crash in split_huge_page rmap
-walk, nor the PG_lock. Why for a rmap bug have a migrate specific fix?
-The fix that makes execve the only special place to handle in every
-rmap walk, is at least more maintainable than a fix that makes one of
-the rmap walk users special and won't fix the others, as there will be
-more than just 1 user that requires this. My fix didn't make execve
-special and it didn't require execve knowledge into the every rmap
-walk like migrate (split_huge_page etc...) but as long as the kernel
-doesn't crash I'm fine ;).
+Oops, you are right, that's a thinko. I'll fix that.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
