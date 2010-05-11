@@ -1,96 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DEAB86B01FB
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 18:09:13 -0400 (EDT)
-Date: Tue, 11 May 2010 15:09:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3.1 -mmotm 2/2] memcg: move charge of file pages
-Message-Id: <20100511150903.090202ab.akpm@linux-foundation.org>
-In-Reply-To: <20100408170858.d7249445.nishimura@mxp.nes.nec.co.jp>
-References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
-	<20100408141131.6bf5fd1a.nishimura@mxp.nes.nec.co.jp>
-	<20100408154434.0f87bddf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100408170858.d7249445.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A77156B0204
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 18:24:54 -0400 (EDT)
+Subject: Re: [PATCH 05/25] lmb: Factor the lowest level alloc function
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <alpine.LFD.2.00.1005111428470.3401@localhost.localdomain>
+References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-4-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-5-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-6-git-send-email-benh@kernel.crashing.org>
+	 <alpine.LFD.2.00.1005111428470.3401@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 12 May 2010 08:24:09 +1000
+Message-ID: <1273616649.21352.44.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Apr 2010 17:08:58 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
->
-> ...
->
-> This patch adds support for moving charge of file pages, which include normal
-> file, tmpfs file and swaps of tmpfs file. It's enabled by setting bit 1 of
-> <target cgroup>/memory.move_charge_at_immigrate. Unlike the case of anonymous
-> pages, file pages(and swaps) in the range mmapped by the task will be moved even
-> if the task hasn't done page fault, i.e. they might not be the task's "RSS",
-> but other task's "RSS" that maps the same file. And mapcount of the page is
-> ignored(the page can be moved even if page_mapcount(page) > 1). So, conditions
-> that the page/swap should be met to be moved is that it must be in the range
-> mmapped by the target task and it must be charged to the old cgroup.
+On Tue, 2010-05-11 at 14:30 +0200, Thomas Gleixner wrote:
+> > @@ -396,33 +406,24 @@ u64 __init __lmb_alloc_base(u64 size, u64
+> align, u64 max_addr)
+> >       if (max_addr == LMB_ALLOC_ANYWHERE)
+> >               max_addr = LMB_REAL_LIMIT;
+> >  
+> > +     /* Pump up max_addr */
+> > +     if (max_addr == LMB_ALLOC_ANYWHERE)
+> > +             max_addr = ~(u64)0;
+> > +     
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->
-> ...
->
-> +static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
-> +			unsigned long addr, pte_t ptent, swp_entry_t *entry)
-> +{
-> +	struct page *page = NULL;
-> +	struct inode *inode;
-> +	struct address_space *mapping;
-> +	pgoff_t pgoff;
-> +
-> +	if (!vma->vm_file) /* anonymous vma */
-> +		return NULL;
-> +	if (!move_file())
-> +		return NULL;
-> +
-> +	inode = vma->vm_file->f_path.dentry->d_inode;
-> +	mapping = vma->vm_file->f_mapping;
-> +	if (pte_none(ptent))
-> +		pgoff = linear_page_index(vma, addr);
-> +	if (pte_file(ptent))
-> +		pgoff = pte_to_pgoff(ptent);
-> +
-> +	/* page is moved even if it's not RSS of this task(page-faulted). */
-> +	if (!mapping_cap_swap_backed(mapping)) { /* normal file */
-> +		page = find_get_page(mapping, pgoff);
-> +	} else { /* shmem/tmpfs file. we should take account of swap too. */
-> +		swp_entry_t ent;
-> +		mem_cgroup_get_shmem_target(inode, pgoff, &page, &ent);
-> +		if (do_swap_account)
-> +			entry->val = ent.val;
-> +	}
-> +
-> +	return page;
-> +}
+>   That if is pretty useless as you set max_addr to LMB_REAL_LIMIT
+>   right above.
 
-mm/memcontrol.c: In function 'is_target_pte_for_mc':
-mm/memcontrol.c:4247: warning: 'pgoff' may be used uninitialized in this function
+This is a mismerge/mis-rebase of one of my patches actually. I'll dbl
+check what's up but I think the first hunk should go along with
+LMB_REAL_LIMIT in favor of the new default limit thing. But we first
+need to make sure the default is set sensibly and I haven't fixed all
+archs yet.
 
-Either this is a real bug, or we can do
+I'll dbl check what's up there.
 
---- a/mm/memcontrol.c~a
-+++ a/mm/memcontrol.c
-@@ -4255,7 +4255,7 @@ static struct page *mc_handle_file_pte(s
- 	mapping = vma->vm_file->f_mapping;
- 	if (pte_none(ptent))
- 		pgoff = linear_page_index(vma, addr);
--	if (pte_file(ptent))
-+	else /* pte_file(ptent) is true */
- 		pgoff = pte_to_pgoff(ptent);
- 
- 	/* page is moved even if it's not RSS of this task(page-faulted). */
-_
+Cheers,
+Benm.
 
-??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
