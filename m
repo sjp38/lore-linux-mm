@@ -1,50 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6299D6B0200
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 13:54:14 -0400 (EDT)
-Received: by pwi10 with SMTP id 10so2338539pwi.14
-        for <linux-mm@kvack.org>; Tue, 11 May 2010 10:54:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1273553765.21352.1.camel@pasglop>
-References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-18-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-19-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
-	 <AANLkTinOVSpCXdkkcCHMdN-HWsImE7_Gcbgg5plnNMss@mail.gmail.com>
-	 <1273553765.21352.1.camel@pasglop>
-Date: Tue, 11 May 2010 10:54:11 -0700
-Message-ID: <AANLkTilUCwtBfi2xHIN1bQAcY1irmpOb6Hn0tyJeYOuV@mail.gmail.com>
-Subject: Re: [PATCH 19/25] lmb: Add array resizing support
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DEAB86B01FB
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 18:09:13 -0400 (EDT)
+Date: Tue, 11 May 2010 15:09:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3.1 -mmotm 2/2] memcg: move charge of file pages
+Message-Id: <20100511150903.090202ab.akpm@linux-foundation.org>
+In-Reply-To: <20100408170858.d7249445.nishimura@mxp.nes.nec.co.jp>
+References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
+	<20100408141131.6bf5fd1a.nishimura@mxp.nes.nec.co.jp>
+	<20100408154434.0f87bddf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100408170858.d7249445.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 10, 2010 at 9:56 PM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
-> On Mon, 2010-05-10 at 16:59 -0700, Yinghai Lu wrote:
->> you need to pass base, base+size with lmb_double_array()
->>
->> otherwise when you are using lmb_reserve(base, size), double_array()
->> array could have chance to get
->> new buffer that is overlapped with [base, base + size).
->>
->> to keep it simple, should check_double_array() after lmb_reserve,
->> lmb_add, lmb_free (yes, that need it too).
->> that was suggested by Michael Ellerman.
->>
->
-> No. You may notice that I addressed this problem by moving the
-> call to lmb_double_array() to -after- we record the entry in
-> the array, so it shouldn't be able to pickup the same one.
+On Thu, 8 Apr 2010 17:08:58 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-oh, you are right.
+>
+> ...
+>
+> This patch adds support for moving charge of file pages, which include normal
+> file, tmpfs file and swaps of tmpfs file. It's enabled by setting bit 1 of
+> <target cgroup>/memory.move_charge_at_immigrate. Unlike the case of anonymous
+> pages, file pages(and swaps) in the range mmapped by the task will be moved even
+> if the task hasn't done page fault, i.e. they might not be the task's "RSS",
+> but other task's "RSS" that maps the same file. And mapcount of the page is
+> ignored(the page can be moved even if page_mapcount(page) > 1). So, conditions
+> that the page/swap should be met to be moved is that it must be in the range
+> mmapped by the target task and it must be charged to the old cgroup.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>
+> ...
+>
+> +static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+> +			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+> +{
+> +	struct page *page = NULL;
+> +	struct inode *inode;
+> +	struct address_space *mapping;
+> +	pgoff_t pgoff;
+> +
+> +	if (!vma->vm_file) /* anonymous vma */
+> +		return NULL;
+> +	if (!move_file())
+> +		return NULL;
+> +
+> +	inode = vma->vm_file->f_path.dentry->d_inode;
+> +	mapping = vma->vm_file->f_mapping;
+> +	if (pte_none(ptent))
+> +		pgoff = linear_page_index(vma, addr);
+> +	if (pte_file(ptent))
+> +		pgoff = pte_to_pgoff(ptent);
+> +
+> +	/* page is moved even if it's not RSS of this task(page-faulted). */
+> +	if (!mapping_cap_swap_backed(mapping)) { /* normal file */
+> +		page = find_get_page(mapping, pgoff);
+> +	} else { /* shmem/tmpfs file. we should take account of swap too. */
+> +		swp_entry_t ent;
+> +		mem_cgroup_get_shmem_target(inode, pgoff, &page, &ent);
+> +		if (do_swap_account)
+> +			entry->val = ent.val;
+> +	}
+> +
+> +	return page;
+> +}
+
+mm/memcontrol.c: In function 'is_target_pte_for_mc':
+mm/memcontrol.c:4247: warning: 'pgoff' may be used uninitialized in this function
+
+Either this is a real bug, or we can do
+
+--- a/mm/memcontrol.c~a
++++ a/mm/memcontrol.c
+@@ -4255,7 +4255,7 @@ static struct page *mc_handle_file_pte(s
+ 	mapping = vma->vm_file->f_mapping;
+ 	if (pte_none(ptent))
+ 		pgoff = linear_page_index(vma, addr);
+-	if (pte_file(ptent))
++	else /* pte_file(ptent) is true */
+ 		pgoff = pte_to_pgoff(ptent);
+ 
+ 	/* page is moved even if it's not RSS of this task(page-faulted). */
+_
+
+??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
