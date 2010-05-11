@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DCC686B01F9
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 13:21:50 -0400 (EDT)
-Message-ID: <4BE9920C.3020901@redhat.com>
-Date: Tue, 11 May 2010 13:21:16 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6299D6B0200
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 13:54:14 -0400 (EDT)
+Received: by pwi10 with SMTP id 10so2338539pwi.14
+        for <linux-mm@kvack.org>; Tue, 11 May 2010 10:54:13 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and
- rmap_walk() during migration by not migrating temporary stacks
-References: <20100511085752.GM26611@csn.ul.ie> <alpine.LFD.2.00.1005111009500.3711@i5.linux-foundation.org>
-In-Reply-To: <alpine.LFD.2.00.1005111009500.3711@i5.linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1273553765.21352.1.camel@pasglop>
+References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-14-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-15-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-16-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-17-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-18-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-19-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-20-git-send-email-benh@kernel.crashing.org>
+	 <AANLkTinOVSpCXdkkcCHMdN-HWsImE7_Gcbgg5plnNMss@mail.gmail.com>
+	 <1273553765.21352.1.camel@pasglop>
+Date: Tue, 11 May 2010 10:54:11 -0700
+Message-ID: <AANLkTilUCwtBfi2xHIN1bQAcY1irmpOb6Hn0tyJeYOuV@mail.gmail.com>
+Subject: Re: [PATCH 19/25] lmb: Add array resizing support
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/11/2010 01:11 PM, Linus Torvalds wrote:
-> On Tue, 11 May 2010, Mel Gorman wrote:
+On Mon, May 10, 2010 at 9:56 PM, Benjamin Herrenschmidt
+<benh@kernel.crashing.org> wrote:
+> On Mon, 2010-05-10 at 16:59 -0700, Yinghai Lu wrote:
+>> you need to pass base, base+size with lmb_double_array()
 >>
->> This patch closes the most important race in relation to exec and
->> migration. With it applied, the swapops bug is no longer triggering for
->> known problem workloads. If you pick it up, it should go with the other
->> mmmigration-* fixes in mm.
+>> otherwise when you are using lmb_reserve(base, size), double_array()
+>> array could have chance to get
+>> new buffer that is overlapped with [base, base + size).
+>>
+>> to keep it simple, should check_double_array() after lmb_reserve,
+>> lmb_add, lmb_free (yes, that need it too).
+>> that was suggested by Michael Ellerman.
+>>
 >
-> Ack. _Much_ better and clearer.
->
-> I'm not entirely sure we need that "maybe_stack" (if we need it, that
-> would sound like a problem anyway), but I guess it can't hurt either.
+> No. You may notice that I addressed this problem by moving the
+> call to lmb_double_array() to -after- we record the entry in
+> the array, so it shouldn't be able to pickup the same one.
 
-Just a heads up - I am looking at creating a patch now that
-allows us to _always_ lock the root anon_vma lock, when locking
-the anon_vma.
-
-That should take care of the other issue pretty cleanly, while
-still allowing us to only walk the VMAs we have to walk in
-places like rmap_walk.
-
--- 
-All rights reversed
+oh, you are right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
