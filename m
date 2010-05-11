@@ -1,82 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 758BC6B0234
-	for <linux-mm@kvack.org>; Mon, 10 May 2010 20:14:26 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4B0EOmb013134
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 11 May 2010 09:14:24 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E5AC845DE55
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 09:14:23 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A2FC145DE5B
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 09:14:23 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 821851DB8013
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 09:14:23 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A17E1DB8019
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 09:14:23 +0900 (JST)
-Date: Tue, 11 May 2010 09:10:22 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] mm,migration: Avoid race between shift_arg_pages()
- and rmap_walk() during migration by not migrating temporary stacks
-Message-Id: <20100511091022.347785db.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100510190559.GD22632@random.random>
-References: <1272529930-29505-1-git-send-email-mel@csn.ul.ie>
-	<1272529930-29505-3-git-send-email-mel@csn.ul.ie>
-	<alpine.DEB.2.00.1005012055010.2663@router.home>
-	<20100504094522.GA20979@csn.ul.ie>
-	<alpine.DEB.2.00.1005101239400.13652@router.home>
-	<20100510190559.GD22632@random.random>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 255126B020D
+	for <linux-mm@kvack.org>; Mon, 10 May 2010 21:18:26 -0400 (EDT)
+Date: Tue, 11 May 2010 10:16:38 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH v3 -mmotm 1/2] memcg: clean up move charge
+Message-Id: <20100511101638.c70528d0.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100511085446.952fb97f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100408140922.422b21b0.nishimura@mxp.nes.nec.co.jp>
+	<20100408141020.47535e5e.nishimura@mxp.nes.nec.co.jp>
+	<20100510152554.5f8a1be0.akpm@linux-foundation.org>
+	<20100511085446.952fb97f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 May 2010 21:05:59 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
-> On Mon, May 10, 2010 at 12:41:07PM -0500, Christoph Lameter wrote:
-> > A simple way to disallow migration of pages is to increment the refcount
-> > of a page.
+On Tue, 11 May 2010 08:54:46 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 10 May 2010 15:25:54 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> Ok for migrate but it won't prevent to crash in split_huge_page rmap
-> walk, nor the PG_lock. Why for a rmap bug have a migrate specific fix?
-> The fix that makes execve the only special place to handle in every
-> rmap walk, is at least more maintainable than a fix that makes one of
-> the rmap walk users special and won't fix the others, as there will be
-> more than just 1 user that requires this. My fix didn't make execve
-> special and it didn't require execve knowledge into the every rmap
-> walk like migrate (split_huge_page etc...) but as long as the kernel
-> doesn't crash I'm fine ;).
+> > On Thu, 8 Apr 2010 14:10:20 +0900
+> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > 
+> > > This patch cleans up move charge code by:
+> > > 
+> > > - define functions to handle pte for each types, and make is_target_pte_for_mc()
+> > >   cleaner.
+> > > - instead of checking the MOVE_CHARGE_TYPE_ANON bit, define a function that
+> > >   checks the bit.
+> > >
+> > > ...
+> > >
+> > 
+> > > @@ -4241,13 +4263,15 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
+> > >  		if (!ret || !target)
+> > >  			put_page(page);
+> > >  	}
+> > > -	/* throught */
+> > > -	if (ent.val && do_swap_account && !ret &&
+> > > -			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+> > > -		ret = MC_TARGET_SWAP;
+> > > -		if (target)
+> > > -			target->ent = ent;
+> > > +	/* Threre is a swap entry and a page doesn't exist or isn't charged */
+> > > +	if (ent.val && !ret) {
+> > > +		if (css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+> > > +			ret = MC_TARGET_SWAP;
+> > > +			if (target)
+> > > +				target->ent = ent;
+> > > +		}
+> > >  	}
+> > > +
+> > >  	return ret;
+> > >  }
+> > 
+> > Are you sure that the test of do_swap_account should be removed here? 
+> > it didn't seem to be covered in the changelog.
+> > 
+> Hmmm...thank you for pointing out. I think it should be checked.
 > 
+> Nishimura-san ?
+> 
+mc_handle_swap_pte() will set ent.val only when do_swap_account,
+so it's all right to remove the check here.
 
-At first, I like step-by-step approach even if it makes our cost double
-because it's easy to understand and makes chasing change-log easy.
+(snip)
+> > +static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+> > +			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+> > +{
+> > +	int usage_count;
+> > +	struct page *page = NULL;
+> > +	swp_entry_t ent = pte_to_swp_entry(ptent);
+> > +
+> > +	if (!move_anon() || non_swap_entry(ent))
+> > +		return NULL;
+> > +	usage_count = mem_cgroup_count_swap_user(ent, &page);
+> > +	if (usage_count > 1) { /* we don't move shared anon */
+> >  		if (page)
+> >  			put_page(page);
+> > -		return 0;
+> > +		return NULL;
+> >  	}
+> > +	if (do_swap_account)
+> > +		entry->val = ent.val;
+> 
+> Maybe page should be set to NULL here. if !do_swap_account....
+> 
+I leave the "page"(it may store a page in swapcache) as it is intentionally
+to move a charge of an unmapped swapcache.
 
-Ok, your split_huge_page() has some problems with current rmap+migration.
-But I don't like a patch for never-happen-now bug in change-log.
-
-I believe it can be fixed by the same approach for execs.
-Renaming 
-#define VM_STACK_INCOMPLETE_SETUP
-to be
-#define VM_TEMPORARY_INCONSITENT_RMAP
-in _your_ patch series and add some check in rmap_walk() seems enough.
-
-Of course, I may misunderstand your problem. Could you show your patch
-which meets the problem with rmap+migration ?
 
 Thanks,
--Kame
-
-
-
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
