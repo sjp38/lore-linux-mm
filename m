@@ -1,81 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 25B1A6B0207
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 21:49:11 -0400 (EDT)
-Date: Tue, 11 May 2010 18:49:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] cpuset,mm: fix no node to alloc memory when
- changing cpuset's mems
-Message-Id: <20100511184900.8211b6f9.akpm@linux-foundation.org>
-In-Reply-To: <4BDFFCCA.3020906@cn.fujitsu.com>
-References: <4BDFFCCA.3020906@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BE08E6B0202
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 00:54:25 -0400 (EDT)
+Received: by vws7 with SMTP id 7so1559677vws.14
+        for <linux-mm@kvack.org>; Tue, 11 May 2010 21:54:23 -0700 (PDT)
+MIME-Version: 1.0
+Date: Tue, 11 May 2010 21:54:23 -0700
+Message-ID: <AANLkTinkQLObl8EVFtlLyqVHF-q_cZNnDUumdmQjmBLx@mail.gmail.com>
+Subject: Newbie question about 2.4.21 kernel /proc/meminfo caculation
+From: Vincent Li <vincent.mc.li@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: miaox@cn.fujitsu.com
-Cc: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 May 2010 18:54:02 +0800
-Miao Xie <miaox@cn.fujitsu.com> wrote:
+I am running an old kernel  2.4.21, I am curious how each items add up
+to the MemTotal or any simple addition math in them?
 
-> Before applying this patch, cpuset updates task->mems_allowed and mempolicy by
-> setting all new bits in the nodemask first, and clearing all old unallowed bits
-> later. But in the way, the allocator may find that there is no node to alloc
-> memory.
-> 
-> The reason is that cpuset rebinds the task's mempolicy, it cleans the nodes which
-> the allocater can alloc pages on, for example:
-> (mpol: mempolicy)
-> 	task1			task1's mpol	task2
-> 	alloc page		1
-> 	  alloc on node0? NO	1
-> 				1		change mems from 1 to 0
-> 				1		rebind task1's mpol
-> 				0-1		  set new bits
-> 				0	  	  clear disallowed bits
-> 	  alloc on node1? NO	0
-> 	  ...
-> 	can't alloc page
-> 	  goto oom
-> 
-> This patch fixes this problem by expanding the nodes range first(set newly
-> allowed bits) and shrink it lazily(clear newly disallowed bits). So we use a
-> variable to tell the write-side task that read-side task is reading nodemask,
-> and the write-side task clears newly disallowed nodes after read-side task ends
-> the current memory allocation.
-> 
->
-> ...
->
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -16,6 +16,7 @@
->  #include <linux/key.h>
->  #include <linux/security.h>
->  #include <linux/cpu.h>
-> +#include <linux/cpuset.h>
->  #include <linux/acct.h>
->  #include <linux/tsacct_kern.h>
->  #include <linux/file.h>
-> @@ -1003,8 +1004,10 @@ NORET_TYPE void do_exit(long code)
->  
->  	exit_notify(tsk, group_dead);
->  #ifdef CONFIG_NUMA
-> +	task_lock(tsk);
->  	mpol_put(tsk->mempolicy);
->  	tsk->mempolicy = NULL;
-> +	task_unlock(tsk);
->  #endif
->  #ifdef CONFIG_FUTEX
->  	if (unlikely(current->pi_state_cache))
+for example:
 
-Given that this function is already holding task_lock(tsk), this
-didn't work very well.
+ # cat /proc/meminfo
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  1049841664 1024647168 25194496        0 31010816 163115008
+Swap: 2371338240 26906624 2344431616
+MemTotal:      1025236 kB
+MemFree:         24604 kB
+MemShared:           0 kB
+Committed:      257936 kB
+Buffers:         30284 kB
+Cached:         148412 kB
+SwapCached:      10880 kB
+Active:         276704 kB
+ActiveAnon:     164016 kB
+ActiveCache:    112688 kB
+Inact_dirty:     37688 kB
+Inact_laundry:   15400 kB
+Inact_clean:     14888 kB
+Inact_target:    68936 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      1025236 kB
+LowFree:         24604 kB
+SwapTotal:     2315760 kB
+SwapFree:      2289484 kB
+CommitLimit:   2828376 kB
+Committed_AS:   257936 kB
+HugePages_Total:   154
+HugePages_Free:      0
+Hugepagesize:     4096 kB
 
-Also, why was the inclusion of cpuset.h added?  Nothing which this
-patch adds appears to need it?
+I found that Inact_target = Inact_dirty + Inact_laundry + Inact_clean, but
+
+MemTotal = MemFree + Buffers + Cached + Active + Inact_target +
+CommitLimted_AS + ?
+
+Tried to dig into 2.4.21 kernel source code, have not be able to find
+those memory data caculations, any pointer would be greatly
+appreciated!
+
+Thanks
+
+Vincent Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
