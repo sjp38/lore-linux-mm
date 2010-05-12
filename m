@@ -1,247 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 334D16B01EE
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 16:58:43 -0400 (EDT)
-Date: Wed, 12 May 2010 21:58:21 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/5] change direct call of spin_lock(anon_vma->lock) to
-	inline function
-Message-ID: <20100512205821.GN24989@csn.ul.ie>
-References: <20100512133815.0d048a86@annuminas.surriel.com> <20100512134118.4a261072@annuminas.surriel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100512134118.4a261072@annuminas.surriel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 00BB16B01EF
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 16:59:21 -0400 (EDT)
+Date: Wed, 12 May 2010 13:58:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and
+ rmap_walk() during migration by not migrating temporary stacks
+Message-Id: <20100512135846.4fb04190.akpm@linux-foundation.org>
+In-Reply-To: <20100512205150.GL24989@csn.ul.ie>
+References: <20100511085752.GM26611@csn.ul.ie>
+	<20100512092239.2120.A69D9226@jp.fujitsu.com>
+	<20100512125427.d1b170ba.akpm@linux-foundation.org>
+	<20100512205150.GL24989@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 12, 2010 at 01:41:18PM -0400, Rik van Riel wrote:
-> Subject: change direct call of spin_lock(anon_vma->lock) to inline function
-> 
-> Subsitute a direct call of spin_lock(anon_vma->lock) with
-> an inline function doing exactly the same.
-> 
-> This makes it easier to do the substitution to the root
-> anon_vma lock in a following patch.
-> 
-> We will deal with the handful of special locks (nested,
-> dec_and_lock, etc) separately.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+On Wed, 12 May 2010 21:51:50 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
-> ---
->  include/linux/rmap.h |   10 ++++++++++
->  mm/ksm.c             |   18 +++++++++---------
->  mm/mmap.c            |    2 +-
->  mm/rmap.c            |   20 ++++++++++----------
->  4 files changed, 30 insertions(+), 20 deletions(-)
+> On Wed, May 12, 2010 at 12:54:27PM -0700, Andrew Morton wrote:
+> > On Wed, 12 May 2010 09:23:44 +0900 (JST)
+> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > 
+> > > > diff --git a/fs/exec.c b/fs/exec.c
+> > > > index 725d7ef..13f8e7f 100644
+> > > > --- a/fs/exec.c
+> > > > +++ b/fs/exec.c
+> > > > @@ -242,9 +242,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+> > > >  	 * use STACK_TOP because that can depend on attributes which aren't
+> > > >  	 * configured yet.
+> > > >  	 */
+> > > > +	BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
+> > > 
+> > > Can we use BUILD_BUG_ON()? 
+> > 
+> > That's vastly preferable - I made that change.
+> > 
 > 
-> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-> index 88cae59..72ecd87 100644
-> --- a/include/linux/rmap.h
-> +++ b/include/linux/rmap.h
-> @@ -104,6 +104,16 @@ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
->  		spin_unlock(&anon_vma->lock);
->  }
->  
-> +static inline void anon_vma_lock(struct anon_vma *anon_vma)
-> +{
-> +	spin_lock(&anon_vma->lock);
-> +}
-> +
-> +static inline void anon_vma_unlock(struct anon_vma *anon_vma)
-> +{
-> +	spin_unlock(&anon_vma->lock);
-> +}
-> +
->  /*
->   * anon_vma helper functions.
->   */
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 956880f..d488012 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -327,7 +327,7 @@ static void drop_anon_vma(struct rmap_item *rmap_item)
->  
->  	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
->  		int empty = list_empty(&anon_vma->head);
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  		if (empty)
->  			anon_vma_free(anon_vma);
->  	}
-> @@ -1566,7 +1566,7 @@ again:
->  		struct anon_vma_chain *vmac;
->  		struct vm_area_struct *vma;
->  
-> -		spin_lock(&anon_vma->lock);
-> +		anon_vma_lock(anon_vma);
->  		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
->  			vma = vmac->vma;
->  			if (rmap_item->address < vma->vm_start ||
-> @@ -1589,7 +1589,7 @@ again:
->  			if (!search_new_forks || !mapcount)
->  				break;
->  		}
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  		if (!mapcount)
->  			goto out;
->  	}
-> @@ -1619,7 +1619,7 @@ again:
->  		struct anon_vma_chain *vmac;
->  		struct vm_area_struct *vma;
->  
-> -		spin_lock(&anon_vma->lock);
-> +		anon_vma_lock(anon_vma);
->  		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
->  			vma = vmac->vma;
->  			if (rmap_item->address < vma->vm_start ||
-> @@ -1637,11 +1637,11 @@ again:
->  			ret = try_to_unmap_one(page, vma,
->  					rmap_item->address, flags);
->  			if (ret != SWAP_AGAIN || !page_mapped(page)) {
-> -				spin_unlock(&anon_vma->lock);
-> +				anon_vma_unlock(anon_vma);
->  				goto out;
->  			}
->  		}
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  	}
->  	if (!search_new_forks++)
->  		goto again;
-> @@ -1671,7 +1671,7 @@ again:
->  		struct anon_vma_chain *vmac;
->  		struct vm_area_struct *vma;
->  
-> -		spin_lock(&anon_vma->lock);
-> +		anon_vma_lock(anon_vma);
->  		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
->  			vma = vmac->vma;
->  			if (rmap_item->address < vma->vm_start ||
-> @@ -1688,11 +1688,11 @@ again:
->  
->  			ret = rmap_one(page, vma, rmap_item->address, arg);
->  			if (ret != SWAP_AGAIN) {
-> -				spin_unlock(&anon_vma->lock);
-> +				anon_vma_unlock(anon_vma);
->  				goto out;
->  			}
->  		}
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  	}
->  	if (!search_new_forks++)
->  		goto again;
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index d30bed3..f70bc65 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2589,7 +2589,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
->  		if (!__test_and_clear_bit(0, (unsigned long *)
->  					  &anon_vma->head.next))
->  			BUG();
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  	}
->  }
->  
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 07fc947..4eb8937 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -134,7 +134,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
->  			allocated = anon_vma;
->  		}
->  
-> -		spin_lock(&anon_vma->lock);
-> +		anon_vma_lock(anon_vma);
->  		/* page_table_lock to protect against threads */
->  		spin_lock(&mm->page_table_lock);
->  		if (likely(!vma->anon_vma)) {
-> @@ -147,7 +147,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
->  			avc = NULL;
->  		}
->  		spin_unlock(&mm->page_table_lock);
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  
->  		if (unlikely(allocated))
->  			anon_vma_free(allocated);
-> @@ -170,9 +170,9 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
->  	avc->anon_vma = anon_vma;
->  	list_add(&avc->same_vma, &vma->anon_vma_chain);
->  
-> -	spin_lock(&anon_vma->lock);
-> +	anon_vma_lock(anon_vma);
->  	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
-> -	spin_unlock(&anon_vma->lock);
-> +	anon_vma_unlock(anon_vma);
->  }
->  
->  /*
-> @@ -246,12 +246,12 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
->  	if (!anon_vma)
->  		return;
->  
-> -	spin_lock(&anon_vma->lock);
-> +	anon_vma_lock(anon_vma);
->  	list_del(&anon_vma_chain->same_anon_vma);
->  
->  	/* We must garbage collect the anon_vma if it's empty */
->  	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
-> -	spin_unlock(&anon_vma->lock);
-> +	anon_vma_unlock(anon_vma);
->  
->  	if (empty)
->  		anon_vma_free(anon_vma);
-> @@ -302,7 +302,7 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
->  		goto out;
->  
->  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> -	spin_lock(&anon_vma->lock);
-> +	anon_vma_lock(anon_vma);
->  	return anon_vma;
->  out:
->  	rcu_read_unlock();
-> @@ -311,7 +311,7 @@ out:
->  
->  void page_unlock_anon_vma(struct anon_vma *anon_vma)
->  {
-> -	spin_unlock(&anon_vma->lock);
-> +	anon_vma_unlock(anon_vma);
->  	rcu_read_unlock();
->  }
->  
-> @@ -1364,7 +1364,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
->  	anon_vma = page_anon_vma(page);
->  	if (!anon_vma)
->  		return ret;
-> -	spin_lock(&anon_vma->lock);
-> +	anon_vma_lock(anon_vma);
->  	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
->  		struct vm_area_struct *vma = avc->vma;
->  		unsigned long address = vma_address(page, vma);
-> @@ -1374,7 +1374,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
->  		if (ret != SWAP_AGAIN)
->  			break;
->  	}
-> -	spin_unlock(&anon_vma->lock);
-> +	anon_vma_unlock(anon_vma);
->  	return ret;
->  }
->  
+> I will be surprised if it works. On x86, that is
 > 
+> #define VM_STACK_FLAGS  (VM_GROWSDOWN | VM_STACK_DEFAULT_FLAGS | VM_ACCOUNT)
+> #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+> #define VM_DATA_DEFAULT_FLAGS \
+>         (((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0 ) | \
+>          VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+> 
+> so VM_STACK_FLAGS is depending on the value of current->personality
+> which we don't know at build time.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+argh.  So ytf is it in ALL_CAPS?
+
+Geeze, kids these days...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
