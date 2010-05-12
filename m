@@ -1,118 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 06D496B01F8
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:42:13 -0400 (EDT)
-Date: Wed, 12 May 2010 13:39:31 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 1/5] rename anon_vma_lock to vma_lock_anon_vma
-Message-ID: <20100512133931.14c79d22@annuminas.surriel.com>
-In-Reply-To: <20100512133815.0d048a86@annuminas.surriel.com>
-References: <20100512133815.0d048a86@annuminas.surriel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 359276B01F2
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:48:59 -0400 (EDT)
+Date: Wed, 12 May 2010 10:48:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] cpuset,mm: fix no node to alloc memory when
+ changing cpuset's mems - fix2
+Message-Id: <20100512104817.beeee3b5.akpm@linux-foundation.org>
+In-Reply-To: <4BEA6E3D.10503@cn.fujitsu.com>
+References: <4BEA56D3.6040705@cn.fujitsu.com>
+	<20100512003246.9f0ee03c.akpm@linux-foundation.org>
+	<4BEA6E3D.10503@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: miaox@cn.fujitsu.com
+Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Subject: rename anon_vma_lock to vma_lock_anon_vma
+On Wed, 12 May 2010 17:00:45 +0800
+Miao Xie <miaox@cn.fujitsu.com> wrote:
 
-Rename anon_vma_lock to vma_lock_anon_vma.  This matches the
-naming style used in page_lock_anon_vma and will come in really
-handy further down in this patch series.
+> on 2010-5-12 12:32, Andrew Morton wrote:
+> > On Wed, 12 May 2010 15:20:51 +0800 Miao Xie <miaox@cn.fujitsu.com> wrote:
+> > 
+> >> @@ -985,6 +984,7 @@ repeat:
+> >>  	 * for the read-side.
+> >>  	 */
+> >>  	while (ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
+> >> +		task_unlock(tsk);
+> >>  		if (!task_curr(tsk))
+> >>  			yield();
+> >>  		goto repeat;
+> > 
+> > Oh, I meant to mention that.  No yield()s, please.  Their duration is
+> > highly unpredictable.  Can we do something more deterministic here?
+> 
+> Maybe we can use wait_for_completion().
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- include/linux/rmap.h |    4 ++--
- mm/mmap.c            |   14 +++++++-------
- 2 files changed, 9 insertions(+), 9 deletions(-)
+That would work.
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index d25bd22..88cae59 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -90,14 +90,14 @@ static inline struct anon_vma *page_anon_vma(struct page *page)
- 	return page_rmapping(page);
- }
- 
--static inline void anon_vma_lock(struct vm_area_struct *vma)
-+static inline void vma_lock_anon_vma(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 	if (anon_vma)
- 		spin_lock(&anon_vma->lock);
- }
- 
--static inline void anon_vma_unlock(struct vm_area_struct *vma)
-+static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
- {
- 	struct anon_vma *anon_vma = vma->anon_vma;
- 	if (anon_vma)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 456ec6f..d30bed3 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -452,12 +452,12 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
- 		spin_lock(&mapping->i_mmap_lock);
- 		vma->vm_truncate_count = mapping->truncate_count;
- 	}
--	anon_vma_lock(vma);
-+	vma_lock_anon_vma(vma);
- 
- 	__vma_link(mm, vma, prev, rb_link, rb_parent);
- 	__vma_link_file(vma);
- 
--	anon_vma_unlock(vma);
-+	vma_unlock_anon_vma(vma);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
- 
-@@ -1710,7 +1710,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 	 */
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return -ENOMEM;
--	anon_vma_lock(vma);
-+	vma_lock_anon_vma(vma);
- 
- 	/*
- 	 * vma->vm_start/vm_end cannot change under us because the caller
-@@ -1721,7 +1721,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 	if (address < PAGE_ALIGN(address+4))
- 		address = PAGE_ALIGN(address+4);
- 	else {
--		anon_vma_unlock(vma);
-+		vma_unlock_anon_vma(vma);
- 		return -ENOMEM;
- 	}
- 	error = 0;
-@@ -1737,7 +1737,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 		if (!error)
- 			vma->vm_end = address;
- 	}
--	anon_vma_unlock(vma);
-+	vma_unlock_anon_vma(vma);
- 	return error;
- }
- #endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
-@@ -1762,7 +1762,7 @@ static int expand_downwards(struct vm_area_struct *vma,
- 	if (error)
- 		return error;
- 
--	anon_vma_lock(vma);
-+	vma_lock_anon_vma(vma);
- 
- 	/*
- 	 * vma->vm_start/vm_end cannot change under us because the caller
-@@ -1783,7 +1783,7 @@ static int expand_downwards(struct vm_area_struct *vma,
- 			vma->vm_pgoff -= grow;
- 		}
- 	}
--	anon_vma_unlock(vma);
-+	vma_unlock_anon_vma(vma);
- 	return error;
- }
- 
+> > 
+> > Did you consider doing all this with locking?  get_mems_allowed() does
+> > mutex_lock(current->lock)?
+> 
+> do you means using a real lock(such as: mutex) to protect mempolicy and mem_allowed?
+
+yes.
+
+> It may cause the performance regression, so I do my best to abstain from using a real
+> lock.
+
+Well, the code as-is is pretty exotic with lots of open-coded tricky
+barriers - it's best to avoid inventing new primitives if possible. 
+For example, there's no lockdep support for this new "lock".
+
+mutex_lock() is pretty quick - basically a simgle atomic op.  How
+frequently do these operations occur?
+
+The code you have at present is fairly similar to sequence locks.  I
+wonder if there's some way of (ab)using sequence locks for this. 
+seqlocks don't have lockdep support either...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
