@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4B2BA6B01F4
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:42:06 -0400 (EDT)
-Date: Wed, 12 May 2010 13:41:18 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 06D496B01F8
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:42:13 -0400 (EDT)
+Date: Wed, 12 May 2010 13:39:31 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 2/5] change direct call of spin_lock(anon_vma->lock) to
- inline function
-Message-ID: <20100512134118.4a261072@annuminas.surriel.com>
+Subject: [PATCH 1/5] rename anon_vma_lock to vma_lock_anon_vma
+Message-ID: <20100512133931.14c79d22@annuminas.surriel.com>
 In-Reply-To: <20100512133815.0d048a86@annuminas.surriel.com>
 References: <20100512133815.0d048a86@annuminas.surriel.com>
 Mime-Version: 1.0
@@ -17,219 +16,101 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Subject: change direct call of spin_lock(anon_vma->lock) to inline function
+Subject: rename anon_vma_lock to vma_lock_anon_vma
 
-Subsitute a direct call of spin_lock(anon_vma->lock) with
-an inline function doing exactly the same.
-
-This makes it easier to do the substitution to the root
-anon_vma lock in a following patch.
-
-We will deal with the handful of special locks (nested,
-dec_and_lock, etc) separately.
+Rename anon_vma_lock to vma_lock_anon_vma.  This matches the
+naming style used in page_lock_anon_vma and will come in really
+handy further down in this patch series.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/rmap.h |   10 ++++++++++
- mm/ksm.c             |   18 +++++++++---------
- mm/mmap.c            |    2 +-
- mm/rmap.c            |   20 ++++++++++----------
- 4 files changed, 30 insertions(+), 20 deletions(-)
+ include/linux/rmap.h |    4 ++--
+ mm/mmap.c            |   14 +++++++-------
+ 2 files changed, 9 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 88cae59..72ecd87 100644
+index d25bd22..88cae59 100644
 --- a/include/linux/rmap.h
 +++ b/include/linux/rmap.h
-@@ -104,6 +104,16 @@ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
- 		spin_unlock(&anon_vma->lock);
+@@ -90,14 +90,14 @@ static inline struct anon_vma *page_anon_vma(struct page *page)
+ 	return page_rmapping(page);
  }
  
-+static inline void anon_vma_lock(struct anon_vma *anon_vma)
-+{
-+	spin_lock(&anon_vma->lock);
-+}
-+
-+static inline void anon_vma_unlock(struct anon_vma *anon_vma)
-+{
-+	spin_unlock(&anon_vma->lock);
-+}
-+
- /*
-  * anon_vma helper functions.
-  */
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 956880f..d488012 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -327,7 +327,7 @@ static void drop_anon_vma(struct rmap_item *rmap_item)
+-static inline void anon_vma_lock(struct vm_area_struct *vma)
++static inline void vma_lock_anon_vma(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+ 		spin_lock(&anon_vma->lock);
+ }
  
- 	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
- 		int empty = list_empty(&anon_vma->head);
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
- 		if (empty)
- 			anon_vma_free(anon_vma);
- 	}
-@@ -1566,7 +1566,7 @@ again:
- 		struct anon_vma_chain *vmac;
- 		struct vm_area_struct *vma;
- 
--		spin_lock(&anon_vma->lock);
-+		anon_vma_lock(anon_vma);
- 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
- 			vma = vmac->vma;
- 			if (rmap_item->address < vma->vm_start ||
-@@ -1589,7 +1589,7 @@ again:
- 			if (!search_new_forks || !mapcount)
- 				break;
- 		}
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
- 		if (!mapcount)
- 			goto out;
- 	}
-@@ -1619,7 +1619,7 @@ again:
- 		struct anon_vma_chain *vmac;
- 		struct vm_area_struct *vma;
- 
--		spin_lock(&anon_vma->lock);
-+		anon_vma_lock(anon_vma);
- 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
- 			vma = vmac->vma;
- 			if (rmap_item->address < vma->vm_start ||
-@@ -1637,11 +1637,11 @@ again:
- 			ret = try_to_unmap_one(page, vma,
- 					rmap_item->address, flags);
- 			if (ret != SWAP_AGAIN || !page_mapped(page)) {
--				spin_unlock(&anon_vma->lock);
-+				anon_vma_unlock(anon_vma);
- 				goto out;
- 			}
- 		}
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
- 	}
- 	if (!search_new_forks++)
- 		goto again;
-@@ -1671,7 +1671,7 @@ again:
- 		struct anon_vma_chain *vmac;
- 		struct vm_area_struct *vma;
- 
--		spin_lock(&anon_vma->lock);
-+		anon_vma_lock(anon_vma);
- 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
- 			vma = vmac->vma;
- 			if (rmap_item->address < vma->vm_start ||
-@@ -1688,11 +1688,11 @@ again:
- 
- 			ret = rmap_one(page, vma, rmap_item->address, arg);
- 			if (ret != SWAP_AGAIN) {
--				spin_unlock(&anon_vma->lock);
-+				anon_vma_unlock(anon_vma);
- 				goto out;
- 			}
- 		}
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
- 	}
- 	if (!search_new_forks++)
- 		goto again;
+-static inline void anon_vma_unlock(struct vm_area_struct *vma)
++static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
 diff --git a/mm/mmap.c b/mm/mmap.c
-index d30bed3..f70bc65 100644
+index 456ec6f..d30bed3 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -2589,7 +2589,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
- 		if (!__test_and_clear_bit(0, (unsigned long *)
- 					  &anon_vma->head.next))
- 			BUG();
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
+@@ -452,12 +452,12 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		spin_lock(&mapping->i_mmap_lock);
+ 		vma->vm_truncate_count = mapping->truncate_count;
  	}
- }
+-	anon_vma_lock(vma);
++	vma_lock_anon_vma(vma);
  
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 07fc947..4eb8937 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -134,7 +134,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
- 			allocated = anon_vma;
- 		}
+ 	__vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	__vma_link_file(vma);
  
--		spin_lock(&anon_vma->lock);
-+		anon_vma_lock(anon_vma);
- 		/* page_table_lock to protect against threads */
- 		spin_lock(&mm->page_table_lock);
- 		if (likely(!vma->anon_vma)) {
-@@ -147,7 +147,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
- 			avc = NULL;
- 		}
- 		spin_unlock(&mm->page_table_lock);
--		spin_unlock(&anon_vma->lock);
-+		anon_vma_unlock(anon_vma);
+-	anon_vma_unlock(vma);
++	vma_unlock_anon_vma(vma);
+ 	if (mapping)
+ 		spin_unlock(&mapping->i_mmap_lock);
  
- 		if (unlikely(allocated))
- 			anon_vma_free(allocated);
-@@ -170,9 +170,9 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
- 	avc->anon_vma = anon_vma;
- 	list_add(&avc->same_vma, &vma->anon_vma_chain);
+@@ -1710,7 +1710,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ 	 */
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		return -ENOMEM;
+-	anon_vma_lock(vma);
++	vma_lock_anon_vma(vma);
  
--	spin_lock(&anon_vma->lock);
-+	anon_vma_lock(anon_vma);
- 	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
--	spin_unlock(&anon_vma->lock);
-+	anon_vma_unlock(anon_vma);
- }
- 
- /*
-@@ -246,12 +246,12 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
- 	if (!anon_vma)
- 		return;
- 
--	spin_lock(&anon_vma->lock);
-+	anon_vma_lock(anon_vma);
- 	list_del(&anon_vma_chain->same_anon_vma);
- 
- 	/* We must garbage collect the anon_vma if it's empty */
- 	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
--	spin_unlock(&anon_vma->lock);
-+	anon_vma_unlock(anon_vma);
- 
- 	if (empty)
- 		anon_vma_free(anon_vma);
-@@ -302,7 +302,7 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
- 		goto out;
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
--	spin_lock(&anon_vma->lock);
-+	anon_vma_lock(anon_vma);
- 	return anon_vma;
- out:
- 	rcu_read_unlock();
-@@ -311,7 +311,7 @@ out:
- 
- void page_unlock_anon_vma(struct anon_vma *anon_vma)
- {
--	spin_unlock(&anon_vma->lock);
-+	anon_vma_unlock(anon_vma);
- 	rcu_read_unlock();
- }
- 
-@@ -1364,7 +1364,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
- 	anon_vma = page_anon_vma(page);
- 	if (!anon_vma)
- 		return ret;
--	spin_lock(&anon_vma->lock);
-+	anon_vma_lock(anon_vma);
- 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
- 		struct vm_area_struct *vma = avc->vma;
- 		unsigned long address = vma_address(page, vma);
-@@ -1374,7 +1374,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
- 		if (ret != SWAP_AGAIN)
- 			break;
+ 	/*
+ 	 * vma->vm_start/vm_end cannot change under us because the caller
+@@ -1721,7 +1721,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ 	if (address < PAGE_ALIGN(address+4))
+ 		address = PAGE_ALIGN(address+4);
+ 	else {
+-		anon_vma_unlock(vma);
++		vma_unlock_anon_vma(vma);
+ 		return -ENOMEM;
  	}
--	spin_unlock(&anon_vma->lock);
-+	anon_vma_unlock(anon_vma);
- 	return ret;
+ 	error = 0;
+@@ -1737,7 +1737,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ 		if (!error)
+ 			vma->vm_end = address;
+ 	}
+-	anon_vma_unlock(vma);
++	vma_unlock_anon_vma(vma);
+ 	return error;
+ }
+ #endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
+@@ -1762,7 +1762,7 @@ static int expand_downwards(struct vm_area_struct *vma,
+ 	if (error)
+ 		return error;
+ 
+-	anon_vma_lock(vma);
++	vma_lock_anon_vma(vma);
+ 
+ 	/*
+ 	 * vma->vm_start/vm_end cannot change under us because the caller
+@@ -1783,7 +1783,7 @@ static int expand_downwards(struct vm_area_struct *vma,
+ 			vma->vm_pgoff -= grow;
+ 		}
+ 	}
+-	anon_vma_unlock(vma);
++	vma_unlock_anon_vma(vma);
+ 	return error;
  }
  
 
