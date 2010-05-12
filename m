@@ -1,11 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B41D06B01F4
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:42:05 -0400 (EDT)
-Date: Wed, 12 May 2010 13:39:58 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B2BA6B01F4
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 13:42:06 -0400 (EDT)
+Date: Wed, 12 May 2010 13:41:18 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 3/5] track the root (oldest) anon_vma
-Message-ID: <20100512133958.3aff0515@annuminas.surriel.com>
+Subject: [PATCH 2/5] change direct call of spin_lock(anon_vma->lock) to
+ inline function
+Message-ID: <20100512134118.4a261072@annuminas.surriel.com>
 In-Reply-To: <20100512133815.0d048a86@annuminas.surriel.com>
 References: <20100512133815.0d048a86@annuminas.surriel.com>
 Mime-Version: 1.0
@@ -16,90 +17,221 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Subject: track the root (oldest) anon_vma
+Subject: change direct call of spin_lock(anon_vma->lock) to inline function
 
-Track the root (oldest) anon_vma in each anon_vma tree.   Because we only
-take the lock on the root anon_vma, we cannot use the lock on higher-up
-anon_vmas to lock anything.  This makes it impossible to do an indirect
-lookup of the root anon_vma, since the data structures could go away from
-under us.
+Subsitute a direct call of spin_lock(anon_vma->lock) with
+an inline function doing exactly the same.
 
-However, a direct pointer is safe because the root anon_vma is always the
-last one that gets freed on munmap or exit, by virtue of the same_vma list
-order and unlink_anon_vmas walking the list forward.
+This makes it easier to do the substitution to the root
+anon_vma lock in a following patch.
+
+We will deal with the handful of special locks (nested,
+dec_and_lock, etc) separately.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/rmap.h |    1 +
- mm/rmap.c            |   20 +++++++++++++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
+ include/linux/rmap.h |   10 ++++++++++
+ mm/ksm.c             |   18 +++++++++---------
+ mm/mmap.c            |    2 +-
+ mm/rmap.c            |   20 ++++++++++----------
+ 4 files changed, 30 insertions(+), 20 deletions(-)
 
 diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 72ecd87..457ae1e 100644
+index 88cae59..72ecd87 100644
 --- a/include/linux/rmap.h
 +++ b/include/linux/rmap.h
-@@ -26,6 +26,7 @@
+@@ -104,6 +104,16 @@ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
+ 		spin_unlock(&anon_vma->lock);
+ }
+ 
++static inline void anon_vma_lock(struct anon_vma *anon_vma)
++{
++	spin_lock(&anon_vma->lock);
++}
++
++static inline void anon_vma_unlock(struct anon_vma *anon_vma)
++{
++	spin_unlock(&anon_vma->lock);
++}
++
+ /*
+  * anon_vma helper functions.
   */
- struct anon_vma {
- 	spinlock_t lock;	/* Serialize access to vma list */
-+	struct anon_vma *root;	/* Root of this anon_vma tree */
- #ifdef CONFIG_KSM
- 	atomic_t ksm_refcount;
- #endif
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 956880f..d488012 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -327,7 +327,7 @@ static void drop_anon_vma(struct rmap_item *rmap_item)
+ 
+ 	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
+ 		int empty = list_empty(&anon_vma->head);
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 		if (empty)
+ 			anon_vma_free(anon_vma);
+ 	}
+@@ -1566,7 +1566,7 @@ again:
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+-		spin_lock(&anon_vma->lock);
++		anon_vma_lock(anon_vma);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
+ 			if (rmap_item->address < vma->vm_start ||
+@@ -1589,7 +1589,7 @@ again:
+ 			if (!search_new_forks || !mapcount)
+ 				break;
+ 		}
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 		if (!mapcount)
+ 			goto out;
+ 	}
+@@ -1619,7 +1619,7 @@ again:
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+-		spin_lock(&anon_vma->lock);
++		anon_vma_lock(anon_vma);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
+ 			if (rmap_item->address < vma->vm_start ||
+@@ -1637,11 +1637,11 @@ again:
+ 			ret = try_to_unmap_one(page, vma,
+ 					rmap_item->address, flags);
+ 			if (ret != SWAP_AGAIN || !page_mapped(page)) {
+-				spin_unlock(&anon_vma->lock);
++				anon_vma_unlock(anon_vma);
+ 				goto out;
+ 			}
+ 		}
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 	}
+ 	if (!search_new_forks++)
+ 		goto again;
+@@ -1671,7 +1671,7 @@ again:
+ 		struct anon_vma_chain *vmac;
+ 		struct vm_area_struct *vma;
+ 
+-		spin_lock(&anon_vma->lock);
++		anon_vma_lock(anon_vma);
+ 		list_for_each_entry(vmac, &anon_vma->head, same_anon_vma) {
+ 			vma = vmac->vma;
+ 			if (rmap_item->address < vma->vm_start ||
+@@ -1688,11 +1688,11 @@ again:
+ 
+ 			ret = rmap_one(page, vma, rmap_item->address, arg);
+ 			if (ret != SWAP_AGAIN) {
+-				spin_unlock(&anon_vma->lock);
++				anon_vma_unlock(anon_vma);
+ 				goto out;
+ 			}
+ 		}
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 	}
+ 	if (!search_new_forks++)
+ 		goto again;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index d30bed3..f70bc65 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2589,7 +2589,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+ 		if (!__test_and_clear_bit(0, (unsigned long *)
+ 					  &anon_vma->head.next))
+ 			BUG();
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 	}
+ }
+ 
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 6102f77..e34cb56 100644
+index 07fc947..4eb8937 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -132,6 +132,11 @@ int anon_vma_prepare(struct vm_area_struct *vma)
- 			if (unlikely(!anon_vma))
- 				goto out_enomem_free_avc;
+@@ -134,7 +134,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
  			allocated = anon_vma;
-+			/*
-+			 * This VMA had no anon_vma yet.  This anon_vma is
-+			 * the root of any anon_vma tree that might form.
-+			 */
-+			anon_vma->root = anon_vma;
  		}
  
- 		anon_vma_lock(anon_vma);
-@@ -203,7 +208,7 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
-  */
- int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+-		spin_lock(&anon_vma->lock);
++		anon_vma_lock(anon_vma);
+ 		/* page_table_lock to protect against threads */
+ 		spin_lock(&mm->page_table_lock);
+ 		if (likely(!vma->anon_vma)) {
+@@ -147,7 +147,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
+ 			avc = NULL;
+ 		}
+ 		spin_unlock(&mm->page_table_lock);
+-		spin_unlock(&anon_vma->lock);
++		anon_vma_unlock(anon_vma);
+ 
+ 		if (unlikely(allocated))
+ 			anon_vma_free(allocated);
+@@ -170,9 +170,9 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
+ 	avc->anon_vma = anon_vma;
+ 	list_add(&avc->same_vma, &vma->anon_vma_chain);
+ 
+-	spin_lock(&anon_vma->lock);
++	anon_vma_lock(anon_vma);
+ 	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
+-	spin_unlock(&anon_vma->lock);
++	anon_vma_unlock(anon_vma);
+ }
+ 
+ /*
+@@ -246,12 +246,12 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
+ 	if (!anon_vma)
+ 		return;
+ 
+-	spin_lock(&anon_vma->lock);
++	anon_vma_lock(anon_vma);
+ 	list_del(&anon_vma_chain->same_anon_vma);
+ 
+ 	/* We must garbage collect the anon_vma if it's empty */
+ 	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
+-	spin_unlock(&anon_vma->lock);
++	anon_vma_unlock(anon_vma);
+ 
+ 	if (empty)
+ 		anon_vma_free(anon_vma);
+@@ -302,7 +302,7 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
+ 		goto out;
+ 
+ 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+-	spin_lock(&anon_vma->lock);
++	anon_vma_lock(anon_vma);
+ 	return anon_vma;
+ out:
+ 	rcu_read_unlock();
+@@ -311,7 +311,7 @@ out:
+ 
+ void page_unlock_anon_vma(struct anon_vma *anon_vma)
  {
--	struct anon_vma_chain *avc;
-+	struct anon_vma_chain *avc, *root_avc;
- 	struct anon_vma *anon_vma;
+-	spin_unlock(&anon_vma->lock);
++	anon_vma_unlock(anon_vma);
+ 	rcu_read_unlock();
+ }
  
- 	/* Don't bother if the parent process has no anon_vma here. */
-@@ -224,9 +229,18 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
- 	avc = anon_vma_chain_alloc();
- 	if (!avc)
- 		goto out_error_free_anon_vma;
--	anon_vma_chain_link(vma, avc, anon_vma);
-+
-+	/*
-+	 * Get the root anon_vma on the list by depending on the ordering
-+	 * of the same_vma list setup by previous invocations of anon_vma_fork.
-+	 * The root anon_vma will always be referenced by the last item
-+	 * in the anon_vma_chain list.
-+	 */
-+	root_avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-+	anon_vma->root = root_avc->anon_vma;
- 	/* Mark this anon_vma as the one where our new (COWed) pages go. */
- 	vma->anon_vma = anon_vma;
-+	anon_vma_chain_link(vma, avc, anon_vma);
+@@ -1364,7 +1364,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 	anon_vma = page_anon_vma(page);
+ 	if (!anon_vma)
+ 		return ret;
+-	spin_lock(&anon_vma->lock);
++	anon_vma_lock(anon_vma);
+ 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+ 		struct vm_area_struct *vma = avc->vma;
+ 		unsigned long address = vma_address(page, vma);
+@@ -1374,7 +1374,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
+-	spin_unlock(&anon_vma->lock);
++	anon_vma_unlock(anon_vma);
+ 	return ret;
+ }
  
- 	return 0;
- 
-@@ -261,7 +275,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
- {
- 	struct anon_vma_chain *avc, *next;
- 
--	/* Unlink each anon_vma chained to the VMA. */
-+	/* Unlink each anon_vma chained to the VMA, from newest to oldest. */
- 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
- 		anon_vma_unlink(avc);
- 		list_del(&avc->same_vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
