@@ -1,66 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BE08E6B0202
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 00:54:25 -0400 (EDT)
-Received: by vws7 with SMTP id 7so1559677vws.14
-        for <linux-mm@kvack.org>; Tue, 11 May 2010 21:54:23 -0700 (PDT)
-MIME-Version: 1.0
-Date: Tue, 11 May 2010 21:54:23 -0700
-Message-ID: <AANLkTinkQLObl8EVFtlLyqVHF-q_cZNnDUumdmQjmBLx@mail.gmail.com>
-Subject: Newbie question about 2.4.21 kernel /proc/meminfo caculation
-From: Vincent Li <vincent.mc.li@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DF83D6B01F7
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 01:20:50 -0400 (EDT)
+Subject: Re: [PATCH 03/25] lmb: Introduce for_each_lmb() and new accessors,
+ and use it
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <alpine.LFD.2.00.1005101735560.3401@localhost.localdomain>
+References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
+	 <1273484339-28911-4-git-send-email-benh@kernel.crashing.org>
+	 <alpine.LFD.2.00.1005101735560.3401@localhost.localdomain>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 12 May 2010 15:20:32 +1000
+Message-ID: <1273641632.21352.107.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linux-MM <linux-mm@kvack.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-I am running an old kernel  2.4.21, I am curious how each items add up
-to the MemTotal or any simple addition math in them?
+On Mon, 2010-05-10 at 17:39 +0200, Thomas Gleixner wrote:
+> > +#define for_each_lmb(lmb_type, region)                                       \
+> > +     for (reg = lmb.lmb_type.regions;                                \
+> > +          region < (lmb.lmb_type.regions + lmb.lmb_type.cnt);        \
+> > +          region++)
+> > +
+> 
+> Can you please make this:
+> 
+> #define for_each_lmb(lmb_type, region, __iter)                          \
+>         for (__iter = lmb.lmb_type.regions;                             \
+>              region < (lmb.lmb_type.regions + lmb.lmb_type.cnt);        \
+>              region++)
+> 
+> so we do not have the iterator name hardcoded inside the macro body.
 
-for example:
+As a matter of fact, we didn't, but I made a typo on the first one:
 
- # cat /proc/meminfo
-        total:    used:    free:  shared: buffers:  cached:
-Mem:  1049841664 1024647168 25194496        0 31010816 163115008
-Swap: 2371338240 26906624 2344431616
-MemTotal:      1025236 kB
-MemFree:         24604 kB
-MemShared:           0 kB
-Committed:      257936 kB
-Buffers:         30284 kB
-Cached:         148412 kB
-SwapCached:      10880 kB
-Active:         276704 kB
-ActiveAnon:     164016 kB
-ActiveCache:    112688 kB
-Inact_dirty:     37688 kB
-Inact_laundry:   15400 kB
-Inact_clean:     14888 kB
-Inact_target:    68936 kB
-HighTotal:           0 kB
-HighFree:            0 kB
-LowTotal:      1025236 kB
-LowFree:         24604 kB
-SwapTotal:     2315760 kB
-SwapFree:      2289484 kB
-CommitLimit:   2828376 kB
-Committed_AS:   257936 kB
-HugePages_Total:   154
-HugePages_Free:      0
-Hugepagesize:     4096 kB
+-	for (reg = lmb.lmb_type.regions;                                   \
++	for (region = lmb.lmb_type.regions;                                \
+		region < (lmb.lmb_type.regions + lmb.lmb_type.cnt);        \
+	        region++)
 
-I found that Inact_target = Inact_dirty + Inact_laundry + Inact_clean, but
+I'll fix that in my series.
 
-MemTotal = MemFree + Buffers + Cached + Active + Inact_target +
-CommitLimted_AS + ?
-
-Tried to dig into 2.4.21 kernel source code, have not be able to find
-those memory data caculations, any pointer would be greatly
-appreciated!
-
-Thanks
-
-Vincent Li
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
