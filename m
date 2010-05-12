@@ -1,53 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F05AD6B01F2
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 20:23:50 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4C0Nm70015368
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 12 May 2010 09:23:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 64DB045DE7D
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 09:23:46 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9096945DE4D
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 09:23:45 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BB85E0800B
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 09:23:45 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EBFA0E08005
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 09:23:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and rmap_walk() during migration by not migrating temporary stacks
-In-Reply-To: <20100511085752.GM26611@csn.ul.ie>
-References: <20100511085752.GM26611@csn.ul.ie>
-Message-Id: <20100512092239.2120.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 25B1A6B0207
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 21:49:11 -0400 (EDT)
+Date: Tue, 11 May 2010 18:49:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] cpuset,mm: fix no node to alloc memory when
+ changing cpuset's mems
+Message-Id: <20100511184900.8211b6f9.akpm@linux-foundation.org>
+In-Reply-To: <4BDFFCCA.3020906@cn.fujitsu.com>
+References: <4BDFFCCA.3020906@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed, 12 May 2010 09:23:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: miaox@cn.fujitsu.com
+Cc: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index 725d7ef..13f8e7f 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -242,9 +242,10 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
->  	 * use STACK_TOP because that can depend on attributes which aren't
->  	 * configured yet.
->  	 */
-> +	BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
+On Tue, 04 May 2010 18:54:02 +0800
+Miao Xie <miaox@cn.fujitsu.com> wrote:
 
-Can we use BUILD_BUG_ON()? 
+> Before applying this patch, cpuset updates task->mems_allowed and mempolicy by
+> setting all new bits in the nodemask first, and clearing all old unallowed bits
+> later. But in the way, the allocator may find that there is no node to alloc
+> memory.
+> 
+> The reason is that cpuset rebinds the task's mempolicy, it cleans the nodes which
+> the allocater can alloc pages on, for example:
+> (mpol: mempolicy)
+> 	task1			task1's mpol	task2
+> 	alloc page		1
+> 	  alloc on node0? NO	1
+> 				1		change mems from 1 to 0
+> 				1		rebind task1's mpol
+> 				0-1		  set new bits
+> 				0	  	  clear disallowed bits
+> 	  alloc on node1? NO	0
+> 	  ...
+> 	can't alloc page
+> 	  goto oom
+> 
+> This patch fixes this problem by expanding the nodes range first(set newly
+> allowed bits) and shrink it lazily(clear newly disallowed bits). So we use a
+> variable to tell the write-side task that read-side task is reading nodemask,
+> and the write-side task clears newly disallowed nodes after read-side task ends
+> the current memory allocation.
+> 
+>
+> ...
+>
+> --- a/kernel/exit.c
+> +++ b/kernel/exit.c
+> @@ -16,6 +16,7 @@
+>  #include <linux/key.h>
+>  #include <linux/security.h>
+>  #include <linux/cpu.h>
+> +#include <linux/cpuset.h>
+>  #include <linux/acct.h>
+>  #include <linux/tsacct_kern.h>
+>  #include <linux/file.h>
+> @@ -1003,8 +1004,10 @@ NORET_TYPE void do_exit(long code)
+>  
+>  	exit_notify(tsk, group_dead);
+>  #ifdef CONFIG_NUMA
+> +	task_lock(tsk);
+>  	mpol_put(tsk->mempolicy);
+>  	tsk->mempolicy = NULL;
+> +	task_unlock(tsk);
+>  #endif
+>  #ifdef CONFIG_FUTEX
+>  	if (unlikely(current->pi_state_cache))
 
-but anyway
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Given that this function is already holding task_lock(tsk), this
+didn't work very well.
 
-
+Also, why was the inclusion of cpuset.h added?  Nothing which this
+patch adds appears to need it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
