@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A77156B0204
-	for <linux-mm@kvack.org>; Tue, 11 May 2010 18:24:54 -0400 (EDT)
-Subject: Re: [PATCH 05/25] lmb: Factor the lowest level alloc function
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <alpine.LFD.2.00.1005111428470.3401@localhost.localdomain>
-References: <1273484339-28911-1-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-2-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-3-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-4-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-5-git-send-email-benh@kernel.crashing.org>
-	 <1273484339-28911-6-git-send-email-benh@kernel.crashing.org>
-	 <alpine.LFD.2.00.1005111428470.3401@localhost.localdomain>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 12 May 2010 08:24:09 +1000
-Message-ID: <1273616649.21352.44.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 156D16B020A
+	for <linux-mm@kvack.org>; Tue, 11 May 2010 20:05:13 -0400 (EDT)
+Date: Tue, 11 May 2010 20:13:48 -0400
+From: Josef Bacik <josef@redhat.com>
+Subject: Re: [PATCH 3/5] direct-io: honor dio->boundary a little more
+	strictly
+Message-ID: <20100512001347.GB27011@dhcp231-156.rdu.redhat.com>
+References: <20100507174104.GD3360@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100507174104.GD3360@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linuxtronix.de, mingo@elte.hu, davem@davemloft.net, lethal@linux-sh.org
+To: Josef Bacik <josef@redhat.com>
+Cc: linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-05-11 at 14:30 +0200, Thomas Gleixner wrote:
-> > @@ -396,33 +406,24 @@ u64 __init __lmb_alloc_base(u64 size, u64
-> align, u64 max_addr)
-> >       if (max_addr == LMB_ALLOC_ANYWHERE)
-> >               max_addr = LMB_REAL_LIMIT;
-> >  
-> > +     /* Pump up max_addr */
-> > +     if (max_addr == LMB_ALLOC_ANYWHERE)
-> > +             max_addr = ~(u64)0;
-> > +     
+On Fri, May 07, 2010 at 01:41:04PM -0400, Josef Bacik wrote:
+> Because BTRFS needs to be able to lookup checksums when we submit the bio's, we
+> need to be able to look up the logical offset in the inode we're submitting the
+> bio for.  The way we do this is in our get_blocks function is return the map_bh
+> with b_blocknr of the logical offset in the file, and then in the submit path
+> turn that into an actual block number on the device.  This causes problems with
+> the DIO stuff since it will try and merge requests that look like they are
+> contiguous, even though they are not actually contiguous on disk.  So BTRFS sets
+> buffer_boundary on the map_bh.  Unfortunately if there is not a bio already
+> setup in the DIO stuff, dio->boundary gets cleared and then the next time a
+> request is made they will get merged.  So instead of clearing dio->boundary in
+> dio_new_bio, save the boundary value before doing anything, that way if
+> dio->boundary gets cleared, we still submit the IO.  Thanks,
 > 
->   That if is pretty useless as you set max_addr to LMB_REAL_LIMIT
->   right above.
+> Signed-off-by: Josef Bacik <josef@redhat.com>
+> ---
+>  fs/direct-io.c |    5 ++++-
+>  1 files changed, 4 insertions(+), 1 deletions(-)
+> 
+> diff --git a/fs/direct-io.c b/fs/direct-io.c
+> index 2dbf2e9..98f6f42 100644
+> --- a/fs/direct-io.c
+> +++ b/fs/direct-io.c
+> @@ -615,6 +615,7 @@ static int dio_bio_add_page(struct dio *dio)
+>   */
+>  static int dio_send_cur_page(struct dio *dio)
+>  {
+> +	int boundary = dio->boundary;
+>  	int ret = 0;
+>  
+>  	if (dio->bio) {
+> @@ -627,7 +628,7 @@ static int dio_send_cur_page(struct dio *dio)
+>  		 * Submit now if the underlying fs is about to perform a
+>  		 * metadata read
+>  		 */
+> -		if (dio->boundary)
+> +		if (boundary)
+>  			dio_bio_submit(dio);
+>  	}
+>  
+> @@ -644,6 +645,8 @@ static int dio_send_cur_page(struct dio *dio)
+>  			ret = dio_bio_add_page(dio);
+>  			BUG_ON(ret != 0);
+>  		}
+> +	} else if (boundary) {
+> +		dio_bio_submit(dio);
+>  	}
+>  out:
+>  	return ret;
 
-This is a mismerge/mis-rebase of one of my patches actually. I'll dbl
-check what's up but I think the first hunk should go along with
-LMB_REAL_LIMIT in favor of the new default limit thing. But we first
-need to make sure the default is set sensibly and I haven't fixed all
-archs yet.
+Self-NACK on this one.  Seems to have an unwanted side-effect of forcing every
+page to be submitted individually.  I'm going to fix this a different way.
+Thanks,
 
-I'll dbl check what's up there.
-
-Cheers,
-Benm.
-
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
