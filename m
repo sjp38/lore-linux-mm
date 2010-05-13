@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7746B0236
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:14:21 -0400 (EDT)
-Date: Thu, 13 May 2010 18:14:15 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/7] hugetlb, rmap: add reverse mapping for hugepage
-Message-ID: <20100513161415.GC28226@basil.fritz.box>
-References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1273737326-21211-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20100513152737.GE27949@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with ESMTP id 7720F6B0237
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:57:00 -0400 (EDT)
+Date: Thu, 13 May 2010 09:56:03 -0700
+From: Greg KH <gregkh@suse.de>
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+Message-ID: <20100513165603.GC25212@suse.de>
+References: <20100513120016.GG2169@shaohui>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100513152737.GE27949@csn.ul.ie>
+In-Reply-To: <20100513120016.GG2169@shaohui>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-> I think what you're getting with this is the ability to unmap MAP_PRIVATE pages
-> from one process but if there are multiple processes, the second process could
-> still end up referencing the poisoned MAP_PRIVATE page. Is this accurate? Even
-> if it is, I guess it's still an improvement over what currently happens.
+On Thu, May 13, 2010 at 08:00:16PM +0800, Shaohui Zheng wrote:
+> hotplug emulator:extend memory probe interface to support NUMA
+> 
+> Extend memory probe interface to support an extra paramter nid,
+> the reserved memory can be added into this node if node exists.
+> 
+> Add a memory section(128M) to node 3(boots with mem=1024m)
+> 
+> 	echo 0x40000000,3 > memory/probe
+> 
+> And more we make it friendly, it is possible to add memory to do
+> 
+> 	echo 3g > memory/probe
+> 	echo 1024m,3 > memory/probe
+> 
+> It maintains backwards compatibility.
 
-The only real requirement is that all PTEs pointing to that page 
-get replaced by poisoned PTEs.
+Again, please document this.
 
-(that's essentially always "late kill" mode)
+thanks,
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
