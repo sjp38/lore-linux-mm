@@ -1,37 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 826EE6B01E3
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 18:51:40 -0400 (EDT)
-Message-ID: <4BEC8235.4060509@redhat.com>
-Date: Thu, 13 May 2010 18:50:29 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -v2 4/5] always lock the root (oldest) anon_vma
-References: <20100512133815.0d048a86@annuminas.surriel.com>	<20100512134029.36c286c4@annuminas.surriel.com>	<20100512210216.GP24989@csn.ul.ie>	<4BEB18BB.5010803@redhat.com>	<20100513095439.GA27949@csn.ul.ie>	<20100513103356.25665186@annuminas.surriel.com> <20100513140919.0a037845.akpm@linux-foundation.org>
-In-Reply-To: <20100513140919.0a037845.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2A8BE6B01E3
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 19:55:47 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4DNtiMd014190
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 14 May 2010 08:55:44 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DA6C45DE4F
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:44 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 139C445DE4E
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:44 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F09CB1DB8015
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A49551DB8012
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:43 +0900 (JST)
+Date: Fri, 14 May 2010 08:51:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and
+ rmap_walk() during migration by not migrating temporary stacks
+Message-Id: <20100514085135.cfb5ba17.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1005131219190.20037@router.home>
+References: <20100511085752.GM26611@csn.ul.ie>
+	<20100512092239.2120.A69D9226@jp.fujitsu.com>
+	<20100512125427.d1b170ba.akpm@linux-foundation.org>
+	<alpine.DEB.2.00.1005121627020.1273@router.home>
+	<20100513091930.9b42e3b8.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1005131219190.20037@router.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 05/13/2010 05:09 PM, Andrew Morton wrote:
+On Thu, 13 May 2010 12:22:01 -0500 (CDT)
+Christoph Lameter <cl@linux.com> wrote:
 
-> I'm not very confident in merging all these onto the current MM pile.
+> On Thu, 13 May 2010, KAMEZAWA Hiroyuki wrote:
+> 
+> > > Would it not be possible to do something similar for the temporary stack?
+> > >
+> >
+> > Problem here is unmap->remap. ->migratepage() function is used as
+> >
+> > 	unmap
+> > 	   -> migratepage()
+> > 	      -> failed
+> > 		-> remap
+> >
+> > Then, migratepage() itself is no help. We need some check-callback before unmap
+> > or lock to wait for an event we can make remapping progress.
+> 
+> We could check earlier if the migrate function points to
+> fail_migrate_page()?
 
-My apologies, I built them onto Linus's latest git
-tree (where I know I did get all the anon_vma->lock
-instances).
+If you mean checking before unmap, yes. we can avoid the race.
+Unmapping itself is dangerous in this case.
 
-Andrew, Mel, want me to make a version of this series
-against -mmotm, or does the migrate & compaction code
-need to be modified in some non-obvious way that would
-require Mel to create a new compaction series on top
-of these anon_vma patches?
+> Where we check for PageKsm() in unmap_and_move f.e.?
+> 
 
--- 
-All rights reversed
+I'm not sure about KSM.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
