@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 008676B01E3
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 17:13:58 -0400 (EDT)
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <4BEC6A5D.5070304@tauceti.net>
-References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net>
-	 <20100419131718.GB16918@redhat.com>
-	 <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net>
-	 <20100421094249.GC30855@redhat.com>
-	 <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net>
-	 <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net>
-	 <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net>
-	 <20100425204916.GA12686@redhat.com>
-	 <1272284154.4252.34.camel@localhost.localdomain>
-	 <4BD5F6C5.8080605@tauceti.net>
-	 <1272315854.8984.125.camel@localhost.localdomain>
-	 <4BD61147.40709@tauceti.net>
-	 <1272324536.16814.45.camel@localhost.localdomain>
-	 <4BD76B81.2070606@tauceti.net>
-	 <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net>
-	 <4BE33259.3000609@tauceti.net>
-	 <1273181438.22155.26.camel@localhost.localdomain>
-	 <4BEC6A5D.5070304@tauceti.net>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 13 May 2010 17:13:54 -0400
-Message-ID: <1273785234.22932.14.camel@localhost.localdomain>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id CFA436B01E3
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 17:35:43 -0400 (EDT)
+Message-ID: <4BEC704C.9000709@nortel.com>
+Date: Thu, 13 May 2010 15:34:04 -0600
+From: "Chris Friesen" <cfriesen@nortel.com>
+MIME-Version: 1.0
+Subject: /proc/<pid>/maps question....why aren't adjacent memory chunks merged?
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Robert Wimmer <kernel@tauceti.net>
-Cc: mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-05-13 at 23:08 +0200, Robert Wimmer wrote:=20
-> Finally I've had some time to do the next test.
-> Here is a wireshark dump (~750 MByte):
-> http://213.252.12.93/2.6.34-rc5.cap.gz
->=20
-> dmesg output after page allocation failure:
-> https://bugzilla.kernel.org/attachment.cgi?id=3D26371
->=20
-> stack trace before page allocation failure:
-> https://bugzilla.kernel.org/attachment.cgi?id=3D26369
->=20
-> stack trace after page allocation failure:
-> https://bugzilla.kernel.org/attachment.cgi?id=3D26370
->=20
-> I hope the wireshark dump is not to big to download.
-> It was created with
-> tshark -f "tcp port 2049" -i eth0 -w 2.6.34-rc5.cap
->=20
-> Thanks!
-> Robert
+Hi,
 
-Hi Robert,
+I've got a system running a somewhat-modified 2.6.27 on 64-bit x86.
 
-I tried the above wireshark dump URL, but it appears to point to an
-empty file.
+While investigating a userspace memory leak issue I noticed that
+/proc/<pid>/maps showed a bunch of adjacent anonymous memory chunks with
+identical permissions:
 
-Cheers
-  Trond
+7fd048000000-7fd04c000000 rw-p 00000000 00:00 0
+7fd04c000000-7fd050000000 rw-p 00000000 00:00 0
+7fd050000000-7fd054000000 rw-p 00000000 00:00 0
+7fd054000000-7fd058000000 rw-p 00000000 00:00 0
+7fd058000000-7fd05c000000 rw-p 00000000 00:00 0
+7fd05c000000-7fd060000000 rw-p 00000000 00:00 0
+7fd060000000-7fd064000000 rw-p 00000000 00:00 0
+7fd064000000-7fd068000000 rw-p 00000000 00:00 0
+7fd068000000-7fd06c000000 rw-p 00000000 00:00 0
+7fd06c000000-7fd070000000 rw-p 00000000 00:00 0
+7fd070000000-7fd074000000 rw-p 00000000 00:00 0
+7fd074000000-7fd078000000 rw-p 00000000 00:00 0
+7fd078000000-7fd07c000000 rw-p 00000000 00:00 0
+7fd07c000000-7fd07fffe000 rw-p 00000000 00:00 0
+
+I was under the impression that the kernel would merge areas together in
+this circumstance.  Does anyone have an idea about what's going on here?
+
+Thanks,
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
