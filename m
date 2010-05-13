@@ -1,149 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 728996B01E3
-	for <linux-mm@kvack.org>; Wed, 12 May 2010 22:54:21 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4D2sEsi019609
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id B1E126B01E3
+	for <linux-mm@kvack.org>; Wed, 12 May 2010 23:02:59 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4D32sOh003871
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 13 May 2010 11:54:15 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 93F4045DE7B
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 11:54:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5720945DE79
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 11:54:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 17F1BE08009
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 11:54:14 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 75306E08001
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 11:54:13 +0900 (JST)
+	Thu, 13 May 2010 12:02:54 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A51345DE62
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:02:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2044045DE61
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:02:54 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0711AE08005
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:02:54 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B6994E08002
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:02:53 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: page_check_references() check low order lumpy reclaim properly
-In-Reply-To: <20100416141841.300d2361.akpm@linux-foundation.org>
-References: <20100416115437.27AD.A69D9226@jp.fujitsu.com> <20100416141841.300d2361.akpm@linux-foundation.org>
-Message-Id: <20100513115316.2155.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 1/5] vmscan: fix unmapping behaviour for RECLAIM_SWAP
+In-Reply-To: <20100430224315.912441727@cmpxchg.org>
+References: <20100430222009.379195565@cmpxchg.org> <20100430224315.912441727@cmpxchg.org>
+Message-Id: <20100512122434.2133.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 13 May 2010 11:54:12 +0900 (JST)
+Date: Thu, 13 May 2010 12:02:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andreas Mohr <andi@lisas.de>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan.kim@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -77,6 +77,8 @@ struct scan_control {
-> >  
-> >  	int order;
-> >  
-> > +	int lumpy_reclaim;
-> > +
+sorry for the long delayed review.
+
+> The RECLAIM_SWAP flag in zone_reclaim_mode controls whether
+> zone_reclaim() is allowed to swap or not (obviously).
 > 
-> Needs a comment explaining its role, please.  Something like "direct
-> this reclaim run to perform lumpy reclaim"?
+> This is currently implemented by allowing or forbidding reclaim to
+> unmap pages, which also controls reclaim of shared pages and is thus
+> not appropriate.
 > 
-> A clearer name might be "lumpy_relcaim_mode"?
+> We can do better by using the sc->may_swap parameter instead, which
+> controls whether the anon lists are scanned.
 > 
-> Making it a `bool' would clarify things too.
+> Unmapping of pages is then allowed per default from zone_reclaim().
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2563,8 +2563,8 @@ static int __zone_reclaim(struct zone *z
+>  	int priority;
+>  	struct scan_control sc = {
+>  		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+> -		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+> -		.may_swap = 1,
+> +		.may_unmap = 1,
+> +		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+>  		.nr_to_reclaim = max_t(unsigned long, nr_pages,
+>  				       SWAP_CLUSTER_MAX),
+>  		.gfp_mask = gfp_mask,
 
-Sorry, I've missed your this review comment.
-How about this?
+About half years ago, I did post exactly same patch. but at that time,
+it got Mel's objection. after some discution we agreed to merge
+documentation change instead code fix.
+
+So, now the documentation describe clearly 4th bit meant no unmap.
+Please drop this, instead please make s/RECLAIM_SWAP/RECLAIM_MAPPED/ patch.
+
+But if mel ack this, I have no objection.
 
 
----
- mm/vmscan.c |   39 ++++++++++++++++++++++++---------------
- 1 files changed, 24 insertions(+), 15 deletions(-)
+----------------------------------------------------------
+commit 90afa5de6f3fa89a733861e843377302479fcf7e
+Author: Mel Gorman <mel@csn.ul.ie>
+Date:   Tue Jun 16 15:33:20 2009 -0700
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 13d9546..c3bcdd4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -77,7 +77,11 @@ struct scan_control {
- 
- 	int order;
- 
--	int lumpy_reclaim;
-+	/*
-+	 * Intend to reclaim enough contenious memory rather than to reclaim
-+	 * enough amount memory. I.e, it's the mode for high order allocation.
-+	 */
-+	bool lumpy_reclaim_mode;
- 
- 	/* Which cgroup do we reclaim from */
- 	struct mem_cgroup *mem_cgroup;
-@@ -577,7 +581,7 @@ static enum page_references page_check_references(struct page *page,
- 	referenced_page = TestClearPageReferenced(page);
- 
- 	/* Lumpy reclaim - ignore references */
--	if (sc->lumpy_reclaim)
-+	if (sc->lumpy_reclaim_mode)
- 		return PAGEREF_RECLAIM;
- 
- 	/*
-@@ -1153,7 +1157,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
- 		unsigned long nr_freed;
- 		unsigned long nr_active;
- 		unsigned int count[NR_LRU_LISTS] = { 0, };
--		int mode = sc->lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
-+		int mode = sc->lumpy_reclaim_mode ? ISOLATE_BOTH : ISOLATE_INACTIVE;
- 		unsigned long nr_anon;
- 		unsigned long nr_file;
- 
-@@ -1206,7 +1210,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
- 		 * but that should be acceptable to the caller
- 		 */
- 		if (nr_freed < nr_taken && !current_is_kswapd() &&
--		    sc->lumpy_reclaim) {
-+		    sc->lumpy_reclaim_mode) {
- 			congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 			/*
-@@ -1609,6 +1613,21 @@ static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
- 	return nr;
- }
- 
-+static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc)
-+{
-+	/*
-+	 * If we need a large contiguous chunk of memory, or have
-+	 * trouble getting a small set of contiguous pages, we
-+	 * will reclaim both active and inactive pages.
-+	 */
-+	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-+		sc->lumpy_reclaim_mode = 1;
-+	else if (sc->order && priority < DEF_PRIORITY - 2)
-+		sc->lumpy_reclaim_mode = 1;
-+	else
-+		sc->lumpy_reclaim_mode = 0;
-+}
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 0ea5adb..c4de635 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -315,10 +315,14 @@ min_unmapped_ratio:
+
+ This is available only on NUMA kernels.
+
+-A percentage of the total pages in each zone.  Zone reclaim will only
+-occur if more than this percentage of pages are file backed and unmapped.
+-This is to insure that a minimal amount of local pages is still available for
+-file I/O even if the node is overallocated.
++This is a percentage of the total pages in each zone. Zone reclaim will
++only occur if more than this percentage of pages are in a state that
++zone_reclaim_mode allows to be reclaimed.
 +
- /*
-  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-  */
-@@ -1645,17 +1664,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 					  &reclaim_stat->nr_saved_scan[l]);
- 	}
- 
--	/*
--	 * If we need a large contiguous chunk of memory, or have
--	 * trouble getting a small set of contiguous pages, we
--	 * will reclaim both active and inactive pages.
--	 */
--	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
--		sc->lumpy_reclaim = 1;
--	else if (sc->order && priority < DEF_PRIORITY - 2)
--		sc->lumpy_reclaim = 1;
--	else
--		sc->lumpy_reclaim = 0;
-+	set_lumpy_reclaim_mode(priority, sc);
- 
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
--- 
-1.6.5.2
-
-
-
++If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
++against all file-backed unmapped pages including swapcache pages and tmpfs
++files. Otherwise, only unmapped pages backed by normal files but not tmpfs
++files and similar are considered.
 
 
 --
