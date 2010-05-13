@@ -1,39 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A646A6B01E3
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 15:12:20 -0400 (EDT)
-Date: Thu, 13 May 2010 12:11:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] cpuset,mm: fix no node to alloc memory when
- changing cpuset's mems - fix2
-Message-Id: <20100513121123.e105ac97.akpm@linux-foundation.org>
-In-Reply-To: <4BEB9941.7040609@cn.fujitsu.com>
-References: <4BEA56D3.6040705@cn.fujitsu.com>
-	<20100512003246.9f0ee03c.akpm@linux-foundation.org>
-	<4BEA6E3D.10503@cn.fujitsu.com>
-	<20100512104817.beeee3b5.akpm@linux-foundation.org>
-	<4BEB9941.7040609@cn.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 799476B01EF
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 15:17:09 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e31.co.us.ibm.com (8.14.3/8.13.1) with ESMTP id o4DJ6sIL016293
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 13:06:54 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4DJGkqP034088
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 13:16:48 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4DJGjDL000842
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 13:16:46 -0600
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100513185844.GA5959@suse.de>
+References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>
+	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>
+	 <1273776578.13285.7820.camel@nimitz>  <20100513185844.GA5959@suse.de>
+Content-Type: text/plain
+Date: Thu, 13 May 2010 12:16:43 -0700
+Message-Id: <1273778203.13285.7851.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: miaox@cn.fujitsu.com
-Cc: David Rientjes <rientjes@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Paul Menage <menage@google.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Greg KH <gregkh@suse.de>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 May 2010 14:16:33 +0800
-Miao Xie <miaox@cn.fujitsu.com> wrote:
-
-> > 
-> > The code you have at present is fairly similar to sequence locks.  I
-> > wonder if there's some way of (ab)using sequence locks for this. 
-> > seqlocks don't have lockdep support either...
-> > 
+On Thu, 2010-05-13 at 11:58 -0700, Greg KH wrote:
+> > That's probably a really good point, especially since configfs didn't
+> > even exist when we made this 'probe' file thingy.  It never was a great
+> > fit for sysfs anyway.
 > 
-> We can't use sequence locks here, because the read-side may read the data
-> in changing, but it can't put off cleaning the old bits.
+> Really?  configfs was added in 2.6.16, when was this probe file added?
 
-I don't understand that sentence.  Can you expand on it please?
+$ git name-rev 3947be19
+3947be19 tags/v2.6.15-rc1~728^2~12
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
