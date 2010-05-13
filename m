@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 212576B01FA
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:57:12 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 477AA6B01FB
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:57:22 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 5/7] HWPOISON, hugetlb: isolate corrupted hugepage
-Date: Thu, 13 May 2010 16:55:24 +0900
-Message-Id: <1273737326-21211-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 6/7] HWPOISON, hugetlb: detect hwpoison in hugetlb code
+Date: Thu, 13 May 2010 16:55:25 +0900
+Message-Id: <1273737326-21211-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,10 +13,8 @@ To: n-horiguchi@ah.jp.nec.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-If error hugepage is not in-use, we can fully recovery from error
-by dequeuing it from freelist, so return RECOVERY.
-Otherwise whether or not we can recovery depends on user processes,
-so return DELAYED.
+This patch enables to block access to hwpoisoned hugepage and
+also enables to block unmapping for it.
 
 Dependency:
   "HWPOISON, hugetlb: enable error handling path for hugepage"
@@ -26,97 +24,88 @@ Cc: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/hugetlb.h |    2 ++
- mm/hugetlb.c            |   16 ++++++++++++++++
- mm/memory-failure.c     |   28 ++++++++++++++++++++--------
- 3 files changed, 38 insertions(+), 8 deletions(-)
+ mm/hugetlb.c |   40 ++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 40 insertions(+), 0 deletions(-)
 
-diff --git v2.6.34-rc7/include/linux/hugetlb.h v2.6.34-rc7/include/linux/hugetlb.h
-index 1d0c2a4..7779ae6 100644
---- v2.6.34-rc7/include/linux/hugetlb.h
-+++ v2.6.34-rc7/include/linux/hugetlb.h
-@@ -47,6 +47,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						struct vm_area_struct *vma,
- 						int acctflags);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
-+void __isolate_hwpoisoned_huge_page(struct page *page);
- 
- extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
-@@ -109,6 +110,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
-+#define __isolate_hwpoisoned_huge_page(page)	0
- 
- #define hugetlb_change_protection(vma, address, end, newprot)
- 
 diff --git v2.6.34-rc7/mm/hugetlb.c v2.6.34-rc7/mm/hugetlb.c
-index 149eb12..3c1232f 100644
+index 3c1232f..8bddaf0 100644
 --- v2.6.34-rc7/mm/hugetlb.c
 +++ v2.6.34-rc7/mm/hugetlb.c
-@@ -2821,3 +2821,19 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	hugetlb_put_quota(inode->i_mapping, (chg - freed));
- 	hugetlb_acct_memory(h, -(chg - freed));
- }
-+
-+/*
-+ * This function is called from memory failure code.
-+ * Assume the caller holds page lock of the head page.
-+ */
-+void __isolate_hwpoisoned_huge_page(struct page *hpage)
-+{
-+	struct hstate *h = page_hstate(hpage);
-+	int nid = page_to_nid(hpage);
-+
-+	spin_lock(&hugetlb_lock);
-+	list_del(&hpage->lru);
-+	h->free_huge_pages--;
-+	h->free_huge_pages_node[nid]--;
-+	spin_unlock(&hugetlb_lock);
-+}
-diff --git v2.6.34-rc7/mm/memory-failure.c v2.6.34-rc7/mm/memory-failure.c
-index 473f15a..d0b420a 100644
---- v2.6.34-rc7/mm/memory-failure.c
-+++ v2.6.34-rc7/mm/memory-failure.c
-@@ -690,17 +690,29 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
- /*
-  * Huge pages. Needs work.
-  * Issues:
-- * No rmap support so we cannot find the original mapper. In theory could walk
-- * all MMs and look for the mappings, but that would be non atomic and racy.
-- * Need rmap for hugepages for this. Alternatively we could employ a heuristic,
-- * like just walking the current process and hoping it has it mapped (that
-- * should be usually true for the common "shared database cache" case)
-- * Should handle free huge pages and dequeue them too, but this needs to
-- * handle huge page accounting correctly.
-+ * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
-+ *   To narrow down kill region to one page, we need to break up pmd.
-+ * - To support soft-offlining for hugepage, we need to support hugepage
-+ *   migration.
-  */
- static int me_huge_page(struct page *p, unsigned long pfn)
- {
--	return FAILED;
-+	struct page *hpage = compound_head(p);
-+	/*
-+	 * We can safely recover from error on free or reserved (i.e.
-+	 * not in-use) hugepage by dequeuing it from freelist.
-+	 * To check whether a hugepage is in-use or not, we can't use
-+	 * page->lru because it can be used in other hugepage operations,
-+	 * such as __unmap_hugepage_range() and gather_surplus_pages().
-+	 * So instead we use page_mapping() and PageAnon().
-+	 * We assume that this function is called with page lock held,
-+	 * so there is no race between isolation and mapping/unmapping.
-+	 */
-+	if (!(page_mapping(hpage) || PageAnon(hpage))) {
-+		__isolate_hwpoisoned_huge_page(hpage);
-+		return RECOVERED;
-+	}
-+	return DELAYED;
+@@ -19,6 +19,8 @@
+ #include <linux/sysfs.h>
+ #include <linux/slab.h>
+ #include <linux/rmap.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -2138,6 +2140,19 @@ nomem:
+ 	return -ENOMEM;
  }
  
- /*
++static int is_hugetlb_entry_hwpoisoned(pte_t pte)
++{
++	swp_entry_t swp;
++
++	if (huge_pte_none(pte) || pte_present(pte))
++		return 0;
++	swp = pte_to_swp_entry(pte);
++	if (non_swap_entry(swp) && is_hwpoison_entry(swp)) {
++		return 1;
++	} else
++		return 0;
++}
++
+ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 			    unsigned long end, struct page *ref_page)
+ {
+@@ -2196,6 +2211,12 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 		if (huge_pte_none(pte))
+ 			continue;
+ 
++		/*
++		 * HWPoisoned hugepage is already unmapped and dropped reference
++		 */
++		if (unlikely(is_hugetlb_entry_hwpoisoned(pte)))
++			continue;
++
+ 		page = pte_page(pte);
+ 		if (pte_dirty(pte))
+ 			set_page_dirty(page);
+@@ -2488,6 +2509,18 @@ retry:
+ 	}
+ 
+ 	/*
++	 * Since memory error handler replaces pte into hwpoison swap entry
++	 * at the time of error handling, a process which reserved but not have
++	 * the mapping to the error hugepage does not have hwpoison swap entry.
++	 * So we need to block accesses from such a process by checking
++	 * PG_hwpoison bit here.
++	 */
++	if (unlikely(PageHWPoison(page))) {
++		ret = VM_FAULT_HWPOISON;
++		goto backout_unlocked;
++	}
++
++	/*
+ 	 * If we are going to COW a private mapping later, we examine the
+ 	 * pending reservations for this page now. This will ensure that
+ 	 * any allocations necessary to record that reservation occur outside
+@@ -2547,6 +2580,13 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
+ 
++	ptep = huge_pte_offset(mm, address);
++	if (ptep) {
++		entry = huge_ptep_get(ptep);
++		if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
++			return VM_FAULT_HWPOISON;
++	}
++
+ 	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+ 	if (!ptep)
+ 		return VM_FAULT_OOM;
 -- 
 1.7.0
 
