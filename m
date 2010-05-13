@@ -1,82 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 06AC8620087
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 10:08:55 -0400 (EDT)
-Received: by pva4 with SMTP id 4so584133pva.14
-        for <linux-mm@kvack.org>; Thu, 13 May 2010 07:08:54 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 48C596B0227
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 10:28:12 -0400 (EDT)
+Date: Thu, 13 May 2010 15:27:50 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/7] HWPOISON for hugepage (v5)
+Message-ID: <20100513142749.GD27949@csn.ul.ie>
+References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <1273756816.5605.3547.camel@twins>
-References: <1273744285-8128-1-git-send-email-xiaosuo@gmail.com>
-	<1273756816.5605.3547.camel@twins>
-From: Changli Gao <xiaosuo@gmail.com>
-Date: Thu, 13 May 2010 22:08:26 +0800
-Message-ID: <AANLkTinLT5g5SKjqmQlS2kxvvMq1gsi1jPDgOKTnrT-q@mail.gmail.com>
-Subject: Re: [PATCH 1/9] mm: add generic adaptive large memory allocation APIs
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: akpm@linux-foundation.org, Hoang-Nam Nguyen <hnguyen@de.ibm.com>, Christoph Raisch <raisch@de.ibm.com>, Roland Dreier <rolandd@cisco.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Divy Le Ray <divy@chelsio.com>, "James E.J. Bottomley" <James.Bottomley@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@sun.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-scsi@vger.kernel.org, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, Eric Dumazet <eric.dumazet@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCBNYXkgMTMsIDIwMTAgYXQgOToyMCBQTSwgUGV0ZXIgWmlqbHN0cmEgPHBldGVyekBp
-bmZyYWRlYWQub3JnPiB3cm90ZToKPiBPbiBUaHUsIDIwMTAtMDUtMTMgYXQgMTc6NTEgKzA4MDAs
-IENoYW5nbGkgR2FvIHdyb3RlOgo+PiArdm9pZCAqX19rdm1hbGxvYyhzaXplX3Qgc2l6ZSwgZ2Zw
-X3QgZmxhZ3MpCj4+ICt7Cj4+ICsgwqAgwqAgwqAgdm9pZCAqcHRyOwo+PiArCj4+ICsgwqAgwqAg
-wqAgaWYgKHNpemUgPCBQQUdFX1NJWkUpCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJu
-IGttYWxsb2Moc2l6ZSwgR0ZQX0tFUk5FTCB8IGZsYWdzKTsKPj4gKyDCoCDCoCDCoCBzaXplID0g
-UEFHRV9BTElHTihzaXplKTsKPj4gKyDCoCDCoCDCoCBpZiAoaXNfcG93ZXJfb2ZfMihzaXplKSkK
-Pj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCBwdHIgPSAodm9pZCAqKV9fZ2V0X2ZyZWVfcGFnZXMo
-R0ZQX0tFUk5FTCB8IGZsYWdzIHwKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoF9fR0ZQX05PV0FSTiwgZ2V0X29y
-ZGVyKHNpemUpKTsKPj4gKyDCoCDCoCDCoCBlbHNlCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAg
-cHRyID0gYWxsb2NfcGFnZXNfZXhhY3Qoc2l6ZSwgR0ZQX0tFUk5FTCB8IGZsYWdzIHwKPj4gKyDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCBfX0dGUF9OT1dBUk4pOwo+PiArIMKgIMKgIMKgIGlmIChwdHIgIT0gTlVMTCkgewo+
-PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHZpcnRfdG9faGVhZF9wYWdlKHB0ciktPnByaXZhdGUg
-PSBzaXplOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHJldHVybiBwdHI7Cj4+ICsgwqAgwqAg
-wqAgfQo+PiArCj4+ICsgwqAgwqAgwqAgcHRyID0gdm1hbGxvYyhzaXplKTsKPj4gKyDCoCDCoCDC
-oCBpZiAocHRyICE9IE5VTEwgJiYgKGZsYWdzICYgX19HRlBfWkVSTykpCj4+ICsgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgbWVtc2V0KHB0ciwgMCwgc2l6ZSk7Cj4+ICsKPj4gKyDCoCDCoCDCoCByZXR1
-cm4gcHRyOwo+PiArfQo+PiArRVhQT1JUX1NZTUJPTChfX2t2bWFsbG9jKTsKPgo+IFNvIGlmIEkg
-ZG8ga3ZtYWxsb2Moc2l6ZSwgR0ZQX0FUT01JQykgSSBnZXQgR0ZQX0tFUk5FTHxHRlBfQVRPTUlD
-LCB3aGljaAo+IGlzIG5vdCBhIHJlY29tbWVuZGVkIHZhcmlhdGlvbiBiZWNhdXNlIG9uZSBzaG91
-bGQgbm90IG1peCBfX0dGUF9XQUlUIGFuZAo+IF9fR0ZQX0hJR0guCgpfX2t2bWFsbG9jKCkgaXMg
-b25seSBmb3IgaW50ZXJuYWwgdXNlKGt2bWFsbG9jLCBrdmNhbGxvYywgYW5kCmt2emFsbG9jKSwg
-YW5kIHRoZSBvbmx5IHZhbHVlIG9mIGZsYWdzIGlzIF9fR0ZQX1pFUk8uIEhvdyBhYm91dApyZXBs
-YWNpbmcgZmxhZ3Mgd2l0aCBhIGJvb2wgdmFyaWFibGUgemVybz8KCnZvaWQgKl9fa3ZtYWxsb2Mo
-c2l6ZV90IHNpemUsIGJvb2wgemVybyk7CgogT3IgY2hlY2sgdGhlIHZhbHVlIG9mIGZsYWdzIGlu
-IHRoZSBmcm9udCBvZiBfX2t2bWFsbG9jKCkuCgpCVUdfT04oKGZsYWdzICYgKH5fX0dGUF9aRVJP
-KSkgIT0gMCk7Cgo+Cj4gU28gSSB3b3VsZCBzaW1wbHkgZHJvcCB0aGUgZ2ZwIGFyZ3VtZW50IHRv
-IGF2b2lkIGNvbmZ1c2lvbi4KPgo+PiArdm9pZCBfX2t2ZnJlZSh2b2lkICpwdHIsIGJvb2wgaW5h
-dG9taWMpCj4+ICt7Cj4+ICsgwqAgwqAgwqAgaWYgKHVubGlrZWx5KFpFUk9fT1JfTlVMTF9QVFIo
-cHRyKSkpCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcmV0dXJuOwo+PiArIMKgIMKgIMKgIGlm
-IChpc192bWFsbG9jX2FkZHIocHRyKSkgewo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGlmIChp
-bmF0b21pYykgewo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHN0cnVjdCB3
-b3JrX3N0cnVjdCAqd29yazsKPj4gKwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIHdvcmsgPSBwdHI7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgQlVJ
-TERfQlVHX09OKHNpemVvZihzdHJ1Y3Qgd29ya19zdHJ1Y3QpID4gUEFHRV9TSVpFKTsKPj4gKyDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBJTklUX1dPUksod29yaywga3ZmcmVlX3dv
-cmspOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNjaGVkdWxlX3dvcmso
-d29yayk7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgfSBlbHNlIHsKPj4gKyDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCB2ZnJlZShwdHIpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKg
-IMKgIH0KPj4gKyDCoCDCoCDCoCB9IGVsc2Ugewo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHN0
-cnVjdCBwYWdlICpwYWdlOwo+PiArCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgcGFnZSA9IHZp
-cnRfdG9faGVhZF9wYWdlKHB0cik7Cj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAgwqAgaWYgKFBhZ2VT
-bGFiKHBhZ2UpIHx8IFBhZ2VDb21wb3VuZChwYWdlKSkKPj4gKyDCoCDCoCDCoCDCoCDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCBrZnJlZShwdHIpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGVsc2Ug
-aWYgKGlzX3Bvd2VyX29mXzIocGFnZS0+cHJpdmF0ZSkpCj4+ICsgwqAgwqAgwqAgwqAgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgZnJlZV9wYWdlcygodW5zaWduZWQgbG9uZylwdHIsCj4+ICsgwqAgwqAg
-wqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqAgwqBnZXRfb3JkZXIocGFn
-ZS0+cHJpdmF0ZSkpOwo+PiArIMKgIMKgIMKgIMKgIMKgIMKgIMKgIGVsc2UKPj4gKyDCoCDCoCDC
-oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBmcmVlX3BhZ2VzX2V4YWN0KHB0ciwgcGFnZS0+cHJp
-dmF0ZSk7Cj4+ICsgwqAgwqAgwqAgfQo+PiArfQo+PiArRVhQT1JUX1NZTUJPTChfX2t2ZnJlZSk7
-Cj4KPiBOQUssIEkgcmVhbGx5IHV0dGVybHkgZGlzbGlrZSB0aGF0IGluYXRvbWljIGFyZ3VtZW50
-LiBUaGUgYWxsb2Mgc2lkZQo+IGRvZXNuJ3QgZnVuY3Rpb24gaW4gYXRvbWljIGNvbnRleHQgZWl0
-aGVyLiBQbGVhc2Uga2VlcCB0aGUgdGhpbmcKPiBzeW1tZXRyaWMgaW4gdGhhdCByZWdhcmRzLgo+
-CgpUaGVyZSBhcmUgc29tZSB1c2Vycywgd2hvIHJlbGVhc2UgbWVtb3J5IGluIGF0b21pYyBjb250
-ZXh0LiBmb3IKZXhhbXBsZTogZnMvZmlsZS5jOiBmZG1lbS4KCi0tIApSZWdhcmRz77yMCkNoYW5n
-bGkgR2FvKHhpYW9zdW9AZ21haWwuY29tKQo=
+On Thu, May 13, 2010 at 04:55:19PM +0900, Naoya Horiguchi wrote:
+> This patchset enables error handling for hugepage by containing error
+> in the affected hugepage.
+> 
+> Until now, memory error (classified as SRAO in MCA language) on hugepage
+
+What does SRAO stand for? It doesn't matter, I'm just curious.
+
+> was simply ignored, which means if someone accesses the error page later,
+> the second MCE (severer than the first one) occurs and the system panics.
+> 
+> It's useful for some aggressive hugepage users if only affected processes
+> are killed.  Then other unrelated processes aren't disturbed by the error
+> and can continue operation.
+> 
+
+Surely, it's useful for any user of huge pages?
+
+> Moreover, for other extensive hugetlb users which have own "pagecache"
+> on hugepage, the most valued feature would be being able to receive
+> the early kill signal BUS_MCEERR_AO, because the cache pages have
+> good opportunity to be dropped without side effects on BUS_MCEERR_AO.
+> 
+
+Be careful here. The page cache that hugetlb uses is for MAP_SHARED
+mappings. If the pages are discarded, they are gone and the result is data
+loss. I think what you are suggesting is that a kill signal can instead be
+translated into a harmless loss of page cache. That works for normal files
+but not hugetlb.
+
+> The design of hugepage error handling is based on that of non-hugepage
+> error handling, where we:
+>  1. mark the error page as hwpoison,
+>  2. unmap the hwpoisoned page from processes using it,
+>  3. invalidate error page, and
+>  4. block later accesses to the hwpoisoned pages.
+> 
+> Similarities and differences between huge and non-huge case are
+> summarized below:
+> 
+>  1. (Difference) when error occurs on a hugepage, PG_hwpoison bits on all pages
+>     in the hugepage are set, because we have no simple way to break up
+>     hugepage into individual pages for now. This means there is a some
+>     risk to be killed by touching non-guilty pages within the error hugepage.
+> 
+
+You're right in that you cannot easily demote a hugepage. It is possible but
+I cannot see the value of the required effort. If there is an error within
+the hugepage and touching another part of it results in the process being
+unnecessarily killed, then so be it.
+
+>  2. (Similarity) hugetlb entry for the error hugepage is replaced by hwpoison
+>     swap entry, with which we can detect hwpoisoned memory in VM code.
+>     This is accomplished by adding rmapping code for hugepage, which enables
+>     to use try_to_unmap() for hugepage.
+> 
+
+This will be interesting. hugetlbfs pages could look like a file or anon
+depending on whether it has been mapped shared or private. It's odd.
+
+>  3. (Difference) since hugepage is not linked to LRU list and is unswappable,
+>     there are not many things to do for page invalidation (only dequeuing
+>     free/reserved hugepage from freelist. See patch 5/7.)
+>     If we want to contain the error into one page, there may be more to do.
+> 
+>  4. (Similarity) we block later accesses by forcing page requests for
+>     hwpoisoned hugepage to fail as done in non-hugepage case in do_wp_page().
+> 
+> ToDo:
+> - Narrow down the containment region into one raw page.
+> - Soft-offlining for hugepage is not supported due to the lack of migration
+>   for hugepage.
+> - Counting file-mapped/anonymous hugepage in NR_FILE_MAPPED/NR_ANON_PAGES.
+> 
+>  [PATCH 1/7] hugetlb, rmap: add reverse mapping for hugepage
+>  [PATCH 2/7] HWPOISON, hugetlb: enable error handling path for hugepage
+>  [PATCH 3/7] HWPOISON, hugetlb: set/clear PG_hwpoison bits on hugepage
+>  [PATCH 4/7] HWPOISON, hugetlb: maintain mce_bad_pages in handling hugepage error
+>  [PATCH 5/7] HWPOISON, hugetlb: isolate corrupted hugepage
+>  [PATCH 6/7] HWPOISON, hugetlb: detect hwpoison in hugetlb code
+>  [PATCH 7/7] HWPOISON, hugetlb: support hwpoison injection for hugepage
+> 
+> Dependency:
+> - patch 2 depends on patch 1.
+> - patch 3 to patch 6 depend on patch 2.
+> 
+>  include/linux/hugetlb.h |    3 +
+>  mm/hugetlb.c            |   98 ++++++++++++++++++++++++++++++++++++++-
+>  mm/hwpoison-inject.c    |   15 ++++--
+>  mm/memory-failure.c     |  120 +++++++++++++++++++++++++++++++++++------------
+>  mm/rmap.c               |   16 ++++++
+>  5 files changed, 215 insertions(+), 37 deletions(-)
+> 
+> ChangeLog from v4:
+> - rebased to 2.6.34-rc7
+> - add isolation code for free/reserved hugepage in me_huge_page()
+> - set/clear PG_hwpoison bits of all pages in hugepage.
+> - mce_bad_pages counts all pages in hugepage.
+> - rename __hugepage_set_anon_rmap() to hugepage_add_anon_rmap()
+> - add huge_pte_offset() dummy function in header file on !CONFIG_HUGETLBFS
+> 
+> ChangeLog from v3:
+> - rebased to 2.6.34-rc5
+> - support for privately mapped hugepage
+> 
+> ChangeLog from v2:
+> - rebase to 2.6.34-rc3
+> - consider mapcount of hugepage
+> - rename pointer "head" into "hpage"
+> 
+> ChangeLog from v1:
+> - rebase to 2.6.34-rc1
+> - add comment from Wu Fengguang
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
