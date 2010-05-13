@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6304F6B0239
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 12:59:36 -0400 (EDT)
-Date: Thu, 13 May 2010 09:55:11 -0700
-From: Greg KH <gregkh@suse.de>
-Subject: Re: [RFC, 3/7] NUMA hotplug emulator
-Message-ID: <20100513165511.GB25212@suse.de>
-References: <20100513114835.GD2169@shaohui>
+	by kanga.kvack.org (Postfix) with SMTP id 34DD7620088
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 13:22:36 -0400 (EDT)
+Date: Thu, 13 May 2010 12:22:01 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and
+ rmap_walk() during migration by not migrating temporary stacks
+In-Reply-To: <20100513091930.9b42e3b8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1005131219190.20037@router.home>
+References: <20100511085752.GM26611@csn.ul.ie> <20100512092239.2120.A69D9226@jp.fujitsu.com> <20100512125427.d1b170ba.akpm@linux-foundation.org> <alpine.DEB.2.00.1005121627020.1273@router.home> <20100513091930.9b42e3b8.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100513114835.GD2169@shaohui>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 13, 2010 at 07:48:35PM +0800, Shaohui Zheng wrote:
-> Userland interface to hotplug-add fake offlined nodes.
+On Thu, 13 May 2010, KAMEZAWA Hiroyuki wrote:
 
-Why include 2 copies of the patch in one email?
+> > Would it not be possible to do something similar for the temporary stack?
+> >
+>
+> Problem here is unmap->remap. ->migratepage() function is used as
+>
+> 	unmap
+> 	   -> migratepage()
+> 	      -> failed
+> 		-> remap
+>
+> Then, migratepage() itself is no help. We need some check-callback before unmap
+> or lock to wait for an event we can make remapping progress.
 
-> Add a sysfs entry "probe" under /sys/devices/system/node/:
-> 
->  - to show all fake offlined nodes:
->     $ cat /sys/devices/system/node/probe
-> 
->  - to hotadd a fake offlined node, e.g. nodeid is N:
->     $ echo N > /sys/devices/system/node/probe
+We could check earlier if the migrate function points to
+fail_migrate_page()? Where we check for PageKsm() in unmap_and_move f.e.?
 
-As you are trying to add a new sysfs file, please create the matching
-Documentation/ABI/ file as well.
-
-Also note that sysfs files are "one value per file", which I don't think
-this file follows, right?
-
-thanks,
-
-greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
