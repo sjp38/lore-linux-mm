@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 052266B01F3
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:57:03 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 19AD36B01F3
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:57:05 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 4/7] HWPOISON, hugetlb: maintain mce_bad_pages in handling hugepage error
-Date: Thu, 13 May 2010 16:55:23 +0900
-Message-Id: <1273737326-21211-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 3/7] HWPOISON, hugetlb: set/clear PG_hwpoison bits on hugepage
+Date: Thu, 13 May 2010 16:55:22 +0900
+Message-Id: <1273737326-21211-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,8 +13,11 @@ To: n-horiguchi@ah.jp.nec.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-For now all pages in the error hugepage are considered as hwpoisoned,
-so count all of them in mce_bad_pages.
+To avoid race condition between concurrent memory errors on identified
+hugepage, we atomically test and set PG_hwpoison bit on the head page.
+All pages in the error hugepage are considered as hwpoisoned
+for now, so set and clear all PG_hwpoison bits in the hugepage
+with page lock of the head page held.
 
 Dependency:
   "HWPOISON, hugetlb: enable error handling path for hugepage"
@@ -24,73 +27,72 @@ Cc: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/memory-failure.c |   15 ++++++++++-----
- 1 files changed, 10 insertions(+), 5 deletions(-)
+ mm/memory-failure.c |   38 ++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 38 insertions(+), 0 deletions(-)
 
 diff --git v2.6.34-rc7/mm/memory-failure.c v2.6.34-rc7/mm/memory-failure.c
-index fee648b..473f15a 100644
+index 1ec68c8..fee648b 100644
 --- v2.6.34-rc7/mm/memory-failure.c
 +++ v2.6.34-rc7/mm/memory-failure.c
-@@ -942,6 +942,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	struct page *p;
- 	struct page *hpage;
- 	int res;
-+	unsigned int nr_pages;
+@@ -920,6 +920,22 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	return ret;
+ }
  
- 	if (!sysctl_memory_failure_recovery)
- 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
-@@ -960,7 +961,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
++static void set_page_hwpoison_huge_page(struct page *hpage)
++{
++	int i;
++	int nr_pages = 1 << compound_order(hpage);
++	for (i = 0; i < nr_pages; i++)
++		SetPageHWPoison(hpage + i);
++}
++
++static void clear_page_hwpoison_huge_page(struct page *hpage)
++{
++	int i;
++	int nr_pages = 1 << compound_order(hpage);
++	for (i = 0; i < nr_pages; i++)
++		ClearPageHWPoison(hpage + i);
++}
++
+ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ {
+ 	struct page_state *ps;
+@@ -1014,6 +1030,26 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
  		return 0;
  	}
  
--	atomic_long_add(1, &mce_bad_pages);
-+	nr_pages = 1 << compound_order(hpage);
-+	atomic_long_add(nr_pages, &mce_bad_pages);
++	/*
++	 * For error on the tail page, we should set PG_hwpoison
++	 * on the head page to show that the hugepage is hwpoisoned
++	 */
++	if (PageTail(p) && TestSetPageHWPoison(hpage)) {
++		action_result(pfn, "hugepage already hardware poisoned",
++				IGNORED);
++		unlock_page(hpage);
++		put_page(hpage);
++		return 0;
++	}
++	/*
++	 * Set PG_hwpoison on all pages in an error hugepage,
++	 * because containment is done in hugepage unit for now.
++	 * Since we have done TestSetPageHWPoison() for the head page with
++	 * page lock held, we can safely set PG_hwpoison bits on tail pages.
++	 */
++	if (PageHuge(p))
++		set_page_hwpoison_huge_page(hpage);
++
+ 	wait_on_page_writeback(p);
  
  	/*
- 	 * We need/can do nothing about count=0 pages.
-@@ -1024,7 +1026,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	}
- 	if (hwpoison_filter(p)) {
- 		if (TestClearPageHWPoison(p))
--			atomic_long_dec(&mce_bad_pages);
-+			atomic_long_sub(nr_pages, &mce_bad_pages);
- 		unlock_page(hpage);
- 		put_page(hpage);
- 		return 0;
-@@ -1123,6 +1125,7 @@ int unpoison_memory(unsigned long pfn)
- 	struct page *page;
- 	struct page *p;
- 	int freeit = 0;
-+	unsigned int nr_pages;
- 
- 	if (!pfn_valid(pfn))
- 		return -ENXIO;
-@@ -1135,9 +1138,11 @@ int unpoison_memory(unsigned long pfn)
- 		return 0;
- 	}
- 
-+	nr_pages = 1 << compound_order(page);
-+
- 	if (!get_page_unless_zero(page)) {
- 		if (TestClearPageHWPoison(p))
--			atomic_long_dec(&mce_bad_pages);
-+			atomic_long_sub(nr_pages, &mce_bad_pages);
- 		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
- 		return 0;
- 	}
-@@ -1149,9 +1154,9 @@ int unpoison_memory(unsigned long pfn)
- 	 * the PG_hwpoison page will be caught and isolated on the entrance to
- 	 * the free buddy page pool.
- 	 */
--	if (TestClearPageHWPoison(p)) {
-+	if (TestClearPageHWPoison(page)) {
- 		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
--		atomic_long_dec(&mce_bad_pages);
-+		atomic_long_sub(nr_pages, &mce_bad_pages);
+@@ -1118,6 +1154,8 @@ int unpoison_memory(unsigned long pfn)
+ 		atomic_long_dec(&mce_bad_pages);
  		freeit = 1;
  	}
- 	if (PageHuge(p))
++	if (PageHuge(p))
++		clear_page_hwpoison_huge_page(page);
+ 	unlock_page(page);
+ 
+ 	put_page(page);
 -- 
 1.7.0
 
