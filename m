@@ -1,42 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B94A06B021E
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 08:11:29 -0400 (EDT)
-Date: Thu, 13 May 2010 14:11:20 +0200
-From: Jean Delvare <khali@linux-fr.org>
-Subject: Re: [RFC,5/7] NUMA hotplug emulator
-Message-ID: <20100513141120.10524f05@hyperion.delvare>
-In-Reply-To: <20100513115625.GF2169@shaohui>
-References: <20100513115625.GF2169@shaohui>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 2ADDB6B021F
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 08:16:46 -0400 (EDT)
+Date: Thu, 13 May 2010 20:11:49 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC, 0/7] NUMA Hotplug emulator
+Message-ID: <20100513121149.GI2169@shaohui>
+References: <20100513113629.GA2169@shaohui>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100513113629.GA2169@shaohui>
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, "Rafael J. Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Thomas Renninger <trenn@suse.de>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>, Alex Chiang <achiang@hp.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Greg Kroah-Hartman <gregkh@suse.de>, Stephen Rothwell <sfr@canb.auug.org.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Shaohua Li <shaohua.li@intel.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, James Bottomley <James.Bottomley@HansenPartnership.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, linux-acpi@vger.kernel.org, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 May 2010 19:56:25 +0800, Shaohui Zheng wrote:
-> 
-> hotplug emulator: Abstract cpu register functions
-> 
-> Abstract function arch_register_cpu and register_cpu, move the implementation
-> details to a sub function with prefix "__". 
-> 
-> each of the sub function has an extra parameter nid, it can be used to register
-> CPU under a fake NUMA node, it is a reserved interface for cpu hotplug emulation
-> (CPU PROBE/RELEASE) in x86.
-> 
-> Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-> Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+This email was lost after I check the LKML, resend it, sorry if duplicated.
 
-I don't know anything about this, please don't Cc me on these patches.
-Given the very long Cc list, I'm certain many other developers you have
-included are not interested. Please focus on the relevant lists next
-time!
+Hi, All
+	This patchset introduces NUMA hotplug emulator for x86. it refers too
+many files and might introduce new bugs, so we send a RFC to comminity first
+and expect comments and suggestions, thanks.
 
+* WHAT IS HOTPLUG EMULATOR 
+
+NUMA hotplug emulator is collectively named for the hotplug emulation
+it is able to emulate NUMA Node Hotplug thru a pure software way. It
+intends to help people easily debug and test node/cpu/memory hotplug
+related stuff on a none-numa-hotplug-support machine, even an UMA machine.
+
+The emulator provides mechanism to emulate the process of physcial cpu/mem
+hotadd, it provides possibility to debug CPU and memory hotplug on the machines
+without NUMA support for kenrel developers. It offers an interface for cpu
+and memory hotplug test purpose.
+
+* WHY DO WE USE HOTPLUG EMULATOR
+
+We are focusing on the hotplug emualation for a few months. The emualor helps
+ team to reproduce all the major hotplug bugs. It plays an important role to
+the hotplug code quality assuirance. Because of the hotplug emulator, we already
+move most of the debug working to virtual evironment.
+
+We send it to 
+
+* EXPECT BUGS
+
+This is the first version to send to the comminity, but it is already 3rd
+version in internal. It expected to have bugs. 
+
+OPEN: Kernel might use part of hidden memory region as RAM buffer,
+      now emulator directly hide 128M extra space to workaround
+      this issue.  Any better way to avoid this conflict? We expect a better
+	  solution from the community(for patch 002).
+
+* Principles & Usages 
+
+NUMA hotplug emulator include 3 different parts, We add a menu item to the
+menuconfig to enable/disable them
+(Refer to http://shaohui.org/images/hpe-krnl-cfg.jpg)
+
+
+1) Node hotplug emulation:
+
+The emulator firstly hides RAM via E820 table, and then it can
+fake offlined nodes with the hidden RAM.
+
+After system bootup, user is able to hotplug-add these offlined
+nodes, which is just similar to a real hotplug hardware behavior.
+
+Using boot option "numa=hide=N*size" to fake offlined nodes:
+	- N is the number of hidden nodes
+	- size is the memory size (in MB) per hidden node.
+
+There is a sysfs entry "probe" under /sys/devices/system/node/ for user
+to hotplug the fake offlined nodes:
+
+ - to show all fake offlined nodes:
+    $ cat /sys/devices/system/node/probe
+
+ - to hotadd a fake offlined node, e.g. nodeid is N:
+    $ echo N > /sys/devices/system/node/probe
+
+2) CPU hotplug emulation:
+
+The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
+hot-add/hot-remove in software method, it emulates the procuess of physical
+cpu hotplug.
+
+ - to hide CPUs
+	- Using boot option "maxcpus=N" hide CPUs
+	  N is the number of initialize CPUs
+	- Using boot option "cpu_hpe=on" to enable cpu hotplug emulation
+      when cpu_hpe is enabled, the rest CPUs will not be initialized 
+
+ - to hot-add CPU to node
+	$ echo nid > cpu/probe
+
+ - to hot-remove CPU
+	$ echo nid > cpu/release
+
+3) Memory hotplug emulation:
+
+The emulator reserve memory before OS booting, the reserved memory region
+is remove from e820 table, and they can be hot-added via the probe interface,
+this interface was extend to support add memory to the specified node, It
+maintains backwards compatibility.
+
+The difficulty of Memory Release is well-known, we have no plan for it until now.
+
+ - reserve memory throu grub parameter
+ 	mem=1024m
+
+ - add a memory section to node 3
+    $ echo 0x40000000,3 > memory/probe
+	OR
+    $ echo 1024m,3 > memory/probe
+
+* ACKNOWLEDGMENT 
+
+hotplug emulator includes a team's efforts, thanks all of them.
+They are:
+Andi Kleen, Haicheng Li, Shaohui Zheng, Fengguang Wu and Yongkang You
 -- 
-Jean Delvare
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
