@@ -1,205 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E0D0E6B021A
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 08:04:35 -0400 (EDT)
-Date: Thu, 13 May 2010 20:00:16 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3DE296B021C
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 08:08:11 -0400 (EDT)
+Date: Thu, 13 May 2010 20:03:52 +0800
 From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: [RFC, 6/7] NUMA hotplug emulator 
-Message-ID: <20100513120016.GG2169@shaohui>
+Subject: [RFC, 7/7] NUMA hotplug emulator
+Message-ID: <20100513120352.GH2169@shaohui>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="z+pzSjdB7cqptWpS"
+Content-Type: multipart/mixed; boundary="TmwHKJoIRFM7Mu/A"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Randy Dunlap <rdunlap@xenotime.net>, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
 
---z+pzSjdB7cqptWpS
+--TmwHKJoIRFM7Mu/A
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
-hotplug emulator:extend memory probe interface to support NUMA
 
-Extend memory probe interface to support an extra paramter nid,
-the reserved memory can be added into this node if node exists.
+Doc/x86_64: documentation of NUMA hotplug emulator
 
-Add a memory section(128M) to node 3(boots with mem=1024m)
+add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+to explain the usage for the hotplug emulator.
 
-	echo 0x40000000,3 > memory/probe
-
-And more we make it friendly, it is possible to add memory to do
-
-	echo 3g > memory/probe
-	echo 1024m,3 > memory/probe
-
-It maintains backwards compatibility.
-
+Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 54ccb0d..787024f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1239,6 +1239,17 @@ config ARCH_CPU_PROBE_RELEASE
- 	  is for cpu hot-add/hot-remove to specified node in software method.
- 	  This is for debuging and testing purpose
- 
-+config ARCH_MEMORY_PROBE
-+	def_bool y
-+	bool "Memory hotplug emulation"
-+	depends on NUMA_HOTPLUG_EMU
-+	---help---
-+	  Enable memory hotplug emulation. Reserve memory with grub parameter
-+	  "mem=N"(such as mem=1024M), where N is the initial memory size, the
-+	  rest physical memory will be removed from e820 table; the memory probe
-+	  interface is for memory hot-add to specified node in software method.
-+	  This is for debuging and testing purpose
+diff --git a/Documentation/x86/x86_64/numa_hotplug_emulator.txt b/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+new file mode 100644
+index 0000000..e65ecfe
+--- /dev/null
++++ b/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+@@ -0,0 +1,85 @@
++NUMA Hotplug Emulator for x86
++---------------------------------------------------
 +
- config NODES_SHIFT
- 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
- 	range 1 10
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 933442f..1c2d83d 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -329,6 +329,8 @@ static int block_size_init(void)
-  * will not need to do it from userspace.  The fake hot-add code
-  * as well as ppc64 will do all of their discovery in userspace
-  * and will require this interface.
-+ *
-+ * Parameter format: start_addr, nid
-  */
- #ifdef CONFIG_ARCH_MEMORY_PROBE
- static ssize_t
-@@ -339,10 +341,26 @@ memory_probe_store(struct class *class, struct class_attribute *attr,
- 	int nid;
- 	int ret;
- 
--	phys_addr = simple_strtoull(buf, NULL, 0);
-+	char *p = strchr(buf, ',');
++NUMA hotplug emulator is able to emulate NUMA Node Hotplug
++thru a pure software way. It intends to help people easily debug
++and test node/cpu/memory hotplug related stuff on a
++none-numa-hotplug-support machine, even a UMA machine and virtual
++environment.
 +
-+	if (p != NULL && strlen(p+1) > 0) {
-+		/* nid specified */
-+		*p++ = '\0';
-+		nid = simple_strtoul(p, NULL, 0);
-+		phys_addr = memparse(buf, NULL);
-+	} else {
-+		phys_addr = memparse(buf, NULL);
-+		nid = memory_add_physaddr_to_nid(phys_addr);
-+	}
- 
--	nid = memory_add_physaddr_to_nid(phys_addr);
--	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+	if (nid < 0 || nid > nr_node_ids - 1) {
-+		printk(KERN_ERR "Invalid node id %d(0<=nid<%d).\n", nid, nr_node_ids);
-+	} else {
-+		printk(KERN_INFO "Add a memory section to node: %d.\n", nid);
-+		ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+		if (ret)
-+			count = ret;
-+	}
- 
- 	if (ret)
- 		count = ret;
++1) Node hotplug emulation:
++
++The emulator firstly hides RAM via E820 table, and then it can
++fake offlined nodes with the hidden RAM.
++
++After system bootup, user is able to hotplug-add these offlined
++nodes, which is just similar to a real hotplug hardware behavior.
++
++Using boot option "numa=hide=N*size" to fake offlined nodes:
++	- N is the number of hidden nodes
++	- size is the memory size (in MB) per hidden node.
++
++There is a sysfs entry "probe" under /sys/devices/system/node/ for user
++to hotplug the fake offlined nodes:
++
++ - to show all fake offlined nodes:
++    $ cat /sys/devices/system/node/probe
++
++ - to hotadd a fake offlined node, e.g. nodeid is N:
++    $ echo N > /sys/devices/system/node/probe
++
++2) CPU hotplug emulation:
++
++The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
++hot-add/hot-remove in software method, it emulates the procuess of physical
++cpu hotplug.
++
++ - to hide CPUs
++	- Using boot option "maxcpus=N" hide CPUs
++	  N is the number of initialize CPUs
++	- Using boot option "cpu_hpe=on" to enable cpu hotplug emulation
++      when cpu_hpe is enabled, the rest CPUs will not be initialized 
++
++ - to hot-add CPU to node
++	$ echo nid > cpu/probe
++
++ - to hot-remove CPU
++	$ echo nid > cpu/release
++
++3) Memory hotplug emulation:
++
++The emulator reserve memory before OS booting, the reserved memory region
++is remove from e820 table, and they can be hot-added via the probe interface,
++this interface was extend to support add memory to the specified node, It
++maintains backwards compatibility.
++
++The difficulty of Memory Release is well-known, we have no plan for it until now.
++
++ - reserve memory throu grub parameter
++ 	mem=1024m
++
++ - add a memory section to node 3
++    $ echo 0x40000000,3 > memory/probe
++	OR
++    $ echo 1024m,3 > memory/probe
++
++4) Script for hotplug testing
++
++These scripts provides convenience when we hot-add memory/cpu in batch.
++
++- Online all pages:
++for m in /sys/devices/system/memory/memory*;
++do 
++	echo online > $m/state;
++done
++
++- CPU Online:
++for c in /sys/devices/system/cpu/cpu*;
++do 
++	echo 1 > $c/online;
++done
++
++- Haicheng Li <haicheng.li@linux.intel.com>
++- Shaohui Zheng <shaohui.zheng@intel.com>
++  May 2010
++
 -- 
 Thanks & Regards,
 Shaohui
 
 
---z+pzSjdB7cqptWpS
+--TmwHKJoIRFM7Mu/A
 Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="006-hotplug-emulator-extend-memory-probe-interface-to-support-numa.patch"
+Content-Disposition: attachment; filename="007-hotplug-emulator-doc-x86_64-of-numa-hotplug-emulator.patch"
 
-hotplug emulator:extend memory probe interface to support NUMA
+Doc/x86_64: documentation of NUMA hotplug emulator
 
-Extend memory probe interface to support an extra paramter nid,
-the reserved memory can be added into this node if node exists.
+add a text file Documentation/x86/x86_64/numa_hotplug_emulator.txt
+to explain the usage for the hotplug emulator.
 
-Add a memory section(128M) to node 3(boots with mem=1024m)
-
-	echo 0x40000000,3 > memory/probe
-
-And more we make it friendly, it is possible to add memory to do
-
-	echo 3g > memory/probe
-	echo 1024m,3 > memory/probe
-
-It maintains backwards compatibility.
-
+Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
 Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-Signed-off-by: Haicheng Li <haicheng.li@intel.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 54ccb0d..787024f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1239,6 +1239,17 @@ config ARCH_CPU_PROBE_RELEASE
- 	  is for cpu hot-add/hot-remove to specified node in software method.
- 	  This is for debuging and testing purpose
- 
-+config ARCH_MEMORY_PROBE
-+	def_bool y
-+	bool "Memory hotplug emulation"
-+	depends on NUMA_HOTPLUG_EMU
-+	---help---
-+	  Enable memory hotplug emulation. Reserve memory with grub parameter
-+	  "mem=N"(such as mem=1024M), where N is the initial memory size, the
-+	  rest physical memory will be removed from e820 table; the memory probe
-+	  interface is for memory hot-add to specified node in software method.
-+	  This is for debuging and testing purpose
+diff --git a/Documentation/x86/x86_64/numa_hotplug_emulator.txt b/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+new file mode 100644
+index 0000000..e65ecfe
+--- /dev/null
++++ b/Documentation/x86/x86_64/numa_hotplug_emulator.txt
+@@ -0,0 +1,85 @@
++NUMA Hotplug Emulator for x86
++---------------------------------------------------
 +
- config NODES_SHIFT
- 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
- 	range 1 10
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 933442f..1c2d83d 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -329,6 +329,8 @@ static int block_size_init(void)
-  * will not need to do it from userspace.  The fake hot-add code
-  * as well as ppc64 will do all of their discovery in userspace
-  * and will require this interface.
-+ *
-+ * Parameter format: start_addr, nid
-  */
- #ifdef CONFIG_ARCH_MEMORY_PROBE
- static ssize_t
-@@ -339,10 +341,26 @@ memory_probe_store(struct class *class, struct class_attribute *attr,
- 	int nid;
- 	int ret;
- 
--	phys_addr = simple_strtoull(buf, NULL, 0);
-+	char *p = strchr(buf, ',');
++NUMA hotplug emulator is able to emulate NUMA Node Hotplug
++thru a pure software way. It intends to help people easily debug
++and test node/cpu/memory hotplug related stuff on a
++none-numa-hotplug-support machine, even a UMA machine and virtual
++environment.
 +
-+	if (p != NULL && strlen(p+1) > 0) {
-+		/* nid specified */
-+		*p++ = '\0';
-+		nid = simple_strtoul(p, NULL, 0);
-+		phys_addr = memparse(buf, NULL);
-+	} else {
-+		phys_addr = memparse(buf, NULL);
-+		nid = memory_add_physaddr_to_nid(phys_addr);
-+	}
- 
--	nid = memory_add_physaddr_to_nid(phys_addr);
--	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+	if (nid < 0 || nid > nr_node_ids - 1) {
-+		printk(KERN_ERR "Invalid node id %d(0<=nid<%d).\n", nid, nr_node_ids);
-+	} else {
-+		printk(KERN_INFO "Add a memory section to node: %d.\n", nid);
-+		ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
-+		if (ret)
-+			count = ret;
-+	}
- 
- 	if (ret)
- 		count = ret;
++1) Node hotplug emulation:
++
++The emulator firstly hides RAM via E820 table, and then it can
++fake offlined nodes with the hidden RAM.
++
++After system bootup, user is able to hotplug-add these offlined
++nodes, which is just similar to a real hotplug hardware behavior.
++
++Using boot option "numa=hide=N*size" to fake offlined nodes:
++	- N is the number of hidden nodes
++	- size is the memory size (in MB) per hidden node.
++
++There is a sysfs entry "probe" under /sys/devices/system/node/ for user
++to hotplug the fake offlined nodes:
++
++ - to show all fake offlined nodes:
++    $ cat /sys/devices/system/node/probe
++
++ - to hotadd a fake offlined node, e.g. nodeid is N:
++    $ echo N > /sys/devices/system/node/probe
++
++2) CPU hotplug emulation:
++
++The emulator reserve CPUs throu grub parameter, the reserved CPUs can be
++hot-add/hot-remove in software method, it emulates the procuess of physical
++cpu hotplug.
++
++ - to hide CPUs
++	- Using boot option "maxcpus=N" hide CPUs
++	  N is the number of initialize CPUs
++	- Using boot option "cpu_hpe=on" to enable cpu hotplug emulation
++      when cpu_hpe is enabled, the rest CPUs will not be initialized 
++
++ - to hot-add CPU to node
++	$ echo nid > cpu/probe
++
++ - to hot-remove CPU
++	$ echo nid > cpu/release
++
++3) Memory hotplug emulation:
++
++The emulator reserve memory before OS booting, the reserved memory region
++is remove from e820 table, and they can be hot-added via the probe interface,
++this interface was extend to support add memory to the specified node, It
++maintains backwards compatibility.
++
++The difficulty of Memory Release is well-known, we have no plan for it until now.
++
++ - reserve memory throu grub parameter
++ 	mem=1024m
++
++ - add a memory section to node 3
++    $ echo 0x40000000,3 > memory/probe
++	OR
++    $ echo 1024m,3 > memory/probe
++
++4) Script for hotplug testing
++
++These scripts provides convenience when we hot-add memory/cpu in batch.
++
++- Online all pages:
++for m in /sys/devices/system/memory/memory*;
++do 
++	echo online > $m/state;
++done
++
++- CPU Online:
++for c in /sys/devices/system/cpu/cpu*;
++do 
++	echo 1 > $c/online;
++done
++
++- Haicheng Li <haicheng.li@linux.intel.com>
++- Shaohui Zheng <shaohui.zheng@intel.com>
++  May 2010
++
 
---z+pzSjdB7cqptWpS--
+--TmwHKJoIRFM7Mu/A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
