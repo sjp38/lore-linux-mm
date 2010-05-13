@@ -1,394 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F846B01EE
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:53:52 -0400 (EDT)
-Date: Thu, 13 May 2010 16:44:48 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [BUGFIX][PATCH -mm] memcg fix mis-accounting of file mapped
- racy with migration
-Message-Id: <20100513164448.fdf4aca4.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100512163014.4d17b6d0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100512163014.4d17b6d0.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B65D46B01F0
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 03:56:51 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/7] HWPOISON, hugetlb: enable error handling path for hugepage
+Date: Thu, 13 May 2010 16:55:21 +0900
+Message-Id: <1273737326-21211-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: n-horiguchi@ah.jp.nec.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 May 2010 16:30:14 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> This was reported April but I waited for the fix of migration+compaction.
-> 
-> Tested with m-of-the-moment snapshot 2010-05-11-18-20. seems to work well.
-> 
-> 
-Seem to work well on my side, too.
+This patch just enables handling path. Real containing and
+recovering operation will be implemented in following patches.
 
-Some minor comments are inlined.
-> ==
-> FILE_MAPPED per memcg of migrated file cache is not properly updated, 
-> because our hook in page_add_file_rmap() can't know to which memcg
-> FILE_MAPPED should be counted.
-> 	
-> Basically, this patch is for fixing the bug but includes some big changes
-> to fix up other messes.
-> 
-> Now, at migrating mapped file, events happen in following sequence.
-> 
->  1. allocate a new page.
->  2. get memcg of an old page.
->  3. charge ageinst a new page before migration. But at this point,
->     no changes to new page's page_cgroup, no commit for the charge.
->     (IOW, PCG_USED bit is not set.)
->  4. page migration replaces radix-tree, old-page and new-page.
->  5. page migration remaps the new page if the old page was mapped.
->  6. Here, the new page is unlocked.
->  7. memcg commits the charge for newpage, Mark the new page's page_cgroup
->     as PCG_USED.
-> 
-> Because "commit" happens after page-remap, we can count FILE_MAPPED
-> at "5", because we should avoid to trust page_cgroup->mem_cgroup.
-> if PCG_USED bit is unset.
-> (Note: memcg's LRU removal code does that but LRU-isolation logic is used
->  for helpint it. When we overwrite page_cgroup->mem_cgroup, page_cgroup is
-       ^^^^^^^ helping?
+Dependency:
+  "hugetlb, rmap: add reverse mapping for hugepage."
 
->  not on LRU or page_cgroup->mem_cgroup is NULL.)
-> 
-> We can lose file_mapped accounting information at 5 because FILE_MAPPED
-> is updated only when mapcount changes 0->1. So we should catch it.
-> 
-> BTW, historically, above implemntation comes from migration-failure
-> of anonymous page. Because we charge both of old page and new page
-> with mapcount=0, we can't catch
->   - the page is really freed before remap.
->   - migration fails but it's freed before remap
-> or .....corner cases.
-> 
-> New migration sequence with memcg is:
-> 
->  1. allocate a new page.
->  2. mark PageCgroupMigration to the old page.
->  3. charge against a new page onto the old page's memcg. (here, new page's pc
->     is marked as PageCgroupUsed.)
->  4. mark PageCgroupMigration to the old page.
-a duplicate step with step 2 :)
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/memory-failure.c |   39 ++++++++++++++++++++++-----------------
+ 1 files changed, 22 insertions(+), 17 deletions(-)
 
->  5. page migration replaces radix-tree, page table, etc...
->  6. At remapping, new page's page_cgroup is now makrked as "USED"
->     We can catch 0->1 event and FILE_MAPPED will be properly updated.
-> 
->     And we can catch SWAPOUT event after unlock this and freeing this
->     page by unmap() can be caught.
-> 
->  7. Clear PageCgroupMigration of the old page.
-> 
-> So, FILE_MAPPED will be correctly updated.
-> 
-> Then, for what MIGRATION flag is ?
->   Without it, at migration failure, we may have to charge old page again
->   because it may be fully unmapped. "charge" means that we have to dive into
->   memory reclaim or something complated. So, it's better to avoid
->   charge it again. Before this patch, __commit_charge() was working for
->   both of the old/new page and fixed up all. But this technique has some
->   racy condtion around FILE_MAPPED and SWAPOUT etc...
->   Now, the kernel use MIGRATION flag and don't uncharge old page until
->   the end of migration.
-> 
-> I hope this change will make memcg's page migration much simpler.
-> This page migration has caused several troubles. Worth to add
-> a flag for simplification.
-> 
-> Changelog: 2010/05/12
->  - adjusted onto mm-of-the-moment snapshot 2010-05-11-18-20
-> 
-> Changelog: 2010/04/20
->  - fixed SWAPOUT case.
->  - added texts for explanation.
->  - removed MIGRAION flag onto new page.
-> 
-> Changelog: 2010/04/15
->  - updated against  mm-of-the-moment snapshot 2010-04-15-14-42
->    + Nishimura's fix. memcg-fix-prepare-migration-fix.patch
->  - fixed some typos.
->  - handle migration failure of anon page.
-> 
-> Changelog: 2010/04/14
->  - updated onto the latest mmotm + page-compaction, etc...
->  - fixed __try_charge() bypass case.
->  - use CHARGE_TYPE_FORCE for uncharging an unused page.
-> 
-> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-And checkpatch reports some warnings about indent, but anyway, feel free to add
-my signs.
-
-	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-
-Thanks,
-Daisuke Nishimura.
-
-> ---
->  include/linux/memcontrol.h  |    6 +
->  include/linux/page_cgroup.h |    5 +
->  mm/memcontrol.c             |  137 +++++++++++++++++++++++++++++++-------------
->  mm/migrate.c                |    2 
->  4 files changed, 108 insertions(+), 42 deletions(-)
-> 
-> Index: mmotm-2.6.34-rc7-mm1/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.34-rc7-mm1.orig/mm/memcontrol.c
-> +++ mmotm-2.6.34-rc7-mm1/mm/memcontrol.c
-> @@ -2281,7 +2281,8 @@ __mem_cgroup_uncharge_common(struct page
->  	switch (ctype) {
->  	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
->  	case MEM_CGROUP_CHARGE_TYPE_DROP:
-> -		if (page_mapped(page))
-> +		/* See mem_cgroup_prepare_migration() */
-> +		if (page_mapped(page) || PageCgroupMigration(pc))
->  			goto unlock_out;
->  		break;
->  	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
-> @@ -2504,10 +2505,12 @@ static inline int mem_cgroup_move_swap_a
->   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
->   * page belongs to.
->   */
-> -int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
-> +int mem_cgroup_prepare_migration(struct page *page,
-> +	struct page *newpage, struct mem_cgroup **ptr)
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup *mem = NULL;
-> +	enum charge_type ctype;
->  	int ret = 0;
->  
->  	if (mem_cgroup_disabled())
-> @@ -2518,69 +2521,125 @@ int mem_cgroup_prepare_migration(struct 
->  	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
->  		css_get(&mem->css);
-> +		/*
-> +		 * At migrating an anonymous page, its mapcount goes down
-> +		 * to 0 and uncharge() will be called. But, even if it's fully
-> +		 * unmapped, migration may fail and this page has to be
-> +		 * charged again. We set MIGRATION flag here and delay uncharge
-> +		 * until end_migration() is called
-> +		 *
-> +		 * Corner Case Thinking
-> +		 * A)
-> +		 * When the old page was mapped as Anon and it's unmap-and-freed
-> +		 * while migration was ongoing.
-> +		 * If unmap finds the old page, uncharge() of it will be delayed
-> +		 * until end_migration(). If unmap finds a new page, it's
-> +		 * uncharged when it make mapcount to be 1->0. If unmap code
-> +		 * finds swap_migration_entry, the new page will not be mapped
-> +		 * and end_migration() will find it(mapcount==0).
-> +		 *
-> +		 * B)
-> +		 * When the old page was mapped but migraion fails, the kernel
-> +		 * remaps it. A charge for it is kept by MIGRATION flag even
-> +		 * if mapcount goes down to 0. We can do remap successfully
-> +		 * without charging it again.
-> +		 *
-> +		 * C)
-> +		 * The "old" page is under lock_page() until the end of
-> +		 * migration, so, the old page itself will not be swapped-out.
-> +		 * If the new page is swapped out before end_migraton, our
-> +		 * hook to usual swap-out path will catch the event.
-> +		 */
-> +		if (PageAnon(page))
-> +			SetPageCgroupMigration(pc);
->  	}
->  	unlock_page_cgroup(pc);
-> +	/*
-> +	 * If the page is not charged at this point,
-> +	 * we return here.
-> +	 */
-> +	if (!mem)
-> +		return 0;
->  
->  	*ptr = mem;
-> -	if (mem) {
-> -		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-> -		css_put(&mem->css);
-> +	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-> +	css_put(&mem->css);/* drop extra refcnt */
-> +	if (ret || *ptr == NULL) {
-> +		if (PageAnon(page)) {
-> +			lock_page_cgroup(pc);
-> +			ClearPageCgroupMigration(pc);
-> +			unlock_page_cgroup(pc);
-> +			/*
-> +		 	 * The old page may be fully unmapped while we kept it.
-> +		 	 */
-> +			mem_cgroup_uncharge_page(page);
-> +		}
-> +		return -ENOMEM;
->  	}
-> +	/*
-> + 	 * We charge new page before it's used/mapped. So, even if unlock_page()
-> + 	 * is called before end_migration, we can catch all events on this new
-> + 	 * page. In the case new page is migrated but not remapped, new page's
-> + 	 * mapcount will be finally 0 and we call uncharge in end_migration().
-> +  	 */
-> +	pc = lookup_page_cgroup(newpage);
-> +	if (PageAnon(page))
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-> +	else if (page_is_file_cache(page))
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> +	else
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> +	__mem_cgroup_commit_charge(mem, pc, ctype);
->  	return ret;
->  }
->  
->  /* remove redundant charge if migration failed*/
->  void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> -		struct page *oldpage, struct page *newpage)
-> +	struct page *oldpage, struct page *newpage)
->  {
-> -	struct page *target, *unused;
-> +	struct page *used, *unused;
->  	struct page_cgroup *pc;
-> -	enum charge_type ctype;
->  
->  	if (!mem)
->  		return;
-> +	/* blocks rmdir() */
->  	cgroup_exclude_rmdir(&mem->css);
->  	/* at migration success, oldpage->mapping is NULL. */
->  	if (oldpage->mapping) {
-> -		target = oldpage;
-> -		unused = NULL;
-> +		used = oldpage;
-> +		unused = newpage;
->  	} else {
-> -		target = newpage;
-> +		used = newpage;
->  		unused = oldpage;
->  	}
-> -
-> -	if (PageAnon(target))
-> -		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-> -	else if (page_is_file_cache(target))
-> -		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> -	else
-> -		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> -
-> -	/* unused page is not on radix-tree now. */
-> -	if (unused)
-> -		__mem_cgroup_uncharge_common(unused, ctype);
-> -
-> -	pc = lookup_page_cgroup(target);
->  	/*
-> -	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
-> -	 * So, double-counting is effectively avoided.
-> +	 * We disallowed uncharge of pages under migration because mapcount
-> +	 * of the page goes down to zero, temporarly.
-> +	 * Clear the flag and check the page should be charged.
->  	 */
-> -	__mem_cgroup_commit_charge(mem, pc, ctype);
-> +	pc = lookup_page_cgroup(oldpage);
-> +	lock_page_cgroup(pc);
-> +	ClearPageCgroupMigration(pc);
-> +	unlock_page_cgroup(pc);
->  
-> +	if (unused != oldpage)
-> +		pc = lookup_page_cgroup(unused);
-> +	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
-> +
-> +	pc = lookup_page_cgroup(used);
->  	/*
-> -	 * Both of oldpage and newpage are still under lock_page().
-> -	 * Then, we don't have to care about race in radix-tree.
-> -	 * But we have to be careful that this page is unmapped or not.
-> -	 *
-> -	 * There is a case for !page_mapped(). At the start of
-> -	 * migration, oldpage was mapped. But now, it's zapped.
-> -	 * But we know *target* page is not freed/reused under us.
-> -	 * mem_cgroup_uncharge_page() does all necessary checks.
-> -	 */
-> -	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-> -		mem_cgroup_uncharge_page(target);
-> +	 * If a page is a file cache, radix-tree replacement is very atomic
-> + 	 * and we can skip this check. When it was an Anon page, its mapcount
-> + 	 * goes down to 0. But because we added MIGRATION flage, it's not
-> + 	 * uncharged yet. There are several case but page->mapcount check
-> + 	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
-> + 	 * check. (see prepare_charge() also)
-> + 	 */
-> +	if (PageAnon(used))
-> +		mem_cgroup_uncharge_page(used);
->  	/*
-> -	 * At migration, we may charge account against cgroup which has no tasks
-> +	 * At migration, we may charge account against cgroup which has no
-> +	 * tasks.
->  	 * So, rmdir()->pre_destroy() can be called while we do this charge.
->  	 * In that case, we need to call pre_destroy() again. check it here.
->  	 */
-> Index: mmotm-2.6.34-rc7-mm1/mm/migrate.c
-> ===================================================================
-> --- mmotm-2.6.34-rc7-mm1.orig/mm/migrate.c
-> +++ mmotm-2.6.34-rc7-mm1/mm/migrate.c
-> @@ -590,7 +590,7 @@ static int unmap_and_move(new_page_t get
->  	}
->  
->  	/* charge against new page */
-> -	charge = mem_cgroup_prepare_migration(page, &mem);
-> +	charge = mem_cgroup_prepare_migration(page, newpage, &mem);
->  	if (charge == -ENOMEM) {
->  		rc = -ENOMEM;
->  		goto unlock;
-> Index: mmotm-2.6.34-rc7-mm1/include/linux/memcontrol.h
-> ===================================================================
-> --- mmotm-2.6.34-rc7-mm1.orig/include/linux/memcontrol.h
-> +++ mmotm-2.6.34-rc7-mm1/include/linux/memcontrol.h
-> @@ -90,7 +90,8 @@ int mm_match_cgroup(const struct mm_stru
->  extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
->  
->  extern int
-> -mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
-> +mem_cgroup_prepare_migration(struct page *page,
-> +	struct page *newpage, struct mem_cgroup **ptr);
->  extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
->  	struct page *oldpage, struct page *newpage);
->  
-> @@ -229,7 +230,8 @@ static inline struct cgroup_subsys_state
->  }
->  
->  static inline int
-> -mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
-> +mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
-> +	struct mem_cgroup **ptr)
->  {
->  	return 0;
->  }
-> Index: mmotm-2.6.34-rc7-mm1/include/linux/page_cgroup.h
-> ===================================================================
-> --- mmotm-2.6.34-rc7-mm1.orig/include/linux/page_cgroup.h
-> +++ mmotm-2.6.34-rc7-mm1/include/linux/page_cgroup.h
-> @@ -40,6 +40,7 @@ enum {
->  	PCG_USED, /* this object is in use. */
->  	PCG_ACCT_LRU, /* page has been accounted for */
->  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
-> +	PCG_MIGRATION, /* under page migration */
->  };
->  
->  #define TESTPCGFLAG(uname, lname)			\
-> @@ -79,6 +80,10 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
->  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
->  TESTPCGFLAG(FileMapped, FILE_MAPPED)
->  
-> +SETPCGFLAG(Migration, MIGRATION)
-> +CLEARPCGFLAG(Migration, MIGRATION)
-> +TESTPCGFLAG(Migration, MIGRATION)
-> +
->  static inline int page_cgroup_nid(struct page_cgroup *pc)
->  {
->  	return page_to_nid(pc->page);
-> 
+diff --git v2.6.34-rc7/mm/memory-failure.c v2.6.34-rc7/mm/memory-failure.c
+index 620b0b4..1ec68c8 100644
+--- v2.6.34-rc7/mm/memory-failure.c
++++ v2.6.34-rc7/mm/memory-failure.c
+@@ -45,6 +45,7 @@
+ #include <linux/page-isolation.h>
+ #include <linux/suspend.h>
+ #include <linux/slab.h>
++#include <linux/hugetlb.h>
+ #include "internal.h"
+ 
+ int sysctl_memory_failure_early_kill __read_mostly = 0;
+@@ -837,6 +838,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	int ret;
+ 	int i;
+ 	int kill = 1;
++	struct page *hpage = compound_head(p);
+ 
+ 	if (PageReserved(p) || PageSlab(p))
+ 		return SWAP_SUCCESS;
+@@ -845,10 +847,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * This check implies we don't kill processes if their pages
+ 	 * are in the swap cache early. Those are always late kills.
+ 	 */
+-	if (!page_mapped(p))
++	if (!page_mapped(hpage))
+ 		return SWAP_SUCCESS;
+ 
+-	if (PageCompound(p) || PageKsm(p))
++	if (PageKsm(p))
+ 		return SWAP_FAIL;
+ 
+ 	if (PageSwapCache(p)) {
+@@ -863,10 +865,11 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * XXX: the dirty test could be racy: set_page_dirty() may not always
+ 	 * be called inside page lock (it's recommended but not enforced).
+ 	 */
+-	mapping = page_mapping(p);
+-	if (!PageDirty(p) && mapping && mapping_cap_writeback_dirty(mapping)) {
+-		if (page_mkclean(p)) {
+-			SetPageDirty(p);
++	mapping = page_mapping(hpage);
++	if (!PageDirty(hpage) && mapping &&
++	    mapping_cap_writeback_dirty(mapping)) {
++		if (page_mkclean(hpage)) {
++			SetPageDirty(hpage);
+ 		} else {
+ 			kill = 0;
+ 			ttu |= TTU_IGNORE_HWPOISON;
+@@ -885,14 +888,14 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * there's nothing that can be done.
+ 	 */
+ 	if (kill)
+-		collect_procs(p, &tokill);
++		collect_procs(hpage, &tokill);
+ 
+ 	/*
+ 	 * try_to_unmap can fail temporarily due to races.
+ 	 * Try a few times (RED-PEN better strategy?)
+ 	 */
+ 	for (i = 0; i < N_UNMAP_TRIES; i++) {
+-		ret = try_to_unmap(p, ttu);
++		ret = try_to_unmap(hpage, ttu);
+ 		if (ret == SWAP_SUCCESS)
+ 			break;
+ 		pr_debug("MCE %#lx: try_to_unmap retry needed %d\n", pfn,  ret);
+@@ -900,7 +903,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 
+ 	if (ret != SWAP_SUCCESS)
+ 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
+-				pfn, page_mapcount(p));
++				pfn, page_mapcount(hpage));
+ 
+ 	/*
+ 	 * Now that the dirty bit has been propagated to the
+@@ -911,7 +914,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	 * use a more force-full uncatchable kill to prevent
+ 	 * any accesses to the poisoned memory.
+ 	 */
+-	kill_procs_ao(&tokill, !!PageDirty(p), trapno,
++	kill_procs_ao(&tokill, !!PageDirty(hpage), trapno,
+ 		      ret != SWAP_SUCCESS, pfn);
+ 
+ 	return ret;
+@@ -921,6 +924,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ {
+ 	struct page_state *ps;
+ 	struct page *p;
++	struct page *hpage;
+ 	int res;
+ 
+ 	if (!sysctl_memory_failure_recovery)
+@@ -934,6 +938,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	}
+ 
+ 	p = pfn_to_page(pfn);
++	hpage = compound_head(p);
+ 	if (TestSetPageHWPoison(p)) {
+ 		printk(KERN_ERR "MCE %#lx: already hardware poisoned\n", pfn);
+ 		return 0;
+@@ -953,7 +958,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
+ 	 */
+ 	if (!(flags & MF_COUNT_INCREASED) &&
+-		!get_page_unless_zero(compound_head(p))) {
++		!get_page_unless_zero(hpage)) {
+ 		if (is_free_buddy_page(p)) {
+ 			action_result(pfn, "free buddy", DELAYED);
+ 			return 0;
+@@ -971,9 +976,9 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	 * The check (unnecessarily) ignores LRU pages being isolated and
+ 	 * walked by the page reclaim code, however that's not a big loss.
+ 	 */
+-	if (!PageLRU(p))
++	if (!PageLRU(p) && !PageHuge(p))
+ 		shake_page(p, 0);
+-	if (!PageLRU(p)) {
++	if (!PageLRU(p) && !PageHuge(p)) {
+ 		/*
+ 		 * shake_page could have turned it free.
+ 		 */
+@@ -991,7 +996,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	 * It's very difficult to mess with pages currently under IO
+ 	 * and in many cases impossible, so we just avoid it here.
+ 	 */
+-	lock_page_nosync(p);
++	lock_page_nosync(hpage);
+ 
+ 	/*
+ 	 * unpoison always clear PG_hwpoison inside page lock
+@@ -1004,8 +1009,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	if (hwpoison_filter(p)) {
+ 		if (TestClearPageHWPoison(p))
+ 			atomic_long_dec(&mce_bad_pages);
+-		unlock_page(p);
+-		put_page(p);
++		unlock_page(hpage);
++		put_page(hpage);
+ 		return 0;
+ 	}
+ 
+@@ -1038,7 +1043,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 		}
+ 	}
+ out:
+-	unlock_page(p);
++	unlock_page(hpage);
+ 	return res;
+ }
+ EXPORT_SYMBOL_GPL(__memory_failure);
+-- 
+1.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
