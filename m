@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D95776B0202
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 05:03:15 -0400 (EDT)
-Received: by pva4 with SMTP id 4so443155pva.14
-        for <linux-mm@kvack.org>; Thu, 13 May 2010 02:03:12 -0700 (PDT)
-Message-ID: <4BEBBF7E.30500@vflare.org>
-Date: Thu, 13 May 2010 14:29:42 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9896B0204
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 05:18:11 -0400 (EDT)
+Subject: Re: [PATCH 1/7] hugetlb, rmap: add reverse mapping for hugepage
+From: Andi Kleen <andi@halobates.de>
+References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1273737326-21211-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Thu, 13 May 2010 11:18:04 +0200
+In-Reply-To: <1273737326-21211-2-git-send-email-n-horiguchi@ah.jp.nec.com> (Naoya Horiguchi's message of "Thu\, 13 May 2010 16\:55\:20 +0900")
+Message-ID: <87zl04tb1v.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Cleanup migrate case in try_to_unmap_one
-References: <20100513144336.216D.A69D9226@jp.fujitsu.com> <4BEBA70C.9050404@vflare.org> <20100513163441.2176.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100513163441.2176.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, aarcange@redhat.com, lwoodman@redhat.com, Lee.Schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On 05/13/2010 01:36 PM, KOSAKI Motohiro wrote:
->> On 05/13/2010 11:34 AM, KOSAKI Motohiro wrote:
->>>> Remove duplicate handling of TTU_MIGRATE case for
->>>> anonymous and filesystem pages.
->>>>
->>>> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
->>>
->>> This patch change swap cache case. I think this is not intentional.
->>
->> IIUC, we never call this function with TTU_MIGRATE for swap cache pages.
->> So, the behavior after this patch remains unchanged.
-> 
-> Why?
-> 
-> 
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+
+Adding a few more recent hugetlb hackers in cc. Folks, please consider
+reviewing the hugetlb.c parts of the original patch kit in linux-mm.
+
+> While hugepage is not currently swappable, rmapping can be useful
+> for memory error handler.
+> Using rmap, memory error handler can collect processes affected
+> by hugepage errors and unmap them to contain error's effect.
+
+Thanks.
+
+I reviewed all the patches and they look good to me. I can merge
+them through the hwpoison git tree.
+
+But before merging it there I would like to have some review
+and acks from mm hackers on the mm/hugetlb.c parts, which
+do (relatively minor) changes outside memory-failure.c
+
+I think you also had a patch for mce-test, can you send me that
+one too?
+
+BTW I wonder: did you verify that the 1GB page support works?
+I would expect it does, but it would be good to double check.
+One would need a Westmere server or AMD Family10h+ system to test that.
+
+> Current status of hugepage rmap differs depending on mapping mode:
+> - for shared hugepage:
+>   we can collect processes using a hugepage through pagecache,
+>   but can not unmap the hugepage because of the lack of mapcount.
+> - for privately mapped hugepage:
+>   we can neither collect processes nor unmap the hugepage.
+
+I hope these points can be eventually addressed too, but this
+is a good first step and closes an important hole in hwpoison
+coverage.
+
+-Andi
 
 
-Kindly ignore. Looks like I misunderstood this part.
-Sorry for the trouble.
-
-Nitin
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
