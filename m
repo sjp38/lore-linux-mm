@@ -1,95 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 381D86B01FA
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 14:43:20 -0400 (EDT)
-Message-Id: <20100514183942.782519323@quilx.com>
-References: <20100514183908.118952419@quilx.com>
-Date: Fri, 14 May 2010 13:39:09 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC SLEB 01/10] slab: Introduce a constant for a unspecified node.
-Content-Disposition: inline; filename=slab_node_unspecified
+	by kanga.kvack.org (Postfix) with ESMTP id DC8BF6B01E3
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 14:49:54 -0400 (EDT)
+Received: from f199130.upc-f.chello.nl ([80.56.199.130] helo=dyad.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.69 #1 (Red Hat Linux))
+	id 1OCzxH-0001YF-Mt
+	for linux-mm@kvack.org; Fri, 14 May 2010 18:49:51 +0000
+Subject: Re: [RFC] Tracer Ring Buffer splice() vs page cache [was: Re: Perf
+ and ftrace [was Re: PyTimechart]]
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100514183242.GA11795@Krystal>
+References: <20100514183242.GA11795@Krystal>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 14 May 2010 20:49:05 +0200
+Message-ID: <1273862945.1674.14.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_node() and friends can be passed a constant -1 to indicate
-that no choice was made for the node from which the object needs to
-come.
+On Fri, 2010-05-14 at 14:32 -0400, Mathieu Desnoyers wrote:
 
-Add a constant for this.
+> [CCing memory management specialists]
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+And jet you forgot Jens who wrote it ;-)
 
----
- include/linux/slab.h |    2 ++
- mm/slub.c            |   10 +++++-----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+> So I have three questions here:
+> 
+> 1 - could we enforce removal of these pages from the page cache by calling
+>     "page_cache_release()" before giving these pages back to the ring buffer ?
+> 
+> 2 - or maybe is there a page flag we could specify when we allocate them to
+>     ask for these pages to never be put in the page cache ? (but they should be
+>     still usable as write buffers)
+> 
+> 3 - is there something more we need to do to grab a reference on the pages
+>     before passing them to splice(), so that when we call page_cache_release()
+>     they don't get reclaimed ? 
 
-Index: linux-2.6/include/linux/slab.h
-===================================================================
---- linux-2.6.orig/include/linux/slab.h	2010-04-27 12:31:57.000000000 -0500
-+++ linux-2.6/include/linux/slab.h	2010-04-27 12:32:26.000000000 -0500
-@@ -92,6 +92,8 @@
- #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
- 				(unsigned long)ZERO_SIZE_PTR)
- 
-+#define SLAB_NODE_UNSPECIFIED (-1L)
-+
- /*
-  * struct kmem_cache related prototypes
-  */
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-04-27 12:32:30.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-04-27 12:33:37.000000000 -0500
-@@ -1081,7 +1081,7 @@ static inline struct page *alloc_slab_pa
- 
- 	flags |= __GFP_NOTRACK;
- 
--	if (node == -1)
-+	if (node == SLAB_NODE_UNSPECIFIED)
- 		return alloc_pages(flags, order);
- 	else
- 		return alloc_pages_node(node, flags, order);
-@@ -1731,7 +1731,7 @@ static __always_inline void *slab_alloc(
- 
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- {
--	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	void *ret = slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
- 
-@@ -1742,7 +1742,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
- #ifdef CONFIG_TRACING
- void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
- {
--	return slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	return slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
- }
- EXPORT_SYMBOL(kmem_cache_alloc_notrace);
- #endif
-@@ -2740,7 +2740,7 @@ void *__kmalloc(size_t size, gfp_t flags
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	ret = slab_alloc(s, flags, -1, _RET_IP_);
-+	ret = slab_alloc(s, flags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
- 
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
-@@ -3324,7 +3324,7 @@ void *__kmalloc_track_caller(size_t size
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	ret = slab_alloc(s, gfpflags, -1, caller);
-+	ret = slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, caller);
- 
- 	/* Honor the call site pointer we recieved. */
- 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
+There is no guarantee it is the pagecache they end up in, it could be a
+network packet queue, a pipe, or anything that implements .splice_write.
 
--- 
+>From what I understand of splice() is that it assumes it passes
+ownership of the page, you're not supposed to touch them again, non of
+the above three are feasible.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
