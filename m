@@ -1,37 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3439E6B01EE
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 16:36:11 -0400 (EDT)
-Subject: Re: Defrag in shrinkers
-From: Andi Kleen <andi@firstfloor.org>
-References: <1273821863-29524-1-git-send-email-david@fromorbit.com>
-	<alpine.DEB.2.00.1005141244380.9466@router.home>
-Date: Fri, 14 May 2010 22:36:03 +0200
-In-Reply-To: <alpine.DEB.2.00.1005141244380.9466@router.home> (Christoph Lameter's message of "Fri\, 14 May 2010 12\:46\:52 -0500 \(CDT\)")
-Message-ID: <87y6fmmdak.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EEE56B01EE
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 16:47:39 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH] mm: Consider the entire user address space during node migration
+Date: Fri, 14 May 2010 13:46:37 -0700
+Message-Id: <1273869997-12720-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, npiggin@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <cl@linux.com> writes:
+This patch uses TASK_SIZE_MAX instead of TASK_SIZE to ensure that the entire
+user address space is migrated.  TASK_SIZE_MAX is independent of the calling
+task context.  TASK SIZE may be dependant on the address space size of the
+calling process.  Usage of TASK_SIZE can lead to partial address space migration
+if the calling process was 32 bit and the migrating process was 64 bit.
 
-> Would it also be possible to add some defragmentation logic when you
-> revise the shrinkers? Here is a prototype patch that would allow you to
-> determine the other objects sitting in the same page as a given object.
->
-> With that I hope that you have enough information to determine if its
-> worth to evict the other objects as well to reclaim the slab page.
+Here is the test script used on 64 system with a 32 bit echo process:
+  mount -t cgroup none /cgroup -o cpuset
+  cd /cgroup
 
-I like the idea, it would be useful for the hwpoison code too,
-when it tries to clean a page.
+  mkdir 0
+  echo 1 > 0/cpuset.cpus
+  echo 0 > 0/cpuset.mems
+  echo 1 > 0/cpuset.memory_migrate
 
--Andi
+  mkdir 1
+  echo 1 > 1/cpuset.cpus
+  echo 1 > 1/cpuset.mems
+  echo 1 > 1/cpuset.memory_migrate
 
+  echo $$ > 0/tasks
+  64_bit_process &
+  pid=$!
+
+  echo $pid > 1/tasks   # This does not migrate all process pages without
+                        # this patch.  If 64 bit echo is used or this patch is
+                        # applied, then the full address space of $pid is
+                        # migrated.
+
+To check memory migration, I watched:
+  grep MemUsed /sys/devices/system/node/node*/meminfo
+
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ mm/mempolicy.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 9f11728..a42c0f1 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -928,7 +928,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 	nodes_clear(nmask);
+ 	node_set(source, nmask);
+ 
+-	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nmask,
++	check_range(mm, mm->mmap->vm_start, TASK_SIZE_MAX, &nmask,
+ 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+ 
+ 	if (!list_empty(&pagelist))
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+1.7.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
