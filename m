@@ -1,257 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F9D76B0216
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 05:55:12 -0400 (EDT)
-Date: Fri, 14 May 2010 10:54:50 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/7] hugetlb, rmap: add reverse mapping for hugepage
-Message-ID: <20100514095449.GB21481@csn.ul.ie>
-References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1273737326-21211-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20100513152737.GE27949@csn.ul.ie> <20100514074641.GD10000@spritzerA.linux.bs1.fc.nec.co.jp>
+	by kanga.kvack.org (Postfix) with SMTP id 230366B01E3
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 13:50:28 -0400 (EDT)
+Date: Fri, 14 May 2010 12:46:52 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Defrag in shrinkers (was Re: [PATCH 0/5] Per-superblock shrinkers)
+In-Reply-To: <1273821863-29524-1-git-send-email-david@fromorbit.com>
+Message-ID: <alpine.DEB.2.00.1005141244380.9466@router.home>
+References: <1273821863-29524-1-git-send-email-david@fromorbit.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100514074641.GD10000@spritzerA.linux.bs1.fc.nec.co.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 14, 2010 at 04:46:41PM +0900, Naoya Horiguchi wrote:
-> On Thu, May 13, 2010 at 04:27:37PM +0100, Mel Gorman wrote:
-> > On Thu, May 13, 2010 at 04:55:20PM +0900, Naoya Horiguchi wrote:
-> > > While hugepage is not currently swappable, rmapping can be useful
-> > > for memory error handler.
-> > > Using rmap, memory error handler can collect processes affected
-> > > by hugepage errors and unmap them to contain error's effect.
-> > > 
-> > 
-> > As a verification point, can you ensure that the libhugetlbfs "make
-> > func" tests complete successfully with this patch applied? It's also
-> > important that there is no oddness in the Hugepage-related counters in
-> > /proc/meminfo. I'm not in the position to test it now unfortunately as
-> > I'm on the road.
-> 
-> Yes. Thanks for the good test-set.
-> 
-> Hmm. I failed libhugetlbfs test with a oops in "private mapped" test :(
-> 
+Would it also be possible to add some defragmentation logic when you
+revise the shrinkers? Here is a prototype patch that would allow you to
+determine the other objects sitting in the same page as a given object.
 
-That's not a disaster - it's what the regression test is for. I haven't
-restarted the review in this case. I'll wait for another version that
-passes those regression tests.
-
-> <OOPS SNIP>
-> 
-> Someone seems to call hugetlb_fault() with anon_vma == NULL.
-> For more detail, I'm investigating it.
-> 
-
-Sure.
-
-> > > Current status of hugepage rmap differs depending on mapping mode:
-> > > - for shared hugepage:
-> > >   we can collect processes using a hugepage through pagecache,
-> > >   but can not unmap the hugepage because of the lack of mapcount.
-> > > - for privately mapped hugepage:
-> > >   we can neither collect processes nor unmap the hugepage.
-> > > 
-> > > To realize hugepage rmapping, this patch introduces mapcount for
-> > > shared/private-mapped hugepage and anon_vma for private-mapped hugepage.
-> > > 
-> > > This patch can be the replacement of the following bug fix.
-> > > 
-> > 
-> > Actually, you replace chunks but not all of that fix with this patch.
-> > After this patch HUGETLB_POISON is never assigned but the definition still
-> > exists in poison.h. You should also remove it if it is unnecessary.
-> 
-> OK. I'll remove HUGETLB_POISON in the next post.
-> 
-
-Thanks
-
-> <SNIP>
-> > For ordinary anon_vma's, there
-> > is a chain of related vma's chained together via the anon_vma's. It's so
-> > in the event of an unmapping, all the PTEs related to the page can be
-> > found. Where are we doing the same here?
-> 
-> Finding all processes using a hugepage is done by try_to_unmap() as usual.
-> Among callers of this function, only memory error handler calls it for
-> hugepage for now.
-
-Ok, my bad, it's anon_vma_prepare that does most of the linkages.
-However, there still appears to be logic missing between how anon rmap
-pages are setup and hugetlb anon rmap pages. See __page_set_anon_rmap
-for example and what it does with chains and compare it to
-hugetlb_add_anon_rmap. There are some important differences.
+With that I hope that you have enough information to determine if its
+worth to evict the other objects as well to reclaim the slab page.
 
 
-> What this patch does is to enable try_to_unmap() to be called for hugepages
-> by setting up anon_vma in hugetlb code.
-> 
-> > I think what you're getting with this is the ability to unmap MAP_PRIVATE pages
-> > from one process but if there are multiple processes, the second process could
-> > still end up referencing the poisoned MAP_PRIVATE page. Is this accurate? Even
-> > if it is, I guess it's still an improvement over what currently happens.
-> 
-> Try_to_unmap_anon() runs for each vma belonging to the anon_vma associated
-> with the error hugepage. So it works for multiple processes.
-> 
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Slab allocators: Introduce function to determine other objects in the same slab page
 
-Yep, as long as anon_vma_prepare is called in all the correct cases. I
-haven't double checked you have and will wait until you pin down why
-anon_vma is NULL in the next version.
+kmem_cache_objects() can be used to determin other objects sharing the same
+slab. With such knowledge a slab user can intentionally free all slab objects
+in a slab to allow the freeing of the slab as a whole. This is particularly
+important for the dentry and inode cache handling since they reclaim objects
+in LRU fashion. With this function they can see if the object is sitting in
+a sparsely populated slab page and if so decide to reclaim the other objects
+in the slab page. In many situations we can otherwise get high memory use
+since only a very small portion of the available object slots are in use
+(this can occur after a file scan or when the computational load on a server
+changes).
 
-> > > +
-> > >  static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  			unsigned long address, pte_t *ptep, pte_t pte,
-> > >  			struct page *pagecache_page)
-> > > @@ -2348,6 +2371,12 @@ retry_avoidcopy:
-> > >  		huge_ptep_clear_flush(vma, address, ptep);
-> > >  		set_huge_pte_at(mm, address, ptep,
-> > >  				make_huge_pte(vma, new_page, 1));
-> > > +		page_remove_rmap(old_page);
-> > > +		/*
-> > > +		 * We need not call anon_vma_prepare() because anon_vma
-> > > +		 * is already prepared when the process fork()ed.
-> > > +		 */
-> > > +		hugepage_add_anon_rmap(new_page, vma, address);
-> > 
-> > This means that the anon_vma is shared between parent and child even
-> > after fork. Does this not mean that the behaviour of anon_vma differs
-> > between the core VM and hugetlb?
-> 
-> No. IIUC, anon_vma associated with (non-huge) anonymous page is also shared
-> between parent and child until COW.
-> 
+kmem_cache_object() returns the number of objects currently in use. A parameter
+allows the retrieval of the maximum number of objects that would fit into this
+slab page.
 
-In the base page case, it does but where is a new anon_vma being
-allocated here and the rmap moved with page_move_anon_rmap?
+The user must then use these numbers to determine if an effort should be made
+to free the remaining objects. The allocated objects are returned in an array
+of pointers.
 
-> > >  		/* Make the old page be freed below */
-> > >  		new_page = old_page;
-> > >  	}
-> > > @@ -2450,7 +2479,11 @@ retry:
-> > >  			spin_unlock(&inode->i_lock);
-> > >  		} else {
-> > >  			lock_page(page);
-> > > -			page->mapping = HUGETLB_POISON;
-> > > +			if (unlikely(anon_vma_prepare(vma))) {
-> > > +				ret = VM_FAULT_OOM;
-> > > +				goto backout_unlocked;
-> > > +			}
-> > > +			hugepage_add_anon_rmap(page, vma, address);
-> > 
-> > Seems ok for private pages at least.
-> > 
-> > >  		}
-> > >  	}
-> > >  
-> > > @@ -2479,6 +2512,13 @@ retry:
-> > >  				&& (vma->vm_flags & VM_SHARED)));
-> > >  	set_huge_pte_at(mm, address, ptep, new_pte);
-> > >  
-> > > +	/*
-> > > +	 * For privately mapped hugepage, _mapcount is incremented
-> > > +	 * in hugetlb_cow(), so only increment for shared hugepage here.
-> > > +	 */
-> > > +	if (vma->vm_flags & VM_MAYSHARE)
-> > > +		page_dup_rmap(page);
-> > > +
-> > 
-> > What happens when try_to_unmap_file is called on a hugetlb page?
-> 
-> Try_to_unmap_file() is called for shared hugepages, so it tracks all vmas
-> sharing one hugepage through pagecache pointed to by page->mapping,
-> and sets all ptes into hwpoison swap entries instead of flushing them.
-> Curiously file backed pte is changed to swap entry, but it's OK because
-> hwpoison hugepage should not be touched afterward.
-> 
+Objects can only stay allocated if the user has some way of locking out
+kmem_cache_free() operations on the slab. Otherwise the operations on the
+returned object pointers cause race conditions.
 
-Grand.
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-> > >  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
-> > >  		/* Optimization, do the COW without a second fault */
-> > >  		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page);
-> > > diff --git v2.6.34-rc7/mm/rmap.c v2.6.34-rc7/mm/rmap.c
-> > > index 0feeef8..58cd2f9 100644
-> > > --- v2.6.34-rc7/mm/rmap.c
-> > > +++ v2.6.34-rc7/mm/rmap.c
-> > > @@ -56,6 +56,7 @@
-> > >  #include <linux/memcontrol.h>
-> > >  #include <linux/mmu_notifier.h>
-> > >  #include <linux/migrate.h>
-> > > +#include <linux/hugetlb.h>
-> > >  
-> > >  #include <asm/tlbflush.h>
-> > >  
-> > > @@ -326,6 +327,8 @@ vma_address(struct page *page, struct vm_area_struct *vma)
-> > >  	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > >  	unsigned long address;
-> > >  
-> > > +	if (unlikely(is_vm_hugetlb_page(vma)))
-> > > +		pgoff = page->index << compound_order(page);
-> > 
-> > Again, it would be nice to use hstate information if possible just so
-> > how the pagesize is discovered is consistent.
-> 
-> OK.
-> 
-> > >  	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-> > >  	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
-> > >  		/* page should be within @vma mapping range */
-> > > @@ -369,6 +372,12 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-> > >  	pte_t *pte;
-> > >  	spinlock_t *ptl;
-> > >  
-> > > +	if (unlikely(PageHuge(page))) {
-> > > +		pte = huge_pte_offset(mm, address);
-> > > +		ptl = &mm->page_table_lock;
-> > > +		goto check;
-> > > +	}
-> > > +
-> > >  	pgd = pgd_offset(mm, address);
-> > >  	if (!pgd_present(*pgd))
-> > >  		return NULL;
-> > > @@ -389,6 +398,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-> > >  	}
-> > >  
-> > >  	ptl = pte_lockptr(mm, pmd);
-> > > +check:
-> > >  	spin_lock(ptl);
-> > >  	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
-> > >  		*ptlp = ptl;
-> > > @@ -873,6 +883,12 @@ void page_remove_rmap(struct page *page)
-> > >  		page_clear_dirty(page);
-> > >  		set_page_dirty(page);
-> > >  	}
-> > > +	/*
-> > > +	 * Mapping for Hugepages are not counted in NR_ANON_PAGES nor
-> > > +	 * NR_FILE_MAPPED and no charged by memcg for now.
-> > > +	 */
-> > > +	if (unlikely(PageHuge(page)))
-> > > +		return;
-> > >  	if (PageAnon(page)) {
-> > >  		mem_cgroup_uncharge_page(page);
-> > >  		__dec_zone_page_state(page, NR_ANON_PAGES);
-> > 
-> > I don't see anything obviously wrong with this but it's a bit rushed and
-> > there are a few snarls that I pointed out above. I'd like to hear it passed
-> > the libhugetlbfs regression tests for different sizes without any oddness
-> > in the counters.
-> 
-> Since there exists regression as described above, I'll fix it first of all.
-> 
+---
+ include/linux/slab.h |   18 ++++++++++++++++++
+ mm/slab.c            |   23 +++++++++++++++++++++++
+ mm/slob.c            |    6 ++++++
+ mm/slub.c            |   42 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 89 insertions(+)
 
-Sure. As it is, the hugetlb parts of this patch to my eye are not ready yet
-with some snags that need ironing out. That said, I see nothing fundamentally
-wrong with the approach as such.
+Index: linux-2.6/include/linux/slab.h
+===================================================================
+--- linux-2.6.orig/include/linux/slab.h	2010-05-14 12:24:44.000000000 -0500
++++ linux-2.6/include/linux/slab.h	2010-05-14 12:37:36.000000000 -0500
+@@ -110,6 +110,24 @@ int kern_ptr_validate(const void *ptr, u
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+ /*
++ * Determine objects in the same slab page as a given object.
++ *
++ * The return value is the number of objects currently allocated in the slab
++ * or a negative error value and the maximum number of objects that this
++ * slab page could handle.
++ *
++ * Warning: The objects returned can be freed at any time and therefore the
++ * pointer can be invalid unless other measures are taken to avoid objects
++ * being freed while looping through the list of objects.
++ *
++ * Return codes:
++ *	-E2BIG	More objects than fit into the provided list.
++ *	-EBUSY	Objects in the slab are allocation queues.
++ */
++int kmem_cache_objects(struct kmem_cache *slab, const void *x,
++		 const void **list, int max, int *capacity);
++
++/*
+  * Please use this macro to create slab caches. Simply specify the
+  * name of the structure and maybe some flags that are listed above.
+  *
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-05-14 12:37:27.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-05-14 12:40:10.000000000 -0500
+@@ -2868,6 +2868,48 @@ void kfree(const void *x)
+ }
+ EXPORT_SYMBOL(kfree);
+
++static void get_object(struct kmem_cache *s, void *object, void *private)
++{
++	const void ***list = private;
++
++	*(*list)++ = object;
++}
++
++int kmem_cache_objects(struct kmem_cache *s, const void *x,
++		const void **list, int list_size, int *capacity)
++{
++	int r;
++	struct page *page;
++	unsigned long *map;
++
++	page = virt_to_head_page(x);
++	BUG_ON(!PageSlab(page));
++	BUG_ON(page->slab != s);
++	*capacity = page->objects;
++
++	map = kmalloc(BITS_TO_LONGS(page->objects), GFP_KERNEL);
++
++	slab_lock(page);
++	r = page->inuse;
++
++	if (page->inuse > list_size) {
++		r = -E2BIG;
++		goto abort;
++	}
++
++	if (PageSlubFrozen(page)) {
++		r = -EBUSY;
++		goto abort;
++	}
++
++	traverse_objects(s, page, get_object, &list, map);
++
++abort:
++	slab_unlock(page);
++	kfree(map);
++	return r;
++}
++
+ /*
+  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
+  * the remaining slabs by the number of items in use. The slabs with the
+Index: linux-2.6/mm/slab.c
+===================================================================
+--- linux-2.6.orig/mm/slab.c	2010-05-14 12:24:44.000000000 -0500
++++ linux-2.6/mm/slab.c	2010-05-14 12:37:36.000000000 -0500
+@@ -3617,6 +3617,29 @@ out:
+ 	return 0;
+ }
+
++int kmem_cache_objects(struct kmem_cache *cachep, const void *objp,
++		const void **list, int list_size, int *capacity)
++{
++	struct slab *slabp = virt_to_slab(objp);
++	void *p;
++	int i;
++
++	BUG_ON(cachep != virt_to_cache(objp));
++
++	*capacity = cachep->num;
++	if (slabp->inuse > list_size)
++		return -E2BIG;
++
++	for (i = 0, p = slabp->s_mem; i < cachep->num;
++				 i++, p += cachep->buffer_size) {
++
++		if (slab_bufctl(slabp)[i] == BUFCTL_ACTIVE)
++			*(list) ++ = p;
++
++	}
++	return slabp->inuse;
++}
++
+ #ifdef CONFIG_NUMA
+ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
+Index: linux-2.6/mm/slob.c
+===================================================================
+--- linux-2.6.orig/mm/slob.c	2010-05-14 12:24:44.000000000 -0500
++++ linux-2.6/mm/slob.c	2010-05-14 12:37:36.000000000 -0500
+@@ -658,6 +658,12 @@ void kmem_cache_free(struct kmem_cache *
+ }
+ EXPORT_SYMBOL(kmem_cache_free);
+
++void kmem_cache_objects(struct kmem_cache *c, const void *b, void **list,
++						int list_size, int *capacity)
++{
++	return -EBUSY;
++}
++
+ unsigned int kmem_cache_size(struct kmem_cache *c)
+ {
+ 	return c->size;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
