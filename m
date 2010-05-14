@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 777A46B01FE
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0A6226B01FF
 	for <linux-mm@kvack.org>; Fri, 14 May 2010 03:24:41 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 4/5] superblock: add filesystem shrinker operations
-Date: Fri, 14 May 2010 17:24:22 +1000
-Message-Id: <1273821863-29524-5-git-send-email-david@fromorbit.com>
+Subject: [PATCH 2/5] mm: add context argument to shrinker callback
+Date: Fri, 14 May 2010 17:24:20 +1000
+Message-Id: <1273821863-29524-3-git-send-email-david@fromorbit.com>
 In-Reply-To: <1273821863-29524-1-git-send-email-david@fromorbit.com>
 References: <1273821863-29524-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,111 +15,328 @@ List-ID: <linux-mm.kvack.org>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Now we have a per-superblock shrinker implementation, we can add a
-filesystem specific callout to it to allow filesystem internal
-caches to be shrunk by the superblock shrinker.
-
-Rather than perpetuate the multipurpose shrinker callback API (i.e.
-nr_to_scan == 0 meaning "tell me how many objects freeable in the
-cache), two operations will be added. The first will return the
-number of objects that are freeable, the second is the actual
-shrinker call.
+The current shrinker implementation requires the registered callback
+to have global state to work from. This makes it difficult to shrink
+caches that are not global (e.g. per-filesystem caches). Pass the shrinker
+structure to the callback so that users can embed the shrinker structure
+in the context the shrinker needs to operate on and get back to it in the
+callback via container_of().
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/super.c         |   43 +++++++++++++++++++++++++++++++------------
- include/linux/fs.h |   11 +++++++++++
- 2 files changed, 42 insertions(+), 12 deletions(-)
+ arch/x86/kvm/mmu.c              |    2 +-
+ drivers/gpu/drm/i915/i915_gem.c |    2 +-
+ fs/dcache.c                     |    2 +-
+ fs/gfs2/glock.c                 |    2 +-
+ fs/gfs2/quota.c                 |    2 +-
+ fs/gfs2/quota.h                 |    2 +-
+ fs/inode.c                      |    2 +-
+ fs/mbcache.c                    |    5 +++--
+ fs/nfs/dir.c                    |    2 +-
+ fs/nfs/internal.h               |    3 ++-
+ fs/quota/dquot.c                |    2 +-
+ fs/ubifs/shrinker.c             |    2 +-
+ fs/ubifs/ubifs.h                |    2 +-
+ fs/xfs/linux-2.6/xfs_buf.c      |    5 +++--
+ fs/xfs/linux-2.6/xfs_sync.c     |    1 +
+ fs/xfs/quota/xfs_qm.c           |    7 +++++--
+ include/linux/mm.h              |    2 +-
+ mm/vmscan.c                     |    8 +++++---
+ 18 files changed, 31 insertions(+), 22 deletions(-)
 
-diff --git a/fs/super.c b/fs/super.c
-index 339b590..e98292e 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -48,7 +48,8 @@ DEFINE_SPINLOCK(sb_lock);
- static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- {
- 	struct super_block *sb;
--	int count;
-+	int	fs_objects = 0;
-+	int	total_objects;
- 
- 	sb = container_of(shrink, struct super_block, s_shrink);
- 
-@@ -71,22 +72,40 @@ static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- 		return -1;
- 	}
- 
--	if (nr_to_scan) {
--		/* proportion the scan between the two cacheN? */
--		int total;
--
--		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
--		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
-+	if (sb->s_op && sb->s_op->nr_cached_objects)
-+		fs_objects = sb->s_op->nr_cached_objects(sb);
- 
--		/* prune dcache first as icache is pinned by it */
--		prune_dcache_sb(sb, count);
--		prune_icache_sb(sb, nr_to_scan - count);
-+	total_objects = sb->s_nr_dentry_unused +
-+			sb->s_nr_inodes_unused + fs_objects + 1;
-+	if (nr_to_scan) {
-+		int	dentries;
-+		int	inodes;
-+
-+		/* proportion the scan between the cacheN? */
-+		dentries = (nr_to_scan * sb->s_nr_dentry_unused) /
-+							total_objects;
-+		inodes = (nr_to_scan * sb->s_nr_inodes_unused) /
-+							total_objects;
-+		if (fs_objects)
-+			fs_objects = (nr_to_scan * fs_objects) /
-+							total_objects;
-+		/*
-+		 * prune the dcache first as the icache is pinned by it, then
-+		 * prune the icache, followed by the filesystem specific caches
-+		 */
-+		prune_dcache_sb(sb, dentries);
-+		prune_icache_sb(sb, inodes);
-+		if (sb->s_op && sb->s_op->free_cached_objects) {
-+			sb->s_op->free_cached_objects(sb, fs_objects);
-+			fs_objects = sb->s_op->nr_cached_objects(sb);
-+		}
-+		total_objects = sb->s_nr_dentry_unused +
-+				sb->s_nr_inodes_unused + fs_objects;
- 	}
- 
--	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
--						* sysctl_vfs_cache_pressure;
-+	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
- 	up_read(&sb->s_umount);
--	return count;
-+	return total_objects;
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 19a8906..03e689d 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2918,7 +2918,7 @@ static void kvm_mmu_remove_one_alloc_mmu_page(struct kvm *kvm)
+ 	kvm_mmu_zap_page(kvm, page);
  }
  
- /**
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 6ba3739..ef2e9e2 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1591,6 +1591,17 @@ struct super_operations {
- 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
- #endif
- 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
-+
-+	/*
-+	 * memory shrinker operations.
-+	 * ->nr_cached_objects() should return the number of freeable cached
-+	 * objects the filesystem holds.
-+	 * ->free_cache_objects() should attempt to free the number of cached
-+	 * objects indicated. It should return how many objects it attempted to
-+	 * free.
-+	 */
-+	int (*nr_cached_objects)(struct super_block *);
-+	int (*free_cached_objects)(struct super_block *, int);
- };
+-static int mmu_shrink(int nr_to_scan, gfp_t gfp_mask)
++static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	struct kvm *kvm;
+ 	struct kvm *kvm_freed = NULL;
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index ef3d91d..cc436ba 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -5185,7 +5185,7 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
+ }
  
- /*
+ static int
+-i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
++i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	drm_i915_private_t *dev_priv, *next_dev;
+ 	struct drm_i915_gem_object *obj_priv, *next_obj;
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f1358e5..41c35c1 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -897,7 +897,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
+  *
+  * In this case we return -1 to tell the caller that we baled.
+  */
+-static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
++static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		if (!(gfp_mask & __GFP_FS))
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 454d4b4..e947661 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1345,7 +1345,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
+ }
+ 
+ 
+-static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
++static int gfs2_shrink_glock_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	struct gfs2_glock *gl;
+ 	int may_demote;
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index 6dbcbad..3f2cf67 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -77,7 +77,7 @@ static LIST_HEAD(qd_lru_list);
+ static atomic_t qd_lru_count = ATOMIC_INIT(0);
+ static DEFINE_SPINLOCK(qd_lru_lock);
+ 
+-int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
++int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	struct gfs2_quota_data *qd;
+ 	struct gfs2_sbd *sdp;
+diff --git a/fs/gfs2/quota.h b/fs/gfs2/quota.h
+index 195f60c..e7d236c 100644
+--- a/fs/gfs2/quota.h
++++ b/fs/gfs2/quota.h
+@@ -51,7 +51,7 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
+ 	return ret;
+ }
+ 
+-extern int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask);
++extern int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask);
+ extern const struct quotactl_ops gfs2_quotactl_ops;
+ 
+ #endif /* __QUOTA_DOT_H__ */
+diff --git a/fs/inode.c b/fs/inode.c
+index 8b95b15..b292e41 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -581,7 +581,7 @@ restart:
+  * This function is passed the number of inodes to scan, and it returns the
+  * total number of remaining possibly-reclaimable inodes.
+  */
+-static int shrink_icache_memory(int nr, gfp_t gfp_mask)
++static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		/*
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index ec88ff3..e28f21b 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -115,7 +115,7 @@ mb_cache_indexes(struct mb_cache *cache)
+  * What the mbcache registers as to get shrunk dynamically.
+  */
+ 
+-static int mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask);
++static int mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+ 
+ static struct shrinker mb_cache_shrinker = {
+ 	.shrink = mb_cache_shrink_fn,
+@@ -191,13 +191,14 @@ forget:
+  * This function is called by the kernel memory management when memory
+  * gets low.
+  *
++ * @shrink: (ignored)
+  * @nr_to_scan: Number of objects to scan
+  * @gfp_mask: (ignored)
+  *
+  * Returns the number of objects which are present in the cache.
+  */
+ static int
+-mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
++mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	LIST_HEAD(free_list);
+ 	struct list_head *l, *ltmp;
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index a7bb5c6..6a0a6f7 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1669,7 +1669,7 @@ static void nfs_access_free_entry(struct nfs_access_entry *entry)
+ 	smp_mb__after_atomic_dec();
+ }
+ 
+-int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
++int nfs_access_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	LIST_HEAD(head);
+ 	struct nfs_inode *nfsi;
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index 11f82f0..aa022eb 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -205,7 +205,8 @@ extern struct rpc_procinfo nfs4_procedures[];
+ void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+ 
+ /* dir.c */
+-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
++extern int nfs_access_cache_shrinker(struct shrinker *shrink,
++					int nr_to_scan, gfp_t gfp_mask);
+ 
+ /* inode.c */
+ extern struct workqueue_struct *nfsiod_workqueue;
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 788b580..187e3f2 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -668,7 +668,7 @@ static void prune_dqcache(int count)
+  * more memory
+  */
+ 
+-static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
++static int shrink_dqcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		spin_lock(&dq_list_lock);
+diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
+index 02feb59..0b20111 100644
+--- a/fs/ubifs/shrinker.c
++++ b/fs/ubifs/shrinker.c
+@@ -277,7 +277,7 @@ static int kick_a_thread(void)
+ 	return 0;
+ }
+ 
+-int ubifs_shrinker(int nr, gfp_t gfp_mask)
++int ubifs_shrinker(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	int freed, contention = 0;
+ 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
+diff --git a/fs/ubifs/ubifs.h b/fs/ubifs/ubifs.h
+index bd2542d..5a92345 100644
+--- a/fs/ubifs/ubifs.h
++++ b/fs/ubifs/ubifs.h
+@@ -1575,7 +1575,7 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
+ int ubifs_tnc_end_commit(struct ubifs_info *c);
+ 
+ /* shrinker.c */
+-int ubifs_shrinker(int nr_to_scan, gfp_t gfp_mask);
++int ubifs_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+ 
+ /* commit.c */
+ int ubifs_bg_thread(void *info);
+diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
+index 44c2b0e..d2cfc54 100644
+--- a/fs/xfs/linux-2.6/xfs_buf.c
++++ b/fs/xfs/linux-2.6/xfs_buf.c
+@@ -44,7 +44,7 @@
+ 
+ static kmem_zone_t *xfs_buf_zone;
+ STATIC int xfsbufd(void *);
+-STATIC int xfsbufd_wakeup(int, gfp_t);
++STATIC int xfsbufd_wakeup(struct shrinker *, int, gfp_t);
+ STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
+ static struct shrinker xfs_buf_shake = {
+ 	.shrink = xfsbufd_wakeup,
+@@ -339,7 +339,7 @@ _xfs_buf_lookup_pages(
+ 					__func__, gfp_mask);
+ 
+ 			XFS_STATS_INC(xb_page_retries);
+-			xfsbufd_wakeup(0, gfp_mask);
++			xfsbufd_wakeup(NULL, 0, gfp_mask);
+ 			congestion_wait(BLK_RW_ASYNC, HZ/50);
+ 			goto retry;
+ 		}
+@@ -1756,6 +1756,7 @@ xfs_buf_runall_queues(
+ 
+ STATIC int
+ xfsbufd_wakeup(
++	struct shrinker		*shrink,
+ 	int			priority,
+ 	gfp_t			mask)
+ {
+diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
+index a427c63..17ec4a6 100644
+--- a/fs/xfs/linux-2.6/xfs_sync.c
++++ b/fs/xfs/linux-2.6/xfs_sync.c
+@@ -879,6 +879,7 @@ static struct rw_semaphore xfs_mount_list_lock;
+ 
+ static int
+ xfs_reclaim_inode_shrink(
++	struct shrinker	*shrink,
+ 	int		nr_to_scan,
+ 	gfp_t		gfp_mask)
+ {
+diff --git a/fs/xfs/quota/xfs_qm.c b/fs/xfs/quota/xfs_qm.c
+index 417e61e..49c8d84 100644
+--- a/fs/xfs/quota/xfs_qm.c
++++ b/fs/xfs/quota/xfs_qm.c
+@@ -72,7 +72,7 @@ STATIC void	xfs_qm_freelist_destroy(xfs_frlist_t *);
+ 
+ STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
+ STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
+-STATIC int	xfs_qm_shake(int, gfp_t);
++STATIC int	xfs_qm_shake(struct shrinker *, int, gfp_t);
+ 
+ static struct shrinker xfs_qm_shaker = {
+ 	.shrink = xfs_qm_shake,
+@@ -2088,7 +2088,10 @@ xfs_qm_shake_freelist(
+  */
+ /* ARGSUSED */
+ STATIC int
+-xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
++xfs_qm_shake(
++	struct shrinker	*shrink,
++	int		nr_to_scan,
++	gfp_t		gfp_mask)
+ {
+ 	int	ndqused, nfree, n;
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 462acaf..ff4c44e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -995,7 +995,7 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+  * querying the cache size, so a fastpath for that case is appropriate.
+  */
+ struct shrinker {
+-	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
++	int (*shrink)(struct shrinker *, int nr_to_scan, gfp_t gfp_mask);
+ 	int seeks;	/* seeks to recreate an obj */
+ 
+ 	/* These are for internal use */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3ff3311..9d56aaf 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -215,8 +215,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
+ 		unsigned long total_scan;
+-		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
++		unsigned long max_pass;
+ 
++		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
+ 		delta = (4 * scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
+@@ -244,8 +245,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 			int shrink_ret;
+ 			int nr_before;
+ 
+-			nr_before = (*shrinker->shrink)(0, gfp_mask);
+-			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
++			nr_before = (*shrinker->shrink)(shrinker, 0, gfp_mask);
++			shrink_ret = (*shrinker->shrink)(shrinker, this_scan,
++								gfp_mask);
+ 			if (shrink_ret == -1)
+ 				break;
+ 			if (shrink_ret < nr_before)
 -- 
 1.5.6.5
 
