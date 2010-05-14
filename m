@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A42F86B01EE
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:12:33 -0400 (EDT)
-Date: Fri, 14 May 2010 10:08:11 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [RFC, 6/7] NUMA hotplug emulator
-Message-ID: <20100514020811.GD4381@shaohui>
-References: <20100513120016.GG2169@shaohui>
- <20100513165603.GC25212@suse.de>
- <20100514014902.GB4381@shaohui>
- <20100514020526.GB7678@localhost>
+	by kanga.kvack.org (Postfix) with SMTP id 6CC446B01EF
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:13:47 -0400 (EDT)
+Message-ID: <4BECB1CB.2030802@linux.intel.com>
+Date: Fri, 14 May 2010 10:13:31 +0800
+From: Haicheng Li <haicheng.li@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100514020526.GB7678@localhost>
+Subject: Re: [RFC, 3/7] NUMA hotplug emulator
+References: <20100513114835.GD2169@shaohui> <20100513165511.GB25212@suse.de> <1273773292.13285.7755.camel@nimitz>
+In-Reply-To: <1273773292.13285.7755.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 14, 2010 at 10:05:26AM +0800, Wu Fengguang wrote:
-> On Fri, May 14, 2010 at 09:49:02AM +0800, Zheng, Shaohui wrote:
-> > On Thu, May 13, 2010 at 09:56:03AM -0700, Greg KH wrote:
-> > > On Thu, May 13, 2010 at 08:00:16PM +0800, Shaohui Zheng wrote:
-> > > > hotplug emulator:extend memory probe interface to support NUMA
-> > > > 
-> > > > Extend memory probe interface to support an extra paramter nid,
-> > > > the reserved memory can be added into this node if node exists.
-> > > > 
-> > > > Add a memory section(128M) to node 3(boots with mem=1024m)
-> > > > 
-> > > > 	echo 0x40000000,3 > memory/probe
-> > > > 
-> > > > And more we make it friendly, it is possible to add memory to do
-> > > > 
-> > > > 	echo 3g > memory/probe
-> > > > 	echo 1024m,3 > memory/probe
-> > > > 
-> > > > It maintains backwards compatibility.
-> > > 
-> > > Again, please document this.
-> > > 
-> > > thanks,
-> > > 
-> > > greg k-h
-> > 
-> > okay
+Dave Hansen wrote:
+> On Thu, 2010-05-13 at 09:55 -0700, Greg KH wrote:
+>>> Add a sysfs entry "probe" under /sys/devices/system/node/:
+>>>
+>>>  - to show all fake offlined nodes:
+>>>     $ cat /sys/devices/system/node/probe
+>>>
+>>>  - to hotadd a fake offlined node, e.g. nodeid is N:
+>>>     $ echo N > /sys/devices/system/node/probe
+>> As you are trying to add a new sysfs file, please create the matching
+>> Documentation/ABI/ file as well.
+>>
+>> Also note that sysfs files are "one value per file", which I don't think
+>> this file follows, right?
 > 
-> Shaohui, it's useless to document a wrong interface.
-> Better to fix the interface _first_, then document becomes meaningful.
-Fenggunag,
-	greg reminds me to add the docment into Documentation/ABI/, We miss it in
-the RFC. Currently, the interface format is not finalized, when we decide the
-final interface, the last step is documenting it in.
-> 
-> Thanks,
-> Fengguang
+> I think in this case, it was meant to be a list of acceptable parameters
+> rather than a set of values, kinda like /sys/power/state.
 
--- 
-Thanks & Regards,
-Shaohui
+Right.
+
+> Instead, I guess we could have:
+> 
+> 	/sys/devices/system/node/probeable/3
+> 	/sys/devices/system/node/probeable/43
+> 	/sys/devices/system/node/probeable/65
+> 	/sys/devices/system/node/probeable/5145
+> 
+> and the knowledge that you need to pick one of those to echo
+> into /sys/devices/system/node/probe.
+
+I think this way would make things complex if we just want to show user which node could be hotadded.
+
+>  But, it's a lot more self
+> explanatory if you 'cat /sys/devices/system/node/probe', and then pick
+> one of those to echo back into the file.
+
+agreed.
+
+> Seems like a decent place to violate the "rule". :)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
