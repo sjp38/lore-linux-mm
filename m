@@ -1,74 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2A8BE6B01E3
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 19:55:47 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4DNtiMd014190
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 43D576B01E3
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 20:09:04 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4E091KX019451
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 14 May 2010 08:55:44 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DA6C45DE4F
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 139C445DE4E
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F09CB1DB8015
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A49551DB8012
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 08:55:43 +0900 (JST)
-Date: Fri, 14 May 2010 08:51:35 +0900
+	Fri, 14 May 2010 09:09:01 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DC33245DE53
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 09:09:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B3D6145DE50
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 09:09:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 808A11DB803C
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 09:09:00 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 210751DB803E
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 09:09:00 +0900 (JST)
+Date: Fri, 14 May 2010 09:04:58 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mm,migration: Avoid race between shift_arg_pages() and
- rmap_walk() during migration by not migrating temporary stacks
-Message-Id: <20100514085135.cfb5ba17.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1005131219190.20037@router.home>
-References: <20100511085752.GM26611@csn.ul.ie>
-	<20100512092239.2120.A69D9226@jp.fujitsu.com>
-	<20100512125427.d1b170ba.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1005121627020.1273@router.home>
-	<20100513091930.9b42e3b8.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1005131219190.20037@router.home>
+Subject: Re: [PATCH 3/5] track the root (oldest) anon_vma
+Message-Id: <20100514090458.acaedb48.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4BEB630B.8070805@redhat.com>
+References: <20100512133815.0d048a86@annuminas.surriel.com>
+	<20100512133958.3aff0515@annuminas.surriel.com>
+	<20100513093828.1cd022db.kamezawa.hiroyu@jp.fujitsu.com>
+	<4BEB630B.8070805@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 May 2010 12:22:01 -0500 (CDT)
-Christoph Lameter <cl@linux.com> wrote:
+On Wed, 12 May 2010 22:25:15 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-> On Thu, 13 May 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > > Would it not be possible to do something similar for the temporary stack?
-> > >
+> On 05/12/2010 08:38 PM, KAMEZAWA Hiroyuki wrote:
+> > On Wed, 12 May 2010 13:39:58 -0400
+> > Rik van Riel<riel@redhat.com>  wrote:
 > >
-> > Problem here is unmap->remap. ->migratepage() function is used as
+> >> Subject: track the root (oldest) anon_vma
+> >>
+> >> Track the root (oldest) anon_vma in each anon_vma tree.   Because we only
+> >> take the lock on the root anon_vma, we cannot use the lock on higher-up
+> >> anon_vmas to lock anything.  This makes it impossible to do an indirect
+> >> lookup of the root anon_vma, since the data structures could go away from
+> >> under us.
+> >>
+> >> However, a direct pointer is safe because the root anon_vma is always the
+> >> last one that gets freed on munmap or exit, by virtue of the same_vma list
+> >> order and unlink_anon_vmas walking the list forward.
+> >>
+> >> Signed-off-by: Rik van Riel<riel@redhat.com>
 > >
-> > 	unmap
-> > 	   -> migratepage()
-> > 	      -> failed
-> > 		-> remap
 > >
-> > Then, migratepage() itself is no help. We need some check-callback before unmap
-> > or lock to wait for an event we can make remapping progress.
+> > Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> > I welcome this. Thank you!
+> >
+> > Reading 4/5, I felt I'm grad if you add a Documentation or very-precise-comment
+> > about the new anon_vma rules and the _meaning_ of anon_vma_root_lock.
+> > I cannot fully convice myself that I understand them all.
 > 
-> We could check earlier if the migrate function points to
-> fail_migrate_page()?
-
-If you mean checking before unmap, yes. we can avoid the race.
-Unmapping itself is dangerous in this case.
-
-> Where we check for PageKsm() in unmap_and_move f.e.?
+> Please send me a list of all the questions that come up
+> when you read the patches, and I'll prepare a patch 6/5
+> with just documentation :)
 > 
 
-I'm not sure about KSM.
+0. Why it's dangerous to take vma->anon_vma->lock ?
 
-Thanks,
+1. What kinds of anon_vmas we'll found in
+     page->mapping => anon_vma->head and avc->same_anon_vma ?
+   IOW, what kinds of avc->vmas will see when we walk anon_vma->head.
+
+2. Why we have to walk from the root ?
+
+3. What anon_vma_lock guards, actually ?
+
+
+etc....the facts which is unclear for guys who are not involved in this fix.
+Preparing some explanation seems to be kindly rather than "plz ask google"
+
+Bye.
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
