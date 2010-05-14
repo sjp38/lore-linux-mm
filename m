@@ -1,137 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 404C66B01F9
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 14:43:10 -0400 (EDT)
-Message-Id: <20100514183943.895964242@quilx.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 381D86B01FA
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 14:43:20 -0400 (EDT)
+Message-Id: <20100514183942.782519323@quilx.com>
 References: <20100514183908.118952419@quilx.com>
-Date: Fri, 14 May 2010 13:39:11 -0500
+Date: Fri, 14 May 2010 13:39:09 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC SLEB 03/10] SLUB: Use kmem_cache flags to detect if Slab is in debugging mode.
-Content-Disposition: inline; filename=slub_debug_on
+Subject: [RFC SLEB 01/10] slab: Introduce a constant for a unspecified node.
+Content-Disposition: inline; filename=slab_node_unspecified
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The cacheline with the flags is reachable from the hot paths after the
-percpu allocator changes went in. So there is no need anymore to put a
-flag into each slab page. Get rid of the SlubDebug flag and use
-the flags in kmem_cache instead.
+kmalloc_node() and friends can be passed a constant -1 to indicate
+that no choice was made for the node from which the object needs to
+come.
+
+Add a constant for this.
 
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- include/linux/page-flags.h |    1 -
- mm/slub.c                  |   33 ++++++++++++---------------------
- 2 files changed, 12 insertions(+), 22 deletions(-)
+ include/linux/slab.h |    2 ++
+ mm/slub.c            |   10 +++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-Index: linux-2.6/include/linux/page-flags.h
+Index: linux-2.6/include/linux/slab.h
 ===================================================================
---- linux-2.6.orig/include/linux/page-flags.h	2010-04-27 12:47:10.000000000 -0500
-+++ linux-2.6/include/linux/page-flags.h	2010-04-27 12:47:21.000000000 -0500
-@@ -215,7 +215,6 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEAR
- __PAGEFLAG(SlobFree, slob_free)
+--- linux-2.6.orig/include/linux/slab.h	2010-04-27 12:31:57.000000000 -0500
++++ linux-2.6/include/linux/slab.h	2010-04-27 12:32:26.000000000 -0500
+@@ -92,6 +92,8 @@
+ #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
+ 				(unsigned long)ZERO_SIZE_PTR)
  
- __PAGEFLAG(SlubFrozen, slub_frozen)
--__PAGEFLAG(SlubDebug, slub_debug)
- 
++#define SLAB_NODE_UNSPECIFIED (-1L)
++
  /*
-  * Private page markings that may be used by the filesystem that owns the page
+  * struct kmem_cache related prototypes
+  */
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-04-27 12:41:05.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-04-27 13:15:32.000000000 -0500
-@@ -107,11 +107,17 @@
-  * 			the fast path and disables lockless freelists.
-  */
+--- linux-2.6.orig/mm/slub.c	2010-04-27 12:32:30.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-04-27 12:33:37.000000000 -0500
+@@ -1081,7 +1081,7 @@ static inline struct page *alloc_slab_pa
  
-+#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-+		SLAB_TRACE | SLAB_DEBUG_FREE)
-+
-+static inline int debug_on(struct kmem_cache *s)
-+{
- #ifdef CONFIG_SLUB_DEBUG
--#define SLABDEBUG 1
-+	return unlikely(s->flags & SLAB_DEBUG_FLAGS);
- #else
--#define SLABDEBUG 0
-+	return 0;
- #endif
-+}
+ 	flags |= __GFP_NOTRACK;
  
- /*
-  * Issues still to be resolved:
-@@ -1165,9 +1171,6 @@ static struct page *new_slab(struct kmem
- 	inc_slabs_node(s, page_to_nid(page), page->objects);
- 	page->slab = s;
- 	page->flags |= 1 << PG_slab;
--	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
--			SLAB_STORE_USER | SLAB_TRACE))
--		__SetPageSlubDebug(page);
+-	if (node == -1)
++	if (node == SLAB_NODE_UNSPECIFIED)
+ 		return alloc_pages(flags, order);
+ 	else
+ 		return alloc_pages_node(node, flags, order);
+@@ -1731,7 +1731,7 @@ static __always_inline void *slab_alloc(
  
- 	start = page_address(page);
+ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
+ {
+-	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
++	void *ret = slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
  
-@@ -1194,14 +1197,13 @@ static void __free_slab(struct kmem_cach
- 	int order = compound_order(page);
- 	int pages = 1 << order;
+ 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
  
--	if (unlikely(SLABDEBUG && PageSlubDebug(page))) {
-+	if (debug_on(s)) {
- 		void *p;
- 
- 		slab_pad_check(s, page);
- 		for_each_object(p, s, page_address(page),
- 						page->objects)
- 			check_object(s, page, p, 0);
--		__ClearPageSlubDebug(page);
- 	}
- 
- 	kmemcheck_free_shadow(page, compound_order(page));
-@@ -1419,8 +1421,7 @@ static void unfreeze_slab(struct kmem_ca
- 			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
- 		} else {
- 			stat(s, DEACTIVATE_FULL);
--			if (SLABDEBUG && PageSlubDebug(page) &&
--						(s->flags & SLAB_STORE_USER))
-+			if (debug_on(s) && (s->flags & SLAB_STORE_USER))
- 				add_full(n, page);
- 		}
- 		slab_unlock(page);
-@@ -1628,7 +1629,7 @@ load_freelist:
- 	object = c->page->freelist;
- 	if (unlikely(!object))
- 		goto another_slab;
--	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
-+	if (debug_on(s))
- 		goto debug;
- 
- 	c->freelist = get_freepointer(s, object);
-@@ -1787,7 +1788,7 @@ static void __slab_free(struct kmem_cach
- 	stat(s, FREE_SLOWPATH);
- 	slab_lock(page);
- 
--	if (unlikely(SLABDEBUG && PageSlubDebug(page)))
-+	if (debug_on(s))
- 		goto debug;
- 
- checks_ok:
-@@ -3400,16 +3401,6 @@ static void validate_slab_slab(struct km
- 	} else
- 		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
- 			s->name, page);
--
--	if (s->flags & DEBUG_DEFAULT_FLAGS) {
--		if (!PageSlubDebug(page))
--			printk(KERN_ERR "SLUB %s: SlubDebug not set "
--				"on slab 0x%p\n", s->name, page);
--	} else {
--		if (PageSlubDebug(page))
--			printk(KERN_ERR "SLUB %s: SlubDebug set on "
--				"slab 0x%p\n", s->name, page);
--	}
+@@ -1742,7 +1742,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
+ #ifdef CONFIG_TRACING
+ void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
+ {
+-	return slab_alloc(s, gfpflags, -1, _RET_IP_);
++	return slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
  }
+ EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+ #endif
+@@ -2740,7 +2740,7 @@ void *__kmalloc(size_t size, gfp_t flags
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
  
- static int validate_slab_node(struct kmem_cache *s,
+-	ret = slab_alloc(s, flags, -1, _RET_IP_);
++	ret = slab_alloc(s, flags, SLAB_NODE_UNSPECIFIED, _RET_IP_);
+ 
+ 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
+ 
+@@ -3324,7 +3324,7 @@ void *__kmalloc_track_caller(size_t size
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+ 
+-	ret = slab_alloc(s, gfpflags, -1, caller);
++	ret = slab_alloc(s, gfpflags, SLAB_NODE_UNSPECIFIED, caller);
+ 
+ 	/* Honor the call site pointer we recieved. */
+ 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
 
 -- 
 
