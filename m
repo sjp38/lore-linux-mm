@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6CC446B01EF
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:13:47 -0400 (EDT)
-Message-ID: <4BECB1CB.2030802@linux.intel.com>
-Date: Fri, 14 May 2010 10:13:31 +0800
-From: Haicheng Li <haicheng.li@linux.intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 812196B01EE
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:15:13 -0400 (EDT)
+Date: Fri, 14 May 2010 10:15:08 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] radix-tree: fix radix_tree_prev_hole underflow case
+Message-ID: <20100514021508.GA7810@localhost>
+References: <1273802724-3414-1-git-send-email-cesarb@cesarb.net>
 MIME-Version: 1.0
-Subject: Re: [RFC, 3/7] NUMA hotplug emulator
-References: <20100513114835.GD2169@shaohui> <20100513165511.GB25212@suse.de> <1273773292.13285.7755.camel@nimitz>
-In-Reply-To: <1273773292.13285.7755.camel@nimitz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1273802724-3414-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, shaohui.zheng@linux.intel.com
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Thu, 2010-05-13 at 09:55 -0700, Greg KH wrote:
->>> Add a sysfs entry "probe" under /sys/devices/system/node/:
->>>
->>>  - to show all fake offlined nodes:
->>>     $ cat /sys/devices/system/node/probe
->>>
->>>  - to hotadd a fake offlined node, e.g. nodeid is N:
->>>     $ echo N > /sys/devices/system/node/probe
->> As you are trying to add a new sysfs file, please create the matching
->> Documentation/ABI/ file as well.
->>
->> Also note that sysfs files are "one value per file", which I don't think
->> this file follows, right?
+On Fri, May 14, 2010 at 10:05:24AM +0800, Cesar Eduardo Barros wrote:
+> radix_tree_prev_hole() used LONG_MAX to detect underflow; however,
+> ULONG_MAX is clearly what was intended, both here and by its only user
+> (count_history_pages at mm/readahead.c).
+ 
+Good catch, thanks! I actually have a more smart
+radix_tree_prev_hole() that uses ULONG_MAX.
+
+Andrew, fortunately this bug has little impact on readahead.
+
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+> ---
+>  lib/radix-tree.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
 > 
-> I think in this case, it was meant to be a list of acceptable parameters
-> rather than a set of values, kinda like /sys/power/state.
-
-Right.
-
-> Instead, I guess we could have:
-> 
-> 	/sys/devices/system/node/probeable/3
-> 	/sys/devices/system/node/probeable/43
-> 	/sys/devices/system/node/probeable/65
-> 	/sys/devices/system/node/probeable/5145
-> 
-> and the knowledge that you need to pick one of those to echo
-> into /sys/devices/system/node/probe.
-
-I think this way would make things complex if we just want to show user which node could be hotadded.
-
->  But, it's a lot more self
-> explanatory if you 'cat /sys/devices/system/node/probe', and then pick
-> one of those to echo back into the file.
-
-agreed.
-
-> Seems like a decent place to violate the "rule". :)
-
-
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index b69031f..be40980 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -656,7 +656,7 @@ EXPORT_SYMBOL(radix_tree_next_hole);
+>   *
+>   *	Returns: the index of the hole if found, otherwise returns an index
+>   *	outside of the set specified (in which case 'index - return >= max_scan'
+> - *	will be true). In rare cases of wrap-around, LONG_MAX will be returned.
+> + *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
+>   *
+>   *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+>   *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+> @@ -674,7 +674,7 @@ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+>  		if (!radix_tree_lookup(root, index))
+>  			break;
+>  		index--;
+> -		if (index == LONG_MAX)
+> +		if (index == ULONG_MAX)
+>  			break;
+>  	}
+>  
+> -- 
+> 1.6.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
