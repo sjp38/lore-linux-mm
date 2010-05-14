@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 715AC6B01EE
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 01:52:42 -0400 (EDT)
-Date: Fri, 14 May 2010 13:52:36 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC, 3/7] NUMA hotplug emulator
-Message-ID: <20100514055236.GA29036@localhost>
-References: <20100513114835.GD2169@shaohui>
- <4BECC418.2080602@linux.intel.com>
- <20100514041136.GA12020@localhost>
- <4BECE052.5020907@linux.intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 88BA06B01F0
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 02:23:48 -0400 (EDT)
+Received: by pva4 with SMTP id 4so1063708pva.14
+        for <linux-mm@kvack.org>; Thu, 13 May 2010 23:23:47 -0700 (PDT)
+Date: Fri, 14 May 2010 14:27:34 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: Re: /proc/<pid>/maps question....why aren't adjacent memory chunks
+ merged?
+Message-ID: <20100514062734.GA5612@cr0.nay.redhat.com>
+References: <4BEC704C.9000709@nortel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4BECE052.5020907@linux.intel.com>
+In-Reply-To: <4BEC704C.9000709@nortel.com>
 Sender: owner-linux-mm@kvack.org
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "ak@linux.intel.co" <ak@linux.intel.co>, "shaohui.zheng@linux.intel.com" <shaohui.zheng@linux.intel.com>
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 14, 2010 at 01:32:02PM +0800, Haicheng Li wrote:
-> Wu Fengguang wrote:
-> >> Pls. replace it with following code:
-> >>
-> >> +#ifdef CONFIG_NODE_HOTPLUG_EMU
-> >> +static ssize_t store_nodes_probe(struct sysdev_class *class,
-> >> +                                 struct sysdev_class_attribute *attr,
-> >> +                                 const char *buf, size_t count)
-> >> +{
-> >> +       long nid;
-> >> +       int ret;
-> >> +
-> >> +       ret = strict_strtol(buf, 0, &nid);
-> >> +       if (ret == -EINVAL)
-> >> +               return ret;
-> >> +
-> >> +       ret = hotadd_hidden_nodes(nid);
-> >> +       if (!ret)
-> >> +               return count;
-> >> +       else
-> >> +               return -EIO;
-> >> +}
-> >> +#endif
-> > 
-> > How about this?
-> > 
-> >        err = strict_strtol(buf, 0, &nid);
-> >        if (err < 0)
-> >                return err;
-> 
-> other negative value would be odd here.
+On Thu, May 13, 2010 at 03:34:04PM -0600, Chris Friesen wrote:
+>Hi,
+>
+>I've got a system running a somewhat-modified 2.6.27 on 64-bit x86.
+>
+>While investigating a userspace memory leak issue I noticed that
+>/proc/<pid>/maps showed a bunch of adjacent anonymous memory chunks with
+>identical permissions:
+>
+>7fd048000000-7fd04c000000 rw-p 00000000 00:00 0
+>7fd04c000000-7fd050000000 rw-p 00000000 00:00 0
+>7fd050000000-7fd054000000 rw-p 00000000 00:00 0
+>7fd054000000-7fd058000000 rw-p 00000000 00:00 0
+>7fd058000000-7fd05c000000 rw-p 00000000 00:00 0
+>7fd05c000000-7fd060000000 rw-p 00000000 00:00 0
+>7fd060000000-7fd064000000 rw-p 00000000 00:00 0
+>7fd064000000-7fd068000000 rw-p 00000000 00:00 0
+>7fd068000000-7fd06c000000 rw-p 00000000 00:00 0
+>7fd06c000000-7fd070000000 rw-p 00000000 00:00 0
+>7fd070000000-7fd074000000 rw-p 00000000 00:00 0
+>7fd074000000-7fd078000000 rw-p 00000000 00:00 0
+>7fd078000000-7fd07c000000 rw-p 00000000 00:00 0
+>7fd07c000000-7fd07fffe000 rw-p 00000000 00:00 0
+>
+>I was under the impression that the kernel would merge areas together in
+>this circumstance.  Does anyone have an idea about what's going on here?
+>
 
-Yes, strict_strtoul() will be better.
+Well, that is not so simple, there are other considerations,
+you need to check vma_merge(), especially can_vma_merge_{after,before}().
 
-> >        err = hotadd_hidden_nodes(nid);
-> >        if (err < 0)
-> >                return err;
-> 
-> hotadd_hidden_nodes could return -EEXIST, which is also odd here, right?
-
-Why not? write(2) says "Other errors may occur, depending on the
-object connected to fd."
-
-Thanks,
-Fengguang
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
