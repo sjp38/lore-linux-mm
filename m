@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 88BA06B01F0
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 02:23:48 -0400 (EDT)
-Received: by pva4 with SMTP id 4so1063708pva.14
-        for <linux-mm@kvack.org>; Thu, 13 May 2010 23:23:47 -0700 (PDT)
-Date: Fri, 14 May 2010 14:27:34 +0800
-From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
-Subject: Re: /proc/<pid>/maps question....why aren't adjacent memory chunks
- merged?
-Message-ID: <20100514062734.GA5612@cr0.nay.redhat.com>
-References: <4BEC704C.9000709@nortel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 653E56B01F2
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 02:26:09 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4E6Q5Mr022954
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 14 May 2010 15:26:06 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7FEE45DE6F
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 15:25:59 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D8EDF45DE60
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 15:25:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 11470E08003
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 15:25:57 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 26FF4E08001
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 15:25:53 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/1] mm: add descriptive comment for TIF_MEMDIE declaration
+In-Reply-To: <930863A4-0E91-4994-8EA0-E18361B0113D@dilger.ca>
+References: <930863A4-0E91-4994-8EA0-E18361B0113D@dilger.ca>
+Message-Id: <20100514152557.218F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BEC704C.9000709@nortel.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 14 May 2010 15:25:52 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Chris Friesen <cfriesen@nortel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org Mailinglist" <linux-kernel@vger.kernel.org>, trivial@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 13, 2010 at 03:34:04PM -0600, Chris Friesen wrote:
->Hi,
->
->I've got a system running a somewhat-modified 2.6.27 on 64-bit x86.
->
->While investigating a userspace memory leak issue I noticed that
->/proc/<pid>/maps showed a bunch of adjacent anonymous memory chunks with
->identical permissions:
->
->7fd048000000-7fd04c000000 rw-p 00000000 00:00 0
->7fd04c000000-7fd050000000 rw-p 00000000 00:00 0
->7fd050000000-7fd054000000 rw-p 00000000 00:00 0
->7fd054000000-7fd058000000 rw-p 00000000 00:00 0
->7fd058000000-7fd05c000000 rw-p 00000000 00:00 0
->7fd05c000000-7fd060000000 rw-p 00000000 00:00 0
->7fd060000000-7fd064000000 rw-p 00000000 00:00 0
->7fd064000000-7fd068000000 rw-p 00000000 00:00 0
->7fd068000000-7fd06c000000 rw-p 00000000 00:00 0
->7fd06c000000-7fd070000000 rw-p 00000000 00:00 0
->7fd070000000-7fd074000000 rw-p 00000000 00:00 0
->7fd074000000-7fd078000000 rw-p 00000000 00:00 0
->7fd078000000-7fd07c000000 rw-p 00000000 00:00 0
->7fd07c000000-7fd07fffe000 rw-p 00000000 00:00 0
->
->I was under the impression that the kernel would merge areas together in
->this circumstance.  Does anyone have an idea about what's going on here?
->
+> From: Andreas Dilger <adilger@dilger.ca>
+> 
+> Add descriptive comment for TIF_MEMDIE task flag declaration.
+> 
+> Signed-off-by: Andreas Dilger <adilger@dilger.ca>
 
-Well, that is not so simple, there are other considerations,
-you need to check vma_merge(), especially can_vma_merge_{after,before}().
+ack.
 
-Thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
