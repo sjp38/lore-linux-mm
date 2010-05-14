@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 812196B01EE
-	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:15:13 -0400 (EDT)
-Date: Fri, 14 May 2010 10:15:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] radix-tree: fix radix_tree_prev_hole underflow case
-Message-ID: <20100514021508.GA7810@localhost>
-References: <1273802724-3414-1-git-send-email-cesarb@cesarb.net>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id EFB5A6B01EE
+	for <linux-mm@kvack.org>; Thu, 13 May 2010 22:15:50 -0400 (EDT)
+Date: Fri, 14 May 2010 10:11:29 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC, 3/7] NUMA hotplug emulator
+Message-ID: <20100514021129.GE4381@shaohui>
+References: <20100513114835.GD2169@shaohui>
+ <20100513165511.GB25212@suse.de>
+ <20100514014535.GA4381@shaohui>
+ <20100514020135.GA7678@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1273802724-3414-1-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <20100514020135.GA7678@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 14, 2010 at 10:05:24AM +0800, Cesar Eduardo Barros wrote:
-> radix_tree_prev_hole() used LONG_MAX to detect underflow; however,
-> ULONG_MAX is clearly what was intended, both here and by its only user
-> (count_history_pages at mm/readahead.c).
- 
-Good catch, thanks! I actually have a more smart
-radix_tree_prev_hole() that uses ULONG_MAX.
-
-Andrew, fortunately this bug has little impact on readahead.
-
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
-> ---
->  lib/radix-tree.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+On Fri, May 14, 2010 at 10:01:35AM +0800, Wu Fengguang wrote:
+> On Fri, May 14, 2010 at 09:45:35AM +0800, Zheng, Shaohui wrote:
+> > On Thu, May 13, 2010 at 09:55:11AM -0700, Greg KH wrote:
+> > > On Thu, May 13, 2010 at 07:48:35PM +0800, Shaohui Zheng wrote:
+> > > > Userland interface to hotplug-add fake offlined nodes.
+> > > 
+> > > Why include 2 copies of the patch in one email?
+> > I always try to attach the patch as attachment, it is the same with the mail
+> > content, I guess it should take convenience when you need to save the patch 
+> > to local, it might be a bad habbit, I will be careful when I send patch next time.
+> > thanks for the reminding.
 > 
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index b69031f..be40980 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -656,7 +656,7 @@ EXPORT_SYMBOL(radix_tree_next_hole);
->   *
->   *	Returns: the index of the hole if found, otherwise returns an index
->   *	outside of the set specified (in which case 'index - return >= max_scan'
-> - *	will be true). In rare cases of wrap-around, LONG_MAX will be returned.
-> + *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
->   *
->   *	radix_tree_next_hole may be called under rcu_read_lock. However, like
->   *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-> @@ -674,7 +674,7 @@ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
->  		if (!radix_tree_lookup(root, index))
->  			break;
->  		index--;
-> -		if (index == LONG_MAX)
-> +		if (index == ULONG_MAX)
->  			break;
->  	}
->  
-> -- 
-> 1.6.6.1
+> Shaohui, git/quilt are great tools for submitting patch series.
+Thanks fengguang, I am the new fish in LKML, so I send the patches manually one by
+one, I will try this tool next time.
+
+> 
+> > > 
+> > > > Add a sysfs entry "probe" under /sys/devices/system/node/:
+> > > > 
+> > > >  - to show all fake offlined nodes:
+> > > >     $ cat /sys/devices/system/node/probe
+> > > > 
+> > > >  - to hotadd a fake offlined node, e.g. nodeid is N:
+> > > >     $ echo N > /sys/devices/system/node/probe
+> > > 
+> > > As you are trying to add a new sysfs file, please create the matching
+> > > Documentation/ABI/ file as well.
+> > 
+> > Agree, We will document it in.
+> > 
+> > > 
+> > > Also note that sysfs files are "one value per file", which I don't think
+> > > this file follows, right?
+> > 
+> > Agree, the cpu/probe interface should write only, and we should create another
+> > file to indicate the hidden nodes, such as cpu/hidden. We will follow this rule
+> > when we send the formal patch.
+> 
+> I'd prefer to avoid new interfaces if not absolutely necessary.
+> 
+> Thanks,
+> Fengguang
+
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
