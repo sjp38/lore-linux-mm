@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 027886B01F2
-	for <linux-mm@kvack.org>; Sat, 15 May 2010 10:31:22 -0400 (EDT)
-Received: by fxm20 with SMTP id 20so1697071fxm.14
-        for <linux-mm@kvack.org>; Sat, 15 May 2010 07:31:21 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 421806B01F2
+	for <linux-mm@kvack.org>; Sat, 15 May 2010 12:12:36 -0400 (EDT)
+Date: Sun, 16 May 2010 00:08:05 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC,2/7] NUMA Hotplug emulator
+Message-ID: <20100515160805.GA23630@shaohui>
+References: <20100513114544.GC2169@shaohui>
+ <AANLkTikZiRw2w9hveCxA2XQp8SYs-4rYpH4BdZOns2CS@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1005141626250.20193@router.home>
-References: <1273869997-12720-1-git-send-email-gthelen@google.com>
-	 <alpine.DEB.2.00.1005141626250.20193@router.home>
-Date: Sat, 15 May 2010 23:31:16 +0900
-Message-ID: <AANLkTil4zgqBtBAp--P8VdynpbohxVosQ-qFiQQ_c5Bb@mail.gmail.com>
-Subject: Re: [PATCH] mm: Consider the entire user address space during node
-	migration
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikZiRw2w9hveCxA2XQp8SYs-4rYpH4BdZOns2CS@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jaswinder Singh Rajput <jaswinderlinux@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Yinghai Lu <yinghai@kernel.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Sat, May 15, 2010 at 06:47:00PM +0530, Jaswinder Singh Rajput wrote:
+> > +       if (hidden_num)
+> 
+> if (hidden_num) is not required, as next line's for statement is also
+> doing the same thing.
 
-Mysteriously, I haven't receive original post.
-So now I'm guessing you acked following patch.
+Good catching, We will remove this statement in the formal patch. Thanks Jaswinder.
 
-http://lkml.org/lkml/2010/5/14/393
+Have a nice day.
 
-but I don't think it is correct.
+> 
+> Thanks,
+> --
+> Jaswinder Singh.
+> 
+> > +               for (i = 0; i < hidden_num; i++) {
+> > +                       int nid = num_nodes + i + 1;
+> > +                       node_set(nid, node_possible_map);
+> > +                       hidden_nodes[nid].start = hp_start + hp_size * i;
+> > +                       hidden_nodes[nid].end = hp_start + hp_size * (i+1);
+> > +                       node_set_hidden(nid);
+> > +               }
+> > +}
 
-> -	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nmask,
-> +	check_range(mm, mm->mmap->vm_start, TASK_SIZE_MAX, &nmask,
-> 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
-
-Because TASK_SIZE_MAX is defined on x86 only. Why can we ignore other platform?
-Please put following line anywhere.
-
-#define TASK_SIZE_MAX TASK_SIZE
-
-
-But this patch is conceptually good. if it fixes the bug. I'll ack gladly.
-
-Thanks.
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
