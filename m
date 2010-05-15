@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 01FB96B01EE
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 22:40:52 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o4F2em80007369
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 19:40:49 -0700
-Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
-	by kpbe16.cbf.corp.google.com with ESMTP id o4F2ek3u017273
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 19:40:47 -0700
-Received: by pwi6 with SMTP id 6so1704629pwi.21
-        for <linux-mm@kvack.org>; Fri, 14 May 2010 19:40:45 -0700 (PDT)
-Date: Fri, 14 May 2010 19:40:35 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] hughd: update email address
-Message-ID: <alpine.DEB.1.00.1005141927050.19908@tigran.mtv.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 2AA1A6B01E3
+	for <linux-mm@kvack.org>; Sat, 15 May 2010 08:04:20 -0400 (EDT)
+Date: Sat, 15 May 2010 19:59:50 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC, 0/7] NUMA Hotplug emulator
+Message-ID: <20100515115950.GA23083@shaohui>
+References: <20100513113629.GA2169@shaohui>
+ <20100514065744.GB3296@balbir.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100514065744.GB3296@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: hugh.dickins@tiscali.co.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-My old address will shut down in a couple of weeks: update the tree.
+On Fri, May 14, 2010 at 12:27:44PM +0530, Balbir Singh wrote:
+> * Shaohui Zheng <shaohui.zheng@intel.com> [2010-05-13 19:36:30]:
+> 
+> > Hi, All
+> > 	This patchset introduces NUMA hotplug emulator for x86. it refers too
+> > many files and might introduce new bugs, so we send a RFC to comminity first
+> > and expect comments and suggestions, thanks.
+> > 
+> > * WHAT IS HOTPLUG EMULATOR 
+> > 
+> > NUMA hotplug emulator is collectively named for the hotplug emulation
+> > it is able to emulate NUMA Node Hotplug thru a pure software way. It
+> > intends to help people easily debug and test node/cpu/memory hotplug
+> > related stuff on a none-numa-hotplug-support machine, even an UMA machine.
+> > 
+> > The emulator provides mechanism to emulate the process of physcial cpu/mem
+> > hotadd, it provides possibility to debug CPU and memory hotplug on the machines
+> > without NUMA support for kenrel developers. It offers an interface for cpu
+> > and memory hotplug test purpose.
+> >
+> 
+> Sounds like an interesting project, could you please
+> 
+> Post your patches as threaded, ideally having 0/7 to 7/7 in a thread
+> helps track the patches and comments.
+> 
+> -- 
+> 	Three Cheers,
+> 	Balbir
 
-Signed-off-by: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+Sorry for the late response, I have no experience to post all the patches into one 
+thread, I will consult local expert.
 
- MAINTAINERS |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Thanks Balbir, because of your guys's feedbacks and review comments, the code quality
+should be guaranteed. 
 
---- 2.6.34-rc7/MAINTAINERS	2010-04-30 14:49:02.000000000 -0700
-+++ linux/MAINTAINERS	2010-05-13 15:31:31.000000000 -0700
-@@ -5492,7 +5492,7 @@ S:	Maintained
- F:	drivers/mmc/host/tmio_mmc.*
- 
- TMPFS (SHMEM FILESYSTEM)
--M:	Hugh Dickins <hugh.dickins@tiscali.co.uk>
-+M:	Hugh Dickins <hughd@google.com>
- L:	linux-mm@kvack.org
- S:	Maintained
- F:	include/linux/shmem_fs.h
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
