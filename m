@@ -1,130 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D1DF16B01EE
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 19:59:00 -0400 (EDT)
-Received: from gitlad.jf.intel.com (gitlad.jf.intel.com [127.0.0.1])
-	by gitlad.jf.intel.com (8.14.2/8.14.2) with ESMTP id o4ENwqXV013694
-	for <linux-mm@kvack.org>; Fri, 14 May 2010 16:58:53 -0700
-From: Alexander Duyck <alexander.h.duyck@intel.com>
-Subject: [RFC PATCH] slub: move kmem_cache_node into it's own cacheline
-Date: Fri, 14 May 2010 16:58:52 -0700
-Message-ID: <20100514235852.13665.54331.stgit@gitlad.jf.intel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1DBCF6B01EE
+	for <linux-mm@kvack.org>; Fri, 14 May 2010 21:15:47 -0400 (EDT)
+Date: Sat, 15 May 2010 11:15:23 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Defrag in shrinkers (was Re: [PATCH 0/5] Per-superblock
+ shrinkers)
+Message-ID: <20100515011523.GG8120@dastard>
+References: <1273821863-29524-1-git-send-email-david@fromorbit.com>
+ <alpine.DEB.2.00.1005141244380.9466@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1005141244380.9466@router.home>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-This patch is meant to improve the performance of SLUB by moving the local
-kmem_cache_node lock into it's own cacheline separate from kmem_cache.
-This is accomplished by simply removing the local_node when NUMA is enabled.
+On Fri, May 14, 2010 at 12:46:52PM -0500, Christoph Lameter wrote:
+> Would it also be possible to add some defragmentation logic when you
+> revise the shrinkers? Here is a prototype patch that would allow you to
+> determine the other objects sitting in the same page as a given object.
+> 
+> With that I hope that you have enough information to determine if its
+> worth to evict the other objects as well to reclaim the slab page.
 
-On my system with 2 nodes I saw around a 5% performance increase w/
-hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
-suspect the performance gain would increase as the number of nodes
-increases, but I do not have the data to currently back that up.
+I'll have a think about how this might fit in - the real problem is
+when the list returns objects that belong to a different superblock.
+We can only safely check whether the object belongs to the current
+superblock - to check if it belongs to a different sb we a lot of
+locks and reference counting to juggle. That would require
+re-introducing all the muck (and then some) that this patchset
+removes from the shrinkers.
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
----
+Perhaps just freeing the objects that belong to the current sb would
+be sufficient to realise significant improvements (will be fine for
+systems that only have one active or dominant filesystem), but i
+think some experimentation would be needed.
 
- include/linux/slub_def.h |   11 ++++-------
- mm/slub.c                |   33 +++++++++++----------------------
- 2 files changed, 15 insertions(+), 29 deletions(-)
+The that brings us to test cases - we need a good one. I think we
+need to re-evaluate where we stand with regard to slab fragmentation
+(which probably hasn't changed much), and we need to be able to
+quantify the amount of improvement the increase in complexity will
+provide.  I don't have anything close to hand to generate such
+fragmentation, so it might take a little time to write a test that
+does the IO patterns I know will generate problems...
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 0249d41..e6217bb 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -52,7 +52,7 @@ struct kmem_cache_node {
- 	atomic_long_t total_objects;
- 	struct list_head full;
- #endif
--};
-+} ____cacheline_internodealigned_in_smp;
- 
- /*
-  * Word size structure that can be atomically updated or read and that
-@@ -75,12 +75,6 @@ struct kmem_cache {
- 	int offset;		/* Free pointer offset. */
- 	struct kmem_cache_order_objects oo;
- 
--	/*
--	 * Avoid an extra cache line for UP, SMP and for the node local to
--	 * struct kmem_cache.
--	 */
--	struct kmem_cache_node local_node;
--
- 	/* Allocation and freeing of slabs */
- 	struct kmem_cache_order_objects max;
- 	struct kmem_cache_order_objects min;
-@@ -102,6 +96,9 @@ struct kmem_cache {
- 	 */
- 	int remote_node_defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
-+#else
-+	/* Avoid an extra cache line for UP */
-+	struct kmem_cache_node local_node;
- #endif
- };
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index d2a54fe..6cf6be7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2141,7 +2141,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = s->node[node];
--		if (n && n != &s->local_node)
-+		if (n)
- 			kmem_cache_free(kmalloc_caches, n);
- 		s->node[node] = NULL;
- 	}
-@@ -2150,33 +2150,22 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
- static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
- {
- 	int node;
--	int local_node;
--
--	if (slab_state >= UP && (s < kmalloc_caches ||
--			s >= kmalloc_caches + KMALLOC_CACHES))
--		local_node = page_to_nid(virt_to_page(s));
--	else
--		local_node = 0;
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n;
- 
--		if (local_node == node)
--			n = &s->local_node;
--		else {
--			if (slab_state == DOWN) {
--				early_kmem_cache_node_alloc(gfpflags, node);
--				continue;
--			}
--			n = kmem_cache_alloc_node(kmalloc_caches,
--							gfpflags, node);
--
--			if (!n) {
--				free_kmem_cache_nodes(s);
--				return 0;
--			}
-+		if (slab_state == DOWN) {
-+			early_kmem_cache_node_alloc(gfpflags, node);
-+			continue;
-+		}
-+		n = kmem_cache_alloc_node(kmalloc_caches,
-+						gfpflags, node);
- 
-+		if (!n) {
-+			free_kmem_cache_nodes(s);
-+			return 0;
- 		}
-+
- 		s->node[node] = n;
- 		init_kmem_cache_node(n, s);
- 	}
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
