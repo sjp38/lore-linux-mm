@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D3C6B01E3
-	for <linux-mm@kvack.org>; Sun, 16 May 2010 13:45:16 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e7.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o4GHYc8c004158
-	for <linux-mm@kvack.org>; Sun, 16 May 2010 13:34:38 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4GHj70j148158
-	for <linux-mm@kvack.org>; Sun, 16 May 2010 13:45:07 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4GHj5ho024448
-	for <linux-mm@kvack.org>; Sun, 16 May 2010 13:45:07 -0400
-Date: Sun, 16 May 2010 10:45:02 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [RFC,5/7] NUMA hotplug emulator
-Message-ID: <20100516174502.GI2418@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20100513115625.GF2169@shaohui>
- <20100507141142.GA8696@ucw.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A2CDE6B01E3
+	for <linux-mm@kvack.org>; Sun, 16 May 2010 20:00:43 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4H00euc018088
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 17 May 2010 09:00:40 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F37F045DE61
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 09:00:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 99CC245DE57
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 09:00:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 42351E0801B
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 09:00:39 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 09EB7E08016
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 09:00:38 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2] mm: Consider the entire user address space during node migration
+In-Reply-To: <1273962913-8950-1-git-send-email-gthelen@google.com>
+References: <AANLkTil4zgqBtBAp--P8VdynpbohxVosQ-qFiQQ_c5Bb@mail.gmail.com> <1273962913-8950-1-git-send-email-gthelen@google.com>
+Message-Id: <20100517085953.21A2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100507141142.GA8696@ucw.cz>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 17 May 2010 09:00:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@ucw.cz>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Thomas Renninger <trenn@suse.de>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>, Alex Chiang <achiang@hp.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Greg Kroah-Hartman <gregkh@suse.de>, Stephen Rothwell <sfr@canb.auug.org.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Shaohua Li <shaohua.li@intel.com>, Jean Delvare <khali@linux-fr.org>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, linux-acpi@vger.kernel.org, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Greg Thelen <gthelen@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, kamezawa.hiroyu@jp.fujitsu.com, nishimura@mxp.nes.nec.co.jp, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 07, 2010 at 04:11:42PM +0200, Pavel Machek wrote:
-> Hi!
+> Changes since v1:
+> - Use mm->task_size rather than TASK_SIZE_MAX to support all platforms.
 > 
-> > hotplug emulator: Abstract cpu register functions
-> > 
-> > Abstract function arch_register_cpu and register_cpu, move the implementation
-> > details to a sub function with prefix "__". 
-> > 
-> > each of the sub function has an extra parameter nid, it can be used to register
-> > CPU under a fake NUMA node, it is a reserved interface for cpu hotplug emulation
-> > (CPU PROBE/RELEASE) in x86.
-> 
-> I don't get it. CPU hotplug can already be tested using echo 0/1 >
-> online, and that works on 386. How is this different?
-> 
-> It seems to add some numa magic. Why is it important?
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-My guess is that he wants to test the software surrounding NUMA on a
-non-NUMA (or different-NUMA) machine, perhaps in order to shake out bugs
-before the corresponding hardware is available.
+Looks good. Thanks Greg!
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-							Thanx, Paul
+
+> ---
+>  mm/mempolicy.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 9f11728..2fd17e7 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -928,7 +928,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+>  	nodes_clear(nmask);
+>  	node_set(source, nmask);
+>  
+> -	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nmask,
+> +	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+>  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+>  
+>  	if (!list_empty(&pagelist))
+> -- 
+> 1.7.0.1
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
