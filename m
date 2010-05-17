@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D2C12600385
-	for <linux-mm@kvack.org>; Mon, 17 May 2010 12:08:23 -0400 (EDT)
-Date: Mon, 17 May 2010 11:04:30 -0500 (CDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2F4BC600385
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 12:11:21 -0400 (EDT)
+Date: Mon, 17 May 2010 11:06:29 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mem-hotplug: separate setup_per_cpu_pageset() into
- separate functions
-In-Reply-To: <4BF0FBDB.3090202@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1005171104200.20764@router.home>
-References: <4BF0FBDB.3090202@linux.intel.com>
+Subject: Re: [PATCH 2/3] mem-hotplug: avoid multiple zones sharing same boot
+ strapping boot_pageset
+In-Reply-To: <4BF0FC13.4090206@linux.intel.com>
+Message-ID: <alpine.DEB.2.00.1005171106150.20764@router.home>
+References: <4BF0FC13.4090206@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
