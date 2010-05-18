@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2BACA6B01D1
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 12:13:12 -0400 (EDT)
-Date: Wed, 19 May 2010 02:13:08 +1000
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA2F6B01D0
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 12:28:23 -0400 (EDT)
+Date: Tue, 18 May 2010 09:25:05 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: Unexpected splice "always copy" behavior observed
-Message-ID: <20100518161308.GL2516@laptop>
-References: <20100518153440.GB7748@Krystal>
- <20100518155135.GJ2516@laptop>
- <alpine.DEB.2.00.1005181055260.16649@router.home>
- <20100518160051.GK2516@laptop>
+In-Reply-To: <1274199039.26328.758.camel@gandalf.stny.rr.com>
+Message-ID: <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org>
+References: <20100518153440.GB7748@Krystal>  <1274197993.26328.755.camel@gandalf.stny.rr.com> <1274199039.26328.758.camel@gandalf.stny.rr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100518160051.GK2516@laptop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 19, 2010 at 02:00:51AM +1000, Nick Piggin wrote:
-> On Tue, May 18, 2010 at 10:56:24AM -0500, Christoph Lameter wrote:
-> > On Wed, 19 May 2010, Nick Piggin wrote:
-> > 
-> > > What would be needed is to have filesystem maintainers go through and
-> > > enable it on a case by case basis. It's trivial for tmpfs/ramfs type
-> > > filesystems and I have a patch for those, but I never posted it on.yet.
-> > > Even basic buffer head filesystems IIRC get a little more complex --
-> > > but we may get some milage just out of invalidating the existing
-> > > pagecache rather than getting fancy and trying to move buffers over
-> > > to the new page.
-> > 
-> > There is a "migration" address space operation for moving pages. Page
-> > migration requires that in order to be able to move dirty pages. Can
-> > splice use that?
+
+
+On Tue, 18 May 2010, Steven Rostedt wrote:
 > 
-> Hmm yes I didn't think of that, it probably could.
+> Hopefully we can find a way to avoid the copy to file. But the splice
+> code was created to avoid the copy to and from userspace, it did not
+> guarantee no copy within the kernel itself.
 
-It's not the only requirement, of course, just that it could
-potentially reuse some of the code.
+Well, we always _wanted_ to splice directly to a file, but it's just not 
+been done properly. It's not entirely trivial, since you need to worry 
+about preexisting pages and generally just do the right thing wrt the 
+filesystem.
 
-The big difference is that the source page is already dirty, and
-the destination page might not exist, might exist and be partially
-uptodate, not have blocks allocated, might be past i_size, fully
-uptodate, etc.
+And no, it should NOT use migration code. I suspect you could do something 
+fairly simple like:
 
-So it's more than a matter of just a simple copy to another page
-and taking over exactly the same filesystem state as the old page.
+ - get the inode semaphore.
+ - check if the splice is a pure "extend size" operation for that page
+ - if so, just create the page cache entry and mark it dirty
+ - otherwise, fall back to copying.
+
+because the "extend file" case is the easiest one, and is likely the only 
+one that matters in practice (if you are overwriting an existing file, 
+things get _way_ hairier, and why the hell would anybody expect that to be 
+fast anyway?)
+
+But somebody needs to write the code..
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
