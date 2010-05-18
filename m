@@ -1,72 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 81EEA6003C2
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 05:11:21 -0400 (EDT)
-Date: Tue, 18 May 2010 17:03:00 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [RFC,5/7] NUMA hotplug emulator
-Message-ID: <20100518090300.GA26178@shaohui>
-References: <20100513121457.GJ2169@shaohui>
- <20100514054928.GC12002@linux-sh.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100514054928.GC12002@linux-sh.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 40FB66B021A
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 08:19:49 -0400 (EDT)
+Subject: Re: [RFC] Tracer Ring Buffer splice() vs page cache [was: Re: Perf
+ and ftrace [was Re: PyTimechart]]
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100517224243.GA10603@Krystal>
+References: <20100514183242.GA11795@Krystal>
+	 <1273862945.1674.14.camel@laptop>  <20100517224243.GA10603@Krystal>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 18 May 2010 14:19:20 +0200
+Message-ID: <1274185160.5605.7787.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 14, 2010 at 02:49:28PM +0900, Paul Mundt wrote:
-> On Thu, May 13, 2010 at 08:14:57PM +0800, Shaohui Zheng wrote:
-> > hotplug emulator: support cpu probe/release in x86
-> > 
-> > Add cpu interface probe/release under sysfs for x86. User can use this
-> > interface to emulate the cpu hot-add process, it is for cpu hotplug 
-> > test purpose. Add a kernel option CONFIG_ARCH_CPU_PROBE_RELEASE for this
-> > feature.
-> > 
-> > This interface provides a mechanism to emulate cpu hotplug with software
-> >  methods, it becomes possible to do cpu hotplug automation and stress
-> > testing.
-> > 
-> At a quick glance, is this really necessary? It seems like you could
-> easily replace most of this with a CPU notifier chain that takes care of
-> the node handling. See for example how ppc64 manages the CPU hotplug/numa
-> emulation case in arch/powerpc/mm/numa.c. arch_register_cpu() just looks
-> like some topology hack for ACPI, it would be nice not to perpetuate that
-> too much.
+On Mon, 2010-05-17 at 18:42 -0400, Mathieu Desnoyers wrote:
+> I'll continue to look into this. One of the things I noticed that that we=
+ could
+> possibly use the "steal()" operation to steal the pages back from the pag=
+e cache
+> to repopulate the ring buffer rather than continuously allocating new pag=
+es. If
+> steal() fails for some reasons, then we can fall back on page allocation.=
+ I'm
+> not sure it is safe to assume anything about pages being in the page cach=
+e
+> though.=20
 
-Paul,
-	When we reivew the possible solutions for the emulator, we already do some researching
-for ppc hotplug interface, I did not has ppc background, so it is hard for me to understand
-all the details, but we get clues indeed, so you see the emulator today.
+Also, suppose it was still in the page-cache and still dirty, a steal()
+would then punch a hole in the file.
 
-	We are *NOT* expecting to find simple way to probe a CPU, we are trying to emulate the
- behavior with software methods, we expect the same result when we do same operation on real
-  hardware and emualtor. That is the reason why we did not selelct CPU notifier chain, you can
-   see the CPU probe process is almost the same with CPU physical hot-add, the only difference
-is that some functions are replaced with a '_emu' suffix, these '_emu' function has the same
- function with the old one, but it does not refer to any acpi_handle data since the hot-add
-event is fake.
+> Maybe the safest route is to just allocate new pages for now.
 
- for exmaple:
-	 register_cpu & register_cpu_emu
-	 arch_register_cpu & arch_register_cpu_emu
-	 acpi_map_lsapic & acpi_map_lsapic_emu
-
-	the nid and apic_id are parsed from the acpi_handle, but for a fake hot-add, we does not 
-has such data, so we delete the parser code and replace them with a parameter.
-
-	I believe you method can success probe a CPU, but it is obvious different with the CPU hot-add
-process, it has the different behavior with the real hardware, it is not expect. that is the failure
- of the emulation.
-
-	ppc does not care about the ACPI data, that is the reason why it seems to be simple.
-
--- 
-Thanks & Regards,
-Shaohui
+Yes, that seems to be the only sane approach.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
