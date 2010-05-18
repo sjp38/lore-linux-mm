@@ -1,92 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EE5826B01D1
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 02:17:45 -0400 (EDT)
-From: minskey guo <chaohong_guo@linux.intel.com>
-Subject: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
-Date: Tue, 18 May 2010 14:17:22 +0800
-Message-Id: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 976786B01E3
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:27:16 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e6.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o4I7PFo1025787
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:25:15 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4I7R999123766
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:27:09 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4I7R8N6018039
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:27:09 -0400
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100518054121.GA25298@shaohui>
+References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>
+	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>
+	 <1273776578.13285.7820.camel@nimitz>  <20100518054121.GA25298@shaohui>
+Content-Type: text/plain
+Date: Tue, 18 May 2010 00:27:05 -0700
+Message-Id: <1274167625.17463.17.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org
-Cc: prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, minskey guo <chaohong.guo@intel.com>
+To: Shaohui Zheng <shaohui.zheng@intel.com>
+Cc: Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-From: minskey guo <chaohong.guo@intel.com>
+On Tue, 2010-05-18 at 13:41 +0800, Shaohui Zheng wrote:
+> On Thu, May 13, 2010 at 11:49:38AM -0700, Dave Hansen wrote:
+> the configfs was introduced in 2005, you can refer to http://lwn.net/Articles/148973/.
+> 
+> I enabled the configfs, and I see that the configfs is not so popular as we expected,
+> I mount configfs to /sys/kernel/config, I get an empty directory. It means that nobody is 
+> using this file system, it is an interesting thing, is it means that configfs is deprecated?
+> If so, it might not be nessarry to develop a configfs interface for hotplug.
 
-The operation of "enable CPU to online before memory within a node"
-fails in some case according to Prarit. The warnings as follows:
+Uh, deprecated?  What would make you think that?  It does look like the
+users are a we bit obscure, but that's a bit far from deprecated.
 
-Pid: 7440, comm: bash Not tainted 2.6.32 #2
-Call Trace:
- [<ffffffff81155985>] pcpu_alloc+0xa05/0xa70
- [<ffffffff81155a20>] __alloc_percpu+0x10/0x20
- [<ffffffff81089605>] __create_workqueue_key+0x75/0x280
- [<ffffffff8110e050>] ? __build_all_zonelists+0x0/0x5d0
- [<ffffffff810c1eba>] stop_machine_create+0x3a/0xb0
- [<ffffffff810c1f57>] stop_machine+0x27/0x60
- [<ffffffff8110f1a0>] build_all_zonelists+0xd0/0x2b0
- [<ffffffff814c1d12>] cpu_up+0xb3/0xe3
- [<ffffffff814b3c40>] store_online+0x70/0xa0
- [<ffffffff81326100>] sysdev_store+0x20/0x30
- [<ffffffff811d29a5>] sysfs_write_file+0xe5/0x170
- [<ffffffff81163d28>] vfs_write+0xb8/0x1a0
- [<ffffffff810cfd22>] ? audit_syscall_entry+0x252/0x280
- [<ffffffff81164761>] sys_write+0x51/0x90
- [<ffffffff81013132>] system_call_fastpath+0x16/0x1b
-Built 4 zonelists in Zone order, mobility grouping on.  Total pages: 12331603
-PERCPU: allocation failed, size=128 align=64, failed to populate
+> Dave & Greg,
+> 	Can you provide an exmample to use configfs as interface in Linux kernel, I want to get
+> a live demo, thanks.
 
-With "enable CPU to online before memory" patch, when the 1st CPU of
-an offlined node is being onlined, we build zonelists for that node.
-If per-cpu area needs to be extended during zonelists building period,
-alloc_pages_node() will be called. The routine alloc_pages_node() fails
-on the node in-onlining because the node doesn't have zonelists created
-yet.
+Heh.  There are some great tools out there called cscope and grep.  I
+have them on my system and I bet you can get them on yours too.
 
-To fix this issue,  we try to alloc memory from current node.
+That said, you're right.  There don't seem to be a ton of users of it
+these days.  But, the LWN article you referenced also pointed to at
+least one user.  So, please try and put a wee bit of effort into it.
 
-Signed-off-by: minskey guo <chaohong.guo@intel.com>
----
- mm/percpu.c |   18 +++++++++++++++++-
- 1 files changed, 17 insertions(+), 1 deletions(-)
+Maybe configfs isn't the way to go.  I just think extending the 'probe'
+file is a bad idea, especially in the way your patch did it.  I'm open
+to other alternatives.  Since this is only for testing, perhaps debugfs
+applies better.  What other alternatives have you explored?  How about a
+Systemtap set to do it? :)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 6e09741..fabdb10 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
- {
- 	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
- 	unsigned int cpu;
-+	int nid;
- 	int i;
- 
- 	for_each_possible_cpu(cpu) {
- 		for (i = page_start; i < page_end; i++) {
- 			struct page **pagep = &pages[pcpu_page_idx(cpu, i)];
- 
--			*pagep = alloc_pages_node(cpu_to_node(cpu), gfp, 0);
-+			nid = cpu_to_node(cpu);
-+
-+			/*
-+			 * It is allowable to online a CPU within a NUMA
-+			 * node which doesn't have onlined local memory.
-+			 * In this case, we need to create zonelists for
-+			 * that node when cpu is being onlined. If per-cpu
-+			 * area needs to be extended at the exact time when
-+			 * zonelists of that node is being created, we alloc
-+			 * memory from current node.
-+			 */
-+			if ((nid == -1) ||
-+			    !(node_zonelist(nid, GFP_KERNEL)->_zonerefs->zone))
-+				nid = numa_node_id();
-+
-+			*pagep = alloc_pages_node(nid, gfp, 0);
- 			if (!*pagep) {
- 				pcpu_free_pages(chunk, pages, populated,
- 						page_start, page_end);
--- 
-1.7.0.4
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
