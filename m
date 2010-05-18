@@ -1,88 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DA1F76B0214
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 04:16:57 -0400 (EDT)
-Date: Tue, 18 May 2010 16:08:43 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [RFC, 6/7] NUMA hotplug emulator
-Message-ID: <20100518080843.GB26105@shaohui>
-References: <20100513120016.GG2169@shaohui>
- <20100513165603.GC25212@suse.de>
- <1273773737.13285.7771.camel@nimitz>
- <20100513181539.GA26597@suse.de>
- <1273776578.13285.7820.camel@nimitz>
- <20100518054121.GA25298@shaohui>
- <20100518074432.GB30313@linux-sh.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6AC2A6B0216
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 04:55:27 -0400 (EDT)
+Message-ID: <4BF255F3.9040002@linux.intel.com>
+Date: Tue, 18 May 2010 10:55:15 +0200
+From: Andi Kleen <ak@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100518074432.GB30313@linux-sh.org>
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>	 <1273776578.13285.7820.camel@nimitz>  <20100518054121.GA25298@shaohui> <1274167625.17463.17.camel@nimitz>
+In-Reply-To: <1274167625.17463.17.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Paul Mundt <lethal@linux-sh.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Shaohui Zheng <shaohui.zheng@intel.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 18, 2010 at 04:44:32PM +0900, Paul Mundt wrote:
-> On Tue, May 18, 2010 at 01:41:21PM +0800, Shaohui Zheng wrote:
-> > On Thu, May 13, 2010 at 11:49:38AM -0700, Dave Hansen wrote:
-> > > On Thu, 2010-05-13 at 11:15 -0700, Greg KH wrote:
-> > > > >       echo "physical_address=0x40000000 numa_node=3" > memory/probe
-> > > > > 
-> > > > > I'd *GREATLY* prefer that over this new syntax.  The existing mechanism
-> > > > > is obtuse enough, and the ',3' makes it more so.
-> > > > > 
-> > > > > We should have the code around to parse arguments like that, too, since
-> > > > > we use it for the boot command-line.
-> > > > 
-> > > > If you are going to be doing something like this, please use configfs,
-> > > > that is what it is designed for, not sysfs.
-> > > 
-> > > That's probably a really good point, especially since configfs didn't
-> > > even exist when we made this 'probe' file thingy.  It never was a great
-> > > fit for sysfs anyway.
-> > > 
-> > > -- Dave
-> > 
-> > the configfs was introduced in 2005, you can refer to http://lwn.net/Articles/148973/.
-> > 
-> > I enabled the configfs, and I see that the configfs is not so popular as we expected,
-> > I mount configfs to /sys/kernel/config, I get an empty directory. It means that nobody is 
-> > using this file system, it is an interesting thing, is it means that configfs is deprecated?
-> > If so, it might not be nessarry to develop a configfs interface for hotplug.
-> > 
-> configfs is certainly not deprecated, but there are also not that many
-> users of it at present. dlm/ocfs2 were the first users as far as I
-> recall, and netconsole as well. The fact you have an empty directory just
-> indicates that you don't have support for any of these enabled.
-> 
-> Note that there are also a lot of present-day sysfs and debugfs users
-> that could/should be converted to configfs but haven't quite gotten there
-> yet. In the sysfs case abuses are hard to rollback once they've made
-> become part of the ABI, but that's not grounds for continuing sysfs abuse
-> once cleaner methods become available. Many of the sysfs abuses were
-> implemented before configfs existed.
-> 
-> You can also find usage guidelines and example implementations in
-> Documentation/filesystems/configfs, which should give you a pretty good
-> idea of whether it's a good interface fit for your particular problem or
-> not.
-> 
-> These days sysfs seems to be the new procfs. It certainly helps to put a
-> bit of planning in to the interface before you're invariably stuck with
-> an ABI that's barely limping along.
 
-Paul,
-	Thanks for the clear explanation for configfs, and I kown the importance of the configfs now.
-the cpu/memory probe is just an interface, we care more about whether the feature works, but the
-interface implemented by sysfs or configfs, it is not important. Different paths, the same objective.
-Both are for us.
+>
+> Maybe configfs isn't the way to go.  I just think extending the 'probe'
+> file is a bad idea, especially in the way your patch did it.  I'm open
+> to other alternatives.  Since this is only for testing, perhaps debugfs
+> applies better.  What other alternatives have you explored?  How about a
+> Systemtap set to do it? :)
 
-we follow up the style of the majority, we also accept the feedbacks from the community. I did not 
-how many efforts costs, but I am trying.
+First this is a debugging interface. It doesn't need to have the
+most pretty interface in the world, because it will be only used for
+QA by a few people.
 
--- 
-Thanks & Regards,
-Shaohui
+Requiring setting parameters in two different file systems doesn't
+sound that appealing to me.
+
+systemtap for configuration also doesn't seem right.
+
+I liked Dave's earlier proposal to do a command line parameter like interface
+for "probe". Perhaps that can be done. It shouldn't need a lot of code.
+
+In fact there are already two different parser libraries for this:
+lib/parser.c and lib/params.c. One could chose the one that one likes
+better :-)
+
+Anything that needs a lot of code is a bad idea for this I think.
+A simple parser using one of the existing libraries should be simple
+enough though.
+
+Again it's just a QA interface, not the next generation of POSIX.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
