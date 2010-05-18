@@ -1,53 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 496F76B01D1
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:46:20 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o4IFWjTZ030663
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:32:45 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4IFkEET137052
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:46:14 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4IFkDw1008571
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 12:46:14 -0300
-Subject: Re: [RFC, 6/7] NUMA hotplug emulator
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <4BF255F3.9040002@linux.intel.com>
-References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>
-	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>
-	 <1273776578.13285.7820.camel@nimitz>  <20100518054121.GA25298@shaohui>
-	 <1274167625.17463.17.camel@nimitz>  <4BF255F3.9040002@linux.intel.com>
-Content-Type: text/plain
-Date: Tue, 18 May 2010 08:46:10 -0700
-Message-Id: <1274197570.17463.30.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 713106B01D0
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:51:42 -0400 (EDT)
+Date: Wed, 19 May 2010 01:51:35 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: Unexpected splice "always copy" behavior observed
+Message-ID: <20100518155135.GJ2516@laptop>
+References: <20100518153440.GB7748@Krystal>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100518153440.GB7748@Krystal>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Shaohui Zheng <shaohui.zheng@intel.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-05-18 at 10:55 +0200, Andi Kleen wrote:
-> I liked Dave's earlier proposal to do a command line parameter like interface
-> for "probe". Perhaps that can be done. It shouldn't need a lot of code.
+Hi,
 
-After looking at the code, configfs doesn't look to me like it can be
-done horribly easily.  It takes a least a subsystem and then a few
-structures to get things up and running.  There also doesn't appear to
-be a good subsystem to plug into.
+The basic problem is that the filesystem APIs were never designed with
+this usage in mind, so we had to disable the SPLICE_F_MOVE support by
+default.
 
-> In fact there are already two different parser libraries for this:
-> lib/parser.c and lib/params.c. One could chose the one that one likes
-> better :-)
+So short answer is that this is expected.
 
-Agreed.  But, I do see why Greg is suggesting configfs here.
-Superficially, it seems like a good configfs fit, but I think configfs
-is only a good fit when you need to cram a _bunch_ of stuff into a _new_
-interface.  Here, we have a relatively tiny amount of data that has half
-of what it needs from an existing interface.  
+What would be needed is to have filesystem maintainers go through and
+enable it on a case by case basis. It's trivial for tmpfs/ramfs type
+filesystems and I have a patch for those, but I never posted it on.yet.
+Even basic buffer head filesystems IIRC get a little more complex --
+but we may get some milage just out of invalidating the existing
+pagecache rather than getting fancy and trying to move buffers over
+to the new page.
 
--- Dave
+Nick
+
+On Tue, May 18, 2010 at 11:34:40AM -0400, Mathieu Desnoyers wrote:
+> Hi,
+> 
+> I'm currently digging into the splice code to figure out why it's always in copy
+> mode even though I specified the SPLICE_F_MOVE flag and released the page
+> references from the LTTng ring buffer. I'm splicing to a pipe and then from the
+> pipe to an ext3 filesystem (2.6.33.4 kernel). I've got the feeling I'm missing
+> something and I don't like that.
+> 
+> My simple test case is to add a printk around the splice copy:
+> 
+> fs/splice.c: pipe_to_file()
+>        if (buf->page != page) {
+>                 /*
+>                  * Careful, ->map() uses KM_USER0!
+>                  */
+>                 char *src = buf->ops->map(pipe, buf, 1);
+>                 char *dst = kmap_atomic(page, KM_USER1);
+> 
+>                 printk(KERN_WARNING "SPLICE COPY!!!\n");
+>                 memcpy(dst + offset, src + buf->offset, this_len);
+>                 flush_dcache_page(page);
+>                 kunmap_atomic(dst, KM_USER1);
+>                 buf->ops->unmap(pipe, buf, src);
+>         }
+> 
+> I'll start with a disclaimer that I only recently improved my splice
+> understanding, so AFAIU:
+> 
+> * pipe_to_file() allocates a struct page *page on its stack.
+> 
+> * It is passed, uninitialized, to
+> 
+>         ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
+>                                 AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
+> 
+>     that looks already odd to me, as I would expect pipe_to_file to populate
+>     this page pointer with buf->page initially if the proper conditions are met.
+> 
+> * Looking at the ext2 and ext3 write_begin code, neither are using the pagep
+>   parameter:
+> 
+>   ext2:
+> 
+> static int
+> ext2_write_begin(struct file *file, struct address_space *mapping,
+>                 loff_t pos, unsigned len, unsigned flags,
+>                 struct page **pagep, void **fsdata)
+> {
+>         *pagep = NULL;
+>         return __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
+> }
+> 
+> 
+>   ext3:
+> 
+> static int ext3_write_begin(struct file *file, struct address_space *mapping,
+>                                 loff_t pos, unsigned len, unsigned flags,
+>                                 struct page **pagep, void **fsdata)
+> {
+>         struct page *page;
+>         ....
+> 
+> retry:
+>         page = grab_cache_page_write_begin(mapping, index, flags);
+>         if (!page)
+>                 return -ENOMEM;
+>         *pagep = page;
+> 
+> * So, considering the test to check if the page content must be copied:
+> 
+>        if (buf->page != page) {
+> 
+>   how is it ever possible that buf->page == page ?
+> 
+> Thanks,
+> 
+> Mathieu
+> 
+> -- 
+> Mathieu Desnoyers
+> Operating System Efficiency R&D Consultant
+> EfficiOS Inc.
+> http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
