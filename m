@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B56076B01D1
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:43:41 -0400 (EDT)
-Date: Tue, 18 May 2010 11:43:27 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [RFC] Tracer Ring Buffer splice() vs page cache [was: Re: Perf
-	and ftrace [was Re: PyTimechart]]
-Message-ID: <20100518154327.GC7748@Krystal>
-References: <20100514183242.GA11795@Krystal> <1273862945.1674.14.camel@laptop> <20100517224243.GA10603@Krystal> <1274185160.5605.7787.camel@twins> <20100518151626.GA7748@Krystal> <1274196233.5605.8169.camel@twins>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1274196233.5605.8169.camel@twins>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 496F76B01D1
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:46:20 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e9.ny.us.ibm.com (8.14.3/8.13.1) with ESMTP id o4IFWjTZ030663
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:32:45 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4IFkEET137052
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:46:14 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4IFkDw1008571
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 12:46:14 -0300
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4BF255F3.9040002@linux.intel.com>
+References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>
+	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>
+	 <1273776578.13285.7820.camel@nimitz>  <20100518054121.GA25298@shaohui>
+	 <1274167625.17463.17.camel@nimitz>  <4BF255F3.9040002@linux.intel.com>
+Content-Type: text/plain
+Date: Tue, 18 May 2010 08:46:10 -0700
+Message-Id: <1274197570.17463.30.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Shaohui Zheng <shaohui.zheng@intel.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra (peterz@infradead.org) wrote:
-> On Tue, 2010-05-18 at 11:16 -0400, Mathieu Desnoyers wrote:
-> > > Also, suppose it was still in the page-cache and still dirty, a steal()
-> > > would then punch a hole in the file.
-> > 
-> > page_cache_pipe_buf_steal starts by doing a wait_on_page_writeback(page); and
-> > then does a try_to_release_page(page, GFP_KERNEL). Only if that succeeds is the
-> > action of stealing succeeding. 
-> 
-> If you're going to wait for writeback I don't really see the advantage
-> of stealing over simply allocating a new page.
+On Tue, 2010-05-18 at 10:55 +0200, Andi Kleen wrote:
+> I liked Dave's earlier proposal to do a command line parameter like interface
+> for "probe". Perhaps that can be done. It shouldn't need a lot of code.
 
-That would allow the ring buffer to use a bounded amount of memory and not
-pollute the page cache uselessly. When allocating pages as you propose, the
-tracer will quickly fill and pollute the page cache with trace file pages, which
-will have a large impact on I/O behavior. But in 99.9999% of use-cases, we don't
-ever need to access them after they have been saved to disk.
+After looking at the code, configfs doesn't look to me like it can be
+done horribly easily.  It takes a least a subsystem and then a few
+structures to get things up and running.  There also doesn't appear to
+be a good subsystem to plug into.
 
-By re-stealing its own pages after waiting for the writeback to complete, the
-ring buffer would use a bounded amount of pages. If larger buffers are needed,
-the user just has to specify a larger buffer size.
+> In fact there are already two different parser libraries for this:
+> lib/parser.c and lib/params.c. One could chose the one that one likes
+> better :-)
 
-Thanks,
+Agreed.  But, I do see why Greg is suggesting configfs here.
+Superficially, it seems like a good configfs fit, but I think configfs
+is only a good fit when you need to cram a _bunch_ of stuff into a _new_
+interface.  Here, we have a relatively tiny amount of data that has half
+of what it needs from an existing interface.  
 
-Mathieu
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
