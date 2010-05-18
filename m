@@ -1,24 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4C4696B01EE
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:44:27 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B384A6B0210
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 03:45:31 -0400 (EDT)
+Date: Tue, 18 May 2010 16:44:32 +0900
+From: Paul Mundt <lethal@linux-sh.org>
 Subject: Re: [RFC, 6/7] NUMA hotplug emulator
-From: "Nicholas A. Bellinger" <nab@linux-iscsi.org>
+Message-ID: <20100518074432.GB30313@linux-sh.org>
+References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de> <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de> <1273776578.13285.7820.camel@nimitz> <20100518054121.GA25298@shaohui>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20100518054121.GA25298@shaohui>
-References: <20100513120016.GG2169@shaohui> <20100513165603.GC25212@suse.de>
-	 <1273773737.13285.7771.camel@nimitz> <20100513181539.GA26597@suse.de>
-	 <1273776578.13285.7820.camel@nimitz>  <20100518054121.GA25298@shaohui>
-Content-Type: text/plain
-Date: Tue, 18 May 2010 00:44:20 -0700
-Message-Id: <1274168660.7348.132.camel@haakon2.linux-iscsi.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Shaohui Zheng <shaohui.zheng@intel.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <gregkh@suse.de>, akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-05-18 at 13:41 +0800, Shaohui Zheng wrote:
+On Tue, May 18, 2010 at 01:41:21PM +0800, Shaohui Zheng wrote:
 > On Thu, May 13, 2010 at 11:49:38AM -0700, Dave Hansen wrote:
 > > On Thu, 2010-05-13 at 11:15 -0700, Greg KH wrote:
 > > > >       echo "physical_address=0x40000000 numa_node=3" > memory/probe
@@ -43,43 +40,28 @@ On Tue, 2010-05-18 at 13:41 +0800, Shaohui Zheng wrote:
 > I enabled the configfs, and I see that the configfs is not so popular as we expected,
 > I mount configfs to /sys/kernel/config, I get an empty directory. It means that nobody is 
 > using this file system, it is an interesting thing, is it means that configfs is deprecated?
-
-Ohhhhhh, no.  ConfigFS is the evolution of the original SysFS design to
-to allow for kernel data structure configuration to be driven by
-userspace syscalls in a number of very significant ways.
-
 > If so, it might not be nessarry to develop a configfs interface for hotplug.
 > 
+configfs is certainly not deprecated, but there are also not that many
+users of it at present. dlm/ocfs2 were the first users as far as I
+recall, and netconsole as well. The fact you have an empty directory just
+indicates that you don't have support for any of these enabled.
 
-The usage of ConfigFS to provide a kernel <-> user configuration layout
-really best depends on the protocol in question for particular data
-structure state machine and parameter/attribute set.  Using ConfigFS
-involves Linux/VFS representing dependencies between data structures
-both on a inter and intra kernel module context containing struct
-config_groups driven by userspace mkdir(2) and link(2) syscall ops.
+Note that there are also a lot of present-day sysfs and debugfs users
+that could/should be converted to configfs but haven't quite gotten there
+yet. In the sysfs case abuses are hard to rollback once they've made
+become part of the ABI, but that's not grounds for continuing sysfs abuse
+once cleaner methods become available. Many of the sysfs abuses were
+implemented before configfs existed.
 
-> Dave & Greg,
-> 	Can you provide an exmample to use configfs as interface in Linux kernel, I want to get
-> a live demo, thanks.
+You can also find usage guidelines and example implementations in
+Documentation/filesystems/configfs, which should give you a pretty good
+idea of whether it's a good interface fit for your particular problem or
+not.
 
-The TCM 4.0 design brings fabric module independent >= SPC-3 compatible
-SCSI WWN target ports and a generic set of struct config_groups and CPP
-macros to individual storage backstores using TCM target mode fabric
-plugins across Linux/SCSI, Linux/BLOCK, and Linux/VFS subsystems.  So
-far, this has been implemented for SAS, FC, and iSCSI fabric protocols:
-
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=drivers/target/target_core_configfs.c;hb=refs/heads/lio-4.0
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=include/target/configfs_macros.h;hb=refs/heads/lio-4.0
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=drivers/target/target_core_fabric_configfs.c;hb=refs/heads/lio-4.0
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=include/target/target_core_fabric_configfs.h;hb=refs/heads/lio-4.0
-
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=drivers/target/tcm_fc/tfc_conf.c;hb=refs/heads/lio-4.0
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=drivers/target/tcm_loop/tcm_loop_configfs.c;hb=refs/heads/lio-4.0
-http://git.kernel.org/?p=linux/kernel/git/nab/lio-core-2.6.git;a=blob;f=drivers/target/lio-target/iscsi_target_configfs.c;hb=refs/heads/lio-4.0
-
-Best,
-
---nab
+These days sysfs seems to be the new procfs. It certainly helps to put a
+bit of planning in to the interface before you're invariably stuck with
+an ABI that's barely limping along.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
