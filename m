@@ -1,92 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 07E326B01D1
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:35:16 -0400 (EDT)
-Date: Tue, 18 May 2010 11:34:40 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B56076B01D1
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:43:41 -0400 (EDT)
+Date: Tue, 18 May 2010 11:43:27 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Unexpected splice "always copy" behavior observed
-Message-ID: <20100518153440.GB7748@Krystal>
+Subject: Re: [RFC] Tracer Ring Buffer splice() vs page cache [was: Re: Perf
+	and ftrace [was Re: PyTimechart]]
+Message-ID: <20100518154327.GC7748@Krystal>
+References: <20100514183242.GA11795@Krystal> <1273862945.1674.14.camel@laptop> <20100517224243.GA10603@Krystal> <1274185160.5605.7787.camel@twins> <20100518151626.GA7748@Krystal> <1274196233.5605.8169.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1274196233.5605.8169.camel@twins>
 Sender: owner-linux-mm@kvack.org
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+* Peter Zijlstra (peterz@infradead.org) wrote:
+> On Tue, 2010-05-18 at 11:16 -0400, Mathieu Desnoyers wrote:
+> > > Also, suppose it was still in the page-cache and still dirty, a steal()
+> > > would then punch a hole in the file.
+> > 
+> > page_cache_pipe_buf_steal starts by doing a wait_on_page_writeback(page); and
+> > then does a try_to_release_page(page, GFP_KERNEL). Only if that succeeds is the
+> > action of stealing succeeding. 
+> 
+> If you're going to wait for writeback I don't really see the advantage
+> of stealing over simply allocating a new page.
 
-I'm currently digging into the splice code to figure out why it's always in copy
-mode even though I specified the SPLICE_F_MOVE flag and released the page
-references from the LTTng ring buffer. I'm splicing to a pipe and then from the
-pipe to an ext3 filesystem (2.6.33.4 kernel). I've got the feeling I'm missing
-something and I don't like that.
+That would allow the ring buffer to use a bounded amount of memory and not
+pollute the page cache uselessly. When allocating pages as you propose, the
+tracer will quickly fill and pollute the page cache with trace file pages, which
+will have a large impact on I/O behavior. But in 99.9999% of use-cases, we don't
+ever need to access them after they have been saved to disk.
 
-My simple test case is to add a printk around the splice copy:
-
-fs/splice.c: pipe_to_file()
-       if (buf->page != page) {
-                /*
-                 * Careful, ->map() uses KM_USER0!
-                 */
-                char *src = buf->ops->map(pipe, buf, 1);
-                char *dst = kmap_atomic(page, KM_USER1);
-
-                printk(KERN_WARNING "SPLICE COPY!!!\n");
-                memcpy(dst + offset, src + buf->offset, this_len);
-                flush_dcache_page(page);
-                kunmap_atomic(dst, KM_USER1);
-                buf->ops->unmap(pipe, buf, src);
-        }
-
-I'll start with a disclaimer that I only recently improved my splice
-understanding, so AFAIU:
-
-* pipe_to_file() allocates a struct page *page on its stack.
-
-* It is passed, uninitialized, to
-
-        ret = pagecache_write_begin(file, mapping, sd->pos, this_len,
-                                AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
-
-    that looks already odd to me, as I would expect pipe_to_file to populate
-    this page pointer with buf->page initially if the proper conditions are met.
-
-* Looking at the ext2 and ext3 write_begin code, neither are using the pagep
-  parameter:
-
-  ext2:
-
-static int
-ext2_write_begin(struct file *file, struct address_space *mapping,
-                loff_t pos, unsigned len, unsigned flags,
-                struct page **pagep, void **fsdata)
-{
-        *pagep = NULL;
-        return __ext2_write_begin(file, mapping, pos, len, flags, pagep,fsdata);
-}
-
-
-  ext3:
-
-static int ext3_write_begin(struct file *file, struct address_space *mapping,
-                                loff_t pos, unsigned len, unsigned flags,
-                                struct page **pagep, void **fsdata)
-{
-        struct page *page;
-        ....
-
-retry:
-        page = grab_cache_page_write_begin(mapping, index, flags);
-        if (!page)
-                return -ENOMEM;
-        *pagep = page;
-
-* So, considering the test to check if the page content must be copied:
-
-       if (buf->page != page) {
-
-  how is it ever possible that buf->page == page ?
+By re-stealing its own pages after waiting for the writeback to complete, the
+ring buffer would use a bounded amount of pages. If larger buffers are needed,
+the user just has to specify a larger buffer size.
 
 Thanks,
 
