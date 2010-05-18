@@ -1,92 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id AE8086B01E8
-	for <linux-mm@kvack.org>; Mon, 17 May 2010 18:42:48 -0400 (EDT)
-Date: Mon, 17 May 2010 18:42:43 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [RFC] Tracer Ring Buffer splice() vs page cache [was: Re: Perf
-	and ftrace [was Re: PyTimechart]]
-Message-ID: <20100517224243.GA10603@Krystal>
-References: <20100514183242.GA11795@Krystal> <1273862945.1674.14.camel@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 15F846B01D0
+	for <linux-mm@kvack.org>; Mon, 17 May 2010 22:19:28 -0400 (EDT)
+Date: Tue, 18 May 2010 10:19:23 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] mem-hotplug: fix potential race while building
+ zonelist for new populated zone
+Message-ID: <20100518021923.GA6595@localhost>
+References: <4BF0FC4C.4060306@linux.intel.com>
+ <alpine.DEB.2.00.1005171108070.20764@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1273862945.1674.14.camel@laptop>
+In-Reply-To: <alpine.DEB.2.00.1005171108070.20764@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Haicheng Li <haicheng.li@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra (peterz@infradead.org) wrote:
-> On Fri, 2010-05-14 at 14:32 -0400, Mathieu Desnoyers wrote:
+On Tue, May 18, 2010 at 12:09:31AM +0800, Christoph Lameter wrote:
+> On Mon, 17 May 2010, Haicheng Li wrote:
 > 
-> > [CCing memory management specialists]
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 72c1211..0729a82 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2783,6 +2783,20 @@ static __init_refok int __build_all_zonelists(void
+> > *data)
+> >  {
+> >  	int nid;
+> >  	int cpu;
+> > +#ifdef CONFIG_MEMORY_HOTPLUG
+> > +	struct zone_online_info *new = (struct zone_online_info *)data;
+> > +
+> > +	/*
+> > +	 * Populate the new zone before build zonelists, which could
+> > +	 * happen only when onlining a new node after system is booted.
+> > +	 */
+> > +	if (new) {
+> > +		/* We are expecting a new memory block here. */
+> > +		WARN_ON(!new->onlined_pages);
+> > +		new->zone->present_pages += new->onlined_pages;
+> > +		new->zone->zone_pgdat->node_present_pages +=
+> > new->onlined_pages;
+> > +	}
+> > +#endif
 > 
-> And jet you forgot Jens who wrote it ;-)
-
-oops ! thanks for adding him.
-
 > 
-> > So I have three questions here:
-> > 
-> > 1 - could we enforce removal of these pages from the page cache by calling
-> >     "page_cache_release()" before giving these pages back to the ring buffer ?
-> > 
-> > 2 - or maybe is there a page flag we could specify when we allocate them to
-> >     ask for these pages to never be put in the page cache ? (but they should be
-> >     still usable as write buffers)
-> > 
-> > 3 - is there something more we need to do to grab a reference on the pages
-> >     before passing them to splice(), so that when we call page_cache_release()
-> >     they don't get reclaimed ? 
-> 
-> There is no guarantee it is the pagecache they end up in, it could be a
-> network packet queue, a pipe, or anything that implements .splice_write.
-> 
-> >From what I understand of splice() is that it assumes it passes
-> ownership of the page, you're not supposed to touch them again, non of
-> the above three are feasible.
+> Building a zonelist now has the potential side effect of changes to the
+> size of the zone?
 
-Yup, I've looked more deeply at the splice() code, and I now see why things
-don't fall apart in LTTng currently. My implementation seems to be causing
-splice() to perform a copy. My ring buffer splice implementation is derived from
-kernel/relay.c. I override
+Yeah, this sounds a bit hacky.
 
-pipe_buf_operations release op with:
+> Can we have a global mutex that protects against size modification of
+> zonelists instead? And it could also serialize the pageset setup?
 
-static void ltt_relay_pipe_buf_release(struct pipe_inode_info *pipe,
-                                       struct pipe_buffer *pbuf)
-{
-}
+Good suggestion. We could make zone_pageset_mutex a global mutex and
+take it in all the functions that call build_all_zonelists() --
+currently only online_pages() and numa_zonelist_order_handler().
 
-and
+This can equally fix the possible race:
 
-splice_pipe_desc spd_release file op with:
+    CPU0                                    CPU1                            CPU2
+(1) zone->present_pages += online_pages;
+(2)                                         build_all_zonelists();
+(3)                                                                 alloc_page();
+(4)                                                                 free_page();
+(5) build_all_zonelists();
+(6)   __build_all_zonelists();
+(7)     zone->pageset = alloc_percpu();
 
-static void ltt_relay_page_release(struct splice_pipe_desc *spd, unsigned int i)
-{
-}
+In step (3,4), zone->pageset still points to boot_pageset, so bad
+things may happen if 2+ nodes are in this state. Even if only 1 node
+is accessing the boot_pageset, (3) may still consume too much memory
+to fail the memory allocations in step (7).
 
-My understanding is that by keeping 2 references on the pages (the ring buffer +
-the pipe), splice safely refuses to move the pages and performs a copy instead.
-
-I'll continue to look into this. One of the things I noticed that that we could
-possibly use the "steal()" operation to steal the pages back from the page cache
-to repopulate the ring buffer rather than continuously allocating new pages. If
-steal() fails for some reasons, then we can fall back on page allocation. I'm
-not sure it is safe to assume anything about pages being in the page cache
-though. Maybe the safest route is to just allocate new pages for now.
-
-Thoughts ?
-
-Mathieu
-
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
