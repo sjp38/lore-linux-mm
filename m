@@ -1,40 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 713106B01D0
-	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:51:42 -0400 (EDT)
-Date: Wed, 19 May 2010 01:51:35 +1000
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3CE946B01D1
+	for <linux-mm@kvack.org>; Tue, 18 May 2010 11:53:20 -0400 (EDT)
 Subject: Re: Unexpected splice "always copy" behavior observed
-Message-ID: <20100518155135.GJ2516@laptop>
-References: <20100518153440.GB7748@Krystal>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Steven Rostedt <rostedt@goodmis.org>
+Reply-To: rostedt@goodmis.org
 In-Reply-To: <20100518153440.GB7748@Krystal>
+References: <20100518153440.GB7748@Krystal>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Tue, 18 May 2010 11:53:13 -0400
+Message-ID: <1274197993.26328.755.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hehe, I just notice this this morning too, while investigating.
 
-The basic problem is that the filesystem APIs were never designed with
-this usage in mind, so we had to disable the SPLICE_F_MOVE support by
-default.
 
-So short answer is that this is expected.
-
-What would be needed is to have filesystem maintainers go through and
-enable it on a case by case basis. It's trivial for tmpfs/ramfs type
-filesystems and I have a patch for those, but I never posted it on.yet.
-Even basic buffer head filesystems IIRC get a little more complex --
-but we may get some milage just out of invalidating the existing
-pagecache rather than getting fancy and trying to move buffers over
-to the new page.
-
-Nick
-
-On Tue, May 18, 2010 at 11:34:40AM -0400, Mathieu Desnoyers wrote:
+On Tue, 2010-05-18 at 11:34 -0400, Mathieu Desnoyers wrote:
 > Hi,
 > 
 > I'm currently digging into the splice code to figure out why it's always in copy
@@ -58,10 +44,16 @@ On Tue, May 18, 2010 at 11:34:40AM -0400, Mathieu Desnoyers wrote:
 >                 flush_dcache_page(page);
 >                 kunmap_atomic(dst, KM_USER1);
 >                 buf->ops->unmap(pipe, buf, src);
+
+I used trace_printk() since it is not as invasive.
+
 >         }
 > 
 > I'll start with a disclaimer that I only recently improved my splice
 > understanding, so AFAIU:
+
+Same here ;-)
+
 > 
 > * pipe_to_file() allocates a struct page *page on its stack.
 > 
@@ -108,16 +100,11 @@ On Tue, May 18, 2010 at 11:34:40AM -0400, Mathieu Desnoyers wrote:
 >        if (buf->page != page) {
 > 
 >   how is it ever possible that buf->page == page ?
-> 
-> Thanks,
-> 
-> Mathieu
-> 
-> -- 
-> Mathieu Desnoyers
-> Operating System Efficiency R&D Consultant
-> EfficiOS Inc.
-> http://www.efficios.com
+
+I'm currently looking at the network code to see if it is better.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
