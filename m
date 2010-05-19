@@ -1,59 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DA946008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 15:34:36 -0400 (EDT)
-Date: Wed, 19 May 2010 12:31:25 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C29B26B023E
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 16:59:18 -0400 (EDT)
+Message-ID: <641426.722.qm@web114309.mail.gq1.yahoo.com>
+Date: Wed, 19 May 2010 13:59:16 -0700 (PDT)
+From: Rick Sherm <rick.sherm@yahoo.com>
 Subject: Re: Unexpected splice "always copy" behavior observed
-In-Reply-To: <20100519191439.GA2845@Krystal>
-Message-ID: <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org>
-References: <1274199039.26328.758.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org> <20100519063116.GR2516@laptop> <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <1274280968.26328.774.camel@gandalf.stny.rr.com>
- <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu> <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal>
+In-Reply-To: <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, arjan@infradead.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Sorry for deleting CC'd addresses. yahoo was whining...
 
+--- On Wed, 5/19/10, Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-On Wed, 19 May 2010, Mathieu Desnoyers wrote:
+> From: Linus Torvalds <torvalds@linux-foundation.org>
+> Subject: Re: Unexpected splice "always copy" behavior observed
+> To: "Steven Rostedt" <rostedt@goodmis.org>
+> Cc: "Nick Piggin" <npiggin@suse.de>, "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>, "Peter Zijlstra" <peterz@infradead.org>, "Frederic Weisbecker" <fweisbec@gmail.com>, "Pierre Tardy" <tardyp@gmail.com>, "Ingo Molnar" <mingo@elte.hu>, "Arnaldo Carvalho de Melo" <acme@redhat.com>, "Tom Zanussi" <tzanussi@gmail.com>, "Paul Mackerras" <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, "davem" <davem@davemloft.net>, linux-mm@kvack.org, "Andrew Morton" <akpm@linux-foundation.org>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, "Christoph Lameter" <cl@linux-foundation.org>, "Tejun Heo" <tj@kernel.org>, "Jens Axboe" <jens.axboe@oracle.com>
+> Date: Wednesday, May 19, 2010, 2:59 PM
 > 
-> Good point. This discard flag might do the trick and let us keep things simple.
-> The major concern here is to keep the page cache disturbance relatively low.
-> Which of new page allocation or stealing back the page has the lowest overhead
-> would have to be determined with benchmarks.
+> 
+> On Wed, 19 May 2010, Steven Rostedt wrote:
+> 
+> > On Wed, 2010-05-19 at 07:39 -0700, Linus Torvalds
+> wrote:
+> > 
+> > > The real limitation is likely always going to be
+> the fact that it has to 
+> > > be page-aligned and a full page. For a lot of
+> splice inputs, that simply 
+> > > won't be the case, and you'll end up copying for
+> alignment reasons anyway.
+> > 
+> > That's understandable. For the use cases of splice I
+> use, I work to make
+> > it page aligned and full pages. Anyone else using
+> splice for
+> > optimizations, should do the same. It only makes
+> sense.
+> > 
+> > The end of buffer may not be a full page, but then
+> it's the end anyway,
+> > and I'm not as interested in the speed.
+> 
+> Btw, since you apparently have a real case - is the "splice
+> to file" 
+> always just an append? IOW, if I'm not right in assuming
+> that the only 
+> sane thing people would reasonable care about is "append to
+> a file", then 
+> holler now.
+> 
 
-We could probably make it easier somehow to do the writeback and discard 
-thing, but I have had _very_ good experiences with even a rather trivial 
-file writer that basically used (iirc) 8MB windows, and the logic was very 
-trivial:
+I've a similar 'append' use case:
+http://marc.info/?l=linux-kernel&m=127143736527459&w=4
 
- - before writing a new 8M window, do "start writeback" 
-   (SYNC_FILE_RANGE_WRITE) on the previous window, and do 
-   a wait (SYNC_FILE_RANGE_WAIT_AFTER) on the window before that.
+My mmapped buffers are pinned down.
 
-in fact, in its simplest form, you can do it like this (this is from my 
-"overwrite disk images" program that I use on old disks):
 
-	for (index = 0; index < max_index ;index++) {
-		if (write(fd, buffer, BUFSIZE) != BUFSIZE)
-			break;
-		/* This won't block, but will start writeout asynchronously */
-		sync_file_range(fd, index*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WRITE);
-		/* This does a blocking write-and-wait on any old ranges */
-		if (index)
-			sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
-	}
-
-and even if you don't actually do a discard (maybe we should add a 
-SYNC_FILE_RANGE_DISCARD bit, right now you'd need to do a separate 
-fadvise(FADV_DONTNEED) to throw it out) the system behavior is pretty 
-nice, because the heavy writer gets good IO performance _and_ leaves only 
-easy-to-free pages around after itself.
-
-		Linus
+      
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
