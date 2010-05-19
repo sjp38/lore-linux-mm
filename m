@@ -1,35 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E45726008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 11:35:21 -0400 (EDT)
-Date: Wed, 19 May 2010 08:32:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8A1096B021C
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 11:45:01 -0400 (EDT)
+Date: Thu, 20 May 2010 01:44:31 +1000
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: Unexpected splice "always copy" behavior observed
-In-Reply-To: <E1OElCI-0005v6-4D@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.2.00.1005190831460.23538@i5.linux-foundation.org>
-References: <20100518153440.GB7748@Krystal> <1274197993.26328.755.camel@gandalf.stny.rr.com> <1274199039.26328.758.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org> <20100519063116.GR2516@laptop>
- <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <E1OElCI-0005v6-4D@pomaz-ex.szeredi.hu>
+Message-ID: <20100519154431.GC2516@laptop>
+References: <20100518153440.GB7748@Krystal>
+ <1274197993.26328.755.camel@gandalf.stny.rr.com>
+ <1274199039.26328.758.camel@gandalf.stny.rr.com>
+ <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org>
+ <20100519063116.GR2516@laptop>
+ <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
+ <20100519151726.GB2516@laptop>
+ <alpine.LFD.2.00.1005190828050.23538@i5.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1005190828050.23538@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: npiggin@suse.de, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Wed, 19 May 2010, Miklos Szeredi wrote:
+On Wed, May 19, 2010 at 08:30:10AM -0700, Linus Torvalds wrote:
 > 
-> Another limitation I found while splicing from one file to another is
-> that stealing from the source file's page cache does not always
-> succeed.  This turned out to be because of a reference from the lru
-> cache for freshly read pages.  I'm not sure how this could be fixed.
+> 
+> On Thu, 20 May 2010, Nick Piggin wrote:
+> > 
+> > Well I mean a full invalidate -- invalidate_mapping_pages -- so there is
+> > literally no pagecache there at all.
+> 
+> Umm. That won't work. Think mapped pages. You can't handle them 
+> atomically, so somebody will page-fault them in.
+> 
+> So you'd have to have a "invalidate_and_replace()" to do it atomically 
+> while holding the mapping spinlock or something. 
+> 
+> And WHAT IS THE POINT? That will be about a million times slower than 
+> just doing the effing copy in the first place!
+> 
+> Memory copies are _not_ slow. Not compared to taking locks and doing TLB 
+> invalidates.
 
-It should be fixed by saying "you can't always just move the page".
+No I never thought it would be a good idea to try to avoid all races
+or anything. Obviously some cases *cannot* be easily invalidated, if
+there is a ref on the page or whatever, so the fallback code has to
+be there anyway.
 
-Copying is not evil. Complexity  to avoid copies is evil.
+So you would just invalidate and try to insert your page. 99.something%
+of the time it will work fine. If the insert fails, fall back to
+copying.
 
-		Linus
+And hey you *may* even want a heuristic that avoids trying to invalidate
+if the page is mapped, due to cost of TLB flushing and faulting etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
