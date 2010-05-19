@@ -1,74 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ADEA6B023E
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 17:52:03 -0400 (EDT)
-Date: Wed, 19 May 2010 23:51:45 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
-Message-ID: <20100519215145.GE2868@cmpxchg.org>
-References: <20100519174327.9591.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5106B023E
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 18:14:55 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id o4JMEo1W026434
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 15:14:51 -0700
+Received: from pzk16 (pzk16.prod.google.com [10.243.19.144])
+	by hpaq12.eem.corp.google.com with ESMTP id o4JMEmJI002750
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 15:14:49 -0700
+Received: by pzk16 with SMTP id 16so4499697pzk.22
+        for <linux-mm@kvack.org>; Wed, 19 May 2010 15:14:48 -0700 (PDT)
+Date: Wed, 19 May 2010 15:14:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: oom killer rewrite
+Message-ID: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100519174327.9591.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 19, 2010 at 05:44:49PM +0900, KOSAKI Motohiro wrote:
-> Shaohua Li reported parallel file copy on tmpfs can lead to
-> OOM killer. This is regression of caused by commit 9ff473b9a7
-> (vmscan: evict streaming IO first). Wow, It is 2 years old patch!
-> 
-> Currently, tmpfs file cache is inserted active list at first. It
-> mean the insertion doesn't only increase numbers of pages in anon LRU,
-> but also reduce anon scanning ratio. Therefore, vmscan will get totally
-> confusion. It scan almost only file LRU even though the system have
-> plenty unused tmpfs pages.
-> 
-> Historically, lru_cache_add_active_anon() was used by two reasons.
-> 1) Intend to priotize shmem page rather than regular file cache.
-> 2) Intend to avoid reclaim priority inversion of used once pages.
-> 
-> But we've lost both motivation because (1) Now we have separate
-> anon and file LRU list. then, to insert active list doesn't help
-> such priotize. (2) In past, one pte access bit will cause page
-> activation. then to insert inactive list with pte access bit mean
-> higher priority than to insert active list. Its priority inversion
-> may lead to uninteded lru chun. but it was already solved by commit
-> 645747462 (vmscan: detect mapped file pages used only once).
-> (Thanks Hannes, you are great!)
-> 
-> Thus, now we can use lru_cache_add_anon() instead.
-> 
-> Reported-by: Shaohua Li <shaohua.li@intel.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
+KOSAKI,
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+I've been notified that my entire oom killer rewrite has been dropped from 
+-mm based solely on your feedback.  The problem is that I have absolutely 
+no idea what issues you have with the changes that haven't already been 
+addressed (nobody else does, either, it seems).
 
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/filemap.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index b941996..023ef61 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -452,7 +452,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
->  		if (page_is_file_cache(page))
->  			lru_cache_add_file(page);
->  		else
-> -			lru_cache_add_active_anon(page);
-> +			lru_cache_add_anon(page);
+The last work I've done on the patches are to ask those involved in the 
+review (including you) and linux-mm whether there were any outstanding 
+issues that anyone has, and I've asked that twice.  I've received no 
+response either time.
 
-Looks like the active_anon and active_file versions have no users
-anymore..
+Please respond with a list of your objections to the rewrite (which is 
+available at 
+http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite
+so we can move forward.
+
+Thank you.
+
+			David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
