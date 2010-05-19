@@ -1,65 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5C7376008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 12:36:46 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 547D46008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 12:38:13 -0400 (EDT)
+Date: Thu, 20 May 2010 01:17:26 +1000
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: Unexpected splice "always copy" behavior observed
-From: Steven Rostedt <rostedt@goodmis.org>
-Reply-To: rostedt@goodmis.org
-In-Reply-To: <20100519155505.GD2516@laptop>
+Message-ID: <20100519151726.GB2516@laptop>
 References: <20100518153440.GB7748@Krystal>
-	 <1274197993.26328.755.camel@gandalf.stny.rr.com>
-	 <1274199039.26328.758.camel@gandalf.stny.rr.com>
-	 <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org>
-	 <20100519063116.GR2516@laptop>
-	 <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
-	 <1274280968.26328.774.camel@gandalf.stny.rr.com>
-	 <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org>
-	 <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu>
-	 <1274283942.26328.783.camel@gandalf.stny.rr.com>
-	 <20100519155505.GD2516@laptop>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Wed, 19 May 2010 12:36:42 -0400
-Message-ID: <1274287002.26328.808.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1274197993.26328.755.camel@gandalf.stny.rr.com>
+ <1274199039.26328.758.camel@gandalf.stny.rr.com>
+ <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org>
+ <20100519063116.GR2516@laptop>
+ <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Linus Torvalds <torvalds@linux-foundation.org>, mathieu.desnoyers@efficios.com, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-05-20 at 01:55 +1000, Nick Piggin wrote:
-> On Wed, May 19, 2010 at 11:45:42AM -0400, Steven Rostedt wrote:
-
-> > If the "move only on append to file" is easy to implement, I would
-> > really like to see that happen. The speed of splicing a disk image for a
-> > virtual machine only impacts the patience of the user. The speed of
-> > splicing tracing output, impacts how much you can trace without losing
-> > events.
+On Wed, May 19, 2010 at 07:39:11AM -0700, Linus Torvalds wrote:
 > 
-> It's not "easy" to implement :) What's your ring buffer look like?
-> Is it a normal user address which the kernel does copy_to_user()ish
-> things into? Or a mmapped special driver?
-
-Neither ;-)
-
 > 
-> If the latter, it get's even harder again. But either way if the
-> source pages just have to be regenerated anyway (eg. via page fault
-> on next access), then it might not even be worthwhile to do the
-> splice move.
+> On Wed, 19 May 2010, Nick Piggin wrote:
+> > 
+> > We can possibly do an attempt to invalidate existing pagecache and
+> > then try to install the new page.
+> 
+> Yes, but that's going to be rather hairier. We need to make sure that the 
+> filesystem doesn't have some kind of dirty pointers to the old page etc. 
+> Although I guess that should always show up in the page counters, so I 
+> guess we can always handle the case of page_count() being 1 (only page 
+> cache) and the page being unlocked.
 
-The ring buffer is written to by kernel events. To read it, the user can
-either do a sys_read() and that is copied, or use splice. I do not
-support mmap(), and if we were to do that, it would then not support
-splice(). We have been talking about implementing both but with flags on
-allocation of the ring buffer. You can either support mmap() or splice()
-but not both with one instance of the ring buffer.
+Well I mean a full invalidate -- invalidate_mapping_pages -- so there is
+literally no pagecache there at all.
 
--- Steve
+Then we just need to ensure that the filesystem doesn't do anything
+funny with the page in write_begin (I don't know, such as zero out holes
+or something strange). I don't think any do except maybe for something
+obscure like jffs2, but obviously it needs to be looked at.
+
+Error handling may need to be looked at too, but shouldn't be much
+issue I'd think.
+ 
+Even so, it's all going to add branches and complexity to an important
+fast path, so we'd want to see numbers.
 
 
+> So I'd much rather just handle the "append to the end".
+> 
+> The real limitation is likely always going to be the fact that it has to 
+> be page-aligned and a full page. For a lot of splice inputs, that simply 
+> won't be the case, and you'll end up copying for alignment reasons anyway.
 
-
+That's true.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
