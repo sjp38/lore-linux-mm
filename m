@@ -1,30 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C8126600385
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 11:29:36 -0400 (EDT)
-In-reply-to: <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
-	(message from Linus Torvalds on Wed, 19 May 2010 07:39:11 -0700 (PDT))
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3529B6008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 11:33:28 -0400 (EDT)
+Date: Wed, 19 May 2010 08:30:10 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: Unexpected splice "always copy" behavior observed
-References: <20100518153440.GB7748@Krystal> <1274197993.26328.755.camel@gandalf.stny.rr.com> <1274199039.26328.758.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org> <20100519063116.GR2516@laptop> <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org>
-Message-Id: <E1OElCI-0005v6-4D@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 19 May 2010 17:28:38 +0200
+In-Reply-To: <20100519151726.GB2516@laptop>
+Message-ID: <alpine.LFD.2.00.1005190828050.23538@i5.linux-foundation.org>
+References: <20100518153440.GB7748@Krystal> <1274197993.26328.755.camel@gandalf.stny.rr.com> <1274199039.26328.758.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005180918300.4195@i5.linux-foundation.org> <20100519063116.GR2516@laptop>
+ <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <20100519151726.GB2516@laptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: npiggin@suse.de, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Peter Zijlstra <peterz@infradead.org>, Frederic Weisbecker <fweisbec@gmail.com>, Pierre Tardy <tardyp@gmail.com>, Ingo Molnar <mingo@elte.hu>, Arnaldo Carvalho de Melo <acme@redhat.com>, Tom Zanussi <tzanussi@gmail.com>, Paul Mackerras <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem <davem@davemloft.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 May 2010, Linus Torvalds wrote:
-> The real limitation is likely always going to be the fact that it has to 
-> be page-aligned and a full page. For a lot of splice inputs, that simply 
-> won't be the case, and you'll end up copying for alignment reasons anyway.
 
-Another limitation I found while splicing from one file to another is
-that stealing from the source file's page cache does not always
-succeed.  This turned out to be because of a reference from the lru
-cache for freshly read pages.  I'm not sure how this could be fixed.
 
-Miklos
+On Thu, 20 May 2010, Nick Piggin wrote:
+> 
+> Well I mean a full invalidate -- invalidate_mapping_pages -- so there is
+> literally no pagecache there at all.
+
+Umm. That won't work. Think mapped pages. You can't handle them 
+atomically, so somebody will page-fault them in.
+
+So you'd have to have a "invalidate_and_replace()" to do it atomically 
+while holding the mapping spinlock or something. 
+
+And WHAT IS THE POINT? That will be about a million times slower than 
+just doing the effing copy in the first place!
+
+Memory copies are _not_ slow. Not compared to taking locks and doing TLB 
+invalidates.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
