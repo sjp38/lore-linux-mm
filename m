@@ -1,69 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C29B26B023E
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 16:59:18 -0400 (EDT)
-Message-ID: <641426.722.qm@web114309.mail.gq1.yahoo.com>
-Date: Wed, 19 May 2010 13:59:16 -0700 (PDT)
-From: Rick Sherm <rick.sherm@yahoo.com>
-Subject: Re: Unexpected splice "always copy" behavior observed
-In-Reply-To: <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F96F6B023E
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 17:33:24 -0400 (EDT)
+Date: Wed, 19 May 2010 23:32:51 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/5] vmscan: fix unmapping behaviour for RECLAIM_SWAP
+Message-ID: <20100519213251.GA2868@cmpxchg.org>
+References: <20100430222009.379195565@cmpxchg.org>
+ <20100430224315.912441727@cmpxchg.org>
+ <20100512122434.2133.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100512122434.2133.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Steven Rostedt <rostedt@goodmis.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, arjan@infradead.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry for deleting CC'd addresses. yahoo was whining...
+Hi,
 
---- On Wed, 5/19/10, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Thu, May 13, 2010 at 12:02:53PM +0900, KOSAKI Motohiro wrote:
+> sorry for the long delayed review.
 
-> From: Linus Torvalds <torvalds@linux-foundation.org>
-> Subject: Re: Unexpected splice "always copy" behavior observed
-> To: "Steven Rostedt" <rostedt@goodmis.org>
-> Cc: "Nick Piggin" <npiggin@suse.de>, "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>, "Peter Zijlstra" <peterz@infradead.org>, "Frederic Weisbecker" <fweisbec@gmail.com>, "Pierre Tardy" <tardyp@gmail.com>, "Ingo Molnar" <mingo@elte.hu>, "Arnaldo Carvalho de Melo" <acme@redhat.com>, "Tom Zanussi" <tzanussi@gmail.com>, "Paul Mackerras" <paulus@samba.org>, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, "davem" <davem@davemloft.net>, linux-mm@kvack.org, "Andrew Morton" <akpm@linux-foundation.org>, "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>, "Christoph Lameter" <cl@linux-foundation.org>, "Tejun Heo" <tj@kernel.org>, "Jens Axboe" <jens.axboe@oracle.com>
-> Date: Wednesday, May 19, 2010, 2:59 PM
-> 
-> 
-> On Wed, 19 May 2010, Steven Rostedt wrote:
-> 
-> > On Wed, 2010-05-19 at 07:39 -0700, Linus Torvalds
-> wrote:
+Yeah, I'm a bit on the slow side as well these days.  No problem.
+
+> > The RECLAIM_SWAP flag in zone_reclaim_mode controls whether
+> > zone_reclaim() is allowed to swap or not (obviously).
 > > 
-> > > The real limitation is likely always going to be
-> the fact that it has to 
-> > > be page-aligned and a full page. For a lot of
-> splice inputs, that simply 
-> > > won't be the case, and you'll end up copying for
-> alignment reasons anyway.
+> > This is currently implemented by allowing or forbidding reclaim to
+> > unmap pages, which also controls reclaim of shared pages and is thus
+> > not appropriate.
 > > 
-> > That's understandable. For the use cases of splice I
-> use, I work to make
-> > it page aligned and full pages. Anyone else using
-> splice for
-> > optimizations, should do the same. It only makes
-> sense.
+> > We can do better by using the sc->may_swap parameter instead, which
+> > controls whether the anon lists are scanned.
 > > 
-> > The end of buffer may not be a full page, but then
-> it's the end anyway,
-> > and I'm not as interested in the speed.
+> > Unmapping of pages is then allowed per default from zone_reclaim().
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  mm/vmscan.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2563,8 +2563,8 @@ static int __zone_reclaim(struct zone *z
+> >  	int priority;
+> >  	struct scan_control sc = {
+> >  		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+> > -		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+> > -		.may_swap = 1,
+> > +		.may_unmap = 1,
+> > +		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+> >  		.nr_to_reclaim = max_t(unsigned long, nr_pages,
+> >  				       SWAP_CLUSTER_MAX),
+> >  		.gfp_mask = gfp_mask,
 > 
-> Btw, since you apparently have a real case - is the "splice
-> to file" 
-> always just an append? IOW, if I'm not right in assuming
-> that the only 
-> sane thing people would reasonable care about is "append to
-> a file", then 
-> holler now.
-> 
+> About half years ago, I did post exactly same patch. but at that time,
+> it got Mel's objection. after some discution we agreed to merge
+> documentation change instead code fix.
 
-I've a similar 'append' use case:
-http://marc.info/?l=linux-kernel&m=127143736527459&w=4
+Interesting, let me dig through the archives.
 
-My mmapped buffers are pinned down.
+> So, now the documentation describe clearly 4th bit meant no unmap.
+> Please drop this, instead please make s/RECLAIM_SWAP/RECLAIM_MAPPED/ patch.
 
+Yep.
 
-      
+Thanks,
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
