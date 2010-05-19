@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0E3906B01AD
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 14:26:36 -0400 (EDT)
-Message-ID: <4BFC1657.5000707@yahoo.es>
-Date: Tue, 25 May 2010 20:26:31 +0200
-From: Albert Herranz <albert_herranz@yahoo.es>
-MIME-Version: 1.0
-Subject: Re: page_mkwrite vs pte dirty race in fb_defio
-References: <20100525160149.GE20853@laptop>
-In-Reply-To: <20100525160149.GE20853@laptop>
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with SMTP id 0052B6008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 12:14:54 -0400 (EDT)
+Date: Thu, 20 May 2010 01:14:47 +0900 (JST)
+Message-Id: <20100520.011447.193688848.anemo@mba.ocn.ne.jp>
+Subject: Re: [PATCH] MM: Fix NR_SECTION_ROOTS == 0 when using using
+ sparsemem extreme.
+From: Atsushi Nemoto <anemo@mba.ocn.ne.jp>
+In-Reply-To: <n2pcecb6d8f1005051519ze48b22a0t8548311839f510b0@mail.gmail.com>
+	<1273093366-3388-1-git-send-email-mroberto@cpti.cetuc.puc-rio.br>
+References: <1273093366-3388-1-git-send-email-mroberto@cpti.cetuc.puc-rio.br>
+	<n2pcecb6d8f1005051519ze48b22a0t8548311839f510b0@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: aya Kumar <jayakumar.lkml@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fbdev@vger.kernel.org
+To: mroberto@cpti.cetuc.puc-rio.br
+Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, mel@csn.ul.ie, minchan.kim@gmail.com, linux@arm.linux.org.uk, sfr@canb.auug.org.au, hpa@zytor.com, yinghai@kernel.org, sshtylyov@mvista.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On 05/25/2010 06:01 PM, Nick Piggin wrote:
-> Hi,
+On Wed,  5 May 2010 18:02:46 -0300, Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br> wrote:
+> Got this while compiling for ARM/SA1100:
 > 
-> I couldn't find where this patch (49bbd815fd8) was discussed, so I'll
-> make my own thread. Adding a few lists to cc because it might be of
-> interest to driver and filesystem writers.
+> mm/sparse.c: In function '__section_nr':
+> mm/sparse.c:135: warning: 'root' is used uninitialized in this function
 > 
+> This patch follows Russell King's suggestion for a new calculation for
+> NR_SECTION_ROOTS. Thanks also to Sergei Shtylyov for pointing out the
+> existence of the macro DIV_ROUND_UP.
 
-The original thread can be found here:
-http://marc.info/?l=linux-fbdev&m=127369791432181
+JFYI, This fix is not just silence the warning, fix a real problem.
 
-> The old ->page_mkwrite calling convention was causing problems exactly
-> because of this race, and we solved it by allowing page_mkwrite to
-> return with the page locked, and the lock will be held until the
-> pte is marked dirty. See commit b827e496c893de0c0f142abfaeb8730a2fd6b37f.
-> 
+Without this fix, mem_section[] might have 0 size so mem_section[0]
+will share other variable area.  For example, I got:
 
-Ah, didn't know about that. Thanks for the pointer.
+c030c700 b __warned.16478
+c030c700 B mem_section
+c030c701 b __warned.16483
 
-> I hope that should provide a more elegant solution to your problem. I
-> would really like you to take a look at that, because we already have
-> filesystem code (NFS) relying on it, and more code we have relying on
-> this synchronization, the more chance we would find a subtle problem
-> with it (also it should be just nicer).
-> 
+This might cause very strange behavior.  Your patch actually fixes it.
+Thank you.
 
-So if I undestand it correctly, using the "new" calling convention I should just lock the page on fb_deferred_io_mkwrite() and return VM_FAULT_LOCKED to fix the described race for fb_defio.
-
-> Thanks,
-> Nick
-> 
-
-Thanks,
-Albert
+---
+Atsushi Nemoto
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
