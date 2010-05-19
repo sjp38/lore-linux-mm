@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7050C6B023E
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 17:49:10 -0400 (EDT)
-Date: Wed, 19 May 2010 17:49:05 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: Unexpected splice "always copy" behavior observed
-Message-ID: <20100519214905.GA22486@Krystal>
-References: <20100519063116.GR2516@laptop> <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu> <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ADEA6B023E
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 17:52:03 -0400 (EDT)
+Date: Wed, 19 May 2010 23:51:45 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
+Message-ID: <20100519215145.GE2868@cmpxchg.org>
+References: <20100519174327.9591.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org>
+In-Reply-To: <20100519174327.9591.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds (torvalds@linux-foundation.org) wrote:
+On Wed, May 19, 2010 at 05:44:49PM +0900, KOSAKI Motohiro wrote:
+> Shaohua Li reported parallel file copy on tmpfs can lead to
+> OOM killer. This is regression of caused by commit 9ff473b9a7
+> (vmscan: evict streaming IO first). Wow, It is 2 years old patch!
 > 
+> Currently, tmpfs file cache is inserted active list at first. It
+> mean the insertion doesn't only increase numbers of pages in anon LRU,
+> but also reduce anon scanning ratio. Therefore, vmscan will get totally
+> confusion. It scan almost only file LRU even though the system have
+> plenty unused tmpfs pages.
 > 
-> On Wed, 19 May 2010, Mathieu Desnoyers wrote:
-> > 
-> > Good point. This discard flag might do the trick and let us keep things simple.
-> > The major concern here is to keep the page cache disturbance relatively low.
-> > Which of new page allocation or stealing back the page has the lowest overhead
-> > would have to be determined with benchmarks.
+> Historically, lru_cache_add_active_anon() was used by two reasons.
+> 1) Intend to priotize shmem page rather than regular file cache.
+> 2) Intend to avoid reclaim priority inversion of used once pages.
 > 
-> We could probably make it easier somehow to do the writeback and discard 
-> thing, but I have had _very_ good experiences with even a rather trivial 
-> file writer that basically used (iirc) 8MB windows, and the logic was very 
-> trivial:
+> But we've lost both motivation because (1) Now we have separate
+> anon and file LRU list. then, to insert active list doesn't help
+> such priotize. (2) In past, one pte access bit will cause page
+> activation. then to insert inactive list with pte access bit mean
+> higher priority than to insert active list. Its priority inversion
+> may lead to uninteded lru chun. but it was already solved by commit
+> 645747462 (vmscan: detect mapped file pages used only once).
+> (Thanks Hannes, you are great!)
 > 
->  - before writing a new 8M window, do "start writeback" 
->    (SYNC_FILE_RANGE_WRITE) on the previous window, and do 
->    a wait (SYNC_FILE_RANGE_WAIT_AFTER) on the window before that.
+> Thus, now we can use lru_cache_add_anon() instead.
 > 
-> in fact, in its simplest form, you can do it like this (this is from my 
-> "overwrite disk images" program that I use on old disks):
+> Reported-by: Shaohua Li <shaohua.li@intel.com>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/filemap.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> 	for (index = 0; index < max_index ;index++) {
-> 		if (write(fd, buffer, BUFSIZE) != BUFSIZE)
-> 			break;
-> 		/* This won't block, but will start writeout asynchronously */
-> 		sync_file_range(fd, index*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WRITE);
-> 		/* This does a blocking write-and-wait on any old ranges */
-> 		if (index)
-> 			sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
-> 	}
-> 
-> and even if you don't actually do a discard (maybe we should add a 
-> SYNC_FILE_RANGE_DISCARD bit, right now you'd need to do a separate 
-> fadvise(FADV_DONTNEED) to throw it out) the system behavior is pretty 
-> nice, because the heavy writer gets good IO performance _and_ leaves only 
-> easy-to-free pages around after itself.
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index b941996..023ef61 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -452,7 +452,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+>  		if (page_is_file_cache(page))
+>  			lru_cache_add_file(page);
+>  		else
+> -			lru_cache_add_active_anon(page);
+> +			lru_cache_add_anon(page);
 
-Great! I just implemented it in LTTng and it works very well !
-
-A faced a small counter-intuitive fadvise behavior though.
-
-  posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-
-only seems to affect the parts of a file that already exist. So after each
-splice() that appends to the file, I have to call fadvise again. I would have
-expected the "0" len parameter to tell the kernel to apply the hint to the whole
-file, even parts that will be added in the future. I expect we have this
-behavior because fadvise() was initially made with read behavior in mind rather
-than write.
-
-For the records, I do a fadvice+async range write after each splice(). Also,
-after each subbuffer write, I do a blocking write-and-wait on all pages that are
-in the subbuffer prior to the one that has just been written, instead of using
-the fixed 8MB window.
-
-Thanks,
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+Looks like the active_anon and active_file versions have no users
+anymore..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
