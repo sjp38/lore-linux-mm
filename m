@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 770276B01BF
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 07:25:11 -0400 (EDT)
-Message-ID: <4BF51B0A.1050901@redhat.com>
-Date: Thu, 20 May 2010 07:20:42 -0400
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B296460032A
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 07:28:27 -0400 (EDT)
+Date: Thu, 20 May 2010 13:28:22 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [RFC PATCH] fuse: support splice() reading from fuse device
+Message-ID: <20100520112821.GP25951@kernel.dk>
+References: <E1OF3kc-00084X-Hi@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Subject: RFC: dirty_ratio back to 40%
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1OF3kc-00084X-Hi@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-We've seen multiple performance regressions linked to the lower(20%)
-dirty_ratio.  When performing enough IO to overwhelm the background  
-flush daemons the percent of dirty pagecache memory quickly climbs 
-to the new/lower dirty_ratio value of 20%.  At that point all writing 
-processes are forced to stop and write dirty pagecache pages back to disk.  
-This causes performance regressions in several benchmarks as well as causing
-a noticeable overall sluggishness.  We all know that the dirty_ratio is
-an integrity vs performance trade-off but the file system journaling
-will cover any devastating effects in the event of a system crash.
+On Thu, May 20 2010, Miklos Szeredi wrote:
+> This continues zero copy I/O support on the fuse interface.  The first
+> part of the patchset (splice write support on fuse device) was posted
+> here:
+> 
+>   http://lkml.org/lkml/2010/4/28/215
+> 
+> With Jens' pipe growing patch and additional fuse patches it was
+> possible to achieve a 20GBytes/s write throghput on my laptop in a
+> "null" filesystem (no page cache, data goes to /dev/null).
 
-Increasing the dirty_ratio to 40% will regain the performance loss seen
-in several benchmarks.  Whats everyone think about this???
+Do you have some numbers on how that compares to the same test with the
+default 16 page pipe size?
 
-
-
-
-
-------------------------------------------------------------------------
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index ef27e73..645a462 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -78,7 +78,7 @@ int vm_highmem_is_dirtyable;
- /*
-  * The generator of dirty data starts writeback at this percentage
-  */
--int vm_dirty_ratio = 20;
-+int vm_dirty_ratio = 40;
- 
- /*
-  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
