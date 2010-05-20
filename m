@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0A7D16B01CB
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 09:47:58 -0400 (EDT)
-Message-ID: <4BF53D8B.5090407@rsk.demon.co.uk>
-Date: Thu, 20 May 2010 14:47:55 +0100
-From: Richard Kennedy <richard@rsk.demon.co.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 09C6660032A
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 10:22:12 -0400 (EDT)
+Date: Thu, 20 May 2010 07:18:21 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Unexpected splice "always copy" behavior observed
+In-Reply-To: <20100520015605.GA28411@Krystal>
+Message-ID: <alpine.LFD.2.00.1005200715460.23538@i5.linux-foundation.org>
+References: <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu> <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal>
+ <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org> <20100519214905.GA22486@Krystal> <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org> <20100520015605.GA28411@Krystal>
 MIME-Version: 1.0
-Subject: Re: RFC: dirty_ratio back to 40%
-References: <4BF51B0A.1050901@redhat.com> <20100520122919.GA3420@fancy-poultry.org>
-In-Reply-To: <20100520122919.GA3420@fancy-poultry.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Heinz Diehl <htd@fancy-poultry.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, lwoodman@redhat.com
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 20/05/10 13:29, Heinz Diehl wrote:
-> On 20.05.2010, Larry Woodman wrote: 
-> lwoodman@redhat.com
->> Increasing the dirty_ratio to 40% will regain the performance loss seen
->> in several benchmarks.  Whats everyone think about this???
+
+
+On Wed, 19 May 2010, Mathieu Desnoyers wrote:
 > 
-> These are tuneable via sysctl. What I have in my /etc/sysctl.conf is
-> 
->  vm.dirty_ratio = 4
->  vm.dirty_background_ratio = 2
->  
-> This writes back the data more often and frequently, thus preventing the
-> system from long stalls. 
-> 
-> Works at least for me. AMD Quadcore, 8 GB RAM.
-> 
-get_dirty_limits uses a minimum vm_dirty_ratio of 5, so you can't set it
-lower than that (unless you use vm_dirty_bytes).
-But it's interesting that you find lowering the dirty_ratio helpful. Do
-you have any benchmark results you can share?
-regards
-Richard
+>        Programs  can  use  posix_fadvise()  to announce an intention to access
+>        file data in a specific pattern in the future, thus allowing the kernel
+>        to perform appropriate optimizations.
+
+It's true for some of them. The random-vs-linear behavior is a flag for 
+the future, for example (relevant for prefetching).
+
+In fact, it's technically true even for DONTNEED. It's true that we won't 
+need the pages in the future! So we throw the pages away. But that means 
+that we throw the _current_ pages away.
+
+If we actually touch pages later, than that obviously invalidates the fact 
+that we said 'DONTNEED' - we clearly needed them.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
