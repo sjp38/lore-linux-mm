@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5DF196B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 19:08:10 -0400 (EDT)
-Message-ID: <4BF5C0B9.9080908@redhat.com>
-Date: Thu, 20 May 2010 19:07:37 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3B29F6B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 19:23:14 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4KNNBQ0012785
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 21 May 2010 08:23:11 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FFC445DE4F
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F74F45DE4E
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 17D23E08002
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB07AE08001
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 4/5] vmscan: remove isolate_pages callback scan control
+In-Reply-To: <20100519214217.GC2868@cmpxchg.org>
+References: <20100513122717.215E.A69D9226@jp.fujitsu.com> <20100519214217.GC2868@cmpxchg.org>
+Message-Id: <20100521081426.1E2E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/5] adjust mm_take_all_locks to anon-vma-root locking
-References: <20100512133815.0d048a86@annuminas.surriel.com> <20100520224258.GA12100@random.random>
-In-Reply-To: <20100520224258.GA12100@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 21 May 2010 08:23:10 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/20/2010 06:42 PM, Andrea Arcangeli wrote:
-> This is needed as 6/5 to avoid lockups in mm_take_all_locks.
->
-> ======
-> Subject: adjust mm_take_all_locks to the root_anon_vma locking
->
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> Track the anon_vma->root->lock.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+> > There are the same logic in shrink_active/inactive_list.
+> > Can we make wrapper function? It probably improve code readability.
+> 
+> They are not completely identical, PGSCAN_DIRECT/PGSCAN_KSWAPD
+> accounting is only done in shrink_inactive_list(), so we would need an
+> extra branch.  Can we leave it like that for now?
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Ah. ok, I see.
 
--- 
-All rights reversed
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
