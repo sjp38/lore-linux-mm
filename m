@@ -1,176 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 52EB26008FB
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 21:06:18 -0400 (EDT)
-Date: Thu, 20 May 2010 03:04:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Transparent Hugepage Support #24
-Message-ID: <20100520010446.GA5965@random.random>
+	by kanga.kvack.org (Postfix) with SMTP id 851C26008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 21:56:09 -0400 (EDT)
+Date: Wed, 19 May 2010 21:56:05 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: Unexpected splice "always copy" behavior observed
+Message-ID: <20100520015605.GA28411@Krystal>
+References: <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu> <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org> <20100519214905.GA22486@Krystal> <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog;h=refs/heads/anon_vma_chain
+* Linus Torvalds (torvalds@linux-foundation.org) wrote:
+> 
+> 
+> On Wed, 19 May 2010, Mathieu Desnoyers wrote:
+> > 
+> > A faced a small counter-intuitive fadvise behavior though.
+> > 
+> >   posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+> > 
+> > only seems to affect the parts of a file that already exist.
+> 
+> POSIX_FADV_DONTNEED does not have _any_ long-term behavior. So when you do 
+> a 
+> 
+> 	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+> 
+> it only affects the pages that are there right now, it has no effect on 
+> any future actions.
 
-first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-later: git fetch; git checkout -f origin/master
+Hrm, someone should tell the author of posix_fadvise(2) about the benefit of
+some clarifications (I'm CCing the manpage maintainer)
 
-To test the anon_vma_chain branch, simply use origin/anon_vma_chain
-instead of origin/master in the above checkout. I am currently running
-the origin/anon_vma_chain branch here (keeping master only in case of
-troubles with the new anon-vma code, so far no problem with the
-anon-vma->root shared locking design).
+Quoting man posix_fadvise, annotated:
 
-The tree is rebased and git pull won't work.
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34/transparent_hugepage-24/
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34/transparent_hugepage-24.gz
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.34/transparent_hugepage-24-anon_vma_chain.gz
+       Programs  can  use  posix_fadvise()  to announce an intention to access
+       file data in a specific pattern in the future, thus allowing the kernel
+       to perform appropriate optimizations.
 
-Diff #23 -> #24
+This only talks about future accesses, not past. From what I understand, you are
+saying that in the writeback case it's better to think of posix_fadvise() as
+applying to pages that have been written in the past too.
 
- anon-vma-lock-fix                                          |  247 -------------
 
-Removed and replaced by anon-vma-root shared lock.
+       The  advice  applies to a (not necessarily existent) region starting at
+       offset and extending for len bytes (or until the end of the file if len
+       is 0) within the file referred to by fd.  The advice is not binding; it
+       merely constitutes an expectation on behalf of the application.
+ 
+This could be enhanced by saying that it applies up to the current file size if
+0 is specified, and does not extend as the file grows. The formulation as it is
+currently stated is a bit misleading.
 
- b/backout-anon_vma-chain                                   |   39 +-
+> > So after each splice() that appends to the file, I have to call fadvise 
+> > again. I would have expected the "0" len parameter to tell the kernel to 
+> > apply the hint to the whole file, even parts that will be added in the 
+> > future.
+> 
+> It's not a hint about future at all. It's a "throw current pages away".
+> 
+> I would also suggest against doing that kind of thing in a streaming write 
+> situation. The behavior for dirty page writeback is _not_ welldefined, and 
+> if you do POSIX_FADV_DONTNEED, I would suggest you do it as part of that 
+> writeback logic, ie you do it only on ranges that you have just waited on.
+> 
+> IOW, in my example, you'd couple the
+> 
+> 	sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
+> 
+> with a
+> 
+> 	posix_fadvise(fd, (index-1)*BUFSIZE, BUFSIZE, POSIX_FADV_DONTNEED);
+> 
+> afterwards to throw out the pages that you just waited for.
 
-Small change.
+OK, so it's better to do the writeback as part of sync_file_range rather than
+relying on the dirty page writeback to do it for us. I guess the I/O scheduler
+will have more room to ensure that writes are contiguous.
 
- b/exec-migrate-race-anon_vma-chain                         |  196 +++++-----
+Thanks for the feedback,
 
-Replaced with the version that keeps migrate away instead of allowing
-rmap at all times (so it won't require allocations in execve).
+Mathieu
 
- b/khugepaged                                               |   19 -
- b/khugepaged-old-anon_vma                                  |   39 ++
- b/khugepaged-vma-merge-anon_vma-chain                      |   16 
-
-Adapted to anon-vma-root locking.
-
- b/kvm_transparent_hugepage                                 |  132 ++++++
-
-Speedup and avoid spurious warning.
-
- b/memory-compaction-anon-vma-refcount                      |   10 
- b/memory-compaction-anon-vma-refcount-anon-vma-chain       |  126 ++++++
- b/memory-compaction-anon-vma-share-refcount                |   14 
- b/memory-compaction-anon-vma-share-refcount-anon-vma-chain |  166 ++++++++
-
-Adapt to anon-vma-root locking (two versions needed now).
-
- b/memory-compaction-migrate_prep                           |   84 +++-
-
-drain local lru in migrate.
-
- b/mprotect-vma-arg                                         |   32 -
-
-anon-vma-root locking adjustment.
-
- b/root_anon_vma-anon_vma_lock                              |  213 +++++++++++
- b/root_anon_vma-ksm_refcount                               |  169 ++++++++
- b/root_anon_vma-lock_root                                  |  118 ++++++
- b/root_anon_vma-oldest_root                                |   84 ++++
- b/root_anon_vma-vma_lock_anon_vma                          |   97 +++++
-
-Rik's anon-vma-root shared locking implementation (only in
-anon_vma_chain branch).
-
- b/split_huge_page-old-anon-vma                             |   42 ++
-
-anon-vma-root locking adjustment for master branch.
-
- mincore-transhuge-anon_vma-chain                           |   69 ---
- mprotect-transhuge-anon_vma-chain                          |   21 -
- transparent_hugepage-anon_vma-chain                        |  203 ----------
-
-anon-vma-root locking adjustment for anon_vma_chain branch.
-
-Diff against 2.6.34 (anon_vma_chain branch):
-
- Documentation/cgroups/memory.txt      |    4 
- Documentation/sysctl/vm.txt           |   25 
- Documentation/vm/transhuge.txt        |  283 ++++
- arch/alpha/include/asm/mman.h         |    2 
- arch/mips/include/asm/mman.h          |    2 
- arch/parisc/include/asm/mman.h        |    2 
- arch/powerpc/mm/gup.c                 |   12 
- arch/x86/include/asm/paravirt.h       |   23 
- arch/x86/include/asm/paravirt_types.h |    6 
- arch/x86/include/asm/pgtable-2level.h |    9 
- arch/x86/include/asm/pgtable-3level.h |   23 
- arch/x86/include/asm/pgtable.h        |  144 ++
- arch/x86/include/asm/pgtable_64.h     |   14 
- arch/x86/include/asm/pgtable_types.h  |    3 
- arch/x86/kernel/paravirt.c            |    3 
- arch/x86/kernel/vm86_32.c             |    1 
- arch/x86/kvm/mmu.c                    |   26 
- arch/x86/kvm/paging_tmpl.h            |    4 
- arch/x86/mm/gup.c                     |   25 
- arch/x86/mm/pgtable.c                 |   66 +
- arch/xtensa/include/asm/mman.h        |    2 
- drivers/base/node.c                   |    3 
- fs/Kconfig                            |    2 
- fs/exec.c                             |    7 
- fs/proc/meminfo.c                     |   14 
- fs/proc/page.c                        |   14 
- include/asm-generic/mman-common.h     |    2 
- include/asm-generic/pgtable.h         |  130 ++
- include/linux/compaction.h            |   89 +
- include/linux/gfp.h                   |   14 
- include/linux/huge_mm.h               |  143 ++
- include/linux/khugepaged.h            |   66 +
- include/linux/kvm_host.h              |    4 
- include/linux/memory_hotplug.h        |   14 
- include/linux/migrate.h               |    2 
- include/linux/mm.h                    |   93 +
- include/linux/mm_inline.h             |   13 
- include/linux/mm_types.h              |    3 
- include/linux/mmu_notifier.h          |   40 
- include/linux/mmzone.h                |   10 
- include/linux/page-flags.h            |   36 
- include/linux/rmap.h                  |   58 
- include/linux/sched.h                 |    1 
- include/linux/swap.h                  |    8 
- include/linux/vmstat.h                |    4 
- kernel/fork.c                         |   12 
- kernel/futex.c                        |   67 -
- kernel/sysctl.c                       |   25 
- mm/Kconfig                            |   56 
- mm/Makefile                           |    2 
- mm/compaction.c                       |  620 +++++++++
- mm/huge_memory.c                      | 2157 ++++++++++++++++++++++++++++++++++
- mm/hugetlb.c                          |   69 -
- mm/ksm.c                              |   77 -
- mm/madvise.c                          |    8 
- mm/memcontrol.c                       |   88 -
- mm/memory-failure.c                   |    2 
- mm/memory.c                           |  179 ++
- mm/memory_hotplug.c                   |   14 
- mm/mempolicy.c                        |   14 
- mm/migrate.c                          |   77 +
- mm/mincore.c                          |  302 ++--
- mm/mmap.c                             |   37 
- mm/mprotect.c                         |   20 
- mm/mremap.c                           |    8 
- mm/page_alloc.c                       |  132 +-
- mm/pagewalk.c                         |    1 
- mm/rmap.c                             |  211 ++-
- mm/sparse.c                           |    4 
- mm/swap.c                             |  116 +
- mm/swap_state.c                       |    6 
- mm/swapfile.c                         |    2 
- mm/vmscan.c                           |   42 
- mm/vmstat.c                           |  256 ++++
- virt/kvm/iommu.c                      |    2 
- virt/kvm/kvm_main.c                   |   39 
- 76 files changed, 5586 insertions(+), 508 deletions(-)
+-- 
+Mathieu Desnoyers
+Operating System Efficiency R&D Consultant
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
