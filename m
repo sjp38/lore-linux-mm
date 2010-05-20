@@ -1,99 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 851C26008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 21:56:09 -0400 (EDT)
-Date: Wed, 19 May 2010 21:56:05 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: Unexpected splice "always copy" behavior observed
-Message-ID: <20100520015605.GA28411@Krystal>
-References: <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu> <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org> <20100519214905.GA22486@Krystal> <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8BDBA6008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 23:23:29 -0400 (EDT)
+Message-ID: <4BF4AB24.7070107@linux.intel.com>
+Date: Thu, 20 May 2010 11:23:16 +0800
+From: Haicheng Li <haicheng.li@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
+Subject: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
+References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
+In-Reply-To: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds (torvalds@linux-foundation.org) wrote:
+akpm@linux-foundation.org wrote:
+ > The patch titled
+ >      mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
+ > has been added to the -mm tree.  Its filename is
+ >      mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix.patch
+ > ------------------------------------------------------
+> Subject: mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
+> From: Andrew Morton <akpm@linux-foundation.org>
 > 
+> Cc: Andi Kleen <andi.kleen@intel.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Haicheng Li <haicheng.li@linux.intel.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
 > 
-> On Wed, 19 May 2010, Mathieu Desnoyers wrote:
-> > 
-> > A faced a small counter-intuitive fadvise behavior though.
-> > 
-> >   posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-> > 
-> > only seems to affect the parts of a file that already exist.
+>  kernel/cpu.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> POSIX_FADV_DONTNEED does not have _any_ long-term behavior. So when you do 
-> a 
-> 
-> 	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-> 
-> it only affects the pages that are there right now, it has no effect on 
-> any future actions.
+> diff -puN kernel/cpu.c~mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix kernel/cpu.c
+> --- a/kernel/cpu.c~mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
+> +++ a/kernel/cpu.c
+> @@ -358,7 +358,7 @@ int __cpuinit cpu_up(unsigned int cpu)
+>  	}
+>  
+>  	if (pgdat->node_zonelists->_zonerefs->zone == NULL)
+> -		build_all_zonelists();
+> +		build_all_zonelists(NULL);
+>  #endif
+>  
+>  	cpu_maps_update_begin();
 
-Hrm, someone should tell the author of posix_fadvise(2) about the benefit of
-some clarifications (I'm CCing the manpage maintainer)
+Andrew,
 
-Quoting man posix_fadvise, annotated:
+Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
+unless system_state == SYSTEM_BOOTING.
 
+We need another patch to fix it, which should be applied after 
+mem-hotplug-fix-potential-race-while-building-zonelist-for-new-populated-zone.patch
 
-       Programs  can  use  posix_fadvise()  to announce an intention to access
-       file data in a specific pattern in the future, thus allowing the kernel
-       to perform appropriate optimizations.
+---
+ From 5f547a85e3b331f7ef2c004c93b674f9698c5531 Mon Sep 17 00:00:00 2001
+From: Haicheng Li <haicheng.li@linux.intel.com>
+Date: Thu, 20 May 2010 11:17:01 +0800
+Subject: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
 
-This only talks about future accesses, not past. From what I understand, you are
-saying that in the writeback case it's better to think of posix_fadvise() as
-applying to pages that have been written in the past too.
+Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
+---
+  kernel/cpu.c |    5 ++++-
+  1 files changed, 4 insertions(+), 1 deletions(-)
 
+diff --git a/kernel/cpu.c b/kernel/cpu.c
+index 3e8b3ba..124ad9d 100644
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
+                 return -ENOMEM;
+         }
 
-       The  advice  applies to a (not necessarily existent) region starting at
-       offset and extending for len bytes (or until the end of the file if len
-       is 0) within the file referred to by fd.  The advice is not binding; it
-       merely constitutes an expectation on behalf of the application.
- 
-This could be enhanced by saying that it applies up to the current file size if
-0 is specified, and does not extend as the file grows. The formulation as it is
-currently stated is a bit misleading.
+-       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
++       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
++               mutex_lock(&zonelists_mutex);
+                 build_all_zonelists(NULL);
++               mutex_unlock(&zonelists_mutex);
++       }
+  #endif
 
-> > So after each splice() that appends to the file, I have to call fadvise 
-> > again. I would have expected the "0" len parameter to tell the kernel to 
-> > apply the hint to the whole file, even parts that will be added in the 
-> > future.
-> 
-> It's not a hint about future at all. It's a "throw current pages away".
-> 
-> I would also suggest against doing that kind of thing in a streaming write 
-> situation. The behavior for dirty page writeback is _not_ welldefined, and 
-> if you do POSIX_FADV_DONTNEED, I would suggest you do it as part of that 
-> writeback logic, ie you do it only on ranges that you have just waited on.
-> 
-> IOW, in my example, you'd couple the
-> 
-> 	sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
-> 
-> with a
-> 
-> 	posix_fadvise(fd, (index-1)*BUFSIZE, BUFSIZE, POSIX_FADV_DONTNEED);
-> 
-> afterwards to throw out the pages that you just waited for.
-
-OK, so it's better to do the writeback as part of sync_file_range rather than
-relying on the dirty page writeback to do it for us. I guess the I/O scheduler
-will have more room to ensure that writes are contiguous.
-
-Thanks for the feedback,
-
-Mathieu
-
+         cpu_maps_update_begin();
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+1.5.6.1
+
+
+-haicheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
