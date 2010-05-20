@@ -1,107 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 43AEF6B01B2
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 16:44:06 -0400 (EDT)
-Date: Thu, 20 May 2010 13:43:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
-Message-Id: <20100520134359.fdfb397e.akpm@linux-foundation.org>
-In-Reply-To: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
-References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id DD4B16B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 18:44:30 -0400 (EDT)
+Date: Fri, 21 May 2010 00:42:58 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 6/5] adjust mm_take_all_locks to anon-vma-root locking
+Message-ID: <20100520224258.GA12100@random.random>
+References: <20100512133815.0d048a86@annuminas.surriel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100512133815.0d048a86@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
-To: minskey guo <chaohong_guo@linux.intel.com>
-Cc: linux-mm@kvack.org, prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, minskey guo <chaohong.guo@intel.com>, Tejun Heo <tj@kernel.org>, stable@kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 May 2010 14:17:22 +0800
-minskey guo <chaohong_guo@linux.intel.com> wrote:
+This is needed as 6/5 to avoid lockups in mm_take_all_locks.
 
-> From: minskey guo <chaohong.guo@intel.com>
-> 
-> The operation of "enable CPU to online before memory within a node"
-> fails in some case according to Prarit. The warnings as follows:
-> 
-> Pid: 7440, comm: bash Not tainted 2.6.32 #2
-> Call Trace:
->  [<ffffffff81155985>] pcpu_alloc+0xa05/0xa70
->  [<ffffffff81155a20>] __alloc_percpu+0x10/0x20
->  [<ffffffff81089605>] __create_workqueue_key+0x75/0x280
->  [<ffffffff8110e050>] ? __build_all_zonelists+0x0/0x5d0
->  [<ffffffff810c1eba>] stop_machine_create+0x3a/0xb0
->  [<ffffffff810c1f57>] stop_machine+0x27/0x60
->  [<ffffffff8110f1a0>] build_all_zonelists+0xd0/0x2b0
->  [<ffffffff814c1d12>] cpu_up+0xb3/0xe3
->  [<ffffffff814b3c40>] store_online+0x70/0xa0
->  [<ffffffff81326100>] sysdev_store+0x20/0x30
->  [<ffffffff811d29a5>] sysfs_write_file+0xe5/0x170
->  [<ffffffff81163d28>] vfs_write+0xb8/0x1a0
->  [<ffffffff810cfd22>] ? audit_syscall_entry+0x252/0x280
->  [<ffffffff81164761>] sys_write+0x51/0x90
->  [<ffffffff81013132>] system_call_fastpath+0x16/0x1b
-> Built 4 zonelists in Zone order, mobility grouping on.  Total pages: 12331603
-> PERCPU: allocation failed, size=128 align=64, failed to populate
-> 
-> With "enable CPU to online before memory" patch, when the 1st CPU of
-> an offlined node is being onlined, we build zonelists for that node.
-> If per-cpu area needs to be extended during zonelists building period,
-> alloc_pages_node() will be called. The routine alloc_pages_node() fails
-> on the node in-onlining because the node doesn't have zonelists created
-> yet.
-> 
-> To fix this issue,  we try to alloc memory from current node.
+======
+Subject: adjust mm_take_all_locks to the root_anon_vma locking
 
-How serious is this issue?  Just a warning?  Dead box?
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-Because if we want to port this fix into 2.6.34.x, we have a little
-problem.
+Track the anon_vma->root->lock.
 
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
 
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
-
-In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
-mm/percpu-vm.c.  So either
-
-a) the -stable guys will need to patch a different file or
-
-b) we apply this fix first and muck up Tejun's tree or
-
-c) the bug isn't very serious so none of this applies.
-
->  {
->  	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
->  	unsigned int cpu;
-> +	int nid;
->  	int i;
->  
->  	for_each_possible_cpu(cpu) {
->  		for (i = page_start; i < page_end; i++) {
->  			struct page **pagep = &pages[pcpu_page_idx(cpu, i)];
->  
-> -			*pagep = alloc_pages_node(cpu_to_node(cpu), gfp, 0);
-> +			nid = cpu_to_node(cpu);
-> +
-> +			/*
-> +			 * It is allowable to online a CPU within a NUMA
-> +			 * node which doesn't have onlined local memory.
-> +			 * In this case, we need to create zonelists for
-> +			 * that node when cpu is being onlined. If per-cpu
-> +			 * area needs to be extended at the exact time when
-> +			 * zonelists of that node is being created, we alloc
-> +			 * memory from current node.
-> +			 */
-> +			if ((nid == -1) ||
-> +			    !(node_zonelist(nid, GFP_KERNEL)->_zonerefs->zone))
-> +				nid = numa_node_id();
-> +
-> +			*pagep = alloc_pages_node(nid, gfp, 0);
->  			if (!*pagep) {
->  				pcpu_free_pages(chunk, pages, populated,
->  						page_start, page_end);
+diff --git a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2480,7 +2480,7 @@ static DEFINE_MUTEX(mm_all_locks_mutex);
+ 
+ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+ {
+-	if (!test_bit(0, (unsigned long *) &anon_vma->head.next)) {
++	if (!test_bit(0, (unsigned long *) &anon_vma->root->head.next)) {
+ 		/*
+ 		 * The LSB of head.next can't change from under us
+ 		 * because we hold the mm_all_locks_mutex.
+@@ -2488,15 +2488,15 @@ static void vm_lock_anon_vma(struct mm_s
+ 		spin_lock_nest_lock(&anon_vma->root->lock, &mm->mmap_sem);
+ 		/*
+ 		 * We can safely modify head.next after taking the
+-		 * anon_vma->lock. If some other vma in this mm shares
++		 * anon_vma->root->lock. If some other vma in this mm shares
+ 		 * the same anon_vma we won't take it again.
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us thanks to the
+-		 * anon_vma->lock.
++		 * anon_vma->root->lock.
+ 		 */
+ 		if (__test_and_set_bit(0, (unsigned long *)
+-				       &anon_vma->head.next))
++				       &anon_vma->root->head.next))
+ 			BUG();
+ 	}
+ }
+@@ -2537,12 +2537,12 @@ static void vm_lock_mapping(struct mm_st
+  * A single task can't take more than one mm_take_all_locks() in a row
+  * or it would deadlock.
+  *
+- * The LSB in anon_vma->head.next and the AS_MM_ALL_LOCKS bitflag in
++ * The LSB in anon_vma->root->head.next and the AS_MM_ALL_LOCKS bitflag in
+  * mapping->flags avoid to take the same lock twice, if more than one
+  * vma in this mm is backed by the same anon_vma or address_space.
+  *
+  * We can take all the locks in random order because the VM code
+- * taking i_mmap_lock or anon_vma->lock outside the mmap_sem never
++ * taking i_mmap_lock or anon_vma->root->lock outside the mmap_sem never
+  * takes more than one of them in a row. Secondly we're protected
+  * against a concurrent mm_take_all_locks() by the mm_all_locks_mutex.
+  *
+@@ -2587,21 +2587,21 @@ out_unlock:
+ 
+ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+ {
+-	if (test_bit(0, (unsigned long *) &anon_vma->head.next)) {
++	if (test_bit(0, (unsigned long *) &anon_vma->root->head.next)) {
+ 		/*
+ 		 * The LSB of head.next can't change to 0 from under
+ 		 * us because we hold the mm_all_locks_mutex.
+ 		 *
+ 		 * We must however clear the bitflag before unlocking
+-		 * the vma so the users using the anon_vma->head will
++		 * the vma so the users using the anon_vma->root->head will
+ 		 * never see our bitflag.
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us until we release the
+-		 * anon_vma->lock.
++		 * anon_vma->root->lock.
+ 		 */
+ 		if (!__test_and_clear_bit(0, (unsigned long *)
+-					  &anon_vma->head.next))
++					  &anon_vma->root->head.next))
+ 			BUG();
+ 		anon_vma_unlock(anon_vma);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
