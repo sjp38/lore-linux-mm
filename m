@@ -1,67 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 81B6E6B023E
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 19:29:32 -0400 (EDT)
-Received: by iwn39 with SMTP id 39so3060430iwn.14
-        for <linux-mm@kvack.org>; Wed, 19 May 2010 16:29:30 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5C46008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 20:07:21 -0400 (EDT)
+Date: Wed, 19 May 2010 17:04:07 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: Unexpected splice "always copy" behavior observed
+In-Reply-To: <20100519214905.GA22486@Krystal>
+Message-ID: <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
+References: <20100519063116.GR2516@laptop> <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu>
+ <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org> <20100519214905.GA22486@Krystal>
 MIME-Version: 1.0
-In-Reply-To: <20100519174327.9591.A69D9226@jp.fujitsu.com>
-References: <20100519174327.9591.A69D9226@jp.fujitsu.com>
-Date: Thu, 20 May 2010 08:29:30 +0900
-Message-ID: <AANLkTimN-vFhg6kL6u9yGryN3l0QnIk7nydG5Diwo3wr@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 19, 2010 at 5:44 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Shaohua Li reported parallel file copy on tmpfs can lead to
-> OOM killer. This is regression of caused by commit 9ff473b9a7
-> (vmscan: evict streaming IO first). Wow, It is 2 years old patch!
->
-> Currently, tmpfs file cache is inserted active list at first. It
-> mean the insertion doesn't only increase numbers of pages in anon LRU,
-> but also reduce anon scanning ratio. Therefore, vmscan will get totally
-> confusion. It scan almost only file LRU even though the system have
-> plenty unused tmpfs pages.
->
-> Historically, lru_cache_add_active_anon() was used by two reasons.
-> 1) Intend to priotize shmem page rather than regular file cache.
-> 2) Intend to avoid reclaim priority inversion of used once pages.
->
-> But we've lost both motivation because (1) Now we have separate
-> anon and file LRU list. then, to insert active list doesn't help
-> such priotize. (2) In past, one pte access bit will cause page
-> activation. then to insert inactive list with pte access bit mean
-> higher priority than to insert active list. Its priority inversion
-> may lead to uninteded lru chun. but it was already solved by commit
-> 645747462 (vmscan: detect mapped file pages used only once).
-> (Thanks Hannes, you are great!)
->
-> Thus, now we can use lru_cache_add_anon() instead.
->
-> Reported-by: Shaohua Li <shaohua.li@intel.com>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-
-The description itself is valuable. :)
-Thanks, Kosaki.
 
 
+On Wed, 19 May 2010, Mathieu Desnoyers wrote:
+> 
+> A faced a small counter-intuitive fadvise behavior though.
+> 
+>   posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+> 
+> only seems to affect the parts of a file that already exist.
 
+POSIX_FADV_DONTNEED does not have _any_ long-term behavior. So when you do 
+a 
 
--- 
-Kind regards,
-Minchan Kim
+	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+
+it only affects the pages that are there right now, it has no effect on 
+any future actions.
+
+> So after each splice() that appends to the file, I have to call fadvise 
+> again. I would have expected the "0" len parameter to tell the kernel to 
+> apply the hint to the whole file, even parts that will be added in the 
+> future.
+
+It's not a hint about future at all. It's a "throw current pages away".
+
+I would also suggest against doing that kind of thing in a streaming write 
+situation. The behavior for dirty page writeback is _not_ welldefined, and 
+if you do POSIX_FADV_DONTNEED, I would suggest you do it as part of that 
+writeback logic, ie you do it only on ranges that you have just waited on.
+
+IOW, in my example, you'd couple the
+
+	sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
+
+with a
+
+	posix_fadvise(fd, (index-1)*BUFSIZE, BUFSIZE, POSIX_FADV_DONTNEED);
+
+afterwards to throw out the pages that you just waited for.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
