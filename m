@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5C46008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 20:07:21 -0400 (EDT)
-Date: Wed, 19 May 2010 17:04:07 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Unexpected splice "always copy" behavior observed
-In-Reply-To: <20100519214905.GA22486@Krystal>
-Message-ID: <alpine.LFD.2.00.1005191659100.23538@i5.linux-foundation.org>
-References: <20100519063116.GR2516@laptop> <alpine.LFD.2.00.1005190736370.23538@i5.linux-foundation.org> <1274280968.26328.774.camel@gandalf.stny.rr.com> <alpine.LFD.2.00.1005190758070.23538@i5.linux-foundation.org> <E1OElGh-0005wc-I8@pomaz-ex.szeredi.hu>
- <1274283942.26328.783.camel@gandalf.stny.rr.com> <20100519155732.GB2039@Krystal> <20100519162729.GE2516@laptop> <20100519191439.GA2845@Krystal> <alpine.LFD.2.00.1005191220370.23538@i5.linux-foundation.org> <20100519214905.GA22486@Krystal>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A0A9A6008F0
+	for <linux-mm@kvack.org>; Wed, 19 May 2010 20:31:41 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4K0VP9O010234
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 20 May 2010 09:31:25 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 612D145DE4E
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 09:31:25 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3639045DE52
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 09:31:25 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E8D9E08003
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 09:31:25 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2316E08009
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 09:31:24 +0900 (JST)
+Date: Thu, 20 May 2010 09:27:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: oom killer rewrite
+Message-Id: <20100520092717.0c3d8f3f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Nick Piggin <npiggin@suse.de>, Steven Rostedt <rostedt@goodmis.org>, Miklos Szeredi <miklos@szeredi.hu>, peterz@infradead.org, fweisbec@gmail.com, tardyp@gmail.com, mingo@elte.hu, acme@redhat.com, tzanussi@gmail.com, paulus@samba.org, linux-kernel@vger.kernel.org, arjan@infradead.org, ziga.mahkovec@gmail.com, davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, tj@kernel.org, jens.axboe@oracle.com
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 19 May 2010 15:14:42 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-
-On Wed, 19 May 2010, Mathieu Desnoyers wrote:
+> KOSAKI,
 > 
-> A faced a small counter-intuitive fadvise behavior though.
+> I've been notified that my entire oom killer rewrite has been dropped from 
+> -mm based solely on your feedback.  The problem is that I have absolutely 
+> no idea what issues you have with the changes that haven't already been 
+> addressed (nobody else does, either, it seems).
 > 
->   posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
-> 
-> only seems to affect the parts of a file that already exist.
 
-POSIX_FADV_DONTNEED does not have _any_ long-term behavior. So when you do 
-a 
+I've pointed out that "normalized" parameter doesn't seem to work well in some
+situaion (in cluster). I hope you'll have an extra interface as
 
-	posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+	echo 3G > /proc/<pid>/oom_indemification
 
-it only affects the pages that are there right now, it has no effect on 
-any future actions.
+to allow users have "absolute value" setting.
+(If the admin know usual memory usage of an application, we can only
+ add badness to extra memory usage.)
 
-> So after each splice() that appends to the file, I have to call fadvise 
-> again. I would have expected the "0" len parameter to tell the kernel to 
-> apply the hint to the whole file, even parts that will be added in the 
-> future.
+To be honest, I can't fully understand why we need _normalized_ parameter. Why
+oom_adj _which is now used_ is not enough for setting "relative importance" ?
 
-It's not a hint about future at all. It's a "throw current pages away".
+Does google guys controls importance of processes in very small step ?
 
-I would also suggest against doing that kind of thing in a streaming write 
-situation. The behavior for dirty page writeback is _not_ welldefined, and 
-if you do POSIX_FADV_DONTNEED, I would suggest you do it as part of that 
-writeback logic, ie you do it only on ranges that you have just waited on.
+And, IIRC, Nick pointed out that "don't remove _used_ interfaces just because
+you hate it or it seems not clean". So, I recommend you to drop sysctl changes.
 
-IOW, in my example, you'd couple the
+I think the whole concept of your patch series is good and I like it.
+But changes in interfaces seem not very sensible. 
 
-	sync_file_range(fd, (index-1)*BUFSIZE, BUFSIZE, SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
+Don't take my word very serious but I don't like changes in interface.
 
-with a
+Cheers,
+-Kame
 
-	posix_fadvise(fd, (index-1)*BUFSIZE, BUFSIZE, POSIX_FADV_DONTNEED);
-
-afterwards to throw out the pages that you just waited for.
-
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
