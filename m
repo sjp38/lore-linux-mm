@@ -1,47 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3B29F6B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 19:23:14 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4KNNBQ0012785
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 21 May 2010 08:23:11 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FFC445DE4F
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F74F45DE4E
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 17D23E08002
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB07AE08001
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:23:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 4/5] vmscan: remove isolate_pages callback scan control
-In-Reply-To: <20100519214217.GC2868@cmpxchg.org>
-References: <20100513122717.215E.A69D9226@jp.fujitsu.com> <20100519214217.GC2868@cmpxchg.org>
-Message-Id: <20100521081426.1E2E.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4A0DA6B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 19:47:27 -0400 (EDT)
+From: Alexander Duyck <alexander.h.duyck@intel.com>
+Subject: [PATCH] slub: move kmem_cache_node into it's own cacheline
+Date: Thu, 20 May 2010 16:47:14 -0700
+Message-ID: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 21 May 2010 08:23:10 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: penberg@cs.helsinki.fi, cl@linux.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > There are the same logic in shrink_active/inactive_list.
-> > Can we make wrapper function? It probably improve code readability.
-> 
-> They are not completely identical, PGSCAN_DIRECT/PGSCAN_KSWAPD
-> accounting is only done in shrink_inactive_list(), so we would need an
-> extra branch.  Can we leave it like that for now?
+This patch is meant to improve the performance of SLUB by moving the local
+kmem_cache_node lock into it's own cacheline separate from kmem_cache.
+This is accomplished by simply removing the local_node when NUMA is enabled.
 
-Ah. ok, I see.
+On my system with 2 nodes I saw around a 5% performance increase w/
+hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
+suspect the performance gain would increase as the number of nodes
+increases, but I do not have the data to currently back that up.
 
+Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+---
 
+ include/linux/slub_def.h |   11 ++++-------
+ mm/slub.c                |   33 +++++++++++----------------------
+ 2 files changed, 15 insertions(+), 29 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 0249d41..e6217bb 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -52,7 +52,7 @@ struct kmem_cache_node {
+ 	atomic_long_t total_objects;
+ 	struct list_head full;
+ #endif
+-};
++} ____cacheline_internodealigned_in_smp;
+ 
+ /*
+  * Word size structure that can be atomically updated or read and that
+@@ -75,12 +75,6 @@ struct kmem_cache {
+ 	int offset;		/* Free pointer offset. */
+ 	struct kmem_cache_order_objects oo;
+ 
+-	/*
+-	 * Avoid an extra cache line for UP, SMP and for the node local to
+-	 * struct kmem_cache.
+-	 */
+-	struct kmem_cache_node local_node;
+-
+ 	/* Allocation and freeing of slabs */
+ 	struct kmem_cache_order_objects max;
+ 	struct kmem_cache_order_objects min;
+@@ -102,6 +96,9 @@ struct kmem_cache {
+ 	 */
+ 	int remote_node_defrag_ratio;
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
++#else
++	/* Avoid an extra cache line for UP */
++	struct kmem_cache_node local_node;
+ #endif
+ };
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 461314b..8af03de 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2141,7 +2141,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ 
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = s->node[node];
+-		if (n && n != &s->local_node)
++		if (n)
+ 			kmem_cache_free(kmalloc_caches, n);
+ 		s->node[node] = NULL;
+ 	}
+@@ -2150,33 +2150,22 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
+ {
+ 	int node;
+-	int local_node;
+-
+-	if (slab_state >= UP && (s < kmalloc_caches ||
+-			s >= kmalloc_caches + KMALLOC_CACHES))
+-		local_node = page_to_nid(virt_to_page(s));
+-	else
+-		local_node = 0;
+ 
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n;
+ 
+-		if (local_node == node)
+-			n = &s->local_node;
+-		else {
+-			if (slab_state == DOWN) {
+-				early_kmem_cache_node_alloc(gfpflags, node);
+-				continue;
+-			}
+-			n = kmem_cache_alloc_node(kmalloc_caches,
+-							gfpflags, node);
+-
+-			if (!n) {
+-				free_kmem_cache_nodes(s);
+-				return 0;
+-			}
++		if (slab_state == DOWN) {
++			early_kmem_cache_node_alloc(gfpflags, node);
++			continue;
++		}
++		n = kmem_cache_alloc_node(kmalloc_caches,
++						gfpflags, node);
+ 
++		if (!n) {
++			free_kmem_cache_nodes(s);
++			return 0;
+ 		}
++
+ 		s->node[node] = n;
+ 		init_kmem_cache_node(n, s);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
