@@ -1,96 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8BDBA6008F0
-	for <linux-mm@kvack.org>; Wed, 19 May 2010 23:23:29 -0400 (EDT)
-Message-ID: <4BF4AB24.7070107@linux.intel.com>
-Date: Thu, 20 May 2010 11:23:16 +0800
-From: Haicheng Li <haicheng.li@linux.intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 04E206B022C
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 01:39:10 -0400 (EDT)
 MIME-Version: 1.0
-Subject: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
-References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
-In-Reply-To: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 20 May 2010 09:39:07 +0200
+From: kernel <kernel@tauceti.net>
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+In-Reply-To: <1273785234.22932.14.camel@localhost.localdomain>
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain> <4BD61147.40709@tauceti.net> <1272324536.16814.45.camel@localhost.localdomain> <4BD76B81.2070606@tauceti.net> <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net> <4BE33259.3000609@tauceti.net> <1273181438.22155.26.camel@localhost.localdomain> <4BEC6A5D.5070304@tauceti.net> <1273785234.22932.14.camel@localhost.localdomain>
+Message-ID: <a133ef4ed022a00afd40b505719ae3d2@tauceti.net>
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-akpm@linux-foundation.org wrote:
- > The patch titled
- >      mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
- > has been added to the -mm tree.  Its filename is
- >      mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix.patch
- > ------------------------------------------------------
-> Subject: mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
-> From: Andrew Morton <akpm@linux-foundation.org>
+Hi Trond,
+
+have you had some time to download the wireshark dump?
+
+Thanks!
+Robert
+
+On Thu, 13 May 2010 17:13:54 -0400, Trond Myklebust
+<Trond.Myklebust@netapp.com> wrote:
+> On Thu, 2010-05-13 at 23:08 +0200, Robert Wimmer wrote: 
+>> Finally I've had some time to do the next test.
+>> Here is a wireshark dump (~750 MByte):
+>> http://213.252.12.93/2.6.34-rc5.cap.gz
+>> 
+>> dmesg output after page allocation failure:
+>> https://bugzilla.kernel.org/attachment.cgi?id=26371
+>> 
+>> stack trace before page allocation failure:
+>> https://bugzilla.kernel.org/attachment.cgi?id=26369
+>> 
+>> stack trace after page allocation failure:
+>> https://bugzilla.kernel.org/attachment.cgi?id=26370
+>> 
+>> I hope the wireshark dump is not to big to download.
+>> It was created with
+>> tshark -f "tcp port 2049" -i eth0 -w 2.6.34-rc5.cap
+>> 
+>> Thanks!
+>> Robert
 > 
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Haicheng Li <haicheng.li@linux.intel.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Wu Fengguang <fengguang.wu@intel.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
+> Hi Robert,
 > 
->  kernel/cpu.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> I tried the above wireshark dump URL, but it appears to point to an
+> empty file.
 > 
-> diff -puN kernel/cpu.c~mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix kernel/cpu.c
-> --- a/kernel/cpu.c~mem-hotplug-avoid-multiple-zones-sharing-same-boot-strapping-boot_pageset-fix
-> +++ a/kernel/cpu.c
-> @@ -358,7 +358,7 @@ int __cpuinit cpu_up(unsigned int cpu)
->  	}
->  
->  	if (pgdat->node_zonelists->_zonerefs->zone == NULL)
-> -		build_all_zonelists();
-> +		build_all_zonelists(NULL);
->  #endif
->  
->  	cpu_maps_update_begin();
-
-Andrew,
-
-Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
-unless system_state == SYSTEM_BOOTING.
-
-We need another patch to fix it, which should be applied after 
-mem-hotplug-fix-potential-race-while-building-zonelist-for-new-populated-zone.patch
-
----
- From 5f547a85e3b331f7ef2c004c93b674f9698c5531 Mon Sep 17 00:00:00 2001
-From: Haicheng Li <haicheng.li@linux.intel.com>
-Date: Thu, 20 May 2010 11:17:01 +0800
-Subject: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
-
-Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
----
-  kernel/cpu.c |    5 ++++-
-  1 files changed, 4 insertions(+), 1 deletions(-)
-
-diff --git a/kernel/cpu.c b/kernel/cpu.c
-index 3e8b3ba..124ad9d 100644
---- a/kernel/cpu.c
-+++ b/kernel/cpu.c
-@@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
-                 return -ENOMEM;
-         }
-
--       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
-+       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-+               mutex_lock(&zonelists_mutex);
-                 build_all_zonelists(NULL);
-+               mutex_unlock(&zonelists_mutex);
-+       }
-  #endif
-
-         cpu_maps_update_begin();
--- 
-1.5.6.1
-
-
--haicheng
+> Cheers
+>   Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
