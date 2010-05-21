@@ -1,119 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1A20060032A
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:41:56 -0400 (EDT)
-From: Alexander Duyck <alexander.h.duyck@intel.com>
-Subject: [PATCH v2] slub: move kmem_cache_node into it's own cacheline
-Date: Fri, 21 May 2010 14:41:35 -0700
-Message-ID: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0613F60032A
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 19:03:05 -0400 (EDT)
+Date: Fri, 21 May 2010 16:02:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/7]
+ numa-x86_64-use-generic-percpu-var-numa_node_id-implementation-fix1
+Message-Id: <20100521160240.b61d3404.akpm@linux-foundation.org>
+In-Reply-To: <20100503150518.15039.3576.sendpatchset@localhost.localdomain>
+References: <20100503150455.15039.10178.sendpatchset@localhost.localdomain>
+	<20100503150518.15039.3576.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: penberg@cs.helsinki.fi, cl@linux.com
-Cc: linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Valdis.Kletnieks@vt.edu, Randy Dunlap <randy.dunlap@oracle.com>, Christoph Lameter <cl@linux-foundation.org>, eric.whitney@hp.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch is meant to improve the performance of SLUB by moving the local
-kmem_cache_node lock into it's own cacheline separate from kmem_cache.
-This is accomplished by simply removing the local_node when NUMA is enabled.
+On Mon, 03 May 2010 11:05:18 -0400
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-On my system with 2 nodes I saw around a 5% performance increase w/
-hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
-suspect the performance gain would increase as the number of nodes
-increases, but I do not have the data to currently back that up.
+> Incremental patch 1 to
+> numa-x86_64-use-generic-percpu-var-numa_node_id-implementation.patch
+> in 28apr10 mmotm.
+> 
+> Use generic percpu numa_node variable only for x86_64.
+> 
+> x86_32 will require separate support.  Not sure it's worth it.
+> 
+> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> 
+>  arch/x86/Kconfig |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux-2.6.34-rc5-mmotm-100428-1653/arch/x86/Kconfig
+> ===================================================================
+> --- linux-2.6.34-rc5-mmotm-100428-1653.orig/arch/x86/Kconfig
+> +++ linux-2.6.34-rc5-mmotm-100428-1653/arch/x86/Kconfig
+> @@ -1720,7 +1720,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
+>  	depends on NUMA
+>  
+>  config USE_PERCPU_NUMA_NODE_ID
+> -	def_bool y
+> +	def_bool X86_64
+>  	depends on NUMA
+>  
+>  menu "Power management and ACPI options"
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
----
+i386 allmodconfig:
 
- include/linux/slub_def.h |    9 +++------
- mm/slub.c                |   33 +++++++++++----------------------
- 2 files changed, 14 insertions(+), 28 deletions(-)
+In file included from include/linux/gfp.h:7,
+                 from include/linux/kmod.h:22,
+                 from include/linux/module.h:13,
+                 from include/linux/crypto.h:21,
+                 from arch/x86/kernel/asm-offsets_32.c:7,
+                 from arch/x86/kernel/asm-offsets.c:2:
+include/linux/topology.h: In function 'numa_node_id':
+include/linux/topology.h:248: error: implicit declaration of function 'cpu_to_node'
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 0249d41..7d7bf5a 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -75,12 +75,6 @@ struct kmem_cache {
- 	int offset;		/* Free pointer offset. */
- 	struct kmem_cache_order_objects oo;
- 
--	/*
--	 * Avoid an extra cache line for UP, SMP and for the node local to
--	 * struct kmem_cache.
--	 */
--	struct kmem_cache_node local_node;
--
- 	/* Allocation and freeing of slabs */
- 	struct kmem_cache_order_objects max;
- 	struct kmem_cache_order_objects min;
-@@ -102,6 +96,9 @@ struct kmem_cache {
- 	 */
- 	int remote_node_defrag_ratio;
- 	struct kmem_cache_node *node[MAX_NUMNODES];
-+#else
-+	/* Avoid an extra cache line for UP */
-+	struct kmem_cache_node local_node;
- #endif
- };
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index 461314b..8af03de 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2141,7 +2141,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = s->node[node];
--		if (n && n != &s->local_node)
-+		if (n)
- 			kmem_cache_free(kmalloc_caches, n);
- 		s->node[node] = NULL;
- 	}
-@@ -2150,33 +2150,22 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
- static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
- {
- 	int node;
--	int local_node;
--
--	if (slab_state >= UP && (s < kmalloc_caches ||
--			s >= kmalloc_caches + KMALLOC_CACHES))
--		local_node = page_to_nid(virt_to_page(s));
--	else
--		local_node = 0;
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n;
- 
--		if (local_node == node)
--			n = &s->local_node;
--		else {
--			if (slab_state == DOWN) {
--				early_kmem_cache_node_alloc(gfpflags, node);
--				continue;
--			}
--			n = kmem_cache_alloc_node(kmalloc_caches,
--							gfpflags, node);
--
--			if (!n) {
--				free_kmem_cache_nodes(s);
--				return 0;
--			}
-+		if (slab_state == DOWN) {
-+			early_kmem_cache_node_alloc(gfpflags, node);
-+			continue;
-+		}
-+		n = kmem_cache_alloc_node(kmalloc_caches,
-+						gfpflags, node);
- 
-+		if (!n) {
-+			free_kmem_cache_nodes(s);
-+			return 0;
- 		}
-+
- 		s->node[node] = n;
- 		init_kmem_cache_node(n, s);
- 	}
+this patchset has been quite a PITA.  What happened?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
