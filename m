@@ -1,54 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AE0476B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:28:15 -0400 (EDT)
-Date: Fri, 21 May 2010 02:27:40 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
- the wrong VMA information
-Message-ID: <20100521002740.GB5733@random.random>
-References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
- <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
- <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>
- <20100505145620.GP20979@csn.ul.ie>
- <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
- <20100505155454.GT20979@csn.ul.ie>
- <20100505161319.GQ5835@random.random>
- <1273086685.1642.252.camel@laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B4B876B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:36:58 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4L0atkA011238
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 21 May 2010 09:36:55 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87C9745DE79
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5982745DE6E
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E954A1DB8041
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:53 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB81F1DB8037
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:52 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
+In-Reply-To: <20100520010032.GC4089@localhost>
+References: <20100519174327.9591.A69D9226@jp.fujitsu.com> <20100520010032.GC4089@localhost>
+Message-Id: <20100521093629.1E44.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1273086685.1642.252.camel@laptop>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 21 May 2010 09:36:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Li, Shaohua" <shaohua.li@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 05, 2010 at 09:11:25PM +0200, Peter Zijlstra wrote:
-> On Wed, 2010-05-05 at 18:13 +0200, Andrea Arcangeli wrote:
-> > On Wed, May 05, 2010 at 04:54:54PM +0100, Mel Gorman wrote:
-> > > I'm still thinking of the ordering but one possibility would be to use a mutex
-> > 
-> > I can't take mutex in split_huge_page... so I'd need to use an other solution.
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 > 
-> So how's that going to work out for my make anon_vma->lock a mutex
-> patches?
+> The preceding comment "they need to go on the active_anon lru below"
+> also needs update.
+> 
 
-If you're interested I can include your patchset after memory
-compaction in aa.git, far from the ideal path for merging but ideal if
-you want to test together with the full thing (memory compaction,
-split_huge_page as you wondered just above etc..) and hopefully give
-it more testing.
+Thanks. incremental patch is here.
 
-Note: I'm not sure if it's the right way to go, in fact I'm quite
-skeptical, not because it won't work, but ironically the main reason
-I'm interested is to close the XPMEM requirements the right way (not
-with page pins and deferred async invalidates), as long as we've users
-asking for rescheduling in mmu notifier methods this is the only way
-to go. Initially I thought it had to be a build time option, but
-seeing you doing it by default and for totally different reasons, I'm
-slightly more optimistic it can be the default and surely XPMEM will
-love it... the fact these locks are smarter helps a lot too.
+
+---
+ include/linux/swap.h |   10 ----------
+ mm/filemap.c         |    2 +-
+ 2 files changed, 1 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 18420a9..4bfd932 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -224,21 +224,11 @@ static inline void lru_cache_add_anon(struct page *page)
+ 	__lru_cache_add(page, LRU_INACTIVE_ANON);
+ }
+ 
+-static inline void lru_cache_add_active_anon(struct page *page)
+-{
+-	__lru_cache_add(page, LRU_ACTIVE_ANON);
+-}
+-
+ static inline void lru_cache_add_file(struct page *page)
+ {
+ 	__lru_cache_add(page, LRU_INACTIVE_FILE);
+ }
+ 
+-static inline void lru_cache_add_active_file(struct page *page)
+-{
+-	__lru_cache_add(page, LRU_ACTIVE_FILE);
+-}
+-
+ /* LRU Isolation modes. */
+ #define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
+ #define ISOLATE_ACTIVE 1	/* Isolate active pages. */
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 023ef61..a57931a 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -441,7 +441,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ 	/*
+ 	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
+ 	 * before shmem_readpage has a chance to mark them as SwapBacked: they
+-	 * need to go on the active_anon lru below, and mem_cgroup_cache_charge
++	 * need to go on the anon lru below, and mem_cgroup_cache_charge
+ 	 * (called in add_to_page_cache) needs to know where they're going too.
+ 	 */
+ 	if (mapping_cap_swap_backed(mapping))
+-- 
+1.6.5.2
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
