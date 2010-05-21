@@ -1,81 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F0CE2600385
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 06:11:34 -0400 (EDT)
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by e28smtp05.in.ibm.com (8.14.3/8.13.1) with ESMTP id o4LA8SuV029650
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 15:38:28 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4LA8QrF3293388
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 15:38:28 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4LA8P1f010295
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 20:08:26 +1000
-Date: Fri, 21 May 2010 15:38:16 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [RFC, 3/7] NUMA hotplug emulator
-Message-ID: <20100521100816.GA7906@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <20100513114835.GD2169@shaohui>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100513114835.GD2169@shaohui>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 296FA6B01BF
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 08:33:15 -0400 (EDT)
+Subject: Re: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20100521134424.45e0ee36.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
+	 <20100520134359.fdfb397e.akpm@linux-foundation.org>
+	 <20100521105512.0c2cf254.sfr@canb.auug.org.au>
+	 <20100521134424.45e0ee36.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Fri, 21 May 2010 08:32:09 -0400
+Message-Id: <1274445129.9131.9.camel@useless.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
-Cc: Balbir Singh <balbir@in.ibm.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, minskey guo <chaohong_guo@linux.intel.com>, linux-mm@kvack.org, prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Thu, May 13, 2010 at 07:48:35PM +0800, Shaohui Zheng wrote:
-> Userland interface to hotplug-add fake offlined nodes.
+On Fri, 2010-05-21 at 13:44 +0900, KAMEZAWA Hiroyuki wrote:
+> On Fri, 21 May 2010 10:55:12 +1000
+> Stephen Rothwell <sfr@canb.auug.org.au> wrote:
 > 
-> Add a sysfs entry "probe" under /sys/devices/system/node/:
+> > Hi Andrew,
+> > 
+> > On Thu, 20 May 2010 13:43:59 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> > >
+> > > > --- a/mm/percpu.c
+> > > > +++ b/mm/percpu.c
+> > > > @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
+> > > 
+> > > In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
+> > > mm/percpu-vm.c.  So either
+> > 
+> > This has gone into Linus' tree today ...
+> > 
 > 
->  - to show all fake offlined nodes:
->     $ cat /sys/devices/system/node/probe
+> Hmm, a comment here.
 > 
->  - to hotadd a fake offlined node, e.g. nodeid is N:
->     $ echo N > /sys/devices/system/node/probe
+> Recently, Lee Schermerhorn developed
 > 
-> Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
-> Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-> ---
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 9458685..2c078c8 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1214,6 +1214,20 @@ config NUMA_EMU
->  	  into virtual nodes when booted with "numa=fake=N", where N is the
->  	  number of nodes. This is only useful for debugging.
+>  numa-introduce-numa_mem_id-effective-local-memory-node-id-fix2.patch
 > 
-> +config NUMA_HOTPLUG_EMU
-> +	bool "NUMA hotplug emulator"
-> +	depends on X86_64 && NUMA && HOTPLUG
-> +	---help---
+> Then, you can use cpu_to_mem() instead of cpu_to_node() to find the
+> nearest available node.
+> I don't check cpu_to_mem() is synchronized with NUMA hotplug but
+> using cpu_to_mem() rather than adding 
+> =
+> 
+> +			if ((nid == -1) ||
+> +			    !(node_zonelist(nid, GFP_KERNEL)->_zonerefs->zone))
+> +				nid = numa_node_id();
 > +
-> +config NODE_HOTPLUG_EMU
-> +	bool "Node hotplug emulation"
-> +	depends on NUMA_HOTPLUG_EMU && MEMORY_HOTPLUG
-> +	---help---
-> +	  Enable Node hotplug emulation. The machine will be setup with
-> +	  hidden virtual nodes when booted with "numa=hide=N*size", where
-> +	  N is the number of hidden nodes, size is the memory size per
-> +	  hidden node. This is only useful for debugging.
-> +
+> ==
+> 
+> is better. 
 
-The above dependencies do not work as expected. I could configure
-NUMA_HOTPLUG_EMU & NODE_HOTPLUG_EMU without having MEMORY_HOTPLUG
-turned on. By pushing the above definition below SPARSEMEM and memory
-hot add and remove, the dependencies could be sorted out.
 
--- 
-Regards,                                                                        
-Ankita Garg (ankita@in.ibm.com)                                                 
-Linux Technology Center                                                         
-IBM India Systems & Technology Labs,                                            
-Bangalore, India
+Kame-san, all:
+
+numa_mem_id() and cpu_to_mem() are not supported [yet] on x86 because
+x86 hides all memoryless nodes and moves cpus to "nearby" [for some
+definition thereof] nodes with memory.  So, these interfaces just return
+numa_node_id() and cpu_to_node() for x86.  Perhaps that will change
+someday...
+
+Lee
+
+
+> 
+> Thanks,
+> -Kame
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
