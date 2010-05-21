@@ -1,53 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D94AA6B01B1
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 16:08:44 -0400 (EDT)
-Date: Fri, 21 May 2010 13:08:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
-Message-Id: <20100521130808.919ecb35.akpm@linux-foundation.org>
-In-Reply-To: <4BF4AB24.7070107@linux.intel.com>
-References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
-	<4BF4AB24.7070107@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5B5876B01B1
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 16:23:30 -0400 (EDT)
+From: "Duyck, Alexander H" <alexander.h.duyck@intel.com>
+Date: Fri, 21 May 2010 13:23:27 -0700
+Subject: RE: [PATCH] slub: move kmem_cache_node into it's own cacheline
+Message-ID: <80769D7B14936844A23C0C43D9FBCF0F256284B0C1@orsmsx501.amr.corp.intel.com>
+References: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com>
+ <alpine.DEB.2.00.1005211305340.14851@router.home>
+ <80769D7B14936844A23C0C43D9FBCF0F256284AECC@orsmsx501.amr.corp.intel.com>
+ <alpine.DEB.2.00.1005211322320.14851@router.home>
+ <alpine.DEB.2.00.1005211330570.14851@router.home>
+In-Reply-To: <alpine.DEB.2.00.1005211330570.14851@router.home>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 May 2010 11:23:16 +0800
-Haicheng Li <haicheng.li@linux.intel.com> wrote:
+Christoph Lameter wrote:
+> struct kmem_cache is allocated without any alignment so the alignment
+> spec does not work.
+>=20
+> If you want this then you also need to align struct kmem_cache.
+> internode aligned would require the kmem_cache to be page aligned. So
+> lets drop the hunk from this patch for now. A separate patch may
+> convince us to merge aligning kmem_cache_node within kmem_cache.
 
-> 
-> Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
-> unless system_state == SYSTEM_BOOTING.
+I will pull that hunk out, test it, and resubmit within the next hour or so=
+ if everything looks good.
 
-Taking a global mutex in the cpu-hotplug code is worrisome.  Perhaps
-because of the two years spent weeding out strange deadlocks between
-cpu-hotplug and cpufreq.
+Thanks,
 
-Has this change been carefully and fully tested with lockdep enabled
-(please)?
-
-> --- a/kernel/cpu.c
-> +++ b/kernel/cpu.c
-> @@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
->                  return -ENOMEM;
->          }
-> 
-> -       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
-> +       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
-> +               mutex_lock(&zonelists_mutex);
->                  build_all_zonelists(NULL);
-> +               mutex_unlock(&zonelists_mutex);
-> +       }
-
-Your email client is performing space-stuffing and it replaces tabs
-with spaces.  This requires me to edit the patches rather a lot,
-which is dull.
-
+Alex=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
