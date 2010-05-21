@@ -1,68 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E660D6B01B4
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:15:38 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4L0FaFX001957
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 21 May 2010 09:15:36 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 06D3745DE51
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:15:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D998E45DE4F
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:15:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C10D91DB8038
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:15:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CCC4E08006
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:15:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 5/5] vmscan: remove may_swap scan control
-In-Reply-To: <20100519214459.GD2868@cmpxchg.org>
-References: <20100513122935.2161.A69D9226@jp.fujitsu.com> <20100519214459.GD2868@cmpxchg.org>
-Message-Id: <20100521081534.1E31.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AE0476B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:28:15 -0400 (EDT)
+Date: Fri, 21 May 2010 02:27:40 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/2] mm,migration: Prevent rmap_walk_[anon|ksm] seeing
+ the wrong VMA information
+Message-ID: <20100521002740.GB5733@random.random>
+References: <1273065281-13334-1-git-send-email-mel@csn.ul.ie>
+ <1273065281-13334-2-git-send-email-mel@csn.ul.ie>
+ <alpine.LFD.2.00.1005050729000.5478@i5.linux-foundation.org>
+ <20100505145620.GP20979@csn.ul.ie>
+ <alpine.LFD.2.00.1005050815060.5478@i5.linux-foundation.org>
+ <20100505155454.GT20979@csn.ul.ie>
+ <20100505161319.GQ5835@random.random>
+ <1273086685.1642.252.camel@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 21 May 2010 09:15:31 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1273086685.1642.252.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, May 13, 2010 at 12:36:12PM +0900, KOSAKI Motohiro wrote:
-> > > The may_swap scan control flag can be naturally merged into the
-> > > swappiness parameter: swap only if swappiness is non-zero.
+On Wed, May 05, 2010 at 09:11:25PM +0200, Peter Zijlstra wrote:
+> On Wed, 2010-05-05 at 18:13 +0200, Andrea Arcangeli wrote:
+> > On Wed, May 05, 2010 at 04:54:54PM +0100, Mel Gorman wrote:
+> > > I'm still thinking of the ordering but one possibility would be to use a mutex
 > > 
-> > Sorry, NAK.
-> > 
-> > AFAIK, swappiness==0 is very widely used in MySQL users community.
-> > They expect this parameter mean "very prefer to discard file cache 
-> > rather than swap, but not completely disable swap".
-> > 
-> > We shouldn't ignore the real world use case. even if it is a bit strange.
+> > I can't take mutex in split_huge_page... so I'd need to use an other solution.
 > 
-> Bummer.  It's really ugly to have 'zero' mean 'almost nothing'.
-> 
-> But since swappiness is passed around as an int, I think we can
-> instead use -1 for 'no swap'.  Let me look into it and send a
-> follow-up patch for this as well.
-> 
-> Thanks!
+> So how's that going to work out for my make anon_vma->lock a mutex
+> patches?
 
-Yup, -1 is perfectly acceptable.
+If you're interested I can include your patchset after memory
+compaction in aa.git, far from the ideal path for merging but ideal if
+you want to test together with the full thing (memory compaction,
+split_huge_page as you wondered just above etc..) and hopefully give
+it more testing.
 
-Moreover, I hope such strange habbit will disappear int the future.
-I think our recent activity help to change their mind.
-At that time, we can change the code more radically.
-
-
-Thanks.
-
-
-
+Note: I'm not sure if it's the right way to go, in fact I'm quite
+skeptical, not because it won't work, but ironically the main reason
+I'm interested is to close the XPMEM requirements the right way (not
+with page pins and deferred async invalidates), as long as we've users
+asking for rescheduling in mmu notifier methods this is the only way
+to go. Initially I thought it had to be a build time option, but
+seeing you doing it by default and for totally different reasons, I'm
+slightly more optimistic it can be the default and surely XPMEM will
+love it... the fact these locks are smarter helps a lot too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
