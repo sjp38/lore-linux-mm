@@ -1,96 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B4B876B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:36:58 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4L0atkA011238
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 21 May 2010 09:36:55 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 87C9745DE79
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5982745DE6E
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E954A1DB8041
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:53 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EB81F1DB8037
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:36:52 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
-In-Reply-To: <20100520010032.GC4089@localhost>
-References: <20100519174327.9591.A69D9226@jp.fujitsu.com> <20100520010032.GC4089@localhost>
-Message-Id: <20100521093629.1E44.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7F8DF6B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:49:15 -0400 (EDT)
+Message-ID: <4BF5D875.3030900@acm.org>
+Date: Thu, 20 May 2010 18:48:53 -0600
+From: Zan Lynx <zlynx@acm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: RFC: dirty_ratio back to 40%
+References: <4BF51B0A.1050901@redhat.com> <20100521083408.1E36.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100521083408.1E36.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Fri, 21 May 2010 09:36:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Li, Shaohua" <shaohua.li@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: lwoodman@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> 
-> The preceding comment "they need to go on the active_anon lru below"
-> also needs update.
-> 
+On 5/20/10 5:48 PM, KOSAKI Motohiro wrote:
+> Hi
+>
+> CC to Nick and Jan
+>
+>> We've seen multiple performance regressions linked to the lower(20%)
+>> dirty_ratio.  When performing enough IO to overwhelm the background
+>> flush daemons the percent of dirty pagecache memory quickly climbs
+>> to the new/lower dirty_ratio value of 20%.  At that point all writing
+>> processes are forced to stop and write dirty pagecache pages back to disk.
+>> This causes performance regressions in several benchmarks as well as causing
+>> a noticeable overall sluggishness.  We all know that the dirty_ratio is
+>> an integrity vs performance trade-off but the file system journaling
+>> will cover any devastating effects in the event of a system crash.
+>>
+>> Increasing the dirty_ratio to 40% will regain the performance loss seen
+>> in several benchmarks.  Whats everyone think about this???
+>
+> In past, Jan Kara also claim the exactly same thing.
+>
+> 	Subject: [LSF/VM TOPIC] Dynamic sizing of dirty_limit
+> 	Date: Wed, 24 Feb 2010 15:34:42 +0100
+>
+> 	>  (*) We ended up increasing dirty_limit in SLES 11 to 40% as it used to be
+> 	>  with old kernels because customers running e.g. LDAP (using BerkelyDB
+> 	>  heavily) were complaining about performance problems.
+>
+> So, I'd prefer to restore the default rather than both Redhat and SUSE apply exactly
+> same distro specific patch. because we can easily imazine other users will face the same
+> issue in the future.
 
-Thanks. incremental patch is here.
+On desktop systems the low dirty limits help maintain interactive feel. 
+Users expect applications that are saving data to be slow. They do not 
+like it when every application in the system randomly comes to a halt 
+because of one program stuffing data up to the dirty limit.
 
+The cause and effect for the system slowdown is clear when the dirty 
+limit is low. "I saved data and now the system is slow until it is 
+done." When the dirty page ratio is very high, the cause and effect is 
+disconnected. "I was just web surfing and the system came to a halt."
 
----
- include/linux/swap.h |   10 ----------
- mm/filemap.c         |    2 +-
- 2 files changed, 1 insertions(+), 11 deletions(-)
+I think we should expect server admins to do more tuning than desktop 
+users, so the default limits should stay low in my opinion.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 18420a9..4bfd932 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -224,21 +224,11 @@ static inline void lru_cache_add_anon(struct page *page)
- 	__lru_cache_add(page, LRU_INACTIVE_ANON);
- }
- 
--static inline void lru_cache_add_active_anon(struct page *page)
--{
--	__lru_cache_add(page, LRU_ACTIVE_ANON);
--}
--
- static inline void lru_cache_add_file(struct page *page)
- {
- 	__lru_cache_add(page, LRU_INACTIVE_FILE);
- }
- 
--static inline void lru_cache_add_active_file(struct page *page)
--{
--	__lru_cache_add(page, LRU_ACTIVE_FILE);
--}
--
- /* LRU Isolation modes. */
- #define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
- #define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 023ef61..a57931a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -441,7 +441,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 	/*
- 	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
- 	 * before shmem_readpage has a chance to mark them as SwapBacked: they
--	 * need to go on the active_anon lru below, and mem_cgroup_cache_charge
-+	 * need to go on the anon lru below, and mem_cgroup_cache_charge
- 	 * (called in add_to_page_cache) needs to know where they're going too.
- 	 */
- 	if (mapping_cap_swap_backed(mapping))
 -- 
-1.6.5.2
+Zan Lynx
+zlynx@acm.org
 
-
-
-
+"Knowledge is Power.  Power Corrupts.  Study Hard.  Be Evil."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
