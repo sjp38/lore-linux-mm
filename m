@@ -1,93 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 046E26B01B1
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 14:58:00 -0400 (EDT)
-Date: Fri, 21 May 2010 11:57:18 -0700
+	by kanga.kvack.org (Postfix) with ESMTP id D94AA6B01B1
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 16:08:44 -0400 (EDT)
+Date: Fri, 21 May 2010 13:08:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at
- first
-Message-Id: <20100521115718.552d50dd.akpm@linux-foundation.org>
-In-Reply-To: <20100521093629.1E44.A69D9226@jp.fujitsu.com>
-References: <20100519174327.9591.A69D9226@jp.fujitsu.com>
-	<20100520010032.GC4089@localhost>
-	<20100521093629.1E44.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
+Message-Id: <20100521130808.919ecb35.akpm@linux-foundation.org>
+In-Reply-To: <4BF4AB24.7070107@linux.intel.com>
+References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>
+	<4BF4AB24.7070107@linux.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Haicheng Li <haicheng.li@linux.intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 May 2010 09:36:50 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Thu, 20 May 2010 11:23:16 +0800
+Haicheng Li <haicheng.li@linux.intel.com> wrote:
 
-> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-> > 
-> > The preceding comment "they need to go on the active_anon lru below"
-> > also needs update.
-> > 
 > 
-> Thanks. incremental patch is here.
-> 
-> 
-> ---
->  include/linux/swap.h |   10 ----------
->  mm/filemap.c         |    2 +-
->  2 files changed, 1 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 18420a9..4bfd932 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -224,21 +224,11 @@ static inline void lru_cache_add_anon(struct page *page)
->  	__lru_cache_add(page, LRU_INACTIVE_ANON);
->  }
->  
-> -static inline void lru_cache_add_active_anon(struct page *page)
-> -{
-> -	__lru_cache_add(page, LRU_ACTIVE_ANON);
-> -}
-> -
->  static inline void lru_cache_add_file(struct page *page)
->  {
->  	__lru_cache_add(page, LRU_INACTIVE_FILE);
->  }
->  
-> -static inline void lru_cache_add_active_file(struct page *page)
-> -{
-> -	__lru_cache_add(page, LRU_ACTIVE_FILE);
-> -}
+> Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
+> unless system_state == SYSTEM_BOOTING.
 
-Did you intend to remove these two functions?
+Taking a global mutex in the cpu-hotplug code is worrisome.  Perhaps
+because of the two years spent weeding out strange deadlocks between
+cpu-hotplug and cpufreq.
 
-They do appear to be unused now, but they still make sense and might be
-used in the future, perhaps.  It's OK to remove them, but I'm wondering
-if it was deliberately included in this patch?
+Has this change been carefully and fully tested with lockdep enabled
+(please)?
 
+> --- a/kernel/cpu.c
+> +++ b/kernel/cpu.c
+> @@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
+>                  return -ENOMEM;
+>          }
+> 
+> -       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
+> +       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
+> +               mutex_lock(&zonelists_mutex);
+>                  build_all_zonelists(NULL);
+> +               mutex_unlock(&zonelists_mutex);
+> +       }
 
->  /* LRU Isolation modes. */
->  #define ISOLATE_INACTIVE 0	/* Isolate inactive pages. */
->  #define ISOLATE_ACTIVE 1	/* Isolate active pages. */
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 023ef61..a57931a 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -441,7 +441,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
->  	/*
->  	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
->  	 * before shmem_readpage has a chance to mark them as SwapBacked: they
-> -	 * need to go on the active_anon lru below, and mem_cgroup_cache_charge
-> +	 * need to go on the anon lru below, and mem_cgroup_cache_charge
->  	 * (called in add_to_page_cache) needs to know where they're going too.
->  	 */
->  	if (mapping_cap_swap_backed(mapping))
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-> 
+Your email client is performing space-stuffing and it replaces tabs
+with spaces.  This requires me to edit the patches rather a lot,
+which is dull.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
