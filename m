@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C55C46B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:55:21 -0400 (EDT)
-Date: Fri, 21 May 2010 10:55:12 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
-Message-Id: <20100521105512.0c2cf254.sfr@canb.auug.org.au>
-In-Reply-To: <20100520134359.fdfb397e.akpm@linux-foundation.org>
-References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
-	<20100520134359.fdfb397e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A"
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 69F766B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 21:12:06 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4L1C3JQ024075
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 21 May 2010 10:12:03 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 827DD45DE4E
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 10:12:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6661E45DE4D
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 10:12:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51625E08001
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 10:12:03 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C1B1E08005
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 10:12:00 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: RFC: dirty_ratio back to 40%
+In-Reply-To: <4BF5D875.3030900@acm.org>
+References: <20100521083408.1E36.A69D9226@jp.fujitsu.com> <4BF5D875.3030900@acm.org>
+Message-Id: <20100521100943.1E4D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 21 May 2010 10:11:59 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: minskey guo <chaohong_guo@linux.intel.com>, linux-mm@kvack.org, prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, minskey guo <chaohong.guo@intel.com>, Tejun Heo <tj@kernel.org>, stable@kernel.org
+To: Zan Lynx <zlynx@acm.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, lwoodman@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> > So, I'd prefer to restore the default rather than both Redhat and SUSE apply exactly
+> > same distro specific patch. because we can easily imazine other users will face the same
+> > issue in the future.
+> 
+> On desktop systems the low dirty limits help maintain interactive feel. 
+> Users expect applications that are saving data to be slow. They do not 
+> like it when every application in the system randomly comes to a halt 
+> because of one program stuffing data up to the dirty limit.
 
-Hi Andrew,
+really?
+Do you mean our per-task dirty limit wouldn't works?
 
-On Thu, 20 May 2010 13:43:59 -0700 Andrew Morton <akpm@linux-foundation.org=
-> wrote:
->
-> > --- a/mm/percpu.c
-> > +++ b/mm/percpu.c
-> > @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *ch=
-unk,
->=20
-> In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
-> mm/percpu-vm.c.  So either
+If so, I think we need fix it. IOW sane per-task dirty limitation seems independent issue 
+from per-system dirty limit.
 
-This has gone into Linus' tree today ...
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+> The cause and effect for the system slowdown is clear when the dirty 
+> limit is low. "I saved data and now the system is slow until it is 
+> done." When the dirty page ratio is very high, the cause and effect is 
+> disconnected. "I was just web surfing and the system came to a halt."
+> 
+> I think we should expect server admins to do more tuning than desktop 
+> users, so the default limits should stay low in my opinion.
 
---Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iEUEARECAAYFAkv12fAACgkQjjKRsyhoI8xHmQCUDkmYehloK9dIzgnFGC9c0USU
-8QCfYkwGEe1GPduhl33b6nKkAJ+qW1c=
-=hYuv
------END PGP SIGNATURE-----
-
---Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
