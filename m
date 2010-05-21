@@ -1,100 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 38FE56008F1
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 09:47:59 -0400 (EDT)
-Received: by iwn39 with SMTP id 39so1212622iwn.14
-        for <linux-mm@kvack.org>; Fri, 21 May 2010 06:47:56 -0700 (PDT)
-MIME-Version: 1.0
-From: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
-Date: Fri, 21 May 2010 14:47:17 +0100
-Message-ID: <AANLkTik47c6l3y8CdJ-hUCd2h3SRSb3qAtRovWryb8_p@mail.gmail.com>
-Subject: TMPFS over NFSv4
-Content-Type: text/plain; charset=windows-1252
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id ADFDD6008F1
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 10:44:32 -0400 (EDT)
+From: "Shi, Alex" <alex.shi@intel.com>
+Date: Fri, 21 May 2010 22:41:45 +0800
+Subject: RE: [PATCH] slub: move kmem_cache_node into it's own cacheline
+Message-ID: <6E3BC7F7C9A4BF4286DD4C043110F30B0B5969081B@shsmsx502.ccr.corp.intel.com>
+References: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com>
+ <AANLkTilfJh65QAkb9FPaqI3UEtbgwLuuoqSdaTtIsXWZ@mail.gmail.com>
+In-Reply-To: <AANLkTilfJh65QAkb9FPaqI3UEtbgwLuuoqSdaTtIsXWZ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: hugh.dickins@tiscali.co.uk
+To: Pekka Enberg <penberg@cs.helsinki.fi>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>
+Cc: "cl@linux.com" <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-dear All,
+I have tested this patch based latest Linus' kernel tree. It real works!
+About 10% improvement happened for hackbench threads mode and 8%~13% improv=
+e for process mode on our 2 sockets Westmere machine and about 7% hackbench=
+ improvement on 2 sockets NHM.=20
 
-I tried to export tmpfs file system over NFS and got followin oops ....
-this kernel is provided with SLES 11 and tainted due to OFED installation.
-
-I am using NFSv4. Please help me to find the root cause if you feel free ..=
-..
-
-
-
-BUG: unable to handle kernel NULL pointer dereference at 00000000000000b0
-IP: __vm_enough_memory+0xf9/0x14e
-PGD 0
-Oops: 0000 [1] SMP
-last sysfs file:
-/sys/devices/pci0000:00/0000:00:09.0/0000:24:00.0/infiniband/mlx4_1/node_de=
-sc
-CPU 0
-Modules linked in: md5 mmfs26(X) mmfslinux(X) tracedev(X) nfsd lockd
-nfs_acl auth_rpcgss sunrpc exportfs bonding binfmt_misc microcode
-rdma_ucm(N) ib_sdp(N) rdma_cm(N) iw_cm(N) ib_addr(N) ib_ipoib(N)
-ib_cm(N) ib_sa(N) ipv6 ib_uverbs(N) ib_umad(N) mlx4_en(N) mlx4_ib(N)
-ib_mthca(N) ib_mad(N) ib_core(N) fuse ext2 xfs loop dm_mod cdc_ether
-usbnet i2c_i801 rtc_cmos shpchp button joydev mlx4_core(N) rtc_core
-pcspkr pci_hotplug sr_mod rtc_lib mii bnx2 i2c_core cdrom sg usbhid
-hid ff_memless uhci_hcd ehci_hcd sd_mod crc_t10dif usbcore edd ext3
-mbcache jbd fan thermal processor thermal_sys hwmon ide_pci_generic
-ide_core ata_generic ata_piix libata dock megaraid_sas scsi_mod [last
-unloaded: tracedev]
-Supported: No, Unsupported modules are loaded
-Pid: 8855, comm: nfsd Tainted: G 2.6.27.45-0.1-default #1
-RIP: 0010: __vm_enough_memory+0xf9/0x14e
-RSP: 0018:ffff8803642cd780 EFLAGS: 00010202
-RAX: 00000000002f151c RBX: 0000000012643f22 RCX: 0000000000400293
-RDX: 0000000000000032 RSI: 0000000000000001 RDI: 00000000002f151c
-RBP: 0000000000000001 R08: 00000000ffffffe5 R09: 0000000000000000
-R10: ffffffff806eb5c8 R11: ffffffff80317108 R12: 0000000000000001
-R13: 0000000000000000 R14: 0000000000001000 R15: ffff88037b93b738
-FS: 0000000000000000(0000) GS:ffffffff80a43080(0000) knlGS:0000000000000000
-CS: 0010 DS: 0018 ES: 0018 CR0: 000000008005003b
-CR2: 00000000000000b0 CR3: 0000000000201000 CR4: 00000000000006e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process nfsd (pid: 8855, threadinfo ffff8803642cc000, task ffff88036f140380=
+Alex=20
+>-----Original Message-----
+>From: penberg@gmail.com [mailto:penberg@gmail.com] On Behalf Of Pekka Enbe=
+rg
+>Sent: Friday, May 21, 2010 1:00 PM
+>To: Duyck, Alexander H
+>Cc: cl@linux.com; linux-mm@kvack.org; Shi, Alex; Zhang Yanmin
+>Subject: Re: [PATCH] slub: move kmem_cache_node into it's own cacheline
+>
+>On Fri, May 21, 2010 at 2:47 AM, Alexander Duyck
+><alexander.h.duyck@intel.com> wrote:
+>> This patch is meant to improve the performance of SLUB by moving the loc=
+al
+>> kmem_cache_node lock into it's own cacheline separate from kmem_cache.
+>> This is accomplished by simply removing the local_node when NUMA is enab=
+led.
+>>
+>> On my system with 2 nodes I saw around a 5% performance increase w/
+>> hackbench times dropping from 6.2 seconds to 5.9 seconds on average. =A0=
+I
+>> suspect the performance gain would increase as the number of nodes
+>> increases, but I do not have the data to currently back that up.
+>>
+>> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+>
+>Yanmin, does this fix the hackbench regression for you?
+>
+>> ---
+>>
+>> =A0include/linux/slub_def.h | =A0 11 ++++-------
+>> =A0mm/slub.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 33 +++++++++++--------=
+--------------
+>> =A02 files changed, 15 insertions(+), 29 deletions(-)
+>>
+>> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+>> index 0249d41..e6217bb 100644
+>> --- a/include/linux/slub_def.h
+>> +++ b/include/linux/slub_def.h
+>> @@ -52,7 +52,7 @@ struct kmem_cache_node {
+>> =A0 =A0 =A0 =A0atomic_long_t total_objects;
+>> =A0 =A0 =A0 =A0struct list_head full;
+>> =A0#endif
+>> -};
+>> +} ____cacheline_internodealigned_in_smp;
+>>
+>> =A0/*
+>> =A0* Word size structure that can be atomically updated or read and that
+>> @@ -75,12 +75,6 @@ struct kmem_cache {
+>> =A0 =A0 =A0 =A0int offset; =A0 =A0 =A0 =A0 =A0 =A0 /* Free pointer offse=
+t. */
+>> =A0 =A0 =A0 =A0struct kmem_cache_order_objects oo;
+>>
+>> - =A0 =A0 =A0 /*
+>> - =A0 =A0 =A0 =A0* Avoid an extra cache line for UP, SMP and for the nod=
+e local to
+>> - =A0 =A0 =A0 =A0* struct kmem_cache.
+>> - =A0 =A0 =A0 =A0*/
+>> - =A0 =A0 =A0 struct kmem_cache_node local_node;
+>> -
+>> =A0 =A0 =A0 =A0/* Allocation and freeing of slabs */
+>> =A0 =A0 =A0 =A0struct kmem_cache_order_objects max;
+>> =A0 =A0 =A0 =A0struct kmem_cache_order_objects min;
+>> @@ -102,6 +96,9 @@ struct kmem_cache {
+>> =A0 =A0 =A0 =A0 */
+>> =A0 =A0 =A0 =A0int remote_node_defrag_ratio;
+>> =A0 =A0 =A0 =A0struct kmem_cache_node *node[MAX_NUMNODES];
+>> +#else
+>> + =A0 =A0 =A0 /* Avoid an extra cache line for UP */
+>> + =A0 =A0 =A0 struct kmem_cache_node local_node;
+>> =A0#endif
+>> =A0};
+>>
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 461314b..8af03de 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2141,7 +2141,7 @@ static void free_kmem_cache_nodes(struct kmem_cach=
+e *s)
+>>
+>> =A0 =A0 =A0 =A0for_each_node_state(node, N_NORMAL_MEMORY) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct kmem_cache_node *n =3D s->node[nod=
+e];
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (n && n !=3D &s->local_node)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (n)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0kmem_cache_free(kmalloc_c=
+aches, n);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0s->node[node] =3D NULL;
+>> =A0 =A0 =A0 =A0}
+>> @@ -2150,33 +2150,22 @@ static void free_kmem_cache_nodes(struct kmem_ca=
+che *s)
+>> =A0static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags=
 )
-Stack: ffff88037b93b668 ffff88037009de40 ffff88037b93b668 0000000000000000
-ffff88037b93b601 ffffffff802a8573 ffffffff80a33680 ffffffff80a30730
-0000000000000000 0000000300000002 ffff8803642cd930 0000000000000000
-Call Trace:
-shmem_getpage+0x4d8/0x764
-generic_perform_write+0xae/0x1b5
-generic_file_buffered_write+0x80/0x130
-__generic_file_aio_write_nolock+0x349/0x37d
-generic_file_aio_write+0x64/0xc4
-do_sync_readv_writev+0xc0/0x107
-do_readv_writev+0xb2/0x18b
-nfsd_vfs_write+0x10a/0x328 [nfsd]
-nfsd_write+0x79/0xe2 [nfsd]
-nfsd4_write+0xd9/0x10d [nfsd]
-nfsd4_proc_compound+0x1bd/0x2c7 [nfsd]
-nfsd_dispatch+0xdd/0x1b9 [nfsd]
-svc_process+0x3d8/0x700 [sunrpc]
-nfsd+0x1b1/0x27e [nfsd]
-kthread+0x47/0x73
-child_rip+0xa/0x11
-
-
-Code: 00 48 29 c3 48 63 05 49 1a 45 00 48 0f af d8 48 89 d8 48 f7 f1
-45 85 e4 48 89 c7 75 07 48 c1 e8 05 48 29 c7 48 8b 0d b9 2f 86 00 <49>
-8b b5 b0 00 00 00 48 8b 15 43 2f 86 00 b8 01 00 00 00 48 85
-RIP __vm_enough_memory+0xf9/0x14e
-RSP <ffff8803642cd780>
-CR2: 00000000000000b0
----[ end trace ca3d7c15970cb4b6 ]---
-
-__
-tharindu.info
-
-"those that can, do. Those that can=92t, complain." -- Linus
+>> =A0{
+>> =A0 =A0 =A0 =A0int node;
+>> - =A0 =A0 =A0 int local_node;
+>> -
+>> - =A0 =A0 =A0 if (slab_state >=3D UP && (s < kmalloc_caches ||
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 s >=3D kmalloc_caches + KM=
+ALLOC_CACHES))
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 local_node =3D page_to_nid(virt_to_page(s)=
+);
+>> - =A0 =A0 =A0 else
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 local_node =3D 0;
+>>
+>> =A0 =A0 =A0 =A0for_each_node_state(node, N_NORMAL_MEMORY) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct kmem_cache_node *n;
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (local_node =3D=3D node)
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D &s->local_node;
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 else {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (slab_state =3D=3D DOWN=
+) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 early_kmem=
+_cache_node_alloc(gfpflags, node);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D kmem_cache_alloc_nod=
+e(kmalloc_caches,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 gfpflags, node);
+>> -
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!n) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_kmem_=
+cache_nodes(s);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (slab_state =3D=3D DOWN) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 early_kmem_cache_node_allo=
+c(gfpflags, node);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 n =3D kmem_cache_alloc_node(kmalloc_caches=
+,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 gfpflags, node);
+>>
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!n) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 free_kmem_cache_nodes(s);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0}
+>> +
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0s->node[node] =3D n;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0init_kmem_cache_node(n, s);
+>> =A0 =A0 =A0 =A0}
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
