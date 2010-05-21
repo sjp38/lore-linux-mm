@@ -1,77 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DB0D960032A
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:18:57 -0400 (EDT)
-Message-Id: <20100521211539.266599197@quilx.com>
-Date: Fri, 21 May 2010 16:14:56 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 50D8A600385
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:18:59 -0400 (EDT)
+Message-Id: <20100521211540.439539135@quilx.com>
+Date: Fri, 21 May 2010 16:14:58 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC V2 SLEB 04/14] SLUB: discard_slab_unlock
+Subject: [RFC V2 SLEB 06/14] SLUB: Get rid of the kmalloc_node slab
 References: <20100521211452.659982351@quilx.com>
-Content-Disposition: inline; filename=slub_discard_unlock
+Content-Disposition: inline; filename=sled_remove_kmalloc_cache_node
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The sequence of unlocking a slab and freeing occurs multiple times.
-Put the common into a single function.
+Currently bootstrap works with the kmalloc_node slab. We can avoid
+creating that slab and boot using allocation from a kmalloc array slab
+instead. This is necessary for the future if we want to dynamically
+size kmem_cache structures.
 
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |   16 ++++++++++------
- 1 file changed, 10 insertions(+), 6 deletions(-)
+ mm/slub.c |   39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-05-20 17:16:27.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-05-20 17:16:29.000000000 -0500
-@@ -1268,6 +1268,13 @@ static __always_inline int slab_trylock(
- 	return rc;
- }
+--- linux-2.6.orig/mm/slub.c	2010-05-20 14:26:53.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-05-20 14:37:19.000000000 -0500
+@@ -2111,10 +2111,11 @@ static void early_kmem_cache_node_alloc(
+ 	struct page *page;
+ 	struct kmem_cache_node *n;
+ 	unsigned long flags;
++	int i = kmalloc_index(sizeof(struct kmem_cache_node));
  
-+static void discard_slab_unlock(struct kmem_cache *s,
-+	struct page *page)
-+{
-+	slab_unlock(page);
-+	discard_slab(s, page);
-+}
+-	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
++	BUG_ON(kmalloc_caches[i].size < sizeof(struct kmem_cache_node));
+ 
+-	page = new_slab(kmalloc_caches, gfpflags, node);
++	page = new_slab(kmalloc_caches + i, gfpflags, node);
+ 
+ 	BUG_ON(!page);
+ 	if (page_to_nid(page) != node) {
+@@ -2126,15 +2127,15 @@ static void early_kmem_cache_node_alloc(
+ 
+ 	n = page->freelist;
+ 	BUG_ON(!n);
+-	page->freelist = get_freepointer(kmalloc_caches, n);
++	page->freelist = get_freepointer(kmalloc_caches + i, n);
+ 	page->inuse++;
+-	kmalloc_caches->node[node] = n;
++	kmalloc_caches[i].node[node] = n;
+ #ifdef CONFIG_SLUB_DEBUG
+-	init_object(kmalloc_caches, n, 1);
+-	init_tracking(kmalloc_caches, n);
++	init_object(kmalloc_caches + i, n, 1);
++	init_tracking(kmalloc_caches + i, n);
+ #endif
+-	init_kmem_cache_node(n, kmalloc_caches);
+-	inc_slabs_node(kmalloc_caches, node, page->objects);
++	init_kmem_cache_node(n, kmalloc_caches + i);
++	inc_slabs_node(kmalloc_caches + i, node, page->objects);
+ 
+ 	/*
+ 	 * lockdep requires consistent irq usage for each lock
+@@ -2152,8 +2153,9 @@ static void free_kmem_cache_nodes(struct
+ 
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = s->node[node];
 +
- /*
-  * Management of partially allocated slabs
-  */
-@@ -1441,9 +1448,8 @@ static void unfreeze_slab(struct kmem_ca
- 			add_partial(n, page, 1);
- 			slab_unlock(page);
- 		} else {
--			slab_unlock(page);
- 			stat(s, FREE_SLAB);
--			discard_slab(s, page);
-+			discard_slab_unlock(s, page);
+ 		if (n && n != &s->local_node)
+-			kmem_cache_free(kmalloc_caches, n);
++			kfree(n);
+ 		s->node[node] = NULL;
+ 	}
+ }
+@@ -2178,8 +2180,8 @@ static int init_kmem_cache_nodes(struct 
+ 				early_kmem_cache_node_alloc(gfpflags, node);
+ 				continue;
+ 			}
+-			n = kmem_cache_alloc_node(kmalloc_caches,
+-							gfpflags, node);
++			n = kmalloc_node(sizeof(struct kmem_cache_node), gfpflags,
++				node);
+ 
+ 			if (!n) {
+ 				free_kmem_cache_nodes(s);
+@@ -2574,6 +2576,12 @@ static struct kmem_cache *create_kmalloc
+ {
+ 	unsigned int flags = 0;
+ 
++	if (s->size) {
++		s->name = name;
++		/* Already created */
++		return s;
++	}
++
+ 	if (gfp_flags & SLUB_DMA)
+ 		flags = SLAB_CACHE_DMA;
+ 
+@@ -2978,7 +2986,7 @@ static void slab_mem_offline_callback(vo
+ 			BUG_ON(slabs_node(s, offline_node));
+ 
+ 			s->node[offline_node] = NULL;
+-			kmem_cache_free(kmalloc_caches, n);
++			kfree(n);
  		}
  	}
- }
-@@ -1826,9 +1832,8 @@ slab_empty:
- 		remove_partial(s, page);
- 		stat(s, FREE_REMOVE_PARTIAL);
- 	}
--	slab_unlock(page);
- 	stat(s, FREE_SLAB);
--	discard_slab(s, page);
-+	discard_slab_unlock(s, page);
- 	return;
+ 	up_read(&slub_lock);
+@@ -3011,7 +3019,7 @@ static int slab_mem_going_online_callbac
+ 		 *      since memory is not yet available from the node that
+ 		 *      is brought up.
+ 		 */
+-		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
++		n = kmalloc(sizeof(struct kmem_cache_node), GFP_KERNEL);
+ 		if (!n) {
+ 			ret = -ENOMEM;
+ 			goto out;
+@@ -3068,9 +3076,10 @@ void __init kmem_cache_init(void)
+ 	 * struct kmem_cache_node's. There is special bootstrap code in
+ 	 * kmem_cache_open for slab_state == DOWN.
+ 	 */
+-	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
++	i = kmalloc_index(sizeof(struct kmem_cache_node));
++	create_kmalloc_cache(&kmalloc_caches[i], "bootstrap",
+ 		sizeof(struct kmem_cache_node), GFP_NOWAIT);
+-	kmalloc_caches[0].refcount = -1;
++	kmalloc_caches[i].refcount = -1;
+ 	caches++;
  
- debug:
-@@ -2905,8 +2910,7 @@ int kmem_cache_shrink(struct kmem_cache 
- 				 */
- 				list_del(&page->lru);
- 				n->nr_partial--;
--				slab_unlock(page);
--				discard_slab(s, page);
-+				discard_slab_unlock(s, page);
- 			} else {
- 				list_move(&page->lru,
- 				slabs_by_inuse + page->inuse);
+ 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
