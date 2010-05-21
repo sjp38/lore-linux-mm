@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7E2406B01B1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D39FE6B01B4
 	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:18:56 -0400 (EDT)
-Message-Id: <20100521211452.659982351@quilx.com>
-Date: Fri, 21 May 2010 16:14:52 -0500
+Message-Id: <20100521211538.101620795@quilx.com>
+Date: Fri, 21 May 2010 16:14:54 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+Subject: [RFC V2 SLEB 02/14] SLUB: Constants need UL
+References: <20100521211452.659982351@quilx.com>
+Content-Disposition: inline; filename=slub_constant_ul
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(V2 some more work as time permitted this week)
+UL suffix is missing in some constants. Conform to how slab.h uses constants.
 
-SLEB is a merging of SLUB with some queuing concepts from SLAB and a new way
-of managing objects in the slabs using bitmaps. It uses a percpu queue so that
-free operations can be properly buffered and a bitmap for managing the
-free/allocated state in the slabs. It is slightly more inefficient than
-SLUB (due to the need to place large bitmaps --sized a few words--in some
-slab pages if there are more than BITS_PER_LONG objects in a slab page) but
-in general does compete well with SLUB (and therefore also with SLOB) 
-in terms of memory wastage.
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-It does not have the excessive memory requirements of SLAB because
-there is no slab management structure nor alien caches. Under NUMA
-the remote shared caches are used instead (which may have its issues).
+---
+ mm/slub.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-The SLAB scheme of not touching the object during management is adopted.
-SLEB can efficiently free and allocate cache cold objects without
-causing cache misses.
-
-There are numerous SLAB schemes that are not supported. Those could be
-added if needed and if they really make a difference.
-
-WARNING: This only ran successfully using hackbench in kvm instances so far.
-But works with NUMA, SMP and UP there.
-
-V1->V2 Add NUMA capabilities. Refine queue size configurations (not complete).
-   Test in UP, SMP, NUMA
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-04-27 12:39:36.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-04-27 12:41:05.000000000 -0500
+@@ -170,8 +170,8 @@
+ #define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
+ 
+ /* Internal SLUB flags */
+-#define __OBJECT_POISON		0x80000000 /* Poison object */
+-#define __SYSFS_ADD_DEFERRED	0x40000000 /* Not yet visible via sysfs */
++#define __OBJECT_POISON		0x80000000UL /* Poison object */
++#define __SYSFS_ADD_DEFERRED	0x40000000UL /* Not yet visible via sysfs */
+ 
+ static int kmem_size = sizeof(struct kmem_cache);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
