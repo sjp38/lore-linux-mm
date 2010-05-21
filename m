@@ -1,28 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4AF336B01B1
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 14:07:07 -0400 (EDT)
-Date: Fri, 21 May 2010 13:03:51 -0500 (CDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 393BF6B01B1
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 14:09:32 -0400 (EDT)
+Date: Fri, 21 May 2010 13:06:22 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: RE: [PATCH] slub: move kmem_cache_node into it's own cacheline
-In-Reply-To: <6E3BC7F7C9A4BF4286DD4C043110F30B0B5969081B@shsmsx502.ccr.corp.intel.com>
-Message-ID: <alpine.DEB.2.00.1005211301510.14851@router.home>
-References: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com> <AANLkTilfJh65QAkb9FPaqI3UEtbgwLuuoqSdaTtIsXWZ@mail.gmail.com> <6E3BC7F7C9A4BF4286DD4C043110F30B0B5969081B@shsmsx502.ccr.corp.intel.com>
+Subject: Re: [PATCH] slub: move kmem_cache_node into it's own cacheline
+In-Reply-To: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com>
+Message-ID: <alpine.DEB.2.00.1005211305340.14851@router.home>
+References: <20100520234714.6633.75614.stgit@gitlad.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Shi, Alex" <alex.shi@intel.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Duyck, Alexander H" <alexander.h.duyck@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 20 May 2010, Alexander Duyck wrote:
 
-Yes right. The cacheline that also contains local_node is dirtied by the
-locking in the SMP case and will evict the cacheline used to lookup the
-per cpu vector and other important information. The per cpu patches
-aggravated that problem by making more use of the fields that are evicted
-with the cacheline.
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index 0249d41..e6217bb 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -52,7 +52,7 @@ struct kmem_cache_node {
+>  	atomic_long_t total_objects;
+>  	struct list_head full;
+>  #endif
+> -};
+> +} ____cacheline_internodealigned_in_smp;
 
-Acked-by: Christoph Lameter <cl@linux-foundation.org>
+What does this do? Leftovers?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
