@@ -1,111 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D276B01B4
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 05:36:42 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp04.in.ibm.com (8.14.3/8.13.1) with ESMTP id o4L9Xvx2025212
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 15:03:57 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4L9XvCH344262
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 15:03:57 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4L9Xv9F017886
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 19:33:57 +1000
-Date: Fri, 21 May 2010 15:03:40 +0530
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5017D6B01BC
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 06:11:28 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp06.au.ibm.com (8.14.3/8.13.1) with ESMTP id o4LABCrK015682
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 20:11:12 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o4LABOqB1892566
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 20:11:24 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.3/8.13.1/NCO v10.0 AVout) with ESMTP id o4LABNle011106
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 20:11:24 +1000
+Date: Fri, 21 May 2010 15:41:04 +0530
 From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: [RFC, 0/7] NUMA Hotplug emulator
-Message-ID: <20100521093340.GA7024@in.ibm.com>
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+Message-ID: <20100521101104.GB7906@in.ibm.com>
 Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <20100513113629.GA2169@shaohui>
+References: <20100513120016.GG2169@shaohui>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100513113629.GA2169@shaohui>
+In-Reply-To: <20100513120016.GG2169@shaohui>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
-Cc: Balbir Singh <balbir@in.ibm.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Thu, May 13, 2010 at 07:36:30PM +0800, Shaohui Zheng wrote:
-> Hi, All
-> 	This patchset introduces NUMA hotplug emulator for x86. it refers too
-> many files and might introduce new bugs, so we send a RFC to comminity first
-> and expect comments and suggestions, thanks.
+On Thu, May 13, 2010 at 08:00:16PM +0800, Shaohui Zheng wrote:
+> hotplug emulator:extend memory probe interface to support NUMA
 > 
-
-<snip>
-
-> * Principles & Usages 
+> Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+> Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 54ccb0d..787024f 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1239,6 +1239,17 @@ config ARCH_CPU_PROBE_RELEASE
+>  	  is for cpu hot-add/hot-remove to specified node in software method.
+>  	  This is for debuging and testing purpose
 > 
-> NUMA hotplug emulator include 3 different parts, We add a menu item to the
-> menuconfig to enable/disable them
-> (Refer to http://shaohui.org/images/hpe-krnl-cfg.jpg)
-> 
-> 
-> 1) Node hotplug emulation:
-> 
-> The emulator firstly hides RAM via E820 table, and then it can
-> fake offlined nodes with the hidden RAM.
-> 
-> After system bootup, user is able to hotplug-add these offlined
-> nodes, which is just similar to a real hotplug hardware behavior.
-> 
-> Using boot option "numa=hide=N*size" to fake offlined nodes:
-> 	- N is the number of hidden nodes
-> 	- size is the memory size (in MB) per hidden node.
-> 
-> There is a sysfs entry "probe" under /sys/devices/system/node/ for user
-> to hotplug the fake offlined nodes:
-> 
->  - to show all fake offlined nodes:
->     $ cat /sys/devices/system/node/probe
-> 
->  - to hotadd a fake offlined node, e.g. nodeid is N:
->     $ echo N > /sys/devices/system/node/probe
-> 
+> +config ARCH_MEMORY_PROBE
 
-I tried the patchset on a non-NUMA machine. So, inorder to create fake
-NUMA nodes and be able to emulate the hotplug behavior, I used the
-following commandline:
+The above symbol exists already...
 
-	"numa=fake=4  numa=hide=2*2048"
+> +	def_bool y
+> +	bool "Memory hotplug emulation"
+> +	depends on NUMA_HOTPLUG_EMU
+> +	---help---
+> +	  Enable memory hotplug emulation. Reserve memory with grub parameter
+> +	  "mem=N"(such as mem=1024M), where N is the initial memory size, the
+> +	  rest physical memory will be removed from e820 table; the memory probe
+> +	  interface is for memory hot-add to specified node in software method.
+> +	  This is for debuging and testing purpose
+> +
+>  config NODES_SHIFT
+>  	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
+>  	range 1 10
 
-on a machine with 8G memory. I expected to see 4 nodes, out of which 2
-would be hidden. However, the system comes up the 4 online nodes and 2
-offline nodes (thus a total of 6 nodes). While we could decide this to
-be the semantics, however, I feel that numa=fake should define the total
-number of nodes. So in the above case, the system should have come up
-with 2 online nodes and 2 offline nodes.
-
-Also, "numa=hide=N" could also be supported, with the size
-of the hidden nodes being equal to the entire size of the node, with or
-without numa=fake parameter.
-
-On onlining one of the offline nodes, I see another issue that the
-memory under it is not automatically brought online. For example:
-
-#ls /sys/devices/system/node
-.... node0 node1 node2..
-
-#cat /sys/devices/system/node/probe
-3
-
-#echo 3 > /sys/devices/system/node/probe
-#ls /sys/devices/system/node
-.... node0 node1 node2 node3
-
-#cat /sys/devices/system/node/node3/meminfo
-Node 3 MemTotal:              0 kB
-Node 3 MemFree:               0 kB
-Node 3 MemUsed:               0 kB
-Node 3 Active:                0 kB
-......
-
-i.e, as memory-less nodes. However, these nodes were designated to have
-memory. So, on onlining the nodes, maybe we could have all their memory
-brought into online state as well ?
 
 -- 
 Regards,                                                                        
