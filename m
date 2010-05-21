@@ -1,50 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CC0A46B01AF
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 12:00:28 -0400 (EDT)
-Date: Fri, 21 May 2010 18:00:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: RFC: dirty_ratio back to 40%
-Message-ID: <20100521160014.GC3412@quack.suse.cz>
-References: <20100521083408.1E36.A69D9226@jp.fujitsu.com>
- <4BF5D875.3030900@acm.org>
- <20100521100943.1E4D.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7336B01AF
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 12:25:33 -0400 (EDT)
+Date: Fri, 21 May 2010 13:25:12 -0300
+From: Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at
+ first
+Message-ID: <20100521162512.GB7595@khazad-dum.debian.net>
+References: <20100519174327.9591.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.1.00.1005201822120.19421@tigran.mtv.corp.google.com>
+ <20100521103935.1E56.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.1.00.1005201859260.23122@tigran.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100521100943.1E4D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.1.00.1005201859260.23122@tigran.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Zan Lynx <zlynx@acm.org>, lwoodman@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Shaohua Li <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri 21-05-10 10:11:59, KOSAKI Motohiro wrote:
-> > > So, I'd prefer to restore the default rather than both Redhat and SUSE apply exactly
-> > > same distro specific patch. because we can easily imazine other users will face the same
-> > > issue in the future.
-> > 
-> > On desktop systems the low dirty limits help maintain interactive feel. 
-> > Users expect applications that are saving data to be slow. They do not 
-> > like it when every application in the system randomly comes to a halt 
-> > because of one program stuffing data up to the dirty limit.
-> 
-> really?
-> Do you mean our per-task dirty limit wouldn't works?
-> 
-> If so, I think we need fix it. IOW sane per-task dirty limitation seems
-> independent issue from per-system dirty limit.
-  Well, I don't know about any per-task dirty limits. What function
-implements them? Any application that dirties a single page can be caught
-and forced to call balance_dirty_pages() and do writeback.
-  But generally what we observe on a desktop with lots of dirty memory is
-that application needs to allocate memory (either private one or for page
-cache) and that triggers direct reclaim so the allocation takes a long
-time to finish and thus the application is sluggish...
+On Thu, 20 May 2010, Hugh Dickins wrote:
+> If you really want to test some workload on 2.6.28 to see if it too
+> works better with your fix, I won't stop you - but I'd much prefer
+> you to be applying your mind to 2.6.35 and 2.6.36!
 
-								Honza
+And sending it to -stable (after merged in mainline) if it should be on
+2.6.32/33/34, please.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+  "One disk to rule them all, One disk to find them. One disk to bring
+  them all and in the darkness grind them. In the Land of Redmond
+  where the shadows lie." -- The Silicon Valley Tarot
+  Henrique Holschuh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
