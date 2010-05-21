@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7F8DF6B01B1
-	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:49:15 -0400 (EDT)
-Message-ID: <4BF5D875.3030900@acm.org>
-Date: Thu, 20 May 2010 18:48:53 -0600
-From: Zan Lynx <zlynx@acm.org>
-MIME-Version: 1.0
-Subject: Re: RFC: dirty_ratio back to 40%
-References: <4BF51B0A.1050901@redhat.com> <20100521083408.1E36.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100521083408.1E36.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C55C46B01B1
+	for <linux-mm@kvack.org>; Thu, 20 May 2010 20:55:21 -0400 (EDT)
+Date: Fri, 21 May 2010 10:55:12 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
+Message-Id: <20100521105512.0c2cf254.sfr@canb.auug.org.au>
+In-Reply-To: <20100520134359.fdfb397e.akpm@linux-foundation.org>
+References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
+	<20100520134359.fdfb397e.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA1";
+ boundary="Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A"
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: lwoodman@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: minskey guo <chaohong_guo@linux.intel.com>, linux-mm@kvack.org, prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, minskey guo <chaohong.guo@intel.com>, Tejun Heo <tj@kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/20/10 5:48 PM, KOSAKI Motohiro wrote:
-> Hi
->
-> CC to Nick and Jan
->
->> We've seen multiple performance regressions linked to the lower(20%)
->> dirty_ratio.  When performing enough IO to overwhelm the background
->> flush daemons the percent of dirty pagecache memory quickly climbs
->> to the new/lower dirty_ratio value of 20%.  At that point all writing
->> processes are forced to stop and write dirty pagecache pages back to disk.
->> This causes performance regressions in several benchmarks as well as causing
->> a noticeable overall sluggishness.  We all know that the dirty_ratio is
->> an integrity vs performance trade-off but the file system journaling
->> will cover any devastating effects in the event of a system crash.
->>
->> Increasing the dirty_ratio to 40% will regain the performance loss seen
->> in several benchmarks.  Whats everyone think about this???
->
-> In past, Jan Kara also claim the exactly same thing.
->
-> 	Subject: [LSF/VM TOPIC] Dynamic sizing of dirty_limit
-> 	Date: Wed, 24 Feb 2010 15:34:42 +0100
->
-> 	>  (*) We ended up increasing dirty_limit in SLES 11 to 40% as it used to be
-> 	>  with old kernels because customers running e.g. LDAP (using BerkelyDB
-> 	>  heavily) were complaining about performance problems.
->
-> So, I'd prefer to restore the default rather than both Redhat and SUSE apply exactly
-> same distro specific patch. because we can easily imazine other users will face the same
-> issue in the future.
+--Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-On desktop systems the low dirty limits help maintain interactive feel. 
-Users expect applications that are saving data to be slow. They do not 
-like it when every application in the system randomly comes to a halt 
-because of one program stuffing data up to the dirty limit.
+Hi Andrew,
 
-The cause and effect for the system slowdown is clear when the dirty 
-limit is low. "I saved data and now the system is slow until it is 
-done." When the dirty page ratio is very high, the cause and effect is 
-disconnected. "I was just web surfing and the system came to a halt."
+On Thu, 20 May 2010 13:43:59 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> > --- a/mm/percpu.c
+> > +++ b/mm/percpu.c
+> > @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *ch=
+unk,
+>=20
+> In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
+> mm/percpu-vm.c.  So either
 
-I think we should expect server admins to do more tuning than desktop 
-users, so the default limits should stay low in my opinion.
+This has gone into Linus' tree today ...
 
--- 
-Zan Lynx
-zlynx@acm.org
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+http://www.canb.auug.org.au/~sfr/
 
-"Knowledge is Power.  Power Corrupts.  Study Hard.  Be Evil."
+--Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEUEARECAAYFAkv12fAACgkQjjKRsyhoI8xHmQCUDkmYehloK9dIzgnFGC9c0USU
+8QCfYkwGEe1GPduhl33b6nKkAJ+qW1c=
+=hYuv
+-----END PGP SIGNATURE-----
+
+--Signature=_Fri__21_May_2010_10_55_12_+1000_dmKoVdhhBYvCft9A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
