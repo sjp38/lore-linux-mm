@@ -1,39 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C93C46002CC
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 02:17:54 -0400 (EDT)
-Date: Thu, 20 May 2010 23:18:03 -0700 (PDT)
-Message-Id: <20100520.231803.168054302.davem@davemloft.net>
-Subject: Re: RFC: dirty_ratio back to 40%
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <4BF51B0A.1050901@redhat.com>
-References: <4BF51B0A.1050901@redhat.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 827D16B01B8
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 03:29:38 -0400 (EDT)
+From: "Kleen, Andi" <andi.kleen@intel.com>
+Date: Fri, 21 May 2010 08:29:09 +0100
+Subject: RE: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
+Message-ID: <F4DF93C7785E2549970341072BC32CD722717DBB@irsmsx503.ger.corp.intel.com>
+References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
+ <20100520134359.fdfb397e.akpm@linux-foundation.org>
+In-Reply-To: <20100520134359.fdfb397e.akpm@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: lwoodman@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, minskey guo <chaohong_guo@linux.intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "prarit@redhat.com" <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Guo, Chaohong" <chaohong.guo@intel.com>, Tejun Heo <tj@kernel.org>, "stable@kernel.org" <stable@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Larry Woodman <lwoodman@redhat.com>
-Date: Thu, 20 May 2010 07:20:42 -0400
+>
+>How serious is this issue?  Just a warning?  Dead box?
 
-> Increasing the dirty_ratio to 40% will regain the performance loss
-> seen in several benchmarks.  Whats everyone think about this???
+It's pretty much a showstopper for memory hotadd with a new node.
 
-I've been making this change via sysctl on every single system I have,
-and have been doing so for quite some time.
-
-When doing a lot of GIT operations to a non-SSD disk the kernel simply
-can't submit the writes early enough to prevent everything getting
-backlogged, and then processes pile up being forced to sleep on I/O
-for several seconds at a time.
-
-I therefore totally support making this the default, but I know some
-people will be against it :-)
-
-Acked-by: David S. Miller <davem@davemloft.net>
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
