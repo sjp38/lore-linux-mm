@@ -1,147 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6A86003C2
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:19:11 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id o4LLJ9T6006278
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 14:19:09 -0700
-Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
-	by kpbe13.cbf.corp.google.com with ESMTP id o4LLJ81s016521
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 14:19:08 -0700
-Received: by pxi6 with SMTP id 6so595203pxi.15
-        for <linux-mm@kvack.org>; Fri, 21 May 2010 14:19:08 -0700 (PDT)
-Date: Fri, 21 May 2010 14:18:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
-In-Reply-To: <AANLkTilmr29Vv3N64n7KVj9fSDpfBHIt8-quxtEwY0_X@mail.gmail.com>
-Message-ID: <alpine.LSU.2.00.1005211410170.14789@sister.anvils>
-References: <AANLkTimAF1zxXlnEavXSnlKTkQgGD0u9UqCtUVT_r9jV@mail.gmail.com> <AANLkTimUYmUCdFMIaVi1qqcz2DqGoILeu43XWZBHSILP@mail.gmail.com> <AANLkTilmr29Vv3N64n7KVj9fSDpfBHIt8-quxtEwY0_X@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1A20060032A
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 17:41:56 -0400 (EDT)
+From: Alexander Duyck <alexander.h.duyck@intel.com>
+Subject: [PATCH v2] slub: move kmem_cache_node into it's own cacheline
+Date: Fri, 21 May 2010 14:41:35 -0700
+Message-ID: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1807566609-1274476747=:14789"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: penberg@cs.helsinki.fi, cl@linux.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+This patch is meant to improve the performance of SLUB by moving the local
+kmem_cache_node lock into it's own cacheline separate from kmem_cache.
+This is accomplished by simply removing the local_node when NUMA is enabled.
 
---8323584-1807566609-1274476747=:14789
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+On my system with 2 nodes I saw around a 5% performance increase w/
+hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
+suspect the performance gain would increase as the number of nodes
+increases, but I do not have the data to currently back that up.
 
-On Thu, 20 May 2010, dave b wrote:
-
-> Is there a reason - no one has taken any interesting in my email ?....
->  The behaviour isn't found on the 2.6.26 debian kernel. So I was
-> thinking that it might be due to my intel graphics card / memory
-> interplay ? ....
-
-It's nothing personal: the usual reason is that people are very busy.
-
->=20
-> On 14 May 2010 23:14, dave b <db.pub.mail@gmail.com> wrote:
-> > On 14 May 2010 22:53, dave b <db.pub.mail@gmail.com> wrote:
-> >> In 2.6.3* kernels (test case was performed on the 2.6.33.3 kernel)
-> >> when physical memory runs out and there is a large swap partition -
-> >> the system completely stalls.
-> >>
-> >> I noticed that when running debian lenny using dm-crypt =C2=A0with
-> >> encrypted / and swap with a =C2=A02.6.33.3 kernel (and all of the 2.6.=
-3*
-> >> series iirc) when all physical memory is used (swapiness was left at
-> >> the default 60) the system hangs and does not respond. It can resume
-> >> normal operation some time later - however it seems to take a *very*
-> >> long time for the oom killer to come in. Obviously with swapoff this
-> >> doesn't happen - the oom killer comes in and does its job.
-> >>
-> >>
-> >> free -m
-> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 total =C2=A0 =C2=A0 =C2=A0 u=
-sed =C2=A0 =C2=A0 =C2=A0 free =C2=A0 =C2=A0 shared =C2=A0 =C2=A0buffers =C2=
-=A0 =C2=A0 cached
-> >> Mem: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A01980 =C2=A0 =C2=A0 =C2=A0 1101 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0879 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A00 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 58 =C2=A0 =C2=A0 =C2=A0 =C2=A0201
-> >> -/+ buffers/cache: =C2=A0 =C2=A0 =C2=A0 =C2=A0840 =C2=A0 =C2=A0 =C2=A0=
- 1139
-> >> Swap: =C2=A0 =C2=A0 =C2=A0 =C2=A024943 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A00 =C2=A0 =C2=A0 =C2=A024943
-> >>
-> >>
-> >> My simple test case is
-> >>
-> >> dd if=3D/dev/zero of=3D/tmp/stall
-> >> and wait till /tmp fills...
-
-Is that tmpfs sized the default 50% of RAM?
-If you have sized it larger, then indeed filling it up might behave badly.
-
-> >>
-> >
-> > Sorry - I forgot to say I am running x86-64
-
-But I wonder if you're suffering from a bug which KOSAKI-San just
-identified, and has very recently posted this patch: please try
-it and let us all know - thanks.
-
-Hugh
-
-[PATCH] tmpfs: Insert tmpfs cache pages to inactive list at first
-
-Shaohua Li reported parallel file copy on tmpfs can lead to
-OOM killer. This is regression of caused by commit 9ff473b9a7
-(vmscan: evict streaming IO first). Wow, It is 2 years old patch!
-
-Currently, tmpfs file cache is inserted active list at first. It
-mean the insertion doesn't only increase numbers of pages in anon LRU,
-but also reduce anon scanning ratio. Therefore, vmscan will get totally
-confusion. It scan almost only file LRU even though the system have
-plenty unused tmpfs pages.
-
-Historically, lru_cache_add_active_anon() was used by two reasons.
-1) Intend to priotize shmem page rather than regular file cache.
-2) Intend to avoid reclaim priority inversion of used once pages.
-
-But we've lost both motivation because (1) Now we have separate
-anon and file LRU list. then, to insert active list doesn't help
-such priotize. (2) In past, one pte access bit will cause page
-activation. then to insert inactive list with pte access bit mean
-higher priority than to insert active list. Its priority inversion
-may lead to uninteded lru chun. but it was already solved by commit
-645747462 (vmscan: detect mapped file pages used only once).
-(Thanks Hannes, you are great!)
-
-Thus, now we can use lru_cache_add_anon() instead.
-
-Reported-by: Shaohua Li <shaohua.li@intel.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- mm/filemap.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b941996..023ef61 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -452,7 +452,7 @@ int add_to_page_cache_lru(struct page *page, struct add=
-ress_space *mapping,
- =09=09if (page_is_file_cache(page))
- =09=09=09lru_cache_add_file(page);
- =09=09else
--=09=09=09lru_cache_add_active_anon(page);
-+=09=09=09lru_cache_add_anon(page);
- =09}
- =09return ret;
- }
---=20
-1.6.5.2
---8323584-1807566609-1274476747=:14789--
+ include/linux/slub_def.h |    9 +++------
+ mm/slub.c                |   33 +++++++++++----------------------
+ 2 files changed, 14 insertions(+), 28 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 0249d41..7d7bf5a 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -75,12 +75,6 @@ struct kmem_cache {
+ 	int offset;		/* Free pointer offset. */
+ 	struct kmem_cache_order_objects oo;
+ 
+-	/*
+-	 * Avoid an extra cache line for UP, SMP and for the node local to
+-	 * struct kmem_cache.
+-	 */
+-	struct kmem_cache_node local_node;
+-
+ 	/* Allocation and freeing of slabs */
+ 	struct kmem_cache_order_objects max;
+ 	struct kmem_cache_order_objects min;
+@@ -102,6 +96,9 @@ struct kmem_cache {
+ 	 */
+ 	int remote_node_defrag_ratio;
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
++#else
++	/* Avoid an extra cache line for UP */
++	struct kmem_cache_node local_node;
+ #endif
+ };
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 461314b..8af03de 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2141,7 +2141,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ 
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = s->node[node];
+-		if (n && n != &s->local_node)
++		if (n)
+ 			kmem_cache_free(kmalloc_caches, n);
+ 		s->node[node] = NULL;
+ 	}
+@@ -2150,33 +2150,22 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
+ {
+ 	int node;
+-	int local_node;
+-
+-	if (slab_state >= UP && (s < kmalloc_caches ||
+-			s >= kmalloc_caches + KMALLOC_CACHES))
+-		local_node = page_to_nid(virt_to_page(s));
+-	else
+-		local_node = 0;
+ 
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n;
+ 
+-		if (local_node == node)
+-			n = &s->local_node;
+-		else {
+-			if (slab_state == DOWN) {
+-				early_kmem_cache_node_alloc(gfpflags, node);
+-				continue;
+-			}
+-			n = kmem_cache_alloc_node(kmalloc_caches,
+-							gfpflags, node);
+-
+-			if (!n) {
+-				free_kmem_cache_nodes(s);
+-				return 0;
+-			}
++		if (slab_state == DOWN) {
++			early_kmem_cache_node_alloc(gfpflags, node);
++			continue;
++		}
++		n = kmem_cache_alloc_node(kmalloc_caches,
++						gfpflags, node);
+ 
++		if (!n) {
++			free_kmem_cache_nodes(s);
++			return 0;
+ 		}
++
+ 		s->node[node] = n;
+ 		init_kmem_cache_node(n, s);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
