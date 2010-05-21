@@ -1,135 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3D8856B01B1
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 00:06:15 -0400 (EDT)
-From: "Guo, Chaohong" <chaohong.guo@intel.com>
-Date: Fri, 21 May 2010 12:05:16 +0800
-Subject: RE: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
-Message-ID: <CF2F38D4AE21BB4CB845318E4C5ECB671E718CC9@shsmsx501.ccr.corp.intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2784C6B01B1
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 00:48:42 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4L4mdf6015321
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 21 May 2010 13:48:39 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 44EA645DE54
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 13:48:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 26C9345DE51
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 13:48:39 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CACD11DB805D
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 13:48:38 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A2331DB803F
+	for <linux-mm@kvack.org>; Fri, 21 May 2010 13:48:38 +0900 (JST)
+Date: Fri, 21 May 2010 13:44:24 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
+Message-Id: <20100521134424.45e0ee36.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100521105512.0c2cf254.sfr@canb.auug.org.au>
 References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
- <20100520134359.fdfb397e.akpm@linux-foundation.org>
-In-Reply-To: <20100520134359.fdfb397e.akpm@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+	<20100520134359.fdfb397e.akpm@linux-foundation.org>
+	<20100521105512.0c2cf254.sfr@canb.auug.org.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, minskey guo <chaohong_guo@linux.intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "prarit@redhat.com" <prarit@redhat.com>, "Kleen, Andi" <andi.kleen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, "stable@kernel.org" <stable@kernel.org>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, minskey guo <chaohong_guo@linux.intel.com>, linux-mm@kvack.org, prarit@redhat.com, andi.kleen@intel.com, linux-kernel@vger.kernel.org, minskey guo <chaohong.guo@intel.com>, Tejun Heo <tj@kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 21 May 2010 10:55:12 +1000
+Stephen Rothwell <sfr@canb.auug.org.au> wrote:
 
+> Hi Andrew,
+> 
+> On Thu, 20 May 2010 13:43:59 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> >
+> > > --- a/mm/percpu.c
+> > > +++ b/mm/percpu.c
+> > > @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
+> > 
+> > In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
+> > mm/percpu-vm.c.  So either
+> 
+> This has gone into Linus' tree today ...
+> 
 
->> The operation of "enable CPU to online before memory within a node"
->> fails in some case according to Prarit. The warnings as follows:
->>
->> Pid: 7440, comm: bash Not tainted 2.6.32 #2
->> Call Trace:
->>  [<ffffffff81155985>] pcpu_alloc+0xa05/0xa70
->>  [<ffffffff81155a20>] __alloc_percpu+0x10/0x20
->>  [<ffffffff81089605>] __create_workqueue_key+0x75/0x280
->>  [<ffffffff8110e050>] ? __build_all_zonelists+0x0/0x5d0
->>  [<ffffffff810c1eba>] stop_machine_create+0x3a/0xb0
->>  [<ffffffff810c1f57>] stop_machine+0x27/0x60
->>  [<ffffffff8110f1a0>] build_all_zonelists+0xd0/0x2b0
->>  [<ffffffff814c1d12>] cpu_up+0xb3/0xe3
->>  [<ffffffff814b3c40>] store_online+0x70/0xa0
->>  [<ffffffff81326100>] sysdev_store+0x20/0x30
->>  [<ffffffff811d29a5>] sysfs_write_file+0xe5/0x170
->>  [<ffffffff81163d28>] vfs_write+0xb8/0x1a0
->>  [<ffffffff810cfd22>] ? audit_syscall_entry+0x252/0x280
->>  [<ffffffff81164761>] sys_write+0x51/0x90
->>  [<ffffffff81013132>] system_call_fastpath+0x16/0x1b
->> Built 4 zonelists in Zone order, mobility grouping on.  Total pages: 123=
-31603
->> PERCPU: allocation failed, size=3D128 align=3D64, failed to populate
->>
->> With "enable CPU to online before memory" patch, when the 1st CPU of
->> an offlined node is being onlined, we build zonelists for that node.
->> If per-cpu area needs to be extended during zonelists building period,
->> alloc_pages_node() will be called. The routine alloc_pages_node() fails
->> on the node in-onlining because the node doesn't have zonelists created
->> yet.
->>
->> To fix this issue,  we try to alloc memory from current node.
->
->How serious is this issue?  Just a warning?  Dead box?
->
->Because if we want to port this fix into 2.6.34.x, we have a little
->problem.
+Hmm, a comment here.
 
+Recently, Lee Schermerhorn developed
 
-when onlining CPU within a node without local memory , at that time, if
-per-cpu-area were used up and failed to be extended, there will be many
-warnings about the failure of pcpu_allco(),  and at last, an out-of-memory=
-=20
-is triggered and some processes get killed by OOM.
+ numa-introduce-numa_mem_id-effective-local-memory-node-id-fix2.patch
 
+Then, you can use cpu_to_mem() instead of cpu_to_node() to find the
+nearest available node.
+I don't check cpu_to_mem() is synchronized with NUMA hotplug but
+using cpu_to_mem() rather than adding 
+=
 
--minskey
++			if ((nid == -1) ||
++			    !(node_zonelist(nid, GFP_KERNEL)->_zonerefs->zone))
++				nid = numa_node_id();
++
+==
 
+is better. 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
->
->
->> --- a/mm/percpu.c
->> +++ b/mm/percpu.c
->> @@ -714,13 +714,29 @@ static int pcpu_alloc_pages(struct pcpu_chunk
->*chunk,
->
->In linux-next, Tejun has gone and moved pcpu_alloc_pages() into the new
->mm/percpu-vm.c.  So either
->
->a) the -stable guys will need to patch a different file or
->
->b) we apply this fix first and muck up Tejun's tree or
->
->c) the bug isn't very serious so none of this applies.
->
->>  {
->>  	const gfp_t gfp =3D GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;
->>  	unsigned int cpu;
->> +	int nid;
->>  	int i;
->>
->>  	for_each_possible_cpu(cpu) {
->>  		for (i =3D page_start; i < page_end; i++) {
->>  			struct page **pagep =3D &pages[pcpu_page_idx(cpu, i)];
->>
->> -			*pagep =3D alloc_pages_node(cpu_to_node(cpu), gfp, 0);
->> +			nid =3D cpu_to_node(cpu);
->> +
->> +			/*
->> +			 * It is allowable to online a CPU within a NUMA
->> +			 * node which doesn't have onlined local memory.
->> +			 * In this case, we need to create zonelists for
->> +			 * that node when cpu is being onlined. If per-cpu
->> +			 * area needs to be extended at the exact time when
->> +			 * zonelists of that node is being created, we alloc
->> +			 * memory from current node.
->> +			 */
->> +			if ((nid =3D=3D -1) ||
->> +			    !(node_zonelist(nid, GFP_KERNEL)->_zonerefs->zone))
->> +				nid =3D numa_node_id();
->> +
->> +			*pagep =3D alloc_pages_node(nid, gfp, 0);
->>  			if (!*pagep) {
->>  				pcpu_free_pages(chunk, pages, populated,
->>  						page_start, page_end);
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
