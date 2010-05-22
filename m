@@ -1,71 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 833D46002CC
-	for <linux-mm@kvack.org>; Sat, 22 May 2010 04:21:40 -0400 (EDT)
-Date: Sat, 22 May 2010 11:21:36 +0300 (EEST)
-From: Pekka J Enberg <penberg@cs.helsinki.fi>
-Subject: [GIT PULL] SLAB fixes for 2.6.35-rc0
-Message-ID: <alpine.DEB.2.00.1005221119020.4737@melkki.cs.helsinki.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; format=flowed; charset=us-ascii
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A85356002CC
+	for <linux-mm@kvack.org>; Sat, 22 May 2010 04:35:52 -0400 (EDT)
+Message-ID: <4BF79761.5000402@cs.helsinki.fi>
+Date: Sat, 22 May 2010 11:35:45 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] slub: move kmem_cache_node into it's own cacheline
+References: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
+In-Reply-To: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: torvalds@linux-foundation.org
-Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Duyck <alexander.h.duyck@intel.com>
+Cc: cl@linux.com, linux-mm@kvack.org, alex.shi@intel.com, yanmin_zhang@linux.intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, rjw@sisk.pl
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+Alexander Duyck wrote:
+> This patch is meant to improve the performance of SLUB by moving the local
+> kmem_cache_node lock into it's own cacheline separate from kmem_cache.
+> This is accomplished by simply removing the local_node when NUMA is enabled.
+> 
+> On my system with 2 nodes I saw around a 5% performance increase w/
+> hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
+> suspect the performance gain would increase as the number of nodes
+> increases, but I do not have the data to currently back that up.
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 
-It's been a rather quiet cycle this time for slab. The most interesting 
-bits here are SLAB memory hotplug support from David Rientjes and slab 
-minimum alignment cleanups from David Woodhouse. There are also some slab 
-debugging code fixes from Shiyong Li and Eric Dumazet.
+Thanks for the fix, Alexander!
 
-                         Pekka
+Yanmin and Alex, can I have your Tested-by or Acked-by please so we can 
+close "[Bug #15713] hackbench regression due to commit 9dfc6e68bfe6e" 
+after this patch is merged?
 
-The following changes since commit f4b87dee923342505e1ddba8d34ce9de33e75050:
-   Randy Dunlap (1):
-         fbmem: avoid printk format warning with 32-bit resources
-
-are available in the git repository at:
-
-   ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git slab-for-linus
-
-David Rientjes (1):
-       slab: add memory hotplug support
-
-David Woodhouse (4):
-       mm: Move ARCH_SLAB_MINALIGN and ARCH_KMALLOC_MINALIGN to <linux/slab_def.h>
-       mm: Move ARCH_SLAB_MINALIGN and ARCH_KMALLOC_MINALIGN to <linux/slob_def.h>
-       mm: Move ARCH_SLAB_MINALIGN and ARCH_KMALLOC_MINALIGN to <linux/slub_def.h>
-       crypto: Use ARCH_KMALLOC_MINALIGN for CRYPTO_MINALIGN now that it's exposed
-
-Eric Dumazet (1):
-       slub: Potential stack overflow
-
-Joe Perches (1):
-       slab: Fix continuation lines
-
-Minchan Kim (1):
-       slub: Use alloc_pages_exact_node() for page allocation
-
-Pekka Enberg (1):
-       Merge branches 'slab/align', 'slab/cleanups', 'slab/fixes', 'slab/memhotadd' and 'slub/fixes' into slab-for-linus
-
-Shiyong Li (1):
-       slab: Fix missing DEBUG_SLAB last user
-
-Xiaotian Feng (1):
-       slub: __kmalloc_node_track_caller should trace kmalloc_large_node case
-
-  include/linux/crypto.h   |    6 --
-  include/linux/slab_def.h |   24 ++++++
-  include/linux/slob_def.h |    8 ++
-  include/linux/slub_def.h |    8 ++
-  mm/slab.c                |  198 +++++++++++++++++++++++++++++++---------------
-  mm/slob.c                |    8 --
-  mm/slub.c                |   46 ++++++-----
-  7 files changed, 200 insertions(+), 98 deletions(-)
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
