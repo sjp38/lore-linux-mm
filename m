@@ -1,225 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 4760E6B01B5
-	for <linux-mm@kvack.org>; Sat, 22 May 2010 06:21:58 -0400 (EDT)
-Received: by mail-pw0-f41.google.com with SMTP id 7so844726pwi.14
-        for <linux-mm@kvack.org>; Sat, 22 May 2010 03:21:57 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH 2/2] cache last free vmap_area to avoid restarting beginning
-Date: Sat, 22 May 2010 19:21:35 +0900
-Message-Id: <cd3012337e8cbf420626ed65ab10771f729c888a.1274522869.git.minchan.kim@gmail.com>
-In-Reply-To: <52219510083a624ff3d60d5671f826c33f8ef23c.1274522869.git.minchan.kim@gmail.com>
-References: <52219510083a624ff3d60d5671f826c33f8ef23c.1274522869.git.minchan.kim@gmail.com>
-In-Reply-To: <52219510083a624ff3d60d5671f826c33f8ef23c.1274522869.git.minchan.kim@gmail.com>
-References: <52219510083a624ff3d60d5671f826c33f8ef23c.1274522869.git.minchan.kim@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1AEC46B01B2
+	for <linux-mm@kvack.org>; Sat, 22 May 2010 12:25:24 -0400 (EDT)
+Message-ID: <4BF8056E.8080900@sandeen.net>
+Date: Sat, 22 May 2010 11:25:18 -0500
+From: Eric Sandeen <sandeen@sandeen.net>
+MIME-Version: 1.0
+Subject: [PATCH (resend)] xfs: don't allow recursion into fs under write_begin
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, Nick Piggin <npiggin@suse.de>
+To: xfs-oss <xfs@oss.sgi.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Michael Monnerie <michael.monnerie@is.it-management.at>
 List-ID: <linux-mm.kvack.org>
 
-This patch is improved version to fix my TODO list which is suggested by Nick.
+Michael Monnerie reported this fantastic stack overflow:
 
-- invalidating the cache in the case of vstart being decreased.
-- Don't unconditionally reset the cache to the last vm area freed,
- because you might have a higher area freed after a lower area. Only
- reset if the freed area is lower.
-- Do keep a cached hole size, so smaller lookups can restart a full
- search.
+[21877.948005] BUG: scheduling while atomic: rsync/2345/0xffff8800
+[21877.948005] Modules linked in: af_packet nfs lockd fscache nfs_acl auth_rpcgss sunrpc ipv6 ramzswap xvmalloc lzo_decompress lzo_compress loop dm_mod reiserfs xfs exportfs xennet xenblk cdrom
+[21877.948005] Pid: 2345, comm: rsync Not tainted 2.6.31.12-0.2-xen #1
+[21877.948005] Call Trace:
+[21877.949649]  [<ffffffff800119b9>] try_stack_unwind+0x189/0x1b0
+[21877.949659]  [<ffffffff8000f466>] dump_trace+0xa6/0x1e0
+[21877.949666]  [<ffffffff800114c4>] show_trace_log_lvl+0x64/0x90
+[21877.949676]  [<ffffffff80011513>] show_trace+0x23/0x40
+[21877.949684]  [<ffffffff8046b92c>] dump_stack+0x81/0x9e
+[21877.949695]  [<ffffffff8003f398>] __schedule_bug+0x78/0x90
+[21877.949702]  [<ffffffff8046c97c>] thread_return+0x1d7/0x3fb
+[21877.949709]  [<ffffffff8046cf85>] schedule_timeout+0x195/0x200
+[21877.949717]  [<ffffffff8046be2b>] wait_for_common+0x10b/0x230
+[21877.949726]  [<ffffffff8046c09b>] wait_for_completion+0x2b/0x50
+[21877.949768]  [<ffffffffa009e741>] xfs_buf_iowait+0x31/0x80 [xfs]
+[21877.949894]  [<ffffffffa009ea30>] _xfs_buf_read+0x70/0x80 [xfs]
+[21877.949992]  [<ffffffffa009ef8b>] xfs_buf_read_flags+0x8b/0xd0 [xfs]
+[21877.950089]  [<ffffffffa0091ab9>] xfs_trans_read_buf+0x1e9/0x320 [xfs]
+[21877.950174]  [<ffffffffa005b278>] xfs_btree_read_buf_block+0x68/0xe0 [xfs]
+[21877.950232]  [<ffffffffa005b99e>] xfs_btree_lookup_get_block+0x8e/0x110 [xfs]
+[21877.950281]  [<ffffffffa005c0af>] xfs_btree_lookup+0xdf/0x4d0 [xfs]
+[21877.950329]  [<ffffffffa0042b77>] xfs_alloc_lookup_eq+0x27/0x50 [xfs]
+[21877.950361]  [<ffffffffa0042f09>] xfs_alloc_fixup_trees+0x249/0x370 [xfs]
+[21877.950397]  [<ffffffffa0044c30>] xfs_alloc_ag_vextent_near+0x4e0/0x9a0 [xfs]
+[21877.950432]  [<ffffffffa00451f5>] xfs_alloc_ag_vextent+0x105/0x160 [xfs]
+[21877.950471]  [<ffffffffa0045bb4>] xfs_alloc_vextent+0x3b4/0x4b0 [xfs]
+[21877.950504]  [<ffffffffa0058da8>] xfs_bmbt_alloc_block+0xf8/0x210 [xfs]
+[21877.950550]  [<ffffffffa005e3b7>] xfs_btree_split+0xc7/0x720 [xfs]
+[21877.950597]  [<ffffffffa005ef8c>] xfs_btree_make_block_unfull+0x15c/0x1c0 [xfs]
+[21877.950643]  [<ffffffffa005f3ff>] xfs_btree_insrec+0x40f/0x5c0 [xfs]
+[21877.950689]  [<ffffffffa005f651>] xfs_btree_insert+0xa1/0x1b0 [xfs]
+[21877.950748]  [<ffffffffa005325e>] xfs_bmap_add_extent_delay_real+0x82e/0x12a0 [xfs]
+[21877.950787]  [<ffffffffa00540f4>] xfs_bmap_add_extent+0x424/0x450 [xfs]
+[21877.950833]  [<ffffffffa00573f3>] xfs_bmapi+0xda3/0x1320 [xfs]
+[21877.950879]  [<ffffffffa007c248>] xfs_iomap_write_allocate+0x1d8/0x3f0 [xfs]
+[21877.950953]  [<ffffffffa007d089>] xfs_iomap+0x2c9/0x300 [xfs]
+[21877.951021]  [<ffffffffa009a1b8>] xfs_map_blocks+0x38/0x60 [xfs]
+[21877.951108]  [<ffffffffa009b93a>] xfs_page_state_convert+0x3fa/0x720 [xfs]
+[21877.951204]  [<ffffffffa009bde4>] xfs_vm_writepage+0x84/0x160 [xfs]
+[21877.951301]  [<ffffffff800e3603>] pageout+0x143/0x2b0
+[21877.951308]  [<ffffffff800e514e>] shrink_page_list+0x26e/0x650
+[21877.951314]  [<ffffffff800e5803>] shrink_inactive_list+0x2d3/0x7c0
+[21877.951320]  [<ffffffff800e5d4b>] shrink_list+0x5b/0x110
+[21877.951325]  [<ffffffff800e5f71>] shrink_zone+0x171/0x250
+[21877.951330]  [<ffffffff800e60d3>] shrink_zones+0x83/0x120
+[21877.951336]  [<ffffffff800e620e>] do_try_to_free_pages+0x9e/0x380
+[21877.951342]  [<ffffffff800e6607>] try_to_free_pages+0x77/0xa0
+[21877.951349]  [<ffffffff800dbfa3>] __alloc_pages_slowpath+0x2d3/0x5c0
+[21877.951355]  [<ffffffff800dc3e1>] __alloc_pages_nodemask+0x151/0x160
+[21877.951362]  [<ffffffff800d44b7>] __page_cache_alloc+0x27/0x50
+[21877.951368]  [<ffffffff800d68ca>] grab_cache_page_write_begin+0x9a/0xe0
+[21877.951376]  [<ffffffff8014bdfe>] block_write_begin+0xae/0x120
+[21877.951396]  [<ffffffffa009ac24>] xfs_vm_write_begin+0x34/0x50 [xfs]
+[21877.951482]  [<ffffffff800d4b31>] generic_perform_write+0xc1/0x1f0
+[21877.951489]  [<ffffffff800d5d00>] generic_file_buffered_write+0x90/0x160
+[21877.951512]  [<ffffffffa00a4711>] xfs_write+0x521/0xb60 [xfs]
+[21877.951624]  [<ffffffffa009fb80>] xfs_file_aio_write+0x70/0xa0 [xfs]
+[21877.951711]  [<ffffffff80118c42>] do_sync_write+0x102/0x160
+[21877.951718]  [<ffffffff80118fc8>] vfs_write+0xd8/0x1c0
+[21877.951723]  [<ffffffff8011995b>] sys_write+0x5b/0xa0
+[21877.951729]  [<ffffffff8000c868>] system_call_fastpath+0x16/0x1b
+[21877.951736]  [<00007fc41b0fab10>] 0x7fc41b0fab10
+[21877.951750] BUG: unable to handle kernel paging request at 0000000108743280
+[21877.951755] IP: [<ffffffff80034832>] dequeue_task+0x72/0x110
+[21877.951766] PGD 31c6f067 PUD 0 
+[21877.951770] Thread overran stack, or stack corrupted
 
-And it's based on Nick's version.
+I don't think we can afford to let write_begin recurse into the fs,
+so we can set AOP_FLAG_NOFS ... is this too big a hammer?
 
-Steven. Could you test this patch on your machine?
-
-== CUT HERE ==
-
-Steven Whitehouse reported that GFS2 had a regression about vmalloc.
-He measured some test module to compare vmalloc speed on the two cases.
-
-1. lazy TLB flush
-2. disable lazy TLB flush by hard coding
-
-1)
-vmalloc took 148798983 us
-vmalloc took 151664529 us
-vmalloc took 152416398 us
-vmalloc took 151837733 us
-
-2)
-vmalloc took 15363634 us
-vmalloc took 15358026 us
-vmalloc took 15240955 us
-vmalloc took 15402302 us
-
-You can refer test module and Steven's patch
-with https://bugzilla.redhat.com/show_bug.cgi?id=581459.
-
-The cause is that lazy TLB flush can delay release vmap_area.
-OTOH, To find free vmap_area is always started from beginnig of rbnode.
-So before lazy TLB flush happens, searching free vmap_area could take
-long time.
-
-Steven's experiment can do 9 times faster than old.
-But Always disable lazy TLB flush is not good.
-
-This patch caches next free vmap_area to accelerate.
-In my test case, following as.
-
-The result is following as.
-
-1) vanilla
-elapsed time
-vmalloc took 49121724 us
-vmalloc took 50675245 us
-vmalloc took 48987711 us
-vmalloc took 54232479 us
-vmalloc took 50258117 us
-vmalloc took 49424859 us
-
-3) Steven's patch
-elapsed time
-vmalloc took 11363341 us
-vmalloc took 12798868 us
-vmalloc took 13247942 us
-vmalloc took 11434647 us
-vmalloc took 13221733 us
-vmalloc took 12134019 us
-
-2) my patch(vmap cache)
-elapsed time
-vmalloc took 5110283 us
-vmalloc took 5148300 us
-vmalloc took 5043622 us
-vmalloc took 5093772 us
-vmalloc took 5039565 us
-vmalloc took 5079503 us
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Reported-by: Michael Monnerie <michael.monnerie@is.it-management.at>
+Signed-off-by: Eric Sandeen <sandeen@sandeen.net>
 ---
- mm/vmalloc.c |   61 ++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 files changed, 49 insertions(+), 12 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 651d1c1..23f714f 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -262,8 +262,13 @@ struct vmap_area {
- };
- 
- static DEFINE_SPINLOCK(vmap_area_lock);
--static struct rb_root vmap_area_root = RB_ROOT;
- static LIST_HEAD(vmap_area_list);
-+static struct rb_root vmap_area_root = RB_ROOT;
-+
-+static struct rb_node *free_vmap_cache;
-+static unsigned long cached_hole_size;
-+static unsigned long cached_start;
-+
- static unsigned long vmap_area_pcpu_hole;
- 
- static struct vmap_area *__find_vmap_area(unsigned long addr)
-@@ -345,8 +350,11 @@ static struct vmap_area *__get_first_vmap_area(struct rb_node *n, unsigned long
- 
- 	if (first->va_end < addr) {
- 		n = rb_next(&first->rb_node);
--		if (n)
-+		if (n) {
- 			first = rb_entry(n, struct vmap_area, rb_node);
-+			if (addr + cached_hole_size < first->va_start)
-+				cached_hole_size = first->va_start - addr;
-+		}
- 		else
- 			first = NULL;						
- 	}
-@@ -365,6 +373,9 @@ static int __get_vmap_area_addr(struct vmap_area *first,
- 	struct rb_node *n;
- 
- 	while (*addr + size > first->va_start && *addr + size <= vend) {
-+		if (*addr + cached_hole_size < first->va_start)
-+			cached_hole_size = first->va_start - *addr;
-+
- 		*addr = ALIGN(first->va_end + PAGE_SIZE, align);
- 		if (*addr + size - 1 < *addr)
- 			return 1;
-@@ -385,7 +396,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 				unsigned long vstart, unsigned long vend,
- 				int node, gfp_t gfp_mask)
+(resend with linux-fsdevel and linux-mm per Christoph's request)
+
+diff --git a/fs/xfs/linux-2.6/xfs_aops.c b/fs/xfs/linux-2.6/xfs_aops.c
+index 57c3827..3fb2cc8 100644
+--- a/fs/xfs/linux-2.6/xfs_aops.c
++++ b/fs/xfs/linux-2.6/xfs_aops.c
+@@ -1678,6 +1678,8 @@ xfs_vm_write_begin(
+ 	void			**fsdata)
  {
--	struct vmap_area *va;
-+	struct vmap_area *va, *first = NULL;
- 	struct rb_node *n;
- 	unsigned long addr;
- 	int purged = 0;
-@@ -405,18 +416,28 @@ retry:
- 	if (addr + size - 1 < addr)
- 		goto overflow;
- 
--	/* XXX: could have a last_hole cache */
--	n = vmap_area_root.rb_node;
--	if (n) {
--		int ret;
--		struct vmap_area *first = __get_first_vmap_area(n, addr, size);
-+        if (size <= cached_hole_size || addr < cached_start) {
-+                cached_hole_size = 0; 
-+                cached_start = addr;
-+                free_vmap_cache = NULL;
-+        }  
-+
-+	/* find starting point for our search */
-+	if (free_vmap_cache) {
-+		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-+	}
-+	else {
-+		n = vmap_area_root.rb_node;
-+		if (!n)
-+			goto found;
-+
-+		first = __get_first_vmap_area(n, addr, size);
- 		if (!first)
- 			goto found;
--		
--		ret = __get_vmap_area_addr(first, &addr, size, vend, align);
--		if (ret == VMAP_AREA_OVERFLOW)
--			goto overflow;
- 	}
-+	if (__get_vmap_area_addr(first, &addr, size, vend, align))
-+		goto overflow;
- found:
- 	if (addr + size > vend) {
- overflow:
-@@ -440,6 +461,7 @@ overflow:
- 	va->va_end = addr + size;
- 	va->flags = 0;
- 	__insert_vmap_area(va);
-+	free_vmap_cache = &va->rb_node;
- 	spin_unlock(&vmap_area_lock);
- 
- 	return va;
-@@ -455,6 +477,21 @@ static void rcu_free_va(struct rcu_head *head)
- static void __free_vmap_area(struct vmap_area *va)
- {
- 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-+	if (free_vmap_cache) {
-+		if (va->va_end < cached_start) {
-+			cached_hole_size = 0;
-+			cached_start = 0;
-+			free_vmap_cache = NULL;
-+		} else {
-+			struct vmap_area *cache;
-+			cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+			if (va->va_start <= cache->va_start) {
-+				free_vmap_cache = rb_prev(&va->rb_node);
-+				cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-+			}
-+		}
-+	}
-+
- 	rb_erase(&va->rb_node, &vmap_area_root);
- 	RB_CLEAR_NODE(&va->rb_node);
- 	list_del_rcu(&va->list);
--- 
-1.7.0.5
+ 	*pagep = NULL;
++	/* can't afford to recurse into fs due to stack reasons */
++	flags |= AOP_FLAG_NOFS;
+ 	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+ 								xfs_get_blocks);
+ }
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
