@@ -1,59 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 441EF6002CC
-	for <linux-mm@kvack.org>; Fri, 21 May 2010 20:34:01 -0400 (EDT)
-Date: Fri, 21 May 2010 17:32:15 -0400
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs: Insert tmpfs cache pages to inactive list at
- first
-Message-Id: <20100521173215.e2240f5b.akpm@linux-foundation.org>
-In-Reply-To: <20100522085421.1E72.A69D9226@jp.fujitsu.com>
-References: <20100521093629.1E44.A69D9226@jp.fujitsu.com>
-	<20100521115718.552d50dd.akpm@linux-foundation.org>
-	<20100522085421.1E72.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D438F6002CC
+	for <linux-mm@kvack.org>; Sat, 22 May 2010 04:20:00 -0400 (EDT)
+Date: Sat, 22 May 2010 10:19:52 +0200 (CEST)
+From: Julia Lawall <julia@diku.dk>
+Subject: [PATCH 5/27] mm: Use memdup_user
+Message-ID: <Pine.LNX.4.64.1005221019370.13021@ask.diku.dk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "Li, Shaohua" <shaohua.li@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 May 2010 09:04:30 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+From: Julia Lawall <julia@diku.dk>
 
-> > > -static inline void lru_cache_add_active_anon(struct page *page)
-> > > -{
-> > > -	__lru_cache_add(page, LRU_ACTIVE_ANON);
-> > > -}
-> > > -
-> > >  static inline void lru_cache_add_file(struct page *page)
-> > >  {
-> > >  	__lru_cache_add(page, LRU_INACTIVE_FILE);
-> > >  }
-> > >  
-> > > -static inline void lru_cache_add_active_file(struct page *page)
-> > > -{
-> > > -	__lru_cache_add(page, LRU_ACTIVE_FILE);
-> > > -}
-> > 
-> > Did you intend to remove these two functions?
-> 
-> This is for applying Hannes's commnet.
-> 
-> > They do appear to be unused now, but they still make sense and might be
-> > used in the future, perhaps.  
-> 
-> Personally, I don't like the strategy that anyone without me might
-> use this function in the future. because It often never come.
-> 
-> > It's OK to remove them, but I'm wondering
-> > if it was deliberately included in this patch?
-> 
-> Makes sense.
-> OK, please drop current patch at once. I'll post V2.
+Use memdup_user when user data is immediately copied into the
+allocated region.
 
-Is OK, let's keep the change.  I just wanted to check that it wasn't
-made accidentally.  
+The semantic patch that makes this change is as follows:
+(http://coccinelle.lip6.fr/)
+
+// <smpl>
+@@
+expression from,to,size,flag;
+position p;
+identifier l1,l2;
+@@
+
+-  to = \(kmalloc@p\|kzalloc@p\)(size,flag);
++  to = memdup_user(from,size);
+   if (
+-      to==NULL
++      IS_ERR(to)
+                 || ...) {
+   <+... when != goto l1;
+-  -ENOMEM
++  PTR_ERR(to)
+   ...+>
+   }
+-  if (copy_from_user(to, from, size) != 0) {
+-    <+... when != goto l2;
+-    -EFAULT
+-    ...+>
+-  }
+// </smpl>
+
+Signed-off-by: Julia Lawall <julia@diku.dk>
+
+---
+ mm/util.c |   11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/mm/util.c b/mm/util.c
+index f5712e8..4735ea4 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -225,15 +225,10 @@ char *strndup_user(const char __user *s, long n)
+ 	if (length > n)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	p = kmalloc(length, GFP_KERNEL);
++	p = memdup_user(s, length);
+ 
+-	if (!p)
+-		return ERR_PTR(-ENOMEM);
+-
+-	if (copy_from_user(p, s, length)) {
+-		kfree(p);
+-		return ERR_PTR(-EFAULT);
+-	}
++	if (IS_ERR(p))
++		return p;
+ 
+ 	p[length - 1] = '\0';
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
