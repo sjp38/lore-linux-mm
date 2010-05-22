@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A85356002CC
-	for <linux-mm@kvack.org>; Sat, 22 May 2010 04:35:52 -0400 (EDT)
-Message-ID: <4BF79761.5000402@cs.helsinki.fi>
-Date: Sat, 22 May 2010 11:35:45 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 01F196002CC
+	for <linux-mm@kvack.org>; Sat, 22 May 2010 04:38:01 -0400 (EDT)
+Received: by fxm11 with SMTP id 11so641349fxm.14
+        for <linux-mm@kvack.org>; Sat, 22 May 2010 01:37:59 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] slub: move kmem_cache_node into it's own cacheline
-References: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
-In-Reply-To: <20100521214135.23902.55360.stgit@gitlad.jf.intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20100521211452.659982351@quilx.com>
+References: <20100521211452.659982351@quilx.com>
+Date: Sat, 22 May 2010 11:37:59 +0300
+Message-ID: <AANLkTikU1cJR1FXKNbkSNeNUyihko1nTkSNMhE7Vq9Ip@mail.gmail.com>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Alexander Duyck <alexander.h.duyck@intel.com>
-Cc: cl@linux.com, linux-mm@kvack.org, alex.shi@intel.com, yanmin_zhang@linux.intel.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, rjw@sisk.pl
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Alexander Duyck wrote:
-> This patch is meant to improve the performance of SLUB by moving the local
-> kmem_cache_node lock into it's own cacheline separate from kmem_cache.
-> This is accomplished by simply removing the local_node when NUMA is enabled.
-> 
-> On my system with 2 nodes I saw around a 5% performance increase w/
-> hackbench times dropping from 6.2 seconds to 5.9 seconds on average.  I
-> suspect the performance gain would increase as the number of nodes
-> increases, but I do not have the data to currently back that up.
-> 
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
+On Sat, May 22, 2010 at 12:14 AM, Christoph Lameter <cl@linux.com> wrote:
+> SLEB is a merging of SLUB with some queuing concepts from SLAB and a new way
+> of managing objects in the slabs using bitmaps. It uses a percpu queue so that
+> free operations can be properly buffered and a bitmap for managing the
+> free/allocated state in the slabs. It is slightly more inefficient than
+> SLUB (due to the need to place large bitmaps --sized a few words--in some
+> slab pages if there are more than BITS_PER_LONG objects in a slab page) but
+> in general does compete well with SLUB (and therefore also with SLOB)
+> in terms of memory wastage.
 
-Thanks for the fix, Alexander!
+I merged patches 1-7 to "sleb/core" branch of slab.git if people want
+to test them:
 
-Yanmin and Alex, can I have your Tested-by or Acked-by please so we can 
-close "[Bug #15713] hackbench regression due to commit 9dfc6e68bfe6e" 
-after this patch is merged?
+http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=shortlog;h=refs/heads/sleb/core
 
-			Pekka
+I didn't put them in linux-next for obvious reasons.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
