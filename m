@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2CF446B01B2
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 10:03:57 -0400 (EDT)
-Received: by pvf33 with SMTP id 33so448847pvf.14
-        for <linux-mm@kvack.org>; Sun, 23 May 2010 07:03:55 -0700 (PDT)
-Date: Sun, 23 May 2010 23:03:48 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 0/3] mm: Swap checksum
-Message-ID: <20100523140348.GA10843@barrios-desktop>
-References: <4BF81D87.6010506@cesarb.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 224AE6002CC
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 11:19:53 -0400 (EDT)
+Message-ID: <4BF94792.5030405@redhat.com>
+Date: Sun, 23 May 2010 18:19:46 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BF81D87.6010506@cesarb.net>
+Subject: Re: [PATCH 3/3] mm: Swap checksum
+References: <4BF81D87.6010506@cesarb.net> <1274551731-4534-3-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <1274551731-4534-3-git-send-email-cesarb@cesarb.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 22, 2010 at 03:08:07PM -0300, Cesar Eduardo Barros wrote:
+On 05/22/2010 09:08 PM, Cesar Eduardo Barros wrote:
 > Add support for checksumming the swap pages written to disk, using the
 > same checksum as btrfs (crc32c). Since the contents of the swap do not
 > matter after a shutdown, the checksum is kept in memory only.
-> 
+>
 > Note that this code does not checksum the software suspend image.
-We have been used swap pages without checksum.
+>
+>
+>
+>   #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
+>   #define SWAP_FLAG_PRIO_MASK	0x7fff
+> @@ -180,6 +183,10 @@ struct swap_info_struct {
+>   	struct swap_extent *curr_swap_extent;
+>   	struct swap_extent first_swap_extent;
+>   	struct block_device *bdev;	/* swap device or bdev of swap file */
+> +#ifdef CONFIG_SWAP_CHECKSUM
+> +	unsigned short *csum_count;	/* usage count of a csum page */
+> +	u32 **csum;			/* vmalloc'ed array of swap csums */
+> +#endif
+>   	struct file *swap_file;		/* seldom referenced */
+>   	unsigned int old_block_size;	/* seldom referenced */
+>   };
+>    
 
-First of all, Could you explain why you need checksum on swap pages?
-Do you see any problem which swap pages are broken?
+On 64-bit, we may be able to store the checksum in the pte, if the swap 
+device is small enough.
 
-I could miss your claim at old disucussion thread in LKML.
+If we take the trouble to touch the page, we may as well compare it 
+against zero, and if so drop it instead of swapping it out.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
