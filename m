@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9266C6B01B2
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 14:32:58 -0400 (EDT)
-Message-ID: <4BF974D5.30207@cesarb.net>
-Date: Sun, 23 May 2010 15:32:53 -0300
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0842F6B01B1
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 14:58:14 -0400 (EDT)
+Message-ID: <4BF97AC2.1040505@cesarb.net>
+Date: Sun, 23 May 2010 15:58:10 -0300
 From: Cesar Eduardo Barros <cesarb@cesarb.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: Swap checksum
-References: <4BF81D87.6010506@cesarb.net> <20100523140348.GA10843@barrios-desktop>
-In-Reply-To: <20100523140348.GA10843@barrios-desktop>
+Subject: Re: [PATCH 3/3] mm: Swap checksum
+References: <4BF81D87.6010506@cesarb.net> <1274551731-4534-3-git-send-email-cesarb@cesarb.net> <4BF94792.5030405@redhat.com>
+In-Reply-To: <4BF94792.5030405@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Em 23-05-2010 11:03, Minchan Kim escreveu:
-> On Sat, May 22, 2010 at 03:08:07PM -0300, Cesar Eduardo Barros wrote:
->> Add support for checksumming the swap pages written to disk, using the
->> same checksum as btrfs (crc32c). Since the contents of the swap do not
->> matter after a shutdown, the checksum is kept in memory only.
->>
->> Note that this code does not checksum the software suspend image.
-> We have been used swap pages without checksum.
->
-> First of all, Could you explain why you need checksum on swap pages?
-> Do you see any problem which swap pages are broken?
+Em 23-05-2010 12:19, Avi Kivity escreveu:
+> On 64-bit, we may be able to store the checksum in the pte, if the swap
+> device is small enough.
 
-The same reason we need checksums in the filesystem.
+Which pte? Correct me if I am wrong, but I do not think all pages 
+written to the swap have exactly one pte pointing to them. And I have 
+not looked at the shmem.c code yet, but does it even use ptes?
 
-If you use btrfs as your root filesystem, you are protected by checksums 
-from damage in the filesystem, but not in the swap partition (which is 
-often in the same disk, and thus as vulnerable as the filesystem). It is 
-better to get a checksum error when swapping in than having a silently 
-corrupted page.
+It might be possible (find all ptes and write the 32-bit checksum to 
+them, do something else for shmem, have two different code paths for 
+small/large swapfiles), but I do not know if the memory savings are 
+worth the extra complexity (especially the need for two separate code 
+paths).
 
-If you add checksums to the swap, the only piece missing (besides the 
-partition table and bootloader, and the first one is solved by GPT, 
-which also has a checksum) is checksumming the software suspend image. 
-But it has a differente read/write path and different requirements (to 
-start with, the checksums must be written to the disk too, while for the 
-swap they can stay in memory only).
+> If we take the trouble to touch the page, we may as well compare it
+> against zero, and if so drop it instead of swapping it out.
+
+The problem with this is that the page is touched deep inside the crc32c 
+code, which might even be using hardware instructions (crc32c-intel). So 
+we would need to read it two times to compare against zero.
+
+One possibility could be to compare the full page against zero only if 
+its crc is a specific value (the crc32c of a page full of zeros). This 
+would not be too slow (we would be wasting time only when we have a very 
+high probability of saving much more time), and not need to touch the 
+crc32c code at all. I would only have to look at how this messes up the 
+state tracking (i.e. how to make it track the fact that, instead of 
+getting written out, this is now a zeroed page). Other than that, it 
+seems a good idea.
 
 -- 
 Cesar Eduardo Barros
