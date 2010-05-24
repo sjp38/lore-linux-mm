@@ -1,81 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 783516B01B0
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 21:58:14 -0400 (EDT)
-Date: Mon, 24 May 2010 09:31:34 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [RFC, 3/7] NUMA hotplug emulator
-Message-ID: <20100524013134.GB25893@shaohui>
-References: <20100513114835.GD2169@shaohui>
- <20100521100816.GA7906@in.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8133F6B01B0
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 22:05:51 -0400 (EDT)
+Received: by iwn39 with SMTP id 39so3300253iwn.14
+        for <linux-mm@kvack.org>; Sun, 23 May 2010 19:05:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100521100816.GA7906@in.ibm.com>
+In-Reply-To: <4BF9CF00.2030704@cesarb.net>
+References: <4BF81D87.6010506@cesarb.net>
+	<20100523140348.GA10843@barrios-desktop>
+	<4BF974D5.30207@cesarb.net>
+	<AANLkTil1kwOHAcBpsZ_MdtjLmCAFByvF4xvm8JJ7r7dH@mail.gmail.com>
+	<4BF9CF00.2030704@cesarb.net>
+Date: Mon, 24 May 2010 11:05:47 +0900
+Message-ID: <AANLkTin_BV6nWlmX6aXTaHvzH-DnsFIVxP5hz4aZYlqH@mail.gmail.com>
+Subject: Re: [PATCH 0/3] mm: Swap checksum
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, David Rientjes <rientjes@google.com>, Alex Chiang <achiang@hp.com>, linux-kernel@vger.kernel.org, ak@linux.intel.co, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com, Balbir Singh <balbir@in.ibm.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 21, 2010 at 03:38:16PM +0530, Ankita Garg wrote:
-> Hi,
-> 
-> On Thu, May 13, 2010 at 07:48:35PM +0800, Shaohui Zheng wrote:
-> > Userland interface to hotplug-add fake offlined nodes.
-> > 
-> > Add a sysfs entry "probe" under /sys/devices/system/node/:
-> > 
-> >  - to show all fake offlined nodes:
-> >     $ cat /sys/devices/system/node/probe
-> > 
-> >  - to hotadd a fake offlined node, e.g. nodeid is N:
-> >     $ echo N > /sys/devices/system/node/probe
-> > 
-> > Signed-off-by: Haicheng Li <haicheng.li@linux.intel.com>
-> > Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
-> > ---
-> > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> > index 9458685..2c078c8 100644
-> > --- a/arch/x86/Kconfig
-> > +++ b/arch/x86/Kconfig
-> > @@ -1214,6 +1214,20 @@ config NUMA_EMU
-> >  	  into virtual nodes when booted with "numa=fake=N", where N is the
-> >  	  number of nodes. This is only useful for debugging.
-> > 
-> > +config NUMA_HOTPLUG_EMU
-> > +	bool "NUMA hotplug emulator"
-> > +	depends on X86_64 && NUMA && HOTPLUG
-> > +	---help---
-> > +
-> > +config NODE_HOTPLUG_EMU
-> > +	bool "Node hotplug emulation"
-> > +	depends on NUMA_HOTPLUG_EMU && MEMORY_HOTPLUG
-> > +	---help---
-> > +	  Enable Node hotplug emulation. The machine will be setup with
-> > +	  hidden virtual nodes when booted with "numa=hide=N*size", where
-> > +	  N is the number of hidden nodes, size is the memory size per
-> > +	  hidden node. This is only useful for debugging.
-> > +
-> 
-> The above dependencies do not work as expected. I could configure
-> NUMA_HOTPLUG_EMU & NODE_HOTPLUG_EMU without having MEMORY_HOTPLUG
-> turned on. By pushing the above definition below SPARSEMEM and memory
-> hot add and remove, the dependencies could be sorted out.
-Ankita, 
-	The emulation code was tested by many times, but we did not try each 
-combination for the new options, good catching.
-    We will includes your suggestion in the formal patch. thanks so much.
-> 
-> -- 
-> Regards,                                                                        
-> Ankita Garg (ankita@in.ibm.com)                                                 
-> Linux Technology Center                                                         
-> IBM India Systems & Technology Labs,                                            
-> Bangalore, India
+On Mon, May 24, 2010 at 9:57 AM, Cesar Eduardo Barros <cesarb@cesarb.net> w=
+rote:
+> Em 23-05-2010 21:09, Minchan Kim escreveu:
+>>
+>> Hi, Cesar.
+>> I am not sure Cesar is first name. :)
+>
+> Yes, it is.
+>
+>> On Mon, May 24, 2010 at 3:32 AM, Cesar Eduardo Barros<cesarb@cesarb.net>
+>> =C2=A0wrote:
+>>>
+>>> Em 23-05-2010 11:03, Minchan Kim escreveu:
+>>>>
+>>>> We have been used swap pages without checksum.
+>>>>
+>>>> First of all, Could you explain why you need checksum on swap pages?
+>>>> Do you see any problem which swap pages are broken?
+>>>
+>>> The same reason we need checksums in the filesystem.
+>>>
+>>> If you use btrfs as your root filesystem, you are protected by checksum=
+s
+>>> from damage in the filesystem, but not in the swap partition (which is
+>>> often
+>>> in the same disk, and thus as vulnerable as the filesystem). It is bett=
+er
+>>> to
+>>> get a checksum error when swapping in than having a silently corrupted
+>>> page.
+>>
+>> Do you mean "vulnerable" is other file system or block I/O operation
+>> invades swap partition and breaks data of swap?
+>
+> Vulnerable in that the same kind of hardware problems which can silently
+> damage filesystem data in the disk can damage swap pages in the disk.
+>
+> This is the reason both btrfs and zfs checksum all their data and metadat=
+a.
+> However, the swap partition is still vulnerable (using a swap file is not=
+ a
+> solution, since the swap code bypasses the filesystem). And silent data
+> corruption in the swap partition could be even worse than in the filesyst=
+em
+> - while a program might not trust a file it is reading to not be corrupte=
+d,
+> almost all programs will trust their *memory* to not be corrupted.
+>
+> The internal ECC of the disk will not save you - a quick Google search fo=
+und
+> an instance of someone with silent data corruption caused by a faulty *po=
+wer
+> supply*.[1]
+>
+> And if it is silent corruption, without the checksums you will not notice=
+ it
+> - it will just be dismissed as "oh, Firefox just crashed again" or simila=
+r
+> (the same as bit flips on RAM without ECC).
 
--- 
-Thanks & Regards,
-Shaohui
+Thanks for kind explanation.
+
+When I read your comment, suddenly some thought occurred to me.
+If we can't believe ECC of the disk, why do we separate error
+detection logic between file system and swap disk?
+
+I mean it make sense that put crc detection into block layer?
+It can make sure any block I/O.
+
+And what's BER of disk?
+Is it usual to meet the problem?
+
+In normal desktop, some app killed are not critical. If the
+application is critical, maybe app have to logic fault handling.
+Firefox has session restore feature and Office program has temporal
+save feature.
+
+On the other hand, in server, does it designed well to use swap disk
+until we meet bit error of disk?
+
+My feel is that it seem to be rather overkill.
+
+>
+>> If it is, I think it's the problem of them. so we have to fix it
+>> before merged into mainline. But I admit human being always take a
+>> mistake so that we can miss it at review time. In such case, it would
+>> be very hard bug when swap pages are broken. I haven't hear about such
+>> problem until now but it might be useful if the problem happens.
+>> (Maybe they can't notice that due to hard bug to find)
+>>
+>> But I have a concern about breaking memory which includes crc by
+>> dangling pointer. In this case, swap block is correct but it would
+>> emit crc error.
+>>
+>> Do you have an idea making sure memory includes crc is correct?
+>
+> The swap checksum only protects the page against being silently corrupted
+> while on the disk and at least to some degree on the I/O path between the
+> memory and the disk. It does not protect against broken kernel-mode code
+> writing to the wrong address, nor against broken hardware (or hardware
+> misconfigured by broken drivers) doing DMA to wrong addresses. It also do=
+es
+> not protect against hardware errors in the RAM itself (you have ECC memor=
+y
+> for that).
+>
+> That is, the code assumes the memory containing the checksums will not be
+> corrupted, because if it is, you have worse problems (and the CRC error h=
+ere
+> would be a *good* thing, since it would make you notice something is not
+> quite right).
+>
+
+Which is high between BER of RAM and disk?
+It's a just question. :)
+
+>
+> [1] http://blogs.sun.com/elowe/entry/zfs_saves_the_day_ta
+>
+> --
+> Cesar Eduardo Barros
+> cesarb@cesarb.net
+> cesar.barros@gmail.com
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
