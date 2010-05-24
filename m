@@ -1,127 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 791946B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 02:23:59 -0400 (EDT)
-Date: Mon, 24 May 2010 16:23:48 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH] cache last free vmap_area to avoid restarting beginning
-Message-ID: <20100524062347.GS2516@laptop>
-References: <1271350270.2013.29.camel@barrios-desktop>
- <1271427056.7196.163.camel@localhost.localdomain>
- <1271603649.2100.122.camel@barrios-desktop>
- <1271681929.7196.175.camel@localhost.localdomain>
- <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
- <1272548602.7196.371.camel@localhost.localdomain>
- <1272821394.2100.224.camel@barrios-desktop>
- <1273063728.7196.385.camel@localhost.localdomain>
- <20100505161632.GB5378@laptop>
- <1274522033.1953.21.camel@barrios-desktop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id ACF116B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 02:41:28 -0400 (EDT)
+Message-ID: <4BFA1F92.2080802@redhat.com>
+Date: Mon, 24 May 2010 09:41:22 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1274522033.1953.21.camel@barrios-desktop>
+Subject: Re: [PATCH 3/3] mm: Swap checksum
+References: <4BF81D87.6010506@cesarb.net> <1274551731-4534-3-git-send-email-cesarb@cesarb.net> <4BF94792.5030405@redhat.com> <4BF97AC2.1040505@cesarb.net>
+In-Reply-To: <4BF97AC2.1040505@cesarb.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 22, 2010 at 06:53:53PM +0900, Minchan Kim wrote:
-> Hi, Nick.
-> Sorry for late review. 
+On 05/23/2010 09:58 PM, Cesar Eduardo Barros wrote:
+> Em 23-05-2010 12:19, Avi Kivity escreveu:
+>> On 64-bit, we may be able to store the checksum in the pte, if the swap
+>> device is small enough.
+>
+> Which pte? 
 
-No problem, thanks for reviewing.
+All of them.
 
- 
-> On Thu, 2010-05-06 at 02:16 +1000, Nick Piggin wrote:
-> > On Wed, May 05, 2010 at 01:48:48PM +0100, Steven Whitehouse wrote:
-> > @@ -348,11 +354,23 @@ retry:
-> >  	if (addr + size - 1 < addr)
-> >  		goto overflow;
-> >  
-> > -	/* XXX: could have a last_hole cache */
-> > -	n = vmap_area_root.rb_node;
-> > -	if (n) {
-> > -		struct vmap_area *first = NULL;
-> > +	if (size <= cached_hole_size || addr < cached_start || !free_vmap_cache) {
-> 
-> Do we need !free_vmap_cache check?
-> In __free_vmap_area, we already reset whole of variables when free_vmap_cache = NULL.
+> Correct me if I am wrong, but I do not think all pages written to the 
+> swap have exactly one pte pointing to them. And I have not looked at 
+> the shmem.c code yet, but does it even use ptes?
 
-You're right.
+Well, the ptes need the swap address written into them, so they are 
+already found and updated somehow.  All that's needed is to update the 
+value written to also include the checksum.
 
+> It might be possible (find all ptes and write the 32-bit checksum to 
+> them, do something else for shmem, have two different code paths for 
+> small/large swapfiles), but I do not know if the memory savings are 
+> worth the extra complexity (especially the need for two separate code 
+> paths).
 
-> > +		cached_hole_size = 0;
-> > +		cached_start = addr;
-> > +		free_vmap_cache = NULL;
-> > +	}
-> >  
-> > +	/* find starting point for our search */
-> > +	if (free_vmap_cache) {
-> > +		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-> > +		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> > +
-> > +	} else {
-> > +		n = vmap_area_root.rb_node;
-> > +		if (!n)
-> > +			goto found;
-> > +
-> > +		first = NULL;
-> >  		do {
-> >  			struct vmap_area *tmp;
-> >  			tmp = rb_entry(n, struct vmap_area, rb_node);
-> > @@ -369,26 +387,36 @@ retry:
-> >  		if (!first)
-> >  			goto found;
-> >  
-> > -		if (first->va_end < addr) {
-> > +		if (first->va_start < addr) {
-> 
-> I can't understand your intention.
-> Why do you change va_end with va_start?
+Certainly not at first, but later it may be worthwhile.
 
-Because we don't want an area which is spanning the start address. And
-it makes subsequent logic simpler.
+>
+>> If we take the trouble to touch the page, we may as well compare it
+>> against zero, and if so drop it instead of swapping it out.
+>
+> The problem with this is that the page is touched deep inside the 
+> crc32c code, which might even be using hardware instructions 
+> (crc32c-intel). So we would need to read it two times to compare 
+> against zero.
 
- 
-> > +			BUG_ON(first->va_end < addr);
-> 
-> And Why do you put this BUG_ON in here?
-> Could you elaborate on logic?
+The second read is very cheap since the page is already in cache.  Also, 
+we fail early when any word is nonzero, so usually the compare exits 
+quickly.
 
-It seems this is wrong, so I've removed it. This is the BUG that
-Steven hit, but there is another bug in there that my stress tester
-wasn't triggering.
+>
+> One possibility could be to compare the full page against zero only if 
+> its crc is a specific value (the crc32c of a page full of zeros). This 
+> would not be too slow (we would be wasting time only when we have a 
+> very high probability of saving much more time), and not need to touch 
+> the crc32c code at all. I would only have to look at how this messes 
+> up the state tracking (i.e. how to make it track the fact that, 
+> instead of getting written out, this is now a zeroed page).
 
-> 
-> >  			n = rb_next(&first->rb_node);
-> > +			addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> >  			if (n)
-> >  				first = rb_entry(n, struct vmap_area, rb_node);
-> >  			else
-> >  				goto found;
-> >  		}
-> > +		BUG_ON(first->va_start < addr);
-> 
-> Ditto. 
-
-Don't want an area spanning start address, as above.
+Instead of returning a swap pte to be written to the page tables, return 
+a zeroed pte.
 
 
-> >  	rb_erase(&va->rb_node, &vmap_area_root);
-> >  	RB_CLEAR_NODE(&va->rb_node);
-> >  	list_del_rcu(&va->list);
-> 
-> Hmm. I will send refactoring version soon. 
-> If you don't mind, let's discuss in there. :)
+> Other than that, it seems a good idea.
+>
 
-I just reworked the initial patch a little bit and fixed a bug in it,
-if we could instead do the refactoring on top of it, that would save
-me having to rediff?
 
-I'll post it shortly.
-
-Thanks,
-Nick
+-- 
+Do not meddle in the internals of kernels, for they are subtle and quick to panic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
