@@ -1,98 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 98BB96B01B0
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 22:14:16 -0400 (EDT)
-Date: Mon, 24 May 2010 09:47:34 +0800
-From: Shaohui Zheng <shaohui.zheng@intel.com>
-Subject: Re: [RFC, 0/7] NUMA Hotplug emulator
-Message-ID: <20100524014734.GC25893@shaohui>
-References: <20100513113629.GA2169@shaohui>
- <20100521093340.GA7024@in.ibm.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 791946B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 02:23:59 -0400 (EDT)
+Date: Mon, 24 May 2010 16:23:48 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] cache last free vmap_area to avoid restarting beginning
+Message-ID: <20100524062347.GS2516@laptop>
+References: <1271350270.2013.29.camel@barrios-desktop>
+ <1271427056.7196.163.camel@localhost.localdomain>
+ <1271603649.2100.122.camel@barrios-desktop>
+ <1271681929.7196.175.camel@localhost.localdomain>
+ <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
+ <1272548602.7196.371.camel@localhost.localdomain>
+ <1272821394.2100.224.camel@barrios-desktop>
+ <1273063728.7196.385.camel@localhost.localdomain>
+ <20100505161632.GB5378@laptop>
+ <1274522033.1953.21.camel@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100521093340.GA7024@in.ibm.com>
+In-Reply-To: <1274522033.1953.21.camel@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Ankita Garg <ankita@in.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com, Balbir Singh <balbir@in.ibm.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Steven Whitehouse <swhiteho@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 21, 2010 at 03:03:40PM +0530, Ankita Garg wrote:
-> 
-> I tried the patchset on a non-NUMA machine. So, inorder to create fake
-> NUMA nodes and be able to emulate the hotplug behavior, I used the
-> following commandline:
-> 
-> 	"numa=fake=4  numa=hide=2*2048"
-> 
-> on a machine with 8G memory. I expected to see 4 nodes, out of which 2
-> would be hidden. However, the system comes up the 4 online nodes and 2
-> offline nodes (thus a total of 6 nodes). While we could decide this to
-> be the semantics, however, I feel that numa=fake should define the total
-> number of nodes. So in the above case, the system should have come up
-> with 2 online nodes and 2 offline nodes.
-Ankita,
-	it is the expected result, NUMA_EMU and NUMA_HOTPLUG_EMU are 2 different
-features, there is no dependency between the 2 features. Even if you disable
-NUMA_EMU, the hotplug emualation still working, this implementatin reduces the 
-dependency, it make things simple and easy to understand.
-	You concern makes sense in semantices, but we do not pefer to combine 2 
-independent modules together.
-> 
-> Also, "numa=hide=N" could also be supported, with the size
-> of the hidden nodes being equal to the entire size of the node, with or
-> without numa=fake parameter.
-> 
-> On onlining one of the offline nodes, I see another issue that the
-> memory under it is not automatically brought online. For example:
-> 
-> #ls /sys/devices/system/node
-> .... node0 node1 node2..
-> 
-> #cat /sys/devices/system/node/probe
-> 3
-> 
-> #echo 3 > /sys/devices/system/node/probe
-> #ls /sys/devices/system/node
-> .... node0 node1 node2 node3
-> 
-> #cat /sys/devices/system/node/node3/meminfo
-> Node 3 MemTotal:              0 kB
-> Node 3 MemFree:               0 kB
-> Node 3 MemUsed:               0 kB
-> Node 3 Active:                0 kB
-> ......
-> 
-> i.e, as memory-less nodes. However, these nodes were designated to have
-> memory. So, on onlining the nodes, maybe we could have all their memory
-> brought into online state as well ?
-it is the same result with the real implemetation for memory hotplug in linux
- kernel, when we hot-add physical memory into machine, the linux kernel create
-  the memory entires and create the related data structure, but the OS will never
-online the memory, it should finish in user space. 
+On Sat, May 22, 2010 at 06:53:53PM +0900, Minchan Kim wrote:
+> Hi, Nick.
+> Sorry for late review. 
 
-the node hotplug emulation and memory hotplug emualtioni feature follows up the 
-same rules with the kernel.
+No problem, thanks for reviewing.
 
-As we know, when we allocate memory from a memory-less node, it will cause a
-OOM issue, Some engineer is already focus on this bug. Because of the OOM issue
-can be reproduced with the hotplug emulator, it helps the engineer so much.
+ 
+> On Thu, 2010-05-06 at 02:16 +1000, Nick Piggin wrote:
+> > On Wed, May 05, 2010 at 01:48:48PM +0100, Steven Whitehouse wrote:
+> > @@ -348,11 +354,23 @@ retry:
+> >  	if (addr + size - 1 < addr)
+> >  		goto overflow;
+> >  
+> > -	/* XXX: could have a last_hole cache */
+> > -	n = vmap_area_root.rb_node;
+> > -	if (n) {
+> > -		struct vmap_area *first = NULL;
+> > +	if (size <= cached_hole_size || addr < cached_start || !free_vmap_cache) {
+> 
+> Do we need !free_vmap_cache check?
+> In __free_vmap_area, we already reset whole of variables when free_vmap_cache = NULL.
 
-This feature is flexible. As I know, Some OSV already online the hotplug memory
-automatically, if the mainline kernel decide do the same thing, we will change 
-the related code, too.
+You're right.
+
+
+> > +		cached_hole_size = 0;
+> > +		cached_start = addr;
+> > +		free_vmap_cache = NULL;
+> > +	}
+> >  
+> > +	/* find starting point for our search */
+> > +	if (free_vmap_cache) {
+> > +		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
+> > +		addr = ALIGN(first->va_end + PAGE_SIZE, align);
+> > +
+> > +	} else {
+> > +		n = vmap_area_root.rb_node;
+> > +		if (!n)
+> > +			goto found;
+> > +
+> > +		first = NULL;
+> >  		do {
+> >  			struct vmap_area *tmp;
+> >  			tmp = rb_entry(n, struct vmap_area, rb_node);
+> > @@ -369,26 +387,36 @@ retry:
+> >  		if (!first)
+> >  			goto found;
+> >  
+> > -		if (first->va_end < addr) {
+> > +		if (first->va_start < addr) {
+> 
+> I can't understand your intention.
+> Why do you change va_end with va_start?
+
+Because we don't want an area which is spanning the start address. And
+it makes subsequent logic simpler.
+
+ 
+> > +			BUG_ON(first->va_end < addr);
+> 
+> And Why do you put this BUG_ON in here?
+> Could you elaborate on logic?
+
+It seems this is wrong, so I've removed it. This is the BUG that
+Steven hit, but there is another bug in there that my stress tester
+wasn't triggering.
 
 > 
-> -- 
-> Regards,                                                                        
-> Ankita Garg (ankita@in.ibm.com)                                                 
-> Linux Technology Center                                                         
-> IBM India Systems & Technology Labs,                                            
-> Bangalore, India
+> >  			n = rb_next(&first->rb_node);
+> > +			addr = ALIGN(first->va_end + PAGE_SIZE, align);
+> >  			if (n)
+> >  				first = rb_entry(n, struct vmap_area, rb_node);
+> >  			else
+> >  				goto found;
+> >  		}
+> > +		BUG_ON(first->va_start < addr);
+> 
+> Ditto. 
 
--- 
-Thanks & Regards,
-Shaohui
+Don't want an area spanning start address, as above.
+
+
+> >  	rb_erase(&va->rb_node, &vmap_area_root);
+> >  	RB_CLEAR_NODE(&va->rb_node);
+> >  	list_del_rcu(&va->list);
+> 
+> Hmm. I will send refactoring version soon. 
+> If you don't mind, let's discuss in there. :)
+
+I just reworked the initial patch a little bit and fixed a bug in it,
+if we could instead do the refactoring on top of it, that would save
+me having to rediff?
+
+I'll post it shortly.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
