@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id ACF116B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 02:41:28 -0400 (EDT)
-Message-ID: <4BFA1F92.2080802@redhat.com>
-Date: Mon, 24 May 2010 09:41:22 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B1E776B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 03:03:15 -0400 (EDT)
+Date: Mon, 24 May 2010 17:03:09 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+Message-ID: <20100524070309.GU2516@laptop>
+References: <20100521211452.659982351@quilx.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: Swap checksum
-References: <4BF81D87.6010506@cesarb.net> <1274551731-4534-3-git-send-email-cesarb@cesarb.net> <4BF94792.5030405@redhat.com> <4BF97AC2.1040505@cesarb.net>
-In-Reply-To: <4BF97AC2.1040505@cesarb.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100521211452.659982351@quilx.com>
 Sender: owner-linux-mm@kvack.org
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/23/2010 09:58 PM, Cesar Eduardo Barros wrote:
-> Em 23-05-2010 12:19, Avi Kivity escreveu:
->> On 64-bit, we may be able to store the checksum in the pte, if the swap
->> device is small enough.
->
-> Which pte? 
+Well I'm glad you've conceded that queues are useful for high
+performance computing, and that higher order allocations are not
+a free and unlimited resource.
 
-All of them.
+I hope we can move forward now with some objective, testable
+comparisons and criteria for selecting one main slab allocator.
 
-> Correct me if I am wrong, but I do not think all pages written to the 
-> swap have exactly one pte pointing to them. And I have not looked at 
-> the shmem.c code yet, but does it even use ptes?
-
-Well, the ptes need the swap address written into them, so they are 
-already found and updated somehow.  All that's needed is to update the 
-value written to also include the checksum.
-
-> It might be possible (find all ptes and write the 32-bit checksum to 
-> them, do something else for shmem, have two different code paths for 
-> small/large swapfiles), but I do not know if the memory savings are 
-> worth the extra complexity (especially the need for two separate code 
-> paths).
-
-Certainly not at first, but later it may be worthwhile.
-
->
->> If we take the trouble to touch the page, we may as well compare it
->> against zero, and if so drop it instead of swapping it out.
->
-> The problem with this is that the page is touched deep inside the 
-> crc32c code, which might even be using hardware instructions 
-> (crc32c-intel). So we would need to read it two times to compare 
-> against zero.
-
-The second read is very cheap since the page is already in cache.  Also, 
-we fail early when any word is nonzero, so usually the compare exits 
-quickly.
-
->
-> One possibility could be to compare the full page against zero only if 
-> its crc is a specific value (the crc32c of a page full of zeros). This 
-> would not be too slow (we would be wasting time only when we have a 
-> very high probability of saving much more time), and not need to touch 
-> the crc32c code at all. I would only have to look at how this messes 
-> up the state tracking (i.e. how to make it track the fact that, 
-> instead of getting written out, this is now a zeroed page).
-
-Instead of returning a swap pte to be written to the page tables, return 
-a zeroed pte.
-
-
-> Other than that, it seems a good idea.
->
-
-
--- 
-Do not meddle in the internals of kernels, for they are subtle and quick to panic.
+On Fri, May 21, 2010 at 04:14:52PM -0500, Christoph Lameter wrote:
+> (V2 some more work as time permitted this week)
+> 
+> SLEB is a merging of SLUB with some queuing concepts from SLAB and a new way
+> of managing objects in the slabs using bitmaps. It uses a percpu queue so that
+> free operations can be properly buffered and a bitmap for managing the
+> free/allocated state in the slabs. It is slightly more inefficient than
+> SLUB (due to the need to place large bitmaps --sized a few words--in some
+> slab pages if there are more than BITS_PER_LONG objects in a slab page) but
+> in general does compete well with SLUB (and therefore also with SLOB) 
+> in terms of memory wastage.
+> 
+> It does not have the excessive memory requirements of SLAB because
+> there is no slab management structure nor alien caches. Under NUMA
+> the remote shared caches are used instead (which may have its issues).
+> 
+> The SLAB scheme of not touching the object during management is adopted.
+> SLEB can efficiently free and allocate cache cold objects without
+> causing cache misses.
+> 
+> There are numerous SLAB schemes that are not supported. Those could be
+> added if needed and if they really make a difference.
+> 
+> WARNING: This only ran successfully using hackbench in kvm instances so far.
+> But works with NUMA, SMP and UP there.
+> 
+> V1->V2 Add NUMA capabilities. Refine queue size configurations (not complete).
+>    Test in UP, SMP, NUMA
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
