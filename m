@@ -1,56 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC866B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:20:06 -0400 (EDT)
-Subject: Re: [PATCH 3/7] numa-x86_64-use-generic-percpu-var-numa_node_id-implementation-fix1
-In-Reply-To: Your message of "Mon, 24 May 2010 10:41:52 EDT."
-             <1274712112.13756.177.camel@useless.americas.hpqcorp.net>
-From: Valdis.Kletnieks@vt.edu
-References: <20100503150455.15039.10178.sendpatchset@localhost.localdomain> <20100503150518.15039.3576.sendpatchset@localhost.localdomain> <20100521160240.b61d3404.akpm@linux-foundation.org> <1274710172.13756.122.camel@useless.americas.hpqcorp.net> <144644.1274710321@localhost>
-            <1274712112.13756.177.camel@useless.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1274732394_4243P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 24 May 2010 16:19:54 -0400
-Message-ID: <15817.1274732394@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C41956B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 19:46:36 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o4ONkVX4031924
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:31 -0700
+Received: from pvg2 (pvg2.prod.google.com [10.241.210.130])
+	by hpaq2.eem.corp.google.com with ESMTP id o4ONkTNC001058
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:29 -0700
+Received: by pvg2 with SMTP id 2so546108pvg.22
+        for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:28 -0700 (PDT)
+Date: Mon, 24 May 2010 16:46:24 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: TMPFS over NFSv4
+In-Reply-To: <20100524110903.72524853@lxorguk.ukuu.org.uk>
+Message-ID: <alpine.LSU.2.00.1005241624130.28773@sister.anvils>
+References: <AANLkTik47c6l3y8CdJ-hUCd2h3SRSb3qAtRovWryb8_p@mail.gmail.com> <alpine.LSU.2.00.1005211344440.7369@sister.anvils> <AANLkTil7I6q4wdLgmwZdRN6hb9LVVagN_7oGTIVNDhUk@mail.gmail.com> <AANLkTilMQjZaUom2h_aFgU6WB83IGH-VVKTg-CJD-_ZZ@mail.gmail.com>
+ <20100524110903.72524853@lxorguk.ukuu.org.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-numa@vger.kernel.org, Tejun Heo <tj@kernel.org>, Randy Dunlap <randy.dunlap@oracle.com>, Christoph Lameter <cl@linux-foundation.org>, eric.whitney@hp.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Greg KH <gregkh@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1274732394_4243P
-Content-Type: text/plain; charset=us-ascii
+Hi Greg,
 
-On Mon, 24 May 2010 10:41:52 EDT, Lee Schermerhorn said:
-> On Mon, 2010-05-24 at 10:12 -0400, Valdis.Kletnieks@vt.edu wrote:
-> > On Mon, 24 May 2010 10:09:32 EDT, Lee Schermerhorn said:
-> > > 
-> > > You asked about the fix3 patch [offlist] on Wednesday, 19May.  Do you
-> > > have that one in your tree?
-> >  
-> > numa-introduce-numa_mem_id-effective-local-memory-node-id-fix3.patch
-> > was in -mmotm0521.
+On Mon, 24 May 2010, Alan Cox wrote:
+> On Mon, 24 May 2010 02:57:30 -0700
+> Hugh Dickins <hughd@google.com> wrote:
+> > On Mon, May 24, 2010 at 2:26 AM, Tharindu Rukshan Bamunuarachchi
+> > <btharindu@gmail.com> wrote:
+> > > thankx a lot Hugh ... I will try this out ... (bit harder patch
+> > > already patched SLES kernel :-p ) ....
+> > 
+> > If patch conflicts are a problem, you really only need to put in the
+> > two-liner patch to mm/mmap.c: Alan was seeking perfection in
+> > the rest of the patch, but you can get away without it.
+> > 
+> > >
+> > > BTW, what does Alan means by "strict overcommit" ?
+> > 
+> > Ah, that phrase, yes, it's a nonsense, but many of us do say it by mistake.
+> > Alan meant to say "strict no-overcommit".
 > 
-> Right.  But, Andrew needs:
-> numa-x86_64-use-generic-percpu-var-numa_node_id-implementation-fix3 --
-> i.e., a fix to the 2nd patch of the percpu numa_*_id patch series.
+> No I always meant to say 'strict overcommit'. It avoids excess negatives
+> and "no noovercommit" discussions.
+> 
+> I guess 'strict overcommit control' would have been clearer 8)
+> 
+> Alan
 
--ENOCAFFIENE ;)
+I see we've just missed 2.6.27.47-rc1, but if there's to be an -rc2,
+please include Alan's 2.6.28 oops fix below: which Tharindu appears
+to be needing - just now discussed on linux-mm and linux-nfs.
+Failing that, please queue it up for 2.6.27.48.
 
---==_Exmh_1274732394_4243P
-Content-Type: application/pgp-signature
+Or if you'd prefer a smaller patch for -stable, then just the mm/mmap.c
+part of it should suffice: I think it's fair to say that the rest of the
+patch was more precautionary - as Alan describes, for catching other bugs,
+so good for an ongoing development tree, but not necessarily in -stable.
+(However, Alan may disagree - I've already misrepresented him once here!)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+Thanks,
+Hugh
 
-iD8DBQFL+t9qcC3lWbTT17ARAjj6AJ9IAJBDOiKtQOD/k5u9lQrS2GYERgCeNyd4
-9iR8CfKL67AFYE/I17h7w40=
-=uhbG
------END PGP SIGNATURE-----
+commit 731572d39fcd3498702eda4600db4c43d51e0b26
+Author: Alan Cox <alan@redhat.com>
+Date:   Wed Oct 29 14:01:20 2008 -0700
 
---==_Exmh_1274732394_4243P--
+    nfsd: fix vm overcommit crash
+    
+    Junjiro R.  Okajima reported a problem where knfsd crashes if you are
+    using it to export shmemfs objects and run strict overcommit.  In this
+    situation the current->mm based modifier to the overcommit goes through a
+    NULL pointer.
+    
+    We could simply check for NULL and skip the modifier but we've caught
+    other real bugs in the past from mm being NULL here - cases where we did
+    need a valid mm set up (eg the exec bug about a year ago).
+    
+    To preserve the checks and get the logic we want shuffle the checking
+    around and add a new helper to the vm_ security wrappers
+    
+    Also fix a current->mm reference in nommu that should use the passed mm
+    
+    [akpm@linux-foundation.org: coding-style fixes]
+    [akpm@linux-foundation.org: fix build]
+    Reported-by: Junjiro R. Okajima <hooanon05@yahoo.co.jp>
+    Acked-by: James Morris <jmorris@namei.org>
+    Signed-off-by: Alan Cox <alan@redhat.com>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+diff --git a/include/linux/security.h b/include/linux/security.h
+index f5c4a51..c13f1ce 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -1585,6 +1585,7 @@ int security_syslog(int type);
+ int security_settime(struct timespec *ts, struct timezone *tz);
+ int security_vm_enough_memory(long pages);
+ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
++int security_vm_enough_memory_kern(long pages);
+ int security_bprm_alloc(struct linux_binprm *bprm);
+ void security_bprm_free(struct linux_binprm *bprm);
+ void security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
+@@ -1820,6 +1821,11 @@ static inline int security_vm_enough_memory(long pages)
+ 	return cap_vm_enough_memory(current->mm, pages);
+ }
+ 
++static inline int security_vm_enough_memory_kern(long pages)
++{
++	return cap_vm_enough_memory(current->mm, pages);
++}
++
+ static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+ {
+ 	return cap_vm_enough_memory(mm, pages);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 74f4d15..de14ac2 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -175,7 +175,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 
+ 	/* Don't let a single process grow too big:
+ 	   leave 3% of the size of this process for other processes */
+-	allowed -= mm->total_vm / 32;
++	if (mm)
++		allowed -= mm->total_vm / 32;
+ 
+ 	/*
+ 	 * cast `allowed' as a signed long because vm_committed_space
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 2696b24..7695dc8 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1454,7 +1454,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 
+ 	/* Don't let a single process grow too big:
+ 	   leave 3% of the size of this process for other processes */
+-	allowed -= current->mm->total_vm / 32;
++	if (mm)
++		allowed -= mm->total_vm / 32;
+ 
+ 	/*
+ 	 * cast `allowed' as a signed long because vm_committed_space
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d38d7e6..0ed0752 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -161,8 +161,8 @@ static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
+  */
+ static inline int shmem_acct_size(unsigned long flags, loff_t size)
+ {
+-	return (flags & VM_ACCOUNT)?
+-		security_vm_enough_memory(VM_ACCT(size)): 0;
++	return (flags & VM_ACCOUNT) ?
++		security_vm_enough_memory_kern(VM_ACCT(size)) : 0;
+ }
+ 
+ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+@@ -179,8 +179,8 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+  */
+ static inline int shmem_acct_block(unsigned long flags)
+ {
+-	return (flags & VM_ACCOUNT)?
+-		0: security_vm_enough_memory(VM_ACCT(PAGE_CACHE_SIZE));
++	return (flags & VM_ACCOUNT) ?
++		0 : security_vm_enough_memory_kern(VM_ACCT(PAGE_CACHE_SIZE));
+ }
+ 
+ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
+diff --git a/security/security.c b/security/security.c
+index 255b085..c0acfa7 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -198,14 +198,23 @@ int security_settime(struct timespec *ts, struct timezone *tz)
+ 
+ int security_vm_enough_memory(long pages)
+ {
++	WARN_ON(current->mm == NULL);
+ 	return security_ops->vm_enough_memory(current->mm, pages);
+ }
+ 
+ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+ {
++	WARN_ON(mm == NULL);
+ 	return security_ops->vm_enough_memory(mm, pages);
+ }
+ 
++int security_vm_enough_memory_kern(long pages)
++{
++	/* If current->mm is a kernel thread then we will pass NULL,
++	   for this specific case that is fine */
++	return security_ops->vm_enough_memory(current->mm, pages);
++}
++
+ int security_bprm_alloc(struct linux_binprm *bprm)
+ {
+ 	return security_ops->bprm_alloc_security(bprm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
