@@ -1,154 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CB8766B01B0
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 21:09:38 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4O19abI020182
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 24 May 2010 10:09:36 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5609C45DE57
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3611445DE4F
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 166AA1DB803C
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D2B6CE08002
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:34 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: oom killer rewrite
-In-Reply-To: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
-Message-Id: <20100524100840.1E95.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 122ED6B01B0
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 21:53:18 -0400 (EDT)
+Date: Mon, 24 May 2010 09:26:39 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC, 6/7] NUMA hotplug emulator
+Message-ID: <20100524012639.GA25893@shaohui>
+References: <20100513120016.GG2169@shaohui>
+ <20100521101104.GB7906@in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 24 May 2010 10:09:34 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100521101104.GB7906@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Ankita Garg <ankita@in.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Andi Kleen <ak@linux.intel.com>, Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-> KOSAKI,
+On Fri, May 21, 2010 at 03:41:04PM +0530, Ankita Garg wrote:
+> Hi,
 > 
-> I've been notified that my entire oom killer rewrite has been dropped from 
-> -mm based solely on your feedback.  The problem is that I have absolutely 
-> no idea what issues you have with the changes that haven't already been 
-> addressed (nobody else does, either, it seems).
+> On Thu, May 13, 2010 at 08:00:16PM +0800, Shaohui Zheng wrote:
+> > hotplug emulator:extend memory probe interface to support NUMA
+> > 
+> > Signed-off-by: Shaohui Zheng <shaohui.zheng@intel.com>
+> > Signed-off-by: Haicheng Li <haicheng.li@intel.com>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> > index 54ccb0d..787024f 100644
+> > --- a/arch/x86/Kconfig
+> > +++ b/arch/x86/Kconfig
+> > @@ -1239,6 +1239,17 @@ config ARCH_CPU_PROBE_RELEASE
+> >  	  is for cpu hot-add/hot-remove to specified node in software method.
+> >  	  This is for debuging and testing purpose
+> > 
+> > +config ARCH_MEMORY_PROBE
+> 
+> The above symbol exists already...
+Yes, we create CONFIG_NUMA_HOTPLUG_EMU, CONFIG_NODE_HOTPLUG_EMU and CONFIG_ARCH_CPU_PROBE_RELEASE options,
+and move CONFIG_ARCH_MEMORY_PROBE together with the above 3 options.
 
-That's simple. A regression and an incompatibility are absolutely
-unacceptable. They should be removed. Your patches have some funny parts,
-but, afaik, nobody said funny requirement itself is wrong. They only said
-your requirement don't have to cause any pain to other users.
-
-Zero risk patches are always acceptable.
 
 > 
-> The last work I've done on the patches are to ask those involved in the 
-> review (including you) and linux-mm whether there were any outstanding 
-> issues that anyone has, and I've asked that twice.  I've received no 
-> response either time.
+> > +	def_bool y
+> > +	bool "Memory hotplug emulation"
+> > +	depends on NUMA_HOTPLUG_EMU
+> > +	---help---
+> > +	  Enable memory hotplug emulation. Reserve memory with grub parameter
+> > +	  "mem=N"(such as mem=1024M), where N is the initial memory size, the
+> > +	  rest physical memory will be removed from e820 table; the memory probe
+> > +	  interface is for memory hot-add to specified node in software method.
+> > +	  This is for debuging and testing purpose
+> > +
+> >  config NODES_SHIFT
+> >  	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
+> >  	range 1 10
 > 
-> Please respond with a list of your objections to the rewrite (which is 
-> available at 
-> http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite
-> so we can move forward.
+> 
+> -- 
+> Regards,                                                                        
+> Ankita Garg (ankita@in.ibm.com)                                                 
+> Linux Technology Center                                                         
+> IBM India Systems & Technology Labs,                                            
+> Bangalore, India
 
-I've reviewed all of your patches. the result is here.
-
-> oom-filter-tasks-not-sharing-the-same-cpuset.patch
-	ok, no objection.
-	I'm still afraid this patch reinstanciate old bug. but at that time,
-	we can drop it solely. this patch is enough bisectable.
-
-> oom-sacrifice-child-with-highest-badness-score-for-parent.patch
-	ok, no objection.
-	It's good patch.
-
-> oom-select-task-from-tasklist-for-mempolicy-ooms.patch
-	ok, no objection.
-
-> oom-remove-special-handling-for-pagefault-ooms.patch
-	ok, no objection.
-
-> oom-badness-heuristic-rewrite.patch
-	No. All of rewrite is bad idea. Please make separate some
-	individual patches.
-	All rewrite thing break bisectability. Perhaps it can steal
-	a lot of time from MM developers.
-	This patch have following parts.
-	1) Add oom_score_adj
-	2) OOM score normalization
-	3) forkbomb detector
-	4) oom_forkbomb_thres new knob
- 	5) Root user get 3% bonus instead 400%
-
-	all except (2) seems ok. but I'll review them again after separation.
-	but you can't insert your copyright. 
-
-> oom-deprecate-oom_adj-tunable.patch
-	NAK. you can't change userland use-case at all. This patch
-	only makes bug report flood and streal our time.
-
-> oom-replace-sysctls-with-quick-mode.patch
-	NAK. To change sysctl makes confusion to userland.
-	You have to prove such deprecated sysctl was alread unused.
-	But the fact is, there is users. I have hear some times such
-	use case and recent bug reporter said that's used.
-
-	https://bugzilla.kernel.org/show_bug.cgi?id=15058
-
-> oom-avoid-oom-killer-for-lowmem-allocations.patch
-	I don't like this one. 64bit arch have big (e.g. 2/4G)
-	DMA_ZONE/DMA32_ZONE. So, if we create small guest kernel
-	on KVM (or Xen), Killing processes may help. IOW, this
-	one is conceptually good. but this check way is brutal.
-
-	but even though it's ok. Let's go merge it. this patch is
-	enough small.
-	If any problem is occur, we can revert this one easily.
-
-
-> oom-remove-unnecessary-code-and-cleanup.patch
-	ok, no objection.
-
-> oom-default-to-killing-current-for-pagefault-ooms.patch
-	NAK.
-	1) this patch break panic_on_oom
-	2) At this merge window, Nick change almost all architecture's
-	   page hault handler. now almost all arch use
-	   pagefault_out_of_memory. your description has been a bit obsoleted.
-
-> oom-avoid-race-for-oom-killed-tasks-detaching-mm-prior-to-exit.patch
-	no objection. but afaik Oleg already pointed out "if (!p->mm)" is bad.
-	So, Don't we need push his patch instead?
-
-> oom-hold-tasklist_lock-when-dumping-tasks.patch
-	ok, no objection.
-
-> oom-give-current-access-to-memory-reserves-if-it-has-been-killed.patch
-	ok, no objection.
-
-> oom-avoid-sending-exiting-tasks-a-sigkill.patch
-	ok, no objection
-
-> oom-cleanup-oom_kill_task.patch
-	ok, no objection
-
-> oom-cleanup-oom_badness.patch
-	ok, no objection
-
-The above "no objection" mean you can feel free to use my reviewed-by tag.
-
-
-Thanks.
-
-
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
