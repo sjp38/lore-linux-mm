@@ -1,121 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B20EB6B01B1
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 21:04:39 -0400 (EDT)
-From: "Guo, Chaohong" <chaohong.guo@intel.com>
-Date: Mon, 24 May 2010 09:03:53 +0800
-Subject: RE: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
-Message-ID: <CF2F38D4AE21BB4CB845318E4C5ECB671E790500@shsmsx501.ccr.corp.intel.com>
-References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
-	 <20100520134359.fdfb397e.akpm@linux-foundation.org>
-	 <20100521105512.0c2cf254.sfr@canb.auug.org.au>
-	 <20100521134424.45e0ee36.kamezawa.hiroyu@jp.fujitsu.com>
-	 <4BF642BB.2020402@linux.intel.com>
-	 <20100521173940.8f130205.kamezawa.hiroyu@jp.fujitsu.com>
-	 <4BF64E79.4010401@linux.intel.com>
- <1274448107.9131.87.camel@useless.americas.hpqcorp.net>
-In-Reply-To: <1274448107.9131.87.camel@useless.americas.hpqcorp.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CB8766B01B0
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 21:09:38 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4O19abI020182
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 24 May 2010 10:09:36 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5609C45DE57
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3611445DE4F
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 166AA1DB803C
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:36 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D2B6CE08002
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 10:09:34 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: oom killer rewrite
+In-Reply-To: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com>
+Message-Id: <20100524100840.1E95.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 24 May 2010 10:09:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, minskey guo <chaohong_guo@linux.intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "prarit@redhat.com" <prarit@redhat.com>, "Kleen, Andi" <andi.kleen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, "stable@kernel.org" <stable@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi
+
+> KOSAKI,
+> 
+> I've been notified that my entire oom killer rewrite has been dropped from 
+> -mm based solely on your feedback.  The problem is that I have absolutely 
+> no idea what issues you have with the changes that haven't already been 
+> addressed (nobody else does, either, it seems).
+
+That's simple. A regression and an incompatibility are absolutely
+unacceptable. They should be removed. Your patches have some funny parts,
+but, afaik, nobody said funny requirement itself is wrong. They only said
+your requirement don't have to cause any pain to other users.
+
+Zero risk patches are always acceptable.
+
+> 
+> The last work I've done on the patches are to ask those involved in the 
+> review (including you) and linux-mm whether there were any outstanding 
+> issues that anyone has, and I've asked that twice.  I've received no 
+> response either time.
+> 
+> Please respond with a list of your objections to the rewrite (which is 
+> available at 
+> http://www.kernel.org/pub/linux/kernel/people/rientjes/oom-killer-rewrite
+> so we can move forward.
+
+I've reviewed all of your patches. the result is here.
+
+> oom-filter-tasks-not-sharing-the-same-cpuset.patch
+	ok, no objection.
+	I'm still afraid this patch reinstanciate old bug. but at that time,
+	we can drop it solely. this patch is enough bisectable.
+
+> oom-sacrifice-child-with-highest-badness-score-for-parent.patch
+	ok, no objection.
+	It's good patch.
+
+> oom-select-task-from-tasklist-for-mempolicy-ooms.patch
+	ok, no objection.
+
+> oom-remove-special-handling-for-pagefault-ooms.patch
+	ok, no objection.
+
+> oom-badness-heuristic-rewrite.patch
+	No. All of rewrite is bad idea. Please make separate some
+	individual patches.
+	All rewrite thing break bisectability. Perhaps it can steal
+	a lot of time from MM developers.
+	This patch have following parts.
+	1) Add oom_score_adj
+	2) OOM score normalization
+	3) forkbomb detector
+	4) oom_forkbomb_thres new knob
+ 	5) Root user get 3% bonus instead 400%
+
+	all except (2) seems ok. but I'll review them again after separation.
+	but you can't insert your copyright. 
+
+> oom-deprecate-oom_adj-tunable.patch
+	NAK. you can't change userland use-case at all. This patch
+	only makes bug report flood and streal our time.
+
+> oom-replace-sysctls-with-quick-mode.patch
+	NAK. To change sysctl makes confusion to userland.
+	You have to prove such deprecated sysctl was alread unused.
+	But the fact is, there is users. I have hear some times such
+	use case and recent bug reporter said that's used.
+
+	https://bugzilla.kernel.org/show_bug.cgi?id=15058
+
+> oom-avoid-oom-killer-for-lowmem-allocations.patch
+	I don't like this one. 64bit arch have big (e.g. 2/4G)
+	DMA_ZONE/DMA32_ZONE. So, if we create small guest kernel
+	on KVM (or Xen), Killing processes may help. IOW, this
+	one is conceptually good. but this check way is brutal.
+
+	but even though it's ok. Let's go merge it. this patch is
+	enough small.
+	If any problem is occur, we can revert this one easily.
 
 
->> >>
->> >>
->> >> @@ -2968,9 +2991,23 @@ static int __build_all_zonelists(void *d
->> >> ...
->> >>
->> >> -	for_each_possible_cpu(cpu)
->> >> +	for_each_possible_cpu(cpu) {
->> >> 		setup_pageset(&per_cpu(boot_pageset, cpu), 0);
->> >> ...
->> >>
->> >> +#ifdef CONFIG_HAVE_MEMORYLESS_NODES
->> >> + 	if (cpu_online(cpu))
->> >> +		cpu_to_mem(cpu) =3D local_memory_node(cpu_to_node(cpu));
->> >> +#endif
->>
->> Look at the above code,  int __build_all_zonelists(),  cpu_to_mem(cpu)
->> is set only when cpu is onlined.  Suppose that a node with local memory,
->> all memory segments are onlined first, and then,  cpus within that node
->> are onlined one by one,  in this case,  where does the cpu_to_mem(cpu)
->> for the last cpu get its value ?
->
->Minskey:
->
->As I mentioned to Kame-san, x86 does not define
->CONFIG_HAVE_MEMORYLESS_NODES, so this code is not compiled for that
->arch.  If x86 did support memoryless nodes--i.e., did not hide them and
->reassign the cpus to other nodes, as is the case for ia64--then we could
->have on-line cpus associated with memoryless nodes.  The code above is
->in __build_all_zonelists() so that in the case where we add memory to a
->previously memoryless node, we re-evaluate the "local memory node" for
->all online cpus.
->
->For cpu hotplug--again, if x86 supports memoryless nodes--we'll need to
->add a similar chunk to the path where we set up the cpu_to_node map for
->a hotplugged cpu.  See, for example, the call to set_numa_mem() in
->smp_callin() in arch/ia64/kernel/smpboot.c.=20
+> oom-remove-unnecessary-code-and-cleanup.patch
+	ok, no objection.
+
+> oom-default-to-killing-current-for-pagefault-ooms.patch
+	NAK.
+	1) this patch break panic_on_oom
+	2) At this merge window, Nick change almost all architecture's
+	   page hault handler. now almost all arch use
+	   pagefault_out_of_memory. your description has been a bit obsoleted.
+
+> oom-avoid-race-for-oom-killed-tasks-detaching-mm-prior-to-exit.patch
+	no objection. but afaik Oleg already pointed out "if (!p->mm)" is bad.
+	So, Don't we need push his patch instead?
+
+> oom-hold-tasklist_lock-when-dumping-tasks.patch
+	ok, no objection.
+
+> oom-give-current-access-to-memory-reserves-if-it-has-been-killed.patch
+	ok, no objection.
+
+> oom-avoid-sending-exiting-tasks-a-sigkill.patch
+	ok, no objection
+
+> oom-cleanup-oom_kill_task.patch
+	ok, no objection
+
+> oom-cleanup-oom_badness.patch
+	ok, no objection
+
+The above "no objection" mean you can feel free to use my reviewed-by tag.
 
 
-Yeah, that's what I am looking for.=20
+Thanks.
 
 
-
- But currently, I don't
->think you can use the numa_mem_id()/cpu_to_mem() interfaces for your
->purpose.  I suppose you could change page_alloc.c to compile
->local_memory_node() #if defined(CONFIG_HAVE_MEMORYLESS_NODES) ||
->defined
->(CPU_HOTPLUG) and use that function to find the nearest memory.  It
->should return a valid node after zonelists have been rebuilt.
->
->Does that make sense?
-
-Yes, besides,  I need to find a place in hotplug path to call set_numa_mem(=
-)
-just as you mentioned for ia64 platform.  Is my understanding right ?
-
-
-
-
-Thanks,
--minskey
-
-
-
-
-
-
-
-
->
->Lee
->>
->>
->> >
->> > So, cpu_to_node(cpu) for possible cpus will have NUMA_NO_NODE(-1)
->> > or the number of the nearest node.
->> >
->> > IIUC, if SRAT is not broken, all pxm has its own node_id.
->>
->> Thank you very much for the info,  I have been thinking why node_id
->> is (-1) in some cases.
->>
->>
->> -minskey
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
