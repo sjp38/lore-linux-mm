@@ -1,157 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8133F6B01B0
-	for <linux-mm@kvack.org>; Sun, 23 May 2010 22:05:51 -0400 (EDT)
-Received: by iwn39 with SMTP id 39so3300253iwn.14
-        for <linux-mm@kvack.org>; Sun, 23 May 2010 19:05:48 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 98BB96B01B0
+	for <linux-mm@kvack.org>; Sun, 23 May 2010 22:14:16 -0400 (EDT)
+Date: Mon, 24 May 2010 09:47:34 +0800
+From: Shaohui Zheng <shaohui.zheng@intel.com>
+Subject: Re: [RFC, 0/7] NUMA Hotplug emulator
+Message-ID: <20100524014734.GC25893@shaohui>
+References: <20100513113629.GA2169@shaohui>
+ <20100521093340.GA7024@in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <4BF9CF00.2030704@cesarb.net>
-References: <4BF81D87.6010506@cesarb.net>
-	<20100523140348.GA10843@barrios-desktop>
-	<4BF974D5.30207@cesarb.net>
-	<AANLkTil1kwOHAcBpsZ_MdtjLmCAFByvF4xvm8JJ7r7dH@mail.gmail.com>
-	<4BF9CF00.2030704@cesarb.net>
-Date: Mon, 24 May 2010 11:05:47 +0900
-Message-ID: <AANLkTin_BV6nWlmX6aXTaHvzH-DnsFIVxP5hz4aZYlqH@mail.gmail.com>
-Subject: Re: [PATCH 0/3] mm: Swap checksum
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100521093340.GA7024@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Ankita Garg <ankita@in.ibm.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.com, fengguang.wu@intel.com, haicheng.li@linux.intel.com, shaohui.zheng@linux.intel.com, Balbir Singh <balbir@in.ibm.com>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 24, 2010 at 9:57 AM, Cesar Eduardo Barros <cesarb@cesarb.net> w=
-rote:
-> Em 23-05-2010 21:09, Minchan Kim escreveu:
->>
->> Hi, Cesar.
->> I am not sure Cesar is first name. :)
->
-> Yes, it is.
->
->> On Mon, May 24, 2010 at 3:32 AM, Cesar Eduardo Barros<cesarb@cesarb.net>
->> =C2=A0wrote:
->>>
->>> Em 23-05-2010 11:03, Minchan Kim escreveu:
->>>>
->>>> We have been used swap pages without checksum.
->>>>
->>>> First of all, Could you explain why you need checksum on swap pages?
->>>> Do you see any problem which swap pages are broken?
->>>
->>> The same reason we need checksums in the filesystem.
->>>
->>> If you use btrfs as your root filesystem, you are protected by checksum=
-s
->>> from damage in the filesystem, but not in the swap partition (which is
->>> often
->>> in the same disk, and thus as vulnerable as the filesystem). It is bett=
-er
->>> to
->>> get a checksum error when swapping in than having a silently corrupted
->>> page.
->>
->> Do you mean "vulnerable" is other file system or block I/O operation
->> invades swap partition and breaks data of swap?
->
-> Vulnerable in that the same kind of hardware problems which can silently
-> damage filesystem data in the disk can damage swap pages in the disk.
->
-> This is the reason both btrfs and zfs checksum all their data and metadat=
-a.
-> However, the swap partition is still vulnerable (using a swap file is not=
- a
-> solution, since the swap code bypasses the filesystem). And silent data
-> corruption in the swap partition could be even worse than in the filesyst=
-em
-> - while a program might not trust a file it is reading to not be corrupte=
-d,
-> almost all programs will trust their *memory* to not be corrupted.
->
-> The internal ECC of the disk will not save you - a quick Google search fo=
-und
-> an instance of someone with silent data corruption caused by a faulty *po=
-wer
-> supply*.[1]
->
-> And if it is silent corruption, without the checksums you will not notice=
- it
-> - it will just be dismissed as "oh, Firefox just crashed again" or simila=
-r
-> (the same as bit flips on RAM without ECC).
+On Fri, May 21, 2010 at 03:03:40PM +0530, Ankita Garg wrote:
+> 
+> I tried the patchset on a non-NUMA machine. So, inorder to create fake
+> NUMA nodes and be able to emulate the hotplug behavior, I used the
+> following commandline:
+> 
+> 	"numa=fake=4  numa=hide=2*2048"
+> 
+> on a machine with 8G memory. I expected to see 4 nodes, out of which 2
+> would be hidden. However, the system comes up the 4 online nodes and 2
+> offline nodes (thus a total of 6 nodes). While we could decide this to
+> be the semantics, however, I feel that numa=fake should define the total
+> number of nodes. So in the above case, the system should have come up
+> with 2 online nodes and 2 offline nodes.
+Ankita,
+	it is the expected result, NUMA_EMU and NUMA_HOTPLUG_EMU are 2 different
+features, there is no dependency between the 2 features. Even if you disable
+NUMA_EMU, the hotplug emualation still working, this implementatin reduces the 
+dependency, it make things simple and easy to understand.
+	You concern makes sense in semantices, but we do not pefer to combine 2 
+independent modules together.
+> 
+> Also, "numa=hide=N" could also be supported, with the size
+> of the hidden nodes being equal to the entire size of the node, with or
+> without numa=fake parameter.
+> 
+> On onlining one of the offline nodes, I see another issue that the
+> memory under it is not automatically brought online. For example:
+> 
+> #ls /sys/devices/system/node
+> .... node0 node1 node2..
+> 
+> #cat /sys/devices/system/node/probe
+> 3
+> 
+> #echo 3 > /sys/devices/system/node/probe
+> #ls /sys/devices/system/node
+> .... node0 node1 node2 node3
+> 
+> #cat /sys/devices/system/node/node3/meminfo
+> Node 3 MemTotal:              0 kB
+> Node 3 MemFree:               0 kB
+> Node 3 MemUsed:               0 kB
+> Node 3 Active:                0 kB
+> ......
+> 
+> i.e, as memory-less nodes. However, these nodes were designated to have
+> memory. So, on onlining the nodes, maybe we could have all their memory
+> brought into online state as well ?
+it is the same result with the real implemetation for memory hotplug in linux
+ kernel, when we hot-add physical memory into machine, the linux kernel create
+  the memory entires and create the related data structure, but the OS will never
+online the memory, it should finish in user space. 
 
-Thanks for kind explanation.
+the node hotplug emulation and memory hotplug emualtioni feature follows up the 
+same rules with the kernel.
 
-When I read your comment, suddenly some thought occurred to me.
-If we can't believe ECC of the disk, why do we separate error
-detection logic between file system and swap disk?
+As we know, when we allocate memory from a memory-less node, it will cause a
+OOM issue, Some engineer is already focus on this bug. Because of the OOM issue
+can be reproduced with the hotplug emulator, it helps the engineer so much.
 
-I mean it make sense that put crc detection into block layer?
-It can make sure any block I/O.
+This feature is flexible. As I know, Some OSV already online the hotplug memory
+automatically, if the mainline kernel decide do the same thing, we will change 
+the related code, too.
 
-And what's BER of disk?
-Is it usual to meet the problem?
+> 
+> -- 
+> Regards,                                                                        
+> Ankita Garg (ankita@in.ibm.com)                                                 
+> Linux Technology Center                                                         
+> IBM India Systems & Technology Labs,                                            
+> Bangalore, India
 
-In normal desktop, some app killed are not critical. If the
-application is critical, maybe app have to logic fault handling.
-Firefox has session restore feature and Office program has temporal
-save feature.
-
-On the other hand, in server, does it designed well to use swap disk
-until we meet bit error of disk?
-
-My feel is that it seem to be rather overkill.
-
->
->> If it is, I think it's the problem of them. so we have to fix it
->> before merged into mainline. But I admit human being always take a
->> mistake so that we can miss it at review time. In such case, it would
->> be very hard bug when swap pages are broken. I haven't hear about such
->> problem until now but it might be useful if the problem happens.
->> (Maybe they can't notice that due to hard bug to find)
->>
->> But I have a concern about breaking memory which includes crc by
->> dangling pointer. In this case, swap block is correct but it would
->> emit crc error.
->>
->> Do you have an idea making sure memory includes crc is correct?
->
-> The swap checksum only protects the page against being silently corrupted
-> while on the disk and at least to some degree on the I/O path between the
-> memory and the disk. It does not protect against broken kernel-mode code
-> writing to the wrong address, nor against broken hardware (or hardware
-> misconfigured by broken drivers) doing DMA to wrong addresses. It also do=
-es
-> not protect against hardware errors in the RAM itself (you have ECC memor=
-y
-> for that).
->
-> That is, the code assumes the memory containing the checksums will not be
-> corrupted, because if it is, you have worse problems (and the CRC error h=
-ere
-> would be a *good* thing, since it would make you notice something is not
-> quite right).
->
-
-Which is high between BER of RAM and disk?
-It's a just question. :)
-
->
-> [1] http://blogs.sun.com/elowe/entry/zfs_saves_the_day_ta
->
-> --
-> Cesar Eduardo Barros
-> cesarb@cesarb.net
-> cesar.barros@gmail.com
->
-
-
-
---=20
-Kind regards,
-Minchan Kim
+-- 
+Thanks & Regards,
+Shaohui
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
