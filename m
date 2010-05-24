@@ -1,80 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 566956B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 15:51:03 -0400 (EDT)
-Message-ID: <4BFAD899.4020909@redhat.com>
-Date: Mon, 24 May 2010 15:50:49 -0400
-From: Ric Wheeler <rwheeler@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 81ECB6B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:04:12 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: RFC: dirty_ratio back to 40%
-References: <4BF51B0A.1050901@redhat.com> <20100521083408.1E36.A69D9226@jp.fujitsu.com> <4BF5D875.3030900@acm.org>
-In-Reply-To: <4BF5D875.3030900@acm.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <1b84523f-a7df-4d6a-870f-b684bd012230@default>
+Date: Mon, 24 May 2010 13:02:34 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Cleancache [PATCH 2/7] (was Transcendent Memory): core files
+References: <20100422132809.GA27302@ca-server1.us.oracle.com
+ 20100514231815.GY30031@ZenIV.linux.org.uk>
+In-Reply-To: <20100514231815.GY30031@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Zan Lynx <zlynx@acm.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, lwoodman@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Jan Kara <jack@suse.cz>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: chris.mason@oracle.com, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 05/20/2010 08:48 PM, Zan Lynx wrote:
-> On 5/20/10 5:48 PM, KOSAKI Motohiro wrote:
->> Hi
->>
->> CC to Nick and Jan
->>
->>> We've seen multiple performance regressions linked to the lower(20%)
->>> dirty_ratio.  When performing enough IO to overwhelm the background
->>> flush daemons the percent of dirty pagecache memory quickly climbs
->>> to the new/lower dirty_ratio value of 20%.  At that point all writing
->>> processes are forced to stop and write dirty pagecache pages back to 
->>> disk.
->>> This causes performance regressions in several benchmarks as well as 
->>> causing
->>> a noticeable overall sluggishness.  We all know that the dirty_ratio is
->>> an integrity vs performance trade-off but the file system journaling
->>> will cover any devastating effects in the event of a system crash.
->>>
->>> Increasing the dirty_ratio to 40% will regain the performance loss seen
->>> in several benchmarks.  Whats everyone think about this???
->>
->> In past, Jan Kara also claim the exactly same thing.
->>
->>     Subject: [LSF/VM TOPIC] Dynamic sizing of dirty_limit
->>     Date: Wed, 24 Feb 2010 15:34:42 +0100
->>
->> >  (*) We ended up increasing dirty_limit in SLES 11 to 40% as it 
->> used to be
->> >  with old kernels because customers running e.g. LDAP (using BerkelyDB
->> >  heavily) were complaining about performance problems.
->>
->> So, I'd prefer to restore the default rather than both Redhat and 
->> SUSE apply exactly
->> same distro specific patch. because we can easily imazine other users 
->> will face the same
->> issue in the future.
->
-> On desktop systems the low dirty limits help maintain interactive 
-> feel. Users expect applications that are saving data to be slow. They 
-> do not like it when every application in the system randomly comes to 
-> a halt because of one program stuffing data up to the dirty limit.
->
-> The cause and effect for the system slowdown is clear when the dirty 
-> limit is low. "I saved data and now the system is slow until it is 
-> done." When the dirty page ratio is very high, the cause and effect is 
-> disconnected. "I was just web surfing and the system came to a halt."
->
-> I think we should expect server admins to do more tuning than desktop 
-> users, so the default limits should stay low in my opinion.
->
+> From: Al Viro [mailto:viro@ZenIV.linux.org.uk]
+> Subject: Re: Cleancache [PATCH 2/7] (was Transcendent Memory): core files
 
-Have you done any performance testing that shows this?
+Hi Al!
 
-A laptop the smaller default would spin up drives more often and greatly 
-decrease your battery life.
+Thanks for the feedback!  Sorry for the delayed response.
 
-Note that both SLES and RHEL default away from the upstream default.
+> ...again, use sane types...
 
-Ric
+Good point.  Will fix types for next rev (using size_t, ino_t,
+and pgoff_t).
+
+> > +=09int (*get_page)(int, unsigned long, unsigned long, struct page *);
+>=20
+> Ugh.  First of all, presumably you have some structure behind that
+> index, don't you?  Might be a better way to do it.
+
+Not quite sure what you mean here.  The index is really
+just part of a unique handle for cleancache to identify
+the (page of) data.
+
+> What's more, use of ->i_ino is simply wrong.  How stable do you want that
+> to be and how much do you want it to outlive struct address_space in ques=
+tion?
+> From my reading of your code, it doesn't outlive that anyway, so...
+
+Unless I misunderstand your point, no, the inode never outlives
+the address space because the specification requires the kernel
+to ensure coherency; if the inode were about to outlive the
+address space, the cleancache_flush operations must be invoked
+(and I think the patch covers all the necessary cases).
+
+> The third one is pgoff_t; again, use sane types, _if_ you actually want
+> the argument #3 at all - it can be derived from struct page you are
+> passing there as well.
+
+I thought it best to declare the _ops so that the struct page
+is opaque to the "backend" (driver).  The kernel-side ("frontend")
+defines the handle and ensures coherency, so the backend shouldn't
+be allowed to derive or muck with the three-tuple passed by the
+kernel. In the existing (Xen tmem) driver, the only operation
+performed on the struct page parameter is page_to_pfn().  OTOH,
+I could go one step further and pass a pfn_t instead of a
+struct page, since it is really only the physical page frame that
+the backend needs to know about and (synchronously) read/write from/to.
+
+Thoughts?
+
+Thanks again!
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
