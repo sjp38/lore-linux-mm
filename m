@@ -1,113 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D376B01B0
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 15:57:18 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id o4PJvEDp017387
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 12:57:15 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by hpaq12.eem.corp.google.com with ESMTP id o4PJvCix005787
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 12:57:13 -0700
-Received: by pwj9 with SMTP id 9so3377856pwj.38
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 12:57:11 -0700 (PDT)
-Date: Tue, 25 May 2010 12:57:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-In-Reply-To: <AANLkTin5PNELUXc6oCHadVyX-YcAEalRSppjz4GMyIBh@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1005251247090.20631@chino.kir.corp.google.com>
-References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com> <20100525070734.GC5087@laptop>
- <AANLkTimhTfz_mMWNh_r18yapNxSDjA7wRDnFM6L5aIdE@mail.gmail.com> <alpine.DEB.2.00.1005250257100.8045@chino.kir.corp.google.com> <AANLkTin5PNELUXc6oCHadVyX-YcAEalRSppjz4GMyIBh@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 017526B01B0
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 16:01:55 -0400 (EDT)
+Message-ID: <4BFC2CB2.9050305@tauceti.net>
+Date: Tue, 25 May 2010 22:01:54 +0200
+From: Robert Wimmer <kernel@tauceti.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
+References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain> <4BD61147.40709@tauceti.net> <1272324536.16814.45.camel@localhost.localdomain> <4BD76B81.2070606@tauceti.net> <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net> <4BE33259.3000609@tauceti.net> <1273181438.22155.26.camel@localhost.localdomain> <4BEC6A5D.5070304@tauceti.net> <1273785234.22932.14.camel@localhost.localdomain> <a133ef4ed022a00afd40b505719ae3d2@tauceti.net>
+In-Reply-To: <a133ef4ed022a00afd40b505719ae3d2@tauceti.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 May 2010, Pekka Enberg wrote:
+Hi Trond,
 
-> > The code may be much cleaner and simpler than slab, but nobody (to date)
-> > has addressed the significant netperf TCP_RR regression that slub has, for
-> > example. I worked on a patchset to do that for a while but it wasn't
-> > popular because it added some increments to the fastpath for tracking
-> > data.
-> 
-> Yes and IIRC I asked you to resend the series because while I care a
-> lot about performance regressions, I simply don't have the time or the
-> hardware to reproduce and fix the weird cases you're seeing.
-> 
+just a little reminder ;-)
 
-My patchset still never attained parity with slab even though it improved 
-slub's performance for that specific benchmark on my 16-core machine with 
-64G of memory:
+Thanks!
+Robert
 
-	# threads	SLAB		SLUB		SLUB+patchset
-	16		69892		71592		69505
-	32		126490		95373		119731
-	48		138050		113072		125014
-	64		169240		149043		158919
-	80		192294		172035		179679
-	96		197779		187849		192154
-	112		217283		204962		209988
-	128		229848		217547		223507
-	144		238550		232369		234565
-	160		250333		239871		244789
-	176		256878		242712		248971
-	192		261611		243182		255596
-
-CONFIG_SLUB_STATS demonstrates that the kmalloc-256 and kmalloc-2048 are
-performing quite poorly without the changes:
-
-	cache		ALLOC_FASTPATH	ALLOC_SLOWPATH
-	kmalloc-256	98125871	31585955
-	kmalloc-2048	77243698	52347453
-
-	cache		FREE_FASTPATH	FREE_SLOWPATH
-	kmalloc-256	173624		129538000
-	kmalloc-2048	90520		129500630
-
-When you have these type of results, it's obvious why slub is failing to 
-achieve the same performance as slab.  With the slub fastpath percpu work 
-that has been done recently, it might be possible to resurrect my patchset 
-and get more positive feedback because the penalty won't be as a 
-significant, but the point is that slub still fails to achieve the same 
-results that slab can with heavy networking loads.  Thus, I think any 
-discussion about removing slab is premature until it's no longer shown to 
-be a clear winner in comparison to its replacement, whether that is slub, 
-slqb, sleb, or another allocator.  I agree that slub is clearly better in 
-terms of maintainability, but we simply can't use it because of its 
-performance for networking loads.
-
-If you want to duplicate these results on machines with a larger number of 
-cores, just download netperf, run with CONFIG_SLUB on both netserver and 
-netperf machines, and use this script:
-
-#!/bin/bash
-
-TIME=60				# seconds
-HOSTNAME=<hostname>		# netserver
-
-NR_CPUS=$(grep ^processor /proc/cpuinfo | wc -l)
-echo NR_CPUS=$NR_CPUS
-
-run_netperf() {
-	for i in $(seq 1 $1); do
-		netperf -H $HOSTNAME -t TCP_RR -l $TIME &
-	done
-}
-
-ITERATIONS=0
-while [ $ITERATIONS -lt 12 ]; do
-	RATE=0
-	ITERATIONS=$[$ITERATIONS + 1]	
-	THREADS=$[$NR_CPUS * $ITERATIONS]
-	RESULTS=$(run_netperf $THREADS | grep -v '[a-zA-Z]' | awk '{ print $6 }')
-
-	for j in $RESULTS; do
-		RATE=$[$RATE + ${j/.*}]
-	done
-	echo threads=$THREADS rate=$RATE
-done
+On 05/20/10 09:39, kernel@tauceti.net wrote:
+> Hi Trond,
+>
+> have you had some time to download the wireshark dump?
+>
+> Thanks!
+> Robert
+>
+> On Thu, 13 May 2010 17:13:54 -0400, Trond Myklebust
+> <Trond.Myklebust@netapp.com> wrote:
+>   
+>> On Thu, 2010-05-13 at 23:08 +0200, Robert Wimmer wrote: 
+>>     
+>>> Finally I've had some time to do the next test.
+>>> Here is a wireshark dump (~750 MByte):
+>>> http://213.252.12.93/2.6.34-rc5.cap.gz
+>>>
+>>> dmesg output after page allocation failure:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26371
+>>>
+>>> stack trace before page allocation failure:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26369
+>>>
+>>> stack trace after page allocation failure:
+>>> https://bugzilla.kernel.org/attachment.cgi?id=26370
+>>>
+>>> I hope the wireshark dump is not to big to download.
+>>> It was created with
+>>> tshark -f "tcp port 2049" -i eth0 -w 2.6.34-rc5.cap
+>>>
+>>> Thanks!
+>>> Robert
+>>>       
+>> Hi Robert,
+>>
+>> I tried the above wireshark dump URL, but it appears to point to an
+>> empty file.
+>>
+>> Cheers
+>>   Trond
+>>     
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
