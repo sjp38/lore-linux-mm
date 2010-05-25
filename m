@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3F8AC6B01AD
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 17:54:38 -0400 (EDT)
-Received: by wyf19 with SMTP id 19so499565wyf.14
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 14:54:33 -0700 (PDT)
-Date: Tue, 25 May 2010 23:54:01 +0200
-From: Dan Carpenter <error27@gmail.com>
-Subject: [patch] mempolicy: ERR_PTR dereference in mpol_shared_policy_init()
-Message-ID: <20100525215401.GA2506@bicker>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EF35C6B01AD
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 18:13:49 -0400 (EDT)
+Message-ID: <4BFC4B9D.1080902@yahoo.es>
+Date: Wed, 26 May 2010 00:13:49 +0200
+From: Albert Herranz <albert_herranz@yahoo.es>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [Bulk] Re: page_mkwrite vs pte dirty race in fb_defio
+References: <20100525160149.GE20853@laptop> <4BFC1657.5000707@yahoo.es> <20100525184700.GJ20853@laptop>
+In-Reply-To: <20100525184700.GJ20853@laptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: aya Kumar <jayakumar.lkml@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fbdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The original code called mpol_put(new) while "new" was an ERR_PTR.
+On 05/25/2010 08:47 PM, Nick Piggin wrote:
+>>> I hope that should provide a more elegant solution to your problem. I
+>>> would really like you to take a look at that, because we already have
+>>> filesystem code (NFS) relying on it, and more code we have relying on
+>>> this synchronization, the more chance we would find a subtle problem
+>>> with it (also it should be just nicer).
+>>
+>> So if I undestand it correctly, using the "new" calling convention I should just lock the page on fb_deferred_io_mkwrite() and return VM_FAULT_LOCKED to fix the described race for fb_defio.
+> 
+> As far as I can see from quick reading of the fb_defio code, yes
+> that should solve it (provided you lock the page inside the mutex,
+> of course).
+> 
 
-Signed-off-by: Dan Carpenter <error27@gmail.com>
+Ok, thanks. I'm posting a new version as RFT.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 7575101..5d6fb33 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2098,7 +2098,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
- 		/* contextualize the tmpfs mount point mempolicy */
- 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
- 		if (IS_ERR(new))
--			goto put_free; /* no valid nodemask intersection */
-+			goto free_scratch; /* no valid nodemask intersection */
- 
- 		task_lock(current);
- 		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
-@@ -2114,6 +2114,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
- 
- put_free:
- 		mpol_put(new);			/* drop initial ref */
-+free_scratch:
- 		NODEMASK_SCRATCH_FREE(scratch);
- 	}
- }
+Cheers,
+Albert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
