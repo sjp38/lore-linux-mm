@@ -1,43 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D191F620202
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:12:37 -0400 (EDT)
-Date: Wed, 26 May 2010 01:12:32 +1000
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B0453620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:17:44 -0400 (EDT)
+Date: Tue, 25 May 2010 08:13:50 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525151232.GT5087@laptop>
-References: <20100521211452.659982351@quilx.com>
- <20100524070309.GU2516@laptop>
- <alpine.DEB.2.00.1005240852580.5045@router.home>
- <20100525020629.GA5087@laptop>
- <alpine.DEB.2.00.1005250859050.28941@router.home>
- <20100525144037.GQ5087@laptop>
- <alpine.DEB.2.00.1005250948180.29543@router.home>
+In-Reply-To: <AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
+Message-ID: <alpine.LFD.2.00.1005250812100.3689@i5.linux-foundation.org>
+References: <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com> <20100525070734.GC5087@laptop> <AANLkTimhTfz_mMWNh_r18yapNxSDjA7wRDnFM6L5aIdE@mail.gmail.com>
+ <20100525081634.GE5087@laptop> <AANLkTilJBY0sinB365lIZFUaMgMCZ1xyhMdXRTJTVDSV@mail.gmail.com> <20100525093410.GH5087@laptop> <AANLkTikXp5LlKLK1deKOQpciUFNugjlQah5QpNcImf39@mail.gmail.com> <20100525101924.GJ5087@laptop>
+ <AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1005250948180.29543@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 09:48:56AM -0500, Christoph Lameter wrote:
-> On Wed, 26 May 2010, Nick Piggin wrote:
-> 
-> > And by the way I disagreed completely that this is a problem. And you
-> > never demonstrated that it is a problem.
-> >
-> > It's totally unproductive to say things like it implements its own
-> > "NUMAness" aside from the page allocator. I can say SLUB implements its
-> > own "numaness" because it is checking for objects matching NUMA
-> > requirements too.
-> 
-> SLAB implement numa policies etc in the SLAB logic. It has its own rotor
-> now.
 
-We all know. I am saying it is unproductive because you just claim
-that it is some fundamental problem without why it is a problem.
+
+On Tue, 25 May 2010, Pekka Enberg wrote:
+> 
+> I would have liked to see SLQB merged as well but it just didn't happen.
+
+And it's not going to. I'm not going to merge YASA that will stay around 
+for years, not improve on anything, and will just mean that there are some 
+bugs that developers don't see because they depend on some subtle 
+interaction with the sl*b allocator.
+
+We've got three. That's at least one too many. We're not adding any new 
+ones until we've gotten rid of at least one old one.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
