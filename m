@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C28AF620202
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 10:40:43 -0400 (EDT)
-Date: Wed, 26 May 2010 00:40:37 +1000
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 62530620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 10:43:27 -0400 (EDT)
+Date: Wed, 26 May 2010 00:43:22 +1000
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525144037.GQ5087@laptop>
+Message-ID: <20100525144322.GR5087@laptop>
 References: <20100521211452.659982351@quilx.com>
  <20100524070309.GU2516@laptop>
  <alpine.DEB.2.00.1005240852580.5045@router.home>
  <20100525020629.GA5087@laptop>
  <alpine.DEB.2.00.1005250859050.28941@router.home>
+ <20100525143409.GP5087@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1005250859050.28941@router.home>
+In-Reply-To: <20100525143409.GP5087@laptop>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 09:13:37AM -0500, Christoph Lameter wrote:
-> On Tue, 25 May 2010, Nick Piggin wrote:
+On Wed, May 26, 2010 at 12:34:09AM +1000, Nick Piggin wrote:
+> On Tue, May 25, 2010 at 09:13:37AM -0500, Christoph Lameter wrote:
+> > The queues sacrifice a lot there. The linked list does not allow managing
+> > cache cold objects like SLAB does because you always need to touch the
+> > object and this will cause regressions against SLAB. I think this is also
+> > one of the weaknesses of SLQB.
 > 
-> > On Mon, May 24, 2010 at 10:06:08AM -0500, Christoph Lameter wrote:
-> > > On Mon, 24 May 2010, Nick Piggin wrote:
-> > >
-> > > > Well I'm glad you've conceded that queues are useful for high
-> > > > performance computing, and that higher order allocations are not
-> > > > a free and unlimited resource.
-> > >
-> > > Ahem. I have never made any such claim and would never make them. And
-> > > "conceding" something ???
-> >
-> > Well, you were quite vocal about the subject.
+> But this is just more handwaving. That's what got us into this situation
+> we are in now.
 > 
-> I was always vocal about the huge amounts of queues and the complexity
-> coming with alien caches etc. The alien caches were introduced against my
-> objections on the development team that did the NUMA slab. But even SLUB
-> has "queues" as many have repeatedly pointed out. The queuing is
-> different though in order to minimize excessive NUMA queueing. IMHO the
-> NUMA design of SLAB has fundamental problems because it implements its own
-> "NUMAness" aside from the page allocator.
+> What we know is that SLAB is still used by all high performance
+> enterprise distros (and google). And it is used by Altixes in production
+> as well as all other large NUMA machines that Linux runs on.
+> 
+> Given that information, how can you still say that SLUB+more big changes
+> is the right way to proceed?
 
-And by the way I disagreed completely that this is a problem. And you
-never demonstrated that it is a problem.
+Might I add that once SLAB code is cleaned up, you can always propose
+improvements from SLUB or any other ideas for it which we can carefully
+test and merge in slowly as bisectable changes to our benchmark
+performance slab allocator.
 
-It's totally unproductive to say things like it implements its own
-"NUMAness" aside from the page allocator. I can say SLUB implements its
-own "numaness" because it is checking for objects matching NUMA
-requirements too.
+In fact, if you have better ideas in SLEB, I would encourage it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
