@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 27AF76008F1
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 04:53:36 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 860FF6008F1
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 04:53:41 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 5/5] xfs: make use of new shrinker callout
-Date: Tue, 25 May 2010 18:53:08 +1000
-Message-Id: <1274777588-21494-6-git-send-email-david@fromorbit.com>
+Subject: [PATCH 3/5] superblock: introduce per-sb cache shrinker infrastructure
+Date: Tue, 25 May 2010 18:53:06 +1000
+Message-Id: <1274777588-21494-4-git-send-email-david@fromorbit.com>
 In-Reply-To: <1274777588-21494-1-git-send-email-david@fromorbit.com>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,342 +15,507 @@ List-ID: <linux-mm.kvack.org>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Convert the inode reclaim shrinker to use the new per-sb shrinker
-operations.  This fixes a bunch of lockdep warnings about the
-xfs_mount_list_lock being taken in different reclaim contexts by
-removing it, and allows the reclaim to be proportioned across
-filesystems with no extra code.
+With context based shrinkers, we can implement a per-superblock
+shrinker that shrinks the caches attached to the superblock. We
+currently have global shrinkers for the inode and dentry caches that
+split up into per-superblock operations via a coarse proportioning
+method that does not batch very well.  The global shrinkers also
+have a dependency - dentries pin inodes - so we have to be very
+careful about how we register the global shrinkers so that the
+implicit call order is always correct.
+
+With a per-sb shrinker callout, we can encode this dependency
+directly into the per-sb shrinker, hence avoiding the need for
+strictly ordering shrinker registrations. We also have no need for
+any proportioning code for the shrinker subsystem already provides
+this functionality across all shrinkers. Allowing the shrinker to
+operate on a single superblock at a time means that we do less
+superblock list traversals and locking and reclaim should batch more
+effectively. This should result in less CPU overhead for reclaim and
+potentially faster reclaim of items from each filesystem.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/xfs/linux-2.6/xfs_super.c   |   23 ++++++--
- fs/xfs/linux-2.6/xfs_sync.c    |  124 +++++++++++-----------------------------
- fs/xfs/linux-2.6/xfs_sync.h    |   16 +++--
- fs/xfs/quota/xfs_qm_syscalls.c |    2 +-
- fs/xfs/xfs_mount.h             |    1 -
- 5 files changed, 61 insertions(+), 105 deletions(-)
+ fs/dcache.c        |  133 ++++++++--------------------------------------------
+ fs/inode.c         |  109 +++---------------------------------------
+ fs/super.c         |   53 +++++++++++++++++++++
+ include/linux/fs.h |    7 +++
+ 4 files changed, 88 insertions(+), 214 deletions(-)
 
-diff --git a/fs/xfs/linux-2.6/xfs_super.c b/fs/xfs/linux-2.6/xfs_super.c
-index f24dbe5..b59886a 100644
---- a/fs/xfs/linux-2.6/xfs_super.c
-+++ b/fs/xfs/linux-2.6/xfs_super.c
-@@ -1212,7 +1212,6 @@ xfs_fs_put_super(
- 
- 	xfs_unmountfs(mp);
- 	xfs_freesb(mp);
--	xfs_inode_shrinker_unregister(mp);
- 	xfs_icsb_destroy_counters(mp);
- 	xfs_close_devices(mp);
- 	xfs_dmops_put(mp);
-@@ -1626,8 +1625,6 @@ xfs_fs_fill_super(
- 	if (error)
- 		goto fail_vnrele;
- 
--	xfs_inode_shrinker_register(mp);
--
- 	kfree(mtpt);
- 	return 0;
- 
-@@ -1681,6 +1678,22 @@ xfs_fs_get_sb(
- 			   mnt);
- }
- 
-+static int
-+xfs_fs_nr_cached_objects(
-+	struct super_block	*sb)
-+{
-+	return xfs_reclaim_inodes_count(XFS_M(sb));
-+}
-+
-+static int
-+xfs_fs_free_cached_objects(
-+	struct super_block	*sb,
-+	int			nr_to_scan)
-+{
-+	xfs_reclaim_inodes_nr(XFS_M(sb), 0, nr_to_scan);
-+	return 0;
-+}
-+
- static const struct super_operations xfs_super_operations = {
- 	.alloc_inode		= xfs_fs_alloc_inode,
- 	.destroy_inode		= xfs_fs_destroy_inode,
-@@ -1694,6 +1707,8 @@ static const struct super_operations xfs_super_operations = {
- 	.statfs			= xfs_fs_statfs,
- 	.remount_fs		= xfs_fs_remount,
- 	.show_options		= xfs_fs_show_options,
-+	.nr_cached_objects	= xfs_fs_nr_cached_objects,
-+	.free_cached_objects	= xfs_fs_free_cached_objects,
- };
- 
- static struct file_system_type xfs_fs_type = {
-@@ -1873,7 +1888,6 @@ init_xfs_fs(void)
- 		goto out_cleanup_procfs;
- 
- 	vfs_initquota();
--	xfs_inode_shrinker_init();
- 
- 	error = register_filesystem(&xfs_fs_type);
- 	if (error)
-@@ -1901,7 +1915,6 @@ exit_xfs_fs(void)
- {
- 	vfs_exitquota();
- 	unregister_filesystem(&xfs_fs_type);
--	xfs_inode_shrinker_destroy();
- 	xfs_sysctl_unregister();
- 	xfs_cleanup_procfs();
- 	xfs_buf_terminate();
-diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
-index c881a0c..6d74a0d 100644
---- a/fs/xfs/linux-2.6/xfs_sync.c
-+++ b/fs/xfs/linux-2.6/xfs_sync.c
-@@ -137,7 +137,7 @@ restart:
- 
- 	} while ((*nr_to_scan)--);
- 
--	if (skipped) {
-+	if (skipped && *nr_to_scan > 0) {
- 		delay(1);
- 		goto restart;
- 	}
-@@ -152,14 +152,14 @@ xfs_inode_ag_iterator(
- 	int			flags,
- 	int			tag,
- 	int			exclusive,
--	int			*nr_to_scan)
-+	int			nr_to_scan)
- {
- 	int			error = 0;
- 	int			last_error = 0;
- 	xfs_agnumber_t		ag;
--	int			nr;
- 
--	nr = nr_to_scan ? *nr_to_scan : INT_MAX;
-+	if (nr_to_scan <= 0)
-+		nr_to_scan = INT_MAX;
- 	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
- 		struct xfs_perag	*pag;
- 
-@@ -169,18 +169,16 @@ xfs_inode_ag_iterator(
- 			continue;
- 		}
- 		error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
--						exclusive, &nr);
-+						exclusive, &nr_to_scan);
- 		xfs_perag_put(pag);
- 		if (error) {
- 			last_error = error;
- 			if (error == EFSCORRUPTED)
- 				break;
- 		}
--		if (nr <= 0)
-+		if (nr_to_scan <= 0)
- 			break;
- 	}
--	if (nr_to_scan)
--		*nr_to_scan = nr;
- 	return XFS_ERROR(last_error);
- }
- 
-@@ -299,7 +297,7 @@ xfs_sync_data(
- 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
- 
- 	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
--				      XFS_ICI_NO_TAG, 0, NULL);
-+				      XFS_ICI_NO_TAG, 0, 0);
- 	if (error)
- 		return XFS_ERROR(error);
- 
-@@ -318,7 +316,7 @@ xfs_sync_attr(
- 	ASSERT((flags & ~SYNC_WAIT) == 0);
- 
- 	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
--				     XFS_ICI_NO_TAG, 0, NULL);
-+				     XFS_ICI_NO_TAG, 0, 0);
- }
- 
- STATIC int
-@@ -821,100 +819,44 @@ reclaim:
- 
- }
- 
-+/*
-+ * Scan a certain number of inodes for reclaim. nr_to_scan <= 0 means reclaim
-+ * every inode that has the reclaim tag set.
-+ */
- int
--xfs_reclaim_inodes(
-+xfs_reclaim_inodes_nr(
- 	xfs_mount_t	*mp,
--	int		mode)
-+	int		mode,
-+	int		nr_to_scan)
- {
- 	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode, mode,
--					XFS_ICI_RECLAIM_TAG, 1, NULL);
-+					XFS_ICI_RECLAIM_TAG, 1, nr_to_scan);
- }
- 
- /*
-- * Shrinker infrastructure.
-+ * Return the number of reclaimable inodes in the filesystem for
-+ * the shrinker to determine how much to reclaim.
-  *
-- * This is all far more complex than it needs to be. It adds a global list of
-- * mounts because the shrinkers can only call a global context. We need to make
-- * the shrinkers pass a context to avoid the need for global state.
-+ * Because the inode cache may not have any reclaimable inodes in it, but will
-+ * be populated as part of the higher level cleaning, we need to count all
-+ * those inodes as reclaimable here as well.
+diff --git a/fs/dcache.c b/fs/dcache.c
+index dba6b6d..d7bd781 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -456,21 +456,16 @@ static void prune_one_dentry(struct dentry * dentry)
+  * which flags are set. This means we don't need to maintain multiple
+  * similar copies of this loop.
   */
--static LIST_HEAD(xfs_mount_list);
--static struct rw_semaphore xfs_mount_list_lock;
--
--static int
--xfs_reclaim_inode_shrink(
--	struct shrinker	*shrink,
--	int		nr_to_scan,
--	gfp_t		gfp_mask)
-+int
-+xfs_reclaim_inodes_count(
-+	xfs_mount_t	*mp)
+-static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
++static void __shrink_dcache_sb(struct super_block *sb, int count, int flags)
  {
--	struct xfs_mount *mp;
--	struct xfs_perag *pag;
--	xfs_agnumber_t	ag;
--	int		reclaimable = 0;
+ 	LIST_HEAD(referenced);
+ 	LIST_HEAD(tmp);
+ 	struct dentry *dentry;
+-	int cnt = 0;
+ 
+ 	BUG_ON(!sb);
+-	BUG_ON((flags & DCACHE_REFERENCED) && count == NULL);
++	BUG_ON((flags & DCACHE_REFERENCED) && count == -1);
+ 	spin_lock(&dcache_lock);
+-	if (count != NULL)
+-		/* called from prune_dcache() and shrink_dcache_parent() */
+-		cnt = *count;
+-restart:
+-	if (count == NULL)
++	if (count == -1)
+ 		list_splice_init(&sb->s_dentry_lru, &tmp);
+ 	else {
+ 		while (!list_empty(&sb->s_dentry_lru)) {
+@@ -492,13 +487,13 @@ restart:
+ 			} else {
+ 				list_move_tail(&dentry->d_lru, &tmp);
+ 				spin_unlock(&dentry->d_lock);
+-				cnt--;
+-				if (!cnt)
++				if (--count == 0)
+ 					break;
+ 			}
+ 			cond_resched_lock(&dcache_lock);
+ 		}
+ 	}
++prune_more:
+ 	while (!list_empty(&tmp)) {
+ 		dentry = list_entry(tmp.prev, struct dentry, d_lru);
+ 		dentry_lru_del_init(dentry);
+@@ -516,88 +511,29 @@ restart:
+ 		/* dentry->d_lock was dropped in prune_one_dentry() */
+ 		cond_resched_lock(&dcache_lock);
+ 	}
+-	if (count == NULL && !list_empty(&sb->s_dentry_lru))
+-		goto restart;
+-	if (count != NULL)
+-		*count = cnt;
++	if (count == -1 && !list_empty(&sb->s_dentry_lru)) {
++		list_splice_init(&sb->s_dentry_lru, &tmp);
++		goto prune_more;
++	}
+ 	if (!list_empty(&referenced))
+ 		list_splice(&referenced, &sb->s_dentry_lru);
+ 	spin_unlock(&dcache_lock);
+ }
+ 
+ /**
+- * prune_dcache - shrink the dcache
+- * @count: number of entries to try to free
++ * prune_dcache_sb - shrink the dcache
++ * @nr_to_scan: number of entries to try to free
+  *
+- * Shrink the dcache. This is done when we need more memory, or simply when we
+- * need to unmount something (at which point we need to unuse all dentries).
++ * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
++ * done when we need more memory an called from the superblock shrinker
++ * function.
+  *
+- * This function may fail to free any resources if all the dentries are in use.
++ * This function may fail to free any resources if all the dentries are in
++ * use.
+  */
+-static void prune_dcache(int count)
++void prune_dcache_sb(struct super_block *sb, int nr_to_scan)
+ {
+-	struct super_block *sb, *n;
+-	int w_count;
+-	int unused = dentry_stat.nr_unused;
+-	int prune_ratio;
+-	int pruned;
 -
--	if (nr_to_scan) {
+-	if (unused == 0 || count == 0)
+-		return;
+-	spin_lock(&dcache_lock);
+-	if (count >= unused)
+-		prune_ratio = 1;
+-	else
+-		prune_ratio = unused / count;
+-	spin_lock(&sb_lock);
+-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+-		if (list_empty(&sb->s_instances))
+-			continue;
+-		if (sb->s_nr_dentry_unused == 0)
+-			continue;
+-		sb->s_count++;
+-		/* Now, we reclaim unused dentrins with fairness.
+-		 * We reclaim them same percentage from each superblock.
+-		 * We calculate number of dentries to scan on this sb
+-		 * as follows, but the implementation is arranged to avoid
+-		 * overflows:
+-		 * number of dentries to scan on this sb =
+-		 * count * (number of dentries on this sb /
+-		 * number of dentries in the machine)
+-		 */
+-		spin_unlock(&sb_lock);
+-		if (prune_ratio != 1)
+-			w_count = (sb->s_nr_dentry_unused / prune_ratio) + 1;
+-		else
+-			w_count = sb->s_nr_dentry_unused;
+-		pruned = w_count;
+-		/*
+-		 * We need to be sure this filesystem isn't being unmounted,
+-		 * otherwise we could race with generic_shutdown_super(), and
+-		 * end up holding a reference to an inode while the filesystem
+-		 * is unmounted.  So we try to get s_umount, and make sure
+-		 * s_root isn't NULL.
+-		 */
+-		if (down_read_trylock(&sb->s_umount)) {
+-			if ((sb->s_root != NULL) &&
+-			    (!list_empty(&sb->s_dentry_lru))) {
+-				spin_unlock(&dcache_lock);
+-				__shrink_dcache_sb(sb, &w_count,
+-						DCACHE_REFERENCED);
+-				pruned -= w_count;
+-				spin_lock(&dcache_lock);
+-			}
+-			up_read(&sb->s_umount);
+-		}
+-		spin_lock(&sb_lock);
+-		count -= pruned;
+-		__put_super(sb);
+-		/* more work left to do? */
+-		if (count <= 0)
+-			break;
+-	}
+-	spin_unlock(&sb_lock);
+-	spin_unlock(&dcache_lock);
++	__shrink_dcache_sb(sb, nr_to_scan, DCACHE_REFERENCED);
+ }
+ 
+ /**
+@@ -610,7 +546,7 @@ static void prune_dcache(int count)
+  */
+ void shrink_dcache_sb(struct super_block * sb)
+ {
+-	__shrink_dcache_sb(sb, NULL, 0);
++	__shrink_dcache_sb(sb, -1, 0);
+ }
+ EXPORT_SYMBOL(shrink_dcache_sb);
+ 
+@@ -878,37 +814,10 @@ void shrink_dcache_parent(struct dentry * parent)
+ 	int found;
+ 
+ 	while ((found = select_parent(parent)) != 0)
+-		__shrink_dcache_sb(sb, &found, 0);
++		__shrink_dcache_sb(sb, found, 0);
+ }
+ EXPORT_SYMBOL(shrink_dcache_parent);
+ 
+-/*
+- * Scan `nr' dentries and return the number which remain.
+- *
+- * We need to avoid reentering the filesystem if the caller is performing a
+- * GFP_NOFS allocation attempt.  One example deadlock is:
+- *
+- * ext2_new_block->getblk->GFP->shrink_dcache_memory->prune_dcache->
+- * prune_one_dentry->dput->dentry_iput->iput->inode->i_sb->s_op->put_inode->
+- * ext2_discard_prealloc->ext2_free_blocks->lock_super->DEADLOCK.
+- *
+- * In this case we return -1 to tell the caller that we baled.
+- */
+-static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+-{
+-	if (nr) {
 -		if (!(gfp_mask & __GFP_FS))
 -			return -1;
--
--		down_read(&xfs_mount_list_lock);
--		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
--			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
--					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
--			if (nr_to_scan <= 0)
--				break;
--		}
--		up_read(&xfs_mount_list_lock);
+-		prune_dcache(nr);
 -	}
--
--	down_read(&xfs_mount_list_lock);
--	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
--		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-+	xfs_agnumber_t		ag;
-+	int			reclaimable = 0;
- 
--			pag = xfs_perag_get(mp, ag);
--			if (!pag->pag_ici_init) {
--				xfs_perag_put(pag);
--				continue;
--			}
--			reclaimable += pag->pag_ici_reclaimable;
-+	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-+		struct xfs_perag *pag = xfs_perag_get(mp, ag);
-+		if (!pag->pag_ici_init) {
- 			xfs_perag_put(pag);
-+			continue;
- 		}
-+		reclaimable += pag->pag_ici_reclaimable;
-+		xfs_perag_put(pag);
- 	}
--	up_read(&xfs_mount_list_lock);
--	return reclaimable;
+-	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
 -}
 -
--static struct shrinker xfs_inode_shrinker = {
--	.shrink = xfs_reclaim_inode_shrink,
+-static struct shrinker dcache_shrinker = {
+-	.shrink = shrink_dcache_memory,
 -	.seeks = DEFAULT_SEEKS,
 -};
 -
--void __init
--xfs_inode_shrinker_init(void)
--{
--	init_rwsem(&xfs_mount_list_lock);
--	register_shrinker(&xfs_inode_shrinker);
--}
--
--void
--xfs_inode_shrinker_destroy(void)
--{
--	ASSERT(list_empty(&xfs_mount_list));
--	unregister_shrinker(&xfs_inode_shrinker);
--}
--
--void
--xfs_inode_shrinker_register(
--	struct xfs_mount	*mp)
--{
--	down_write(&xfs_mount_list_lock);
--	list_add_tail(&mp->m_mplist, &xfs_mount_list);
--	up_write(&xfs_mount_list_lock);
-+	return reclaimable + mp->m_super->s_nr_inodes_unused;
+ /**
+  * d_alloc	-	allocate a dcache entry
+  * @parent: parent of entry to allocate
+@@ -2316,8 +2225,6 @@ static void __init dcache_init(void)
+ 	 */
+ 	dentry_cache = KMEM_CACHE(dentry,
+ 		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+-	
+-	register_shrinker(&dcache_shrinker);
+ 
+ 	/* Hash may have been set up in dcache_init_early */
+ 	if (!hashdist)
+diff --git a/fs/inode.c b/fs/inode.c
+index 1e44ec5..5fb4a39 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -25,7 +25,6 @@
+ #include <linux/mount.h>
+ #include <linux/async.h>
+ #include <linux/posix_acl.h>
+-#include "internal.h"
+ 
+ /*
+  * This is needed for the following functions:
+@@ -441,8 +440,10 @@ static int can_unuse(struct inode *inode)
  }
  
--void
--xfs_inode_shrinker_unregister(
--	struct xfs_mount	*mp)
--{
--	down_write(&xfs_mount_list_lock);
--	list_del(&mp->m_mplist);
--	up_write(&xfs_mount_list_lock);
--}
-diff --git a/fs/xfs/linux-2.6/xfs_sync.h b/fs/xfs/linux-2.6/xfs_sync.h
-index cdcbaac..c55f645 100644
---- a/fs/xfs/linux-2.6/xfs_sync.h
-+++ b/fs/xfs/linux-2.6/xfs_sync.h
-@@ -43,7 +43,14 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
- 
- void xfs_flush_inodes(struct xfs_inode *ip);
- 
--int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
-+int xfs_reclaim_inodes_count(struct xfs_mount *mp);
-+int xfs_reclaim_inodes_nr(struct xfs_mount *mp, int mode, int nr_to_scan);
-+
-+static inline int
-+xfs_reclaim_inodes(struct xfs_mount *mp, int mode)
-+{
-+	return xfs_reclaim_inodes_nr(mp, mode, 0);
-+}
- 
- void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
- void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
-@@ -53,11 +60,6 @@ void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp, struct xfs_perag *pag,
- int xfs_sync_inode_valid(struct xfs_inode *ip, struct xfs_perag *pag);
- int xfs_inode_ag_iterator(struct xfs_mount *mp,
- 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
--	int flags, int tag, int write_lock, int *nr_to_scan);
--
--void xfs_inode_shrinker_init(void);
--void xfs_inode_shrinker_destroy(void);
--void xfs_inode_shrinker_register(struct xfs_mount *mp);
--void xfs_inode_shrinker_unregister(struct xfs_mount *mp);
-+	int flags, int tag, int write_lock, int nr_to_scan);
- 
- #endif
-diff --git a/fs/xfs/quota/xfs_qm_syscalls.c b/fs/xfs/quota/xfs_qm_syscalls.c
-index 92b002f..f5b0e4e 100644
---- a/fs/xfs/quota/xfs_qm_syscalls.c
-+++ b/fs/xfs/quota/xfs_qm_syscalls.c
-@@ -894,7 +894,7 @@ xfs_qm_dqrele_all_inodes(
+ /*
+- * Scan `goal' inodes on the unused list for freeable ones. They are moved to
+- * a temporary list and then are freed outside inode_lock by dispose_list().
++ * Walk the superblock inode LRU for freeable inodes and attempt to free them.
++ * This is called from the superblock shrinker function with a number of inodes
++ * to trim from the LRU. Inodes to be freed are moved to a temporary list and
++ * then are freed outside inode_lock by dispose_list().
+  *
+  * Any inodes which are pinned purely because of attached pagecache have their
+  * pagecache removed.  We expect the final iput() on that inode to add it to
+@@ -450,10 +451,10 @@ static int can_unuse(struct inode *inode)
+  * inode is still freeable, proceed.  The right inode is found 99.9% of the
+  * time in testing on a 4-way.
+  *
+- * If the inode has metadata buffers attached to mapping->private_list then
+- * try to remove them.
++ * If the inode has metadata buffers attached to mapping->private_list then try
++ * to remove them.
+  */
+-static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
++void prune_icache_sb(struct super_block *sb, int nr_to_scan)
  {
- 	ASSERT(mp->m_quotainfo);
- 	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags,
--				XFS_ICI_NO_TAG, 0, NULL);
-+				XFS_ICI_NO_TAG, 0, 0);
+ 	LIST_HEAD(freeable);
+ 	int nr_pruned = 0;
+@@ -461,7 +462,7 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 	unsigned long reap = 0;
+ 
+ 	spin_lock(&inode_lock);
+-	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
++	for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+ 		struct inode *inode;
+ 
+ 		if (list_empty(&sb->s_inode_lru))
+@@ -500,103 +501,10 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+ 	else
+ 		__count_vm_events(PGINODESTEAL, reap);
+ 	spin_unlock(&inode_lock);
+-	*nr_to_scan = nr_scanned;
+ 
+ 	dispose_list(&freeable);
  }
  
- /*------------------------------------------------------------------------*/
-diff --git a/fs/xfs/xfs_mount.h b/fs/xfs/xfs_mount.h
-index 9ff48a1..4fa0bc7 100644
---- a/fs/xfs/xfs_mount.h
-+++ b/fs/xfs/xfs_mount.h
-@@ -259,7 +259,6 @@ typedef struct xfs_mount {
- 	wait_queue_head_t	m_wait_single_sync_task;
- 	__int64_t		m_update_flags;	/* sb flags we need to update
- 						   on the next remount,rw */
--	struct list_head	m_mplist;	/* inode shrinker mount list */
- } xfs_mount_t;
+-static void prune_icache(int count)
+-{
+-	struct super_block *sb, *n;
+-	int w_count;
+-	int unused = inodes_stat.nr_unused;
+-	int prune_ratio;
+-	int pruned;
+-
+-	if (unused == 0 || count == 0)
+-		return;
+-	down_read(&iprune_sem);
+-	if (count >= unused)
+-		prune_ratio = 1;
+-	else
+-		prune_ratio = unused / count;
+-	spin_lock(&sb_lock);
+-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+-		if (list_empty(&sb->s_instances))
+-			continue;
+-		if (sb->s_nr_inodes_unused == 0)
+-			continue;
+-		sb->s_count++;
+-		/* Now, we reclaim unused dentrins with fairness.
+-		 * We reclaim them same percentage from each superblock.
+-		 * We calculate number of dentries to scan on this sb
+-		 * as follows, but the implementation is arranged to avoid
+-		 * overflows:
+-		 * number of dentries to scan on this sb =
+-		 * count * (number of dentries on this sb /
+-		 * number of dentries in the machine)
+-		 */
+-		spin_unlock(&sb_lock);
+-		if (prune_ratio != 1)
+-			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
+-		else
+-			w_count = sb->s_nr_inodes_unused;
+-		pruned = w_count;
+-		/*
+-		 * We need to be sure this filesystem isn't being unmounted,
+-		 * otherwise we could race with generic_shutdown_super(), and
+-		 * end up holding a reference to an inode while the filesystem
+-		 * is unmounted.  So we try to get s_umount, and make sure
+-		 * s_root isn't NULL.
+-		 */
+-		if (down_read_trylock(&sb->s_umount)) {
+-			if ((sb->s_root != NULL) &&
+-			    (!list_empty(&sb->s_inode_lru))) {
+-				shrink_icache_sb(sb, &w_count);
+-				pruned -= w_count;
+-			}
+-			up_read(&sb->s_umount);
+-		}
+-		spin_lock(&sb_lock);
+-		count -= pruned;
+-		__put_super(sb);
+-		/* more work left to do? */
+-		if (count <= 0)
+-			break;
+-	}
+-	spin_unlock(&sb_lock);
+-	up_read(&iprune_sem);
+-}
+-
+-/*
+- * shrink_icache_memory() will attempt to reclaim some unused inodes.  Here,
+- * "unused" means that no dentries are referring to the inodes: the files are
+- * not open and the dcache references to those inodes have already been
+- * reclaimed.
+- *
+- * This function is passed the number of inodes to scan, and it returns the
+- * total number of remaining possibly-reclaimable inodes.
+- */
+-static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+-{
+-	if (nr) {
+-		/*
+-		 * Nasty deadlock avoidance.  We may hold various FS locks,
+-		 * and we don't want to recurse into the FS that called us
+-		 * in clear_inode() and friends..
+-		 */
+-		if (!(gfp_mask & __GFP_FS))
+-			return -1;
+-		prune_icache(nr);
+-	}
+-	return (inodes_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
+-}
+-
+-static struct shrinker icache_shrinker = {
+-	.shrink = shrink_icache_memory,
+-	.seeks = DEFAULT_SEEKS,
+-};
+-
+ static void __wait_on_freeing_inode(struct inode *inode);
+ /*
+  * Called with the inode lock held.
+@@ -1634,7 +1542,6 @@ void __init inode_init(void)
+ 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+ 					 SLAB_MEM_SPREAD),
+ 					 init_once);
+-	register_shrinker(&icache_shrinker);
+ 
+ 	/* Hash may have been set up in inode_init_early */
+ 	if (!hashdist)
+diff --git a/fs/super.c b/fs/super.c
+index c554c53..07e22e3 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -37,6 +37,50 @@
+ LIST_HEAD(super_blocks);
+ DEFINE_SPINLOCK(sb_lock);
+ 
++static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
++{
++	struct super_block *sb;
++	int count;
++
++	sb = container_of(shrink, struct super_block, s_shrink);
++
++	/*
++	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
++	 * to recurse into the FS that called us in clear_inode() and friends..
++	 */
++	if (!(gfp_mask & __GFP_FS))
++		return -1;
++
++	/*
++	 * if we can't get the umount lock, then there's no point having the
++	 * shrinker try again because the sb is being torn down.
++	 */
++	if (!down_read_trylock(&sb->s_umount))
++		return -1;
++
++	if (!sb->s_root) {
++		up_read(&sb->s_umount);
++		return -1;
++	}
++
++	if (nr_to_scan) {
++		/* proportion the scan between the two cacheN? */
++		int total;
++
++		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
++		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
++
++		/* prune dcache first as icache is pinned by it */
++		prune_dcache_sb(sb, count);
++		prune_icache_sb(sb, nr_to_scan - count);
++	}
++
++	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
++						* sysctl_vfs_cache_pressure;
++	up_read(&sb->s_umount);
++	return count;
++}
++
+ /**
+  *	alloc_super	-	create new superblock
+  *	@type:	filesystem type superblock should belong to
+@@ -99,6 +143,13 @@ static struct super_block *alloc_super(struct file_system_type *type)
+ 		s->s_qcop = sb_quotactl_ops;
+ 		s->s_op = &default_op;
+ 		s->s_time_gran = 1000000000;
++
++		/*
++		 * The shrinker is set up here but not registered until after
++		 * the superblock has been filled out successfully.
++		 */
++		s->s_shrink.shrink = prune_super;
++		s->s_shrink.seeks = DEFAULT_SEEKS;
+ 	}
+ out:
+ 	return s;
+@@ -162,6 +213,7 @@ void deactivate_locked_super(struct super_block *s)
+ 	struct file_system_type *fs = s->s_type;
+ 	if (atomic_dec_and_test(&s->s_active)) {
+ 		vfs_dq_off(s, 0);
++		unregister_shrinker(&s->s_shrink);
+ 		fs->kill_sb(s);
+ 		put_filesystem(fs);
+ 		put_super(s);
+@@ -335,6 +387,7 @@ retry:
+ 	list_add_tail(&s->s_list, &super_blocks);
+ 	list_add(&s->s_instances, &type->fs_supers);
+ 	spin_unlock(&sb_lock);
++	register_shrinker(&s->s_shrink);
+ 	get_filesystem(type);
+ 	return s;
+ }
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 7b90c43..5bff2dc 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -382,6 +382,7 @@ struct inodes_stat_t {
+ #include <linux/capability.h>
+ #include <linux/semaphore.h>
+ #include <linux/fiemap.h>
++#include <linux/mm.h>
+ 
+ #include <asm/atomic.h>
+ #include <asm/byteorder.h>
+@@ -1385,8 +1386,14 @@ struct super_block {
+ 	 * generic_show_options()
+ 	 */
+ 	char *s_options;
++
++	struct shrinker s_shrink;	/* per-sb shrinker handle */
+ };
+ 
++/* superblock cache pruning functions */
++void prune_icache_sb(struct super_block *sb, int nr_to_scan);
++void prune_dcache_sb(struct super_block *sb, int nr_to_scan);
++
+ extern struct timespec current_fs_time(struct super_block *sb);
  
  /*
 -- 
