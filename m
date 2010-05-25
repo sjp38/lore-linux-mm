@@ -1,204 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C41956B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 19:46:36 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o4ONkVX4031924
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:31 -0700
-Received: from pvg2 (pvg2.prod.google.com [10.241.210.130])
-	by hpaq2.eem.corp.google.com with ESMTP id o4ONkTNC001058
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:29 -0700
-Received: by pvg2 with SMTP id 2so546108pvg.22
-        for <linux-mm@kvack.org>; Mon, 24 May 2010 16:46:28 -0700 (PDT)
-Date: Mon, 24 May 2010 16:46:24 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: TMPFS over NFSv4
-In-Reply-To: <20100524110903.72524853@lxorguk.ukuu.org.uk>
-Message-ID: <alpine.LSU.2.00.1005241624130.28773@sister.anvils>
-References: <AANLkTik47c6l3y8CdJ-hUCd2h3SRSb3qAtRovWryb8_p@mail.gmail.com> <alpine.LSU.2.00.1005211344440.7369@sister.anvils> <AANLkTil7I6q4wdLgmwZdRN6hb9LVVagN_7oGTIVNDhUk@mail.gmail.com> <AANLkTilMQjZaUom2h_aFgU6WB83IGH-VVKTg-CJD-_ZZ@mail.gmail.com>
- <20100524110903.72524853@lxorguk.ukuu.org.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D262F6B01B0
+	for <linux-mm@kvack.org>; Mon, 24 May 2010 21:36:08 -0400 (EDT)
+From: "Guo, Chaohong" <chaohong.guo@intel.com>
+Date: Tue, 25 May 2010 09:35:27 +0800
+Subject: RE: [PATCH] online CPU before memory failed in pcpu_alloc_pages()
+Message-ID: <CF2F38D4AE21BB4CB845318E4C5ECB671E790AF3@shsmsx501.ccr.corp.intel.com>
+References: <1274163442-7081-1-git-send-email-chaohong_guo@linux.intel.com>
+	 <20100520134359.fdfb397e.akpm@linux-foundation.org>
+	 <20100521105512.0c2cf254.sfr@canb.auug.org.au>
+	 <20100521134424.45e0ee36.kamezawa.hiroyu@jp.fujitsu.com>
+	 <4BF642BB.2020402@linux.intel.com>
+	 <20100521173940.8f130205.kamezawa.hiroyu@jp.fujitsu.com>
+	 <4BF64E79.4010401@linux.intel.com>
+	 <1274448107.9131.87.camel@useless.americas.hpqcorp.net>
+	 <CF2F38D4AE21BB4CB845318E4C5ECB671E790500@shsmsx501.ccr.corp.intel.com>
+ <1274713162.13756.209.camel@useless.americas.hpqcorp.net>
+In-Reply-To: <1274713162.13756.209.camel@useless.americas.hpqcorp.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <gregkh@suse.de>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, stable@kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: minskey guo <chaohong_guo@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "prarit@redhat.com" <prarit@redhat.com>, "Kleen, Andi" <andi.kleen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, "stable@kernel.org" <stable@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Greg,
 
-On Mon, 24 May 2010, Alan Cox wrote:
-> On Mon, 24 May 2010 02:57:30 -0700
-> Hugh Dickins <hughd@google.com> wrote:
-> > On Mon, May 24, 2010 at 2:26 AM, Tharindu Rukshan Bamunuarachchi
-> > <btharindu@gmail.com> wrote:
-> > > thankx a lot Hugh ... I will try this out ... (bit harder patch
-> > > already patched SLES kernel :-p ) ....
-> > 
-> > If patch conflicts are a problem, you really only need to put in the
-> > two-liner patch to mm/mmap.c: Alan was seeking perfection in
-> > the rest of the patch, but you can get away without it.
-> > 
-> > >
-> > > BTW, what does Alan means by "strict overcommit" ?
-> > 
-> > Ah, that phrase, yes, it's a nonsense, but many of us do say it by mistake.
-> > Alan meant to say "strict no-overcommit".
-> 
-> No I always meant to say 'strict overcommit'. It avoids excess negatives
-> and "no noovercommit" discussions.
-> 
-> I guess 'strict overcommit control' would have been clearer 8)
-> 
-> Alan
 
-I see we've just missed 2.6.27.47-rc1, but if there's to be an -rc2,
-please include Alan's 2.6.28 oops fix below: which Tharindu appears
-to be needing - just now discussed on linux-mm and linux-nfs.
-Failing that, please queue it up for 2.6.27.48.
+>>
+>>  But currently, I don't
+>> >think you can use the numa_mem_id()/cpu_to_mem() interfaces for your
+>> >purpose.  I suppose you could change page_alloc.c to compile
+>> >local_memory_node() #if defined(CONFIG_HAVE_MEMORYLESS_NODES) ||
+>> >defined
+>> >(CPU_HOTPLUG) and use that function to find the nearest memory.  It
+>> >should return a valid node after zonelists have been rebuilt.
+>> >
+>> >Does that make sense?
+>>
+>> Yes, besides,  I need to find a place in hotplug path to call set_numa_m=
+em()
+>> just as you mentioned for ia64 platform.  Is my understanding right ?
+>
+>I don't think you can use any of the "numa_mem" functions on x86[_64]
+>without doing a lot more work to expose memoryless nodes.  On x86_64,
+>numa_mem_id() and cpu_to_mem() always return the same as numa_node_id()
+>and cpu_to_node().  This is because x86_64 code hides memoryless nodes
+>and reassigns all cpus to nodes with memory.  Are you planning on
+>changing this such that memoryless nodes remain on-line with their cpus
+>associated with them?  If so, go for it!   If not, then you don't need
+>to [can't really, I think] use set_numa_mem()/cpu_to_mem() for your
+>purposes.  That's why I suggested you arrange for local_memory_node() to
+>be compiled for CPU_HOTPLUG and call that function directly to obtain a
+>nearby node from which you can allocate memory during cpu hot plug.  Or,
+>I could just completely misunderstand what you propose to do with these
+>percpu variables.
 
-Or if you'd prefer a smaller patch for -stable, then just the mm/mmap.c
-part of it should suffice: I think it's fair to say that the rest of the
-patch was more precautionary - as Alan describes, for catching other bugs,
-so good for an ongoing development tree, but not necessarily in -stable.
-(However, Alan may disagree - I've already misrepresented him once here!)
+Got it, thank you very much for detailed explanation.
 
-Thanks,
-Hugh
 
-commit 731572d39fcd3498702eda4600db4c43d51e0b26
-Author: Alan Cox <alan@redhat.com>
-Date:   Wed Oct 29 14:01:20 2008 -0700
-
-    nfsd: fix vm overcommit crash
-    
-    Junjiro R.  Okajima reported a problem where knfsd crashes if you are
-    using it to export shmemfs objects and run strict overcommit.  In this
-    situation the current->mm based modifier to the overcommit goes through a
-    NULL pointer.
-    
-    We could simply check for NULL and skip the modifier but we've caught
-    other real bugs in the past from mm being NULL here - cases where we did
-    need a valid mm set up (eg the exec bug about a year ago).
-    
-    To preserve the checks and get the logic we want shuffle the checking
-    around and add a new helper to the vm_ security wrappers
-    
-    Also fix a current->mm reference in nommu that should use the passed mm
-    
-    [akpm@linux-foundation.org: coding-style fixes]
-    [akpm@linux-foundation.org: fix build]
-    Reported-by: Junjiro R. Okajima <hooanon05@yahoo.co.jp>
-    Acked-by: James Morris <jmorris@namei.org>
-    Signed-off-by: Alan Cox <alan@redhat.com>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-
-diff --git a/include/linux/security.h b/include/linux/security.h
-index f5c4a51..c13f1ce 100644
---- a/include/linux/security.h
-+++ b/include/linux/security.h
-@@ -1585,6 +1585,7 @@ int security_syslog(int type);
- int security_settime(struct timespec *ts, struct timezone *tz);
- int security_vm_enough_memory(long pages);
- int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
-+int security_vm_enough_memory_kern(long pages);
- int security_bprm_alloc(struct linux_binprm *bprm);
- void security_bprm_free(struct linux_binprm *bprm);
- void security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
-@@ -1820,6 +1821,11 @@ static inline int security_vm_enough_memory(long pages)
- 	return cap_vm_enough_memory(current->mm, pages);
- }
- 
-+static inline int security_vm_enough_memory_kern(long pages)
-+{
-+	return cap_vm_enough_memory(current->mm, pages);
-+}
-+
- static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
- {
- 	return cap_vm_enough_memory(mm, pages);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 74f4d15..de14ac2 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -175,7 +175,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 
- 	/* Don't let a single process grow too big:
- 	   leave 3% of the size of this process for other processes */
--	allowed -= mm->total_vm / 32;
-+	if (mm)
-+		allowed -= mm->total_vm / 32;
- 
- 	/*
- 	 * cast `allowed' as a signed long because vm_committed_space
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 2696b24..7695dc8 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1454,7 +1454,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 
- 	/* Don't let a single process grow too big:
- 	   leave 3% of the size of this process for other processes */
--	allowed -= current->mm->total_vm / 32;
-+	if (mm)
-+		allowed -= mm->total_vm / 32;
- 
- 	/*
- 	 * cast `allowed' as a signed long because vm_committed_space
-diff --git a/mm/shmem.c b/mm/shmem.c
-index d38d7e6..0ed0752 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -161,8 +161,8 @@ static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
-  */
- static inline int shmem_acct_size(unsigned long flags, loff_t size)
- {
--	return (flags & VM_ACCOUNT)?
--		security_vm_enough_memory(VM_ACCT(size)): 0;
-+	return (flags & VM_ACCOUNT) ?
-+		security_vm_enough_memory_kern(VM_ACCT(size)) : 0;
- }
- 
- static inline void shmem_unacct_size(unsigned long flags, loff_t size)
-@@ -179,8 +179,8 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
-  */
- static inline int shmem_acct_block(unsigned long flags)
- {
--	return (flags & VM_ACCOUNT)?
--		0: security_vm_enough_memory(VM_ACCT(PAGE_CACHE_SIZE));
-+	return (flags & VM_ACCOUNT) ?
-+		0 : security_vm_enough_memory_kern(VM_ACCT(PAGE_CACHE_SIZE));
- }
- 
- static inline void shmem_unacct_blocks(unsigned long flags, long pages)
-diff --git a/security/security.c b/security/security.c
-index 255b085..c0acfa7 100644
---- a/security/security.c
-+++ b/security/security.c
-@@ -198,14 +198,23 @@ int security_settime(struct timespec *ts, struct timezone *tz)
- 
- int security_vm_enough_memory(long pages)
- {
-+	WARN_ON(current->mm == NULL);
- 	return security_ops->vm_enough_memory(current->mm, pages);
- }
- 
- int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
- {
-+	WARN_ON(mm == NULL);
- 	return security_ops->vm_enough_memory(mm, pages);
- }
- 
-+int security_vm_enough_memory_kern(long pages)
-+{
-+	/* If current->mm is a kernel thread then we will pass NULL,
-+	   for this specific case that is fine */
-+	return security_ops->vm_enough_memory(current->mm, pages);
-+}
-+
- int security_bprm_alloc(struct linux_binprm *bprm)
- {
- 	return security_ops->bprm_alloc_security(bprm);
+-minskey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
