@@ -1,38 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B63006B01AD
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 12:01:53 -0400 (EDT)
-Date: Wed, 26 May 2010 02:01:49 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: page_mkwrite vs pte dirty race in fb_defio
-Message-ID: <20100525160149.GE20853@laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1D5F76B01B0
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 13:02:49 -0400 (EDT)
+Received: by fxm11 with SMTP id 11so3035220fxm.14
+        for <linux-mm@kvack.org>; Tue, 25 May 2010 10:02:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20100525154352.GB20853@laptop>
+References: <AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com>
+	<20100525070734.GC5087@laptop>
+	<AANLkTimhTfz_mMWNh_r18yapNxSDjA7wRDnFM6L5aIdE@mail.gmail.com>
+	<20100525081634.GE5087@laptop>
+	<AANLkTilJBY0sinB365lIZFUaMgMCZ1xyhMdXRTJTVDSV@mail.gmail.com>
+	<20100525093410.GH5087@laptop>
+	<AANLkTikXp5LlKLK1deKOQpciUFNugjlQah5QpNcImf39@mail.gmail.com>
+	<20100525101924.GJ5087@laptop>
+	<AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
+	<alpine.LFD.2.00.1005250812100.3689@i5.linux-foundation.org>
+	<20100525154352.GB20853@laptop>
+Date: Tue, 25 May 2010 20:02:32 +0300
+Message-ID: <AANLkTilEIwPSN-stGGuu5wV4Q6Ty0GytNMpfq-vRpK_k@mail.gmail.com>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Albert Herranz <albert_herranz@yahoo.es>, aya Kumar <jayakumar.lkml@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Nick,
 
-I couldn't find where this patch (49bbd815fd8) was discussed, so I'll
-make my own thread. Adding a few lists to cc because it might be of
-interest to driver and filesystem writers.
+On Tue, May 25, 2010 at 6:43 PM, Nick Piggin <npiggin@suse.de> wrote:
+> As far as I can see, there was never a good reason to replace SLAB
+> rather than clean up its code and make incremental improvements.
 
-The old ->page_mkwrite calling convention was causing problems exactly
-because of this race, and we solved it by allowing page_mkwrite to
-return with the page locked, and the lock will be held until the
-pte is marked dirty. See commit b827e496c893de0c0f142abfaeb8730a2fd6b37f.
+I'm not totally convinced but I guess we're about to find that out.
+How do you propose we benchmark SLAB while we clean it up and change
+things to make sure we don't make the same mistakes as we did with
+SLUB (i.e. miss an important workload like TPC-C)?
 
-I hope that should provide a more elegant solution to your problem. I
-would really like you to take a look at that, because we already have
-filesystem code (NFS) relying on it, and more code we have relying on
-this synchronization, the more chance we would find a subtle problem
-with it (also it should be just nicer).
-
-Thanks,
-Nick
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
