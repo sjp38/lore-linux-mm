@@ -1,69 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 017526B01B0
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 16:01:55 -0400 (EDT)
-Message-ID: <4BFC2CB2.9050305@tauceti.net>
-Date: Tue, 25 May 2010 22:01:54 +0200
-From: Robert Wimmer <kernel@tauceti.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3F8AC6B01AD
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 17:54:38 -0400 (EDT)
+Received: by wyf19 with SMTP id 19so499565wyf.14
+        for <linux-mm@kvack.org>; Tue, 25 May 2010 14:54:33 -0700 (PDT)
+Date: Tue, 25 May 2010 23:54:01 +0200
+From: Dan Carpenter <error27@gmail.com>
+Subject: [patch] mempolicy: ERR_PTR dereference in mpol_shared_policy_init()
+Message-ID: <20100525215401.GA2506@bicker>
 MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain> <4BD61147.40709@tauceti.net> <1272324536.16814.45.camel@localhost.localdomain> <4BD76B81.2070606@tauceti.net> <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net> <4BE33259.3000609@tauceti.net> <1273181438.22155.26.camel@localhost.localdomain> <4BEC6A5D.5070304@tauceti.net> <1273785234.22932.14.camel@localhost.localdomain> <a133ef4ed022a00afd40b505719ae3d2@tauceti.net>
-In-Reply-To: <a133ef4ed022a00afd40b505719ae3d2@tauceti.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Trond,
+The original code called mpol_put(new) while "new" was an ERR_PTR.
 
-just a little reminder ;-)
+Signed-off-by: Dan Carpenter <error27@gmail.com>
 
-Thanks!
-Robert
-
-On 05/20/10 09:39, kernel@tauceti.net wrote:
-> Hi Trond,
->
-> have you had some time to download the wireshark dump?
->
-> Thanks!
-> Robert
->
-> On Thu, 13 May 2010 17:13:54 -0400, Trond Myklebust
-> <Trond.Myklebust@netapp.com> wrote:
->   
->> On Thu, 2010-05-13 at 23:08 +0200, Robert Wimmer wrote: 
->>     
->>> Finally I've had some time to do the next test.
->>> Here is a wireshark dump (~750 MByte):
->>> http://213.252.12.93/2.6.34-rc5.cap.gz
->>>
->>> dmesg output after page allocation failure:
->>> https://bugzilla.kernel.org/attachment.cgi?id=26371
->>>
->>> stack trace before page allocation failure:
->>> https://bugzilla.kernel.org/attachment.cgi?id=26369
->>>
->>> stack trace after page allocation failure:
->>> https://bugzilla.kernel.org/attachment.cgi?id=26370
->>>
->>> I hope the wireshark dump is not to big to download.
->>> It was created with
->>> tshark -f "tcp port 2049" -i eth0 -w 2.6.34-rc5.cap
->>>
->>> Thanks!
->>> Robert
->>>       
->> Hi Robert,
->>
->> I tried the above wireshark dump URL, but it appears to point to an
->> empty file.
->>
->> Cheers
->>   Trond
->>     
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 7575101..5d6fb33 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2098,7 +2098,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
+ 		/* contextualize the tmpfs mount point mempolicy */
+ 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
+ 		if (IS_ERR(new))
+-			goto put_free; /* no valid nodemask intersection */
++			goto free_scratch; /* no valid nodemask intersection */
+ 
+ 		task_lock(current);
+ 		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
+@@ -2114,6 +2114,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
+ 
+ put_free:
+ 		mpol_put(new);			/* drop initial ref */
++free_scratch:
+ 		NODEMASK_SCRATCH_FREE(scratch);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
