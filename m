@@ -1,99 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 713956008F9
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 07:07:06 -0400 (EDT)
-Date: Tue, 25 May 2010 21:06:58 +1000
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7BCAA620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 10:16:54 -0400 (EDT)
+Date: Tue, 25 May 2010 09:13:37 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525110658.GL5087@laptop>
-References: <20100525020629.GA5087@laptop>
- <AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com>
- <20100525070734.GC5087@laptop>
- <AANLkTimhTfz_mMWNh_r18yapNxSDjA7wRDnFM6L5aIdE@mail.gmail.com>
- <20100525081634.GE5087@laptop>
- <AANLkTilJBY0sinB365lIZFUaMgMCZ1xyhMdXRTJTVDSV@mail.gmail.com>
- <20100525093410.GH5087@laptop>
- <AANLkTikXp5LlKLK1deKOQpciUFNugjlQah5QpNcImf39@mail.gmail.com>
- <20100525101924.GJ5087@laptop>
- <AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
+In-Reply-To: <20100525020629.GA5087@laptop>
+Message-ID: <alpine.DEB.2.00.1005250859050.28941@router.home>
+References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 01:45:07PM +0300, Pekka Enberg wrote:
-> Hi Nick,
-> 
-> On Tue, May 25, 2010 at 1:19 PM, Nick Piggin <npiggin@suse.de> wrote:
-> >> Like I said, as a maintainer I'm happy to merge patches to modernize
-> >> SLAB
+On Tue, 25 May 2010, Nick Piggin wrote:
+
+> On Mon, May 24, 2010 at 10:06:08AM -0500, Christoph Lameter wrote:
+> > On Mon, 24 May 2010, Nick Piggin wrote:
 > >
-> > I think that would be most productive at this point. I will volunteer
-> > to do it.
-> 
-> OK, great!
-> 
-> > As much as I would like to see SLQB be merged :) I think the best
-> > option is to go with SLAB because it is very well tested and very
-> > very well performing.
-> 
-> I would have liked to see SLQB merged as well but it just didn't happen.
-
-It seemed a bit counter productive if the goal is to have one allocator.
-I think it still has merit but I should really practice what I preach
-and propose incremental improvements to SLAB.
-
- 
-> > If Christoph or you or I or anyone have genuine improvements to make
-> > to the core algorithms, then the best thing to do will just be do
-> > make incremental changes to SLAB.
-> 
-> I don't see the problem in improving SLUB even if we start modernizing
-> SLAB. Do you? I'm obviously biased towards SLUB still for the reasons
-> I already mentioned. I don't want to be a blocker for progress so if I
-> turn out to be a problem, we should consider changing the
-> maintainer(s). ;-)
-
-I think it just has not proven itself at this point, we have most
-production kernels (at least, the performance sensitive ones that
-I'm aware of) running on SLAB, and if it is conceded that lack of
-queueing and reliance on higher order allocations is a problem then
-I think it is far better just to bite the bullet now, drop it so
-we can have a single allocator. Rather than adding SLAB-like queueing
-to it and other big changes. Then make incremental improvements to SLAB.
-
-I have no problems at all with trying new ideas, but really, they
-should be done in SLAB as incremental improvements. Everywhere we
-take that approach, things seem to work better than when we do
-wholesale rip and replacements.
-
-I don't want Christoph (or myself, or you) to stop testing new ideas,
-but really there are almost no good reasons as to why they can be done
-as incremental patches.
-
-With SLAB code cleaned up, there will be even fewer reasons.
-
-
-> > There are several aspects to this. I think the first one will be to
-> > actually modernize the code style, simplify the bootstrap process and
-> > static memory allocations (SLQB goes even further than SLUB in this
-> > regard), and to pull in debug features from SLUB.
+> > > Well I'm glad you've conceded that queues are useful for high
+> > > performance computing, and that higher order allocations are not
+> > > a free and unlimited resource.
 > >
-> > These steps should be made without any changes to core algorithms.
-> > Alien caches can easily be disabled and at present they are really
-> > only a problem for big Altixes where it is a known parameter to tune.
-> >
-> > From that point, I think we should concede that SLUB has not fulfilled
-> > performance promises, and make SLAB the default.
-> 
-> Sure. I don't care which allocator "wins" if we actually are able to get there.
+> > Ahem. I have never made any such claim and would never make them. And
+> > "conceding" something ???
+>
+> Well, you were quite vocal about the subject.
 
-SLUB is already behind the 8 ball here. So is SLQB I don't mind saying
-because it has had much much less testing.
+I was always vocal about the huge amounts of queues and the complexity
+coming with alien caches etc. The alien caches were introduced against my
+objections on the development team that did the NUMA slab. But even SLUB
+has "queues" as many have repeatedly pointed out. The queuing is
+different though in order to minimize excessive NUMA queueing. IMHO the
+NUMA design of SLAB has fundamental problems because it implements its own
+"NUMAness" aside from the page allocator. I had to put lots of band aid on
+the NUMA functionality in SLAB to make it correct.
+
+One of the key things in SLEB is the question how to deal with the alien
+issue. So far I think the best compromise would be to use the shared
+caches of the remote node as a stand in for the alien cache. Problem is
+that we will then free cache cold objects to the remote shared cache.
+Maybe that can be addressed by freeing to the end of the queue instead of
+freeing to the top.
+
+> > The "unqueueing" was the result of excessive queue handling in SLAB due and
+> > the higher order allocations are a natural move in HPC to gain performance.
+>
+> This is the kind of handwavings that need to be put into a testable
+> form. I repeatedly asked you for examples of where the jitter is
+> excessive or where the TLB improvements help, but you never provided
+> any testable case. I'm not saying they don't exist, but we have to be
+> reational about this.
+
+The initial test that showed the improvements was on IA64 (16K page size)
+and that was the measurement that was accepted for the initial merge. Mel
+was able to verify those numbers.
+
+While it will be easily possible to have less higher order allocations
+with SLEB I still think that higher order allocations are desirable to
+increase data locality and TLB pressure. Its easy though to set the
+defaults to order 1 (like SLAB) though and then allow manual override if
+desired.
+
+Fundamentally it is still the case that memory sizes are increasing and
+that management overhead of 4K pages will therefore increasingly become an
+issue. Support for larger page sizes and huge pages is critical for all
+kernel components to compete in the future.
+
+> > > I hope we can move forward now with some objective, testable
+> > > comparisons and criteria for selecting one main slab allocator.
+> >
+> > If can find criteria that are universally agreed upon then yes but that is
+> > doubtful.
+>
+> I think we can agree that perfect is the enemy of good, and that no
+> allocator will do the perfect thing for everybody. I think we have to
+> come up with a way to a single allocator.
+
+Yes but SLAB is not really the way to go. The code is too messy. Thats why
+I think the best way to go at this point is to merge the clean SLUB design
+and add the SLAB features needed and try to keep the NUMA stuff cleaner.
+
+I am not entirely sure that I want to get rid of SLUB. Certainly if you
+want minimal latency (like in my field) and more determinism then you
+would want a SLUB design instead of periodic queue handling. Also SLUB has
+a minimal memory footprint due to the linked list architecture.
+
+The queues sacrifice a lot there. The linked list does not allow managing
+cache cold objects like SLAB does because you always need to touch the
+object and this will cause regressions against SLAB. I think this is also
+one of the weaknesses of SLQB.
+
+
 
 
 --
