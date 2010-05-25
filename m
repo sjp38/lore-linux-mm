@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 245CE6B01B0
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 13:40:53 -0400 (EDT)
-Date: Wed, 26 May 2010 03:40:45 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525174045.GI20853@laptop>
-References: <AANLkTilJBY0sinB365lIZFUaMgMCZ1xyhMdXRTJTVDSV@mail.gmail.com>
- <20100525093410.GH5087@laptop>
- <AANLkTikXp5LlKLK1deKOQpciUFNugjlQah5QpNcImf39@mail.gmail.com>
- <20100525101924.GJ5087@laptop>
- <AANLkTimazVL8G-XQURiQ1s0M3NKa2ndXNceSaw9sADRQ@mail.gmail.com>
- <alpine.LFD.2.00.1005250812100.3689@i5.linux-foundation.org>
- <20100525154352.GB20853@laptop>
- <AANLkTilEIwPSN-stGGuu5wV4Q6Ty0GytNMpfq-vRpK_k@mail.gmail.com>
- <20100525171959.GH20853@laptop>
- <AANLkTinqDzRcWd9RzS_o8BUy7uWCls_4jIhWtdYcF5Uo@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D13216B01AD
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 14:17:15 -0400 (EDT)
+Date: Tue, 25 May 2010 14:17:11 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: [PATCH] xfs: skip writeback from reclaim context
+Message-ID: <20100525181711.GA4119@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTinqDzRcWd9RzS_o8BUy7uWCls_4jIhWtdYcF5Uo@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
+To: xfs@oss.sgi.com
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 08:35:05PM +0300, Pekka Enberg wrote:
-> On Tue, May 25, 2010 at 8:19 PM, Nick Piggin <npiggin@suse.de> wrote:
-> >> I'm not totally convinced but I guess we're about to find that out.
-> >> How do you propose we benchmark SLAB while we clean it up
-> >
-> > Well the first pass will be code cleanups, bootstrap simplifications.
-> > Then looking at what debugging features were implemented in SLUB but not
-> > SLAB and what will be useful to bring over from there.
-> 
-> Bootstrap might be easy to clean up but the biggest source of cruft
-> comes from the deeply inlined, complex allocation paths. Cleaning
-> those up is bound to cause performance regressions if you're not
-> careful.
+Allowing writeback from reclaim context causes massive problems with stack
+overflows as we can call into the writeback code which tends to be a heavy
+stack user both in the generic code and XFS from random contexts that
+perform memory allocations.
 
-Oh I see what you mean, just straight-line code speed regressions
-could bite us when doing cleanups.
+Follow the example of btrfs (and in slightly different form ext4) and refuse
+to write out data from reclaim context.  This issue should really be handled
+by the VM so that we can tune better for this case, but until we get it
+sorted out there we have to hack around this in each filesystem with a
+complex writeback path.
 
-That's possible. I'll keep a close eye on generated asm.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+Index: xfs/fs/xfs/linux-2.6/xfs_aops.c
+===================================================================
+--- xfs.orig/fs/xfs/linux-2.6/xfs_aops.c	2010-05-25 11:40:59.068253457 +0200
++++ xfs/fs/xfs/linux-2.6/xfs_aops.c	2010-05-25 18:25:39.575011803 +0200
+@@ -1326,6 +1326,21 @@ xfs_vm_writepage(
+ 	trace_xfs_writepage(inode, page, 0);
+ 
+ 	/*
++	 * Refuse to write the page out if we are called from reclaim context.
++	 *
++	 * This is primarily to avoid stack overflows when called from deep
++	 * used stacks in random callers for direct reclaim, but disabling
++	 * reclaim for kswap is a nice side-effect as kswapd causes rather
++	 * suboptimal I/O patters, too.
++	 *
++	 * This should really be done by the core VM, but until that happens
++	 * filesystems like XFS, btrfs and ext4 have to take care of this
++	 * by themselves.
++	 */
++	if (current->flags & PF_MEMALLOC)
++		goto out_fail;
++
++	/*
+ 	 * We need a transaction if:
+ 	 *  1. There are delalloc buffers on the page
+ 	 *  2. The page is uptodate and we have unmapped buffers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
