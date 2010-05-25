@@ -1,49 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 62530620202
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 10:43:27 -0400 (EDT)
-Date: Wed, 26 May 2010 00:43:22 +1000
-From: Nick Piggin <npiggin@suse.de>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 59D29620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 10:51:14 -0400 (EDT)
+Date: Tue, 25 May 2010 09:48:01 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525144322.GR5087@laptop>
-References: <20100521211452.659982351@quilx.com>
- <20100524070309.GU2516@laptop>
- <alpine.DEB.2.00.1005240852580.5045@router.home>
- <20100525020629.GA5087@laptop>
- <alpine.DEB.2.00.1005250859050.28941@router.home>
- <20100525143409.GP5087@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20100525143409.GP5087@laptop>
+Message-ID: <alpine.DEB.2.00.1005250938300.29543@router.home>
+References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <alpine.DEB.2.00.1005250859050.28941@router.home> <20100525143409.GP5087@laptop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 26, 2010 at 12:34:09AM +1000, Nick Piggin wrote:
-> On Tue, May 25, 2010 at 09:13:37AM -0500, Christoph Lameter wrote:
-> > The queues sacrifice a lot there. The linked list does not allow managing
-> > cache cold objects like SLAB does because you always need to touch the
-> > object and this will cause regressions against SLAB. I think this is also
-> > one of the weaknesses of SLQB.
-> 
-> But this is just more handwaving. That's what got us into this situation
-> we are in now.
-> 
-> What we know is that SLAB is still used by all high performance
-> enterprise distros (and google). And it is used by Altixes in production
-> as well as all other large NUMA machines that Linux runs on.
-> 
+On Wed, 26 May 2010, Nick Piggin wrote:
+
+> > The initial test that showed the improvements was on IA64 (16K page size)
+> > and that was the measurement that was accepted for the initial merge. Mel
+> > was able to verify those numbers.
+>
+> And there is nothing to prevent a SLAB type allocator from using higher
+> order allocations, except for the fact that it usually wouldn't because
+> far more often than not it is a bad idea.
+
+16K is the base page size on IA64. Higher order allocations are a pressing
+issue for the kernel given growing memory sizes and we are slowly but
+surely making progress with defrag etc.
+
+> > Fundamentally it is still the case that memory sizes are increasing and
+> > that management overhead of 4K pages will therefore increasingly become an
+> > issue. Support for larger page sizes and huge pages is critical for all
+> > kernel components to compete in the future.
+>
+> Numbers haven't really shown that SLUB is better because of higher order
+> allocations. Besides, as I said, higher order allocations can be used
+> by others.
+
+Boot with huge page support (slub_min_order=9) and you will see a
+performance increase on many loads.
+
+> Also, there were no numbers or test cases, simply handwaving. I don't
+> disagree it might be a problem, but the way to solve problems is to
+> provide a test case or numbers.
+
+The reason that the alien caches made it into SLAB were performance
+numbers that showed that the design "must" be this way. I prefer a clear
+maintainable design over some numbers (that invariably show the bias of
+the tester for certain loads).
+
 > Given that information, how can you still say that SLUB+more big changes
 > is the right way to proceed?
 
-Might I add that once SLAB code is cleaned up, you can always propose
-improvements from SLUB or any other ideas for it which we can carefully
-test and merge in slowly as bisectable changes to our benchmark
-performance slab allocator.
+Have you looked at the SLAB code?
 
-In fact, if you have better ideas in SLEB, I would encourage it.
+Also please stop exaggerating. There are no immediate plans to replace
+SLAB. We are exploring a possible solution.
+
+If the SLEB idea pans out and we can replicate SLAB (and SLUB) performance
+then we will have to think about replacing SLAB / SLUB at some point. So
+far this is just a riggedy thing that barely works where there is some
+hope that the SLAB - SLUB conumdrum may be solved by the approach.
+
 
 
 --
