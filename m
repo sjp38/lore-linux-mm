@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C50396008F1
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 05:42:26 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id o4P9gMcA007887
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:42:22 -0700
-Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
-	by hpaq7.eem.corp.google.com with ESMTP id o4P9gJk3029759
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:42:21 -0700
-Received: by pwj7 with SMTP id 7so837686pwj.4
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 02:42:19 -0700 (PDT)
-Date: Tue, 25 May 2010 02:42:14 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E8D96008F1
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 05:46:14 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id o4P9kA2a011871
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:11 -0700
+Received: from pvc7 (pvc7.prod.google.com [10.241.209.135])
+	by kpbe17.cbf.corp.google.com with ESMTP id o4P9jegw026071
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:09 -0700
+Received: by pvc7 with SMTP id 7so2228146pvc.11
+        for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:09 -0700 (PDT)
+Date: Tue, 25 May 2010 02:46:06 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: oom killer rewrite
-In-Reply-To: <20100520092717.0c3d8f3f.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1005250231460.8045@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com> <20100520092717.0c3d8f3f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100524070714.GV2516@laptop>
+Message-ID: <alpine.DEB.2.00.1005250242260.8045@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com> <20100524100840.1E95.A69D9226@jp.fujitsu.com> <20100524070714.GV2516@laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 May 2010, KAMEZAWA Hiroyuki wrote:
+On Mon, 24 May 2010, Nick Piggin wrote:
 
-> I've pointed out that "normalized" parameter doesn't seem to work well in some
-> situaion (in cluster). I hope you'll have an extra interface as
+> > > I've been notified that my entire oom killer rewrite has been dropped from 
+> > > -mm based solely on your feedback.  The problem is that I have absolutely 
+> > > no idea what issues you have with the changes that haven't already been 
+> > > addressed (nobody else does, either, it seems).
 > 
-> 	echo 3G > /proc/<pid>/oom_indemification
-> 
-> to allow users have "absolute value" setting.
-> (If the admin know usual memory usage of an application, we can only
->  add badness to extra memory usage.)
-> 
-> To be honest, I can't fully understand why we need _normalized_ parameter. Why
-> oom_adj _which is now used_ is not enough for setting "relative importance" ?
+> I had exactly the same issues with the userland kernel API changes and
+> the pagefault OOM regression it introduced, which I told you months ago.
+> You ignored me, it seems.
 > 
 
-The only sane badness heuristic will be one that effectively compares all 
-eligible tasks for oom kill in a way that are relative to one another; I'm 
-concerned that a tunable that is based on a pure memory quantity requires 
-specific knowledge of the system (or memcg, cpuset, etc) capacity before 
-it is meaningful.  In other words, I opted to use a relative proportion so 
-that when tasks are constrained to cpusets or memcgs or mempolicies they 
-become part of a "virtualized system" where the proportion is then used in 
-calculation of the total amount of system RAM, memcg limit, cpuset mems 
-capacities, etc, without knowledge of what that value actually is.  So 
-"echo 3G" may be valid in your example when not constrained to any cgroup 
-or mempolicy but becomes invalid if I attach it to a cpuset with a single 
-node of 1G capacity.  When oom_score_adj, we can specify the proportion 
-"of the resources that the application has access to" in comparison to 
-other applications that share those resources to determine oom killing 
-priority.  I think that's a very powerful interface and your suggestion 
-could easily be implemented in userspace with a simple divide, thus we 
-don't need kernel support for it.
+No, I didn't ignore you, your comments were specifically addressed with 
+oom-reintroduce-and-deprecate-oom_kill_allocating_task.patch which only 
+deprecated the API change and wasn't even scheduled for removal until of 
+the end of 2011.  So there were no kernel API changes that went 
+unaddressed, perhaps you just didn't see that patch (I cc'd it to you on 
+April 27, though).
 
-> And, IIRC, Nick pointed out that "don't remove _used_ interfaces just because
-> you hate it or it seems not clean". So, I recommend you to drop sysctl changes.
-> 
+The pagefault oom behavior can now be changed back since you've converted 
+all existing architectures to call into the oom killer and not simply kill 
+current (thanks for that work!).  Previously, there was an inconsistency 
+amongst architectures in panic_on_oom behavior that we can now unify into 
+semantics that work across the board.
 
-I addressed this in 
-oom-reintroduce-and-deprecate-oom_kill_allocating_task.patch so that the 
-end result was that only the oom_dump_tasks sysctl was removed because it 
-was now enabled by default since it provides useful information about the 
-state of the VM at the time of allocation failure.  So there's no longer 
-any removal of "used" interfaces (the only previous use of oom_dump_tasks 
-was to enable it, which is now the default).  Are you disagreeing with the 
-deprecation of the sysctl since it was then folded into the new 
-oom_dump_quick sysctl?
+I've made that change in my latest patch series which I'll be posting 
+shortly.
 
-Regardless, I dropped all of these cleanups from my latest patch series 
-which I'll post shortly, but keep in mind that what existed in -mm before 
-it was dropped did not break any userspace API, it simply deprecated them 
-for removal in two years.
-
-> I think the whole concept of your patch series is good and I like it.
-
-Thanks, Kame, for your continued interest in this work, it's encouraging.
+Thanks for the feedback!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
