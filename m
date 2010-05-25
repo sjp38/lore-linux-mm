@@ -1,61 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 443FF6B01B5
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 18:17:16 -0400 (EDT)
-From: Albert Herranz <albert_herranz@yahoo.es>
-Subject: [RFT PATCH 2/2] fb_defio: redo fix for non-dirty ptes
-Date: Wed, 26 May 2010 00:17:00 +0200
-Message-Id: <1274825820-10246-2-git-send-email-albert_herranz@yahoo.es>
-In-Reply-To: <1274825820-10246-1-git-send-email-albert_herranz@yahoo.es>
-References: <1274825820-10246-1-git-send-email-albert_herranz@yahoo.es>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3320D6B01AD
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 19:09:08 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o4PN94Fp026890
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 16:09:04 -0700
+Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
+	by wpaz1.hot.corp.google.com with ESMTP id o4PN92bQ001398
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 16:09:03 -0700
+Received: by pxi19 with SMTP id 19so2053413pxi.3
+        for <linux-mm@kvack.org>; Tue, 25 May 2010 16:09:02 -0700 (PDT)
+Date: Tue, 25 May 2010 16:08:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mempolicy: ERR_PTR dereference in
+ mpol_shared_policy_init()
+In-Reply-To: <20100525215401.GA2506@bicker>
+Message-ID: <alpine.DEB.2.00.1005251608440.10919@chino.kir.corp.google.com>
+References: <20100525215401.GA2506@bicker>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: npiggin@suse.de, jayakumar.lkml@gmail.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fbdev@vger.kernel.org
-Cc: Albert Herranz <albert_herranz@yahoo.es>
+To: Dan Carpenter <error27@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-As pointed by Nick Piggin, ->page_mkwrite provides a way to keep a page
-locked until the associated PTE is marked dirty.
+On Tue, 25 May 2010, Dan Carpenter wrote:
 
-Re-implement the fix by using this mechanism.
+> The original code called mpol_put(new) while "new" was an ERR_PTR.
+> 
+> Signed-off-by: Dan Carpenter <error27@gmail.com>
 
-LKML-Reference: <20100525160149.GE20853@laptop>
-Signed-off-by: Albert Herranz <albert_herranz@yahoo.es>
----
- drivers/video/fb_defio.c |   12 +++++++++++-
- 1 files changed, 11 insertions(+), 1 deletions(-)
-
-diff --git a/drivers/video/fb_defio.c b/drivers/video/fb_defio.c
-index 0e4dcdb..a3e8cc7 100644
---- a/drivers/video/fb_defio.c
-+++ b/drivers/video/fb_defio.c
-@@ -100,6 +100,16 @@ static int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
- 	/* protect against the workqueue changing the page list */
- 	mutex_lock(&fbdefio->lock);
- 
-+	/*
-+	 * We want the page to remain locked from ->page_mkwrite until
-+	 * the PTE is marked dirty to avoid page_mkclean() being called
-+	 * before the PTE is updated, which would leave the page ignored
-+	 * by defio.
-+	 * Do this by locking the page here and informing the caller
-+	 * about it with VM_FAULT_LOCKED.
-+	 */
-+	lock_page(page);
-+
- 	/* we loop through the pagelist before adding in order
- 	to keep the pagelist sorted */
- 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-@@ -121,7 +131,7 @@ page_already_added:
- 
- 	/* come back after delay to process the deferred IO */
- 	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
--	return 0;
-+	return VM_FAULT_LOCKED;
- }
- 
- static const struct vm_operations_struct fb_deferred_io_vm_ops = {
--- 
-1.7.0.4
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
