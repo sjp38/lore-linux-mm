@@ -1,55 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3E1AB620202
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:31:26 -0400 (EDT)
-Date: Tue, 25 May 2010 10:28:11 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 520DC620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:38:04 -0400 (EDT)
+Date: Wed, 26 May 2010 01:37:59 +1000
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-In-Reply-To: <20100525151129.GS5087@laptop>
-Message-ID: <alpine.DEB.2.00.1005251022220.30395@router.home>
-References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <alpine.DEB.2.00.1005250859050.28941@router.home> <20100525143409.GP5087@laptop>
- <alpine.DEB.2.00.1005250938300.29543@router.home> <20100525151129.GS5087@laptop>
+Message-ID: <20100525153759.GA20853@laptop>
+References: <20100521211452.659982351@quilx.com>
+ <20100524070309.GU2516@laptop>
+ <alpine.DEB.2.00.1005240852580.5045@router.home>
+ <20100525020629.GA5087@laptop>
+ <alpine.DEB.2.00.1005250859050.28941@router.home>
+ <20100525143409.GP5087@laptop>
+ <alpine.DEB.2.00.1005250938300.29543@router.home>
+ <20100525151129.GS5087@laptop>
+ <alpine.DEB.2.00.1005251022220.30395@router.home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1005251022220.30395@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 May 2010, Nick Piggin wrote:
+On Tue, May 25, 2010 at 10:28:11AM -0500, Christoph Lameter wrote:
+> On Wed, 26 May 2010, Nick Piggin wrote:
+> 
+> > You do not understand. There is nothing *preventing* other designs of
+> > allocators from using higher order allocations. The problem is that
+> > SLUB is *forced* to use them due to it's limited queueing capabilities.
+> 
+> SLUBs use of higher order allocation is *optional*. The limited queuing is
+> advantageous within the framework of SLUB because NUMA locality checks are
+> simplified and locking is localized to a single page increasing
+> concurrency.
 
-> You do not understand. There is nothing *preventing* other designs of
-> allocators from using higher order allocations. The problem is that
-> SLUB is *forced* to use them due to it's limited queueing capabilities.
+It's not optional if performance sucks without it. People want to have
+a well performing slab allocator and also not have the downsides of it
+using higher order allocations.
 
-SLUBs use of higher order allocation is *optional*. The limited queuing is
-advantageous within the framework of SLUB because NUMA locality checks are
-simplified and locking is localized to a single page increasing
-concurrency.
+Look at what David said about Google's kernel for a concrete example.
 
-> You keep spinning this as a good thing for SLUB design when it is not.
+ 
+> > You keep spinning this as a good thing for SLUB design when it is not.
+> 
+> It is a good design decision. You have an irrational fear of higher order
+> allocations.
 
-It is a good design decision. You have an irrational fear of higher order
-allocations.
+No.
 
-> > The reason that the alien caches made it into SLAB were performance
-> > numbers that showed that the design "must" be this way. I prefer a clear
-> > maintainable design over some numbers (that invariably show the bias of
-> > the tester for certain loads).
->
-> I don't really agree. There are a number of other possible ways to
-> improve it, including fewer remote freeing queues.
+ 
+> > > The reason that the alien caches made it into SLAB were performance
+> > > numbers that showed that the design "must" be this way. I prefer a clear
+> > > maintainable design over some numbers (that invariably show the bias of
+> > > the tester for certain loads).
+> >
+> > I don't really agree. There are a number of other possible ways to
+> > improve it, including fewer remote freeing queues.
+> 
+> You disagree with the history of the allocator?
 
-You disagree with the history of the allocator?
-
-> How is it possibly better to instead start from the known suboptimal
-> code and make changes to it? What exactly is your concern with
-> making incremental changes to SLAB?
-
-I am not sure why you want me to repeat what I already said. Guess we
-should stop this conversation since it is deteriorating.
+I don't agree with you saying that it "must" be that way. There are
+other ways to improve things there.
 
 
+> > How is it possibly better to instead start from the known suboptimal
+> > code and make changes to it? What exactly is your concern with
+> > making incremental changes to SLAB?
+> 
+> I am not sure why you want me to repeat what I already said. Guess we
+> should stop this conversation since it is deteriorating.
+
+You never answered these questions adequately. These are the 2 most
+important things because if I can address your concerns with them,
+then we can go ahead and throw out SLUB and make incremental
+improvements from there instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
