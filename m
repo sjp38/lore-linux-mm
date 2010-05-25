@@ -1,89 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 426466B01B0
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 01:06:00 -0400 (EDT)
-Message-ID: <4BFB5AAE.1060609@linux.intel.com>
-Date: Tue, 25 May 2010 13:05:50 +0800
-From: Haicheng Li <haicheng.li@linux.intel.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F276B01B0
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:40:01 -0400 (EDT)
+Date: Tue, 25 May 2010 12:06:30 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+Message-ID: <20100525020629.GA5087@laptop>
+References: <20100521211452.659982351@quilx.com>
+ <20100524070309.GU2516@laptop>
+ <alpine.DEB.2.00.1005240852580.5045@router.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
-References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>	<4BF4AB24.7070107@linux.intel.com> <20100521130808.919ecb35.akpm@linux-foundation.org>
-In-Reply-To: <20100521130808.919ecb35.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1005240852580.5045@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Thu, 20 May 2010 11:23:16 +0800
-> Haicheng Li <haicheng.li@linux.intel.com> wrote:
+On Mon, May 24, 2010 at 10:06:08AM -0500, Christoph Lameter wrote:
+> On Mon, 24 May 2010, Nick Piggin wrote:
 > 
->> Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
->> unless system_state == SYSTEM_BOOTING.
+> > Well I'm glad you've conceded that queues are useful for high
+> > performance computing, and that higher order allocations are not
+> > a free and unlimited resource.
 > 
-> Taking a global mutex in the cpu-hotplug code is worrisome.  Perhaps
-> because of the two years spent weeding out strange deadlocks between
-> cpu-hotplug and cpufreq.
+> Ahem. I have never made any such claim and would never make them. And
+> "conceding" something ???
+
+Well, you were quite vocal about the subject.
+
+ 
+> The "unqueueing" was the result of excessive queue handling in SLAB due and
+> the higher order allocations are a natural move in HPC to gain performance.
+
+This is the kind of handwavings that need to be put into a testable
+form. I repeatedly asked you for examples of where the jitter is
+excessive or where the TLB improvements help, but you never provided
+any testable case. I'm not saying they don't exist, but we have to be
+reational about this.
+
+ 
+> > I hope we can move forward now with some objective, testable
+> > comparisons and criteria for selecting one main slab allocator.
 > 
-> Has this change been carefully and fully tested with lockdep enabled
-> (please)?
-Yes, Andrew. I've tested it with lockdep enabled, and there was *no*
-issue found for this change in my testing.
+> If can find criteria that are universally agreed upon then yes but that is
+> doubtful.
 
-My test box: CPUs on node 1~3 are all offlined (16 cpus per node).
-Here are my test steps:
-on tty0:
-# cd /sys/devices/system/node/node1
-# for i in cpu*; do echo 1 > $i/online; done
-
-on tty1:
-# cd /sys/devices/system/node/node2
-# for i in cpu*; do echo 1 > $i/online; done
-
-on tty2:
-# cd /sys/devices/system/node/node3
-# for i in cpu*; do echo 1 > $i/online; done
-
-on tty3:
-# cat zonelist
-
-	#! /bin/bash
-	set -x
-	while ((1)); do
-		echo n > /proc/sys/vm/numa_zonelist_order
-		sleep 10
-		echo z > /proc/sys/vm/numa_zonelist_order
-		sleep 10
-	done
-
-# ./zonelist
-
-Besides, I also ran some cpu online/offline tests from LTP/cpu_hotplug test suites.
-They worked fine too.
-
->> --- a/kernel/cpu.c
->> +++ b/kernel/cpu.c
->> @@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
->>                  return -ENOMEM;
->>          }
->>
->> -       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
->> +       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
->> +               mutex_lock(&zonelists_mutex);
->>                  build_all_zonelists(NULL);
->> +               mutex_unlock(&zonelists_mutex);
->> +       }
-> 
-> Your email client is performing space-stuffing and it replaces tabs
-> with spaces.  This requires me to edit the patches rather a lot,
-> which is dull.
-
-Really sorry for the inconvenience to you. I'll pay more attention
-next time. thank you!
-
--haicheng
+I think we can agree that perfect is the enemy of good, and that no
+allocator will do the perfect thing for everybody. I think we have to
+come up with a way to a single allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
