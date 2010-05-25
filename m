@@ -1,55 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 70F276B01B0
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:40:01 -0400 (EDT)
-Date: Tue, 25 May 2010 12:06:30 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-Message-ID: <20100525020629.GA5087@laptop>
-References: <20100521211452.659982351@quilx.com>
- <20100524070309.GU2516@laptop>
- <alpine.DEB.2.00.1005240852580.5045@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 720706B01B2
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:55:31 -0400 (EDT)
+Received: by fxm11 with SMTP id 11so2418055fxm.14
+        for <linux-mm@kvack.org>; Mon, 24 May 2010 23:55:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1005240852580.5045@router.home>
+In-Reply-To: <20100525020629.GA5087@laptop>
+References: <20100521211452.659982351@quilx.com>
+	<20100524070309.GU2516@laptop>
+	<alpine.DEB.2.00.1005240852580.5045@router.home>
+	<20100525020629.GA5087@laptop>
+Date: Tue, 25 May 2010 09:55:28 +0300
+Message-ID: <AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 24, 2010 at 10:06:08AM -0500, Christoph Lameter wrote:
-> On Mon, 24 May 2010, Nick Piggin wrote:
-> 
-> > Well I'm glad you've conceded that queues are useful for high
-> > performance computing, and that higher order allocations are not
-> > a free and unlimited resource.
-> 
-> Ahem. I have never made any such claim and would never make them. And
-> "conceding" something ???
+On Tue, May 25, 2010 at 5:06 AM, Nick Piggin <npiggin@suse.de> wrote:
+>> If can find criteria that are universally agreed upon then yes but that is
+>> doubtful.
+>
+> I think we can agree that perfect is the enemy of good, and that no
+> allocator will do the perfect thing for everybody. I think we have to
+> come up with a way to a single allocator.
 
-Well, you were quite vocal about the subject.
-
- 
-> The "unqueueing" was the result of excessive queue handling in SLAB due and
-> the higher order allocations are a natural move in HPC to gain performance.
-
-This is the kind of handwavings that need to be put into a testable
-form. I repeatedly asked you for examples of where the jitter is
-excessive or where the TLB improvements help, but you never provided
-any testable case. I'm not saying they don't exist, but we have to be
-reational about this.
-
- 
-> > I hope we can move forward now with some objective, testable
-> > comparisons and criteria for selecting one main slab allocator.
-> 
-> If can find criteria that are universally agreed upon then yes but that is
-> doubtful.
-
-I think we can agree that perfect is the enemy of good, and that no
-allocator will do the perfect thing for everybody. I think we have to
-come up with a way to a single allocator.
+Yes. The interesting most interesting bit about SLEB for me is the
+freelist handling as bitmaps, not necessarily the "queuing" part. If
+the latter also helps some workloads, it's a bonus for sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
