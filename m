@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CE9056002CC
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 04:53:25 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4AC3B6002CC
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 04:53:34 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 2/5] mm: add context argument to shrinker callback
-Date: Tue, 25 May 2010 18:53:05 +1000
-Message-Id: <1274777588-21494-3-git-send-email-david@fromorbit.com>
+Subject: [PATCH 1/5] inode: Make unused inode LRU per superblock
+Date: Tue, 25 May 2010 18:53:04 +1000
+Message-Id: <1274777588-21494-2-git-send-email-david@fromorbit.com>
 In-Reply-To: <1274777588-21494-1-git-send-email-david@fromorbit.com>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,328 +15,261 @@ List-ID: <linux-mm.kvack.org>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-The current shrinker implementation requires the registered callback
-to have global state to work from. This makes it difficult to shrink
-caches that are not global (e.g. per-filesystem caches). Pass the shrinker
-structure to the callback so that users can embed the shrinker structure
-in the context the shrinker needs to operate on and get back to it in the
-callback via container_of().
+The inode unused list is currently a global LRU. This does not match
+the other global filesystem cache - the dentry cache - which uses
+per-superblock LRU lists. Hence we have related filesystem object
+types using different LRU reclaimatin schemes.
+
+To enable a per-superblock filesystem cache shrinker, both of these
+caches need to have per-sb unused object LRU lists. Hence this patch
+converts the global inode LRU to per-sb LRUs.
+
+The patch only does rudimentary per-sb propotioning in the shrinker
+infrastructure, as this gets removed when the per-sb shrinker
+callouts are introduced later on.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- arch/x86/kvm/mmu.c              |    2 +-
- drivers/gpu/drm/i915/i915_gem.c |    2 +-
- fs/dcache.c                     |    2 +-
- fs/gfs2/glock.c                 |    2 +-
- fs/gfs2/quota.c                 |    2 +-
- fs/gfs2/quota.h                 |    2 +-
- fs/inode.c                      |    2 +-
- fs/mbcache.c                    |    5 +++--
- fs/nfs/dir.c                    |    2 +-
- fs/nfs/internal.h               |    3 ++-
- fs/quota/dquot.c                |    2 +-
- fs/ubifs/shrinker.c             |    2 +-
- fs/ubifs/ubifs.h                |    2 +-
- fs/xfs/linux-2.6/xfs_buf.c      |    5 +++--
- fs/xfs/linux-2.6/xfs_sync.c     |    1 +
- fs/xfs/quota/xfs_qm.c           |    7 +++++--
- include/linux/mm.h              |    2 +-
- mm/vmscan.c                     |    8 +++++---
- 18 files changed, 31 insertions(+), 22 deletions(-)
+ fs/fs-writeback.c         |    2 +-
+ fs/inode.c                |   87 +++++++++++++++++++++++++++++++++++++++-----
+ fs/super.c                |    1 +
+ include/linux/fs.h        |    4 ++
+ include/linux/writeback.h |    1 -
+ 5 files changed, 83 insertions(+), 12 deletions(-)
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 81563e7..ac3d107 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2919,7 +2919,7 @@ static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm)
- 	return kvm_mmu_zap_page(kvm, page) + 1;
- }
- 
--static int mmu_shrink(int nr_to_scan, gfp_t gfp_mask)
-+static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- {
- 	struct kvm *kvm;
- 	struct kvm *kvm_freed = NULL;
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 112699f..6cd2e7a 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -5216,7 +5216,7 @@ i915_gpu_is_active(struct drm_device *dev)
- }
- 
- static int
--i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
-+i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- {
- 	drm_i915_private_t *dev_priv, *next_dev;
- 	struct drm_i915_gem_object *obj_priv, *next_obj;
-diff --git a/fs/dcache.c b/fs/dcache.c
-index d96047b..dba6b6d 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -894,7 +894,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
-  *
-  * In this case we return -1 to tell the caller that we baled.
-  */
--static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
-+static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
- {
- 	if (nr) {
- 		if (!(gfp_mask & __GFP_FS))
-diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
-index ddcdbf4..04b540c 100644
---- a/fs/gfs2/glock.c
-+++ b/fs/gfs2/glock.c
-@@ -1348,7 +1348,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
- }
- 
- 
--static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
-+static int gfs2_shrink_glock_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
- {
- 	struct gfs2_glock *gl;
- 	int may_demote;
-diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
-index 49667d6..4ea548f 100644
---- a/fs/gfs2/quota.c
-+++ b/fs/gfs2/quota.c
-@@ -77,7 +77,7 @@ static LIST_HEAD(qd_lru_list);
- static atomic_t qd_lru_count = ATOMIC_INIT(0);
- static DEFINE_SPINLOCK(qd_lru_lock);
- 
--int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
-+int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
- {
- 	struct gfs2_quota_data *qd;
- 	struct gfs2_sbd *sdp;
-diff --git a/fs/gfs2/quota.h b/fs/gfs2/quota.h
-index 195f60c..e7d236c 100644
---- a/fs/gfs2/quota.h
-+++ b/fs/gfs2/quota.h
-@@ -51,7 +51,7 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
- 	return ret;
- }
- 
--extern int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask);
-+extern int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask);
- extern const struct quotactl_ops gfs2_quotactl_ops;
- 
- #endif /* __QUOTA_DOT_H__ */
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 5c4161f..b1e76ef 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -565,7 +565,7 @@ select_queue:
+ 			/*
+ 			 * The inode is clean, unused
+ 			 */
+-			list_move(&inode->i_list, &inode_unused);
++			list_move(&inode->i_list, &inode->i_sb->s_inode_lru);
+ 		}
+ 	}
+ 	inode_sync_complete(inode);
 diff --git a/fs/inode.c b/fs/inode.c
-index 3caa758..1e44ec5 100644
+index 2bee20a..3caa758 100644
 --- a/fs/inode.c
 +++ b/fs/inode.c
-@@ -577,7 +577,7 @@ static void prune_icache(int count)
-  * This function is passed the number of inodes to scan, and it returns the
-  * total number of remaining possibly-reclaimable inodes.
-  */
--static int shrink_icache_memory(int nr, gfp_t gfp_mask)
-+static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
- {
- 	if (nr) {
- 		/*
-diff --git a/fs/mbcache.c b/fs/mbcache.c
-index ec88ff3..e28f21b 100644
---- a/fs/mbcache.c
-+++ b/fs/mbcache.c
-@@ -115,7 +115,7 @@ mb_cache_indexes(struct mb_cache *cache)
-  * What the mbcache registers as to get shrunk dynamically.
+@@ -25,6 +25,7 @@
+ #include <linux/mount.h>
+ #include <linux/async.h>
+ #include <linux/posix_acl.h>
++#include "internal.h"
+ 
+ /*
+  * This is needed for the following functions:
+@@ -74,7 +75,6 @@ static unsigned int i_hash_shift __read_mostly;
   */
  
--static int mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask);
-+static int mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+ LIST_HEAD(inode_in_use);
+-LIST_HEAD(inode_unused);
+ static struct hlist_head *inode_hashtable __read_mostly;
  
- static struct shrinker mb_cache_shrinker = {
- 	.shrink = mb_cache_shrink_fn,
-@@ -191,13 +191,14 @@ forget:
-  * This function is called by the kernel memory management when memory
-  * gets low.
-  *
-+ * @shrink: (ignored)
-  * @nr_to_scan: Number of objects to scan
-  * @gfp_mask: (ignored)
-  *
-  * Returns the number of objects which are present in the cache.
-  */
- static int
--mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
-+mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- {
- 	LIST_HEAD(free_list);
- 	struct list_head *l, *ltmp;
-diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
-index ee9a179..3f33bc0 100644
---- a/fs/nfs/dir.c
-+++ b/fs/nfs/dir.c
-@@ -1708,7 +1708,7 @@ static void nfs_access_free_list(struct list_head *head)
- 	}
+ /*
+@@ -292,6 +292,7 @@ void __iget(struct inode *inode)
+ 	if (!(inode->i_state & (I_DIRTY|I_SYNC)))
+ 		list_move(&inode->i_list, &inode_in_use);
+ 	inodes_stat.nr_unused--;
++	inode->i_sb->s_nr_inodes_unused--;
  }
  
--int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
-+int nfs_access_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
- {
- 	LIST_HEAD(head);
- 	struct nfs_inode *nfsi;
-diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
-index d8bd619..e70f44b 100644
---- a/fs/nfs/internal.h
-+++ b/fs/nfs/internal.h
-@@ -205,7 +205,8 @@ extern struct rpc_procinfo nfs4_procedures[];
- void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
- 
- /* dir.c */
--extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
-+extern int nfs_access_cache_shrinker(struct shrinker *shrink,
-+					int nr_to_scan, gfp_t gfp_mask);
- 
- /* inode.c */
- extern struct workqueue_struct *nfsiod_workqueue;
-diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
-index 655a4c5..cfd5437 100644
---- a/fs/quota/dquot.c
-+++ b/fs/quota/dquot.c
-@@ -697,7 +697,7 @@ static int dqstats_read(unsigned int type)
-  * more memory
+ /**
+@@ -386,6 +387,7 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
+ 		invalidate_inode_buffers(inode);
+ 		if (!atomic_read(&inode->i_count)) {
+ 			list_move(&inode->i_list, dispose);
++			inode->i_sb->s_nr_inodes_unused--;
+ 			WARN_ON(inode->i_state & I_NEW);
+ 			inode->i_state |= I_FREEING;
+ 			count++;
+@@ -444,32 +446,31 @@ static int can_unuse(struct inode *inode)
+  *
+  * Any inodes which are pinned purely because of attached pagecache have their
+  * pagecache removed.  We expect the final iput() on that inode to add it to
+- * the front of the inode_unused list.  So look for it there and if the
++ * the front of the sb->s_inode_lru list.  So look for it there and if the
+  * inode is still freeable, proceed.  The right inode is found 99.9% of the
+  * time in testing on a 4-way.
+  *
+  * If the inode has metadata buffers attached to mapping->private_list then
+  * try to remove them.
   */
- 
--static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
-+static int shrink_dqcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+-static void prune_icache(int nr_to_scan)
++static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
  {
- 	if (nr) {
- 		spin_lock(&dq_list_lock);
-diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
-index 02feb59..0b20111 100644
---- a/fs/ubifs/shrinker.c
-+++ b/fs/ubifs/shrinker.c
-@@ -277,7 +277,7 @@ static int kick_a_thread(void)
- 	return 0;
- }
+ 	LIST_HEAD(freeable);
+ 	int nr_pruned = 0;
+ 	int nr_scanned;
+ 	unsigned long reap = 0;
  
--int ubifs_shrinker(int nr, gfp_t gfp_mask)
-+int ubifs_shrinker(struct shrinker *shrink, int nr, gfp_t gfp_mask)
- {
- 	int freed, contention = 0;
- 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
-diff --git a/fs/ubifs/ubifs.h b/fs/ubifs/ubifs.h
-index bd2542d..5a92345 100644
---- a/fs/ubifs/ubifs.h
-+++ b/fs/ubifs/ubifs.h
-@@ -1575,7 +1575,7 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
- int ubifs_tnc_end_commit(struct ubifs_info *c);
+-	down_read(&iprune_sem);
+ 	spin_lock(&inode_lock);
+-	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
++	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+ 		struct inode *inode;
  
- /* shrinker.c */
--int ubifs_shrinker(int nr_to_scan, gfp_t gfp_mask);
-+int ubifs_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+-		if (list_empty(&inode_unused))
++		if (list_empty(&sb->s_inode_lru))
+ 			break;
  
- /* commit.c */
- int ubifs_bg_thread(void *info);
-diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
-index f01de3c..fe8bf82 100644
---- a/fs/xfs/linux-2.6/xfs_buf.c
-+++ b/fs/xfs/linux-2.6/xfs_buf.c
-@@ -44,7 +44,7 @@
+-		inode = list_entry(inode_unused.prev, struct inode, i_list);
++		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_list);
  
- static kmem_zone_t *xfs_buf_zone;
- STATIC int xfsbufd(void *);
--STATIC int xfsbufd_wakeup(int, gfp_t);
-+STATIC int xfsbufd_wakeup(struct shrinker *, int, gfp_t);
- STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
- static struct shrinker xfs_buf_shake = {
- 	.shrink = xfsbufd_wakeup,
-@@ -339,7 +339,7 @@ _xfs_buf_lookup_pages(
- 					__func__, gfp_mask);
- 
- 			XFS_STATS_INC(xb_page_retries);
--			xfsbufd_wakeup(0, gfp_mask);
-+			xfsbufd_wakeup(NULL, 0, gfp_mask);
- 			congestion_wait(BLK_RW_ASYNC, HZ/50);
- 			goto retry;
+ 		if (inode->i_state || atomic_read(&inode->i_count)) {
+-			list_move(&inode->i_list, &inode_unused);
++			list_move(&inode->i_list, &sb->s_inode_lru);
+ 			continue;
  		}
-@@ -1753,6 +1753,7 @@ xfs_buf_runall_queues(
+ 		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
+@@ -481,7 +482,7 @@ static void prune_icache(int nr_to_scan)
+ 			iput(inode);
+ 			spin_lock(&inode_lock);
  
- STATIC int
- xfsbufd_wakeup(
-+	struct shrinker		*shrink,
- 	int			priority,
- 	gfp_t			mask)
- {
-diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
-index 3884e20..c881a0c 100644
---- a/fs/xfs/linux-2.6/xfs_sync.c
-+++ b/fs/xfs/linux-2.6/xfs_sync.c
-@@ -842,6 +842,7 @@ static struct rw_semaphore xfs_mount_list_lock;
+-			if (inode != list_entry(inode_unused.next,
++			if (inode != list_entry(sb->s_inode_lru.next,
+ 						struct inode, i_list))
+ 				continue;	/* wrong inode or list_empty */
+ 			if (!can_unuse(inode))
+@@ -493,13 +494,77 @@ static void prune_icache(int nr_to_scan)
+ 		nr_pruned++;
+ 	}
+ 	inodes_stat.nr_unused -= nr_pruned;
++	sb->s_nr_inodes_unused -= nr_pruned;
+ 	if (current_is_kswapd())
+ 		__count_vm_events(KSWAPD_INODESTEAL, reap);
+ 	else
+ 		__count_vm_events(PGINODESTEAL, reap);
+ 	spin_unlock(&inode_lock);
++	*nr_to_scan = nr_scanned;
  
- static int
- xfs_reclaim_inode_shrink(
-+	struct shrinker	*shrink,
- 	int		nr_to_scan,
- 	gfp_t		gfp_mask)
- {
-diff --git a/fs/xfs/quota/xfs_qm.c b/fs/xfs/quota/xfs_qm.c
-index 38e7641..b8051aa 100644
---- a/fs/xfs/quota/xfs_qm.c
-+++ b/fs/xfs/quota/xfs_qm.c
-@@ -69,7 +69,7 @@ STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
+ 	dispose_list(&freeable);
++}
++
++static void prune_icache(int count)
++{
++	struct super_block *sb, *n;
++	int w_count;
++	int unused = inodes_stat.nr_unused;
++	int prune_ratio;
++	int pruned;
++
++	if (unused == 0 || count == 0)
++		return;
++	down_read(&iprune_sem);
++	if (count >= unused)
++		prune_ratio = 1;
++	else
++		prune_ratio = unused / count;
++	spin_lock(&sb_lock);
++	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
++		if (list_empty(&sb->s_instances))
++			continue;
++		if (sb->s_nr_inodes_unused == 0)
++			continue;
++		sb->s_count++;
++		/* Now, we reclaim unused dentrins with fairness.
++		 * We reclaim them same percentage from each superblock.
++		 * We calculate number of dentries to scan on this sb
++		 * as follows, but the implementation is arranged to avoid
++		 * overflows:
++		 * number of dentries to scan on this sb =
++		 * count * (number of dentries on this sb /
++		 * number of dentries in the machine)
++		 */
++		spin_unlock(&sb_lock);
++		if (prune_ratio != 1)
++			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
++		else
++			w_count = sb->s_nr_inodes_unused;
++		pruned = w_count;
++		/*
++		 * We need to be sure this filesystem isn't being unmounted,
++		 * otherwise we could race with generic_shutdown_super(), and
++		 * end up holding a reference to an inode while the filesystem
++		 * is unmounted.  So we try to get s_umount, and make sure
++		 * s_root isn't NULL.
++		 */
++		if (down_read_trylock(&sb->s_umount)) {
++			if ((sb->s_root != NULL) &&
++			    (!list_empty(&sb->s_inode_lru))) {
++				shrink_icache_sb(sb, &w_count);
++				pruned -= w_count;
++			}
++			up_read(&sb->s_umount);
++		}
++		spin_lock(&sb_lock);
++		count -= pruned;
++		__put_super(sb);
++		/* more work left to do? */
++		if (count <= 0)
++			break;
++	}
++	spin_unlock(&sb_lock);
+ 	up_read(&iprune_sem);
+ }
  
- STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
- STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
--STATIC int	xfs_qm_shake(int, gfp_t);
-+STATIC int	xfs_qm_shake(struct shrinker *, int, gfp_t);
+@@ -1238,8 +1303,9 @@ int generic_detach_inode(struct inode *inode)
  
- static struct shrinker xfs_qm_shaker = {
- 	.shrink = xfs_qm_shake,
-@@ -2117,7 +2117,10 @@ xfs_qm_shake_freelist(
-  */
- /* ARGSUSED */
- STATIC int
--xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
-+xfs_qm_shake(
-+	struct shrinker	*shrink,
-+	int		nr_to_scan,
-+	gfp_t		gfp_mask)
- {
- 	int	ndqused, nfree, n;
+ 	if (!hlist_unhashed(&inode->i_hash)) {
+ 		if (!(inode->i_state & (I_DIRTY|I_SYNC)))
+-			list_move(&inode->i_list, &inode_unused);
++			list_move(&inode->i_list, &sb->s_inode_lru);
+ 		inodes_stat.nr_unused++;
++		sb->s_nr_inodes_unused++;
+ 		if (sb->s_flags & MS_ACTIVE) {
+ 			spin_unlock(&inode_lock);
+ 			return 0;
+@@ -1252,6 +1318,7 @@ int generic_detach_inode(struct inode *inode)
+ 		WARN_ON(inode->i_state & I_NEW);
+ 		inode->i_state &= ~I_WILL_FREE;
+ 		inodes_stat.nr_unused--;
++		sb->s_nr_inodes_unused--;
+ 		hlist_del_init(&inode->i_hash);
+ 	}
+ 	list_del_init(&inode->i_list);
+diff --git a/fs/super.c b/fs/super.c
+index 69688b1..c554c53 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -60,6 +60,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
+ 		INIT_HLIST_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
+ 		INIT_LIST_HEAD(&s->s_dentry_lru);
++		INIT_LIST_HEAD(&s->s_inode_lru);
+ 		init_rwsem(&s->s_umount);
+ 		mutex_init(&s->s_lock);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b336cb9..7b90c43 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1346,6 +1346,10 @@ struct super_block {
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+ 	int			s_nr_dentry_unused;	/* # of dentry on lru */
  
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fb19bb9..3d7eedc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -994,7 +994,7 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
-  * querying the cache size, so a fastpath for that case is appropriate.
-  */
- struct shrinker {
--	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
-+	int (*shrink)(struct shrinker *, int nr_to_scan, gfp_t gfp_mask);
- 	int seeks;	/* seeks to recreate an obj */
++	/* s_inode_lru and s_nr_inodes_unused are protected by inode_lock */
++	struct list_head	s_inode_lru;	/* unused inode lru */
++	int			s_nr_inodes_unused;	/* # of inodes on lru */
++
+ 	struct block_device	*s_bdev;
+ 	struct backing_dev_info *s_bdi;
+ 	struct mtd_info		*s_mtd;
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index cc97d6c..a74837e 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -11,7 +11,6 @@ struct backing_dev_info;
  
- 	/* These are for internal use */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3ff3311..9d56aaf 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -215,8 +215,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
- 		unsigned long long delta;
- 		unsigned long total_scan;
--		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
-+		unsigned long max_pass;
+ extern spinlock_t inode_lock;
+ extern struct list_head inode_in_use;
+-extern struct list_head inode_unused;
  
-+		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
- 		delta = (4 * scanned) / shrinker->seeks;
- 		delta *= max_pass;
- 		do_div(delta, lru_pages + 1);
-@@ -244,8 +245,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
- 			int shrink_ret;
- 			int nr_before;
- 
--			nr_before = (*shrinker->shrink)(0, gfp_mask);
--			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
-+			nr_before = (*shrinker->shrink)(shrinker, 0, gfp_mask);
-+			shrink_ret = (*shrinker->shrink)(shrinker, this_scan,
-+								gfp_mask);
- 			if (shrink_ret == -1)
- 				break;
- 			if (shrink_ret < nr_before)
+ /*
+  * fs/fs-writeback.c
 -- 
 1.5.6.5
 
