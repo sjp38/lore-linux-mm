@@ -1,42 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 11F166B01B0
-	for <linux-mm@kvack.org>; Mon, 24 May 2010 22:16:37 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 426466B01B0
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 01:06:00 -0400 (EDT)
+Message-ID: <4BFB5AAE.1060609@linux.intel.com>
+Date: Tue, 25 May 2010 13:05:50 +0800
+From: Haicheng Li <haicheng.li@linux.intel.com>
 MIME-Version: 1.0
-Message-ID: <c5c17e83-a21c-4360-a201-3bb865062961@default>
-Date: Mon, 24 May 2010 19:15:59 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Cleancache [PATCH 2/7] (was Transcendent Memory): core files
-References: <20100422132809.GA27302@ca-server1.us.oracle.com
- 20100514231815.GY30031@ZenIV.linux.org.uk
- 1b84523f-a7df-4d6a-870f-b684bd012230@default>
-In-Reply-To: <1b84523f-a7df-4d6a-870f-b684bd012230@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] cpu_up: hold zonelists_mutex when build_all_zonelists
+References: <201005192322.o4JNMu5v012158@imap1.linux-foundation.org>	<4BF4AB24.7070107@linux.intel.com> <20100521130808.919ecb35.akpm@linux-foundation.org>
+In-Reply-To: <20100521130808.919ecb35.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: chris.mason@oracle.com, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, andi.kleen@intel.com, cl@linux-foundation.org, fengguang.wu@intel.com, mel@csn.ul.ie, tj@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, minskey guo <chaohong.guo@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> > The third one is pgoff_t; again, use sane types, _if_ you actually
-> want
-> > the argument #3 at all - it can be derived from struct page you are
-> > passing there as well.
->=20
-> I thought it best to declare the _ops so that the struct page
-> is opaque to the "backend" (driver).  The kernel-side ("frontend")
-> defines the handle and ensures coherency, so the backend shouldn't
-> be allowed to derive or muck with the three-tuple passed by the
-> kernel. In the existing (Xen tmem) driver, the only operation
-> performed on the struct page parameter is page_to_pfn().  OTOH,
-> I could go one step further and pass a pfn_t instead of a
-> struct page, since it is really only the physical page frame that
-> the backend needs to know about and (synchronously) read/write from/to.
->=20
-> Thoughts?
+Andrew Morton wrote:
+> On Thu, 20 May 2010 11:23:16 +0800
+> Haicheng Li <haicheng.li@linux.intel.com> wrote:
+> 
+>> Here is another issue, we should always hold zonelists_mutex when calling build_all_zonelists
+>> unless system_state == SYSTEM_BOOTING.
+> 
+> Taking a global mutex in the cpu-hotplug code is worrisome.  Perhaps
+> because of the two years spent weeding out strange deadlocks between
+> cpu-hotplug and cpufreq.
+> 
+> Has this change been carefully and fully tested with lockdep enabled
+> (please)?
+Yes, Andrew. I've tested it with lockdep enabled, and there was *no*
+issue found for this change in my testing.
 
-Silly me.  pfn_t is a Xen/KVM type not otherwise used in the
-kernel AFAICT.  Please ignore...
+My test box: CPUs on node 1~3 are all offlined (16 cpus per node).
+Here are my test steps:
+on tty0:
+# cd /sys/devices/system/node/node1
+# for i in cpu*; do echo 1 > $i/online; done
+
+on tty1:
+# cd /sys/devices/system/node/node2
+# for i in cpu*; do echo 1 > $i/online; done
+
+on tty2:
+# cd /sys/devices/system/node/node3
+# for i in cpu*; do echo 1 > $i/online; done
+
+on tty3:
+# cat zonelist
+
+	#! /bin/bash
+	set -x
+	while ((1)); do
+		echo n > /proc/sys/vm/numa_zonelist_order
+		sleep 10
+		echo z > /proc/sys/vm/numa_zonelist_order
+		sleep 10
+	done
+
+# ./zonelist
+
+Besides, I also ran some cpu online/offline tests from LTP/cpu_hotplug test suites.
+They worked fine too.
+
+>> --- a/kernel/cpu.c
+>> +++ b/kernel/cpu.c
+>> @@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
+>>                  return -ENOMEM;
+>>          }
+>>
+>> -       if (pgdat->node_zonelists->_zonerefs->zone == NULL)
+>> +       if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
+>> +               mutex_lock(&zonelists_mutex);
+>>                  build_all_zonelists(NULL);
+>> +               mutex_unlock(&zonelists_mutex);
+>> +       }
+> 
+> Your email client is performing space-stuffing and it replaces tabs
+> with spaces.  This requires me to edit the patches rather a lot,
+> which is dull.
+
+Really sorry for the inconvenience to you. I'll pay more attention
+next time. thank you!
+
+-haicheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
