@@ -1,57 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8D96008F1
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 05:46:14 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o4P9kA2a011871
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:11 -0700
-Received: from pvc7 (pvc7.prod.google.com [10.241.209.135])
-	by kpbe17.cbf.corp.google.com with ESMTP id o4P9jegw026071
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:09 -0700
-Received: by pvc7 with SMTP id 7so2228146pvc.11
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 02:46:09 -0700 (PDT)
-Date: Tue, 25 May 2010 02:46:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: oom killer rewrite
-In-Reply-To: <20100524070714.GV2516@laptop>
-Message-ID: <alpine.DEB.2.00.1005250242260.8045@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1005191511140.27294@chino.kir.corp.google.com> <20100524100840.1E95.A69D9226@jp.fujitsu.com> <20100524070714.GV2516@laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8C3336008F1
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 05:53:46 -0400 (EDT)
+Received: by fxm11 with SMTP id 11so2590820fxm.14
+        for <linux-mm@kvack.org>; Tue, 25 May 2010 02:53:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20100525093410.GH5087@laptop>
+References: <20100521211452.659982351@quilx.com>
+	<20100524070309.GU2516@laptop>
+	<alpine.DEB.2.00.1005240852580.5045@router.home>
+	<20100525020629.GA5087@laptop>
+	<AANLkTik2O-_Fbh-dq0sSLFJyLU7PZi4DHm85lCo4sugS@mail.gmail.com>
+	<20100525070734.GC5087@laptop>
+	<AANLkTimhTfz_mMWNh_r18yapNxSDjA7wRDnFM6L5aIdE@mail.gmail.com>
+	<20100525081634.GE5087@laptop>
+	<AANLkTilJBY0sinB365lIZFUaMgMCZ1xyhMdXRTJTVDSV@mail.gmail.com>
+	<20100525093410.GH5087@laptop>
+Date: Tue, 25 May 2010 12:53:43 +0300
+Message-ID: <AANLkTikXp5LlKLK1deKOQpciUFNugjlQah5QpNcImf39@mail.gmail.com>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 May 2010, Nick Piggin wrote:
+Hi Nick,
 
-> > > I've been notified that my entire oom killer rewrite has been dropped from 
-> > > -mm based solely on your feedback.  The problem is that I have absolutely 
-> > > no idea what issues you have with the changes that haven't already been 
-> > > addressed (nobody else does, either, it seems).
-> 
-> I had exactly the same issues with the userland kernel API changes and
-> the pagefault OOM regression it introduced, which I told you months ago.
-> You ignored me, it seems.
-> 
+On Tue, May 25, 2010 at 12:34 PM, Nick Piggin <npiggin@suse.de> wrote:
+>> The main selling point for SLUB was NUMA. Has the situation changed?
+>
+> Well one problem with SLAB was really just those alien caches. AFAIK
+> they were added by Christoph Lameter (maybe wrong), and I didn't ever
+> actually see much justification for them in the changelog. noaliencache
+> can be and is used on bigger machines, and SLES and RHEL kernels are
+> using SLAB on production NUMA systems up to thousands of CPU Altixes,
+> and have been looking at working on SGI's UV, and hundreds of cores
+> POWER7 etc.
 
-No, I didn't ignore you, your comments were specifically addressed with 
-oom-reintroduce-and-deprecate-oom_kill_allocating_task.patch which only 
-deprecated the API change and wasn't even scheduled for removal until of 
-the end of 2011.  So there were no kernel API changes that went 
-unaddressed, perhaps you just didn't see that patch (I cc'd it to you on 
-April 27, though).
+Yes, Christoph and some other people introduced alien caches IIRC for
+big iron SGI boxes. As for benchmarks, commit
+e498be7dafd72fd68848c1eef1575aa7c5d658df ("Numa-aware slab allocator
+V5") mentions AIM.
 
-The pagefault oom behavior can now be changed back since you've converted 
-all existing architectures to call into the oom killer and not simply kill 
-current (thanks for that work!).  Previously, there was an inconsistency 
-amongst architectures in panic_on_oom behavior that we can now unify into 
-semantics that work across the board.
+On Tue, May 25, 2010 at 12:34 PM, Nick Piggin <npiggin@suse.de> wrote:
+> I have not seen NUMA benchmarks showing SLUB is significantly better.
+> I haven't done much testing myself, mind you. But from indications, we
+> could probably quite easily drop the alien caches setup and do like a
+> simpler single remote freeing queue per CPU or something like that.
 
-I've made that change in my latest patch series which I'll be posting 
-shortly.
+Commit 81819f0fc8285a2a5a921c019e3e3d7b6169d225 ("SLUB core") mentions
+kernbench improvements.
 
-Thanks for the feedback!
+Other than these two data points, I unfortunately don't have any as I
+wasn't involved with merging of either of the patches. If other NUMA
+people know better, please feel free to share the data.
+
+On Tue, May 25, 2010 at 11:16 AM, Nick Piggin <npiggin@suse.de> wrote:
+> I think we should: modernise SLAB code, add missing debug features,
+> possibly turn off alien caches by default, chuck out SLUB, and then
+> require that future changes have some reasonable bar set to justify
+> them.
+>
+> I would not be at all against adding changes that transform SLAB to
+> SLUB or SLEB or SLQB. That's how it really should be done in the
+> first place.
+
+Like I said, as a maintainer I'm happy to merge patches to modernize
+SLAB but I still think you're underestimating the effort especially
+considering the fact that we can't afford many performance regressions
+there either. I guess trying to get rid of alien caches would be the
+first logical step there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
