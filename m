@@ -1,262 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9AEA5620202
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:00:57 -0400 (EDT)
-Received: by wwi18 with SMTP id 18so320959wwi.14
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 08:00:50 -0700 (PDT)
-Date: Wed, 26 May 2010 00:00:38 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] cache last free vmap_area to avoid restarting beginning
-Message-ID: <20100525150038.GA3227@barrios-desktop>
-References: <1271427056.7196.163.camel@localhost.localdomain>
- <1271603649.2100.122.camel@barrios-desktop>
- <1271681929.7196.175.camel@localhost.localdomain>
- <h2g28c262361004190712v131bf7a3q2a82fd1168faeefe@mail.gmail.com>
- <1272548602.7196.371.camel@localhost.localdomain>
- <1272821394.2100.224.camel@barrios-desktop>
- <1273063728.7196.385.camel@localhost.localdomain>
- <20100505161632.GB5378@laptop>
- <1274277294.2532.54.camel@localhost>
- <20100525084323.GG5087@laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C31A5620202
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 11:11:36 -0400 (EDT)
+Date: Wed, 26 May 2010 01:11:29 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+Message-ID: <20100525151129.GS5087@laptop>
+References: <20100521211452.659982351@quilx.com>
+ <20100524070309.GU2516@laptop>
+ <alpine.DEB.2.00.1005240852580.5045@router.home>
+ <20100525020629.GA5087@laptop>
+ <alpine.DEB.2.00.1005250859050.28941@router.home>
+ <20100525143409.GP5087@laptop>
+ <alpine.DEB.2.00.1005250938300.29543@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100525084323.GG5087@laptop>
+In-Reply-To: <alpine.DEB.2.00.1005250938300.29543@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 06:43:23PM +1000, Nick Piggin wrote:
-> On Wed, May 19, 2010 at 02:54:54PM +0100, Steven Whitehouse wrote:
-> > so that seems to pinpoint the line on which the problem occurred. Let us
-> > know if you'd like us to do some more testing. I think we have the
-> > console access issue fixed now. Many thanks for all you help in this
-> > so far,
+On Tue, May 25, 2010 at 09:48:01AM -0500, Christoph Lameter wrote:
+> On Wed, 26 May 2010, Nick Piggin wrote:
 > 
-> Sorry for the delay. Ended up requiring a bit of surgery and several bug
-> fixes. I added a lot more test cases to my userspace tester, and found
-> several bugs including the one you hit.
+> > > The initial test that showed the improvements was on IA64 (16K page size)
+> > > and that was the measurement that was accepted for the initial merge. Mel
+> > > was able to verify those numbers.
+> >
+> > And there is nothing to prevent a SLAB type allocator from using higher
+> > order allocations, except for the fact that it usually wouldn't because
+> > far more often than not it is a bad idea.
 > 
-> Most of them were due to changing vstart,vend or changing requested
-> alignment.
-> 
-> I can't guarantee it's going to work for you (it boots here, but the
-> last version booted as well). But I think it's in much better shape.
-> 
-> It is very careful to reproduce exactly the same allocation behaviour,
-> so the effectiveness of the cache can be reduced if sizes, alignments,
-> or start,end ranges are very frequently changing. But I'd hope that
-> for most vmap heavy workloads, they should cache quite well. We could
-> look at doing smarter things if it isn't effective enough.
-> 
-> --
-> Provide a free area cache for the vmalloc virtual address allocator, based
-> on the approach taken in the user virtual memory allocator.
-> 
-> This reduces the number of rbtree operations and linear traversals over
-> the vmap extents to find a free area. The lazy vmap flushing makes this problem
-> worse because because freed but not yet flushed vmaps tend to build up in
-> the address space between flushes.
-> 
-> Steven noticed a performance problem with GFS2. Results are as follows...
-> 
-> 
-> 
->  mm/vmalloc.c |   49 +++++++++++++++++++++++++++++++++++--------------
->  1 files changed, 35 insertions(+), 14 deletions(-)
-> 
-> Index: linux-2.6/mm/vmalloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/vmalloc.c
-> +++ linux-2.6/mm/vmalloc.c
-> @@ -262,8 +262,14 @@ struct vmap_area {
->  };
->  
->  static DEFINE_SPINLOCK(vmap_area_lock);
-> -static struct rb_root vmap_area_root = RB_ROOT;
->  static LIST_HEAD(vmap_area_list);
-> +static struct rb_root vmap_area_root = RB_ROOT;
-> +
-> +static struct rb_node *free_vmap_cache;
-> +static unsigned long cached_hole_size;
-> +static unsigned long cached_start;
-> +static unsigned long cached_align;
-> +
->  static unsigned long vmap_area_pcpu_hole;
->  
->  static struct vmap_area *__find_vmap_area(unsigned long addr)
-> @@ -332,27 +338,52 @@ static struct vmap_area *alloc_vmap_area
->  	struct rb_node *n;
->  	unsigned long addr;
->  	int purged = 0;
-> +	struct vmap_area *first;
->  
->  	BUG_ON(!size);
->  	BUG_ON(size & ~PAGE_MASK);
-> +	BUG_ON(!is_power_of_2(align));
->  
->  	va = kmalloc_node(sizeof(struct vmap_area),
->  			gfp_mask & GFP_RECLAIM_MASK, node);
->  	if (unlikely(!va))
->  		return ERR_PTR(-ENOMEM);
->  
-> +	spin_lock(&vmap_area_lock);
+> 16K is the base page size on IA64. Higher order allocations are a pressing
+> issue for the kernel given growing memory sizes and we are slowly but
+> surely making progress with defrag etc.
 
-vmap_area_lock is unbalnced with last spin_unlock in case of overflow.
-Maybe you hold the lock after retry and you release the lock before retry.
+You do not understand. There is nothing *preventing* other designs of
+allocators from using higher order allocations. The problem is that
+SLUB is *forced* to use them due to it's limited queueing capabilities.
 
->  retry:
-> -	addr = ALIGN(vstart, align);
-> +	/* invalidate cache if we have more permissive parameters */
-> +	if (!free_vmap_cache ||
-> +			size <= cached_hole_size ||
-> +			vstart < cached_start ||
-> +			align < cached_align) {
-> +		cached_hole_size = 0;
-> +		free_vmap_cache = NULL;
-> +	}
-> +	/* record if we encounter less permissive parameters */
-> +	cached_start = vstart;
-> +	cached_align = align;
-> +
-> +	/* find starting point for our search */
-> +	if (free_vmap_cache) {
-> +		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-> +		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> +		if (addr < vstart) {
-> +			free_vmap_cache = NULL;
-> +			goto retry;
-> +		}
-> +		if (addr + size - 1 < addr)
-> +			goto overflow;
->  
-> -	spin_lock(&vmap_area_lock);
-> -	if (addr + size - 1 < addr)
-> -		goto overflow;
-> +	} else {
-> +		addr = ALIGN(vstart, align);
-> +		if (addr + size - 1 < addr)
-> +			goto overflow;
->  
-> -	/* XXX: could have a last_hole cache */
-> -	n = vmap_area_root.rb_node;
-> -	if (n) {
-> -		struct vmap_area *first = NULL;
-> +		n = vmap_area_root.rb_node;
-> +		if (!n)
-> +			goto found;
->  
-> +		first = NULL;
->  		do {
->  			struct vmap_area *tmp;
->  			tmp = rb_entry(n, struct vmap_area, rb_node);
-> @@ -369,26 +400,37 @@ retry:
->  		if (!first)
->  			goto found;
->  
-> -		if (first->va_end < addr) {
-> -			n = rb_next(&first->rb_node);
-> -			if (n)
-> -				first = rb_entry(n, struct vmap_area, rb_node);
-> -			else
-> -				goto found;
-> -		}
-> -
-> -		while (addr + size > first->va_start && addr + size <= vend) {
-> -			addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> +		if (first->va_start < addr) {
-> +			addr = ALIGN(max(first->va_end + PAGE_SIZE, addr), align);
+You keep spinning this as a good thing for SLUB design when it is not.
 
-Frankly speaking, I don't see the benefit which you mentiond that it makes
-subsequent logic simpler. For me, I like old code which compares va_end. 
-In case of spanning, old code has the problem?
-I think old code has no problem and looks good than current one. 
+ 
+> > > Fundamentally it is still the case that memory sizes are increasing and
+> > > that management overhead of 4K pages will therefore increasingly become an
+> > > issue. Support for larger page sizes and huge pages is critical for all
+> > > kernel components to compete in the future.
+> >
+> > Numbers haven't really shown that SLUB is better because of higher order
+> > allocations. Besides, as I said, higher order allocations can be used
+> > by others.
+> 
+> Boot with huge page support (slub_min_order=9) and you will see a
+> performance increase on many loads.
 
->  			if (addr + size - 1 < addr)
->  				goto overflow;
-> -
->  			n = rb_next(&first->rb_node);
->  			if (n)
->  				first = rb_entry(n, struct vmap_area, rb_node);
->  			else
->  				goto found;
->  		}
-> +		BUG_ON(first->va_start < addr);
-> +		if (addr + cached_hole_size < first->va_start)
-> +			cached_hole_size = first->va_start - addr;
-> +	}
-> +
-> +	/* from the starting point, walk areas until a suitable hole is found */
+Pretty ridiculous.
 
-Unnecessary empty line :)
+ 
+> > Also, there were no numbers or test cases, simply handwaving. I don't
+> > disagree it might be a problem, but the way to solve problems is to
+> > provide a test case or numbers.
+> 
+> The reason that the alien caches made it into SLAB were performance
+> numbers that showed that the design "must" be this way. I prefer a clear
+> maintainable design over some numbers (that invariably show the bias of
+> the tester for certain loads).
 
-> +
-> +	while (addr + size > first->va_start && addr + size <= vend) {
-> +		if (addr + cached_hole_size < first->va_start)
-> +			cached_hole_size = first->va_start - addr;
-> +		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> +		if (addr + size - 1 < addr)
-> +			goto overflow;
-> +
-> +		n = rb_next(&first->rb_node);
-> +		if (n)
-> +			first = rb_entry(n, struct vmap_area, rb_node);
-> +		else
-> +			goto found;
->  	}
-> +
->  found:
->  	if (addr + size > vend) {
->  overflow:
-> @@ -406,14 +448,17 @@ overflow:
->  		return ERR_PTR(-EBUSY);
->  	}
->  
-> -	BUG_ON(addr & (align-1));
-> -
->  	va->va_start = addr;
->  	va->va_end = addr + size;
->  	va->flags = 0;
->  	__insert_vmap_area(va);
-> +	free_vmap_cache = &va->rb_node;
->  	spin_unlock(&vmap_area_lock);
->  
-> +	BUG_ON(va->va_start & (align-1));
-> +	BUG_ON(va->va_start < vstart);
-> +	BUG_ON(va->va_end > vend);
-> +
->  	return va;
->  }
->  
-> @@ -427,6 +472,19 @@ static void rcu_free_va(struct rcu_head
->  static void __free_vmap_area(struct vmap_area *va)
->  {
->  	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-> +
-> +	if (free_vmap_cache) {
-> +		if (va->va_end < cached_start) {
-> +			free_vmap_cache = NULL;
-> +		} else {
-> +			struct vmap_area *cache;
-> +			cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-> +			if (va->va_start <= cache->va_start) {
-> +				free_vmap_cache = rb_prev(&va->rb_node);
-> +				cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-> +			}
-> +		}
-> +	}
->  	rb_erase(&va->rb_node, &vmap_area_root);
->  	RB_CLEAR_NODE(&va->rb_node);
->  	list_del_rcu(&va->list);
+I don't really agree. There are a number of other possible ways to
+improve it, including fewer remote freeing queues.
 
-Anyway, I am looking forard to seeing Steven's experiment.
-If test has no problem, I will remake refactoring patch based on your patch. :)
+For the slab allocator, if anything, I'm pretty sure that numbers
+actually is the most important criteria. A few thousand lines of
+self contained code that services almost all the rest of the kernel
+we are talking about.
 
-Thanks, Nick.
--- 
-Kind regards,
-Minchan Kim
+ 
+> > Given that information, how can you still say that SLUB+more big changes
+> > is the right way to proceed?
+> 
+> Have you looked at the SLAB code?
+
+Of course. Have you had a look at the SLUB numbers and reports of
+failures?
+
+ 
+> Also please stop exaggerating. There are no immediate plans to replace
+> SLAB. We are exploring a possible solution.
+
+Good, because it cannot be replaced, I am proposing to replace SLUB in
+fact. I have heard no good reasons why not.
+
+ 
+> If the SLEB idea pans out and we can replicate SLAB (and SLUB) performance
+> then we will have to think about replacing SLAB / SLUB at some point. So
+> far this is just a riggedy thing that barely works where there is some
+> hope that the SLAB - SLUB conumdrum may be solved by the approach.
+ 
+SLUB has gone back to the drawing board because its original design
+cannot support high enough performance to replace SLAB. This gives
+us the opportunity to do what we should have done from the start, and
+incrementally improve SLAB code.
+
+I repeat for the Nth time that there is nothing stopping you from
+adding SLUB ideas into SLAB. This is how it should have been done
+from the start.
+
+How is it possibly better to instead start from the known suboptimal
+code and make changes to it? What exactly is your concern with
+making incremental changes to SLAB?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
