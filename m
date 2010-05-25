@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D13216B01AD
-	for <linux-mm@kvack.org>; Tue, 25 May 2010 14:17:15 -0400 (EDT)
-Date: Tue, 25 May 2010 14:17:11 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: [PATCH] xfs: skip writeback from reclaim context
-Message-ID: <20100525181711.GA4119@infradead.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0E3906B01AD
+	for <linux-mm@kvack.org>; Tue, 25 May 2010 14:26:36 -0400 (EDT)
+Message-ID: <4BFC1657.5000707@yahoo.es>
+Date: Tue, 25 May 2010 20:26:31 +0200
+From: Albert Herranz <albert_herranz@yahoo.es>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: page_mkwrite vs pte dirty race in fb_defio
+References: <20100525160149.GE20853@laptop>
+In-Reply-To: <20100525160149.GE20853@laptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: xfs@oss.sgi.com
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: aya Kumar <jayakumar.lkml@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fbdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Allowing writeback from reclaim context causes massive problems with stack
-overflows as we can call into the writeback code which tends to be a heavy
-stack user both in the generic code and XFS from random contexts that
-perform memory allocations.
+Hi,
 
-Follow the example of btrfs (and in slightly different form ext4) and refuse
-to write out data from reclaim context.  This issue should really be handled
-by the VM so that we can tune better for this case, but until we get it
-sorted out there we have to hack around this in each filesystem with a
-complex writeback path.
+On 05/25/2010 06:01 PM, Nick Piggin wrote:
+> Hi,
+> 
+> I couldn't find where this patch (49bbd815fd8) was discussed, so I'll
+> make my own thread. Adding a few lists to cc because it might be of
+> interest to driver and filesystem writers.
+> 
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
+The original thread can be found here:
+http://marc.info/?l=linux-fbdev&m=127369791432181
 
-Index: xfs/fs/xfs/linux-2.6/xfs_aops.c
-===================================================================
---- xfs.orig/fs/xfs/linux-2.6/xfs_aops.c	2010-05-25 11:40:59.068253457 +0200
-+++ xfs/fs/xfs/linux-2.6/xfs_aops.c	2010-05-25 18:25:39.575011803 +0200
-@@ -1326,6 +1326,21 @@ xfs_vm_writepage(
- 	trace_xfs_writepage(inode, page, 0);
- 
- 	/*
-+	 * Refuse to write the page out if we are called from reclaim context.
-+	 *
-+	 * This is primarily to avoid stack overflows when called from deep
-+	 * used stacks in random callers for direct reclaim, but disabling
-+	 * reclaim for kswap is a nice side-effect as kswapd causes rather
-+	 * suboptimal I/O patters, too.
-+	 *
-+	 * This should really be done by the core VM, but until that happens
-+	 * filesystems like XFS, btrfs and ext4 have to take care of this
-+	 * by themselves.
-+	 */
-+	if (current->flags & PF_MEMALLOC)
-+		goto out_fail;
-+
-+	/*
- 	 * We need a transaction if:
- 	 *  1. There are delalloc buffers on the page
- 	 *  2. The page is uptodate and we have unmapped buffers
+> The old ->page_mkwrite calling convention was causing problems exactly
+> because of this race, and we solved it by allowing page_mkwrite to
+> return with the page locked, and the lock will be held until the
+> pte is marked dirty. See commit b827e496c893de0c0f142abfaeb8730a2fd6b37f.
+> 
+
+Ah, didn't know about that. Thanks for the pointer.
+
+> I hope that should provide a more elegant solution to your problem. I
+> would really like you to take a look at that, because we already have
+> filesystem code (NFS) relying on it, and more code we have relying on
+> this synchronization, the more chance we would find a subtle problem
+> with it (also it should be just nicer).
+> 
+
+So if I undestand it correctly, using the "new" calling convention I should just lock the page on fb_deferred_io_mkwrite() and return VM_FAULT_LOCKED to fix the described race for fb_defio.
+
+> Thanks,
+> Nick
+> 
+
+Thanks,
+Albert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
