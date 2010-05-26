@@ -1,66 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5DA9A6B01B6
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 18:45:58 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so3701775gyg.14
-        for <linux-mm@kvack.org>; Wed, 26 May 2010 15:45:57 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6B28B6B01B6
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 19:01:38 -0400 (EDT)
+Date: Thu, 27 May 2010 09:01:29 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
+Message-ID: <20100526230129.GA1395@dastard>
+References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
+ <1274777588-21494-2-git-send-email-david@fromorbit.com>
+ <20100526161732.GC22536@laptop>
 MIME-Version: 1.0
-In-Reply-To: <22942.1274909335@localhost>
-References: <4BF81D87.6010506@cesarb.net>
-	<20100523140348.GA10843@barrios-desktop>
-	<4BF974D5.30207@cesarb.net>
-	<AANLkTil1kwOHAcBpsZ_MdtjLmCAFByvF4xvm8JJ7r7dH@mail.gmail.com>
-	<4BF9CF00.2030704@cesarb.net>
-	<AANLkTin_BV6nWlmX6aXTaHvzH-DnsFIVxP5hz4aZYlqH@mail.gmail.com>
-	<4BFA59F7.2020606@cesarb.net>
-	<AANLkTikMTwzXt7-vQf9AG2VhwFIGs1jX-1uFoYAKSco7@mail.gmail.com>
-	<4BFCF645.2050400@cesarb.net>
-	<20100526153144.GA3650@barrios-desktop>
-	<22942.1274909335@localhost>
-Date: Thu, 27 May 2010 07:45:56 +0900
-Message-ID: <AANLkTikwxCvxHI0-d1hGctEmfGRuDUlZ7wAbEXbrS1WA@mail.gmail.com>
-Subject: Re: [PATCH 0/3] mm: Swap checksum
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100526161732.GC22536@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Valdis.Kletnieks@vt.edu
-Cc: Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 6:28 AM,  <Valdis.Kletnieks@vt.edu> wrote:
-> On Thu, 27 May 2010 00:31:44 +0900, Minchan Kim said:
->> On Wed, May 26, 2010 at 07:21:57AM -0300, Cesar Eduardo Barros wrote:
->> > far as I can see, does nothing against the disk simply failing to
->> > write and later returning stale data, since the stale checksum would
->> > match the stale data.
->>
->> Sorry. I can't understand your point.
->> Who makes stale data? If any layer makes data as stale, integrity is up to
->> the layer. Maybe I am missing your point.
->> Could you explain more detail?
+On Thu, May 27, 2010 at 02:17:33AM +1000, Nick Piggin wrote:
+> On Tue, May 25, 2010 at 06:53:04PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > The inode unused list is currently a global LRU. This does not match
+> > the other global filesystem cache - the dentry cache - which uses
+> > per-superblock LRU lists. Hence we have related filesystem object
+> > types using different LRU reclaimatin schemes.
+> 
+> Is this an improvement I wonder? The dcache is using per sb lists
+> because it specifically requires sb traversal.
+
+Right - I originally implemented the per-sb dentry lists for
+scalability purposes. i.e. to avoid monopolising the dentry_lock
+during unmount looking for dentries on a specific sb and hanging the
+system for several minutes.
+
+However, the reason for doing this to the inode cache is not for
+scalability, it's because we have a tight relationship between the
+dentry and inode cacheN?. That is, reclaim from the dentry LRU grows
+the inode LRU.  Like the registration of the shrinkers, this is kind
+of an implicit, undocumented behavour of the current shrinker
+implemenation.
+
+What this patch series does is take that implicit relationship and
+make it explicit.  It also allows other filesystem caches to tie
+into the relationship if they need to (e.g. the XFS inode cache).
+What it _doesn't do_ is change the macro level behaviour of the
+shrinkers...
+
+> What allocation/reclaim really wants (for good scalability and NUMA
+> characteristics) is per-zone lists for these things. It's easy to
+> convert a single list into per-zone lists.
 >
-> I'm pretty sure that what Cesar meant was that the following could happen:
->
-> 1) Write block 11983 on the disk, checksum 34FE9B72.
-> (... time passes.. maybe weeks)
-> 2) Attempt to write block 11983 on disk with checksum AE9F3581. The write fails
-> due to a power failure or something.
-> (... more time passes...)
-> 3) Read block 11983, get back data with checksum 34FE9B72. Checksum matches,
-> and there's no indication that the write in (2) ever failed. The program
-> proceeds thinking it's just read back the most recently written data, when in
-> fact it's just read an older version of that block. Problems can ensue if the
-> data just read is now out of sync with *other* blocks of data - instant data
-> corruption.
+> It is much harder to convert per-sb lists into per-sb x per-zone lists.
 
-Oh, doesn't normal disk support atomicity of sector write?
-I have been thought disk must support atomicity of sector write at least.
+No it's not. Just convert the s_{dentry,inode}_lru lists on each
+superblock and call the shrinker with a new zone mask field to pick
+the correct LRU. That's no harder than converting a global LRU.
+Anyway, you'd still have to do per-sb x per-zone lists for the dentry LRUs,
+so changing the inode cache to per-sb makes no difference.
 
-AFAIK, other device(ex, nand device by FTL) supports atomicity of sector write.
+However, this is a moot point because we don't have per-zone shrinker
+interfaces. That's an entirely separate discussion because of the
+macro-level behavioural changes it implies....
 
+Cheers,
+
+Dave.
 -- 
-Kind regards,
-Minchan Kim
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
