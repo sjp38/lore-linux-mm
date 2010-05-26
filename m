@@ -1,74 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE116B01AC
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 17:29:06 -0400 (EDT)
-Subject: Re: [PATCH 0/3] mm: Swap checksum
-In-Reply-To: Your message of "Thu, 27 May 2010 00:31:44 +0900."
-             <20100526153144.GA3650@barrios-desktop>
-From: Valdis.Kletnieks@vt.edu
-References: <4BF81D87.6010506@cesarb.net> <20100523140348.GA10843@barrios-desktop> <4BF974D5.30207@cesarb.net> <AANLkTil1kwOHAcBpsZ_MdtjLmCAFByvF4xvm8JJ7r7dH@mail.gmail.com> <4BF9CF00.2030704@cesarb.net> <AANLkTin_BV6nWlmX6aXTaHvzH-DnsFIVxP5hz4aZYlqH@mail.gmail.com> <4BFA59F7.2020606@cesarb.net> <AANLkTikMTwzXt7-vQf9AG2VhwFIGs1jX-1uFoYAKSco7@mail.gmail.com> <4BFCF645.2050400@cesarb.net>
-            <20100526153144.GA3650@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1274909335_4200P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4F66B01B6
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 17:57:43 -0400 (EDT)
+Received: from cflmr01.us.cray.com (cflmr01.us.cray.com [172.30.74.53])
+	by mail1.cray.com (8.13.6/8.13.3/gw-5323) with ESMTP id o4QLvfiO001776
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL)
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 16:57:41 -0500 (CDT)
+Received: from cfexcas01.americas.cray.com (cfexcas01-2.us.cray.com [172.30.74.227])
+	by cflmr01.us.cray.com (8.14.3/8.13.8/hubv2-LastChangedRevision: 12029) with ESMTP id o4QLveK4004405
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 16:57:40 -0500
+Message-ID: <4BFD9953.8080408@cray.com>
+Date: Wed, 26 May 2010 14:57:39 -0700
+From: Doug Doan <dougd@cray.com>
+MIME-Version: 1.0
+Subject: Bug in hugetlb_cow()?
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Wed, 26 May 2010 17:28:55 -0400
-Message-ID: <22942.1274909335@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1274909335_4200P
-Content-Type: text/plain; charset=us-ascii
+Hi,
 
-On Thu, 27 May 2010 00:31:44 +0900, Minchan Kim said:
-> On Wed, May 26, 2010 at 07:21:57AM -0300, Cesar Eduardo Barros wrote:
-> > far as I can see, does nothing against the disk simply failing to
-> > write and later returning stale data, since the stale checksum would
-> > match the stale data.
-> 
-> Sorry. I can't understand your point. 
-> Who makes stale data? If any layer makes data as stale, integrity is up to 
-> the layer. Maybe I am missing your point. 
-> Could you explain more detail?
+I'm working on a driver that relies on mmu notifications, and found that it is 
+lacking for huge pages.
 
-I'm pretty sure that what Cesar meant was that the following could happen:
+ From handle_mm_fault(),
 
-1) Write block 11983 on the disk, checksum 34FE9B72.
-(... time passes.. maybe weeks)
-2) Attempt to write block 11983 on disk with checksum AE9F3581. The write fails
-due to a power failure or something.
-(... more time passes...)
-3) Read block 11983, get back data with checksum 34FE9B72. Checksum matches,
-and there's no indication that the write in (2) ever failed. The program
-proceeds thinking it's just read back the most recently written data, when in
-fact it's just read an older version of that block. Problems can ensue if the
-data just read is now out of sync with *other* blocks of data - instant data
-corruption.
+If we take the normal page path, this is what happens:
 
-To be fair, we currently have the "read a stale block" problem after crashes
-already.  The issue is that BLK_DEV_INTEGRITY can't provide a solution here,
-but most users will form a mental image that it *is* in fact giving them
-that guarantee.  The resulting mismatch between reality and expectations
-cannot end well.
+handle_pte_fault -> do_wp_page -> ptep_clear_flush_notify -> 
+mmu_notifier_invalidate_page
 
+If we're dealing with huge pages, this is what happens:
 
+hugetlb_fault -> hugetlb_cow -> (no mmu notifiers)
 
+Below is my patch, can anyone comment?
 
---==_Exmh_1274909335_4200P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQFL/ZKXcC3lWbTT17ARArvwAKDjdDRSG9nZPYMxp17U2yny93bRzACfeypD
-iMS08wX2QITrbRCgAw3QBIk=
-=H4Sf
------END PGP SIGNATURE-----
-
---==_Exmh_1274909335_4200P--
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 4c9e6bb..96d9937 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2345,11 +2345,17 @@ retry_avoidcopy:
+         ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+         if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+                 /* Break COW */
++               mmu_notifier_invalidate_range_start(mm,
++                       address & huge_page_mask(h),
++                       (address & huge_page_mask(h)) + huge_page_size(h));
+                 huge_ptep_clear_flush(vma, address, ptep);
+                 set_huge_pte_at(mm, address, ptep,
+                                 make_huge_pte(vma, new_page, 1));
+                 /* Make the old page be freed below */
+                 new_page = old_page;
++               mmu_notifier_invalidate_range_end(mm,
++                       address & huge_page_mask(h),
++                       (address & huge_page_mask(h)) + huge_page_size(h));
+         }
+         page_cache_release(new_page);
+         page_cache_release(old_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
