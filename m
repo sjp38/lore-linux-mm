@@ -1,48 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EB1226B01AD
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 01:46:16 -0400 (EDT)
-Received: by gwb19 with SMTP id 19so1643421gwb.14
-        for <linux-mm@kvack.org>; Tue, 25 May 2010 22:46:14 -0700 (PDT)
-References: <20100512133815.0d048a86@annuminas.surriel.com>
-	<20100512134029.36c286c4@annuminas.surriel.com> <20100512210216.GP24989@csn.ul.ie>
-	<4BEB18BB.5010803@redhat.com> <20100513095439.GA27949@csn.ul.ie>
-	<20100513103356.25665186@annuminas.surriel.com> <20100513140919.0a037845.akpm@linux-foundation.org>
-	<4BFC9CCF.6000809@redhat.com> <20100525211520.16e3a034.akpm@linux-foundation.org>
-From: james toy <nil@0xabadba.be>
-In-Reply-To: <20100525211520.16e3a034.akpm@linux-foundation.org>
-Mime-Version: 1.0 (iPhone Mail 7E18)
-Date: Wed, 26 May 2010 01:46:03 -0400
-Message-ID: <2073679454094428814@unknownmsgid>
-Subject: Re: [PATCH -v2 4/5] always lock the root (oldest) anon_vma
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD5E6B01AD
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 02:55:17 -0400 (EDT)
+Date: Wed, 26 May 2010 15:51:56 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/7] hugetlb, rmap: add reverse mapping for hugepage
+Message-ID: <20100526065156.GC7128@spritzerA.linux.bs1.fc.nec.co.jp>
+References: <1273737326-21211-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1273737326-21211-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100513152737.GE27949@csn.ul.ie>
+ <20100514074641.GD10000@spritzerA.linux.bs1.fc.nec.co.jp>
+ <20100514095449.GB21481@csn.ul.ie>
+ <20100524071516.GC11008@spritzerA.linux.bs1.fc.nec.co.jp>
+ <20100525105957.GD29038@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100525105957.GD29038@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, james toy <toyj@union.edu>, james toy <mail@wfys.org>, James Toy <0xbaadface@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-I'll get after this asap; sorry.  I'm finishing my last trimester of
-my B.S.  I'll send a message when it's back up with the offending patch.
+Hi, Mel.
 
-=jt
+Thank you for the review.
 
-On May 26, 2010, at 0:15, Andrew Morton <akpm@linux-foundation.org>
-wrote:
+On Tue, May 25, 2010 at 11:59:57AM +0100, Mel Gorman wrote:
+> ...
+> I'd have preferred to see the whole series but still...
 
-> On Wed, 26 May 2010 00:00:15 -0400 Rik van Riel <riel@redhat.com>
-> wrote:
->
->> On 05/13/2010 05:09 PM, Andrew Morton wrote:
->>
->>> I'm not very confident in merging all these onto the current MM
->>> pile.
->>
->> Blah.  I thought I just did that (and wondered why it was
->> so easy), and then I saw that the MMOTM git tree is old
->> and does not have the COMPACTION code :(
->>
->
-> Oh.  James's mmotm->git bot might have broken.
+OK.
+
+> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> > index 78b4bc6..a574d09 100644
+> > --- a/include/linux/hugetlb.h
+> > +++ b/include/linux/hugetlb.h
+> > @@ -14,11 +14,6 @@ struct user_struct;
+> >  
+> >  int PageHuge(struct page *page);
+> >  
+> > -static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> > -{
+> > -	return vma->vm_flags & VM_HUGETLB;
+> > -}
+> > -
+> >  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+> >  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> >  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> > @@ -77,11 +72,6 @@ static inline int PageHuge(struct page *page)
+> >  	return 0;
+> >  }
+> >  
+> > -static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> > -{
+> > -	return 0;
+> > -}
+> > -
+> 
+> You collapse two functions into one here and move them to another
+> header. Is there a reason why pagemap.h could not include hugetlb.h?
+
+Yes, hugetlb.h includes pagemap.h through mempolicy.h.
+I didn't make pagemap.h depend on hugetlb.h because it makes cyclic dependency
+among pagemap.h, mempolicy.h and hugetlb.h.
+
+> It adds another header dependency which is bad but moving hugetlb stuff
+> into mm.h seems bad too.
+
+I have another choice to move the definition of is_vm_hugetlb_page() into
+mm/hugetlb.c and introduce declaration of this function to pagemap.h,
+but this needed a bit ugly #ifdefs and I didn't like it.
+If putting hugetlb code in mm.h is worse, I'll take the second choice
+in the next post.
+
+> > @@ -2268,6 +2277,50 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	return 1;
+> >  }
+> >  
+> > +/*
+> > + * The following three functions are counterparts of ones in mm/rmap.c.
+> > + * Unlike them, these functions don't have accounting code nor lru code,
+> > + * because we handle hugepages differently from common anonymous pages.
+> > + */
+> > +static void __hugepage_set_anon_rmap(struct page *page,
+> > +	struct vm_area_struct *vma, unsigned long address, int exclusive)
+> > +{
+> > +	struct anon_vma *anon_vma = vma->anon_vma;
+> > +	BUG_ON(!anon_vma);
+> > +	if (!exclusive) {
+> > +		struct anon_vma_chain *avc;
+> > +		avc = list_entry(vma->anon_vma_chain.prev,
+> > +				 struct anon_vma_chain, same_vma);
+> > +		anon_vma = avc->anon_vma;
+> > +	}
+> > +	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> > +	page->mapping = (struct address_space *) anon_vma;
+> > +	page->index = linear_page_index(vma, address);
+> > +}
+> > +
+> > +static void hugepage_add_anon_rmap(struct page *page,
+> > +			struct vm_area_struct *vma, unsigned long address)
+> > +{
+> > +	struct anon_vma *anon_vma = vma->anon_vma;
+> > +	int first;
+> > +	BUG_ON(!anon_vma);
+> > +	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> > +	first = atomic_inc_and_test(&page->_mapcount);
+> > +	if (first)
+> > +		__hugepage_set_anon_rmap(page, vma, address, 0);
+> > +}
+> > +
+> > +void hugepage_add_new_anon_rmap(struct page *page,
+> > +	struct vm_area_struct *vma, unsigned long address)
+> > +{
+> > +	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> > +	atomic_set(&page->_mapcount, 0);
+> > +	__hugepage_set_anon_rmap(page, vma, address, 1);
+> > +}
+> > +
+> 
+> Is it possible to move these to mm/rmap.c so all the anon rmap adding
+> code is in the same place? In the event that __page_set_anon_rmap() is
+> updated, there would be a greater chance the hugepage equivalent will be
+> noticed and updated.
+
+Sounds reasonable, I'll do it.
+
+> I didn't spot anything particularly bad after this.  If these minor issues
+> could be addressed and the full series reposted, I'll test the hugetlb side
+> of things further just to be sure.
+
+OK, thanks you :)
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
