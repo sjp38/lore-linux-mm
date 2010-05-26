@@ -1,250 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1F1A060032A
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 16:43:42 -0400 (EDT)
-Subject: Re: [PATCH 5/5] extend KSM refcounts to the anon_vma root
-From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <20100526154124.04607d04@annuminas.surriel.com>
-References: <20100526153819.6e5cec0d@annuminas.surriel.com>
-	 <20100526154124.04607d04@annuminas.surriel.com>
-Content-Type: text/plain
-Date: Wed, 26 May 2010 16:47:20 -0400
-Message-Id: <1274906840.20515.113.camel@dhcp-100-19-198.bos.redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE116B01AC
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 17:29:06 -0400 (EDT)
+Subject: Re: [PATCH 0/3] mm: Swap checksum
+In-Reply-To: Your message of "Thu, 27 May 2010 00:31:44 +0900."
+             <20100526153144.GA3650@barrios-desktop>
+From: Valdis.Kletnieks@vt.edu
+References: <4BF81D87.6010506@cesarb.net> <20100523140348.GA10843@barrios-desktop> <4BF974D5.30207@cesarb.net> <AANLkTil1kwOHAcBpsZ_MdtjLmCAFByvF4xvm8JJ7r7dH@mail.gmail.com> <4BF9CF00.2030704@cesarb.net> <AANLkTin_BV6nWlmX6aXTaHvzH-DnsFIVxP5hz4aZYlqH@mail.gmail.com> <4BFA59F7.2020606@cesarb.net> <AANLkTikMTwzXt7-vQf9AG2VhwFIGs1jX-1uFoYAKSco7@mail.gmail.com> <4BFCF645.2050400@cesarb.net>
+            <20100526153144.GA3650@barrios-desktop>
 Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1274909335_4200P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 26 May 2010 17:28:55 -0400
+Message-ID: <22942.1274909335@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-05-26 at 15:41 -0400, Rik van Riel wrote:
-> Subject: extend KSM refcounts to the anon_vma root
-> 
-> KSM reference counts can cause an anon_vma to exist after the processe
-> it belongs to have already exited.  Because the anon_vma lock now lives
-> in the root anon_vma, we need to ensure that the root anon_vma stays
-> around until after all the "child" anon_vmas have been freed.
-> 
-> The obvious way to do this is to have a "child" anon_vma take a
-> reference to the root in anon_vma_fork.  When the anon_vma is freed
-> at munmap or process exit, we drop the refcount in anon_vma_unlink
-> and possibly free the root anon_vma.
-> 
-> The KSM anon_vma reference count function also needs to be modified
-> to deal with the possibility of freeing 2 levels of anon_vma.  The
-> easiest way to do this is to break out the KSM magic and make it
-> generic.
-> 
-> When compiling without CONFIG_KSM, this code is compiled out.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+--==_Exmh_1274909335_4200P
+Content-Type: text/plain; charset=us-ascii
 
-Tested and Acked-by: Larry Woodman <lwoodman@redhat.com>
+On Thu, 27 May 2010 00:31:44 +0900, Minchan Kim said:
+> On Wed, May 26, 2010 at 07:21:57AM -0300, Cesar Eduardo Barros wrote:
+> > far as I can see, does nothing against the disk simply failing to
+> > write and later returning stale data, since the stale checksum would
+> > match the stale data.
+> 
+> Sorry. I can't understand your point. 
+> Who makes stale data? If any layer makes data as stale, integrity is up to 
+> the layer. Maybe I am missing your point. 
+> Could you explain more detail?
 
-> ---
-> v2:
->  - merge with -mm and the compaction code
->  - improve the anon_vma refcount comment in anon_vma_fork with the
->    refcount lifetime
-> 
->  include/linux/rmap.h |   15 +++++++++++++++
->  mm/ksm.c             |   17 ++++++-----------
->  mm/migrate.c         |   10 +++-------
->  mm/rmap.c            |   45 ++++++++++++++++++++++++++++++++++++++++++++-
->  4 files changed, 68 insertions(+), 19 deletions(-)
-> 
-> Index: linux-2.6.34/include/linux/rmap.h
-> ===================================================================
-> --- linux-2.6.34.orig/include/linux/rmap.h
-> +++ linux-2.6.34/include/linux/rmap.h
-> @@ -81,6 +81,13 @@ static inline int anonvma_external_refco
->  {
->  	return atomic_read(&anon_vma->external_refcount);
->  }
-> +
-> +static inline void get_anon_vma(struct anon_vma *anon_vma)
-> +{
-> +	atomic_inc(&anon_vma->external_refcount);
-> +}
-> +
-> +void drop_anon_vma(struct anon_vma *);
->  #else
->  static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
->  {
-> @@ -90,6 +97,14 @@ static inline int anonvma_external_refco
->  {
->  	return 0;
->  }
-> +
-> +static inline void get_anon_vma(struct anon_vma *anon_vma)
-> +{
-> +}
-> +
-> +static inline void drop_anon_vma(struct anon_vma *anon_vma)
-> +{
-> +}
->  #endif /* CONFIG_KSM */
->  
->  static inline struct anon_vma *page_anon_vma(struct page *page)
-> Index: linux-2.6.34/mm/ksm.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/ksm.c
-> +++ linux-2.6.34/mm/ksm.c
-> @@ -318,19 +318,14 @@ static void hold_anon_vma(struct rmap_it
->  			  struct anon_vma *anon_vma)
->  {
->  	rmap_item->anon_vma = anon_vma;
-> -	atomic_inc(&anon_vma->external_refcount);
-> +	get_anon_vma(anon_vma);
->  }
->  
-> -static void drop_anon_vma(struct rmap_item *rmap_item)
-> +static void ksm_drop_anon_vma(struct rmap_item *rmap_item)
->  {
->  	struct anon_vma *anon_vma = rmap_item->anon_vma;
->  
-> -	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->root->lock)) {
-> -		int empty = list_empty(&anon_vma->head);
-> -		anon_vma_unlock(anon_vma);
-> -		if (empty)
-> -			anon_vma_free(anon_vma);
-> -	}
-> +	drop_anon_vma(anon_vma);
->  }
->  
->  /*
-> @@ -415,7 +410,7 @@ static void break_cow(struct rmap_item *
->  	 * It is not an accident that whenever we want to break COW
->  	 * to undo, we also need to drop a reference to the anon_vma.
->  	 */
-> -	drop_anon_vma(rmap_item);
-> +	ksm_drop_anon_vma(rmap_item);
->  
->  	down_read(&mm->mmap_sem);
->  	if (ksm_test_exit(mm))
-> @@ -470,7 +465,7 @@ static void remove_node_from_stable_tree
->  			ksm_pages_sharing--;
->  		else
->  			ksm_pages_shared--;
-> -		drop_anon_vma(rmap_item);
-> +		ksm_drop_anon_vma(rmap_item);
->  		rmap_item->address &= PAGE_MASK;
->  		cond_resched();
->  	}
-> @@ -558,7 +553,7 @@ static void remove_rmap_item_from_tree(s
->  		else
->  			ksm_pages_shared--;
->  
-> -		drop_anon_vma(rmap_item);
-> +		ksm_drop_anon_vma(rmap_item);
->  		rmap_item->address &= PAGE_MASK;
->  
->  	} else if (rmap_item->address & UNSTABLE_FLAG) {
-> Index: linux-2.6.34/mm/rmap.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/rmap.c
-> +++ linux-2.6.34/mm/rmap.c
-> @@ -235,6 +235,12 @@ int anon_vma_fork(struct vm_area_struct 
->  	 * lock any of the anon_vmas in this anon_vma tree.
->  	 */
->  	anon_vma->root = pvma->anon_vma->root;
-> +	/*
-> +	 * With KSM refcounts, an anon_vma can stay around longer than the
-> +	 * process it belongs to.  The root anon_vma needs to be pinned
-> +	 * until this anon_vma is freed, because the lock lives in the root.
-> +	 */
-> +	get_anon_vma(anon_vma->root);
->  	/* Mark this anon_vma as the one where our new (COWed) pages go. */
->  	vma->anon_vma = anon_vma;
->  	anon_vma_chain_link(vma, avc, anon_vma);
-> @@ -264,8 +270,11 @@ static void anon_vma_unlink(struct anon_
->  	empty = list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma);
->  	anon_vma_unlock(anon_vma);
->  
-> -	if (empty)
-> +	if (empty) {
-> +		/* We no longer need the root anon_vma */
-> +		drop_anon_vma(anon_vma->root);
->  		anon_vma_free(anon_vma);
-> +	}
->  }
->  
->  void unlink_anon_vmas(struct vm_area_struct *vma)
-> @@ -1389,6 +1398,40 @@ int try_to_munlock(struct page *page)
->  		return try_to_unmap_file(page, TTU_MUNLOCK);
->  }
->  
-> +#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
-> +/*
-> + * Drop an anon_vma refcount, freeing the anon_vma and anon_vma->root
-> + * if necessary.  Be careful to do all the tests under the lock.  Once
-> + * we know we are the last user, nobody else can get a reference and we
-> + * can do the freeing without the lock.
-> + */
-> +void drop_anon_vma(struct anon_vma *anon_vma)
-> +{
-> +	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->root->lock)) {
-> +		struct anon_vma *root = anon_vma->root;
-> +		int empty = list_empty(&anon_vma->head);
-> +		int last_root_user = 0;
-> +		int root_empty = 0;
-> +
-> +		/*
-> +		 * The refcount on a non-root anon_vma got dropped.  Drop
-> +		 * the refcount on the root and check if we need to free it.
-> +		 */
-> +		if (empty && anon_vma != root) {
-> +			last_root_user = atomic_dec_and_test(&root->external_refcount);
-> +			root_empty = list_empty(&root->head);
-> +		}
-> +		anon_vma_unlock(anon_vma);
-> +
-> +		if (empty) {
-> +			anon_vma_free(anon_vma);
-> +			if (root_empty && last_root_user)
-> +				anon_vma_free(root);
-> +		}
-> +	}
-> +}
-> +#endif
-> +
->  #ifdef CONFIG_MIGRATION
->  /*
->   * rmap_walk() and its helpers rmap_walk_anon() and rmap_walk_file():
-> Index: linux-2.6.34/mm/migrate.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/migrate.c
-> +++ linux-2.6.34/mm/migrate.c
-> @@ -639,7 +639,7 @@ static int unmap_and_move(new_page_t get
->  			 * exist when the page is remapped later
->  			 */
->  			anon_vma = page_anon_vma(page);
-> -			atomic_inc(&anon_vma->external_refcount);
-> +			get_anon_vma(anon_vma);
->  		}
->  	}
->  
-> @@ -682,12 +682,8 @@ skip_unmap:
->  rcu_unlock:
->  
->  	/* Drop an anon_vma reference if we took one */
-> -	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->root->lock)) {
-> -		int empty = list_empty(&anon_vma->head);
-> -		anon_vma_unlock(anon_vma);
-> -		if (empty)
-> -			anon_vma_free(anon_vma);
-> -	}
-> +	if (anon_vma)
-> +		drop_anon_vma(anon_vma);
->  
->  	if (rcu_locked)
->  		rcu_read_unlock();
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I'm pretty sure that what Cesar meant was that the following could happen:
+
+1) Write block 11983 on the disk, checksum 34FE9B72.
+(... time passes.. maybe weeks)
+2) Attempt to write block 11983 on disk with checksum AE9F3581. The write fails
+due to a power failure or something.
+(... more time passes...)
+3) Read block 11983, get back data with checksum 34FE9B72. Checksum matches,
+and there's no indication that the write in (2) ever failed. The program
+proceeds thinking it's just read back the most recently written data, when in
+fact it's just read an older version of that block. Problems can ensue if the
+data just read is now out of sync with *other* blocks of data - instant data
+corruption.
+
+To be fair, we currently have the "read a stale block" problem after crashes
+already.  The issue is that BLK_DEV_INTEGRITY can't provide a solution here,
+but most users will form a mental image that it *is* in fact giving them
+that guarantee.  The resulting mismatch between reality and expectations
+cannot end well.
+
+
+
+
+--==_Exmh_1274909335_4200P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFL/ZKXcC3lWbTT17ARArvwAKDjdDRSG9nZPYMxp17U2yny93bRzACfeypD
+iMS08wX2QITrbRCgAw3QBIk=
+=H4Sf
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1274909335_4200P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
