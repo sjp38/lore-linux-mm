@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E29B56B01D6
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 09:28:59 -0400 (EDT)
-Subject: Re: [PATCH] tracing: Remove kmemtrace ftrace plugin
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100526095934.GA5311@nowhere>
-References: <4BFCE849.7090804@cn.fujitsu.com>
-	 <20100526095934.GA5311@nowhere>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 26 May 2010 15:28:34 +0200
-Message-ID: <1274880514.27810.454.camel@twins>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A03DE6B01DC
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 09:42:14 -0400 (EDT)
+Date: Wed, 26 May 2010 15:42:08 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: writeback hang in current mainline
+Message-ID: <20100526134208.GA2557@lst.de>
+References: <20100526111326.GA28541@lst.de> <20100526112125.GJ23411@kernel.dk> <20100526114018.GA30107@lst.de> <20100526114950.GK23411@kernel.dk> <20100526120855.GA30912@lst.de> <20100526122126.GL23411@kernel.dk> <20100526124549.GA32550@lst.de> <20100526125614.GM23411@kernel.dk>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100526125614.GM23411@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-05-26 at 11:59 +0200, Frederic Weisbecker wrote:
-> On Wed, May 26, 2010 at 05:22:17PM +0800, Li Zefan wrote:
-> > We have been resisting new ftrace plugins and removing existing
-> > ones, and kmemtrace has been superseded by kmem trace events
-> > and perf-kmem, so we remove it.
-> >=20
-> > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> > Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-> > ---
-> >  Documentation/ABI/testing/debugfs-kmemtrace |   71 ----
-> >  Documentation/trace/kmemtrace.txt           |  126 -------
-> >  MAINTAINERS                                 |    7 -
-> >  include/linux/kmemtrace.h                   |   25 --
-> >  include/linux/slab_def.h                    |    3 +-
-> >  include/linux/slub_def.h                    |    3 +-
-> >  init/main.c                                 |    2 -
-> >  kernel/trace/Kconfig                        |   20 -
-> >  kernel/trace/kmemtrace.c                    |  529 -------------------=
---------
-> >  kernel/trace/trace.h                        |   13 -
-> >  kernel/trace/trace_entries.h                |   35 --
-> >  mm/slab.c                                   |    1 -
-> >  mm/slub.c                                   |    1 -
-> >  13 files changed, 4 insertions(+), 832 deletions(-)
-> >  delete mode 100644 Documentation/ABI/testing/debugfs-kmemtrace
-> >  delete mode 100644 Documentation/trace/kmemtrace.txt
-> >  delete mode 100644 include/linux/kmemtrace.h
-> >  delete mode 100644 kernel/trace/kmemtrace.c
->=20
->=20
->=20
-> Thanks!
->=20
-> Just one thing: you forgot to update the kernel/trace/Makefile
+On Wed, May 26, 2010 at 02:56:15PM +0200, Jens Axboe wrote:
+> On Wed, May 26 2010, Christoph Hellwig wrote:
+> > On Wed, May 26, 2010 at 02:21:26PM +0200, Jens Axboe wrote:
+> > > Ugh ok I see it, I had the caller_frees reverted. Try this :-)
+> > 
+> > This seems to fix it.  Running some more tests now.
+> 
+> Goodie, then the analysis at least is correct. A potentially cleaner fix
+> would be to just allocate the WB_SYNC_NONE && sb_pinned work struct on
+> the stack, since then we can get rid of that nastiness in
+> wb_work_complete() as well (and not pass 'sb_pinned' around so much).
+> 
+> If you have time, care to test this one as well?
 
-You can also axe kernel/tracing/trace_sysprof.c and related bits.
+Both this and the previous one hang hard in xfstests 007, with no chance
+of getting a backtrace.
+
+For now I would recommend to revert
+21c12849fef73efc9a898b6702fe421fd774f515 and
+29c795f02e68ecd7bb1374844d3e55e882ac158f,
+which makes xfstests run fine for me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
