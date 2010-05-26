@@ -1,62 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 82AEC6B021A
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 11:58:06 -0400 (EDT)
-Subject: Re: [PATCH] do_generic_file_read: clear page errors when issuing a
-	fresh read of the page
-From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <20100526114940.49f51028@annuminas.surriel.com>
-References: <20100526114940.49f51028@annuminas.surriel.com>
-Content-Type: text/plain
-Date: Wed, 26 May 2010 12:02:52 -0400
-Message-Id: <1274889772.20515.103.camel@dhcp-100-19-198.bos.redhat.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 87CCB6B021A
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 12:00:36 -0400 (EDT)
+Received: by fxm11 with SMTP id 11so4229892fxm.14
+        for <linux-mm@kvack.org>; Wed, 26 May 2010 09:00:33 -0700 (PDT)
+Date: Wed, 26 May 2010 18:00:30 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH] tracing: Remove kmemtrace ftrace plugin
+Message-ID: <20100526160028.GC5299@nowhere>
+References: <4BFCE849.7090804@cn.fujitsu.com> <20100526095934.GA5311@nowhere> <1274880514.27810.454.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1274880514.27810.454.camel@twins>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jmoyer@redhat.com, torvalds@linux-foundation.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-05-26 at 11:49 -0400, Rik van Riel wrote:
-> From: Jeff Moyer <jmoyer@redhat.com>
+On Wed, May 26, 2010 at 03:28:34PM +0200, Peter Zijlstra wrote:
+> On Wed, 2010-05-26 at 11:59 +0200, Frederic Weisbecker wrote:
+> > On Wed, May 26, 2010 at 05:22:17PM +0800, Li Zefan wrote:
+> > > We have been resisting new ftrace plugins and removing existing
+> > > ones, and kmemtrace has been superseded by kmem trace events
+> > > and perf-kmem, so we remove it.
+> > > 
+> > > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> > > Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> > > ---
+> > >  Documentation/ABI/testing/debugfs-kmemtrace |   71 ----
+> > >  Documentation/trace/kmemtrace.txt           |  126 -------
+> > >  MAINTAINERS                                 |    7 -
+> > >  include/linux/kmemtrace.h                   |   25 --
+> > >  include/linux/slab_def.h                    |    3 +-
+> > >  include/linux/slub_def.h                    |    3 +-
+> > >  init/main.c                                 |    2 -
+> > >  kernel/trace/Kconfig                        |   20 -
+> > >  kernel/trace/kmemtrace.c                    |  529 ---------------------------
+> > >  kernel/trace/trace.h                        |   13 -
+> > >  kernel/trace/trace_entries.h                |   35 --
+> > >  mm/slab.c                                   |    1 -
+> > >  mm/slub.c                                   |    1 -
+> > >  13 files changed, 4 insertions(+), 832 deletions(-)
+> > >  delete mode 100644 Documentation/ABI/testing/debugfs-kmemtrace
+> > >  delete mode 100644 Documentation/trace/kmemtrace.txt
+> > >  delete mode 100644 include/linux/kmemtrace.h
+> > >  delete mode 100644 kernel/trace/kmemtrace.c
+> > 
+> > 
+> > 
+> > Thanks!
+> > 
+> > Just one thing: you forgot to update the kernel/trace/Makefile
 > 
-> I/O errors can happen due to temporary failures, like multipath
-> errors or losing network contact with the iSCSI server. Because
-> of that, the VM will retry readpage on the page.
-> 
-> However, do_generic_file_read does not clear PG_error.  This
-> causes the system to be unable to actually use the data in the
-> page cache page, even if the subsequent readpage completes
-> successfully!
-> 
-> The function filemap_fault has had a ClearPageError before
-> readpage forever.  This patch simply adds the same to
-> do_generic_file_read.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> Signed-off-by: Jeff Moyer <jmoyer@redhat.com>
-> ---
->  mm/filemap.c |    6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> Index: linux-2.6.34/mm/filemap.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/filemap.c
-> +++ linux-2.6.34/mm/filemap.c
-> @@ -1106,6 +1106,12 @@ page_not_up_to_date_locked:
->  		}
->  
->  readpage:
-> +		/*
-> +		 * A previous I/O error may have been due to temporary
-> +		 * failures, eg. multipath errors.
-> +		 * PG_error will be set again if readpage fails.
-> +		 */
-> +		ClearPageError(page);
->  		/* Start the actual read. The read will unlock the page. */
->  		error = mapping->a_ops->readpage(filp, page);
->  
-Acked-by: Larry Woodman <lwoodman@redhat.com>
+> You can also axe kernel/tracing/trace_sysprof.c and related bits.
+
+
+I'll do that too, but I 'll need Soeren's opinion before actually pushing it.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
