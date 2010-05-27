@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id EF45D600385
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:20:37 -0400 (EDT)
-Date: Thu, 27 May 2010 09:17:17 -0500 (CDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C1918600385
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:27:44 -0400 (EDT)
+Date: Thu, 27 May 2010 09:24:28 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [BUG] slub crashes on dma allocations
-In-Reply-To: <20100526153757.GB2232@osiris.boeblingen.de.ibm.com>
-Message-ID: <alpine.DEB.2.00.1005270916220.5762@router.home>
-References: <20100526153757.GB2232@osiris.boeblingen.de.ibm.com>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+In-Reply-To: <20100525153759.GA20853@laptop>
+Message-ID: <alpine.DEB.2.00.1005270919510.5762@router.home>
+References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <alpine.DEB.2.00.1005250859050.28941@router.home> <20100525143409.GP5087@laptop>
+ <alpine.DEB.2.00.1005250938300.29543@router.home> <20100525151129.GS5087@laptop> <alpine.DEB.2.00.1005251022220.30395@router.home> <20100525153759.GA20853@laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 26 May 2010, Nick Piggin wrote:
 
-So S390 has NUMA and the minalign is allowing very small slabs of 8/16/32 bytes?
+> > > > The reason that the alien caches made it into SLAB were performance
+> > > > numbers that showed that the design "must" be this way. I prefer a clear
+> > > > maintainable design over some numbers (that invariably show the bias of
+> > > > the tester for certain loads).
+> > >
+> > > I don't really agree. There are a number of other possible ways to
+> > > improve it, including fewer remote freeing queues.
+> >
+> > You disagree with the history of the allocator?
+>
+> I don't agree with you saying that it "must" be that way. There are
+> other ways to improve things there.
+
+People told me that it "must" be this way. Could not convince them
+otherwise at the time. I never wanted it to be that way and have been
+looking for other ways ever since. SLUB is a result of trying something
+different.
+
+> then we can go ahead and throw out SLUB and make incremental
+> improvements from there instead.
+
+I am just amazed at the tosses and turns by you. Didnt you write SLQB on
+the basis of SLUB? And then it was abandoned? If you really believe ths
+and want to get this done then please invest some time in SLAB to get it
+cleaned up. I have some doubt that you are aware of the difficulties that
+you will encounter.
 
 
-Try this patch
 
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: SLUB: Allow full duplication of kmalloc array for 390
-
-Seems that S390 is running out of kmalloc caches.
-
-Increase the number of kmalloc caches to a safe size.
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
----
- include/linux/slub_def.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2010-05-27 09:14:16.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2010-05-27 09:14:26.000000000 -0500
-@@ -140,7 +140,7 @@ struct kmem_cache {
- #ifdef CONFIG_ZONE_DMA
- #define SLUB_DMA __GFP_DMA
- /* Reserve extra caches for potential DMA use */
--#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT - 6)
-+#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT)
- #else
- /* Disable DMA functionality */
- #define SLUB_DMA (__force gfp_t)0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
