@@ -1,90 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BA0976B01C3
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 18:54:25 -0400 (EDT)
-Date: Fri, 28 May 2010 08:54:18 +1000
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3CA2B6B01C3
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 19:01:13 -0400 (EDT)
+Date: Fri, 28 May 2010 09:01:04 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
-Message-ID: <20100527225418.GP12087@dastard>
+Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
+ infrastructure
+Message-ID: <20100527230104.GQ12087@dastard>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <1274777588-21494-2-git-send-email-david@fromorbit.com>
- <20100527133230.780be6c7.akpm@linux-foundation.org>
+ <1274777588-21494-4-git-send-email-david@fromorbit.com>
+ <20100527133234.e0814239.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100527133230.780be6c7.akpm@linux-foundation.org>
+In-Reply-To: <20100527133234.e0814239.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 01:32:30PM -0700, Andrew Morton wrote:
-> On Tue, 25 May 2010 18:53:04 +1000
+On Thu, May 27, 2010 at 01:32:34PM -0700, Andrew Morton wrote:
+> On Tue, 25 May 2010 18:53:06 +1000
 > Dave Chinner <david@fromorbit.com> wrote:
 > 
 > > From: Dave Chinner <dchinner@redhat.com>
 > > 
-> > The inode unused list is currently a global LRU. This does not match
-> > the other global filesystem cache - the dentry cache - which uses
-> > per-superblock LRU lists. Hence we have related filesystem object
-> > types using different LRU reclaimatin schemes.
+> > With context based shrinkers, we can implement a per-superblock
+> > shrinker that shrinks the caches attached to the superblock. We
+> > currently have global shrinkers for the inode and dentry caches that
+> > split up into per-superblock operations via a coarse proportioning
+> > method that does not batch very well.  The global shrinkers also
+> > have a dependency - dentries pin inodes - so we have to be very
+> > careful about how we register the global shrinkers so that the
+> > implicit call order is always correct.
 > > 
-> > To enable a per-superblock filesystem cache shrinker, both of these
-> > caches need to have per-sb unused object LRU lists. Hence this patch
-> > converts the global inode LRU to per-sb LRUs.
+> > With a per-sb shrinker callout, we can encode this dependency
+> > directly into the per-sb shrinker, hence avoiding the need for
+> > strictly ordering shrinker registrations. We also have no need for
+> > any proportioning code for the shrinker subsystem already provides
+> > this functionality across all shrinkers. Allowing the shrinker to
+> > operate on a single superblock at a time means that we do less
+> > superblock list traversals and locking and reclaim should batch more
+> > effectively. This should result in less CPU overhead for reclaim and
+> > potentially faster reclaim of items from each filesystem.
 > > 
-> > The patch only does rudimentary per-sb propotioning in the shrinker
-> > infrastructure, as this gets removed when the per-sb shrinker
-> > callouts are introduced later on.
+> 
+> I go all tingly when a changelog contains the word "should".
+> 
+> OK, it _should_ do X.  But _does_ it actually do X?
+
+As i said to Nick - the tests I ran showed an average improvement of
+5% but the accuracy of the benchmark was +/-10%. Hence it's hard to
+draw any conclusive results from that. It appears to be slightly
+faster on an otherwise idle system, but...
+
+As it is, the XFS shrinker that gets integrated into this structure
+in a later patch peaks at a higher rate - 150k inodes/s vs 90k
+inodes/s with the current shrinker - but still it's hard to quantify
+qualitatively. I'm going to run more benchmarks to try to get better
+numbers.
+
+> >  fs/super.c         |   53 +++++++++++++++++++++
+> >  include/linux/fs.h |    7 +++
+> >  4 files changed, 88 insertions(+), 214 deletions(-)
 > > 
-> > ...
-> >
-> > +			list_move(&inode->i_list, &inode->i_sb->s_inode_lru);
+> > diff --git a/fs/dcache.c b/fs/dcache.c
+> > index dba6b6d..d7bd781 100644
+> > --- a/fs/dcache.c
+> > +++ b/fs/dcache.c
+> > @@ -456,21 +456,16 @@ static void prune_one_dentry(struct dentry * dentry)
+> >   * which flags are set. This means we don't need to maintain multiple
+> >   * similar copies of this loop.
+> >   */
+> > -static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
+> > +static void __shrink_dcache_sb(struct super_block *sb, int count, int flags)
 > 
-> It's a shape that s_inode_lru is still protected by inode_lock.  One
-> day we're going to get in trouble over that lock.  Migrating to a
-> per-sb lock would be logical and might help.
-> 
-> Did you look into this? 
+> Forgot to update the kerneldoc description of `count'.
 
-Yes, I have. Yes, it's possible.  It's solving a different problem,
-so I figured it can be done in a different patch set.
-
-> I expect we'd end up taking both inode_lock
-> and the new sb->lru_lock in several places, which wouldn't be of any
-> help, at least in the interim.  Long-term, the locking for
-> fs-writeback.c should move to the per-superblock one also, at which
-> time this problem largely goes away I think.  Unfortunately the
-> writeback inode lists got moved into the backing_dev_info, whcih messes
-> things up a bit.
-
-*nod*
-
-> 
-> >  	inodes_stat.nr_unused--;
-> > +	inode->i_sb->s_nr_inodes_unused--;
-> 
-> It's regrettable to be counting the same thing twice.  Did you look
-> into removing (or no longer using) inodes_stat.nr_unused?
-
-Sort of. The complexity is the stats are userspace visible, so they
-can't just be removed. Replacing the current stats means that when
-they are read from /proc we would need to walk all the superblocks
-to aggregate them. The bit I haven't looked at yet is whether
-walking superblocks is allowed in a proc handler.
-
-So in the mean time, I just copied what was done for the
-dentry_stats. If it's ok to do this walk, then we can change both
-the dentry and inode stats at the same time.
-
-> > +		/* Now, we reclaim unused dentrins with fairness.
-> 
-> May as well fix the typo while we're there.
-> 
-> Please review all these comments to ensure that they are still accurate
-> and complete.
-
-Will do.
+Will fix.
 
 Cheers,
 
