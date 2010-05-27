@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E7CAC600385
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:10:44 -0400 (EDT)
-Message-ID: <4BFE7CFC.4060706@redhat.com>
-Date: Thu, 27 May 2010 10:09:00 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id EF45D600385
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:20:37 -0400 (EDT)
+Date: Thu, 27 May 2010 09:17:17 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [BUG] slub crashes on dma allocations
+In-Reply-To: <20100526153757.GB2232@osiris.boeblingen.de.ibm.com>
+Message-ID: <alpine.DEB.2.00.1005270916220.5762@router.home>
+References: <20100526153757.GB2232@osiris.boeblingen.de.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] extend KSM refcounts to the anon_vma root
-References: <20100526153819.6e5cec0d@annuminas.surriel.com> <20100526154124.04607d04@annuminas.surriel.com> <20100527140212.GE2112@barrios-desktop>
-In-Reply-To: <20100527140212.GE2112@barrios-desktop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/27/2010 10:02 AM, Minchan Kim wrote:
 
-> Hmm, I can understand this point.
-> Now, rmap code always depeneds on root anon_vma's lock.
-> I think it doesn't depends on KSM and MIGRATION.
->
-> If we don't use KSM and MIGRATION and it is compiled out,
-> Can root's anon_vma disappear during rmap walking?
-> who prevent it?
->
-> What am I missing?
+So S390 has NUMA and the minalign is allowing very small slabs of 8/16/32 bytes?
 
-unlink_anon_vmas walks the list in the order from newest
-to oldest, ie. the root always gets unlinked (and potentially
-freed) last.
 
--- 
-All rights reversed
+Try this patch
+
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: SLUB: Allow full duplication of kmalloc array for 390
+
+Seems that S390 is running out of kmalloc caches.
+
+Increase the number of kmalloc caches to a safe size.
+
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+---
+ include/linux/slub_def.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6/include/linux/slub_def.h
+===================================================================
+--- linux-2.6.orig/include/linux/slub_def.h	2010-05-27 09:14:16.000000000 -0500
++++ linux-2.6/include/linux/slub_def.h	2010-05-27 09:14:26.000000000 -0500
+@@ -140,7 +140,7 @@ struct kmem_cache {
+ #ifdef CONFIG_ZONE_DMA
+ #define SLUB_DMA __GFP_DMA
+ /* Reserve extra caches for potential DMA use */
+-#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT - 6)
++#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT)
+ #else
+ /* Disable DMA functionality */
+ #define SLUB_DMA (__force gfp_t)0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
