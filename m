@@ -1,576 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 984106B01B5
-	for <linux-mm@kvack.org>; Wed, 26 May 2010 21:58:12 -0400 (EDT)
-Date: Thu, 27 May 2010 11:53:35 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 3/5 v2] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20100527015335.GD1395@dastard>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 094D26B01B8
+	for <linux-mm@kvack.org>; Wed, 26 May 2010 22:04:53 -0400 (EDT)
+Date: Thu, 27 May 2010 12:04:45 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
+Message-ID: <20100527020445.GF22536@laptop>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <1274777588-21494-4-git-send-email-david@fromorbit.com>
- <20100526164116.GD22536@laptop>
- <20100526231214.GB1395@dastard>
+ <1274777588-21494-2-git-send-email-david@fromorbit.com>
+ <20100526161732.GC22536@laptop>
+ <20100526230129.GA1395@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100526231214.GB1395@dastard>
+In-Reply-To: <20100526230129.GA1395@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
+To: Dave Chinner <david@fromorbit.com>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 09:12:14AM +1000, Dave Chinner wrote:
-> On Thu, May 27, 2010 at 02:41:16AM +1000, Nick Piggin wrote:
-....
-> > Nitpick but I prefer just the restart label wher it is previously. This
-> > is moving setup for the next iteration into the "error" case.
+On Thu, May 27, 2010 at 09:01:29AM +1000, Dave Chinner wrote:
+> On Thu, May 27, 2010 at 02:17:33AM +1000, Nick Piggin wrote:
+> > On Tue, May 25, 2010 at 06:53:04PM +1000, Dave Chinner wrote:
+> > > From: Dave Chinner <dchinner@redhat.com>
+> > > 
+> > > The inode unused list is currently a global LRU. This does not match
+> > > the other global filesystem cache - the dentry cache - which uses
+> > > per-superblock LRU lists. Hence we have related filesystem object
+> > > types using different LRU reclaimatin schemes.
+> > 
+> > Is this an improvement I wonder? The dcache is using per sb lists
+> > because it specifically requires sb traversal.
 > 
-> Ok, will fix.
-....
-> > Would you just elaborate on the lock order problem somewhere? (the
-> > comment makes it look like we *could* take the mutex if we wanted
-> > to).
+> Right - I originally implemented the per-sb dentry lists for
+> scalability purposes. i.e. to avoid monopolising the dentry_lock
+> during unmount looking for dentries on a specific sb and hanging the
+> system for several minutes.
 > 
-> The shrinker is unregistered in deactivate_locked_super() which is
-> just before ->kill_sb is called. The sb->s_umount lock is held at
-> this point. hence is the shrinker is operating, we will deadlock if
-> we try to lock it like this:
+> However, the reason for doing this to the inode cache is not for
+> scalability, it's because we have a tight relationship between the
+> dentry and inode cacheN?. That is, reclaim from the dentry LRU grows
+> the inode LRU.  Like the registration of the shrinkers, this is kind
+> of an implicit, undocumented behavour of the current shrinker
+> implemenation.
+
+Right, that's why I wonder whether it is an improvement. It would
+be interesting to see some tests (showing at least parity).
+
+ 
+> What this patch series does is take that implicit relationship and
+> make it explicit.  It also allows other filesystem caches to tie
+> into the relationship if they need to (e.g. the XFS inode cache).
+> What it _doesn't do_ is change the macro level behaviour of the
+> shrinkers...
 > 
-> 	unmount:			shrinker:
-> 					down_read(&shrinker_lock);
-> 	down_write(&sb->s_umount)
-> 	unregister_shrinker()
-> 	down_write(&shrinker_lock)
-> 					prune_super()
-> 					  down_read(&sb->s_umount);
-> 					  (deadlock)
+> > What allocation/reclaim really wants (for good scalability and NUMA
+> > characteristics) is per-zone lists for these things. It's easy to
+> > convert a single list into per-zone lists.
+> >
+> > It is much harder to convert per-sb lists into per-sb x per-zone lists.
 > 
-> hence if we can't get the sb->s_umount lock in prune_super(), then
-> the superblock must be being unmounted and the shrinker should abort
-> as the ->kill_sb method will clean up everything after the shrinker
-> is unregistered. Hence the down_read_trylock().
+> No it's not. Just convert the s_{dentry,inode}_lru lists on each
+> superblock and call the shrinker with a new zone mask field to pick
+> the correct LRU. That's no harder than converting a global LRU.
+> Anyway, you'd still have to do per-sb x per-zone lists for the dentry LRUs,
+> so changing the inode cache to per-sb makes no difference.
 
-Updated patch below with these issues fixed.
+Right, it just makes it harder to do. By much harder, I did mostly mean
+the extra memory overhead. If there is *no* benefit from doing per-sb
+icache then I would question whether we should.
 
-Cheers,
+ 
+> However, this is a moot point because we don't have per-zone shrinker
+> interfaces. That's an entirely separate discussion because of the
+> macro-level behavioural changes it implies....
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
-
-superblock: introduce per-sb cache shrinker infrastructure
-
-From: Dave Chinner <dchinner@redhat.com>
-
-With context based shrinkers, we can implement a per-superblock
-shrinker that shrinks the caches attached to the superblock. We
-currently have global shrinkers for the inode and dentry caches that
-split up into per-superblock operations via a coarse proportioning
-method that does not batch very well.  The global shrinkers also
-have a dependency - dentries pin inodes - so we have to be very
-careful about how we register the global shrinkers so that the
-implicit call order is always correct.
-
-With a per-sb shrinker callout, we can encode this dependency
-directly into the per-sb shrinker, hence avoiding the need for
-strictly ordering shrinker registrations. We also have no need for
-any proportioning code for the shrinker subsystem already provides
-this functionality across all shrinkers. Allowing the shrinker to
-operate on a single superblock at a time means that we do less
-superblock list traversals and locking and reclaim should batch more
-effectively. This should result in less CPU overhead for reclaim and
-potentially faster reclaim of items from each filesystem.
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
-Version 2:
-- change loop restart in __shrink_dcache_sb() to match previous
-  restart semantics
-- add a better comment in prune_super() to explain the deadlock we
-  are avoiding by using down_read_trylock(&sb->s_umount) before
-  starting any shrinking.
-
- fs/dcache.c        |  127 +++++++---------------------------------------------
- fs/inode.c         |  109 +++-----------------------------------------
- fs/super.c         |   58 ++++++++++++++++++++++++
- include/linux/fs.h |    7 +++
- 4 files changed, 89 insertions(+), 212 deletions(-)
-
-diff --git a/fs/dcache.c b/fs/dcache.c
-index dba6b6d..a7cd335 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -456,21 +456,17 @@ static void prune_one_dentry(struct dentry * dentry)
-  * which flags are set. This means we don't need to maintain multiple
-  * similar copies of this loop.
-  */
--static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
-+static void __shrink_dcache_sb(struct super_block *sb, int count, int flags)
- {
- 	LIST_HEAD(referenced);
- 	LIST_HEAD(tmp);
- 	struct dentry *dentry;
--	int cnt = 0;
- 
- 	BUG_ON(!sb);
--	BUG_ON((flags & DCACHE_REFERENCED) && count == NULL);
-+	BUG_ON((flags & DCACHE_REFERENCED) && count == -1);
- 	spin_lock(&dcache_lock);
--	if (count != NULL)
--		/* called from prune_dcache() and shrink_dcache_parent() */
--		cnt = *count;
- restart:
--	if (count == NULL)
-+	if (count == -1)
- 		list_splice_init(&sb->s_dentry_lru, &tmp);
- 	else {
- 		while (!list_empty(&sb->s_dentry_lru)) {
-@@ -492,8 +488,7 @@ restart:
- 			} else {
- 				list_move_tail(&dentry->d_lru, &tmp);
- 				spin_unlock(&dentry->d_lock);
--				cnt--;
--				if (!cnt)
-+				if (--count == 0)
- 					break;
- 			}
- 			cond_resched_lock(&dcache_lock);
-@@ -516,88 +511,27 @@ restart:
- 		/* dentry->d_lock was dropped in prune_one_dentry() */
- 		cond_resched_lock(&dcache_lock);
- 	}
--	if (count == NULL && !list_empty(&sb->s_dentry_lru))
-+	if (count == -1 && !list_empty(&sb->s_dentry_lru))
- 		goto restart;
--	if (count != NULL)
--		*count = cnt;
- 	if (!list_empty(&referenced))
- 		list_splice(&referenced, &sb->s_dentry_lru);
- 	spin_unlock(&dcache_lock);
- }
- 
- /**
-- * prune_dcache - shrink the dcache
-- * @count: number of entries to try to free
-+ * prune_dcache_sb - shrink the dcache
-+ * @nr_to_scan: number of entries to try to free
-  *
-- * Shrink the dcache. This is done when we need more memory, or simply when we
-- * need to unmount something (at which point we need to unuse all dentries).
-+ * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
-+ * done when we need more memory an called from the superblock shrinker
-+ * function.
-  *
-- * This function may fail to free any resources if all the dentries are in use.
-+ * This function may fail to free any resources if all the dentries are in
-+ * use.
-  */
--static void prune_dcache(int count)
-+void prune_dcache_sb(struct super_block *sb, int nr_to_scan)
- {
--	struct super_block *sb, *n;
--	int w_count;
--	int unused = dentry_stat.nr_unused;
--	int prune_ratio;
--	int pruned;
--
--	if (unused == 0 || count == 0)
--		return;
--	spin_lock(&dcache_lock);
--	if (count >= unused)
--		prune_ratio = 1;
--	else
--		prune_ratio = unused / count;
--	spin_lock(&sb_lock);
--	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
--		if (list_empty(&sb->s_instances))
--			continue;
--		if (sb->s_nr_dentry_unused == 0)
--			continue;
--		sb->s_count++;
--		/* Now, we reclaim unused dentrins with fairness.
--		 * We reclaim them same percentage from each superblock.
--		 * We calculate number of dentries to scan on this sb
--		 * as follows, but the implementation is arranged to avoid
--		 * overflows:
--		 * number of dentries to scan on this sb =
--		 * count * (number of dentries on this sb /
--		 * number of dentries in the machine)
--		 */
--		spin_unlock(&sb_lock);
--		if (prune_ratio != 1)
--			w_count = (sb->s_nr_dentry_unused / prune_ratio) + 1;
--		else
--			w_count = sb->s_nr_dentry_unused;
--		pruned = w_count;
--		/*
--		 * We need to be sure this filesystem isn't being unmounted,
--		 * otherwise we could race with generic_shutdown_super(), and
--		 * end up holding a reference to an inode while the filesystem
--		 * is unmounted.  So we try to get s_umount, and make sure
--		 * s_root isn't NULL.
--		 */
--		if (down_read_trylock(&sb->s_umount)) {
--			if ((sb->s_root != NULL) &&
--			    (!list_empty(&sb->s_dentry_lru))) {
--				spin_unlock(&dcache_lock);
--				__shrink_dcache_sb(sb, &w_count,
--						DCACHE_REFERENCED);
--				pruned -= w_count;
--				spin_lock(&dcache_lock);
--			}
--			up_read(&sb->s_umount);
--		}
--		spin_lock(&sb_lock);
--		count -= pruned;
--		__put_super(sb);
--		/* more work left to do? */
--		if (count <= 0)
--			break;
--	}
--	spin_unlock(&sb_lock);
--	spin_unlock(&dcache_lock);
-+	__shrink_dcache_sb(sb, nr_to_scan, DCACHE_REFERENCED);
- }
- 
- /**
-@@ -610,7 +544,7 @@ static void prune_dcache(int count)
-  */
- void shrink_dcache_sb(struct super_block * sb)
- {
--	__shrink_dcache_sb(sb, NULL, 0);
-+	__shrink_dcache_sb(sb, -1, 0);
- }
- EXPORT_SYMBOL(shrink_dcache_sb);
- 
-@@ -878,37 +812,10 @@ void shrink_dcache_parent(struct dentry * parent)
- 	int found;
- 
- 	while ((found = select_parent(parent)) != 0)
--		__shrink_dcache_sb(sb, &found, 0);
-+		__shrink_dcache_sb(sb, found, 0);
- }
- EXPORT_SYMBOL(shrink_dcache_parent);
- 
--/*
-- * Scan `nr' dentries and return the number which remain.
-- *
-- * We need to avoid reentering the filesystem if the caller is performing a
-- * GFP_NOFS allocation attempt.  One example deadlock is:
-- *
-- * ext2_new_block->getblk->GFP->shrink_dcache_memory->prune_dcache->
-- * prune_one_dentry->dput->dentry_iput->iput->inode->i_sb->s_op->put_inode->
-- * ext2_discard_prealloc->ext2_free_blocks->lock_super->DEADLOCK.
-- *
-- * In this case we return -1 to tell the caller that we baled.
-- */
--static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
--{
--	if (nr) {
--		if (!(gfp_mask & __GFP_FS))
--			return -1;
--		prune_dcache(nr);
--	}
--	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
--}
--
--static struct shrinker dcache_shrinker = {
--	.shrink = shrink_dcache_memory,
--	.seeks = DEFAULT_SEEKS,
--};
--
- /**
-  * d_alloc	-	allocate a dcache entry
-  * @parent: parent of entry to allocate
-@@ -2316,8 +2223,6 @@ static void __init dcache_init(void)
- 	 */
- 	dentry_cache = KMEM_CACHE(dentry,
- 		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
--	
--	register_shrinker(&dcache_shrinker);
- 
- 	/* Hash may have been set up in dcache_init_early */
- 	if (!hashdist)
-diff --git a/fs/inode.c b/fs/inode.c
-index 1e44ec5..5fb4a39 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -25,7 +25,6 @@
- #include <linux/mount.h>
- #include <linux/async.h>
- #include <linux/posix_acl.h>
--#include "internal.h"
- 
- /*
-  * This is needed for the following functions:
-@@ -441,8 +440,10 @@ static int can_unuse(struct inode *inode)
- }
- 
- /*
-- * Scan `goal' inodes on the unused list for freeable ones. They are moved to
-- * a temporary list and then are freed outside inode_lock by dispose_list().
-+ * Walk the superblock inode LRU for freeable inodes and attempt to free them.
-+ * This is called from the superblock shrinker function with a number of inodes
-+ * to trim from the LRU. Inodes to be freed are moved to a temporary list and
-+ * then are freed outside inode_lock by dispose_list().
-  *
-  * Any inodes which are pinned purely because of attached pagecache have their
-  * pagecache removed.  We expect the final iput() on that inode to add it to
-@@ -450,10 +451,10 @@ static int can_unuse(struct inode *inode)
-  * inode is still freeable, proceed.  The right inode is found 99.9% of the
-  * time in testing on a 4-way.
-  *
-- * If the inode has metadata buffers attached to mapping->private_list then
-- * try to remove them.
-+ * If the inode has metadata buffers attached to mapping->private_list then try
-+ * to remove them.
-  */
--static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
-+void prune_icache_sb(struct super_block *sb, int nr_to_scan)
- {
- 	LIST_HEAD(freeable);
- 	int nr_pruned = 0;
-@@ -461,7 +462,7 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
- 	unsigned long reap = 0;
- 
- 	spin_lock(&inode_lock);
--	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
-+	for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
- 		struct inode *inode;
- 
- 		if (list_empty(&sb->s_inode_lru))
-@@ -500,103 +501,10 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
- 	else
- 		__count_vm_events(PGINODESTEAL, reap);
- 	spin_unlock(&inode_lock);
--	*nr_to_scan = nr_scanned;
- 
- 	dispose_list(&freeable);
- }
- 
--static void prune_icache(int count)
--{
--	struct super_block *sb, *n;
--	int w_count;
--	int unused = inodes_stat.nr_unused;
--	int prune_ratio;
--	int pruned;
--
--	if (unused == 0 || count == 0)
--		return;
--	down_read(&iprune_sem);
--	if (count >= unused)
--		prune_ratio = 1;
--	else
--		prune_ratio = unused / count;
--	spin_lock(&sb_lock);
--	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
--		if (list_empty(&sb->s_instances))
--			continue;
--		if (sb->s_nr_inodes_unused == 0)
--			continue;
--		sb->s_count++;
--		/* Now, we reclaim unused dentrins with fairness.
--		 * We reclaim them same percentage from each superblock.
--		 * We calculate number of dentries to scan on this sb
--		 * as follows, but the implementation is arranged to avoid
--		 * overflows:
--		 * number of dentries to scan on this sb =
--		 * count * (number of dentries on this sb /
--		 * number of dentries in the machine)
--		 */
--		spin_unlock(&sb_lock);
--		if (prune_ratio != 1)
--			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
--		else
--			w_count = sb->s_nr_inodes_unused;
--		pruned = w_count;
--		/*
--		 * We need to be sure this filesystem isn't being unmounted,
--		 * otherwise we could race with generic_shutdown_super(), and
--		 * end up holding a reference to an inode while the filesystem
--		 * is unmounted.  So we try to get s_umount, and make sure
--		 * s_root isn't NULL.
--		 */
--		if (down_read_trylock(&sb->s_umount)) {
--			if ((sb->s_root != NULL) &&
--			    (!list_empty(&sb->s_inode_lru))) {
--				shrink_icache_sb(sb, &w_count);
--				pruned -= w_count;
--			}
--			up_read(&sb->s_umount);
--		}
--		spin_lock(&sb_lock);
--		count -= pruned;
--		__put_super(sb);
--		/* more work left to do? */
--		if (count <= 0)
--			break;
--	}
--	spin_unlock(&sb_lock);
--	up_read(&iprune_sem);
--}
--
--/*
-- * shrink_icache_memory() will attempt to reclaim some unused inodes.  Here,
-- * "unused" means that no dentries are referring to the inodes: the files are
-- * not open and the dcache references to those inodes have already been
-- * reclaimed.
-- *
-- * This function is passed the number of inodes to scan, and it returns the
-- * total number of remaining possibly-reclaimable inodes.
-- */
--static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
--{
--	if (nr) {
--		/*
--		 * Nasty deadlock avoidance.  We may hold various FS locks,
--		 * and we don't want to recurse into the FS that called us
--		 * in clear_inode() and friends..
--		 */
--		if (!(gfp_mask & __GFP_FS))
--			return -1;
--		prune_icache(nr);
--	}
--	return (inodes_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
--}
--
--static struct shrinker icache_shrinker = {
--	.shrink = shrink_icache_memory,
--	.seeks = DEFAULT_SEEKS,
--};
--
- static void __wait_on_freeing_inode(struct inode *inode);
- /*
-  * Called with the inode lock held.
-@@ -1634,7 +1542,6 @@ void __init inode_init(void)
- 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
- 					 SLAB_MEM_SPREAD),
- 					 init_once);
--	register_shrinker(&icache_shrinker);
- 
- 	/* Hash may have been set up in inode_init_early */
- 	if (!hashdist)
-diff --git a/fs/super.c b/fs/super.c
-index c554c53..613339b 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -37,6 +37,55 @@
- LIST_HEAD(super_blocks);
- DEFINE_SPINLOCK(sb_lock);
- 
-+static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
-+{
-+	struct super_block *sb;
-+	int count;
-+
-+	sb = container_of(shrink, struct super_block, s_shrink);
-+
-+	/*
-+	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
-+	 * to recurse into the FS that called us in clear_inode() and friends..
-+	 */
-+	if (!(gfp_mask & __GFP_FS))
-+		return -1;
-+
-+	/*
-+	 * If we can't get the umount lock, then it's because the sb is being
-+	 * unmounted. If we get here, then the unmount is likely stuck trying
-+	 * to unregister the shrinker, so we must not block trying to get the
-+	 * sb->s_umount otherwise we deadlock. Hence if we fail to get the
-+	 * sb_umount lock, abort shrinking the sb by telling the shrinker not
-+	 * to call us again and the unmount process will clean up the cache for
-+	 * us after it has unregistered the shrinker.
-+	 */
-+	if (!down_read_trylock(&sb->s_umount))
-+		return -1;
-+
-+	if (!sb->s_root) {
-+		up_read(&sb->s_umount);
-+		return -1;
-+	}
-+
-+	if (nr_to_scan) {
-+		/* proportion the scan between the two cacheN? */
-+		int total;
-+
-+		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
-+		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
-+
-+		/* prune dcache first as icache is pinned by it */
-+		prune_dcache_sb(sb, count);
-+		prune_icache_sb(sb, nr_to_scan - count);
-+	}
-+
-+	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
-+						* sysctl_vfs_cache_pressure;
-+	up_read(&sb->s_umount);
-+	return count;
-+}
-+
- /**
-  *	alloc_super	-	create new superblock
-  *	@type:	filesystem type superblock should belong to
-@@ -99,6 +148,13 @@ static struct super_block *alloc_super(struct file_system_type *type)
- 		s->s_qcop = sb_quotactl_ops;
- 		s->s_op = &default_op;
- 		s->s_time_gran = 1000000000;
-+
-+		/*
-+		 * The shrinker is set up here but not registered until after
-+		 * the superblock has been filled out successfully.
-+		 */
-+		s->s_shrink.shrink = prune_super;
-+		s->s_shrink.seeks = DEFAULT_SEEKS;
- 	}
- out:
- 	return s;
-@@ -162,6 +218,7 @@ void deactivate_locked_super(struct super_block *s)
- 	struct file_system_type *fs = s->s_type;
- 	if (atomic_dec_and_test(&s->s_active)) {
- 		vfs_dq_off(s, 0);
-+		unregister_shrinker(&s->s_shrink);
- 		fs->kill_sb(s);
- 		put_filesystem(fs);
- 		put_super(s);
-@@ -335,6 +392,7 @@ retry:
- 	list_add_tail(&s->s_list, &super_blocks);
- 	list_add(&s->s_instances, &type->fs_supers);
- 	spin_unlock(&sb_lock);
-+	register_shrinker(&s->s_shrink);
- 	get_filesystem(type);
- 	return s;
- }
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 7b90c43..5bff2dc 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -382,6 +382,7 @@ struct inodes_stat_t {
- #include <linux/capability.h>
- #include <linux/semaphore.h>
- #include <linux/fiemap.h>
-+#include <linux/mm.h>
- 
- #include <asm/atomic.h>
- #include <asm/byteorder.h>
-@@ -1385,8 +1386,14 @@ struct super_block {
- 	 * generic_show_options()
- 	 */
- 	char *s_options;
-+
-+	struct shrinker s_shrink;	/* per-sb shrinker handle */
- };
- 
-+/* superblock cache pruning functions */
-+void prune_icache_sb(struct super_block *sb, int nr_to_scan);
-+void prune_dcache_sb(struct super_block *sb, int nr_to_scan);
-+
- extern struct timespec current_fs_time(struct super_block *sb);
- 
- /*
+Yep. I have some patches for it, but they're currently behind the other
+fine grained locking stuff. But it's something that really needs to be
+implemented, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
