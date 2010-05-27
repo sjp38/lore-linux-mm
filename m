@@ -1,67 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EFDB600385
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 00:01:30 -0400 (EDT)
-Date: Thu, 27 May 2010 05:01:20 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 3/5 v2] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20100527040120.GX31073@ZenIV.linux.org.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8B314600385
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 00:02:18 -0400 (EDT)
+Date: Thu, 27 May 2010 14:02:10 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
+Message-ID: <20100527040210.GI12087@dastard>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <1274777588-21494-4-git-send-email-david@fromorbit.com>
- <20100526164116.GD22536@laptop>
- <20100526231214.GB1395@dastard>
- <20100527015335.GD1395@dastard>
+ <1274777588-21494-2-git-send-email-david@fromorbit.com>
+ <20100526161732.GC22536@laptop>
+ <20100526230129.GA1395@dastard>
+ <20100527020445.GF22536@laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20100527015335.GD1395@dastard>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100527020445.GF22536@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 11:53:35AM +1000, Dave Chinner wrote:
-> On Thu, May 27, 2010 at 09:12:14AM +1000, Dave Chinner wrote:
-> > On Thu, May 27, 2010 at 02:41:16AM +1000, Nick Piggin wrote:
-> ....
-> > > Nitpick but I prefer just the restart label wher it is previously. This
-> > > is moving setup for the next iteration into the "error" case.
+On Thu, May 27, 2010 at 12:04:45PM +1000, Nick Piggin wrote:
+> On Thu, May 27, 2010 at 09:01:29AM +1000, Dave Chinner wrote:
+> > On Thu, May 27, 2010 at 02:17:33AM +1000, Nick Piggin wrote:
+> > > On Tue, May 25, 2010 at 06:53:04PM +1000, Dave Chinner wrote:
+> > > > From: Dave Chinner <dchinner@redhat.com>
+> > > > 
+> > > > The inode unused list is currently a global LRU. This does not match
+> > > > the other global filesystem cache - the dentry cache - which uses
+> > > > per-superblock LRU lists. Hence we have related filesystem object
+> > > > types using different LRU reclaimatin schemes.
+> > > 
+> > > Is this an improvement I wonder? The dcache is using per sb lists
+> > > because it specifically requires sb traversal.
 > > 
-> > Ok, will fix.
-> ....
-> > > Would you just elaborate on the lock order problem somewhere? (the
-> > > comment makes it look like we *could* take the mutex if we wanted
-> > > to).
+> > Right - I originally implemented the per-sb dentry lists for
+> > scalability purposes. i.e. to avoid monopolising the dentry_lock
+> > during unmount looking for dentries on a specific sb and hanging the
+> > system for several minutes.
 > > 
-> > The shrinker is unregistered in deactivate_locked_super() which is
-> > just before ->kill_sb is called. The sb->s_umount lock is held at
-> > this point. hence is the shrinker is operating, we will deadlock if
-> > we try to lock it like this:
-> > 
-> > 	unmount:			shrinker:
-> > 					down_read(&shrinker_lock);
-> > 	down_write(&sb->s_umount)
-> > 	unregister_shrinker()
-> > 	down_write(&shrinker_lock)
-> > 					prune_super()
-> > 					  down_read(&sb->s_umount);
-> > 					  (deadlock)
-> > 
-> > hence if we can't get the sb->s_umount lock in prune_super(), then
-> > the superblock must be being unmounted and the shrinker should abort
-> > as the ->kill_sb method will clean up everything after the shrinker
-> > is unregistered. Hence the down_read_trylock().
+> > However, the reason for doing this to the inode cache is not for
+> > scalability, it's because we have a tight relationship between the
+> > dentry and inode cacheN?. That is, reclaim from the dentry LRU grows
+> > the inode LRU.  Like the registration of the shrinkers, this is kind
+> > of an implicit, undocumented behavour of the current shrinker
+> > implemenation.
+> 
+> Right, that's why I wonder whether it is an improvement. It would
+> be interesting to see some tests (showing at least parity).
 
-Um...  Maybe I'm dumb, but what's wrong with doing unregistration from
-deactivate_locked_super(), right after the call of ->kill_sb()?  At that
-point ->s_umount is already dropped, so we won't deadlock at all.
-Shrinker rwsem will make sure that all shrinkers-in-progress will run
-to completion, so we won't get a superblock freed under prune_super().
-I don't particulary mind down_try_read() in prune_super(), but why not
-make life obviously safer?
+I've done some testing showing parity. They've been along the lines
+of:
+	- populate cache with 1m dentries + inodes
+	- run 'time echo 2 > /proc/sys/vm/drop_caches'
 
-Am I missing something here?
+I've used different methods of populating the caches to have them
+non-sequential in the LRU (i.e. trigger fragmentation), have dirty
+backing inodes (e.g. the VFS inode clean, the xfs inode dirty
+because transactions haven't completed), etc.
+
+The variation on the test is around +-10%, with the per-sb shrinkers
+averaging about 5% lower time to reclaim. This is within the error
+margin of the test, so it's not really a conclusive win, but it is
+certainly shows that it does not slow anything down. If you've got a
+better way to test it, then I'm all ears....
+
+> > What this patch series does is take that implicit relationship and
+> > make it explicit.  It also allows other filesystem caches to tie
+> > into the relationship if they need to (e.g. the XFS inode cache).
+> > What it _doesn't do_ is change the macro level behaviour of the
+> > shrinkers...
+> > 
+> > > What allocation/reclaim really wants (for good scalability and NUMA
+> > > characteristics) is per-zone lists for these things. It's easy to
+> > > convert a single list into per-zone lists.
+> > >
+> > > It is much harder to convert per-sb lists into per-sb x per-zone lists.
+> > 
+> > No it's not. Just convert the s_{dentry,inode}_lru lists on each
+> > superblock and call the shrinker with a new zone mask field to pick
+> > the correct LRU. That's no harder than converting a global LRU.
+> > Anyway, you'd still have to do per-sb x per-zone lists for the dentry LRUs,
+> > so changing the inode cache to per-sb makes no difference.
+> 
+> Right, it just makes it harder to do. By much harder, I did mostly mean
+> the extra memory overhead.
+
+You've still got to allocate that extra memory on the per-sb dentry
+LRUs so it's not really a valid argument. IOWs, if it's too much
+memory for per-sb inode LRUs, then it's too much memory for the
+per-sb dentry LRUs as well...
+
+> If there is *no* benefit from doing per-sb
+> icache then I would question whether we should.
+
+The same vague questions wondering about the benefit of per-sb
+dentry LRUs were raised when I first proposed them years ago, and
+look where we are now.  Besides, focussing on whether this one patch
+is a benefit or not is really missing the point because it's the
+benefits of this patchset as a whole that need to be considered....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
