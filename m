@@ -1,86 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A868A600385
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 09:48:51 -0400 (EDT)
-Received: by pzk11 with SMTP id 11so4073412pzk.28
-        for <linux-mm@kvack.org>; Thu, 27 May 2010 06:48:50 -0700 (PDT)
-Date: Thu, 27 May 2010 22:48:41 +0900
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F124D600385
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 09:55:17 -0400 (EDT)
+Received: by pwi6 with SMTP id 6so4219pwi.14
+        for <linux-mm@kvack.org>; Thu, 27 May 2010 06:55:15 -0700 (PDT)
+Date: Thu, 27 May 2010 22:55:07 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 3/5] track the root (oldest) anon_vma
-Message-ID: <20100527134841.GC2112@barrios-desktop>
+Subject: Re: [PATCH 4/5] always lock the root (oldest) anon_vma
+Message-ID: <20100527135356.GD2112@barrios-desktop>
 References: <20100526153819.6e5cec0d@annuminas.surriel.com>
- <20100526154010.3904df5c@annuminas.surriel.com>
+ <20100526154044.2769e707@annuminas.surriel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100526154010.3904df5c@annuminas.surriel.com>
+In-Reply-To: <20100526154044.2769e707@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <riel@redhat.com>
 Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 26, 2010 at 03:40:10PM -0400, Rik van Riel wrote:
-> Subject: track the root (oldest) anon_vma
+On Wed, May 26, 2010 at 03:40:44PM -0400, Rik van Riel wrote:
+> Subject: always lock the root (oldest) anon_vma
 > 
-> Track the root (oldest) anon_vma in each anon_vma tree.   Because we only
-> take the lock on the root anon_vma, we cannot use the lock on higher-up
-> anon_vmas to lock anything.  This makes it impossible to do an indirect
-> lookup of the root anon_vma, since the data structures could go away from
-> under us.
+> Always (and only) lock the root (oldest) anon_vma whenever we do something in an
+> anon_vma.  The recently introduced anon_vma scalability is due to the rmap code
+> scanning only the VMAs that need to be scanned.  Many common operations still
+> took the anon_vma lock on the root anon_vma, so always taking that lock is not
+> expected to introduce any scalability issues.
 > 
-> However, a direct pointer is safe because the root anon_vma is always the
-> last one that gets freed on munmap or exit, by virtue of the same_vma list
-> order and unlink_anon_vmas walking the list forward.
+> However, always taking the same lock does mean we only need to take one lock,
+> which means rmap_walk on pages from any anon_vma in the vma is excluded from
+> occurring during an munmap, expand_stack or other operation that needs to
+> exclude rmap_walk and similar functions.
+> 
+> Also add the proper locking to vma_adjust.
 > 
 > Signed-off-by: Rik van Riel <riel@redhat.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Except below one minor type. 
+Nitpick:
 
-> ---
->  include/linux/rmap.h |    1 +
->  mm/rmap.c            |   18 ++++++++++++++++--
->  2 files changed, 17 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6.34/include/linux/rmap.h
-> ===================================================================
-> --- linux-2.6.34.orig/include/linux/rmap.h
-> +++ linux-2.6.34/include/linux/rmap.h
-> @@ -26,6 +26,7 @@
->   */
->  struct anon_vma {
->  	spinlock_t lock;	/* Serialize access to vma list */
-> +	struct anon_vma *root;	/* Root of this anon_vma tree */
->  #if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
->  
->  	/*
-> Index: linux-2.6.34/mm/rmap.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/rmap.c
-> +++ linux-2.6.34/mm/rmap.c
-> @@ -132,6 +132,11 @@ int anon_vma_prepare(struct vm_area_stru
->  			if (unlikely(!anon_vma))
->  				goto out_enomem_free_avc;
->  			allocated = anon_vma;
-> +			/*
-> +			 * This VMA had no anon_vma yet.  This anon_vma is
-> +			 * the root of any anon_vma tree that might form.
-> +			 */
-> +			anon_vma->root = anon_vma;
->  		}
->  
->  		anon_vma_lock(anon_vma);
-> @@ -224,9 +229,15 @@ int anon_vma_fork(struct vm_area_struct 
->  	avc = anon_vma_chain_alloc();
->  	if (!avc)
->  		goto out_error_free_anon_vma;
-> -	anon_vma_chain_link(vma, avc, anon_vma);
-> +
-> +	/*
-> +	 * The root anon_vm's spinlock is the lock actually used when we
-                    anon_vma's
+It would be better to modify comment about head of anon_vma in rmap.h, too.
+/*  
+ * NOTE: the LSB of the head.next is set by
+                   ->   root->hext.next 
 -- 
 Kind regards,
 Minchan Kim
