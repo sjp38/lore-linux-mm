@@ -1,49 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B65636B01B2
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 13:50:59 -0400 (EDT)
-Date: Thu, 27 May 2010 18:50:38 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/5] extend KSM refcounts to the anon_vma root
-Message-ID: <20100527175038.GB10931@csn.ul.ie>
-References: <20100526153819.6e5cec0d@annuminas.surriel.com> <20100526154124.04607d04@annuminas.surriel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 622DF6B01B2
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 14:04:39 -0400 (EDT)
+Received: by qyk28 with SMTP id 28so414789qyk.26
+        for <linux-mm@kvack.org>; Thu, 27 May 2010 11:04:38 -0700 (PDT)
+Date: Thu, 27 May 2010 15:04:31 -0300
+From: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
+Subject: [RFC] oom-kill: give the dying task a higher priority
+Message-ID: <20100527180431.GP13035@uudg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100526154124.04607d04@annuminas.surriel.com>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 26, 2010 at 03:41:24PM -0400, Rik van Riel wrote:
-> Subject: extend KSM refcounts to the anon_vma root
-> 
-> KSM reference counts can cause an anon_vma to exist after the processe
-> it belongs to have already exited.  Because the anon_vma lock now lives
-> in the root anon_vma, we need to ensure that the root anon_vma stays
-> around until after all the "child" anon_vmas have been freed.
-> 
-> The obvious way to do this is to have a "child" anon_vma take a
-> reference to the root in anon_vma_fork.  When the anon_vma is freed
-> at munmap or process exit, we drop the refcount in anon_vma_unlink
-> and possibly free the root anon_vma.
-> 
-> The KSM anon_vma reference count function also needs to be modified
-> to deal with the possibility of freeing 2 levels of anon_vma.  The
-> easiest way to do this is to break out the KSM magic and make it
-> generic.
-> 
-> When compiling without CONFIG_KSM, this code is compiled out.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+Hello,
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Could you please review this patch?
 
+The idea behind it is quite simple: give the dying task a higher priority
+so that it can be scheduled sooner and die to free memory.
+
+
+oom-kill: give the dying task a higher priority
+
+In a system under heavy load it was observed that even after the
+oom-killer selects a task to die, the task may take a long time to die.
+
+Right before sending a SIGKILL to the selected task the oom-killer
+increases the task priority so that it can exit quickly, freeing memory.
+That is accomplished by:
+
+        /*
+         * We give our sacrificial lamb high priority and access to
+         * all the memory it needs. That way it should be able to
+         * exit() and clear out its resources quickly...
+         */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+
+It sounds plausible giving the dying task an even higher priority to be
+sure it will be scheduled sooner and free the desired memory.
+
+Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index b68e802..8047309 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -382,6 +382,8 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+  */
+ static void __oom_kill_task(struct task_struct *p, int verbose)
+ {
++	struct sched_param param;
++
+ 	if (is_global_init(p)) {
+ 		WARN_ON(1);
+ 		printk(KERN_WARNING "tried to kill init!\n");
+@@ -413,6 +415,8 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
+ 	 */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
++	param.sched_priority = MAX_RT_PRIO-1;
++	sched_setscheduler(p, SCHED_FIFO, &param);
+ 
+ 	force_sig(SIGKILL, p);
+ }
+
+
+Thanks,
+Luis
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+[ Luis Claudio R. Goncalves                    Bass - Gospel - RT ]
+[ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
