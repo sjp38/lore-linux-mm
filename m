@@ -1,161 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B21B86B01C3
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 18:40:43 -0400 (EDT)
-Date: Fri, 28 May 2010 08:40:34 +1000
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BA0976B01C3
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 18:54:25 -0400 (EDT)
+Date: Fri, 28 May 2010 08:54:18 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20100527224034.GO12087@dastard>
+Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
+Message-ID: <20100527225418.GP12087@dastard>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <1274777588-21494-4-git-send-email-david@fromorbit.com>
- <20100527063523.GJ22536@laptop>
+ <1274777588-21494-2-git-send-email-david@fromorbit.com>
+ <20100527133230.780be6c7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100527063523.GJ22536@laptop>
+In-Reply-To: <20100527133230.780be6c7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 04:35:23PM +1000, Nick Piggin wrote:
-> On Tue, May 25, 2010 at 06:53:06PM +1000, Dave Chinner wrote:
-> > --- a/fs/super.c
-> > +++ b/fs/super.c
-> > @@ -37,6 +37,50 @@
-> >  LIST_HEAD(super_blocks);
-> >  DEFINE_SPINLOCK(sb_lock);
-> >  
-> > +static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
-> > +{
-> > +	struct super_block *sb;
-> > +	int count;
-> > +
-> > +	sb = container_of(shrink, struct super_block, s_shrink);
-> > +
-> > +	/*
-> > +	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
-> > +	 * to recurse into the FS that called us in clear_inode() and friends..
-> > +	 */
-> > +	if (!(gfp_mask & __GFP_FS))
-> > +		return -1;
-> > +
-> > +	/*
-> > +	 * if we can't get the umount lock, then there's no point having the
-> > +	 * shrinker try again because the sb is being torn down.
-> > +	 */
-> > +	if (!down_read_trylock(&sb->s_umount))
-> > +		return -1;
-> > +
-> > +	if (!sb->s_root) {
-> > +		up_read(&sb->s_umount);
-> > +		return -1;
-> > +	}
-> > +
-> > +	if (nr_to_scan) {
-> > +		/* proportion the scan between the two cacheN? */
-> > +		int total;
-> > +
-> > +		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
-> > +		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
-> > +
-> > +		/* prune dcache first as icache is pinned by it */
-> > +		prune_dcache_sb(sb, count);
-> > +		prune_icache_sb(sb, nr_to_scan - count);
+On Thu, May 27, 2010 at 01:32:30PM -0700, Andrew Morton wrote:
+> On Tue, 25 May 2010 18:53:04 +1000
+> Dave Chinner <david@fromorbit.com> wrote:
 > 
-> Hmm, an interesting dynamic that you've changed is that previously
-> we'd scan dcache LRU proportionately to pagecache, and then scan
-> inode LRU in proportion to the current number of unused inodes.
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > The inode unused list is currently a global LRU. This does not match
+> > the other global filesystem cache - the dentry cache - which uses
+> > per-superblock LRU lists. Hence we have related filesystem object
+> > types using different LRU reclaimatin schemes.
+> > 
+> > To enable a per-superblock filesystem cache shrinker, both of these
+> > caches need to have per-sb unused object LRU lists. Hence this patch
+> > converts the global inode LRU to per-sb LRUs.
+> > 
+> > The patch only does rudimentary per-sb propotioning in the shrinker
+> > infrastructure, as this gets removed when the per-sb shrinker
+> > callouts are introduced later on.
+> > 
+> > ...
+> >
+> > +			list_move(&inode->i_list, &inode->i_sb->s_inode_lru);
 > 
-> But we can think of inodes that are only in use by unused (and aged)
-> dentries as effectively unused themselves. So this sequence under
-> estimates how many inodes to scan. This could bias pressure against
-> dcache I'd think, especially considering inodes are far larger than
-> dentries. Maybe require 2 passes to get the inodes unused inthe
-> first pass.
-
-It's self-balancing - it trends towards an equal number of unused
-dentries and inodes in the caches. Yes, it will tear down more
-dentries at first, but we need to do that to be able to reclaim
-inodes. a?<<s reclaim progresses the propotion of inodes increases, so
-the amount of inodes reclaimed increases. 
-
-Basically this is a recognition that the important cache for
-avoiding IO is the inode cache, not he dentry cache. Once the inode
-cache is freed that we need to do IO to repopulate it, but
-rebuilding dentries fromteh inode cache only costs CPU time. Hence
-under light reclaim, inodes are mostly left in cache but we free up
-memory that only costs CPU to rebuild. Under heavy, sustained
-reclaim, we trend towards freeing equal amounts of objects from both
-caches.
-
-This is pretty much what the current code attempts to do - free a
-lot of dentries, then free a smaller amount of the inodes that were
-used by the freed dentries. Once again it is a direct encoding of
-what is currently an implicit design feature - it makes it *obvious*
-how we are trying to balance the caches.
-
-Another reason for this is that the calculation changes again to
-allow filesystem caches to modiy this proportioning in the next
-patch....
-
-FWIW, this also makes workloads that generate hundreds of thousands
-of never-to-be-used again negative dentries free dcache memory really
-quickly on memory pressure...
-
-> Part of the problem is the funny shrinker API.
+> It's a shape that s_inode_lru is still protected by inode_lock.  One
+> day we're going to get in trouble over that lock.  Migrating to a
+> per-sb lock would be logical and might help.
 > 
-> The right way to do it is to change the shrinker API so that it passes
-> down the lru_pages and scanned into the callback. From there, the
-> shrinkers can calculate the appropriate ratio of objects to scan.
-> No need for 2-call scheme, no need for shrinker->seeks, and the
-> ability to calculate an appropriate ratio first for dcache, and *then*
-> for icache.
+> Did you look into this? 
 
-My only concern about this is that exposes the inner workings of the
-shrinker and mm subsystem to code that simply doesn't need to know
-about it.
+Yes, I have. Yes, it's possible.  It's solving a different problem,
+so I figured it can be done in a different patch set.
 
+> I expect we'd end up taking both inode_lock
+> and the new sb->lru_lock in several places, which wouldn't be of any
+> help, at least in the interim.  Long-term, the locking for
+> fs-writeback.c should move to the per-superblock one also, at which
+> time this problem largely goes away I think.  Unfortunately the
+> writeback inode lists got moved into the backing_dev_info, whcih messes
+> things up a bit.
 
-> A helper of course can do the calculation (considering that every
-> driver and their dog will do the wrong thing if we let them :)).
-> 
-> unsigned long shrinker_scan(unsigned long lru_pages,
-> 			unsigned long lru_scanned,
-> 			unsigned long nr_objects,
-> 			unsigned long scan_ratio)
-> {
-> 	unsigned long long tmp = nr_objects;
-> 
-> 	tmp *= lru_scanned * 100;
-> 	do_div(tmp, (lru_pages * scan_ratio) + 1);
-> 
-> 	return (unsigned long)tmp;
-> }
-> 
-> Then the shrinker callback will go:
-> 	sb->s_nr_dentry_scan += shrinker_scan(lru_pages, lru_scanned,
-> 				sb->s_nr_dentry_unused,
-> 				vfs_cache_pressure * SEEKS_PER_DENTRY);
-> 	if (sb->s_nr_dentry_scan > SHRINK_BATCH)
-> 		prune_dcache()
-> 
-> 	sb->s_nr_inode_scan += shrinker_scan(lru_pages, lru_scanned,
-> 				sb->s_nr_inodes_unused,
-> 				vfs_cache_pressure * SEEKS_PER_INODE);
-> 	...
-> 
-> What do you think of that? Seeing as we're changing the shrinker API
-> anyway, I'd think it is high time to do somthing like this.
+*nod*
 
-Ignoring the dcache/icache reclaim ratio issues, I'd prefer a two
-call API that matches the current behaviour, leaving the caclulation
-of how much to reclaim in shrink_slab(). Encoding it this way makes
-it more difficult to change the high level behaviour e.g. if we want
-to modify the amount of slab reclaim based on reclaim priority, we'd
-have to cahnge every shrinker instead of just shrink_slab().
+> 
+> >  	inodes_stat.nr_unused--;
+> > +	inode->i_sb->s_nr_inodes_unused--;
+> 
+> It's regrettable to be counting the same thing twice.  Did you look
+> into removing (or no longer using) inodes_stat.nr_unused?
+
+Sort of. The complexity is the stats are userspace visible, so they
+can't just be removed. Replacing the current stats means that when
+they are read from /proc we would need to walk all the superblocks
+to aggregate them. The bit I haven't looked at yet is whether
+walking superblocks is allowed in a proc handler.
+
+So in the mean time, I just copied what was done for the
+dentry_stats. If it's ok to do this walk, then we can change both
+the dentry and inode stats at the same time.
+
+> > +		/* Now, we reclaim unused dentrins with fairness.
+> 
+> May as well fix the typo while we're there.
+> 
+> Please review all these comments to ensure that they are still accurate
+> and complete.
+
+Will do.
 
 Cheers,
 
