@@ -1,118 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DC8B56B01B6
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 02:35:32 -0400 (EDT)
-Date: Thu, 27 May 2010 16:35:23 +1000
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B19826B01CC
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 02:46:38 -0400 (EDT)
+Date: Thu, 27 May 2010 16:46:31 +1000
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
+Subject: Re: [PATCH 3/5 v2] superblock: introduce per-sb cache shrinker
  infrastructure
-Message-ID: <20100527063523.GJ22536@laptop>
+Message-ID: <20100527064631.GK22536@laptop>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
  <1274777588-21494-4-git-send-email-david@fromorbit.com>
+ <20100526164116.GD22536@laptop>
+ <20100526231214.GB1395@dastard>
+ <20100527015335.GD1395@dastard>
+ <20100527040120.GX31073@ZenIV.linux.org.uk>
+ <20100527061751.GK12087@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1274777588-21494-4-git-send-email-david@fromorbit.com>
+In-Reply-To: <20100527061751.GK12087@dastard>
 Sender: owner-linux-mm@kvack.org
 To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2010 at 06:53:06PM +1000, Dave Chinner wrote:
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -37,6 +37,50 @@
->  LIST_HEAD(super_blocks);
->  DEFINE_SPINLOCK(sb_lock);
->  
-> +static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
-> +{
-> +	struct super_block *sb;
-> +	int count;
-> +
-> +	sb = container_of(shrink, struct super_block, s_shrink);
-> +
-> +	/*
-> +	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
-> +	 * to recurse into the FS that called us in clear_inode() and friends..
-> +	 */
-> +	if (!(gfp_mask & __GFP_FS))
-> +		return -1;
-> +
-> +	/*
-> +	 * if we can't get the umount lock, then there's no point having the
-> +	 * shrinker try again because the sb is being torn down.
-> +	 */
-> +	if (!down_read_trylock(&sb->s_umount))
-> +		return -1;
-> +
-> +	if (!sb->s_root) {
-> +		up_read(&sb->s_umount);
-> +		return -1;
-> +	}
-> +
-> +	if (nr_to_scan) {
-> +		/* proportion the scan between the two cacheN? */
-> +		int total;
-> +
-> +		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
-> +		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
-> +
-> +		/* prune dcache first as icache is pinned by it */
-> +		prune_dcache_sb(sb, count);
-> +		prune_icache_sb(sb, nr_to_scan - count);
+On Thu, May 27, 2010 at 04:17:51PM +1000, Dave Chinner wrote:
+> On Thu, May 27, 2010 at 05:01:20AM +0100, Al Viro wrote:
+> > Um...  Maybe I'm dumb, but what's wrong with doing unregistration from
+> > deactivate_locked_super(), right after the call of ->kill_sb()?  At that
+> > point ->s_umount is already dropped, so we won't deadlock at all.
+> > Shrinker rwsem will make sure that all shrinkers-in-progress will run
+> > to completion, so we won't get a superblock freed under prune_super().
+> > I don't particulary mind down_try_read() in prune_super(), but why not
+> > make life obviously safer?
+> > 
+> > Am I missing something here?
+> 
+> I was worried about memory allocation in the ->kill_sb path
+> deadlocking on the s_umount lock if it enters reclaim. e.g.  XFS
+> inodes can still be dirty even after the VFS has disposed of them,
+> and writing them back can require page cache allocation for the
+> backing buffers. If allocation recurses back into the shrinker, we
+> can deadlock on the s_umount lock.  This doesn't seem like an XFS
+> specific problem, so I used a trylock to avoid that whole class of
+> problems (same way the current shrinkers do).
 
-Hmm, an interesting dynamic that you've changed is that previously
-we'd scan dcache LRU proportionately to pagecache, and then scan
-inode LRU in proportion to the current number of unused inodes.
+If GFP_FS is set, we wouldn't touch the locks. It is a concern
+though, if __GFP_FS allocations were previously permitted under
+the exclusive lock.
 
-But we can think of inodes that are only in use by unused (and aged)
-dentries as effectively unused themselves. So this sequence under
-estimates how many inodes to scan. This could bias pressure against
-dcache I'd think, especially considering inodes are far larger than
-dentries. Maybe require 2 passes to get the inodes unused inthe
-first pass.
+ 
+> >From there, we can unregister the shrinker before calling ->kill_sb
+> as per above. That, in turn, means that the unmount
+> invalidate_inodes() vs shrinker race goes away and the iprune_sem is
+> not needed in the new prune_icache_sb() function.  I'm pretty sure
+> that I can now remove the iprune_sem, but I haven't written the
+> patch to do that yet.
 
-Part of the problem is the funny shrinker API.
-
-The right way to do it is to change the shrinker API so that it passes
-down the lru_pages and scanned into the callback. From there, the
-shrinkers can calculate the appropriate ratio of objects to scan.
-No need for 2-call scheme, no need for shrinker->seeks, and the
-ability to calculate an appropriate ratio first for dcache, and *then*
-for icache.
-
-A helper of course can do the calculation (considering that every
-driver and their dog will do the wrong thing if we let them :)).
-
-unsigned long shrinker_scan(unsigned long lru_pages,
-			unsigned long lru_scanned,
-			unsigned long nr_objects,
-			unsigned long scan_ratio)
-{
-	unsigned long long tmp = nr_objects;
-
-	tmp *= lru_scanned * 100;
-	do_div(tmp, (lru_pages * scan_ratio) + 1);
-
-	return (unsigned long)tmp;
-}
-
-Then the shrinker callback will go:
-	sb->s_nr_dentry_scan += shrinker_scan(lru_pages, lru_scanned,
-				sb->s_nr_dentry_unused,
-				vfs_cache_pressure * SEEKS_PER_DENTRY);
-	if (sb->s_nr_dentry_scan > SHRINK_BATCH)
-		prune_dcache()
-
-	sb->s_nr_inode_scan += shrinker_scan(lru_pages, lru_scanned,
-				sb->s_nr_inodes_unused,
-				vfs_cache_pressure * SEEKS_PER_INODE);
-	...
-
-What do you think of that? Seeing as we're changing the shrinker API
-anyway, I'd think it is high time to do somthing like this.
+I do really like that aspect of your patch. It's nice to have the
+shrinker always only operating against active supers. So I would
+be in favour of your current scheme.
 
 
 --
