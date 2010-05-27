@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2077D6B01B5
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 16:32:41 -0400 (EDT)
-Date: Thu, 27 May 2010 13:32:23 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 56D3B6B01B6
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 16:32:42 -0400 (EDT)
+Date: Thu, 27 May 2010 13:32:34 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] Per superblock shrinkers V2
-Message-Id: <20100527133223.efa4740a.akpm@linux-foundation.org>
-In-Reply-To: <1274777588-21494-1-git-send-email-david@fromorbit.com>
+Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
+ infrastructure
+Message-Id: <20100527133234.e0814239.akpm@linux-foundation.org>
+In-Reply-To: <1274777588-21494-4-git-send-email-david@fromorbit.com>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
+	<1274777588-21494-4-git-send-email-david@fromorbit.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,37 +18,52 @@ To: Dave Chinner <david@fromorbit.com>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 May 2010 18:53:03 +1000
+On Tue, 25 May 2010 18:53:06 +1000
 Dave Chinner <david@fromorbit.com> wrote:
 
-> This series reworks the filesystem shrinkers. We currently have a
-> set of issues with the current filesystem shrinkers:
+> From: Dave Chinner <dchinner@redhat.com>
 > 
->         1. There is an dependency between dentry and inode cache
->            shrinking that is only implicitly defined by the order of
->            shrinker registration.
->         2. The shrinkers need to walk the superblock list and pin
->            the superblock to avoid unmount races with the sb going
->            away.
->         3. The dentry cache uses per-superblock LRUs and proportions
->            reclaim between all the superblocks which means we are
->            doing breadth based reclaim. This means we touch every
->            superblock for every shrinker call, and may only reclaim
->            a single dentry at a time from a given superblock.
->         4. The inode cache has a global LRU, so it has different
->            reclaim patterns to the dentry cache, despite the fact
->            that the dentry cache is generally the only thing that
->            pins inodes in memory.
->         5. Filesystems need to register their own shrinkers for
->            caches and can't co-ordinate them with the dentry and
->            inode cache shrinkers.
+> With context based shrinkers, we can implement a per-superblock
+> shrinker that shrinks the caches attached to the superblock. We
+> currently have global shrinkers for the inode and dentry caches that
+> split up into per-superblock operations via a coarse proportioning
+> method that does not batch very well.  The global shrinkers also
+> have a dependency - dentries pin inodes - so we have to be very
+> careful about how we register the global shrinkers so that the
+> implicit call order is always correct.
+> 
+> With a per-sb shrinker callout, we can encode this dependency
+> directly into the per-sb shrinker, hence avoiding the need for
+> strictly ordering shrinker registrations. We also have no need for
+> any proportioning code for the shrinker subsystem already provides
+> this functionality across all shrinkers. Allowing the shrinker to
+> operate on a single superblock at a time means that we do less
+> superblock list traversals and locking and reclaim should batch more
+> effectively. This should result in less CPU overhead for reclaim and
+> potentially faster reclaim of items from each filesystem.
+> 
 
-Nice description, but...  it never actually told us what the benefit of
-the changes are.  Presumably some undescribed workload had some
-undescribed user-visible problem.  But what was that workload, and what
-was the user-visible problem, and how does the patch affect all this?
+I go all tingly when a changelog contains the word "should".
 
-Stuff like that.
+OK, it _should_ do X.  But _does_ it actually do X?
+
+>  fs/super.c         |   53 +++++++++++++++++++++
+>  include/linux/fs.h |    7 +++
+>  4 files changed, 88 insertions(+), 214 deletions(-)
+> 
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index dba6b6d..d7bd781 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -456,21 +456,16 @@ static void prune_one_dentry(struct dentry * dentry)
+>   * which flags are set. This means we don't need to maintain multiple
+>   * similar copies of this loop.
+>   */
+> -static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
+> +static void __shrink_dcache_sb(struct super_block *sb, int count, int flags)
+
+Forgot to update the kerneldoc description of `count'.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
