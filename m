@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C1918600385
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:27:44 -0400 (EDT)
-Date: Thu, 27 May 2010 09:24:28 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
-In-Reply-To: <20100525153759.GA20853@laptop>
-Message-ID: <alpine.DEB.2.00.1005270919510.5762@router.home>
-References: <20100521211452.659982351@quilx.com> <20100524070309.GU2516@laptop> <alpine.DEB.2.00.1005240852580.5045@router.home> <20100525020629.GA5087@laptop> <alpine.DEB.2.00.1005250859050.28941@router.home> <20100525143409.GP5087@laptop>
- <alpine.DEB.2.00.1005250938300.29543@router.home> <20100525151129.GS5087@laptop> <alpine.DEB.2.00.1005251022220.30395@router.home> <20100525153759.GA20853@laptop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 95C00600385
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 10:31:43 -0400 (EDT)
+Received: by pzk11 with SMTP id 11so32165pzk.28
+        for <linux-mm@kvack.org>; Thu, 27 May 2010 07:31:42 -0700 (PDT)
+Date: Thu, 27 May 2010 23:31:34 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 5/5] extend KSM refcounts to the anon_vma root
+Message-ID: <20100527143134.GA9505@barrios-desktop>
+References: <20100526153819.6e5cec0d@annuminas.surriel.com>
+ <20100526154124.04607d04@annuminas.surriel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100526154124.04607d04@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 May 2010, Nick Piggin wrote:
+On Wed, May 26, 2010 at 03:41:24PM -0400, Rik van Riel wrote:
+> Subject: extend KSM refcounts to the anon_vma root
+> 
+> KSM reference counts can cause an anon_vma to exist after the processe
+> it belongs to have already exited.  Because the anon_vma lock now lives
+> in the root anon_vma, we need to ensure that the root anon_vma stays
+> around until after all the "child" anon_vmas have been freed.
+> 
+> The obvious way to do this is to have a "child" anon_vma take a
+> reference to the root in anon_vma_fork.  When the anon_vma is freed
+> at munmap or process exit, we drop the refcount in anon_vma_unlink
+> and possibly free the root anon_vma.
+> 
+> The KSM anon_vma reference count function also needs to be modified
+> to deal with the possibility of freeing 2 levels of anon_vma.  The
+> easiest way to do this is to break out the KSM magic and make it
+> generic.
+> 
+> When compiling without CONFIG_KSM, this code is compiled out.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-> > > > The reason that the alien caches made it into SLAB were performance
-> > > > numbers that showed that the design "must" be this way. I prefer a clear
-> > > > maintainable design over some numbers (that invariably show the bias of
-> > > > the tester for certain loads).
-> > >
-> > > I don't really agree. There are a number of other possible ways to
-> > > improve it, including fewer remote freeing queues.
-> >
-> > You disagree with the history of the allocator?
->
-> I don't agree with you saying that it "must" be that way. There are
-> other ways to improve things there.
-
-People told me that it "must" be this way. Could not convince them
-otherwise at the time. I never wanted it to be that way and have been
-looking for other ways ever since. SLUB is a result of trying something
-different.
-
-> then we can go ahead and throw out SLUB and make incremental
-> improvements from there instead.
-
-I am just amazed at the tosses and turns by you. Didnt you write SLQB on
-the basis of SLUB? And then it was abandoned? If you really believe ths
-and want to get this done then please invest some time in SLAB to get it
-cleaned up. I have some doubt that you are aware of the difficulties that
-you will encounter.
-
-
-
+Now I understand this patch. 
+Thanks, Rik. 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
