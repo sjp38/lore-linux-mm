@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2014E6B0071
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2077D6B01B5
 	for <linux-mm@kvack.org>; Thu, 27 May 2010 16:32:41 -0400 (EDT)
-Date: Thu, 27 May 2010 13:32:30 -0700
+Date: Thu, 27 May 2010 13:32:23 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] inode: Make unused inode LRU per superblock
-Message-Id: <20100527133230.780be6c7.akpm@linux-foundation.org>
-In-Reply-To: <1274777588-21494-2-git-send-email-david@fromorbit.com>
+Subject: Re: [PATCH 0/5] Per superblock shrinkers V2
+Message-Id: <20100527133223.efa4740a.akpm@linux-foundation.org>
+In-Reply-To: <1274777588-21494-1-git-send-email-david@fromorbit.com>
 References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
-	<1274777588-21494-2-git-send-email-david@fromorbit.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,53 +16,37 @@ To: Dave Chinner <david@fromorbit.com>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 May 2010 18:53:04 +1000
+On Tue, 25 May 2010 18:53:03 +1000
 Dave Chinner <david@fromorbit.com> wrote:
 
-> From: Dave Chinner <dchinner@redhat.com>
+> This series reworks the filesystem shrinkers. We currently have a
+> set of issues with the current filesystem shrinkers:
 > 
-> The inode unused list is currently a global LRU. This does not match
-> the other global filesystem cache - the dentry cache - which uses
-> per-superblock LRU lists. Hence we have related filesystem object
-> types using different LRU reclaimatin schemes.
-> 
-> To enable a per-superblock filesystem cache shrinker, both of these
-> caches need to have per-sb unused object LRU lists. Hence this patch
-> converts the global inode LRU to per-sb LRUs.
-> 
-> The patch only does rudimentary per-sb propotioning in the shrinker
-> infrastructure, as this gets removed when the per-sb shrinker
-> callouts are introduced later on.
-> 
-> ...
->
-> +			list_move(&inode->i_list, &inode->i_sb->s_inode_lru);
+>         1. There is an dependency between dentry and inode cache
+>            shrinking that is only implicitly defined by the order of
+>            shrinker registration.
+>         2. The shrinkers need to walk the superblock list and pin
+>            the superblock to avoid unmount races with the sb going
+>            away.
+>         3. The dentry cache uses per-superblock LRUs and proportions
+>            reclaim between all the superblocks which means we are
+>            doing breadth based reclaim. This means we touch every
+>            superblock for every shrinker call, and may only reclaim
+>            a single dentry at a time from a given superblock.
+>         4. The inode cache has a global LRU, so it has different
+>            reclaim patterns to the dentry cache, despite the fact
+>            that the dentry cache is generally the only thing that
+>            pins inodes in memory.
+>         5. Filesystems need to register their own shrinkers for
+>            caches and can't co-ordinate them with the dentry and
+>            inode cache shrinkers.
 
-It's a shape that s_inode_lru is still protected by inode_lock.  One
-day we're going to get in trouble over that lock.  Migrating to a
-per-sb lock would be logical and might help.
+Nice description, but...  it never actually told us what the benefit of
+the changes are.  Presumably some undescribed workload had some
+undescribed user-visible problem.  But what was that workload, and what
+was the user-visible problem, and how does the patch affect all this?
 
-Did you look into this?  I expect we'd end up taking both inode_lock
-and the new sb->lru_lock in several places, which wouldn't be of any
-help, at least in the interim.  Long-term, the locking for
-fs-writeback.c should move to the per-superblock one also, at which
-time this problem largely goes away I think.  Unfortunately the
-writeback inode lists got moved into the backing_dev_info, whcih messes
-things up a bit.
-
->  	inodes_stat.nr_unused--;
-> +	inode->i_sb->s_nr_inodes_unused--;
-
-It's regrettable to be counting the same thing twice.  Did you look
-into removing (or no longer using) inodes_stat.nr_unused?
-
-
-> +		/* Now, we reclaim unused dentrins with fairness.
-
-May as well fix the typo while we're there.
-
-Please review all these comments to ensure that they are still accurate
-and complete.
+Stuff like that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
