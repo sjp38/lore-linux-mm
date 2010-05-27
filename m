@@ -1,134 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C086B01B9
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 16:32:50 -0400 (EDT)
-Date: Thu, 27 May 2010 13:32:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/5] superblock: add filesystem shrinker operations
-Message-Id: <20100527133239.5d038d9c.akpm@linux-foundation.org>
-In-Reply-To: <1274777588-21494-5-git-send-email-david@fromorbit.com>
-References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
-	<1274777588-21494-5-git-send-email-david@fromorbit.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id A36536B01B5
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 16:43:46 -0400 (EDT)
+Message-ID: <4BFED954.8060807@cray.com>
+Date: Thu, 27 May 2010 13:43:00 -0700
+From: Doug Doan <dougd@cray.com>
+MIME-Version: 1.0
+Subject: [PATCH] hugetlb: call mmu notifiers on hugepage cow
+Content-Type: multipart/mixed;
+	boundary="------------000008070908080203040308"
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, andi@firstfloor.org, lee.schermerhorn@hp.com, rientjes@google.com, mel@csn.ul.ie, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 May 2010 18:53:07 +1000
-Dave Chinner <david@fromorbit.com> wrote:
+--------------000008070908080203040308
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> Now we have a per-superblock shrinker implementation, we can add a
-> filesystem specific callout to it to allow filesystem internal
-> caches to be shrunk by the superblock shrinker.
-> 
-> Rather than perpetuate the multipurpose shrinker callback API (i.e.
-> nr_to_scan == 0 meaning "tell me how many objects freeable in the
-> cache), two operations will be added. The first will return the
-> number of objects that are freeable, the second is the actual
-> shrinker call.
-> 
->
-> ...
->
->  static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
->  {
->  	struct super_block *sb;
-> -	int count;
-> +	int	fs_objects = 0;
-> +	int	total_objects;
->  
->  	sb = container_of(shrink, struct super_block, s_shrink);
->  
-> @@ -63,22 +64,40 @@ static int prune_super(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
->  		return -1;
->  	}
->  
-> -	if (nr_to_scan) {
-> -		/* proportion the scan between the two cache__ */
-> -		int total;
-> -
-> -		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
-> -		count = (nr_to_scan * sb->s_nr_dentry_unused) / total;
-> +	if (sb->s_op && sb->s_op->nr_cached_objects)
-> +		fs_objects = sb->s_op->nr_cached_objects(sb);
->  
-> -		/* prune dcache first as icache is pinned by it */
-> -		prune_dcache_sb(sb, count);
-> -		prune_icache_sb(sb, nr_to_scan - count);
-> +	total_objects = sb->s_nr_dentry_unused +
-> +			sb->s_nr_inodes_unused + fs_objects + 1;
-> +	if (nr_to_scan) {
-> +		int	dentries;
-> +		int	inodes;
-> +
-> +		/* proportion the scan between the cache__ */
-> +		dentries = (nr_to_scan * sb->s_nr_dentry_unused) /
-> +							total_objects;
-> +		inodes = (nr_to_scan * sb->s_nr_inodes_unused) /
-> +							total_objects;
-> +		if (fs_objects)
-> +			fs_objects = (nr_to_scan * fs_objects) /
-> +							total_objects;
-> +		/*
-> +		 * prune the dcache first as the icache is pinned by it, then
-> +		 * prune the icache, followed by the filesystem specific caches
-> +		 */
-> +		prune_dcache_sb(sb, dentries);
-> +		prune_icache_sb(sb, inodes);
-> +		if (sb->s_op && sb->s_op->free_cached_objects) {
+From: Doug Doan <dougd@cray.com>
 
-Under which circumstances is a NULL ->free_cached_objects valid?
+When a copy-on-write occurs, we take one of two paths in handle_mm_fault: 
+through handle_pte_fault for normal pages, or through hugetlb_fault for huge pages.
 
-> +			sb->s_op->free_cached_objects(sb, fs_objects);
-> +			fs_objects = sb->s_op->nr_cached_objects(sb);
-> +		}
-> +		total_objects = sb->s_nr_dentry_unused +
-> +				sb->s_nr_inodes_unused + fs_objects;
->  	}
+In the normal page case, we eventually get to do_wp_page and call mmu notifiers 
+via ptep_clear_flush_notify. There is no callout to the mmmu notifiers in the 
+huge page case. This patch fixes that.
 
-The return value from ->free_cached_objects() doesn't actually get
-used.  Instead the code calls ->nr_cached_objects() twice.
+Signed-off-by: Doug Doan <dougd@cray.com>
+---
 
+--------------000008070908080203040308
+Content-Type: text/plain; name="patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="patch"
 
-> -	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
-> -						* sysctl_vfs_cache_pressure;
-> +	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
->  	up_read(&sb->s_umount);
-> -	return count;
-> +	return total_objects;
->  }
->  
->  /**
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 5bff2dc..efcdcc6 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1590,6 +1590,17 @@ struct super_operations {
->  	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
->  #endif
->  	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
-> +
-> +	/*
-> +	 * memory shrinker operations.
-> +	 * ->nr_cached_objects() should return the number of freeable cached
-> +	 * objects the filesystem holds.
-> +	 * ->free_cache_objects() should attempt to free the number of cached
-> +	 * objects indicated. It should return how many objects it attempted to
-> +	 * free.
-> +	 */
+--- mm/hugetlb.c.orig	2010-05-27 13:07:58.569546314 -0700
++++ mm/hugetlb.c	2010-05-26 14:41:06.449296524 -0700
+@@ -2345,11 +2345,17 @@ retry_avoidcopy:
+ 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+ 	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+ 		/* Break COW */
++		mmu_notifier_invalidate_range_start(mm,
++			address & huge_page_mask(h),
++			(address & huge_page_mask(h)) + huge_page_size(h));
+ 		huge_ptep_clear_flush(vma, address, ptep);
+ 		set_huge_pte_at(mm, address, ptep,
+ 				make_huge_pte(vma, new_page, 1));
+ 		/* Make the old page be freed below */
+ 		new_page = old_page;
++		mmu_notifier_invalidate_range_end(mm,
++			address & huge_page_mask(h),
++			(address & huge_page_mask(h)) + huge_page_size(h));
+ 	}
+ 	page_cache_release(new_page);
+ 	page_cache_release(old_page);
 
-I'd have thought that ->free_cache_objects() would always return the
-number which it was passed.  Unless someone asked it to scan more
-objects than exist, perhaps.
-
-> +	int (*nr_cached_objects)(struct super_block *);
-> +	int (*free_cached_objects)(struct super_block *, int);
->  };
+--------------000008070908080203040308--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
