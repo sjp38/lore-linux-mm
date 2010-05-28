@@ -1,98 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 591776B01D1
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 20:33:02 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1826B01D2
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 20:33:05 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 5/8] HWPOISON, hugetlb: maintain mce_bad_pages in handling hugepage error
-Date: Fri, 28 May 2010 09:29:19 +0900
-Message-Id: <1275006562-18946-6-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 0/8] HWPOISON for hugepage (v6)
+Date: Fri, 28 May 2010 09:29:14 +0900
+Message-Id: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-For now all pages in the error hugepage are considered as hwpoisoned,
-so count all of them in mce_bad_pages.
+Hi,
 
-Dependency:
-  "HWPOISON, hugetlb: enable error handling path for hugepage"
+Here is a "HWPOISON for hugepage" patchset which reflects
+Mel's comments on hugepage rmapping code.
+Only patch 1/8 and 2/8 are changed since the previous post.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/memory-failure.c |   15 ++++++++++-----
- 1 files changed, 10 insertions(+), 5 deletions(-)
+Mel, could you please restart reviewing and testing?
 
-diff --git v2.6.34/mm/memory-failure.c v2.6.34/mm/memory-failure.c
-index fee648b..473f15a 100644
---- v2.6.34/mm/memory-failure.c
-+++ v2.6.34/mm/memory-failure.c
-@@ -942,6 +942,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	struct page *p;
- 	struct page *hpage;
- 	int res;
-+	unsigned int nr_pages;
- 
- 	if (!sysctl_memory_failure_recovery)
- 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
-@@ -960,7 +961,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 		return 0;
- 	}
- 
--	atomic_long_add(1, &mce_bad_pages);
-+	nr_pages = 1 << compound_order(hpage);
-+	atomic_long_add(nr_pages, &mce_bad_pages);
- 
- 	/*
- 	 * We need/can do nothing about count=0 pages.
-@@ -1024,7 +1026,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	}
- 	if (hwpoison_filter(p)) {
- 		if (TestClearPageHWPoison(p))
--			atomic_long_dec(&mce_bad_pages);
-+			atomic_long_sub(nr_pages, &mce_bad_pages);
- 		unlock_page(hpage);
- 		put_page(hpage);
- 		return 0;
-@@ -1123,6 +1125,7 @@ int unpoison_memory(unsigned long pfn)
- 	struct page *page;
- 	struct page *p;
- 	int freeit = 0;
-+	unsigned int nr_pages;
- 
- 	if (!pfn_valid(pfn))
- 		return -ENXIO;
-@@ -1135,9 +1138,11 @@ int unpoison_memory(unsigned long pfn)
- 		return 0;
- 	}
- 
-+	nr_pages = 1 << compound_order(page);
-+
- 	if (!get_page_unless_zero(page)) {
- 		if (TestClearPageHWPoison(p))
--			atomic_long_dec(&mce_bad_pages);
-+			atomic_long_sub(nr_pages, &mce_bad_pages);
- 		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
- 		return 0;
- 	}
-@@ -1149,9 +1154,9 @@ int unpoison_memory(unsigned long pfn)
- 	 * the PG_hwpoison page will be caught and isolated on the entrance to
- 	 * the free buddy page pool.
- 	 */
--	if (TestClearPageHWPoison(p)) {
-+	if (TestClearPageHWPoison(page)) {
- 		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
--		atomic_long_dec(&mce_bad_pages);
-+		atomic_long_sub(nr_pages, &mce_bad_pages);
- 		freeit = 1;
- 	}
- 	if (PageHuge(p))
--- 
-1.7.0
+ include/linux/hugetlb.h        |   14 +---
+ include/linux/hugetlb_inline.h |   22 +++++++
+ include/linux/pagemap.h        |    9 +++-
+ include/linux/poison.h         |    9 ---
+ include/linux/rmap.h           |    5 ++
+ mm/hugetlb.c                   |  100 ++++++++++++++++++++++++++++++++-
+ mm/hwpoison-inject.c           |   15 +++--
+ mm/memory-failure.c            |  120 ++++++++++++++++++++++++++++++----------
+ mm/rmap.c                      |   59 ++++++++++++++++++++
+ 9 files changed, 295 insertions(+), 58 deletions(-)
+
+ChangeLog from v5:
+- rebased to 2.6.34
+- fix logic error (in case that private mapping and shared mapping coexist)
+- move is_vm_hugetlb_page() into include/linux/mm.h to use this function
+  from linear_page_index()
+- define and use linear_hugepage_index() instead of compound_order()
+- use page_move_anon_rmap() in hugetlb_cow()
+- copy exclusive switch of __set_page_anon_rmap() into hugepage counterpart.
+- revert commit 24be7468 completely
+- create hugetlb_inline.h and move is_vm_hugetlb_index() in it.
+- move functions setting up anon_vma for hugepage into mm/rmap.c.
+
+ChangeLog from v4:
+- rebased to 2.6.34-rc7
+- add isolation code for free/reserved hugepage in me_huge_page()
+- set/clear PG_hwpoison bits of all pages in hugepage.
+- mce_bad_pages counts all pages in hugepage.
+- rename __hugepage_set_anon_rmap() to hugepage_add_anon_rmap()
+- add huge_pte_offset() dummy function in header file on !CONFIG_HUGETLBFS
+
+ChangeLog from v3:
+- rebased to 2.6.34-rc5
+- support for privately mapped hugepage
+
+ChangeLog from v2:
+- rebase to 2.6.34-rc3
+- consider mapcount of hugepage
+- rename pointer "head" into "hpage"
+
+ChangeLog from v1:
+- rebase to 2.6.34-rc1
+- add comment from Wu Fengguang
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
