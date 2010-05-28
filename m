@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 15CEC6B01CA
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:38:53 -0400 (EDT)
-Date: Fri, 28 May 2010 10:37:31 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B6B6B01BD
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:41:01 -0400 (EDT)
+Date: Fri, 28 May 2010 10:40:41 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V2 7/7] Cleancache (was Transcendent Memory): ocfs2 hook
-Message-ID: <20100528173731.GA20227@ca-server1.us.oracle.com>
+Subject: [PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data
+	structure changes
+Message-ID: <20100528174041.GA28176@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com, avi@redhat.com, pavel@ucw.cz, konrad.wilk@oracle.com, dan.magenheimer@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH V2 7/7] Cleancache (was Transcendent Memory): ocfs2 hook
+[PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data structure changes
 
-Filesystems must explicitly enable cleancache.  Ocfs2 is
-currently the only user of the clustered filesystem
-interface but nevertheless, the cleancache hooks in the
-VFS layer are sufficient for ocfs2.
+Core swap data structures are needed by frontswap.c but we don't
+need to expose them to the dozens of files that include swap.h
+so create a new swapfile.h just to extern-ify these.
+
+Add frontswap-related elements to swap_info_struct.  Don't tie
+these to CONFIG_FRONTSWAP to avoid unnecessary clutter around
+various frontswap hooks.
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Acked-by: Joel Becker <joel.becker@oracle.com>
 
 Diffstat:
- super.c                                  |    3 +++
- 1 file changed, 3 insertions(+)
+ swap.h                                   |    2 ++
+ swapfile.h                               |   13 +++++++++++++
+ 2 files changed, 15 insertions(+)
 
---- linux-2.6.34/fs/ocfs2/super.c	2010-05-16 15:17:36.000000000 -0600
-+++ linux-2.6.34-cleancache/fs/ocfs2/super.c	2010-05-24 12:14:44.000000000 -0600
-@@ -42,6 +42,7 @@
- #include <linux/seq_file.h>
- #include <linux/quotaops.h>
- #include <linux/smp_lock.h>
-+#include <linux/cleancache.h>
+--- linux-2.6.34/include/linux/swapfile.h	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.34-frontswap/include/linux/swapfile.h	2010-05-21 16:36:45.000000000 -0600
+@@ -0,0 +1,13 @@
++#ifndef _LINUX_SWAPFILE_H
++#define _LINUX_SWAPFILE_H
++
++/*
++ * these were static in swapfile.c but frontswap.c needs them and we don't
++ * want to expose them to the dozens of source files that include swap.h
++ */
++extern spinlock_t swap_lock;
++extern struct swap_list_t swap_list;
++extern struct swap_info_struct *swap_info[];
++extern int try_to_unuse(unsigned int, bool, unsigned long);
++
++#endif /* _LINUX_SWAPFILE_H */
+--- linux-2.6.34/include/linux/swap.h	2010-05-16 15:17:36.000000000 -0600
++++ linux-2.6.34-frontswap/include/linux/swap.h	2010-05-24 10:13:41.000000000 -0600
+@@ -182,6 +182,8 @@ struct swap_info_struct {
+ 	struct block_device *bdev;	/* swap device or bdev of swap file */
+ 	struct file *swap_file;		/* seldom referenced */
+ 	unsigned int old_block_size;	/* seldom referenced */
++	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
++	unsigned int frontswap_pages;	/* frontswap pages in-use counter */
+ };
  
- #define MLOG_MASK_PREFIX ML_SUPER
- #include <cluster/masklog.h>
-@@ -2233,6 +2234,8 @@ static int ocfs2_initialize_super(struct
- 		mlog_errno(status);
- 		goto bail;
- 	}
-+	sb->cleancache_poolid =
-+		cleancache_init_shared_fs((char *)&uuid_net_key, PAGE_SIZE);
- 
- bail:
- 	mlog_exit(status);
+ struct swap_list_t {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
