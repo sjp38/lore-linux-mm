@@ -1,182 +1,385 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A6CFE6B01C7
-	for <linux-mm@kvack.org>; Thu, 27 May 2010 20:32:31 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CBD8A6B01CB
+	for <linux-mm@kvack.org>; Thu, 27 May 2010 20:32:34 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 3/8] HWPOISON, hugetlb: enable error handling path for hugepage
-Date: Fri, 28 May 2010 09:29:17 +0900
-Message-Id: <1275006562-18946-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/8] hugetlb, rmap: add reverse mapping for hugepage
+Date: Fri, 28 May 2010 09:29:16 +0900
+Message-Id: <1275006562-18946-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch just enables handling path. Real containing and
-recovering operation will be implemented in following patches.
+This patch adds reverse mapping feature for hugepage by introducing
+mapcount for shared/private-mapped hugepage and anon_vma for
+private-mapped hugepage.
+
+While hugepage is not currently swappable, reverse mapping can be useful
+for memory error handler.
+
+Without this patch, memory error handler cannot identify processes
+using the bad hugepage nor unmap it from them. That is:
+- for shared hugepage:
+  we can collect processes using a hugepage through pagecache,
+  but can not unmap the hugepage because of the lack of mapcount.
+- for privately mapped hugepage:
+  we can neither collect processes nor unmap the hugepage.
+This patch solves these problems.
+
+This patch include the bug fix given by commit 23be7468e8, so reverts it.
 
 Dependency:
-  "hugetlb, rmap: add reverse mapping for hugepage."
+  "hugetlb: move definition of is_vm_hugetlb_page() to hugepage_inline.h"
+
+ChangeLog since May 24.
+- create hugetlb_inline.h and move is_vm_hugetlb_index() in it.
+- move functions setting up anon_vma for hugepage into mm/rmap.c.
+
+ChangeLog since May 13.
+- rebased to 2.6.34
+- fix logic error (in case that private mapping and shared mapping coexist)
+- move is_vm_hugetlb_page() into include/linux/mm.h to use this function
+  from linear_page_index()
+- define and use linear_hugepage_index() instead of compound_order()
+- use page_move_anon_rmap() in hugetlb_cow()
+- copy exclusive switch of __set_page_anon_rmap() into hugepage counterpart.
+- revert commit 24be7468 completely
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 ---
- mm/memory-failure.c |   39 ++++++++++++++++++++++-----------------
- 1 files changed, 22 insertions(+), 17 deletions(-)
+ include/linux/hugetlb.h |    1 +
+ include/linux/pagemap.h |    8 +++++-
+ include/linux/poison.h  |    9 -------
+ include/linux/rmap.h    |    5 ++++
+ mm/hugetlb.c            |   44 +++++++++++++++++++++++++++++++++-
+ mm/rmap.c               |   59 +++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 114 insertions(+), 12 deletions(-)
 
-diff --git v2.6.34/mm/memory-failure.c v2.6.34/mm/memory-failure.c
-index 620b0b4..1ec68c8 100644
---- v2.6.34/mm/memory-failure.c
-+++ v2.6.34/mm/memory-failure.c
-@@ -45,6 +45,7 @@
- #include <linux/page-isolation.h>
- #include <linux/suspend.h>
- #include <linux/slab.h>
-+#include <linux/hugetlb.h>
- #include "internal.h"
+diff --git v2.6.34/include/linux/hugetlb.h v2.6.34/include/linux/hugetlb.h
+index d47a7c4..e688fd8 100644
+--- v2.6.34/include/linux/hugetlb.h
++++ v2.6.34/include/linux/hugetlb.h
+@@ -99,6 +99,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ #define is_hugepage_only_range(mm, addr, len)	0
+ #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+ #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
++#define huge_pte_offset(mm, address)	0
  
- int sysctl_memory_failure_early_kill __read_mostly = 0;
-@@ -837,6 +838,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	int ret;
- 	int i;
- 	int kill = 1;
-+	struct page *hpage = compound_head(p);
+ #define hugetlb_change_protection(vma, address, end, newprot)
  
- 	if (PageReserved(p) || PageSlab(p))
- 		return SWAP_SUCCESS;
-@@ -845,10 +847,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * This check implies we don't kill processes if their pages
- 	 * are in the swap cache early. Those are always late kills.
- 	 */
--	if (!page_mapped(p))
-+	if (!page_mapped(hpage))
- 		return SWAP_SUCCESS;
- 
--	if (PageCompound(p) || PageKsm(p))
-+	if (PageKsm(p))
- 		return SWAP_FAIL;
- 
- 	if (PageSwapCache(p)) {
-@@ -863,10 +865,11 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * XXX: the dirty test could be racy: set_page_dirty() may not always
- 	 * be called inside page lock (it's recommended but not enforced).
- 	 */
--	mapping = page_mapping(p);
--	if (!PageDirty(p) && mapping && mapping_cap_writeback_dirty(mapping)) {
--		if (page_mkclean(p)) {
--			SetPageDirty(p);
-+	mapping = page_mapping(hpage);
-+	if (!PageDirty(hpage) && mapping &&
-+	    mapping_cap_writeback_dirty(mapping)) {
-+		if (page_mkclean(hpage)) {
-+			SetPageDirty(hpage);
- 		} else {
- 			kill = 0;
- 			ttu |= TTU_IGNORE_HWPOISON;
-@@ -885,14 +888,14 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * there's nothing that can be done.
- 	 */
- 	if (kill)
--		collect_procs(p, &tokill);
-+		collect_procs(hpage, &tokill);
- 
- 	/*
- 	 * try_to_unmap can fail temporarily due to races.
- 	 * Try a few times (RED-PEN better strategy?)
- 	 */
- 	for (i = 0; i < N_UNMAP_TRIES; i++) {
--		ret = try_to_unmap(p, ttu);
-+		ret = try_to_unmap(hpage, ttu);
- 		if (ret == SWAP_SUCCESS)
- 			break;
- 		pr_debug("MCE %#lx: try_to_unmap retry needed %d\n", pfn,  ret);
-@@ -900,7 +903,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 
- 	if (ret != SWAP_SUCCESS)
- 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
--				pfn, page_mapcount(p));
-+				pfn, page_mapcount(hpage));
- 
- 	/*
- 	 * Now that the dirty bit has been propagated to the
-@@ -911,7 +914,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * use a more force-full uncatchable kill to prevent
- 	 * any accesses to the poisoned memory.
- 	 */
--	kill_procs_ao(&tokill, !!PageDirty(p), trapno,
-+	kill_procs_ao(&tokill, !!PageDirty(hpage), trapno,
- 		      ret != SWAP_SUCCESS, pfn);
- 
- 	return ret;
-@@ -921,6 +924,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- {
- 	struct page_state *ps;
- 	struct page *p;
-+	struct page *hpage;
- 	int res;
- 
- 	if (!sysctl_memory_failure_recovery)
-@@ -934,6 +938,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	}
- 
- 	p = pfn_to_page(pfn);
-+	hpage = compound_head(p);
- 	if (TestSetPageHWPoison(p)) {
- 		printk(KERN_ERR "MCE %#lx: already hardware poisoned\n", pfn);
- 		return 0;
-@@ -953,7 +958,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * that may make page_freeze_refs()/page_unfreeze_refs() mismatch.
- 	 */
- 	if (!(flags & MF_COUNT_INCREASED) &&
--		!get_page_unless_zero(compound_head(p))) {
-+		!get_page_unless_zero(hpage)) {
- 		if (is_free_buddy_page(p)) {
- 			action_result(pfn, "free buddy", DELAYED);
- 			return 0;
-@@ -971,9 +976,9 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * The check (unnecessarily) ignores LRU pages being isolated and
- 	 * walked by the page reclaim code, however that's not a big loss.
- 	 */
--	if (!PageLRU(p))
-+	if (!PageLRU(p) && !PageHuge(p))
- 		shake_page(p, 0);
--	if (!PageLRU(p)) {
-+	if (!PageLRU(p) && !PageHuge(p)) {
- 		/*
- 		 * shake_page could have turned it free.
- 		 */
-@@ -991,7 +996,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	 * It's very difficult to mess with pages currently under IO
- 	 * and in many cases impossible, so we just avoid it here.
- 	 */
--	lock_page_nosync(p);
-+	lock_page_nosync(hpage);
- 
- 	/*
- 	 * unpoison always clear PG_hwpoison inside page lock
-@@ -1004,8 +1009,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 	if (hwpoison_filter(p)) {
- 		if (TestClearPageHWPoison(p))
- 			atomic_long_dec(&mce_bad_pages);
--		unlock_page(p);
--		put_page(p);
-+		unlock_page(hpage);
-+		put_page(hpage);
- 		return 0;
- 	}
- 
-@@ -1038,7 +1043,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
- 		}
- 	}
- out:
--	unlock_page(p);
-+	unlock_page(hpage);
- 	return res;
+diff --git v2.6.34/include/linux/pagemap.h v2.6.34/include/linux/pagemap.h
+index b2bd2ba..a547d96 100644
+--- v2.6.34/include/linux/pagemap.h
++++ v2.6.34/include/linux/pagemap.h
+@@ -282,10 +282,16 @@ static inline loff_t page_offset(struct page *page)
+ 	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
  }
- EXPORT_SYMBOL_GPL(__memory_failure);
+ 
++extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
++				     unsigned long address);
++
+ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+ 					unsigned long address)
+ {
+-	pgoff_t pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
++	pgoff_t pgoff;
++	if (unlikely(is_vm_hugetlb_page(vma)))
++		return linear_hugepage_index(vma, address);
++	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
+ 	pgoff += vma->vm_pgoff;
+ 	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ }
+diff --git v2.6.34/include/linux/poison.h v2.6.34/include/linux/poison.h
+index 34066ff..2110a81 100644
+--- v2.6.34/include/linux/poison.h
++++ v2.6.34/include/linux/poison.h
+@@ -48,15 +48,6 @@
+ #define POISON_FREE	0x6b	/* for use-after-free poisoning */
+ #define	POISON_END	0xa5	/* end-byte of poisoning */
+ 
+-/********** mm/hugetlb.c **********/
+-/*
+- * Private mappings of hugetlb pages use this poisoned value for
+- * page->mapping. The core VM should not be doing anything with this mapping
+- * but futex requires the existence of some page->mapping value even though it
+- * is unused if PAGE_MAPPING_ANON is set.
+- */
+-#define HUGETLB_POISON	((void *)(0x00300300 + POISON_POINTER_DELTA + PAGE_MAPPING_ANON))
+-
+ /********** arch/$ARCH/mm/init.c **********/
+ #define POISON_FREE_INITMEM	0xcc
+ 
+diff --git v2.6.34/include/linux/rmap.h v2.6.34/include/linux/rmap.h
+index d25bd22..18cbe4b 100644
+--- v2.6.34/include/linux/rmap.h
++++ v2.6.34/include/linux/rmap.h
+@@ -131,6 +131,11 @@ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned lon
+ void page_add_file_rmap(struct page *);
+ void page_remove_rmap(struct page *);
+ 
++void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
++			    unsigned long);
++void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
++				unsigned long);
++
+ static inline void page_dup_rmap(struct page *page)
+ {
+ 	atomic_inc(&page->_mapcount);
+diff --git v2.6.34/mm/hugetlb.c v2.6.34/mm/hugetlb.c
+index 4c9e6bb..b1aa0d8 100644
+--- v2.6.34/mm/hugetlb.c
++++ v2.6.34/mm/hugetlb.c
+@@ -18,6 +18,7 @@
+ #include <linux/bootmem.h>
+ #include <linux/sysfs.h>
+ #include <linux/slab.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -220,6 +221,12 @@ static pgoff_t vma_hugecache_offset(struct hstate *h,
+ 			(vma->vm_pgoff >> huge_page_order(h));
+ }
+ 
++pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
++				     unsigned long address)
++{
++	return vma_hugecache_offset(hstate_vma(vma), vma, address);
++}
++
+ /*
+  * Return the size of the pages allocated when backing a VMA. In the majority
+  * cases this will be same size as used by the page table entries.
+@@ -548,6 +555,7 @@ static void free_huge_page(struct page *page)
+ 	set_page_private(page, 0);
+ 	page->mapping = NULL;
+ 	BUG_ON(page_count(page));
++	BUG_ON(page_mapcount(page));
+ 	INIT_LIST_HEAD(&page->lru);
+ 
+ 	spin_lock(&hugetlb_lock);
+@@ -2125,6 +2133,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
++			page_dup_rmap(ptepage);
+ 			set_huge_pte_at(dst, addr, dst_pte, entry);
+ 		}
+ 		spin_unlock(&src->page_table_lock);
+@@ -2203,6 +2212,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+ 	flush_tlb_range(vma, start, end);
+ 	mmu_notifier_invalidate_range_end(mm, start, end);
+ 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
++		page_remove_rmap(page);
+ 		list_del(&page->lru);
+ 		put_page(page);
+ 	}
+@@ -2268,6 +2278,9 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return 1;
+ }
+ 
++/*
++ * Hugetlb_cow() should be called with page lock of the original hugepage held.
++ */
+ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pte_t *ptep, pte_t pte,
+ 			struct page *pagecache_page)
+@@ -2282,8 +2295,11 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ retry_avoidcopy:
+ 	/* If no-one else is actually using this page, avoid the copy
+ 	 * and just make the page writable */
+-	avoidcopy = (page_count(old_page) == 1);
++	avoidcopy = (page_mapcount(old_page) == 1);
+ 	if (avoidcopy) {
++		if (!trylock_page(old_page))
++			if (PageAnon(old_page))
++				page_move_anon_rmap(old_page, vma, address);
+ 		set_huge_ptep_writable(vma, address, ptep);
+ 		return 0;
+ 	}
+@@ -2334,6 +2350,13 @@ retry_avoidcopy:
+ 		return -PTR_ERR(new_page);
+ 	}
+ 
++	/*
++	 * When the original hugepage is shared one, it does not have
++	 * anon_vma prepared.
++	 */
++	if (unlikely(anon_vma_prepare(vma)))
++		return VM_FAULT_OOM;
++
+ 	copy_huge_page(new_page, old_page, address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+@@ -2348,6 +2371,8 @@ retry_avoidcopy:
+ 		huge_ptep_clear_flush(vma, address, ptep);
+ 		set_huge_pte_at(mm, address, ptep,
+ 				make_huge_pte(vma, new_page, 1));
++		page_remove_rmap(old_page);
++		hugepage_add_anon_rmap(new_page, vma, address);
+ 		/* Make the old page be freed below */
+ 		new_page = old_page;
+ 	}
+@@ -2448,10 +2473,17 @@ retry:
+ 			spin_lock(&inode->i_lock);
+ 			inode->i_blocks += blocks_per_huge_page(h);
+ 			spin_unlock(&inode->i_lock);
++			page_dup_rmap(page);
+ 		} else {
+ 			lock_page(page);
+-			page->mapping = HUGETLB_POISON;
++			if (unlikely(anon_vma_prepare(vma))) {
++				ret = VM_FAULT_OOM;
++				goto backout_unlocked;
++			}
++			hugepage_add_new_anon_rmap(page, vma, address);
+ 		}
++	} else {
++		page_dup_rmap(page);
+ 	}
+ 
+ 	/*
+@@ -2503,6 +2535,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	pte_t *ptep;
+ 	pte_t entry;
+ 	int ret;
++	struct page *page = NULL;
+ 	struct page *pagecache_page = NULL;
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
+@@ -2544,6 +2577,11 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 								vma, address);
+ 	}
+ 
++	if (!pagecache_page) {
++		page = pte_page(entry);
++		lock_page(page);
++	}
++
+ 	spin_lock(&mm->page_table_lock);
+ 	/* Check for a racing update before calling hugetlb_cow */
+ 	if (unlikely(!pte_same(entry, huge_ptep_get(ptep))))
+@@ -2569,6 +2607,8 @@ out_page_table_lock:
+ 	if (pagecache_page) {
+ 		unlock_page(pagecache_page);
+ 		put_page(pagecache_page);
++	} else {
++		unlock_page(page);
+ 	}
+ 
+ out_mutex:
+diff --git v2.6.34/mm/rmap.c v2.6.34/mm/rmap.c
+index 0feeef8..5278371 100644
+--- v2.6.34/mm/rmap.c
++++ v2.6.34/mm/rmap.c
+@@ -56,6 +56,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/migrate.h>
++#include <linux/hugetlb.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -326,6 +327,8 @@ vma_address(struct page *page, struct vm_area_struct *vma)
+ 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ 	unsigned long address;
+ 
++	if (unlikely(is_vm_hugetlb_page(vma)))
++		pgoff = page->index << huge_page_order(page_hstate(page));
+ 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+ 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
+ 		/* page should be within @vma mapping range */
+@@ -369,6 +372,12 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 
++	if (unlikely(PageHuge(page))) {
++		pte = huge_pte_offset(mm, address);
++		ptl = &mm->page_table_lock;
++		goto check;
++	}
++
+ 	pgd = pgd_offset(mm, address);
+ 	if (!pgd_present(*pgd))
+ 		return NULL;
+@@ -389,6 +398,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+ 	}
+ 
+ 	ptl = pte_lockptr(mm, pmd);
++check:
+ 	spin_lock(ptl);
+ 	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
+ 		*ptlp = ptl;
+@@ -873,6 +883,12 @@ void page_remove_rmap(struct page *page)
+ 		page_clear_dirty(page);
+ 		set_page_dirty(page);
+ 	}
++	/*
++	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
++	 * and not charged by memcg for now.
++	 */
++	if (unlikely(PageHuge(page)))
++		return;
+ 	if (PageAnon(page)) {
+ 		mem_cgroup_uncharge_page(page);
+ 		__dec_zone_page_state(page, NR_ANON_PAGES);
+@@ -1419,3 +1435,46 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+ 		return rmap_walk_file(page, rmap_one, arg);
+ }
+ #endif /* CONFIG_MIGRATION */
++
++#ifdef CONFIG_HUGETLBFS
++/*
++ * The following three functions are for anonymous (private mapped) hugepages.
++ * Unlike common anonymous pages, anonymous hugepages have no accounting code
++ * and no lru code, because we handle hugepages differently from common pages.
++ */
++static void __hugepage_set_anon_rmap(struct page *page,
++	struct vm_area_struct *vma, unsigned long address, int exclusive)
++{
++	struct anon_vma *anon_vma = vma->anon_vma;
++	BUG_ON(!anon_vma);
++	if (!exclusive) {
++		struct anon_vma_chain *avc;
++		avc = list_entry(vma->anon_vma_chain.prev,
++				 struct anon_vma_chain, same_vma);
++		anon_vma = avc->anon_vma;
++	}
++	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
++	page->mapping = (struct address_space *) anon_vma;
++	page->index = linear_page_index(vma, address);
++}
++
++void hugepage_add_anon_rmap(struct page *page,
++			    struct vm_area_struct *vma, unsigned long address)
++{
++	struct anon_vma *anon_vma = vma->anon_vma;
++	int first;
++	BUG_ON(!anon_vma);
++	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++	first = atomic_inc_and_test(&page->_mapcount);
++	if (first)
++		__hugepage_set_anon_rmap(page, vma, address, 0);
++}
++
++void hugepage_add_new_anon_rmap(struct page *page,
++			struct vm_area_struct *vma, unsigned long address)
++{
++	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
++	atomic_set(&page->_mapcount, 0);
++	__hugepage_set_anon_rmap(page, vma, address, 1);
++}
++#endif /* CONFIG_HUGETLBFS */
 -- 
 1.7.0
 
