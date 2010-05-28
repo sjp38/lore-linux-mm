@@ -1,90 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0490B6B01B6
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 03:52:25 -0400 (EDT)
-Received: by ywh33 with SMTP id 33so558704ywh.11
-        for <linux-mm@kvack.org>; Fri, 28 May 2010 00:52:23 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B786B01BD
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 04:39:13 -0400 (EDT)
+Date: Fri, 28 May 2010 18:39:06 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC V2 SLEB 00/14] The Enhanced(hopefully) Slab Allocator
+Message-ID: <20100528083906.GB22536@laptop>
+References: <20100525143409.GP5087@laptop>
+ <alpine.DEB.2.00.1005250938300.29543@router.home>
+ <20100525151129.GS5087@laptop>
+ <alpine.DEB.2.00.1005251022220.30395@router.home>
+ <20100525153759.GA20853@laptop>
+ <alpine.DEB.2.00.1005270919510.5762@router.home>
+ <20100527143754.GR22536@laptop>
+ <alpine.DEB.2.00.1005271037060.7221@router.home>
+ <20100527160728.GT22536@laptop>
+ <alpine.DEB.2.00.1005271149480.7221@router.home>
 MIME-Version: 1.0
-In-Reply-To: <20100528145329.7E2D.A69D9226@jp.fujitsu.com>
-References: <20100528143605.7E2A.A69D9226@jp.fujitsu.com>
-	<AANLkTikB-8Qu03VrA5Z0LMXM_alSV7SLqzl-MmiLmFGv@mail.gmail.com>
-	<20100528145329.7E2D.A69D9226@jp.fujitsu.com>
-Date: Fri, 28 May 2010 16:52:23 +0900
-Message-ID: <AANLkTinLN0ex0uvwA_tohv7MSLHv8i8Mcr96va1C4Md-@mail.gmail.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1005271149480.7221@router.home>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 28, 2010 at 2:59 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> RT Task
->>
->> void non-RT-function()
->> {
->> =C2=A0 =C2=A0system call();
->> =C2=A0 =C2=A0buffer =3D malloc();
->> =C2=A0 =C2=A0memset(buffer);
->> }
->> /*
->> =C2=A0* We make sure this function must be executed in some millisecond
->> =C2=A0*/
->> void RT-function()
->> {
->> =C2=A0 =C2=A0some calculation(); <- This doesn't have no dynamic charact=
-eristic
->> }
->> int main()
->> {
->> =C2=A0 =C2=A0non-RT-function();
->> =C2=A0 =C2=A0/* This function make sure RT-function cannot preempt by ot=
-hers */
->> =C2=A0 =C2=A0set_RT_max_high_priority();
->> =C2=A0 =C2=A0RT-function A();
->> =C2=A0 =C2=A0set_normal_priority();
->> =C2=A0 =C2=A0non-RT-function();
->> }
->>
->> We don't want realtime in whole function of the task. What we want is
->> just RT-function A.
->> Of course, current Linux cannot make perfectly sure RT-functionA can
->> not preempt by others.
->> That's because some interrupt or exception happen. But RT-function A
->> doesn't related to any dynamic characteristic. What can justify to
->> preempt RT-function A by other processes?
->
-> As far as my observation, RT-function always have some syscall. because p=
-ure
-> calculation doesn't need deterministic guarantee. But _if_ you are really
-> using such priority design. I'm ok maximum NonRT priority instead maximum
-> RT priority too.
+On Thu, May 27, 2010 at 11:57:54AM -0500, Christoph Lameter wrote:
+> On Fri, 28 May 2010, Nick Piggin wrote:
+> 
+> > > > realized that incremental improvements to SLAB would likely be a
+> > > > far better idea.
+> > >
+> > > It looked to me as if there was a major conceptual issue with the linked
+> > > lists used for objects that impacted performance
+> >
+> > With SLQB's linked list? No. Single threaded cache hot performance was
+> > the same (+/- a couple of cycles IIRC) as SLUB on your microbenchmark.
+> > On Intel's OLTP workload it was as good as SLAB.
+> >
+> > The linked lists were similar to SLOB/SLUB IIRC.
+> 
+> Yes that is the problem. So it did not address the cache cold
+> regressions in SLUB. SLQB mostly addressed the slow path frequency on
+> free.
 
-Hmm. It's just example. but it would be not good exmaple.
-Let's change it with this.
+This is going a bit off topic considering that I'm not pushing SLQB
+or any concept from SLQB (just yet at least). As far as I know there
+were no cache cold regressions in SLQB.
 
-void RT-function()
-{
-     int result =3D some calculation(); <- This doesn't have no dynamic
-characteristic
-     *mmap_base =3D result; <-- mmap_base is mapped by GPIO device.
-}
 
-Could we allow preemption of this RT function due to other task's
-memory pressure?
-Of course, Linux is not Hard RT featured OS, I think. So I thinks it
-is a policy problem.
-If we think system memory pressure is more important than RT task and
-we _all_ agree such policy, we can allow it.
-
-But I don't hope it.
-
---=20
-Kind regards,
-Minchan Kim
+> The design of SLAB is superior for cache cold objects since SLAB does
+> not touch the objects on alloc and free (if one requires similar
+> cache cold performance from other slab allocators) thats why I cleaned
+> up the per cpu queueing concept in SLAB (easy now with the percpu
+> allocator and operations) and came up with SLEB. At the same time this
+> also addresses the slowpath issues on free. I am not entirely sure how to
+> deal with the NUMAness but I want to focus more on machines with low node
+> counts.
+> 
+> The problem with SLAB was that so far the "incremental improvements" have
+> lead to more deteriorations in the maintainability of the code. There are
+> multiple people who have tried going this route that you propose.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
