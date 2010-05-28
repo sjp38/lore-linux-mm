@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B6B6B01BD
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:41:01 -0400 (EDT)
-Date: Fri, 28 May 2010 10:40:41 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A690D6B01CA
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:41:11 -0400 (EDT)
+Date: Fri, 28 May 2010 10:40:20 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data
-	structure changes
-Message-ID: <20100528174041.GA28176@ca-server1.us.oracle.com>
+Subject: [PATCH V2 0/4] Frontswap (was Transcendent Memory): overview
+Message-ID: <20100528174020.GA28150@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -14,50 +13,82 @@ Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com, avi@redhat.com, pavel@ucw.cz, konrad.wilk@oracle.com, dan.magenheimer@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data structure changes
+[PATCH V2 0/4] Frontswap (was Transcendent Memory): overview
 
-Core swap data structures are needed by frontswap.c but we don't
-need to expose them to the dozens of files that include swap.h
-so create a new swapfile.h just to extern-ify these.
+Changes since V1:
+- Rebased to 2.6.34 (no functional changes)
+- Convert to sane types (per Al Viro comment in cleancache thread)
+- Define some raw constants (Konrad Wilk)
+- Performance analysis shows significant advantage for frontswap's
+  synchronous page-at-a-time design (vs batched asynchronous speculated
+  as an alternative design).  See http://lkml.org/lkml/2010/5/20/314
 
-Add frontswap-related elements to swap_info_struct.  Don't tie
-these to CONFIG_FRONTSWAP to avoid unnecessary clutter around
-various frontswap hooks.
+In previous patch postings, frontswap was part of the Transcendent
+Memory ("tmem") patchset.  This patchset refocuses not on the underlying
+technology (tmem) but instead on the useful functionality provided for Linux,
+and provides a clean API so that frontswap can provide this very useful
+functionality via a Xen tmem driver OR completely independent of tmem.
+For example: an in-kernel compression "backend" for frontswap can be
+implemented and some believe frontswap will be a very nice interface
+for building RAM-like functionality for pseudo-RAM devices such as
+on-memory-bus SSD or phase-change memory; and a Pune University team
+is looking at a backend for virtio (see OLS'2010).
+
+A more complete description of frontswap can be found in the introductory
+comment in mm/frontswap.c (in PATCH 2/4) which is included below
+for convenience.
+
+Note that an earlier version of this patch is now shipping in OpenSuSE 11.2
+and will soon ship in a release of Oracle Enterprise Linux.  Underlying
+tmem technology is now shipping in Oracle VM 2.2 and was just released
+in Xen 4.0 on April 15, 2010.  (Search news.google.com for Transcendent
+Memory)
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Reviewed-by: Jeremy Fitzhardinge <jeremy@goop.org>
 
-Diffstat:
- swap.h                                   |    2 ++
- swapfile.h                               |   13 +++++++++++++
- 2 files changed, 15 insertions(+)
+ include/linux/frontswap.h |   98 ++++++++++++++
+ include/linux/swap.h      |    2 
+ include/linux/swapfile.h  |   13 +
+ mm/Kconfig                |   16 ++
+ mm/Makefile               |    1 
+ mm/frontswap.c            |  301 ++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_io.c              |   10 +
+ mm/swapfile.c             |   59 +++++++--
+ 8 files changed, 491 insertions(+), 9 deletions(-)
 
---- linux-2.6.34/include/linux/swapfile.h	1969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.34-frontswap/include/linux/swapfile.h	2010-05-21 16:36:45.000000000 -0600
-@@ -0,0 +1,13 @@
-+#ifndef _LINUX_SWAPFILE_H
-+#define _LINUX_SWAPFILE_H
-+
-+/*
-+ * these were static in swapfile.c but frontswap.c needs them and we don't
-+ * want to expose them to the dozens of source files that include swap.h
-+ */
-+extern spinlock_t swap_lock;
-+extern struct swap_list_t swap_list;
-+extern struct swap_info_struct *swap_info[];
-+extern int try_to_unuse(unsigned int, bool, unsigned long);
-+
-+#endif /* _LINUX_SWAPFILE_H */
---- linux-2.6.34/include/linux/swap.h	2010-05-16 15:17:36.000000000 -0600
-+++ linux-2.6.34-frontswap/include/linux/swap.h	2010-05-24 10:13:41.000000000 -0600
-@@ -182,6 +182,8 @@ struct swap_info_struct {
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
- 	struct file *swap_file;		/* seldom referenced */
- 	unsigned int old_block_size;	/* seldom referenced */
-+	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
-+	unsigned int frontswap_pages;	/* frontswap pages in-use counter */
- };
- 
- struct swap_list_t {
+Frontswap is so named because it can be thought of as the opposite of
+a "backing" store for a swap device.  The storage is assumed to be
+a synchronous concurrency-safe page-oriented pseudo-RAM device (such as
+Xen's Transcendent Memory, aka "tmem", or in-kernel compressed memory,
+aka "zmem", or other RAM-like devices) which is not directly accessible
+or addressable by the kernel and is of unknown and possibly time-varying
+size.  This pseudo-RAM device links itself to frontswap by setting the
+frontswap_ops pointer appropriately and the functions it provides must
+conform to certain policies as follows:
+
+An "init" prepares the pseudo-RAM to receive frontswap pages and returns
+a non-negative pool id, used for all swap device numbers (aka "type").
+A "put_page" will copy the page to pseudo-RAM and associate it with
+the type and offset associated with the page. A "get_page" will copy the
+page, if found, from pseudo-RAM into kernel memory, but will NOT remove
+the page from pseudo-RAM.  A "flush_page" will remove the page from
+pseudo-RAM and a "flush_area" will remove ALL pages associated with the
+swap type (e.g., like swapoff) and notify the pseudo-RAM device to refuse
+further puts with that swap type.
+
+Once a page is successfully put, a matching get on the page will always
+succeed.  So when the kernel finds itself in a situation where it needs
+to swap out a page, it first attempts to use frontswap.  If the put returns
+non-zero, the data has been successfully saved to pseudo-RAM and
+a disk write and, if the data is later read back, a disk read are avoided.
+If a put returns zero, pseudo-RAM has rejected the data, and the page can
+be written to swap as usual.
+
+Note that if a page is put and the page already exists in pseudo-RAM
+(a "duplicate" put), either the put succeeds and the data is overwritten,
+or the put fails AND the page is flushed.  This ensures stale data may
+never be obtained from pseudo-RAM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
