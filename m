@@ -1,151 +1,259 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2B4596B01BC
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 01:19:30 -0400 (EDT)
-Date: Fri, 28 May 2010 15:19:24 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
- infrastructure
-Message-ID: <20100528051924.GZ22536@laptop>
-References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <1274777588-21494-4-git-send-email-david@fromorbit.com>
- <20100527063523.GJ22536@laptop>
- <20100527224034.GO12087@dastard>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 651C16B01B9
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 01:25:51 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4S5PmdI013092
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 28 May 2010 14:25:48 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CF75045DE55
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 14:25:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ABA9945DE4F
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 14:25:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F4381DB8038
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 14:25:47 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EDF1E08004
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 14:25:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: oom killer rewrite
+In-Reply-To: <alpine.DEB.2.00.1005250246170.8045@chino.kir.corp.google.com>
+References: <20100524100840.1E95.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1005250246170.8045@chino.kir.corp.google.com>
+Message-Id: <20100528131125.7E1E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100527224034.GO12087@dastard>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 28 May 2010 14:25:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 28, 2010 at 08:40:34AM +1000, Dave Chinner wrote:
-> On Thu, May 27, 2010 at 04:35:23PM +1000, Nick Piggin wrote:
-> > But we can think of inodes that are only in use by unused (and aged)
-> > dentries as effectively unused themselves. So this sequence under
-> > estimates how many inodes to scan. This could bias pressure against
-> > dcache I'd think, especially considering inodes are far larger than
-> > dentries. Maybe require 2 passes to get the inodes unused inthe
-> > first pass.
+Hi
+
+> On Mon, 24 May 2010, KOSAKI Motohiro wrote:
 > 
-> It's self-balancing - it trends towards an equal number of unused
-> dentries and inodes in the caches. Yes, it will tear down more
-> dentries at first, but we need to do that to be able to reclaim
-> inodes.
-
-But then it doesn't scan enough inodes on the inode pass.
-
-
-> a?<<s reclaim progresses the propotion of inodes increases, so
-> the amount of inodes reclaimed increases. 
+> > > I've been notified that my entire oom killer rewrite has been dropped from 
+> > > -mm based solely on your feedback.  The problem is that I have absolutely 
+> > > no idea what issues you have with the changes that haven't already been 
+> > > addressed (nobody else does, either, it seems).
+> > 
+> > That's simple. A regression and an incompatibility are absolutely
+> > unacceptable. They should be removed. Your patches have some funny parts,
+> > but, afaik, nobody said funny requirement itself is wrong. They only said
+> > your requirement don't have to cause any pain to other users.
+> > 
+> > Zero risk patches are always acceptable.
+> > 
 > 
-> Basically this is a recognition that the important cache for
-> avoiding IO is the inode cache, not he dentry cache. Once the inode
+> When you see these "funny parts," please let me know what they are.  The 
+> were was no incompatibility issue after 
+> oom-reintroduce-and-deprecate-oom_kill_allocating_task.patch was merged, 
+> the interface was simply deprecated.  Arguing against the deprecation is 
+> understandable and quite frankly something I'd like to avoid since it's 
+> apparently hanging up the larger importance of the work, so I've dropped 
+> the consolidation (and subsequent deprecation of oom_kill_allocating_task) 
+> of the sysctls from my latest patch series.
 
-You can bias against the dcache using multipliers.
+That's said, don't deprecated current interface. Other MM developers makes
+effort to reduce a number of oom bug report. I don't hope you run just opposite
+direction.
 
 
-> cache is freed that we need to do IO to repopulate it, but
-> rebuilding dentries fromteh inode cache only costs CPU time. Hence
-> under light reclaim, inodes are mostly left in cache but we free up
-> memory that only costs CPU to rebuild. Under heavy, sustained
-> reclaim, we trend towards freeing equal amounts of objects from both
-> caches.
-
-I don't know if you've got numbers or patterns to justify that.
-My point is that things should stay as close to the old code as
-possible without good reason.
-
- 
-> This is pretty much what the current code attempts to do - free a
-> lot of dentries, then free a smaller amount of the inodes that were
-> used by the freed dentries. Once again it is a direct encoding of
-> what is currently an implicit design feature - it makes it *obvious*
-> how we are trying to balance the caches.
-
-With your patches, if there are no inodes free you would need to take
-2 passes at freeing the dentry cache. My suggestion is closer to the
-current code.
- 
-
-> Another reason for this is that the calculation changes again to
-> allow filesystem caches to modiy this proportioning in the next
-> patch....
+> > I've reviewed all of your patches. the result is here.
+> > 
+> > > oom-filter-tasks-not-sharing-the-same-cpuset.patch
+> > 	ok, no objection.
+> > 	I'm still afraid this patch reinstanciate old bug. but at that time,
+> > 	we can drop it solely. this patch is enough bisectable.
+> > 
+> > > oom-sacrifice-child-with-highest-badness-score-for-parent.patch
+> > 	ok, no objection.
+> > 	It's good patch.
+> > 
+> > > oom-select-task-from-tasklist-for-mempolicy-ooms.patch
+> > 	ok, no objection.
+> > 
+> > > oom-remove-special-handling-for-pagefault-ooms.patch
+> > 	ok, no objection.
+> > 
+> > > oom-badness-heuristic-rewrite.patch
+> > 	No. All of rewrite is bad idea. Please make separate some
+> > 	individual patches.
+> > 	All rewrite thing break bisectability. Perhaps it can steal
+> > 	a lot of time from MM developers.
 > 
-> FWIW, this also makes workloads that generate hundreds of thousands
-> of never-to-be-used again negative dentries free dcache memory really
-> quickly on memory pressure...
+> We've talked about that before, and I remember specifically addressing why 
+> it couldn't be broken apart with any coherent understanding of what was 
+> happening.  I think the patchset itself was fairly well divided, but this 
+> specific patch touches many different areas and function signatures but 
+> are mainly localized to the oom killer.
 
-That would still be the case because used inodes aren't getting their
-dentries freed so little inode scanning will occur.
+Heh, that's ok.
+I'll merge apart of this one If you can't. The rule is simple, rewrite 
+all patches will never merge. but ok too. you can choice no merge.
+
+
+> > 	This patch have following parts.
+> > 	1) Add oom_score_adj
+> 
+> A patch that only adds oom_score_adj but doesn't do anything else?  It 
+> can't be used with the current badness function, it requires the rewrite 
+> of oom_badness().
+
+ok. you can drop oom_score_adj too.
+
+> > 	2) OOM score normalization
+> 
+> I prefer to do that with the addition of oom_score_adj since that tunable 
+> is meaninless until the score uses it.
+
+No. This one have no justification. BAD IDEA.
+Any core heuristic change need to prove to improve desktop use case.
+
+That's said, now lkml have one or two oom bug report per month. We have
+to make effort to reduce it. Please don't append new confusion source.
+
+
+
+> > 	3) forkbomb detector
+> 
+> Ok, I can seperate that out but that's only a small part of the overall 
+> code.  Are there specific issues you'd like to address with that now 
+> instead of later?
+
+reviewability and bisectability are one of most important issue. that's all.
+
+
+> > 	4) oom_forkbomb_thres new knob
+> 
+> I'd prefer to keep the introduction of the sysctl, again, with the 
+> addition of the functional code that uses it.
+
+I'm not against new knob. I only request separation.
+
+
+> >  	5) Root user get 3% bonus instead 400%
+> 
+> I don't understand this.
+
+Now, our oom have "if (root-user) points /= 4" logic, I wrote it as 400%.
+
+
+> > 	all except (2) seems ok. but I'll review them again after separation.
+> > 	but you can't insert your copyright. 
+> > 
+> 
+> I can't add a copyright under the GPL for the new heuristic?  Why?
+
+1) too small work
+2) In this area, almost work had been lead to kamezawa-san. you don't have
+   proper right.
+
+(1) mean other people of joining this improvement can't append it too.
+
+
+> > > oom-deprecate-oom_adj-tunable.patch
+> > 	NAK. you can't change userland use-case at all. This patch
+> > 	only makes bug report flood and streal our time.
+> 
+> It was Andrew's idea to deprecate this since the tunable works on a much 
+> higher granularity than oom_score_adj.  Andrew?
+
+If we can create really better new knob, the end users naturally migrate
+to use new one. thus, we can remove older one without pain.
+
+again, we still have a bit high bug report rate in oom area. Please don't
+increase it.
+
+
+> > > oom-replace-sysctls-with-quick-mode.patch
+> > 	NAK. To change sysctl makes confusion to userland.
+> > 	You have to prove such deprecated sysctl was alread unused.
+> > 	But the fact is, there is users. I have hear some times such
+> > 	use case and recent bug reporter said that's used.
+> > 
+> > 	https://bugzilla.kernel.org/show_bug.cgi?id=15058
+> > 
+> 
+> Already dropped.
+
+thanks.
+
+
+> > > oom-avoid-oom-killer-for-lowmem-allocations.patch
+> > 	I don't like this one. 64bit arch have big (e.g. 2/4G)
+> > 	DMA_ZONE/DMA32_ZONE. So, if we create small guest kernel
+> > 	on KVM (or Xen), Killing processes may help. IOW, this
+> > 	one is conceptually good. but this check way is brutal.
+> 
+> It "may" help but has a significant probability of unnecessarily killing a 
+> task that won't free any lowmem, so how would you suggest we modify the 
+> oom killer to handle the allocation failure for GFP_DMA without negatively 
+> impacting the system?
+
+I prefer to check numbers of anon pages in the zone. I mean we want
+"skip oom if the zone have no freeable memory", thus just do it.
+
+But again, I'm ok yours too.
 
 > 
-> > Part of the problem is the funny shrinker API.
+> > 	but even though it's ok. Let's go merge it. this patch is
+> > 	enough small.
+> > 	If any problem is occur, we can revert this one easily.
 > > 
-> > The right way to do it is to change the shrinker API so that it passes
-> > down the lru_pages and scanned into the callback. From there, the
-> > shrinkers can calculate the appropriate ratio of objects to scan.
-> > No need for 2-call scheme, no need for shrinker->seeks, and the
-> > ability to calculate an appropriate ratio first for dcache, and *then*
-> > for icache.
 > 
-> My only concern about this is that exposes the inner workings of the
-> shrinker and mm subsystem to code that simply doesn't need to know
-> about it.
-
-It's just providing a ratio. The shrinkers allready know they are
-scanning based on a ratio of pagecache scanned.
-
-
-> > A helper of course can do the calculation (considering that every
-> > driver and their dog will do the wrong thing if we let them :)).
-> > 
-> > unsigned long shrinker_scan(unsigned long lru_pages,
-> > 			unsigned long lru_scanned,
-> > 			unsigned long nr_objects,
-> > 			unsigned long scan_ratio)
-> > {
-> > 	unsigned long long tmp = nr_objects;
-> > 
-> > 	tmp *= lru_scanned * 100;
-> > 	do_div(tmp, (lru_pages * scan_ratio) + 1);
-> > 
-> > 	return (unsigned long)tmp;
-> > }
-> > 
-> > Then the shrinker callback will go:
-> > 	sb->s_nr_dentry_scan += shrinker_scan(lru_pages, lru_scanned,
-> > 				sb->s_nr_dentry_unused,
-> > 				vfs_cache_pressure * SEEKS_PER_DENTRY);
-> > 	if (sb->s_nr_dentry_scan > SHRINK_BATCH)
-> > 		prune_dcache()
-> > 
-> > 	sb->s_nr_inode_scan += shrinker_scan(lru_pages, lru_scanned,
-> > 				sb->s_nr_inodes_unused,
-> > 				vfs_cache_pressure * SEEKS_PER_INODE);
-> > 	...
-> > 
-> > What do you think of that? Seeing as we're changing the shrinker API
-> > anyway, I'd think it is high time to do somthing like this.
+> Ok.
 > 
-> Ignoring the dcache/icache reclaim ratio issues, I'd prefer a two
+> > > oom-remove-unnecessary-code-and-cleanup.patch
+> > 	ok, no objection.
+> > 
+> > > oom-default-to-killing-current-for-pagefault-ooms.patch
+> > 	NAK.
+> > 	1) this patch break panic_on_oom
+> > 	2) At this merge window, Nick change almost all architecture's
+> > 	   page hault handler. now almost all arch use
+> > 	   pagefault_out_of_memory. your description has been a bit obsoleted.
+> > 
+> 
+> Already changed, as previously mentioned in earlier posts.
 
-Well if it is an issue, it should be changed in a different patch
-I think (with numbers).
+ok, thanks.
 
+> 
+> > > oom-avoid-race-for-oom-killed-tasks-detaching-mm-prior-to-exit.patch
+> > 	no objection. but afaik Oleg already pointed out "if (!p->mm)" is bad.
+> > 	So, Don't we need push his patch instead?
+> > 
+> 
+> I think it all depends on the order in which this work is merged.
+> 
+> > > oom-hold-tasklist_lock-when-dumping-tasks.patch
+> > 	ok, no objection.
+> > 
+> > > oom-give-current-access-to-memory-reserves-if-it-has-been-killed.patch
+> > 	ok, no objection.
+> > 
+> > > oom-avoid-sending-exiting-tasks-a-sigkill.patch
+> > 	ok, no objection
+> > 
+> > > oom-cleanup-oom_kill_task.patch
+> > 	ok, no objection
+> > 
+> > > oom-cleanup-oom_badness.patch
+> > 	ok, no objection
+> > 
+> > The above "no objection" mean you can feel free to use my reviewed-by tag.
+> > 
+> 
+> Thanks for the detailed review, I look forward to your feedback when I 
+> post the updated series.
 
-> call API that matches the current behaviour, leaving the caclulation
-> of how much to reclaim in shrink_slab(). Encoding it this way makes
-> it more difficult to change the high level behaviour e.g. if we want
-> to modify the amount of slab reclaim based on reclaim priority, we'd
-> have to cahnge every shrinker instead of just shrink_slab().
+I'm thanks too.
 
-We can modifiy the ratios before calling if needed, or have a default
-ratio define to multiply with as well.
-
-But shrinkers are very subsystem specific.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
