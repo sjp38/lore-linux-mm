@@ -1,72 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C7A8360032A
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 00:46:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4S4kt2O024689
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 28 May 2010 13:46:55 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC21E45DE55
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:46:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A665F45DE4E
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:46:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ED70E08004
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:46:54 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 395F11DB803A
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 13:46:54 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-In-Reply-To: <20100528043339.GZ3519@balbir.in.ibm.com>
-References: <20100528035147.GD11364@uudg.org> <20100528043339.GZ3519@balbir.in.ibm.com>
-Message-Id: <20100528134133.7E24.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 2B4596B01BC
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 01:19:30 -0400 (EDT)
+Date: Fri, 28 May 2010 15:19:24 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 3/5] superblock: introduce per-sb cache shrinker
+ infrastructure
+Message-ID: <20100528051924.GZ22536@laptop>
+References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
+ <1274777588-21494-4-git-send-email-david@fromorbit.com>
+ <20100527063523.GJ22536@laptop>
+ <20100527224034.GO12087@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 28 May 2010 13:46:53 +0900 (JST)
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100527224034.GO12087@dastard>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kosaki.motohiro@jp.fujitsu.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> * Luis Claudio R. Goncalves <lclaudio@uudg.org> [2010-05-28 00:51:47]:
+On Fri, May 28, 2010 at 08:40:34AM +1000, Dave Chinner wrote:
+> On Thu, May 27, 2010 at 04:35:23PM +1000, Nick Piggin wrote:
+> > But we can think of inodes that are only in use by unused (and aged)
+> > dentries as effectively unused themselves. So this sequence under
+> > estimates how many inodes to scan. This could bias pressure against
+> > dcache I'd think, especially considering inodes are far larger than
+> > dentries. Maybe require 2 passes to get the inodes unused inthe
+> > first pass.
 > 
-> > @@ -382,6 +382,8 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
-> >   */
-> >  static void __oom_kill_task(struct task_struct *p, int verbose)
-> >  {
-> > +	struct sched_param param;
-> > +
-> >  	if (is_global_init(p)) {
-> >  		WARN_ON(1);
-> >  		printk(KERN_WARNING "tried to kill init!\n");
-> > @@ -413,8 +415,9 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
-> >  	 */
-> >  	p->rt.time_slice = HZ;
-> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> > -
-> >  	force_sig(SIGKILL, p);
-> > +	param.sched_priority = MAX_RT_PRIO-1;
-> > +	sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
-> >  }
-> >
+> It's self-balancing - it trends towards an equal number of unused
+> dentries and inodes in the caches. Yes, it will tear down more
+> dentries at first, but we need to do that to be able to reclaim
+> inodes.
+
+But then it doesn't scan enough inodes on the inode pass.
+
+
+> a?<<s reclaim progresses the propotion of inodes increases, so
+> the amount of inodes reclaimed increases. 
 > 
-> I would like to understand the visible benefits of this patch. Have
-> you seen an OOM kill tasked really get bogged down. Should this task
-> really be competing with other important tasks for run time?
+> Basically this is a recognition that the important cache for
+> avoiding IO is the inode cache, not he dentry cache. Once the inode
 
-What you mean important? Until OOM victim task exit completely, the system have no memory.
-all of important task can't do anything.
+You can bias against the dcache using multipliers.
 
-In almost kernel subsystems, automatically priority boost is really bad idea because
-it may break RT task's deterministic behavior. but OOM is one of exception. The deterministic
-was alread broken by memory starvation.
 
-That's the reason I acked it.
+> cache is freed that we need to do IO to repopulate it, but
+> rebuilding dentries fromteh inode cache only costs CPU time. Hence
+> under light reclaim, inodes are mostly left in cache but we free up
+> memory that only costs CPU to rebuild. Under heavy, sustained
+> reclaim, we trend towards freeing equal amounts of objects from both
+> caches.
 
+I don't know if you've got numbers or patterns to justify that.
+My point is that things should stay as close to the old code as
+possible without good reason.
+
+ 
+> This is pretty much what the current code attempts to do - free a
+> lot of dentries, then free a smaller amount of the inodes that were
+> used by the freed dentries. Once again it is a direct encoding of
+> what is currently an implicit design feature - it makes it *obvious*
+> how we are trying to balance the caches.
+
+With your patches, if there are no inodes free you would need to take
+2 passes at freeing the dentry cache. My suggestion is closer to the
+current code.
+ 
+
+> Another reason for this is that the calculation changes again to
+> allow filesystem caches to modiy this proportioning in the next
+> patch....
+> 
+> FWIW, this also makes workloads that generate hundreds of thousands
+> of never-to-be-used again negative dentries free dcache memory really
+> quickly on memory pressure...
+
+That would still be the case because used inodes aren't getting their
+dentries freed so little inode scanning will occur.
+
+> 
+> > Part of the problem is the funny shrinker API.
+> > 
+> > The right way to do it is to change the shrinker API so that it passes
+> > down the lru_pages and scanned into the callback. From there, the
+> > shrinkers can calculate the appropriate ratio of objects to scan.
+> > No need for 2-call scheme, no need for shrinker->seeks, and the
+> > ability to calculate an appropriate ratio first for dcache, and *then*
+> > for icache.
+> 
+> My only concern about this is that exposes the inner workings of the
+> shrinker and mm subsystem to code that simply doesn't need to know
+> about it.
+
+It's just providing a ratio. The shrinkers allready know they are
+scanning based on a ratio of pagecache scanned.
+
+
+> > A helper of course can do the calculation (considering that every
+> > driver and their dog will do the wrong thing if we let them :)).
+> > 
+> > unsigned long shrinker_scan(unsigned long lru_pages,
+> > 			unsigned long lru_scanned,
+> > 			unsigned long nr_objects,
+> > 			unsigned long scan_ratio)
+> > {
+> > 	unsigned long long tmp = nr_objects;
+> > 
+> > 	tmp *= lru_scanned * 100;
+> > 	do_div(tmp, (lru_pages * scan_ratio) + 1);
+> > 
+> > 	return (unsigned long)tmp;
+> > }
+> > 
+> > Then the shrinker callback will go:
+> > 	sb->s_nr_dentry_scan += shrinker_scan(lru_pages, lru_scanned,
+> > 				sb->s_nr_dentry_unused,
+> > 				vfs_cache_pressure * SEEKS_PER_DENTRY);
+> > 	if (sb->s_nr_dentry_scan > SHRINK_BATCH)
+> > 		prune_dcache()
+> > 
+> > 	sb->s_nr_inode_scan += shrinker_scan(lru_pages, lru_scanned,
+> > 				sb->s_nr_inodes_unused,
+> > 				vfs_cache_pressure * SEEKS_PER_INODE);
+> > 	...
+> > 
+> > What do you think of that? Seeing as we're changing the shrinker API
+> > anyway, I'd think it is high time to do somthing like this.
+> 
+> Ignoring the dcache/icache reclaim ratio issues, I'd prefer a two
+
+Well if it is an issue, it should be changed in a different patch
+I think (with numbers).
+
+
+> call API that matches the current behaviour, leaving the caclulation
+> of how much to reclaim in shrink_slab(). Encoding it this way makes
+> it more difficult to change the high level behaviour e.g. if we want
+> to modify the amount of slab reclaim based on reclaim priority, we'd
+> have to cahnge every shrinker instead of just shrink_slab().
+
+We can modifiy the ratios before calling if needed, or have a default
+ratio define to multiply with as well.
+
+But shrinkers are very subsystem specific.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
