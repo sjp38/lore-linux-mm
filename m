@@ -1,80 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3EDD26B01C3
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 02:38:55 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4S6cqd5008238
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 28 May 2010 15:38:53 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B541E45DE4F
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 15:38:52 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 909F345DE51
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 15:38:52 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D7BAE08006
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 15:38:52 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E21EE08003
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 15:38:52 +0900 (JST)
-Date: Fri, 28 May 2010 15:34:32 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-Message-Id: <20100528153432.a4f5ef2c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100528062701.GA3519@balbir.in.ibm.com>
-References: <20100528035147.GD11364@uudg.org>
-	<20100528043339.GZ3519@balbir.in.ibm.com>
-	<20100528134133.7E24.A69D9226@jp.fujitsu.com>
-	<20100528062701.GA3519@balbir.in.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 974516B01B6
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 03:44:38 -0400 (EDT)
+Subject: Re: [PATCH 0/5] Per superblock shrinkers V2
+From: Artem Bityutskiy <dedekind1@gmail.com>
+Reply-To: dedekind1@gmail.com
+In-Reply-To: <20100527133223.efa4740a.akpm@linux-foundation.org>
+References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
+	 <20100527133223.efa4740a.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 28 May 2010 10:42:06 +0300
+Message-ID: <1275032526.15516.83.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 May 2010 11:57:01 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> I am still not convinced, specially if we are running under mem
-> cgroup. Even setting SCHED_FIFO does not help, you could have other
-> things like cpusets that might restrict the CPUs you can run on, or
-> any other policy and we could end up contending anyway with other
-> SCHED_FIFO tasks.
->  
-> > That's the reason I acked it.
+On Thu, 2010-05-27 at 13:32 -0700, Andrew Morton wrote:
+> On Tue, 25 May 2010 18:53:03 +1000
+> Dave Chinner <david@fromorbit.com> wrote:
 > 
-> If we could show faster recovery from OOM or anything else, I would be
-> more convinced.
+> > This series reworks the filesystem shrinkers. We currently have a
+> > set of issues with the current filesystem shrinkers:
+> > 
+> >         1. There is an dependency between dentry and inode cache
+> >            shrinking that is only implicitly defined by the order of
+> >            shrinker registration.
+> >         2. The shrinkers need to walk the superblock list and pin
+> >            the superblock to avoid unmount races with the sb going
+> >            away.
+> >         3. The dentry cache uses per-superblock LRUs and proportions
+> >            reclaim between all the superblocks which means we are
+> >            doing breadth based reclaim. This means we touch every
+> >            superblock for every shrinker call, and may only reclaim
+> >            a single dentry at a time from a given superblock.
+> >         4. The inode cache has a global LRU, so it has different
+> >            reclaim patterns to the dentry cache, despite the fact
+> >            that the dentry cache is generally the only thing that
+> >            pins inodes in memory.
+> >         5. Filesystems need to register their own shrinkers for
+> >            caches and can't co-ordinate them with the dentry and
+> >            inode cache shrinkers.
 > 
-Off topic.
+> Nice description, but...  it never actually told us what the benefit of
+> the changes are.  Presumably some undescribed workload had some
+> undescribed user-visible problem.  But what was that workload, and what
+> was the user-visible problem, and how does the patch affect all this?
 
- 1. Run a daemon in the highest RT priority.
- 2. disable OOM for a mem cgroup.
- 3. The daemon register oom-event-notifier of the mem cgroup.
+For UBIFS it wwill give a benefit in terms of simpler UBIFS code - we
+now have to keep our own list of UBIFS superblocks, provide locking for
+it, and maintain. This is just extra burden. So the item 2 above will be
+useful for UBIFS.
 
- When OOM happens.
- 4. The daemon receive a event, and then,
-    a) enlarge limit
-    or
-    b) kill a task 
-    or
-    c) enlarge limit temporary and kill a task, later, reduce limit again.
-
-This is the fastest and promissing operation for memcg users.
-
-memcg's oom slowdown happens just because it's limited by a user configuration
-not by the system. That's a point to be considered.
-The oom situation can be _immediaterly_ fixed up by enlarge limit as emergency mode.
-
-If you has to wait for the end of a task, there will be delay, it's unavoidable.
-
-Thanks,
--Kame
-
-
+-- 
+Best Regards,
+Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
