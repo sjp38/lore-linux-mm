@@ -1,61 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 15350600385
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 06:00:08 -0400 (EDT)
-Date: Fri, 28 May 2010 10:59:47 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E6487600385
+	for <linux-mm@kvack.org>; Fri, 28 May 2010 06:04:11 -0400 (EDT)
+Date: Fri, 28 May 2010 11:03:50 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] hugetlb: call mmu notifiers on hugepage cow
-Message-ID: <20100528095946.GB9774@csn.ul.ie>
-References: <4BFED954.8060807@cray.com>
+Subject: Re: [PATCH 1/8] hugetlb: move definition of is_vm_hugetlb_page()
+	to hugepage_inline.h
+Message-ID: <20100528100350.GC9774@csn.ul.ie>
+References: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1275006562-18946-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4BFED954.8060807@cray.com>
+In-Reply-To: <1275006562-18946-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Doug Doan <dougd@cray.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, andi@firstfloor.org, lee.schermerhorn@hp.com, rientjes@google.com, akpm@linux-foundation.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 27, 2010 at 01:43:00PM -0700, Doug Doan wrote:
-> From: Doug Doan <dougd@cray.com>
->
-> When a copy-on-write occurs, we take one of two paths in handle_mm_fault: 
-> through handle_pte_fault for normal pages, or through hugetlb_fault for 
-> huge pages.
->
-> In the normal page case, we eventually get to do_wp_page and call mmu 
-> notifiers via ptep_clear_flush_notify. There is no callout to the mmmu 
-> notifiers in the huge page case. This patch fixes that.
->
-> Signed-off-by: Doug Doan <dougd@cray.com>
+On Fri, May 28, 2010 at 09:29:15AM +0900, Naoya Horiguchi wrote:
+> is_vm_hugetlb_page() is a widely used inline function to insert hooks
+> into hugetlb code.
+> But we can't use it in pagemap.h because of circular dependency of
+> the header files. This patch removes this limitation.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > ---
+>  include/linux/hugetlb.h        |   11 +----------
+>  include/linux/hugetlb_inline.h |   22 ++++++++++++++++++++++
+>  include/linux/pagemap.h        |    1 +
+>  3 files changed, 24 insertions(+), 10 deletions(-)
+>  create mode 100644 include/linux/hugetlb_inline.h
+> 
+> diff --git v2.6.34/include/linux/hugetlb.h v2.6.34/include/linux/hugetlb.h
+> index 78b4bc6..d47a7c4 100644
+> --- v2.6.34/include/linux/hugetlb.h
+> +++ v2.6.34/include/linux/hugetlb.h
+> @@ -2,6 +2,7 @@
+>  #define _LINUX_HUGETLB_H
+>  
+>  #include <linux/fs.h>
+> +#include <linux/hugetlb_inline.h>
+>  
+>  struct ctl_table;
+>  struct user_struct;
+> @@ -14,11 +15,6 @@ struct user_struct;
+>  
+>  int PageHuge(struct page *page);
+>  
+> -static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> -{
+> -	return vma->vm_flags & VM_HUGETLB;
+> -}
+> -
+>  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+>  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+>  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+> @@ -77,11 +73,6 @@ static inline int PageHuge(struct page *page)
+>  	return 0;
+>  }
+>  
+> -static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> -{
+> -	return 0;
+> -}
+> -
+>  static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+>  {
+>  }
+> diff --git v2.6.34/include/linux/hugetlb_inline.h v2.6.34/include/linux/hugetlb_inline.h
+> new file mode 100644
+> index 0000000..cf00b6d
+> --- /dev/null
+> +++ v2.6.34/include/linux/hugetlb_inline.h
+> @@ -0,0 +1,22 @@
+> +#ifndef _LINUX_HUGETLB_INLINE_H
+> +#define _LINUX_HUGETLB_INLINE_H 1
+> +
 
-> --- mm/hugetlb.c.orig	2010-05-27 13:07:58.569546314 -0700
-> +++ mm/hugetlb.c	2010-05-26 14:41:06.449296524 -0700
-> @@ -2345,11 +2345,17 @@ retry_avoidcopy:
->  	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
->  	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
->  		/* Break COW */
-> +		mmu_notifier_invalidate_range_start(mm,
-> +			address & huge_page_mask(h),
-> +			(address & huge_page_mask(h)) + huge_page_size(h));
+Just #define __LINUX_HUGETLB_INLINE_H is fine. No need for the 1
 
-Should the address not already be aligned?
+> +#ifdef CONFIG_HUGETLBFS
+> +
 
-Otherwise, I don't see any problem.
+Should be CONFIG_HUGETLB_PAGE
 
->  		huge_ptep_clear_flush(vma, address, ptep);
->  		set_huge_pte_at(mm, address, ptep,
->  				make_huge_pte(vma, new_page, 1));
->  		/* Make the old page be freed below */
->  		new_page = old_page;
-> +		mmu_notifier_invalidate_range_end(mm,
-> +			address & huge_page_mask(h),
-> +			(address & huge_page_mask(h)) + huge_page_size(h));
->  	}
->  	page_cache_release(new_page);
->  	page_cache_release(old_page);
+With those corrections;
 
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+> +#include <linux/mm.h>
+> +
+> +static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> +{
+> +	return vma->vm_flags & VM_HUGETLB;
+> +}
+> +
+> +#else
+> +
+> +static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+> +{
+> +	return 0;
+> +}
+> +
+> +#endif
+> +
+> +#endif
+> diff --git v2.6.34/include/linux/pagemap.h v2.6.34/include/linux/pagemap.h
+> index 3c62ed4..b2bd2ba 100644
+> --- v2.6.34/include/linux/pagemap.h
+> +++ v2.6.34/include/linux/pagemap.h
+> @@ -13,6 +13,7 @@
+>  #include <linux/gfp.h>
+>  #include <linux/bitops.h>
+>  #include <linux/hardirq.h> /* for in_interrupt() */
+> +#include <linux/hugetlb_inline.h>
+>  
+>  /*
+>   * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
+> -- 
+> 1.7.0
+> 
 
 -- 
 Mel Gorman
