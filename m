@@ -1,87 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A24BC6B01B4
-	for <linux-mm@kvack.org>; Fri, 28 May 2010 23:59:14 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4T3xBRf002910
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 29 May 2010 12:59:11 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2139645DE55
-	for <linux-mm@kvack.org>; Sat, 29 May 2010 12:59:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 006BA45DE4E
-	for <linux-mm@kvack.org>; Sat, 29 May 2010 12:59:11 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E02BD1DB803E
-	for <linux-mm@kvack.org>; Sat, 29 May 2010 12:59:10 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 99B8F1DB8038
-	for <linux-mm@kvack.org>; Sat, 29 May 2010 12:59:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-In-Reply-To: <20100528164826.GJ11364@uudg.org>
-References: <20100528154549.GC12035@barrios-desktop> <20100528164826.GJ11364@uudg.org>
-Message-Id: <20100529125136.62CA.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Date: Sat, 29 May 2010 12:59:09 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 710706B01BD
+	for <linux-mm@kvack.org>; Sat, 29 May 2010 23:43:39 -0400 (EDT)
+Date: Sat, 29 May 2010 20:42:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Make kunmap_atomic() harder to misuse
+Message-Id: <20100529204256.b92b1ff6.akpm@linux-foundation.org>
+In-Reply-To: <1275043993-26557-1-git-send-email-cesarb@cesarb.net>
+References: <1275043993-26557-1-git-send-email-cesarb@cesarb.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, David Howells <dhowells@redhat.com>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Fri, 28 May 2010 07:53:13 -0300 Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
 
-> oom-killer: give the dying task rt priority (v3)
->=20
-> Give the dying task RT priority so that it can be scheduled quickly and d=
-ie,
-> freeing needed memory.
->=20
-> Signed-off-by: Luis Claudio R. Gon=E7alves <lgoncalv@redhat.com>
+> kunmap_atomic() is currently at level -4 on Rusty's "Hard To Misuse"
+> list[1] ("Follow common convention and you'll get it wrong"), except in
+> some architectures when CONFIG_DEBUG_HIGHMEM is set[2][3].
+> 
+> kunmap() takes a pointer to a struct page; kunmap_atomic(), however,
+> takes takes a pointer to within the page itself. This seems to once in a
+> while trip people up (the convention they are following is the one from
+> kunmap()).
+> 
+> Make it much harder to misuse, by moving it to level 9 on Rusty's
+> list[4] ("The compiler/linker won't let you get it wrong"). This is done
+> by refusing to build if the pointer passed to it is convertible to a
+> struct page * but it is not a void * (verified by trying to convert it
+> to a pointer to a dummy struct).
+> 
+> The real kunmap_atomic() is renamed to kunmap_atomic_notypecheck()
+> (which is what you would call in case for some strange reason calling it
+> with a pointer to a struct page is not incorrect in your code).
+> 
 
-Almostly acceptable to me. but I have two requests,=20
+Fair enough, that's a 99% fix.  A long time ago I made kmap_atomic()
+return a char * (iirc) and kunmap_atomic() is passed a char*.  It
+worked, but I ended up throwing it away.  I don't precisely remember
+why - I think it was intrusiveness and general hassle rather than
+anything fundamental.
 
-- need 1) force_sig() 2)sched_setscheduler() order as Oleg mentioned
-- don't boost priority if it's in mem_cgroup_out_of_memory()
+>
+> ...
+>
+> +/* Prevent people trying to call kunmap_atomic() as if it were kunmap() */
+> +struct __kunmap_atomic_dummy {};
+> +#define kunmap_atomic(addr, idx) do { \
+> +		BUILD_BUG_ON( \
+> +			__builtin_types_compatible_p(typeof(addr), struct page *) && \
+> +			!__builtin_types_compatible_p(typeof(addr), struct __kunmap_atomic_dummy *)); \
+> +		kunmap_atomic_notypecheck((addr), (idx)); \
+> +	} while (0)
 
-Can you accept this? if not, can you please explain the reason?
+<looks around>
 
-Thanks.
+OK, it seems that __builtin_types_compatible_p() is supported on all
+approved gcc versions.
 
->=20
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 84bbba2..2b0204f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -266,6 +266,8 @@ static struct task_struct *select_bad_process(unsigne=
-d long *ppoints)
->   */
->  static void __oom_kill_task(struct task_struct *p, int verbose)
->  {
-> +	struct sched_param param;
-> +
->  	if (is_global_init(p)) {
->  		WARN_ON(1);
->  		printk(KERN_WARNING "tried to kill init!\n");
-> @@ -288,6 +290,8 @@ static void __oom_kill_task(struct task_struct *p, in=
-t verbose)
->  	 * exit() and clear out its resources quickly...
->  	 */
->  	p->time_slice =3D HZ;
-> +	param.sched_priority =3D MAX_RT_PRIO-10;
-> +	sched_setscheduler(p, SCHED_FIFO, &param);
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> =20
->  	force_sig(SIGKILL, p);
-> --=20
-> [ Luis Claudio R. Goncalves                    Bass - Gospel - RT ]
-> [ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
->=20
-
-
+We have a little __same_type() helper for this.  __must_be_array()
+should be using it, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
