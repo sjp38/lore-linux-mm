@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id D0FD96B01C1
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 12:58:20 -0400 (EDT)
-Date: Mon, 31 May 2010 18:56:58 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 4/5] oom: the points calculation of child processes
-	must use find_lock_task_mm() too
-Message-ID: <20100531165658.GC9991@redhat.com>
-References: <20100531182526.1843.A69D9226@jp.fujitsu.com> <20100531183636.184C.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B10786B01C4
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 13:15:24 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <a38d5a97-1517-46c4-9b2f-27e16aba58f2@default>
+Date: Mon, 31 May 2010 10:14:07 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 0/4] Frontswap (was Transcendent Memory): overview
+References: <20100528174020.GA28150@ca-server1.us.oracle.com
+ 4C02AB5A.5000706@vflare.org>
+In-Reply-To: <4C02AB5A.5000706@vflare.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100531183636.184C.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: ngupta@vflare.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com, avi@redhat.com, pavel@ucw.cz, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On 05/31, KOSAKI Motohiro wrote:
->
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -87,6 +87,7 @@ static struct task_struct *find_lock_task_mm(struct task_struct *p)
->  unsigned long badness(struct task_struct *p, unsigned long uptime)
->  {
->  	unsigned long points, cpu_time, run_time;
-> +	struct task_struct *c;
->  	struct task_struct *child;
->  	int oom_adj = p->signal->oom_adj;
->  	struct task_cputime task_time;
-> @@ -124,11 +125,13 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  	 * child is eating the vast majority of memory, adding only half
->  	 * to the parents will make the child our kill candidate of choice.
->  	 */
-> -	list_for_each_entry(child, &p->children, sibling) {
-> -		task_lock(child);
-> -		if (child->mm != p->mm && child->mm)
-> -			points += child->mm->total_vm/2 + 1;
-> -		task_unlock(child);
-> +	list_for_each_entry(c, &p->children, sibling) {
-> +		child = find_lock_task_mm(c);
-> +		if (child) {
-> +			if (child->mm != p->mm)
-> +				points += child->mm->total_vm/2 + 1;
-> +			task_unlock(child);
-> +		}
+> On 05/28/2010 11:10 PM, Dan Magenheimer wrote:
+> > [PATCH V2 0/4] Frontswap (was Transcendent Memory): overview
+> >
+> > Changes since V1:
+> > - Rebased to 2.6.34 (no functional changes)
+> > - Convert to sane types (per Al Viro comment in cleancache thread)
+> > - Define some raw constants (Konrad Wilk)
+> > - Performance analysis shows significant advantage for frontswap's
+> >   synchronous page-at-a-time design (vs batched asynchronous
+> speculated
+> >   as an alternative design).  See http://lkml.org/lkml/2010/5/20/314
+> >
+>=20
+> I think zram (http://lwn.net/Articles/388889/) is a more generic
+> solution
+> and can also achieve swap-to-hypervisor as a special case.
+>=20
+> zram is a generic in-memory compressed block device. To get frontswap
+> functionality, such a device (/dev/zram0) can be exposed to a VM as
+> a 'raw disk'. Such a disk can be used for _any_ purpose by the guest,
+> including use as a swap disk.
 
-Acked-by: Oleg Nesterov <oleg@redhat.com>
+Hi Nitin --
 
+Though I agree zram is cool inside Linux, I don't see that it can
+be used to get the critical value of frontswap functionality in a
+virtual environment, specifically the 100% dynamic control by the
+hypervisor of every single page attempted to be "put" to frontswap.
+This is the key to the "intelligent overcommit" discussed in the
+previous long thread about frontswap.
 
+Further, by doing "guest-side compression" you are eliminating
+possibilities for KSM-style sharing, right?
 
+So while zram may be a great feature, it is NOT a more generic
+solution than frontswap, just a different solution that has a
+different set of objectives.
 
-And, I think we need another patch on top of this one. Note that
-this list_for_each_entry(p->children) can only see the tasks forked
-by p, it can't see other children forked by its sub-threads.
-
-IOW, we need
-
-	do {
-		list_for_each_entry(c, &t->children, sibling) {
-			...
-		}
-	} while_each_thread(p, t);
-
-Probably the same for oom_kill_process().
-
-What do you think?
-
-Oleg.
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
