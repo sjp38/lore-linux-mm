@@ -1,65 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4C3416B01C1
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 12:55:36 -0400 (EDT)
-Date: Mon, 31 May 2010 18:43:54 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D0FD96B01C1
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 12:58:20 -0400 (EDT)
+Date: Mon, 31 May 2010 18:56:58 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 2/5] oom: select_bad_process: PF_EXITING check should
-	take ->mm into account
-Message-ID: <20100531164354.GA9991@redhat.com>
-References: <20100531182526.1843.A69D9226@jp.fujitsu.com> <20100531183335.1846.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 4/5] oom: the points calculation of child processes
+	must use find_lock_task_mm() too
+Message-ID: <20100531165658.GC9991@redhat.com>
+References: <20100531182526.1843.A69D9226@jp.fujitsu.com> <20100531183636.184C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100531183335.1846.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100531183636.184C.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Thanks a lot Kosaki for doing this!
-
-I still can't find the time to play with this code :/
-
 On 05/31, KOSAKI Motohiro wrote:
->
-> select_bad_process() checks PF_EXITING to detect the task which is going
-> to release its memory, but the logic is very wrong.
->
-> 	- a single process P with the dead group leader disables
-> 	  select_bad_process() completely, it will always return
-> 	  ERR_PTR() while P can live forever
->
-> 	- if the PF_EXITING task has already released its ->mm
-> 	  it doesn't make sense to expect it is goiing to free
-> 	  more memory (except task_struct/etc)
->
-> Change the code to ignore the PF_EXITING tasks without ->mm.
 >
 > --- a/mm/oom_kill.c
 > +++ b/mm/oom_kill.c
-> @@ -287,7 +287,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
->  		 * the process of exiting and releasing its resources.
->  		 * Otherwise we could get an easy OOM deadlock.
->  		 */
-> -		if (p->flags & PF_EXITING) {
-> +		if ((p->flags & PF_EXITING) && p->mm) {
+> @@ -87,6 +87,7 @@ static struct task_struct *find_lock_task_mm(struct task_struct *p)
+>  unsigned long badness(struct task_struct *p, unsigned long uptime)
+>  {
+>  	unsigned long points, cpu_time, run_time;
+> +	struct task_struct *c;
+>  	struct task_struct *child;
+>  	int oom_adj = p->signal->oom_adj;
+>  	struct task_cputime task_time;
+> @@ -124,11 +125,13 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+>  	 * child is eating the vast majority of memory, adding only half
+>  	 * to the parents will make the child our kill candidate of choice.
+>  	 */
+> -	list_for_each_entry(child, &p->children, sibling) {
+> -		task_lock(child);
+> -		if (child->mm != p->mm && child->mm)
+> -			points += child->mm->total_vm/2 + 1;
+> -		task_unlock(child);
+> +	list_for_each_entry(c, &p->children, sibling) {
+> +		child = find_lock_task_mm(c);
+> +		if (child) {
+> +			if (child->mm != p->mm)
+> +				points += child->mm->total_vm/2 + 1;
+> +			task_unlock(child);
+> +		}
 
-(strictly speaking, this change is needed after 3/5 which removes the
- top-level "if (!p->mm)" check in select_bad_process).
+Acked-by: Oleg Nesterov <oleg@redhat.com>
 
 
-I'd like to add a note... with or without this, we have problems
-with the coredump. A thread participating in the coredumping
-(group-leader in this case) can have PF_EXITING && mm, but this doesn't
-mean it is going to exit soon, and the dumper can use a lot more memory.
 
-Otoh, if select_bad_process() chooses the thread which dumps the core,
-SIGKILL can't stop it. This should be fixed in do_coredump() paths, this
-is the long-standing problem.
 
-And, as it was already discussed, we only check the group-leader here.
-But I can't suggest something better.
+And, I think we need another patch on top of this one. Note that
+this list_for_each_entry(p->children) can only see the tasks forked
+by p, it can't see other children forked by its sub-threads.
+
+IOW, we need
+
+	do {
+		list_for_each_entry(c, &t->children, sibling) {
+			...
+		}
+	} while_each_thread(p, t);
+
+Probably the same for oom_kill_process().
+
+What do you think?
 
 Oleg.
 
