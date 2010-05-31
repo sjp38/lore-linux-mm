@@ -1,71 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 29C466B01C8
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 05:38:22 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4V9cK0f014047
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 31 May 2010 18:38:20 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 17BAB45DE4F
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 18:38:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E900A45DE4E
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 18:38:19 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D05C11DB8038
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 18:38:19 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E9DEE08002
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 18:38:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 5/5] oom: __oom_kill_task() must use find_lock_task_mm() too
-In-Reply-To: <20100531182526.1843.A69D9226@jp.fujitsu.com>
-References: <20100531182526.1843.A69D9226@jp.fujitsu.com>
-Message-Id: <20100531183727.184F.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3954F6B01C3
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 06:15:24 -0400 (EDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH] Make kunmap_atomic() harder to misuse
+Date: Mon, 31 May 2010 19:45:18 +0930
+References: <1275043993-26557-1-git-send-email-cesarb@cesarb.net> <20100529204256.b92b1ff6.akpm@linux-foundation.org>
+In-Reply-To: <20100529204256.b92b1ff6.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 31 May 2010 18:38:14 +0900 (JST)
+Message-Id: <201005311945.19784.rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, David Howells <dhowells@redhat.com>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Arnd Bergmann <arnd@arndb.de>
 List-ID: <linux-mm.kvack.org>
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 5/5] oom: __oom_kill_task() must use find_lock_task_mm() too
+On Sun, 30 May 2010 01:12:56 pm Andrew Morton wrote:
+> On Fri, 28 May 2010 07:53:13 -0300 Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
+> 
+> > kunmap_atomic() is currently at level -4 on Rusty's "Hard To Misuse"
+> > list[1] ("Follow common convention and you'll get it wrong"), except in
+> > some architectures when CONFIG_DEBUG_HIGHMEM is set[2][3].
+> > 
+> > kunmap() takes a pointer to a struct page; kunmap_atomic(), however,
+> > takes takes a pointer to within the page itself. This seems to once in a
+> > while trip people up (the convention they are following is the one from
+> > kunmap()).
+> > 
+> > Make it much harder to misuse, by moving it to level 9 on Rusty's
+> > list[4] ("The compiler/linker won't let you get it wrong"). This is done
+> > by refusing to build if the pointer passed to it is convertible to a
+> > struct page * but it is not a void * (verified by trying to convert it
+> > to a pointer to a dummy struct).
+> > 
+> > The real kunmap_atomic() is renamed to kunmap_atomic_notypecheck()
+> > (which is what you would call in case for some strange reason calling it
+> > with a pointer to a struct page is not incorrect in your code).
+> > 
+> 
+> Fair enough, that's a 99% fix.  A long time ago I made kmap_atomic()
+> return a char * (iirc) and kunmap_atomic() is passed a char*.  It
+> worked, but I ended up throwing it away.  I don't precisely remember
+> why - I think it was intrusiveness and general hassle rather than
+> anything fundamental.
+> 
+> >
+> > ...
+> >
+> > +/* Prevent people trying to call kunmap_atomic() as if it were kunmap() */
+> > +struct __kunmap_atomic_dummy {};
+> > +#define kunmap_atomic(addr, idx) do { \
+> > +		BUILD_BUG_ON( \
+> > +			__builtin_types_compatible_p(typeof(addr), struct page *) && \
+> > +			!__builtin_types_compatible_p(typeof(addr), struct __kunmap_atomic_dummy *)); \
+> > +		kunmap_atomic_notypecheck((addr), (idx)); \
+> > +	} while (0)
+> 
+> <looks around>
+> 
+> OK, it seems that __builtin_types_compatible_p() is supported on all
+> approved gcc versions.
+> 
+> We have a little __same_type() helper for this.  __must_be_array()
+> should be using it, too.
 
-__oom_kill_task also use find_lock_task_mm(). because if sysctl_oom_kill_allocating_task
-is true, __out_of_memory() don't call select_bad_process().
+Yep... but I think BUILD_BUG_ON(__same_type((addr), struct page *)); is
+sufficient; void * is not compatible in my quick tests here.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/oom_kill.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+Andrew, want to take this?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 30d9da0..f6aa3fc 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -394,12 +394,11 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
- 		return;
- 	}
+Subject: Use __same_type() in __must_be_array()
+
+We should use the __same_type() helper in __must_be_array().
+
+Reported-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+
+diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
+--- a/include/linux/compiler-gcc.h
++++ b/include/linux/compiler-gcc.h
+@@ -35,8 +35,7 @@
+     (typeof(ptr)) (__ptr + (off)); })
  
--	task_lock(p);
--	if (!p->mm) {
-+	p = find_lock_task_mm(p);
-+	if (!p) {
- 		WARN_ON(1);
- 		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
- 			task_pid_nr(p), p->comm);
--		task_unlock(p);
- 		return;
- 	}
+ /* &a[0] degrades to a pointer: a different type from an array */
+-#define __must_be_array(a) \
+-  BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a), typeof(&a[0])))
++#define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
  
--- 
-1.6.5.2
-
-
+ /*
+  * Force always-inline if the user requests it so via the .config,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
