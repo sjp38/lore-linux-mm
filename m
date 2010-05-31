@@ -1,117 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0A96F6B01BB
-	for <linux-mm@kvack.org>; Sun, 30 May 2010 20:25:53 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4V0PoPb011467
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 31 May 2010 09:25:50 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C256A3270B9
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 09:25:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9331C45DE4E
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 09:25:49 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A6DF1DB8041
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 09:25:49 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E5D91DB803B
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 09:25:49 +0900 (JST)
-Date: Mon, 31 May 2010 09:21:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D4F876B01C1
+	for <linux-mm@kvack.org>; Sun, 30 May 2010 22:16:10 -0400 (EDT)
+Received: by pvc21 with SMTP id 21so1476521pvc.14
+        for <linux-mm@kvack.org>; Sun, 30 May 2010 19:16:09 -0700 (PDT)
+Date: Sun, 30 May 2010 23:15:59 -0300
+From: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
 Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-Message-Id: <20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100528164826.GJ11364@uudg.org>
-References: <20100528143605.7E2A.A69D9226@jp.fujitsu.com>
-	<AANLkTikB-8Qu03VrA5Z0LMXM_alSV7SLqzl-MmiLmFGv@mail.gmail.com>
-	<20100528145329.7E2D.A69D9226@jp.fujitsu.com>
-	<20100528125305.GE11364@uudg.org>
-	<20100528140623.GA11041@barrios-desktop>
-	<20100528143617.GF11364@uudg.org>
-	<20100528151249.GB12035@barrios-desktop>
-	<20100528152842.GH11364@uudg.org>
-	<20100528154549.GC12035@barrios-desktop>
-	<20100528164826.GJ11364@uudg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20100531021559.GA19784@uudg.org>
+References: <20100528154549.GC12035@barrios-desktop>
+ <20100528164826.GJ11364@uudg.org>
+ <20100529125136.62CA.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100529125136.62CA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 May 2010 13:48:26 -0300
-"Luis Claudio R. Goncalves" <lclaudio@uudg.org> wrote:
+On Sat, May 29, 2010 at 12:59:09PM +0900, KOSAKI Motohiro wrote:
+| Hi
+| 
+| > oom-killer: give the dying task rt priority (v3)
+| > 
+| > Give the dying task RT priority so that it can be scheduled quickly and die,
+| > freeing needed memory.
+| > 
+| > Signed-off-by: Luis Claudio R. Goncalves <lgoncalv@redhat.com>
+| 
+| Almostly acceptable to me. but I have two requests, 
+| 
+| - need 1) force_sig() 2)sched_setscheduler() order as Oleg mentioned
+| - don't boost priority if it's in mem_cgroup_out_of_memory()
+| 
+| Can you accept this? if not, can you please explain the reason?
+| 
+| Thanks.
 
-> On Sat, May 29, 2010 at 12:45:49AM +0900, Minchan Kim wrote:
-> | On Fri, May 28, 2010 at 12:28:42PM -0300, Luis Claudio R. Goncalves wrote:
-> | > On Sat, May 29, 2010 at 12:12:49AM +0900, Minchan Kim wrote:
-> ...
-> | > | I think highest RT proirity ins't good solution.
-> | > | As I mentiond, Some RT functions don't want to be preempted by other processes
-> | > | which cause memory pressure. It makes RT task broken.
-> | > 
-> | > For the RT case, if you reached a system OOM situation, your determinism has
-> | > already been hurt. If the memcg OOM happens on the same memcg your RT task
-> | > is - what will probably be the case most of time - again, the determinism
-> | > has deteriorated. For both these cases, giving the dying task SCHED_FIFO
-> | > MAX_RT_PRIO-1 means a faster recovery.
-> | 
-> | What I want to say is that determinisic has no relation with OOM. 
-> | Why is some RT task affected by other process's OOM?
-> | 
-> | Of course, if system has no memory, it is likely to slow down RT task. 
-> | But it's just only thought. If some task scheduled just is exit, we don't need
-> | to raise OOMed task's priority.
-> | 
-> | But raising min rt priority on your patch was what I want.
-> | It doesn't preempt any RT task.
-> | 
-> | So until now, I have made noise about your patch.
-> | Really, sorry for that. 
-> | I don't have any objection on raising priority part from now on. 
-> 
-> This is the third version of the patch, factoring in your input along with
-> Peter's comment. Basically the same patch, but using the lowest RT priority
-> to boost the dying task.
-> 
-> Thanks again for reviewing and commenting.
-> Luis
-> 
-> oom-killer: give the dying task rt priority (v3)
-> 
-> Give the dying task RT priority so that it can be scheduled quickly and die,
-> freeing needed memory.
-> 
-> Signed-off-by: Luis Claudio R. GonA?alves <lgoncalv@redhat.com>
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 84bbba2..2b0204f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -266,6 +266,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
->   */
->  static void __oom_kill_task(struct task_struct *p, int verbose)
->  {
-> +	struct sched_param param;
-> +
->  	if (is_global_init(p)) {
->  		WARN_ON(1);
->  		printk(KERN_WARNING "tried to kill init!\n");
-> @@ -288,6 +290,8 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
->  	 * exit() and clear out its resources quickly...
->  	 */
->  	p->time_slice = HZ;
-> +	param.sched_priority = MAX_RT_PRIO-10;
-> +	sched_setscheduler(p, SCHED_FIFO, &param);
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
->  
+The last patch I posted was the wrong patch from my queue. Sorry for the
+confusion. Here is the last version of the patch, including the suggestions
+from Oleg, Peter and Kosaki Motohiro:
 
-BTW, how about the other threads which share mm_struct ?
 
-Thanks,
--Kame
+oom-kill: give the dying task a higher priority (v4)
+
+In a system under heavy load it was observed that even after the
+oom-killer selects a task to die, the task may take a long time to die.
+
+Right before sending a SIGKILL to the task selected by the oom-killer
+this task has it's priority increased so that it can exit() exit soon,
+freeing memory. That is accomplished by:
+
+        /*
+         * We give our sacrificial lamb high priority and access to
+         * all the memory it needs. That way it should be able to
+         * exit() and clear out its resources quickly...
+         */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+
+It sounds plausible giving the dying task an even higher priority to be
+sure it will be scheduled sooner and free the desired memory. It was
+suggested on LKML using SCHED_FIFO:1, the lowest RT priority so that this
+task won't interfere with any running RT task.
+
+Another good suggestion, implemented here, was to avoid boosting the dying
+task priority in case of mem_cgroup OOM.
+
+Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 709aedf..6a25293 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -380,7 +380,8 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+  * set.
+  */
+-static void __oom_kill_task(struct task_struct *p, int verbose)
++static void __oom_kill_task(struct task_struct *p, struct mem_cgroup *mem,
++								int verbose)
+ {
+ 	if (is_global_init(p)) {
+ 		WARN_ON(1);
+@@ -413,11 +414,20 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
+ 	 */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+-
+ 	force_sig(SIGKILL, p);
++	/*
++	 * If this is a system OOM (not a memcg OOM), speed up the recovery
++	 * by boosting the dying task priority to the lowest FIFO priority.
++	 * That helps with the recovery and avoids interfering with RT tasks.
++	 */
++	if (mem == NULL) {
++		struct sched_param param;
++		param.sched_priority = 1;
++		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
++	}
+ }
+ 
+-static int oom_kill_task(struct task_struct *p)
++static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ {
+ 	/* WARNING: mm may not be dereferenced since we did not obtain its
+ 	 * value from get_task_mm(p).  This is OK since all we need to do is
+@@ -430,7 +440,7 @@ static int oom_kill_task(struct task_struct *p)
+ 	if (!p->mm || p->signal->oom_adj == OOM_DISABLE)
+ 		return 1;
+ 
+-	__oom_kill_task(p, 1);
++	__oom_kill_task(p, mem, 1);
+ 
+ 	return 0;
+ }
+@@ -449,7 +459,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+ 	 */
+ 	if (p->flags & PF_EXITING) {
+-		__oom_kill_task(p, 0);
++		__oom_kill_task(p, mem, 0);
+ 		return 0;
+ 	}
+ 
+@@ -462,10 +472,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(c, mem))
+ 			continue;
+-		if (!oom_kill_task(c))
++		if (!oom_kill_task(c, mem))
+ 			return 0;
+ 	}
+-	return oom_kill_task(p);
++	return oom_kill_task(p, mem);
+ }
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+
+-- 
+[ Luis Claudio R. Goncalves                    Bass - Gospel - RT ]
+[ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
