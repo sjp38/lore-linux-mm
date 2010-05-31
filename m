@@ -1,40 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AA5836B01C1
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 01:01:05 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so2657177gyg.14
-        for <linux-mm@kvack.org>; Sun, 30 May 2010 22:01:04 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6EE156B01C1
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 01:06:49 -0400 (EDT)
+Received: by gwb19 with SMTP id 19so2635918gwb.14
+        for <linux-mm@kvack.org>; Sun, 30 May 2010 22:06:48 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100528143605.7E2A.A69D9226@jp.fujitsu.com>
-	<AANLkTikB-8Qu03VrA5Z0LMXM_alSV7SLqzl-MmiLmFGv@mail.gmail.com>
-	<20100528145329.7E2D.A69D9226@jp.fujitsu.com>
-	<20100528125305.GE11364@uudg.org>
-	<20100528140623.GA11041@barrios-desktop>
-	<20100528143617.GF11364@uudg.org>
-	<20100528151249.GB12035@barrios-desktop>
-	<20100528152842.GH11364@uudg.org>
-	<20100528154549.GC12035@barrios-desktop>
+In-Reply-To: <20100529125136.62CA.A69D9226@jp.fujitsu.com>
+References: <20100528154549.GC12035@barrios-desktop>
 	<20100528164826.GJ11364@uudg.org>
-	<20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 31 May 2010 14:01:03 +0900
-Message-ID: <AANLkTikFk_HnZWPG0s_VrRkro2rruEc8OBX5KfKp_QdX@mail.gmail.com>
+	<20100529125136.62CA.A69D9226@jp.fujitsu.com>
+Date: Mon, 31 May 2010 14:06:48 +0900
+Message-ID: <AANLkTimg3PuUAmUUib2pdXNyEeniccLSCEvAm9jtKNji@mail.gmail.com>
 Subject: Re: [RFC] oom-kill: give the dying task a higher priority
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Kame.
+Hi, Kosaki.
 
-On Mon, May 31, 2010 at 9:21 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 28 May 2010 13:48:26 -0300
-> "Luis Claudio R. Goncalves" <lclaudio@uudg.org> wrote:
->>
+On Sat, May 29, 2010 at 12:59 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
 >> oom-killer: give the dying task rt priority (v3)
 >>
 >> Give the dying task RT priority so that it can be scheduled quickly and =
@@ -42,44 +33,20 @@ die,
 >> freeing needed memory.
 >>
 >> Signed-off-by: Luis Claudio R. Gon=C3=A7alves <lgoncalv@redhat.com>
->>
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 84bbba2..2b0204f 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -266,6 +266,8 @@ static struct task_struct *select_bad_process(unsign=
-ed long *ppoints)
->> =C2=A0 */
->> =C2=A0static void __oom_kill_task(struct task_struct *p, int verbose)
->> =C2=A0{
->> + =C2=A0 =C2=A0 struct sched_param param;
->> +
->> =C2=A0 =C2=A0 =C2=A0 if (is_global_init(p)) {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 WARN_ON(1);
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 printk(KERN_WARNING "tr=
-ied to kill init!\n");
->> @@ -288,6 +290,8 @@ static void __oom_kill_task(struct task_struct *p, i=
-nt verbose)
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0* exit() and clear out its resources quickly.=
-..
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> =C2=A0 =C2=A0 =C2=A0 p->time_slice =3D HZ;
->> + =C2=A0 =C2=A0 param.sched_priority =3D MAX_RT_PRIO-10;
->> + =C2=A0 =C2=A0 sched_setscheduler(p, SCHED_FIFO, &param);
->> =C2=A0 =C2=A0 =C2=A0 set_tsk_thread_flag(p, TIF_MEMDIE);
->>
 >
-> BTW, how about the other threads which share mm_struct ?
-
-Could you elaborate your intention? :)
-
+> Almostly acceptable to me. but I have two requests,
 >
-> Thanks,
-> -Kame
->
->
+> - need 1) force_sig() 2)sched_setscheduler() order as Oleg mentioned
+> - don't boost priority if it's in mem_cgroup_out_of_memory()
 
+Why do you want to not boost priority if it's path of memcontrol?
 
+If it's path of memcontrol and CONFIG_CGROUP_MEM_RES_CTLR is enabled,
+mem_cgroup_out_of_memory will select victim task in memcg.
+So __oom_kill_task's target task would be in memcg, I think.
+
+As you and memcg guys don't complain this, I would be missing something.
+Could you explain it? :)
 
 --=20
 Kind regards,
