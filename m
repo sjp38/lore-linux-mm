@@ -1,136 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 377C76B01C1
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 02:09:45 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so2682135gyg.14
-        for <linux-mm@kvack.org>; Sun, 30 May 2010 23:09:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100531145415.5e53f837.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100528143605.7E2A.A69D9226@jp.fujitsu.com>
-	<AANLkTikB-8Qu03VrA5Z0LMXM_alSV7SLqzl-MmiLmFGv@mail.gmail.com>
-	<20100528145329.7E2D.A69D9226@jp.fujitsu.com>
-	<20100528125305.GE11364@uudg.org>
-	<20100528140623.GA11041@barrios-desktop>
-	<20100528143617.GF11364@uudg.org>
-	<20100528151249.GB12035@barrios-desktop>
-	<20100528152842.GH11364@uudg.org>
-	<20100528154549.GC12035@barrios-desktop>
-	<20100528164826.GJ11364@uudg.org>
-	<20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikFk_HnZWPG0s_VrRkro2rruEc8OBX5KfKp_QdX@mail.gmail.com>
-	<20100531140443.b36a4f02.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTil75ziCd6bivhpmwojvhaJ2LVxwEaEaBEmZf2yN@mail.gmail.com>
-	<20100531145415.5e53f837.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 31 May 2010 15:09:41 +0900
-Message-ID: <AANLkTilcuY5e1DNmLhUWfXtiQgPUafz2zRTUuTVl-88l@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 069D16B01C1
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 02:35:34 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4V6ZW0T010551
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 31 May 2010 15:35:32 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6355F45DE4E
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 15:35:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 43D2745DE4F
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 15:35:32 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 16187E18003
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 15:35:32 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C79B91DB8045
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 15:35:31 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <AANLkTimg3PuUAmUUib2pdXNyEeniccLSCEvAm9jtKNji@mail.gmail.com>
+References: <20100529125136.62CA.A69D9226@jp.fujitsu.com> <AANLkTimg3PuUAmUUib2pdXNyEeniccLSCEvAm9jtKNji@mail.gmail.com>
+Message-Id: <20100531152424.739D.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Mon, 31 May 2010 15:35:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 31, 2010 at 2:54 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Mon, 31 May 2010 14:46:05 +0900
-> Minchan Kim <minchan.kim@gmail.com> wrote:
->
->> On Mon, May 31, 2010 at 2:04 PM, KAMEZAWA Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > On Mon, 31 May 2010 14:01:03 +0900
->> > Minchan Kim <minchan.kim@gmail.com> wrote:
->> >
->> >> Hi, Kame.
->> >>
->> >> On Mon, May 31, 2010 at 9:21 AM, KAMEZAWA Hiroyuki
->> >> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> >> > On Fri, 28 May 2010 13:48:26 -0300
->> >> > "Luis Claudio R. Goncalves" <lclaudio@uudg.org> wrote:
->> >> >>
->> >> >> oom-killer: give the dying task rt priority (v3)
->> >> >>
->> >> >> Give the dying task RT priority so that it can be scheduled quickl=
-y and die,
->> >> >> freeing needed memory.
->> >> >>
->> >> >> Signed-off-by: Luis Claudio R. Gon=C3=A7alves <lgoncalv@redhat.com=
->
->> >> >>
->> >> >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> >> >> index 84bbba2..2b0204f 100644
->> >> >> --- a/mm/oom_kill.c
->> >> >> +++ b/mm/oom_kill.c
->> >> >> @@ -266,6 +266,8 @@ static struct task_struct *select_bad_process(=
-unsigned long *ppoints)
->> >> >> =C2=A0 */
->> >> >> =C2=A0static void __oom_kill_task(struct task_struct *p, int verbo=
-se)
->> >> >> =C2=A0{
->> >> >> + =C2=A0 =C2=A0 struct sched_param param;
->> >> >> +
->> >> >> =C2=A0 =C2=A0 =C2=A0 if (is_global_init(p)) {
->> >> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 WARN_ON(1);
->> >> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 printk(KERN_WARNI=
-NG "tried to kill init!\n");
->> >> >> @@ -288,6 +290,8 @@ static void __oom_kill_task(struct task_struct=
- *p, int verbose)
->> >> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0* exit() and clear out its resources qu=
-ickly...
->> >> >> =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> >> >> =C2=A0 =C2=A0 =C2=A0 p->time_slice =3D HZ;
->> >> >> + =C2=A0 =C2=A0 param.sched_priority =3D MAX_RT_PRIO-10;
->> >> >> + =C2=A0 =C2=A0 sched_setscheduler(p, SCHED_FIFO, &param);
->> >> >> =C2=A0 =C2=A0 =C2=A0 set_tsk_thread_flag(p, TIF_MEMDIE);
->> >> >>
->> >> >
->> >> > BTW, how about the other threads which share mm_struct ?
->> >>
->> >> Could you elaborate your intention? :)
->> >>
->> >
->> > IIUC, the purpose of rising priority is to accerate dying thread to ex=
-it()
->> > for freeing memory AFAP. But to free memory, exit, all threads which s=
-hare
->> > mm_struct should exit, too. I'm sorry if I miss something.
->>
->> How do we kill only some thread and what's the benefit of it?
->> I think when if some thread receives =C2=A0KILL signal, the process incl=
-ude
->> the thread will be killed.
->>
-> yes, so, if you want a _process_ die quickly, you have to acceralte the w=
-hole
-> threads on a process. Acceralating a thread in a process is not big help.
+Hi
 
-Yes.
+> Hi, Kosaki.
+> 
+> On Sat, May 29, 2010 at 12:59 PM, KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > Hi
+> >
+> >> oom-killer: give the dying task rt priority (v3)
+> >>
+> >> Give the dying task RT priority so that it can be scheduled quickly and die,
+> >> freeing needed memory.
+> >>
+> >> Signed-off-by: Luis Claudio R. GonA?alves <lgoncalv@redhat.com>
+> >
+> > Almostly acceptable to me. but I have two requests,
+> >
+> > - need 1) force_sig() 2)sched_setscheduler() order as Oleg mentioned
+> > - don't boost priority if it's in mem_cgroup_out_of_memory()
+> 
+> Why do you want to not boost priority if it's path of memcontrol?
+> 
+> If it's path of memcontrol and CONFIG_CGROUP_MEM_RES_CTLR is enabled,
+> mem_cgroup_out_of_memory will select victim task in memcg.
+> So __oom_kill_task's target task would be in memcg, I think.
 
-I see the code.
-oom_kill_process is called by
+Yep.
+But priority boost naturally makes CPU starvation for out of the group
+processes.
+It seems to break cgroup's isolation concept.
 
-1. mem_cgroup_out_of_memory
-2. __out_of_memory
-3. out_of_memory
+> As you and memcg guys don't complain this, I would be missing something.
+> Could you explain it? :)
 
+So, My points are, 
 
-(1,2) calls select_bad_process which select victim task in processes
-by do_each_process.
-But 3 isn't In case of  CONSTRAINT_MEMORY_POLICY, it kills current.
-In only the case, couldn't we pass task of process, not one of thread?
+1) Usually priority boost is wrong idea. It have various side effect, but
+   system wide OOM is one of exception. In such case, all tasks aren't 
+   runnable, then, the downside is acceptable.
+2) memcg have OOM notification mechanism. If the admin need priority boost,
+   they can do it by their OOM-daemon.
 
->
-> Thanks,
-> -Kame
->
->
+Thanks.
 
-
-
---=20
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
