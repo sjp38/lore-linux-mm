@@ -1,111 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 391E56B01C1
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 03:30:13 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o4V7UBYe002720
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 31 May 2010 16:30:11 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BBA945DE51
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 16:30:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D37145DE5D
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 16:30:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B778CE18017
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 16:30:09 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 54C691DB803C
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 16:30:09 +0900 (JST)
-Date: Mon, 31 May 2010 16:25:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-Message-Id: <20100531162552.f7439bc0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTilYtODW-8Ey2IUTT2lRR3sy0kgSOO7rN32rjvux@mail.gmail.com>
-References: <20100529125136.62CA.A69D9226@jp.fujitsu.com>
-	<AANLkTimg3PuUAmUUib2pdXNyEeniccLSCEvAm9jtKNji@mail.gmail.com>
-	<20100531152424.739D.A69D9226@jp.fujitsu.com>
-	<AANLkTilYtODW-8Ey2IUTT2lRR3sy0kgSOO7rN32rjvux@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 093116B01C1
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 04:07:59 -0400 (EDT)
+Date: Mon, 31 May 2010 18:07:57 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: vmap area cache
+Message-ID: <20100531080757.GE9453@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: Steven Whitehouse <swhiteho@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 31 May 2010 16:05:48 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+Hi Andrew,
 
-> On Mon, May 31, 2010 at 3:35 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > Hi
-> >
-> >> Hi, Kosaki.
-> >>
-> >> On Sat, May 29, 2010 at 12:59 PM, KOSAKI Motohiro
-> >> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> > Hi
-> >> >
-> >> >> oom-killer: give the dying task rt priority (v3)
-> >> >>
-> >> >> Give the dying task RT priority so that it can be scheduled quickly and die,
-> >> >> freeing needed memory.
-> >> >>
-> >> >> Signed-off-by: Luis Claudio R. GonA?alves <lgoncalv@redhat.com>
-> >> >
-> >> > Almostly acceptable to me. but I have two requests,
-> >> >
-> >> > - need 1) force_sig() 2)sched_setscheduler() order as Oleg mentioned
-> >> > - don't boost priority if it's in mem_cgroup_out_of_memory()
-> >>
-> >> Why do you want to not boost priority if it's path of memcontrol?
-> >>
-> >> If it's path of memcontrol and CONFIG_CGROUP_MEM_RES_CTLR is enabled,
-> >> mem_cgroup_out_of_memory will select victim task in memcg.
-> >> So __oom_kill_task's target task would be in memcg, I think.
-> >
-> > Yep.
-> > But priority boost naturally makes CPU starvation for out of the group
-> > processes.
-> > It seems to break cgroup's isolation concept.
-> >
-> >> As you and memcg guys don't complain this, I would be missing something.
-> >> Could you explain it? :)
-> >
-> > So, My points are,
-> >
-> > 1) Usually priority boost is wrong idea. It have various side effect, but
-> > A  system wide OOM is one of exception. In such case, all tasks aren't
-> > A  runnable, then, the downside is acceptable.
-> > 2) memcg have OOM notification mechanism. If the admin need priority boost,
-> > A  they can do it by their OOM-daemon.
-> 
-> Is it possible kill the hogging task immediately when the daemon send
-> kill signal?
-> I mean we can make OOM daemon higher priority than others and it can
-> send signal to normal process. but when is normal process exited after
-> receiving kill signal from OOM daemon? Maybe it's when killed task is
-> executed by scheduler. It's same problem again, I think.
-> 
-> Kame, Do you have an idea?
-> 
-This is just an idea and I have no implementaion, yet.
-
-With memcg, oom situation can be recovered by "enlarging limit temporary".
-Then, what the daemon has to do is
-
- 1. send signal (kill or other signal to abort for coredump.) 
- 2. move a problematic task to a jail if necessary.
- 3. enlarge limit for indicating "Go"
- 4. After stabilization, reduce the limit.
-
-This is the fastest. Admin has to think of extra-room or jails and
-the daemon should be enough clever. But in most case, I think this works well.
+Could you put this in your tree? It could do with a bit more testing. I
+will update you with updates or results from Steven.
 
 Thanks,
--Kame
+Nick
+--
+
+Provide a free area cache for the vmalloc virtual address allocator, based
+on the approach taken in the user virtual memory allocator.
+
+This reduces the number of rbtree operations and linear traversals over
+the vmap extents to find a free area. The lazy vmap flushing makes this problem
+worse because because freed but not yet flushed vmaps tend to build up in
+the address space between flushes.
+
+Steven noticed a performance problem with GFS2. Results are as follows...
+
+
+
+ mm/vmalloc.c |  100 ++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 78 insertions(+), 22 deletions(-)
+
+Index: linux-2.6/mm/vmalloc.c
+===================================================================
+--- linux-2.6.orig/mm/vmalloc.c
++++ linux-2.6/mm/vmalloc.c
+@@ -262,8 +262,14 @@ struct vmap_area {
+ };
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+-static struct rb_root vmap_area_root = RB_ROOT;
+ static LIST_HEAD(vmap_area_list);
++static struct rb_root vmap_area_root = RB_ROOT;
++
++static struct rb_node *free_vmap_cache;
++static unsigned long cached_hole_size;
++static unsigned long cached_start;
++static unsigned long cached_align;
++
+ static unsigned long vmap_area_pcpu_hole;
+ 
+ static struct vmap_area *__find_vmap_area(unsigned long addr)
+@@ -332,9 +338,11 @@ static struct vmap_area *alloc_vmap_area
+ 	struct rb_node *n;
+ 	unsigned long addr;
+ 	int purged = 0;
++	struct vmap_area *first;
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(size & ~PAGE_MASK);
++	BUG_ON(!is_power_of_2(align));
+ 
+ 	va = kmalloc_node(sizeof(struct vmap_area),
+ 			gfp_mask & GFP_RECLAIM_MASK, node);
+@@ -342,17 +350,39 @@ static struct vmap_area *alloc_vmap_area
+ 		return ERR_PTR(-ENOMEM);
+ 
+ retry:
+-	addr = ALIGN(vstart, align);
+-
+ 	spin_lock(&vmap_area_lock);
+-	if (addr + size - 1 < addr)
+-		goto overflow;
++	/* invalidate cache if we have more permissive parameters */
++	if (!free_vmap_cache ||
++			size <= cached_hole_size ||
++			vstart < cached_start ||
++			align < cached_align) {
++nocache:
++		cached_hole_size = 0;
++		free_vmap_cache = NULL;
++	}
++	/* record if we encounter less permissive parameters */
++	cached_start = vstart;
++	cached_align = align;
++
++	/* find starting point for our search */
++	if (free_vmap_cache) {
++		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++		addr = ALIGN(first->va_end + PAGE_SIZE, align);
++		if (addr < vstart)
++			goto nocache;
++		if (addr + size - 1 < addr)
++			goto overflow;
++
++	} else {
++		addr = ALIGN(vstart, align);
++		if (addr + size - 1 < addr)
++			goto overflow;
+ 
+-	/* XXX: could have a last_hole cache */
+-	n = vmap_area_root.rb_node;
+-	if (n) {
+-		struct vmap_area *first = NULL;
++		n = vmap_area_root.rb_node;
++		if (!n)
++			goto found;
+ 
++		first = NULL;
+ 		do {
+ 			struct vmap_area *tmp;
+ 			tmp = rb_entry(n, struct vmap_area, rb_node);
+@@ -369,26 +399,36 @@ retry:
+ 		if (!first)
+ 			goto found;
+ 
+-		if (first->va_end < addr) {
+-			n = rb_next(&first->rb_node);
+-			if (n)
+-				first = rb_entry(n, struct vmap_area, rb_node);
+-			else
+-				goto found;
+-		}
+-
+-		while (addr + size > first->va_start && addr + size <= vend) {
+-			addr = ALIGN(first->va_end + PAGE_SIZE, align);
++		if (first->va_start < addr) {
++			addr = ALIGN(max(first->va_end + PAGE_SIZE, addr), align);
+ 			if (addr + size - 1 < addr)
+ 				goto overflow;
+-
+ 			n = rb_next(&first->rb_node);
+ 			if (n)
+ 				first = rb_entry(n, struct vmap_area, rb_node);
+ 			else
+ 				goto found;
+ 		}
++		BUG_ON(first->va_start < addr);
++		if (addr + cached_hole_size < first->va_start)
++			cached_hole_size = first->va_start - addr;
+ 	}
++
++	/* from the starting point, walk areas until a suitable hole is found */
++	while (addr + size > first->va_start && addr + size <= vend) {
++		if (addr + cached_hole_size < first->va_start)
++			cached_hole_size = first->va_start - addr;
++		addr = ALIGN(first->va_end + PAGE_SIZE, align);
++		if (addr + size - 1 < addr)
++			goto overflow;
++
++		n = rb_next(&first->rb_node);
++		if (n)
++			first = rb_entry(n, struct vmap_area, rb_node);
++		else
++			goto found;
++	}
++
+ found:
+ 	if (addr + size > vend) {
+ overflow:
+@@ -406,14 +446,17 @@ overflow:
+ 		return ERR_PTR(-EBUSY);
+ 	}
+ 
+-	BUG_ON(addr & (align-1));
+-
+ 	va->va_start = addr;
+ 	va->va_end = addr + size;
+ 	va->flags = 0;
+ 	__insert_vmap_area(va);
++	free_vmap_cache = &va->rb_node;
+ 	spin_unlock(&vmap_area_lock);
+ 
++	BUG_ON(va->va_start & (align-1));
++	BUG_ON(va->va_start < vstart);
++	BUG_ON(va->va_end > vend);
++
+ 	return va;
+ }
+ 
+@@ -427,6 +470,19 @@ static void rcu_free_va(struct rcu_head
+ static void __free_vmap_area(struct vmap_area *va)
+ {
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
++
++	if (free_vmap_cache) {
++		if (va->va_end < cached_start) {
++			free_vmap_cache = NULL;
++		} else {
++			struct vmap_area *cache;
++			cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++			if (va->va_start <= cache->va_start) {
++				free_vmap_cache = rb_prev(&va->rb_node);
++				cache = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
++			}
++		}
++	}
+ 	rb_erase(&va->rb_node, &vmap_area_root);
+ 	RB_CLEAR_NODE(&va->rb_node);
+ 	list_del_rcu(&va->list);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
