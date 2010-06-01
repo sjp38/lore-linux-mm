@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AD86B01CD
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:57:18 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o51IvGp8000452
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:57:16 -0700
-Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
-	by wpaz1.hot.corp.google.com with ESMTP id o51IuICr005694
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:57:15 -0700
-Received: by pwi6 with SMTP id 6so5830864pwi.0
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:57:15 -0700 (PDT)
-Date: Tue, 1 Jun 2010 11:57:10 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B5CB26B01D0
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:58:23 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o51IwJs2028945
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:58:19 -0700
+Received: from pzk17 (pzk17.prod.google.com [10.243.19.145])
+	by hpaq1.eem.corp.google.com with ESMTP id o51IwH7B007642
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:58:18 -0700
+Received: by pzk17 with SMTP id 17so2823231pzk.5
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:58:17 -0700 (PDT)
+Date: Tue, 1 Jun 2010 11:58:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 09/18] oom: add forkbomb penalty to badness
- heuristic
-In-Reply-To: <20100601163705.2460.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006011157050.32024@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015220.29202@chino.kir.corp.google.com> <20100601163705.2460.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch -mm 12/18] oom: remove unnecessary code and cleanup
+In-Reply-To: <20100601163954.246F.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006011157520.32024@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010016020.29202@chino.kir.corp.google.com> <20100601163954.246F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,43 +25,28 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 1 Jun 2010, KOSAKI Motohiro wrote:
 
-> > Add a forkbomb penalty for processes that fork an excessively large
-> > number of children to penalize that group of tasks and not others.  A
-> > threshold is configurable from userspace to determine how many first-
-> > generation execve children (those with their own address spaces) a task
-> > may have before it is considered a forkbomb.  This can be tuned by
-> > altering the value in /proc/sys/vm/oom_forkbomb_thres, which defaults to
-> > 1000.
+> > Remove the redundancy in __oom_kill_task() since:
 > > 
-> > When a task has more than 1000 first-generation children with different
-> > address spaces than itself, a penalty of
+> >  - init can never be passed to this function: it will never be PF_EXITING
+> >    or selectable from select_bad_process(), and
 > > 
-> > 	(average rss of children) * (# of 1st generation execve children)
-> > 	-----------------------------------------------------------------
-> > 			oom_forkbomb_thres
+> >  - it will never be passed a task from oom_kill_task() without an ->mm
+> >    and we're unconcerned about detachment from exiting tasks, there's no
+> >    reason to protect them against SIGKILL or access to memory reserves.
 > > 
-> > is assessed.  So, for example, using the default oom_forkbomb_thres of
-> > 1000, the penalty is twice the average rss of all its execve children if
-> > there are 2000 such tasks.  A task is considered to count toward the
-> > threshold if its total runtime is less than one second; for 1000 of such
-> > tasks to exist, the parent process must be forking at an extremely high
-> > rate either erroneously or maliciously.
+> > Also moves the kernel log message to a higher level since the verbosity is
+> > not always emitted here; we need not print an error message if an exiting
+> > task is given a longer timeslice.
 > > 
-> > Even though a particular task may be designated a forkbomb and selected as
-> > the victim, the oom killer will still kill the 1st generation execve child
-> > with the highest badness() score in its place.  The avoids killing
-> > important servers or system daemons.  When a web server forks a very large
-> > number of threads for client connections, for example, it is much better
-> > to kill one of those threads than to kill the server and make it
-> > unresponsive.
-> > 
-> > [oleg@redhat.com: optimize task_lock when iterating children]
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > > Signed-off-by: David Rientjes <rientjes@google.com>
 > 
-> nack
+> need respin.
 > 
 
-Why?
+This is a duplicate of the same patch that you earlier added your 
+Reviewed-by line as cited above, what has changed?  This applies fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
