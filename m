@@ -1,45 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0586B01DD
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:36:24 -0400 (EDT)
-Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
-	by smtp-out.google.com with ESMTP id o51IaIfG025535
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:36:20 -0700
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by hpaq11.eem.corp.google.com with ESMTP id o51IaGs4008932
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:36:17 -0700
-Received: by pxi5 with SMTP id 5so1895446pxi.9
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:36:16 -0700 (PDT)
-Date: Tue, 1 Jun 2010 11:36:05 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 271376B01DD
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:44:36 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id o51IiURp023949
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:44:30 -0700
+Received: from pzk31 (pzk31.prod.google.com [10.243.19.159])
+	by hpaq12.eem.corp.google.com with ESMTP id o51IiMQU011036
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:44:29 -0700
+Received: by pzk31 with SMTP id 31so2601624pzk.16
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:44:29 -0700 (PDT)
+Date: Tue, 1 Jun 2010 11:44:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-In-Reply-To: <AANLkTil5gnDaVt9FXtGnPgQQQ2XLl4MYbNS_hsjdcsVa@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006011132130.32024@chino.kir.corp.google.com>
-References: <20100528152842.GH11364@uudg.org> <20100528154549.GC12035@barrios-desktop> <20100528164826.GJ11364@uudg.org> <20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikFk_HnZWPG0s_VrRkro2rruEc8OBX5KfKp_QdX@mail.gmail.com>
- <20100531140443.b36a4f02.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTil75ziCd6bivhpmwojvhaJ2LVxwEaEaBEmZf2yN@mail.gmail.com> <20100531145415.5e53f837.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTilcuY5e1DNmLhUWfXtiQgPUafz2zRTUuTVl-88l@mail.gmail.com>
- <20100531155102.9a122772.kamezawa.hiroyu@jp.fujitsu.com> <20100531135227.GC19784@uudg.org> <AANLkTil5gnDaVt9FXtGnPgQQQ2XLl4MYbNS_hsjdcsVa@mail.gmail.com>
+Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
+In-Reply-To: <20100601163627.245D.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015030.29202@chino.kir.corp.google.com> <20100601163627.245D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010, Minchan Kim wrote:
+On Tue, 1 Jun 2010, KOSAKI Motohiro wrote:
 
-> Secondly, as Kame pointed out, we have to raise whole thread's
-> priority to kill victim process for reclaiming pages. But I think it
-> has deadlock problem.
+> > This a complete rewrite of the oom killer's badness() heuristic which is
+> > used to determine which task to kill in oom conditions.  The goal is to
+> > make it as simple and predictable as possible so the results are better
+> > understood and we end up killing the task which will lead to the most
+> > memory freeing while still respecting the fine-tuning from userspace.
+> > 
+> > The baseline for the heuristic is a proportion of memory that each task is
+> > currently using in memory plus swap compared to the amount of "allowable"
+> > memory.  "Allowable," in this sense, means the system-wide resources for
+> > unconstrained oom conditions, the set of mempolicy nodes, the mems
+> > attached to current's cpuset, or a memory controller's limit.  The
+> > proportion is given on a scale of 0 (never kill) to 1000 (always kill),
+> > roughly meaning that if a task has a badness() score of 500 that the task
+> > consumes approximately 50% of allowable memory resident in RAM or in swap
+> > space.
+> > 
+> > The proportion is always relative to the amount of "allowable" memory and
+> > not the total amount of RAM systemwide so that mempolicies and cpusets may
+> > operate in isolation; they shall not need to know the true size of the
+> > machine on which they are running if they are bound to a specific set of
+> > nodes or mems, respectively.
+> > 
+> > Root tasks are given 3% extra memory just like __vm_enough_memory()
+> > provides in LSMs.  In the event of two tasks consuming similar amounts of
+> > memory, it is generally better to save root's task.
+> > 
+> > Because of the change in the badness() heuristic's baseline, it is also
+> > necessary to introduce a new user interface to tune it.  It's not possible
+> > to redefine the meaning of /proc/pid/oom_adj with a new scale since the
+> > ABI cannot be changed for backward compatability.  Instead, a new tunable,
+> > /proc/pid/oom_score_adj, is added that ranges from -1000 to +1000.  It may
+> > be used to polarize the heuristic such that certain tasks are never
+> > considered for oom kill while others may always be considered.  The value
+> > is added directly into the badness() score so a value of -500, for
+> > example, means to discount 50% of its memory consumption in comparison to
+> > other tasks either on the system, bound to the mempolicy, in the cpuset,
+> > or sharing the same memory controller.
+> > 
+> > /proc/pid/oom_adj is changed so that its meaning is rescaled into the
+> > units used by /proc/pid/oom_score_adj, and vice versa.  Changing one of
+> > these per-task tunables will rescale the value of the other to an
+> > equivalent meaning.  Although /proc/pid/oom_adj was originally defined as
+> > a bitshift on the badness score, it now shares the same linear growth as
+> > /proc/pid/oom_score_adj but with different granularity.  This is required
+> > so the ABI is not broken with userspace applications and allows oom_adj to
+> > be deprecated for future removal.
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> 
+> nack
+> 
 
-Agreed, this has the potential to actually increase the amount of time for 
-an oom killed task to fully exit: the exit path takes mm->mmap_sem on exit 
-and if that is held by another thread waiting for the oom killed task to 
-exit (i.e. reclaim has failed and the oom killer becomes a no-op because 
-it sees an already killed task) then there's a livelock.  That's always 
-been a problem, but is compounded with increasing the priority of a task 
-not holding mm->mmap_sem if the thread holding the writelock actually 
-isn't looking for memory but simply doesn't get a chance to release 
-because it fails to run.
+Why?
+
+If it's because the patch is too big, I've explained a few times that 
+functionally you can't break it apart into anything meaningful.  I do not 
+believe it is better to break functional changes into smaller patches that 
+simply change function signatures to pass additional arguments that are 
+unused in the first patch, for example.
+
+If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
+allowed since otherwise it would be useless with the old heuristic.  In 
+other words, you cannot apply oom_score_adj's meaning to the bitshift in 
+any sane way.
+
+I'll suggest what I have multiple times: the easiest way to review the 
+functional change here is to merge the patch into your own tree and then 
+review oom_badness().  I agree that the way the diff comes out it is a 
+little difficult to read just from the patch form, so merging it and 
+reviewing the actual heuristic function is the easiest way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
