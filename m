@@ -1,70 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4776B01B6
-	for <linux-mm@kvack.org>; Mon, 31 May 2010 20:24:55 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5247C6B01B6
+	for <linux-mm@kvack.org>; Mon, 31 May 2010 20:57:13 -0400 (EDT)
+Received: by vws13 with SMTP id 13so5533666vws.14
+        for <linux-mm@kvack.org>; Mon, 31 May 2010 17:57:21 -0700 (PDT)
 MIME-Version: 1.0
-Message-ID: <4510198c-1562-4766-9cdc-a1df70b14910@default>
-Date: Mon, 31 May 2010 17:23:52 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V2 0/4] Frontswap (was Transcendent Memory): overview
-References: <20100528174020.GA28150@ca-server1.us.oracle.com>
- <4C02AB5A.5000706@vflare.org> <a38d5a97-1517-46c4-9b2f-27e16aba58f2@default
- 4C040981.8030002@vflare.org>
-In-Reply-To: <4C040981.8030002@vflare.org>
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <2073679454094428814@unknownmsgid>
+References: <20100512133815.0d048a86@annuminas.surriel.com>
+	<20100512134029.36c286c4@annuminas.surriel.com> <20100512210216.GP24989@csn.ul.ie>
+	<4BEB18BB.5010803@redhat.com> <20100513095439.GA27949@csn.ul.ie>
+	<20100513103356.25665186@annuminas.surriel.com> <20100513140919.0a037845.akpm@linux-foundation.org>
+	<4BFC9CCF.6000809@redhat.com> <20100525211520.16e3a034.akpm@linux-foundation.org>
+	<2073679454094428814@unknownmsgid>
+From: james toy <toyj@union.edu>
+Date: Mon, 31 May 2010 20:57:01 -0400
+Message-ID: <AANLkTikUTPz3EwOr09rMNDiSRdvlW9Va9Y3_YuQMecLj@mail.gmail.com>
+Subject: Re: [PATCH -v2 4/5] always lock the root (oldest) anon_vma
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, akpm@linux-foundation.org, riel@redhat.com, avi@redhat.com, pavel@ucw.cz, konrad.wilk@oracle.com
+To: james toy <nil@0xabadba.be>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Linux-MM <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, james toy <mail@wfys.org>, James Toy <0xbaadface@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> From: Nitin Gupta [mailto:ngupta@vflare.org]
+This is now fixed; I am truly sorry for the delay but it was out of my
+hands.  The sysadmin had git 1.7.1 but an old version of guilt (0.3.2)
+which was incompatible.  After the upgrade the watchdog program is
+working fine.  Again thanks for alerting me to this and i'll be
+keeping a closer eye on it since i'm working on the kernel more now
+days.
 
-> frontswap is a particular use case of zram disks. However, we still
-> need to work on some issues with zram:
->  - zram cannot return write/put failures for arbitrary pages. OTOH,
-> frontswap can consult host before every put and may forward pages to
-> in-guest swap device when put fails.
->  - When a swap slot is freed, the notification from guest does
-> not reach zram device(s) as exported from host. OTOH, frontswap calls
-> frontswap_flush() which frees corresponding page from host memory.
->  - Being a block device, it is potentially slower than frontswap
-> approach. But being a generic device, its useful for all kinds
-> of guest OS (including windows etc).
+respectfully,
 
-Hi Nitin --
+=3Djt
 
-This is a good list (not sure offhand it is complete or not) of
-the key differences between zram and frontswap.  Unless/until
-zram solves each of these issues -- which are critical to the
-primary objective of frontswap (namely intelligent overcommit) --
-I simply can't agree that frontswap is a particular use case
-of zram.  Zram is just batched asynchronous I/O to a fixed-size
-device with a bonus of on-the-fly compression.  Cool, yes.
-Useful, yes.  Useful in some cases in a virtualized environment,
-yes.  But a superset/replacement of frontswap, no.
-
-> Yes, zram cannot return write/put failure for arbitrary pages but other
-> than that what additional benefits does frontswap bring? Even with
-> frontswap,
-> whatever pages are once given out to hypervisor just stay there till
-> guest
-> reads them back. Unlike cleancache, you cannot free them at any point.
-> So,
-> it does not seem anyway more flexible than zram.
-
-The flexibility is that the hypervisor can make admittance
-decisions on each individual page... this is exactly what
-allows for intelligent overcommit.  Since the pages "just
-stay there until the guest reads them back", the hypervisor
-must be very careful about which and how many pages it accepts
-and the admittance decisions must be very dynamic, depending
-on a lot of factors not visible to any individual guest
-and not timely enough to be determined by the asynchronous
-"backend I/O" subsystem of a host or dom0.
-
-Thanks,
-Dan
+On Wed, May 26, 2010 at 01:46, james toy <nil@0xabadba.be> wrote:
+> I'll get after this asap; sorry. =A0I'm finishing my last trimester of
+> my B.S. =A0I'll send a message when it's back up with the offending patch=
+.
+>
+> =3Djt
+>
+> On May 26, 2010, at 0:15, Andrew Morton <akpm@linux-foundation.org>
+> wrote:
+>
+>> On Wed, 26 May 2010 00:00:15 -0400 Rik van Riel <riel@redhat.com>
+>> wrote:
+>>
+>>> On 05/13/2010 05:09 PM, Andrew Morton wrote:
+>>>
+>>>> I'm not very confident in merging all these onto the current MM
+>>>> pile.
+>>>
+>>> Blah. =A0I thought I just did that (and wondered why it was
+>>> so easy), and then I saw that the MMOTM git tree is old
+>>> and does not have the COMPACTION code :(
+>>>
+>>
+>> Oh. =A0James's mmotm->git bot might have broken.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
