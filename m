@@ -1,79 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E8C086B0228
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 04:16:33 -0400 (EDT)
-Subject: Re: [rfc] forked kernel task and mm structures imbalanced on NUMA
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100601073343.GQ9453@laptop>
-References: <20100601073343.GQ9453@laptop>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B8B2F6B0229
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 04:19:44 -0400 (EDT)
+Received: by iwn39 with SMTP id 39so707645iwn.14
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 01:19:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100531135227.GC19784@uudg.org>
+References: <20100528152842.GH11364@uudg.org>
+	<20100528154549.GC12035@barrios-desktop>
+	<20100528164826.GJ11364@uudg.org>
+	<20100531092133.73705339.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTikFk_HnZWPG0s_VrRkro2rruEc8OBX5KfKp_QdX@mail.gmail.com>
+	<20100531140443.b36a4f02.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTil75ziCd6bivhpmwojvhaJ2LVxwEaEaBEmZf2yN@mail.gmail.com>
+	<20100531145415.5e53f837.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTilcuY5e1DNmLhUWfXtiQgPUafz2zRTUuTVl-88l@mail.gmail.com>
+	<20100531155102.9a122772.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100531135227.GC19784@uudg.org>
+Date: Tue, 1 Jun 2010 17:19:42 +0900
+Message-ID: <AANLkTil5gnDaVt9FXtGnPgQQQ2XLl4MYbNS_hsjdcsVa@mail.gmail.com>
+Subject: Re: [RFC] oom-kill: give the dying task a higher priority
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
-Date: Tue, 01 Jun 2010 10:16:42 +0200
-Message-ID: <1275380202.27810.26214.camel@twins>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-06-01 at 17:33 +1000, Nick Piggin wrote:
-> Another problem I found when testing this patch is that the scheduler
-> has some issues of its own when balancing. This is improved by
-> traversing the sd groups starting from a different spot each time, so
-> processes get sprinkled around the nodes a bit better.
+On Mon, May 31, 2010 at 10:52 PM, Luis Claudio R. Goncalves
+<lclaudio@uudg.org> wrote:
+> On Mon, May 31, 2010 at 03:51:02PM +0900, KAMEZAWA Hiroyuki wrote:
+> | On Mon, 31 May 2010 15:09:41 +0900
+> | Minchan Kim <minchan.kim@gmail.com> wrote:
+> | > On Mon, May 31, 2010 at 2:54 PM, KAMEZAWA Hiroyuki
+> | > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> ...
+> | > >> > IIUC, the purpose of rising priority is to accerate dying thread=
+ to exit()
+> | > >> > for freeing memory AFAP. But to free memory, exit, all threads w=
+hich share
+> | > >> > mm_struct should exit, too. I'm sorry if I miss something.
+> | > >>
+> | > >> How do we kill only some thread and what's the benefit of it?
+> | > >> I think when if some thread receives =C2=A0KILL signal, the proces=
+s include
+> | > >> the thread will be killed.
+> | > >>
+> | > > yes, so, if you want a _process_ die quickly, you have to acceralte=
+ the whole
+> | > > threads on a process. Acceralating a thread in a process is not big=
+ help.
+> | >
+> | > Yes.
+> | >
+> | > I see the code.
+> | > oom_kill_process is called by
+> | >
+> | > 1. mem_cgroup_out_of_memory
+> | > 2. __out_of_memory
+> | > 3. out_of_memory
+> | >
+> | >
+> | > (1,2) calls select_bad_process which select victim task in processes
+> | > by do_each_process.
+> | > But 3 isn't In case of =C2=A0CONSTRAINT_MEMORY_POLICY, it kills curre=
+nt.
+> | > In only the case, couldn't we pass task of process, not one of thread=
+?
+> | >
+> |
+> | Hmm, my point is that priority-acceralation is against a thread, not ag=
+ainst a process.
+> | So, most of threads in memory-eater will not gain high priority even wi=
+th this patch
+> | and works slowly.
+>
+> This is a good point...
+>
+> | I have no objections to this patch. I just want to confirm the purpose.=
+ If this patch
+> | is for accelating exiting process by SIGKILL, it seems not enough.
+>
+> I understand (from the comments in the code) the badness calculation give=
+s more
+> points to the siblings in a thread that have their own mm. I wonder if wh=
+at you
+> are describing is not a corner case.
+>
+> Again, your idea sounds like an interesting refinement to the patch. I am
+> just not sure this change should implemented now or in a second round of
+> changes.
 
-Right, makes sense. And I think we could merge that group iteration
-without much problems.
-
-Your alternative placement for sched_exec() seems to make sense too, the
-earlier we do that the better the memory allocations will be.
-
-Your changes to sched_fork() and wake_up_new_task() made my head hurt a
-bit -- but that's not your fault. I'm not quite sure why you're changing
-that though.
-
-The addition of sched_fork_suggest_cpu() to select a target node seems
-to make sense, but since you then call fork balancing a second time we
-have a chance of ending up on a totally different node all together.
-
-So I think it would make sense to rework the fork balancing muck to be
-called only once and stick with its decision.
-
-One thing that would make the whole fork path much easier is fully
-ripping out that child_runs_first mess for CONFIG_SMP, I think its been
-disabled by default for long enough, and its always been broken in the
-face of fork balancing anyway.
-
-So basically we have to move fork balancing back to sched_fork(), I'd
-have to again look at wth happens to ->cpus_allowed, but I guess it
-should be fixable, and I don't think we should care overly much about
-cpu-hotplug.
+First of all, I think your patch is first.
+That's because I am not sure this logic is effective.
 
 
-A specific code comment:
+        /*
+         * We give our sacrificial lamb high priority and access to
+         * all the memory it needs. That way it should be able to
+         * exit() and clear out its resources quickly...
+         */
+        p->rt.time_slice =3D HZ;
 
-> @@ -2550,14 +2561,16 @@ void wake_up_new_task(struct task_struct
->          * We set TASK_WAKING so that select_task_rq() can drop rq->lock
->          * without people poking at ->cpus_allowed.
->          */
-> -       cpu =3D select_task_rq(rq, p, SD_BALANCE_FORK, 0);
-> -       set_task_cpu(p, cpu);
-> -
-> -       p->state =3D TASK_RUNNING;
-> -       task_rq_unlock(rq, &flags);
-> +       if (!cpumask_test_cpu(cpu, &p->cpus_allowed)) {
-> +               p->state =3D TASK_WAKING;
-> +               cpu =3D select_task_rq(rq, p, SD_BALANCE_FORK, 0);
-> +               set_task_cpu(p, cpu);
-> +               p->state =3D TASK_RUNNING;
-> +               task_rq_unlock(rq, &flags);
-> +               rq =3D task_rq_lock(p, &flags);
-> +       }
->  #endif
+Peter changed it in fa717060f1ab.
+Now if we change rt.time_slice as HZ, it means the task have high priority?
+I am not a scheduler expert. but as I looked through scheduler code,
+rt.time_slice is only related to RT scheduler. so if we uses CFS, it
+doesn't make task high priority.
+Perter, Right?
 
-That's iffy because p->cpus_allowed isn't stable when we're not holding
-the task's current rq->lock or p->state is not TASK_WAKING.
+If it is right, I think Luis patch will fix it.
 
+Secondly, as Kame pointed out, we have to raise whole thread's
+priority to kill victim process for reclaiming pages. But I think it
+has deadlock problem.
+If we raise whole threads's priority and some thread has dependency of
+other thread which is blocked, it makes system deadlock. So I think
+it's not easy part.
+
+If this part is really big problem, we should consider it more carefully.
+
+>
+> | If an explanation as "acceralating all thread's priority in a process s=
+eems overkill"
+> | is given in changelog or comment, it's ok to me.
+>
+> If my understanding of badness() is right, I wouldn't be ashamed of sayin=
+g
+> that it seems to be _a bit_ overkill. But I may be wrong in my
+> interpretation.
+>
+> While re-reading the code I noticed that in select_bad_process() we can
+> eventually bump on an already dying task, case in which we just wait for
+> the task to die and avoid killing other tasks. Maybe we could boost the
+> priority of the dying task here too.
+
+Yes. It is good where we boost priority of task, I think.
+
+>
+> Luis
+> --
+> [ Luis Claudio R. Goncalves =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0Bass - Gospel - RT ]
+> [ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9 =C2=A02696 7203 D980 A448 C8F8 ]
+>
+>
+
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
