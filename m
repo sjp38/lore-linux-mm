@@ -1,48 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7CE9E6B01D6
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 15:52:21 -0400 (EDT)
-Date: Tue, 1 Jun 2010 14:48:58 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: Possible bug in 2.6.34 slub
-In-Reply-To: <20100601123959.747228c6.rdunlap@xenotime.net>
-Message-ID: <alpine.DEB.2.00.1006011445100.9438@router.home>
-References: <AANLkTimEFy6VM3InWlqhVooQjKGSD3yBxlgeRbQC2r1L@mail.gmail.com> <20100531165528.35a323fb.rdunlap@xenotime.net> <4C047CF9.9000804@tmr.com> <AANLkTilLq-hn59CBcLnOsnT37ZizQR6MrZX6btKPhfpb@mail.gmail.com>
- <20100601123959.747228c6.rdunlap@xenotime.net>
+	by kanga.kvack.org (Postfix) with SMTP id 8B2946B01CB
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:20:05 -0400 (EDT)
+Date: Tue, 1 Jun 2010 22:18:43 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/5] oom: select_bad_process: PF_EXITING check should
+	take ->mm into account
+Message-ID: <20100601201843.GA20732@redhat.com>
+References: <20100531183335.1846.A69D9226@jp.fujitsu.com> <20100531164354.GA9991@redhat.com> <20100601093951.2430.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100601093951.2430.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Giangiacomo Mariotti <gg.mariotti@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010, Randy Dunlap wrote:
-
-> > >>> My cpu is an I7 920, so it has 4 cores and there's hyperthreading
-> > >>> enabled, so there are 8 logical cpus. Is this a bug?
-
-Yes its a bug in the arch code or BIOS. The system configuration tells us
-that there are more possible cpus and therefore the system prepares for
-the additional cpus to be activated at some later time.
-
-> Sorry, I think that I misread your report.
-> It does look like misinformation.
-> Let's cc Christoph Lameter & Pekka.
+On 06/01, KOSAKI Motohiro wrote:
 >
+> > I'd like to add a note... with or without this, we have problems
+> > with the coredump. A thread participating in the coredumping
+> > (group-leader in this case) can have PF_EXITING && mm, but this doesn't
+> > mean it is going to exit soon, and the dumper can use a lot more memory.
 >
-> > The point is, I guess(didn't actually look at the code), if that's
-> > just the count of MAX number of cpus supported, which is a config time
-> >  define and then the actual count gets refined afterwards by slub
-> > too(because I know that the rest of the kernel knows I've got 4
-> > cores/8 logical cpus) or not. Is that it? If this is not the case(that
-> > is, it's not a static define used as a MAX value), then I can't see
-> > what kind of boot/init time info it is. If it's a boot-time info, it
-> > just means it's a _wrong_ boot-time info.
+> Sure. I think coredump sould do nothing if oom occur.
+> So, merely making PF_COREDUMP is bad idea? I mean
+>
+> task-flags		allocator
+> ------------------------------------------------
+> none			N/A
+> TIF_MEMDIE		allow to use emergency memory.
+> 			don't call page reclaim.
+> PF_COREDUMP		N/A
+> TIF_MEMDIE+PF_COREDUMP	disallow to use emergency memory.
+> 			don't call page reclaim.
+>
+> In other word, coredump path makes allocation failure if the task
+> marked as TIF_MEMDIE.
 
-No that is the max nr of cpus possible on this machine. The count is
-determined by hardware capabilities on bootup. If they are not detected
-in the right way then you have the erroneous display (and the system
-configures useless per cpu structures to support nonexistent cpus).
+Perhaps... But where should TIF_MEMDIE go this case? Let me clarify.
+
+Two threads, group-leader L and its sub-thread T. T dumps the code.
+In this case both threads have ->mm != NULL, L has PF_EXITING.
+
+The first problem is, select_bad_process() always return -1 in this
+case (even if the caller is T, this doesn't matter).
+
+The second problem is that we should add TIF_MEMDIE to T, not L.
+
+This is more or less easy. For simplicity, let's suppose we removed
+this PF_EXITING check from select_bad_process().
+
+Otoh, if we make do_coredump() interruptible (and we should do this
+in any case), then perhaps the TIF_MEMDIE+PF_COREDUMP is not really
+needed? Afaics we always send SIGKILL along with TIF_MEMDIE.
+
+> > And, as it was already discussed, we only check the group-leader here.
+> > But I can't suggest something better.
+>
+> I guess signal_group_exit() is enough in practical case.
+
+Unlike SIGNAL_GROUP_EXIT check, signal_group_exit() can also mean
+exec. This is probably correct. If we see the task inside de_thread()
+he is going to free its old mm soon.
+
+The problem is this check doesn't cover the case when a single-threaded
+task exits (even if it does sys_exit_group). And it is not enough to
+remove the thread_group_empty-case-optimization from do_group_exit(),
+it can call sys_exit() instead.
+
+But anyway I agree, select_bad_process can probably check
+
+	signal_group_exit() || (PF_EXITINF && thread_group_empty())
+
+And in that case it is better to remove the "&& p->mm" part of the
+current check.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
