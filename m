@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 71A996B01D9
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:19:04 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o517J21p024400
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:02 -0700
-Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
-	by kpbe11.cbf.corp.google.com with ESMTP id o517IJZb022950
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:01 -0700
-Received: by pxi10 with SMTP id 10so2973638pxi.35
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:19:00 -0700 (PDT)
-Date: Tue, 1 Jun 2010 00:18:57 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id B25A16B01DB
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:19:08 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o517J62Z026188
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:06 -0700
+Received: from pwj1 (pwj1.prod.google.com [10.241.219.65])
+	by hpaq2.eem.corp.google.com with ESMTP id o517J3Rd005936
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:04 -0700
+Received: by pwj1 with SMTP id 1so455310pwj.41
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:19:03 -0700 (PDT)
+Date: Tue, 1 Jun 2010 00:19:01 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 12/18] oom: remove unnecessary code and cleanup
+Subject: [patch -mm 13/18] oom: avoid race for oom killed tasks detaching mm
+ prior to exit
 In-Reply-To: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006010016020.29202@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006010016460.29202@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,120 +24,64 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove the redundancy in __oom_kill_task() since:
+Tasks detach its ->mm prior to exiting so it's possible that in progress
+oom kills or already exiting tasks may be missed during the oom killer's
+tasklist scan.  When an eligible task is found with either TIF_MEMDIE or
+PF_EXITING set, the oom killer is supposed to be a no-op to avoid
+needlessly killing additional tasks.  This closes the race between a task
+detaching its ->mm and being removed from the tasklist.
 
- - init can never be passed to this function: it will never be PF_EXITING
-   or selectable from select_bad_process(), and
+Out of memory conditions as the result of memory controllers will
+automatically filter tasks that have detached their ->mm (since
+task_in_mem_cgroup() will return 0).  This is acceptable, however, since
+memcg constrained ooms aren't the result of a lack of memory resources but
+rather a limit imposed by userspace that requires a task be killed
+regardless.
 
- - it will never be passed a task from oom_kill_task() without an ->mm
-   and we're unconcerned about detachment from exiting tasks, there's no
-   reason to protect them against SIGKILL or access to memory reserves.
-
-Also moves the kernel log message to a higher level since the verbosity is
-not always emitted here; we need not print an error message if an exiting
-task is given a longer timeslice.
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+[oleg@redhat.com: fix PF_EXITING check for !p->mm tasks]
+Acked-by: Nick Piggin <npiggin@suse.de>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   64 ++++++++++++++------------------------------------------
- 1 files changed, 16 insertions(+), 48 deletions(-)
+ mm/oom_kill.c |   14 +++++++-------
+ 1 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -439,67 +439,35 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- 		dump_tasks(mem);
- }
+@@ -317,12 +317,6 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 	for_each_process(p) {
+ 		unsigned int points;
  
--#define K(x) ((x) << (PAGE_SHIFT-10))
--
- /*
-- * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
-- * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
-- * set.
-+ * Give the oom killed task high priority and access to memory reserves so that
-+ * it may quickly exit and free its memory.
-  */
--static void __oom_kill_task(struct task_struct *p, int verbose)
-+static void __oom_kill_task(struct task_struct *p)
- {
--	if (is_global_init(p)) {
--		WARN_ON(1);
--		printk(KERN_WARNING "tried to kill init!\n");
--		return;
--	}
--
--	task_lock(p);
--	if (!p->mm) {
--		WARN_ON(1);
--		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
--			task_pid_nr(p), p->comm);
--		task_unlock(p);
--		return;
--	}
--
--	if (verbose)
--		printk(KERN_ERR "Killed process %d (%s) "
--		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
--		       task_pid_nr(p), p->comm,
--		       K(p->mm->total_vm),
--		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
--		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
--	task_unlock(p);
--
--	/*
--	 * We give our sacrificial lamb high priority and access to
--	 * all the memory it needs. That way it should be able to
--	 * exit() and clear out its resources quickly...
--	 */
- 	p->rt.time_slice = HZ;
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
--
- 	force_sig(SIGKILL, p);
- }
+-		/*
+-		 * skip kernel threads and tasks which have already released
+-		 * their mm.
+-		 */
+-		if (!p->mm)
+-			continue;
+ 		/* skip the init task */
+ 		if (is_global_init(p))
+ 			continue;
+@@ -355,7 +349,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 		 * the process of exiting and releasing its resources.
+ 		 * Otherwise we could get an easy OOM deadlock.
+ 		 */
+-		if (p->flags & PF_EXITING) {
++		if (p->flags & PF_EXITING && p->mm) {
+ 			if (p != current)
+ 				return ERR_PTR(-1UL);
  
-+#define K(x) ((x) << (PAGE_SHIFT-10))
- static int oom_kill_task(struct task_struct *p)
- {
--	/* WARNING: mm may not be dereferenced since we did not obtain its
--	 * value from get_task_mm(p).  This is OK since all we need to do is
--	 * compare mm to q->mm below.
--	 *
--	 * Furthermore, even if mm contains a non-NULL value, p->mm may
--	 * change to NULL at any time since we do not hold task_lock(p).
--	 * However, this is of no concern to us.
--	 */
--	if (!p->mm || p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-+	task_lock(p);
-+	if (!p->mm || p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-+		task_unlock(p);
- 		return 1;
-+	}
-+	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-+		task_pid_nr(p), p->comm, K(p->mm->total_vm),
-+		K(get_mm_counter(p->mm, MM_ANONPAGES)),
-+		K(get_mm_counter(p->mm, MM_FILEPAGES)));
-+	task_unlock(p);
+@@ -363,6 +357,12 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 			*ppoints = 1000;
+ 		}
  
--	__oom_kill_task(p, 1);
--
-+	__oom_kill_task(p);
- 	return 0;
- }
-+#undef K
- 
- static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    unsigned int points, unsigned long totalpages,
-@@ -517,7 +485,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
- 	if (p->flags & PF_EXITING) {
--		__oom_kill_task(p, 0);
-+		__oom_kill_task(p);
- 		return 0;
- 	}
++		/*
++		 * skip kernel threads and tasks which have already released
++		 * their mm.
++		 */
++		if (!p->mm)
++			continue;
+ 		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+ 			continue;
  
 
 --
