@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 23E346B0210
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:34:46 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o517YhOn012660
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AA69C6B0210
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:34:59 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o517Yv0P013311
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 1 Jun 2010 16:34:43 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 58E0A45DE59
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 14E1245DE51
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A9183E08004
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:42 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 43C0C1DB8038
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:42 +0900 (JST)
+	Tue, 1 Jun 2010 16:34:57 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47D4945DE57
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:57 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0576245DE4F
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:57 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 99895E18002
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:56 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F77E1DB8038
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:34:56 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 05/18] oom: remove special handling for pagefault ooms
-In-Reply-To: <alpine.DEB.2.00.1006010014080.29202@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010014080.29202@chino.kir.corp.google.com>
-Message-Id: <20100601163420.2451.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch -mm 06/18] oom: move sysctl declarations to oom.h
+In-Reply-To: <alpine.DEB.2.00.1006010014260.29202@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010014260.29202@chino.kir.corp.google.com>
+Message-Id: <20100601163441.2454.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  1 Jun 2010 16:34:33 +0900 (JST)
+Date: Tue,  1 Jun 2010 16:34:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> It is possible to remove the special pagefault oom handler by simply oom
-> locking all system zones and then calling directly into out_of_memory().
+> The three oom killer sysctl variables (sysctl_oom_dump_tasks,
+> sysctl_oom_kill_allocating_task, and sysctl_panic_on_oom) are better
+> declared in include/linux/oom.h rather than kernel/sysctl.c.
 > 
-> All populated zones must have ZONE_OOM_LOCKED set, otherwise there is a
-> parallel oom killing in progress that will lead to eventual memory freeing
-> so it's not necessary to needlessly kill another task.  The context in
-> which the pagefault is allocating memory is unknown to the oom killer, so
-> this is done on a system-wide level.
-> 
-> If a task has already been oom killed and hasn't fully exited yet, this
-> will be a no-op since select_bad_process() recognizes tasks across the
-> system with TIF_MEMDIE set.
-> 
-> Acked-by: Nick Piggin <npiggin@suse.de>
 > Signed-off-by: David Rientjes <rientjes@google.com>
 
 ack
