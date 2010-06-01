@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C4CCC6B01B7
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:18:19 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o517IGii024703
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:18:17 -0700
-Received: from pwj1 (pwj1.prod.google.com [10.241.219.65])
-	by wpaz9.hot.corp.google.com with ESMTP id o517IErY012499
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:18:15 -0700
-Received: by pwj1 with SMTP id 1so441364pwj.27
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:18:13 -0700 (PDT)
-Date: Tue, 1 Jun 2010 00:18:07 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7416B01B7
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:18:21 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id o517IJV0022023
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:18:19 -0700
+Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
+	by kpbe14.cbf.corp.google.com with ESMTP id o517IHwh008932
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:18:18 -0700
+Received: by pxi17 with SMTP id 17so2071393pxi.25
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:18:17 -0700 (PDT)
+Date: Tue, 1 Jun 2010 00:18:15 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 00/18] oom killer rewrite
-Message-ID: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
+Subject: [patch -mm 01/18] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006010013080.29202@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,33 +23,66 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is yet another version of my oom killer rewrite, now rebased to 
-mmotm-2010-05-21-16-05.
+Tasks that do not share the same set of allowed nodes with the task that
+triggered the oom should not be considered as candidates for oom kill.
 
-This version removes the consolidation of the two existing sysctls, 
-oom_kill_allocating_task and oom_dump_tasks, as recommended by a couple 
-different people.
+Tasks in other cpusets with a disjoint set of mems would be unfairly
+penalized otherwise because of oom conditions elsewhere; an extreme
+example could unfairly kill all other applications on the system if a
+single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+more memory than allowed.
 
-This version also makes pagefault oom handling consistent with 
-panic_on_oom behavior now that all architectures have been converted to 
-using the oom killer instead of simply issuing a SIGKILL for current.  
-Many thanks to Nick Piggin for converting the existing archs.
+Killing tasks outside of current's cpuset rarely would free memory for
+current anyway.  To use a sane heuristic, we must ensure that killing a
+task would likely free memory for current and avoid needlessly killing
+others at all costs just because their potential memory freeing is
+unknown.  It is better to kill current than another task needlessly.
+
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Nick Piggin <npiggin@suse.de>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- Documentation/feature-removal-schedule.txt |   25 +
- Documentation/filesystems/proc.txt         |  100 +++-
- Documentation/sysctl/vm.txt                |   23 +
- fs/proc/base.c                             |  107 ++++-
- include/linux/memcontrol.h                 |    8 
- include/linux/mempolicy.h                  |   13 
- include/linux/oom.h                        |   26 +
- include/linux/sched.h                      |    3 
- kernel/fork.c                              |    1 
- kernel/sysctl.c                            |   12 
- mm/memcontrol.c                            |   18 
- mm/mempolicy.c                             |   44 ++
- mm/oom_kill.c                              |  603 +++++++++++++++--------------
- mm/page_alloc.c                            |   29 -
- 14 files changed, 680 insertions(+), 332 deletions(-)
+ mm/oom_kill.c |   12 +++---------
+ 1 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -36,7 +36,7 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+ /* #define DEBUG */
+ 
+ /*
+- * Is all threads of the target process nodes overlap ours?
++ * Do all threads of the target process overlap our allowed nodes?
+  */
+ static int has_intersects_mems_allowed(struct task_struct *tsk)
+ {
+@@ -168,14 +168,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+ 		points /= 4;
+ 
+ 	/*
+-	 * If p's nodes don't overlap ours, it may still help to kill p
+-	 * because p may have allocated or otherwise mapped memory on
+-	 * this node before. However it will be less likely.
+-	 */
+-	if (!has_intersects_mems_allowed(p))
+-		points /= 8;
+-
+-	/*
+ 	 * Adjust the score by oom_adj.
+ 	 */
+ 	if (oom_adj) {
+@@ -267,6 +259,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(p, mem))
+ 			continue;
++		if (!has_intersects_mems_allowed(p))
++			continue;
+ 
+ 		/*
+ 		 * This task already has access to memory reserves and is
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
