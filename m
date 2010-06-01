@@ -1,84 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5FA6E6B0217
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:36:55 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C6B526B0219
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:37:27 -0400 (EDT)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o517ar7A011354
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o517bNtH011734
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 1 Jun 2010 16:36:53 +0900
+	Tue, 1 Jun 2010 16:37:23 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C38E945DE54
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:36:52 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F413645DE54
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:37:22 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C53445DE53
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:36:52 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C28AA45DE4C
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:37:22 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BA8F1DB8016
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:36:52 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2104D1DB8013
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:36:49 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A178A1DB8016
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:37:22 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5031A1DB801A
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 16:37:22 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <alpine.DEB.2.00.1006010015030.29202@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015030.29202@chino.kir.corp.google.com>
-Message-Id: <20100601163627.245D.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch -mm 09/18] oom: add forkbomb penalty to badness heuristic
+In-Reply-To: <alpine.DEB.2.00.1006010015220.29202@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015220.29202@chino.kir.corp.google.com>
+Message-Id: <20100601163705.2460.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  1 Jun 2010 16:36:48 +0900 (JST)
+Date: Tue,  1 Jun 2010 16:37:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> This a complete rewrite of the oom killer's badness() heuristic which is
-> used to determine which task to kill in oom conditions.  The goal is to
-> make it as simple and predictable as possible so the results are better
-> understood and we end up killing the task which will lead to the most
-> memory freeing while still respecting the fine-tuning from userspace.
+> Add a forkbomb penalty for processes that fork an excessively large
+> number of children to penalize that group of tasks and not others.  A
+> threshold is configurable from userspace to determine how many first-
+> generation execve children (those with their own address spaces) a task
+> may have before it is considered a forkbomb.  This can be tuned by
+> altering the value in /proc/sys/vm/oom_forkbomb_thres, which defaults to
+> 1000.
 > 
-> The baseline for the heuristic is a proportion of memory that each task is
-> currently using in memory plus swap compared to the amount of "allowable"
-> memory.  "Allowable," in this sense, means the system-wide resources for
-> unconstrained oom conditions, the set of mempolicy nodes, the mems
-> attached to current's cpuset, or a memory controller's limit.  The
-> proportion is given on a scale of 0 (never kill) to 1000 (always kill),
-> roughly meaning that if a task has a badness() score of 500 that the task
-> consumes approximately 50% of allowable memory resident in RAM or in swap
-> space.
+> When a task has more than 1000 first-generation children with different
+> address spaces than itself, a penalty of
 > 
-> The proportion is always relative to the amount of "allowable" memory and
-> not the total amount of RAM systemwide so that mempolicies and cpusets may
-> operate in isolation; they shall not need to know the true size of the
-> machine on which they are running if they are bound to a specific set of
-> nodes or mems, respectively.
+> 	(average rss of children) * (# of 1st generation execve children)
+> 	-----------------------------------------------------------------
+> 			oom_forkbomb_thres
 > 
-> Root tasks are given 3% extra memory just like __vm_enough_memory()
-> provides in LSMs.  In the event of two tasks consuming similar amounts of
-> memory, it is generally better to save root's task.
+> is assessed.  So, for example, using the default oom_forkbomb_thres of
+> 1000, the penalty is twice the average rss of all its execve children if
+> there are 2000 such tasks.  A task is considered to count toward the
+> threshold if its total runtime is less than one second; for 1000 of such
+> tasks to exist, the parent process must be forking at an extremely high
+> rate either erroneously or maliciously.
 > 
-> Because of the change in the badness() heuristic's baseline, it is also
-> necessary to introduce a new user interface to tune it.  It's not possible
-> to redefine the meaning of /proc/pid/oom_adj with a new scale since the
-> ABI cannot be changed for backward compatability.  Instead, a new tunable,
-> /proc/pid/oom_score_adj, is added that ranges from -1000 to +1000.  It may
-> be used to polarize the heuristic such that certain tasks are never
-> considered for oom kill while others may always be considered.  The value
-> is added directly into the badness() score so a value of -500, for
-> example, means to discount 50% of its memory consumption in comparison to
-> other tasks either on the system, bound to the mempolicy, in the cpuset,
-> or sharing the same memory controller.
+> Even though a particular task may be designated a forkbomb and selected as
+> the victim, the oom killer will still kill the 1st generation execve child
+> with the highest badness() score in its place.  The avoids killing
+> important servers or system daemons.  When a web server forks a very large
+> number of threads for client connections, for example, it is much better
+> to kill one of those threads than to kill the server and make it
+> unresponsive.
 > 
-> /proc/pid/oom_adj is changed so that its meaning is rescaled into the
-> units used by /proc/pid/oom_score_adj, and vice versa.  Changing one of
-> these per-task tunables will rescale the value of the other to an
-> equivalent meaning.  Although /proc/pid/oom_adj was originally defined as
-> a bitshift on the badness score, it now shares the same linear growth as
-> /proc/pid/oom_score_adj but with different granularity.  This is required
-> so the ABI is not broken with userspace applications and allows oom_adj to
-> be deprecated for future removal.
-> 
+> [oleg@redhat.com: optimize task_lock when iterating children]
 > Signed-off-by: David Rientjes <rientjes@google.com>
 
 nack
