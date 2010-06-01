@@ -1,105 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E9B5D6B01B9
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 01:52:14 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o515qClw002230
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 1 Jun 2010 14:52:12 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D779145DE55
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:52:10 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C8A0545DE51
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:52:01 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C0148E08001
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:51:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 33A711DB801D
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:51:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 5/5] oom: dump_tasks() use find_lock_task_mm() too
-In-Reply-To: <20100601144238.243A.A69D9226@jp.fujitsu.com>
-References: <20100601144238.243A.A69D9226@jp.fujitsu.com>
-Message-Id: <20100601145033.2446.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  1 Jun 2010 14:51:49 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A9D116B01B9
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 02:45:07 -0400 (EDT)
+Received: by wyb39 with SMTP id 39so1533049wyb.14
+        for <linux-mm@kvack.org>; Mon, 31 May 2010 23:45:06 -0700 (PDT)
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: [PATCH V4] Split executable and non-executable mmap tracking
+Date: Tue,  1 Jun 2010 07:44:58 +0100
+Message-Id: <1275374698-10170-1-git-send-email-ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: mingo@elte.hu
+Cc: a.p.zijlstra@chello.nl, acme@redhat.com, arjan@linux.intel.com, anton@samba.org, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric B Munson <ebmunson@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-dump_task() should have the same process iteration logic as
-select_bad_process().
+This patch splits tracking of executable and non-executable mmaps.
+Executable mmaps are tracked normally and non-executable are
+tracked when --data is used.
 
-It is needed for protecting from task exiting race.
+Signed-off-by: Anton Blanchard <anton@samba.org>
 
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Updated code for stable perf ABI
+Signed-off-by: Eric B Munson <ebmunson@us.ibm.com>
 ---
- mm/oom_kill.c |   31 +++++++++++++------------------
- 1 files changed, 13 insertions(+), 18 deletions(-)
+Changes from V3:
+-Fixed punctuation mistake in perf_event.h
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index cbad4d4..a8af9e8 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -344,35 +344,30 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
-  */
- static void dump_tasks(const struct mem_cgroup *mem)
- {
--	struct task_struct *g, *p;
-+	struct task_struct *p;
-+	struct task_struct *task;
+Changes from V2:
+-In new/free_event, collapse the attr.mmap and attr.mmap_data if statements
+ into a single or'd if
+-Add perf_mmap_event call in expand_upwards to match call in expand_downwards
+
+Changes from V1:
+-Changed mmap_exec to mmap_data and left mmap as the executable mmap tracker
+ to maintain backwards compatibility
+-Insert mmap_data at the end of the attr bit map
+---
+ fs/exec.c                   |    1 +
+ include/linux/perf_event.h  |   12 +++---------
+ kernel/perf_event.c         |   34 +++++++++++++++++++++++-----------
+ mm/mmap.c                   |    6 +++++-
+ tools/perf/builtin-record.c |    4 +++-
+ 5 files changed, 35 insertions(+), 22 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index e19de6a..97d91a0 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -653,6 +653,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 	else
+ 		stack_base = vma->vm_start - stack_expand;
+ #endif
++	current->mm->start_stack = bprm->p;
+ 	ret = expand_stack(vma, stack_base);
+ 	if (ret)
+ 		ret = -EFAULT;
+diff --git a/include/linux/perf_event.h b/include/linux/perf_event.h
+index 5d0266d..0dac0d3 100644
+--- a/include/linux/perf_event.h
++++ b/include/linux/perf_event.h
+@@ -214,8 +214,9 @@ struct perf_event_attr {
+ 				 *  See also PERF_RECORD_MISC_EXACT_IP
+ 				 */
+ 				precise_ip     :  2, /* skid constraint       */
++				mmap_data      :  1, /* non-exec mmap data    */
  
- 	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
- 	       "name\n");
--	do_each_thread(g, p) {
-+
-+	for_each_process(p) {
- 		struct mm_struct *mm;
+-				__reserved_1   : 47;
++				__reserved_1   : 46;
  
--		if (mem && !task_in_mem_cgroup(p, mem))
-+		if (is_global_init(p) || (p->flags & PF_KTHREAD))
- 			continue;
--		if (!thread_group_leader(p))
-+		if (mem && !task_in_mem_cgroup(p, mem))
- 			continue;
- 
--		task_lock(p);
--		mm = p->mm;
--		if (!mm) {
--			/*
--			 * total_vm and rss sizes do not exist for tasks with no
--			 * mm so there's no need to report them; they can't be
--			 * oom killed anyway.
--			 */
--			task_unlock(p);
-+		task = find_lock_task_mm(p);
-+		if (!task)
- 			continue;
--		}
-+
- 		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
--		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
--		       get_mm_rss(mm), (int)task_cpu(p), p->signal->oom_adj,
-+		       task->pid, __task_cred(task)->uid, task->tgid, task->mm->total_vm,
-+		       get_mm_rss(task->mm), (int)task_cpu(task), task->signal->oom_adj,
- 		       p->comm);
--		task_unlock(p);
--	} while_each_thread(g, p);
-+		task_unlock(task);
-+	}
+ 	union {
+ 		__u32		wakeup_events;	  /* wakeup every n events */
+@@ -962,14 +963,7 @@ perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+ 	}
  }
  
- static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+-extern void __perf_event_mmap(struct vm_area_struct *vma);
+-
+-static inline void perf_event_mmap(struct vm_area_struct *vma)
+-{
+-	if (vma->vm_flags & VM_EXEC)
+-		__perf_event_mmap(vma);
+-}
+-
++extern void perf_event_mmap(struct vm_area_struct *vma);
+ extern struct perf_guest_info_callbacks *perf_guest_cbs;
+ extern int perf_register_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
+ extern int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
+diff --git a/kernel/perf_event.c b/kernel/perf_event.c
+index 858f56f..a19f73a 100644
+--- a/kernel/perf_event.c
++++ b/kernel/perf_event.c
+@@ -1888,7 +1888,7 @@ static void free_event(struct perf_event *event)
+ 
+ 	if (!event->parent) {
+ 		atomic_dec(&nr_events);
+-		if (event->attr.mmap)
++		if (event->attr.mmap || event->attr.mmap_data)
+ 			atomic_dec(&nr_mmap_events);
+ 		if (event->attr.comm)
+ 			atomic_dec(&nr_comm_events);
+@@ -3488,7 +3488,7 @@ perf_event_read_event(struct perf_event *event,
+ /*
+  * task tracking -- fork/exit
+  *
+- * enabled by: attr.comm | attr.mmap | attr.task
++ * enabled by: attr.comm | attr.mmap | attr.mmap_data | attr.task
+  */
+ 
+ struct perf_task_event {
+@@ -3538,7 +3538,8 @@ static int perf_event_task_match(struct perf_event *event)
+ 	if (event->cpu != -1 && event->cpu != smp_processor_id())
+ 		return 0;
+ 
+-	if (event->attr.comm || event->attr.mmap || event->attr.task)
++	if (event->attr.comm || event->attr.mmap ||
++	    event->attr.mmap_data || event->attr.task)
+ 		return 1;
+ 
+ 	return 0;
+@@ -3763,7 +3764,8 @@ static void perf_event_mmap_output(struct perf_event *event,
+ }
+ 
+ static int perf_event_mmap_match(struct perf_event *event,
+-				   struct perf_mmap_event *mmap_event)
++				   struct perf_mmap_event *mmap_event,
++				   int executable)
+ {
+ 	if (event->state < PERF_EVENT_STATE_INACTIVE)
+ 		return 0;
+@@ -3771,19 +3773,21 @@ static int perf_event_mmap_match(struct perf_event *event,
+ 	if (event->cpu != -1 && event->cpu != smp_processor_id())
+ 		return 0;
+ 
+-	if (event->attr.mmap)
++	if ((!executable && event->attr.mmap_data) ||
++	    (executable && event->attr.mmap))
+ 		return 1;
+ 
+ 	return 0;
+ }
+ 
+ static void perf_event_mmap_ctx(struct perf_event_context *ctx,
+-				  struct perf_mmap_event *mmap_event)
++				  struct perf_mmap_event *mmap_event,
++				  int executable)
+ {
+ 	struct perf_event *event;
+ 
+ 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
+-		if (perf_event_mmap_match(event, mmap_event))
++		if (perf_event_mmap_match(event, mmap_event, executable))
+ 			perf_event_mmap_output(event, mmap_event);
+ 	}
+ }
+@@ -3827,6 +3831,14 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
+ 		if (!vma->vm_mm) {
+ 			name = strncpy(tmp, "[vdso]", sizeof(tmp));
+ 			goto got_name;
++		} else if (vma->vm_start <= vma->vm_mm->start_brk &&
++				vma->vm_end >= vma->vm_mm->brk) {
++			name = strncpy(tmp, "[heap]", sizeof(tmp));
++			goto got_name;
++		} else if (vma->vm_start <= vma->vm_mm->start_stack &&
++				vma->vm_end >= vma->vm_mm->start_stack) {
++			name = strncpy(tmp, "[stack]", sizeof(tmp));
++			goto got_name;
+ 		}
+ 
+ 		name = strncpy(tmp, "//anon", sizeof(tmp));
+@@ -3843,17 +3855,17 @@ got_name:
+ 
+ 	rcu_read_lock();
+ 	cpuctx = &get_cpu_var(perf_cpu_context);
+-	perf_event_mmap_ctx(&cpuctx->ctx, mmap_event);
++	perf_event_mmap_ctx(&cpuctx->ctx, mmap_event, vma->vm_flags & VM_EXEC);
+ 	ctx = rcu_dereference(current->perf_event_ctxp);
+ 	if (ctx)
+-		perf_event_mmap_ctx(ctx, mmap_event);
++		perf_event_mmap_ctx(ctx, mmap_event, vma->vm_flags & VM_EXEC);
+ 	put_cpu_var(perf_cpu_context);
+ 	rcu_read_unlock();
+ 
+ 	kfree(buf);
+ }
+ 
+-void __perf_event_mmap(struct vm_area_struct *vma)
++void perf_event_mmap(struct vm_area_struct *vma)
+ {
+ 	struct perf_mmap_event mmap_event;
+ 
+@@ -4904,7 +4916,7 @@ done:
+ 
+ 	if (!event->parent) {
+ 		atomic_inc(&nr_events);
+-		if (event->attr.mmap)
++		if (event->attr.mmap || event->attr.mmap_data)
+ 			atomic_inc(&nr_mmap_events);
+ 		if (event->attr.comm)
+ 			atomic_inc(&nr_comm_events);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 456ec6f..e38e910 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1734,8 +1734,10 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
+ 		grow = (address - vma->vm_end) >> PAGE_SHIFT;
+ 
+ 		error = acct_stack_growth(vma, size, grow);
+-		if (!error)
++		if (!error) {
+ 			vma->vm_end = address;
++			perf_event_mmap(vma);
++		}
+ 	}
+ 	anon_vma_unlock(vma);
+ 	return error;
+@@ -1781,6 +1783,7 @@ static int expand_downwards(struct vm_area_struct *vma,
+ 		if (!error) {
+ 			vma->vm_start = address;
+ 			vma->vm_pgoff -= grow;
++			perf_event_mmap(vma);
+ 		}
+ 	}
+ 	anon_vma_unlock(vma);
+@@ -2208,6 +2211,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
+ 	vma->vm_page_prot = vm_get_page_prot(flags);
+ 	vma_link(mm, vma, prev, rb_link, rb_parent);
+ out:
++	perf_event_mmap(vma);
+ 	mm->total_vm += len >> PAGE_SHIFT;
+ 	if (flags & VM_LOCKED) {
+ 		if (!mlock_vma_pages_range(vma, addr, addr + len))
+diff --git a/tools/perf/builtin-record.c b/tools/perf/builtin-record.c
+index 9bc8905..5058a41 100644
+--- a/tools/perf/builtin-record.c
++++ b/tools/perf/builtin-record.c
+@@ -268,8 +268,10 @@ static void create_counter(int counter, int cpu)
+ 	if (inherit_stat)
+ 		attr->inherit_stat = 1;
+ 
+-	if (sample_address)
++	if (sample_address) {
+ 		attr->sample_type	|= PERF_SAMPLE_ADDR;
++		attr->mmap_data = track;
++	}
+ 
+ 	if (call_graph)
+ 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 -- 
-1.6.5.2
-
-
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
