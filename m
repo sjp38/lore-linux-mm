@@ -1,100 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 271376B01DD
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:44:36 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id o51IiURp023949
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:44:30 -0700
-Received: from pzk31 (pzk31.prod.google.com [10.243.19.159])
-	by hpaq12.eem.corp.google.com with ESMTP id o51IiMQU011036
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:44:29 -0700
-Received: by pzk31 with SMTP id 31so2601624pzk.16
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:44:29 -0700 (PDT)
-Date: Tue, 1 Jun 2010 11:44:23 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 681046B01CC
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 14:57:01 -0400 (EDT)
+Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
+	by smtp-out.google.com with ESMTP id o51IuugW030657
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:56:57 -0700
+Received: from pwi8 (pwi8.prod.google.com [10.241.219.8])
+	by kpbe15.cbf.corp.google.com with ESMTP id o51IutcW006226
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 11:56:55 -0700
+Received: by pwi8 with SMTP id 8so2624941pwi.17
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 11:56:55 -0700 (PDT)
+Date: Tue, 1 Jun 2010 11:56:48 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <20100601163627.245D.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015030.29202@chino.kir.corp.google.com> <20100601163627.245D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100601074620.GR9453@laptop>
+Message-ID: <alpine.DEB.2.00.1006011144340.32024@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015030.29202@chino.kir.corp.google.com> <20100601074620.GR9453@laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010, KOSAKI Motohiro wrote:
+On Tue, 1 Jun 2010, Nick Piggin wrote:
 
 > > This a complete rewrite of the oom killer's badness() heuristic which is
 > > used to determine which task to kill in oom conditions.  The goal is to
 > > make it as simple and predictable as possible so the results are better
 > > understood and we end up killing the task which will lead to the most
 > > memory freeing while still respecting the fine-tuning from userspace.
-> > 
-> > The baseline for the heuristic is a proportion of memory that each task is
-> > currently using in memory plus swap compared to the amount of "allowable"
-> > memory.  "Allowable," in this sense, means the system-wide resources for
-> > unconstrained oom conditions, the set of mempolicy nodes, the mems
-> > attached to current's cpuset, or a memory controller's limit.  The
-> > proportion is given on a scale of 0 (never kill) to 1000 (always kill),
-> > roughly meaning that if a task has a badness() score of 500 that the task
-> > consumes approximately 50% of allowable memory resident in RAM or in swap
-> > space.
-> > 
-> > The proportion is always relative to the amount of "allowable" memory and
-> > not the total amount of RAM systemwide so that mempolicies and cpusets may
-> > operate in isolation; they shall not need to know the true size of the
-> > machine on which they are running if they are bound to a specific set of
-> > nodes or mems, respectively.
-> > 
-> > Root tasks are given 3% extra memory just like __vm_enough_memory()
-> > provides in LSMs.  In the event of two tasks consuming similar amounts of
-> > memory, it is generally better to save root's task.
-> > 
-> > Because of the change in the badness() heuristic's baseline, it is also
-> > necessary to introduce a new user interface to tune it.  It's not possible
-> > to redefine the meaning of /proc/pid/oom_adj with a new scale since the
-> > ABI cannot be changed for backward compatability.  Instead, a new tunable,
-> > /proc/pid/oom_score_adj, is added that ranges from -1000 to +1000.  It may
-> > be used to polarize the heuristic such that certain tasks are never
-> > considered for oom kill while others may always be considered.  The value
-> > is added directly into the badness() score so a value of -500, for
-> > example, means to discount 50% of its memory consumption in comparison to
-> > other tasks either on the system, bound to the mempolicy, in the cpuset,
-> > or sharing the same memory controller.
-> > 
-> > /proc/pid/oom_adj is changed so that its meaning is rescaled into the
-> > units used by /proc/pid/oom_score_adj, and vice versa.  Changing one of
-> > these per-task tunables will rescale the value of the other to an
-> > equivalent meaning.  Although /proc/pid/oom_adj was originally defined as
-> > a bitshift on the badness score, it now shares the same linear growth as
-> > /proc/pid/oom_score_adj but with different granularity.  This is required
-> > so the ABI is not broken with userspace applications and allows oom_adj to
-> > be deprecated for future removal.
-> > 
-> > Signed-off-by: David Rientjes <rientjes@google.com>
 > 
-> nack
+> Do you have particular ways of testing this (and other heuristics
+> changes such as the forkbomb detector)?
 > 
 
-Why?
+Yes, the patch prior to this one in the series, "oom: enable oom tasklist 
+dump by default", allows you to examine the oom_score_adj of all eligible 
+tasks.  Used in combination with /proc/pid/oom_score, which reports the 
+result of the badness heuristic to userspace, I tested the result of the 
+change by ensuring that it worked as intended.  Since we'll now see a 
+tasklist dump of all eligible tasks whenever someone reports an oom 
+problem (hopefully fewer reports as a result of this rewrite than 
+currently!), it's much easier to determine (i) why the oom killer was 
+called, and (ii) why a particular task was chosen for kill.  That's been 
+my testing philosophy.
 
-If it's because the patch is too big, I've explained a few times that 
-functionally you can't break it apart into anything meaningful.  I do not 
-believe it is better to break functional changes into smaller patches that 
-simply change function signatures to pass additional arguments that are 
-unused in the first patch, for example.
+The forkbomb detector does add a minimal bias to tasks that have a large 
+number of execve children, just as the current oom killer does (although 
+the bias is much smaller with my heursitic).  Rik and I had a lengthy 
+conversation on linux-mm about that when it was first proposed.  The key 
+to that particular bias is that you must remember that even though a task 
+is selected for oom kill that the oom killer still attempts to kill an 
+execve child first.  So the end result is that an important system daemon, 
+such as a webserver, doesn't actually get oom killed when it's selected as 
+a result of this, but it's more of a bias toward the children to be killed 
+(a client) instead.  We're guaranteed that a child will be killed if a 
+task is chosen as the result of a tiebreaker because of the forkbomb 
+detector because it surely has a child with a different mm that is 
+eligible.  This isn't meant to be enforce a kernel-wide forkbomb policy, 
+which would obviously be better implemented elsewhere, but rather bias the 
+children when a parent is forking an egregiously large number of tasks.  
+"Egregious" in this case is defined as whatever the user uses for 
+oom_forkbomb_thres, which I believe defaults to a sane value of 1000.
 
-If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
-allowed since otherwise it would be useless with the old heuristic.  In 
-other words, you cannot apply oom_score_adj's meaning to the bitshift in 
-any sane way.
+> Such that you can look at your test case or workload and see that
+> it is really improved?
+> 
 
-I'll suggest what I have multiple times: the easiest way to review the 
-functional change here is to merge the patch into your own tree and then 
-review oom_badness().  I agree that the way the diff comes out it is a 
-little difficult to read just from the patch form, so merging it and 
-reviewing the actual heuristic function is the easiest way.
+I'm glad you asked that because some recent conversation has been 
+slightly confusing to me about how this affects the desktop; this rewrite 
+significantly improves the oom killer's response for desktop users.  The 
+core ideas were developed in the thread from this mailing list back in 
+February called "Improving OOM killer" at 
+http://marc.info/?t=126506191200004&r=4&w=2 -- users constantly report 
+that vital system tasks such as kdeinit are killed whenever a memory 
+hogging task is forked either intentionally or unintentionally.  I argued 
+for a while that KDE should be taking proper precautions by adjusting its 
+own oom_adj score and that of its forked children as it's an inherited 
+value, but I was eventually convinced that an overall improvement to the 
+heuristic must be made to kill a task that was known to free a large 
+amount of memory that is resident in RAM and that we have a consistent way 
+of defining oom priorities when a task is run uncontained and when it is a 
+member of a memcg or cpuset (or even mempolicy now), even in the case when 
+it's contained out from under the task's knowledge.  When faced with 
+memory pressure from an out of control or memory hogging task on the 
+desktop, the oom killer now kills it instead of a vital task such as an X 
+server (and oracle, webserver, etc on server platforms) because of the use 
+of the task's rss instead of total_vm statistic.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
