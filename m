@@ -1,39 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D9E246B01E5
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 08:24:21 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o51CBK35012017
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 08:11:20 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o51CN1NY114624
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 08:23:01 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o51CN1fX028021
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 08:23:01 -0400
-Received: from balbir-laptop ([9.77.209.155])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVin) with ESMTP id o51CN0fb027985
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 08:23:00 -0400
-Resent-Message-ID: <20100601122258.GG2804@balbir.in.ibm.com>
-Resent-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Date: Tue, 1 Jun 2010 15:34:52 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 03FAB6B01D6
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 09:24:53 -0400 (EDT)
+Date: Tue, 1 Jun 2010 22:24:49 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
 Subject: Re: [RFC][3/3] memcg swap accounts remove experimental
-Message-ID: <20100601100452.GD2804@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100601182406.1ede3581.kamezawa.hiroyu@jp.fujitsu.com>
- <20100601182720.f1562de6.kamezawa.hiroyu@jp.fujitsu.com>
- <20100601182936.36ea72b9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Message-Id: <20100601222449.e0ac1ff2.d-nishimura@mtf.biglobe.ne.jp>
 In-Reply-To: <20100601182936.36ea72b9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100601182406.1ede3581.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100601182720.f1562de6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100601182936.36ea72b9.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-01 18:29:36]:
+On Tue, 1 Jun 2010 18:29:36 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
@@ -42,13 +29,40 @@ List-ID: <linux-mm.kvack.org>
 > it can be maintained. 
 > 
 > So, I'd like to remove EXPERIMENTAL from the config.
+> 
+I agree.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
--- 
-	Three Cheers,
-	Balbir
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+> ---
+>  init/Kconfig |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Index: mmotm-2.6.34-May21/init/Kconfig
+> ===================================================================
+> --- mmotm-2.6.34-May21.orig/init/Kconfig
+> +++ mmotm-2.6.34-May21/init/Kconfig
+> @@ -577,8 +577,8 @@ config CGROUP_MEM_RES_CTLR
+>  	  could in turn add some fork/exit overhead.
+>  
+>  config CGROUP_MEM_RES_CTLR_SWAP
+> -	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
+> -	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
+> +	bool "Memory Resource Controller Swap Extension"
+> +	depends on CGROUP_MEM_RES_CTLR && SWAP
+>  	help
+>  	  Add swap management feature to memory resource controller. When you
+>  	  enable this, you can limit mem+swap usage per cgroup. In other words,
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
