@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9D96B01E1
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:19:14 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o517JDif026513
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:13 -0700
-Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
-	by kpbe11.cbf.corp.google.com with ESMTP id o517J8aV023435
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:11 -0700
-Received: by pwj10 with SMTP id 10so2382525pwj.7
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:19:11 -0700 (PDT)
-Date: Tue, 1 Jun 2010 00:19:09 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 460BA6B01E1
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 03:19:21 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o517JGti020141
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:17 -0700
+Received: from pxi18 (pxi18.prod.google.com [10.243.27.18])
+	by wpaz5.hot.corp.google.com with ESMTP id o517JBT5025646
+	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 00:19:15 -0700
+Received: by pxi18 with SMTP id 18so1778793pxi.19
+        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 00:19:15 -0700 (PDT)
+Date: Tue, 1 Jun 2010 00:19:12 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 15/18] oom: introduce find_lock_task_mm() to fix !mm
- false positives
+Subject: [patch -mm 16/18] oom: give current access to memory reserves if it
+ has been killed
 In-Reply-To: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006010017090.29202@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006010017240.29202@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,126 +24,53 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Oleg Nesterov <oleg@redhat.com>
+It's possible to livelock the page allocator if a thread has mm->mmap_sem
+and fails to make forward progress because the oom killer selects another
+thread sharing the same ->mm to kill that cannot exit until the semaphore
+is dropped.
 
-Almost all ->mm == NUL checks in oom_kill.c are wrong.
+The oom killer will not kill multiple tasks at the same time; each oom
+killed task must exit before another task may be killed.  Thus, if one
+thread is holding mm->mmap_sem and cannot allocate memory, all threads
+sharing the same ->mm are blocked from exiting as well.  In the oom kill
+case, that means the thread holding mm->mmap_sem will never free
+additional memory since it cannot get access to memory reserves and the
+thread that depends on it with access to memory reserves cannot exit
+because it cannot acquire the semaphore.  Thus, the page allocators
+livelocks.
 
-The current code assumes that the task without ->mm has already
-released its memory and ignores the process. However this is not
-necessarily true when this process is multithreaded, other live
-sub-threads can use this ->mm.
+When the oom killer is called and current happens to have a pending
+SIGKILL, this patch automatically gives it access to memory reserves and
+returns.  Upon returning to the page allocator, its allocation will
+hopefully succeed so it can quickly exit and free its memory.  If not, the
+page allocator will fail the allocation if it is not __GFP_NOFAIL.
 
-- Remove the "if (!p->mm)" check in select_bad_process(), it is
-  just wrong.
-
-- Add the new helper, find_lock_task_mm(), which finds the live
-  thread which uses the memory and takes task_lock() to pin ->mm
-
-- change oom_badness() to use this helper instead of just checking
-  ->mm != NULL.
-
-- As David pointed out, select_bad_process() must never choose the
-  task without ->mm, but no matter what oom_badness() returns the
-  task can be chosen if nothing else has been found yet.
-
-  Change oom_badness() to return int, change it to return -1 if
-  find_lock_task_mm() fails, and change select_bad_process() to
-  check points >= 0.
-
-Note! This patch is not enough, we need more changes.
-
-	- oom_badness() was fixed, but oom_kill_task() still ignores
-	  the task without ->mm
-
-	- oom_forkbomb_penalty() should use find_lock_task_mm() too,
-	  and it also needs other changes to actually find the first
-	  first-descendant children
-
-This will be addressed later.
-
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   37 +++++++++++++++++++------------------
- 1 files changed, 19 insertions(+), 18 deletions(-)
+ mm/oom_kill.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -95,6 +95,20 @@ static void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
- 	return false;
- }
- 
-+static struct task_struct *find_lock_task_mm(struct task_struct *p)
-+{
-+	struct task_struct *t = p;
-+
-+	do {
-+		task_lock(t);
-+		if (likely(t->mm))
-+			return t;
-+		task_unlock(t);
-+	} while_each_thread(p, t);
-+
-+	return NULL;
-+}
-+
- /*
-  * Tasks that fork a very large number of children with seperate address spaces
-  * may be the result of a bug, user error, malicious applications, or even those
-@@ -164,7 +178,6 @@ static unsigned long oom_forkbomb_penalty(struct task_struct *tsk)
-  */
- unsigned int oom_badness(struct task_struct *p, unsigned long totalpages)
- {
--	struct mm_struct *mm;
- 	int points;
+@@ -697,6 +697,16 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		return;
  
  	/*
-@@ -181,12 +194,9 @@ unsigned int oom_badness(struct task_struct *p, unsigned long totalpages)
- 	if (p->flags & PF_OOM_ORIGIN)
- 		return 1000;
- 
--	task_lock(p);
--	mm = p->mm;
--	if (!mm) {
--		task_unlock(p);
-+	p = find_lock_task_mm(p);
-+	if (!p)
- 		return 0;
--	}
- 
- 	/*
- 	 * The memory controller may have a limit of 0 bytes, so avoid a divide
-@@ -199,8 +209,8 @@ unsigned int oom_badness(struct task_struct *p, unsigned long totalpages)
- 	 * The baseline for the badness score is the proportion of RAM that each
- 	 * task's rss and swap space use.
++	 * If current has a pending SIGKILL, then automatically select it.  The
++	 * goal is to allow it to allocate so that it may quickly exit and free
++	 * its memory.
++	 */
++	if (fatal_signal_pending(current)) {
++		set_tsk_thread_flag(current, TIF_MEMDIE);
++		return;
++	}
++
++	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
  	 */
--	points = (get_mm_rss(mm) + get_mm_counter(mm, MM_SWAPENTS)) * 1000 /
--			totalpages;
-+	points = (get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS)) *
-+			1000 / totalpages;
- 	task_unlock(p);
- 	points += oom_forkbomb_penalty(p);
- 
-@@ -357,17 +367,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 			*ppoints = 1000;
- 		}
- 
--		/*
--		 * skip kernel threads and tasks which have already released
--		 * their mm.
--		 */
--		if (!p->mm)
--			continue;
--		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
--			continue;
--
- 		points = oom_badness(p, totalpages);
--		if (points > *ppoints || !chosen) {
-+		if (points > *ppoints) {
- 			chosen = p;
- 			*ppoints = points;
- 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
