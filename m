@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA676B01CD
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 17:19:46 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id o51LJhe7000776
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 14:19:43 -0700
-Received: from pzk32 (pzk32.prod.google.com [10.243.19.160])
-	by wpaz29.hot.corp.google.com with ESMTP id o51LJfBH027847
-	for <linux-mm@kvack.org>; Tue, 1 Jun 2010 14:19:42 -0700
-Received: by pzk32 with SMTP id 32so2667891pzk.21
-        for <linux-mm@kvack.org>; Tue, 01 Jun 2010 14:19:41 -0700 (PDT)
-Date: Tue, 1 Jun 2010 14:19:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 13/18] oom: avoid race for oom killed tasks detaching
- mm prior to exit
-In-Reply-To: <20100601204342.GC20732@redhat.com>
-Message-ID: <alpine.DEB.2.00.1006011415190.16725@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010016460.29202@chino.kir.corp.google.com> <20100601164026.2472.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011158230.32024@chino.kir.corp.google.com>
- <20100601204342.GC20732@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3CE526B01D7
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 17:21:45 -0400 (EDT)
+Date: Tue, 1 Jun 2010 23:20:23 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/5] oom: select_bad_process: check PF_KTHREAD instead
+	of !mm to skip kthreads
+Message-ID: <20100601212023.GA24917@redhat.com>
+References: <20100531182526.1843.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011333470.13136@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1006011333470.13136@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010, Oleg Nesterov wrote:
-
-> On 06/01, David Rientjes wrote:
+On 06/01, David Rientjes wrote:
+>
+> On Mon, 31 May 2010, KOSAKI Motohiro wrote:
+>
+> > select_bad_process() thinks a kernel thread can't have ->mm != NULL, this
+> > is not true due to use_mm().
 > >
-> > No, it applies to mmotm-2010-05-21-16-05 as all of these patches do. I
-> > know you've pushed Oleg's patches
-> 
-> (plus other fixes)
-> 
+> > Change the code to check PF_KTHREAD.
+>
+> This is already pushed in my oom killer rewrite as patch 14/18 "check
+> PF_KTHREAD instead of !mm to skip kthreads".
+>
+> This does not need to be merged immediately since it's not vital: use_mm()
+> is only temporary state and these kthreads will once again be excluded
+> when they call unuse_mm().  The worst case scenario here is that the oom
+> killer will erroneously select one of these kthreads which cannot die
 
-You're suggesting that I should develop my patches on top of what I 
-speculate that Andrew will eventually merge in -mm?  I don't have that 
-kind of time, sorry.
+It can't die but force_sig() does bad things which shouldn't be done
+with workqueue thread. Note that it removes SIG_IGN, sets
+SIGNAL_GROUP_EXIT, makes signal_pending/fatal_signal_pedning true, etc.
 
-> > but they are also included here so no
-> > respin is necessary unless they are merged first (and I think that should
-> > only happen if Andrew considers them to be rc material).
-> 
-> Well, I disagree.
-> 
-> I think it is always better to push the simple bugfixes first, then
-> change/improve the logic.
-> 
+But yes, I agree, the problem is minor. But nevertheless it is bug,
+the longstanding bug with the simple fix. Why should we "hide" this fix
+inside the long series of non-trivial patches which rewrite oom-killer?
+And it is completely orthogonal to other changes.
 
-Unless your fixes, which seem to still be under development considering 
-your discussion with KOSAKI in those threads, are going into 2.6.35 during 
-the rc cycle, then there's no difference in them being merged as part of 
-this patchset since they are duplicated here.  So you'll need to convince 
-Andrew they are rc material otherwise it doesn't matter.
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
