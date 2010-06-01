@@ -1,32 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A07A6B01E3
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 12:02:11 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CACC6B01E3
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 12:20:31 -0400 (EDT)
+Date: Tue, 1 Jun 2010 18:20:25 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [rfc] forked kernel task and mm structures imbalanced on NUMA
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1275408030.27810.27637.camel@twins>
-References: <20100601073343.GQ9453@laptop>
-	 <1275408030.27810.27637.camel@twins>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 01 Jun 2010 18:02:24 +0200
-Message-ID: <1275408144.27810.27644.camel@twins>
-Mime-Version: 1.0
+Message-ID: <20100601162024.GC30556@basil.fritz.box>
+References: <20100601073343.GQ9453@laptop> <87wruiycsl.fsf@basil.nowhere.org> <20100601155943.GA9453@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100601155943.GA9453@laptop>
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lee@firstfloor.org, Schermerh@firstfloor.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-06-01 at 18:00 +0200, Peter Zijlstra wrote:
-> On Tue, 2010-06-01 at 17:33 +1000, Nick Piggin wrote:
-> > +       sd->iter =3D iter->next;
->=20
-> BTW, the (utter lack of) synchronization of sd->iter probably wants a
-> comment somewhere ;-)
+On Wed, Jun 02, 2010 at 01:59:43AM +1000, Nick Piggin wrote:
+> On Tue, Jun 01, 2010 at 05:48:10PM +0200, Andi Kleen wrote:
+> > Nick Piggin <npiggin@suse.de> writes:
+> > 
+> > > This isn't really a new problem, and I don't know how important it is,
+> > > but I recently came across it again when doing some aim7 testing with
+> > > huge numbers of tasks.
+> > 
+> > Seems reasonable. Of course you need to at least 
+> > save/restore the old CPU policy, and use a subset of it.
+> 
+> The mpolicy? My patch does that (mpol_prefer_cpu_start/end). The real
+> problem is that it can actually violate the parent's mempolicy. For
+> example MPOL_BIND and cpus_allowed set on a node outside the mempolicy.
 
-serialization that is,..
+I don't see where you store 'old', but maybe I missed it.
 
-/me goes brew more tea
+> > slightly more difficult. The advantage would be that on multiple
+> > migrations it would follow. And it would be a bit slower for
+> > the initial case.
+> 
+> Migrate what on touch? Talking mainly about kernel memory structures,
+> task_struct, mm, vmas, page tables, kernel stack, etc.
+
+Migrate task_struct, mm, vmas, page tables, kernel stack
+on reasonable touch. As long as they are not shared it shouldn't
+be too difficult.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
