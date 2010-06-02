@@ -1,173 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B3DA76B01BA
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 12:05:22 -0400 (EDT)
-Received: by pxi12 with SMTP id 12so3016997pxi.14
-        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 09:05:21 -0700 (PDT)
-Date: Thu, 3 Jun 2010 01:05:13 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 3/5] oom: introduce find_lock_task_mm() to fix !mm
- false positives
-Message-ID: <20100602160513.GC5326@barrios-desktop>
-References: <20100531182526.1843.A69D9226@jp.fujitsu.com>
- <20100531183539.1849.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5578F6B01BA
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 12:08:02 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <28f2e0a1-dfb5-4bcc-b0d7-238b5eea3e92@default>
+Date: Wed, 2 Jun 2010 09:07:10 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 0/7] Cleancache (was Transcendent Memory): overview
+References: <20100528173510.GA12166@ca-server1.us.oracle.com
+ 20100602132427.GA32110@infradead.org>
+In-Reply-To: <20100602132427.GA32110@infradead.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100531183539.1849.A69D9226@jp.fujitsu.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 31, 2010 at 06:36:34PM +0900, KOSAKI Motohiro wrote:
-> From: Oleg Nesterov <oleg@redhat.com>
-> Subject: [PATCH 3/5] oom: introduce find_lock_task_mm() to fix !mm false positives
-> 
-> Almost all ->mm == NUL checks in oom_kill.c are wrong.
-> 
-> The current code assumes that the task without ->mm has already
-> released its memory and ignores the process. However this is not
-> necessarily true when this process is multithreaded, other live
-> sub-threads can use this ->mm.
-> 
-> - Remove the "if (!p->mm)" check in select_bad_process(), it is
->   just wrong.
-> 
-> - Add the new helper, find_lock_task_mm(), which finds the live
->   thread which uses the memory and takes task_lock() to pin ->mm
-> 
-> - change oom_badness() to use this helper instead of just checking
->   ->mm != NULL.
-> 
-> - As David pointed out, select_bad_process() must never choose the
->   task without ->mm, but no matter what badness() returns the
->   task can be chosen if nothing else has been found yet.
-> 
-> Note! This patch is not enough, we need more changes.
-> 
-> 	- badness() was fixed, but oom_kill_task() still ignores
-> 	  the task without ->mm
-> 
-> This will be addressed later.
-> 
-> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [rebase
-> latest -mm and remove some obsoleted description]
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com?
+> From: Christoph Hellwig [mailto:hch@infradead.org]
+> Subject: Re: [PATCH V2 0/7] Cleancache (was Transcendent Memory):
+> overview
 
-Good catch but I have a nitpick. :)
+Hi Christophe --
 
-find_lock_task_mm isn't good name of the function, I think. 
-As you know, original goal of the function is to find sub-thread of p
-which is alive(ie, doesn't release mm). 
+Thanks for your feedback!
 
-task_lock is important for user of the function but minor.
+> >  fs/btrfs/super.c           |    2
+> >  fs/buffer.c                |    5 +
+> >  fs/ext3/super.c            |    2
+> >  fs/ext4/super.c            |    2
+> >  fs/mpage.c                 |    7 +
+> >  fs/ocfs2/super.c           |    3
+> >  fs/super.c                 |    8 +
+>=20
+> This is missing out a whole lot of filesystems.  Even more so why the
+> hell do you need hooks into the filesystem?
 
-I suggest following as 
-/*
- * If we find alive thread of process, it returns task_struct of sub thread.
- * Notice. this function calls task_lock. So caller should call task_unlock.
- */
-static struct task_struct *find_alive_subthread(struct task_struct *process)
-{
-... 
-}
+Let me rephrase/regroup your question.  Let me know if
+I missed anything...
 
-I don't forced my suggesion if you suggest much good name.
-Regardless of accepting my suggestion, looks good to me.
+1) Why is the VFS layer involved at all?
 
-> ---
->  mm/oom_kill.c |   28 +++++++++++++++++-----------
->  1 files changed, 17 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index c87a6f4..162af2e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -52,6 +52,19 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
->  	return 0;
->  }
->  
-> +static struct task_struct *find_lock_task_mm(struct task_struct *p)
-> +{
-> +	struct task_struct *t = p;
-> +	do {
-> +		task_lock(t);
-> +		if (likely(t->mm))
-> +			return t;
-> +		task_unlock(t);
-> +	} while_each_thread(p, t);
-> +
-> +	return NULL;
-> +}
-> +
->  /**
->   * badness - calculate a numeric value for how bad this task has been
->   * @p: task struct of which task we should calculate
-> @@ -74,7 +87,6 @@ static int has_intersects_mems_allowed(struct task_struct *tsk)
->  unsigned long badness(struct task_struct *p, unsigned long uptime)
->  {
->  	unsigned long points, cpu_time, run_time;
-> -	struct mm_struct *mm;
->  	struct task_struct *child;
->  	int oom_adj = p->signal->oom_adj;
->  	struct task_cputime task_time;
-> @@ -84,17 +96,14 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  	if (oom_adj == OOM_DISABLE)
->  		return 0;
->  
-> -	task_lock(p);
-> -	mm = p->mm;
-> -	if (!mm) {
-> -		task_unlock(p);
-> +	p = find_lock_task_mm(p);
-> +	if (!p)
->  		return 0;
-> -	}
->  
->  	/*
->  	 * The memory size of the process is the basis for the badness.
->  	 */
-> -	points = mm->total_vm;
-> +	points = p->mm->total_vm;
->  
->  	/*
->  	 * After this unlock we can no longer dereference local variable `mm'
-> @@ -117,7 +126,7 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
->  	 */
->  	list_for_each_entry(child, &p->children, sibling) {
->  		task_lock(child);
-> -		if (child->mm != mm && child->mm)
-> +		if (child->mm != p->mm && child->mm)
->  			points += child->mm->total_vm/2 + 1;
->  		task_unlock(child);
->  	}
-> @@ -256,9 +265,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
->  	for_each_process(p) {
->  		unsigned long points;
->  
-> -		/* skip the tasks which have already released their mm. */
-> -		if (!p->mm)
-> -			continue;
->  		/* skip the init task and kthreads */
->  		if (is_global_init(p) || (p->flags & PF_KTHREAD))
->  			continue;
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+VFS hooks are necessary to avoid a disk read when a page
+is already in cleancache and to maintain coherency (via
+cleancache_flush operations) between cleancache, the
+page cache, and disk.  This very small, very clean set
+of hooks (placed by Chris Mason) all compile into
+nothingness if cleancache is config'ed off, and turn
+into "if (*p =3D=3D NULL)" if config'ed on but no "backend"
+claims cleancache_ops or if an fs doesn't opt-in
+(see below).
 
--- 
-Kind regards,
-Minchan Kim
+2) Why do the individual filesystems need to be modified?
+
+Some filesystems are built entirely on top of VFS and
+the hooks in VFS are sufficient, so don't require an
+fs "cleancache_init" hook; the initial implementation
+of cleancache didn't provide this hook.   But for some
+fs (such as btrfs) the VFS hooks are incomplete and
+one or more hooks in the fs-specific code is required.
+For some other fs's (such as tmpfs), cleancache may even
+be counterproductive.
+
+So it seemed prudent to require an fs to "opt in" to
+use cleancache, which requires at least one hook in
+any fs.
+
+3) Why are filesystems missing?
+=20
+Only because they haven't been tested.  The existence
+proof of four fs's (ext3/ext4/ocfs2/btfrs) should be
+sufficient to validate the concept, the opt-in approach
+means that untested filesystems are not affected, and
+the hooks in the four fs's should serve as examples to
+show that it should be very easy to add more fs's in the
+future.
+
+> Please give your patches some semi-resonable subject line.
+
+Not sure what you mean... are the subject lines too short?
+Or should I leave off the back-reference to Transcendent Memory?
+Or please suggest something you think is more reasonable?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
