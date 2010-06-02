@@ -1,147 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7C5C76B01B0
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 20:38:14 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o520cCWG020729
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A95756B01B4
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 20:41:50 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o520flFm022156
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 2 Jun 2010 09:38:12 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E4445DE4E
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:38:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BC4C45DE4F
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:38:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8434A1DB803E
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:38:11 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 36A901DB8038
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:38:11 +0900 (JST)
-Date: Wed, 2 Jun 2010 09:33:56 +0900
+	Wed, 2 Jun 2010 09:41:47 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 02D5045DE6E
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:41:47 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CBB3545DE4D
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:41:46 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B3F821DB803B
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:41:46 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A70C1DB8037
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:41:46 +0900 (JST)
+Date: Wed, 2 Jun 2010 09:37:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: Fix do_try_to_free_pages() return value when
- priority==0 reclaim failure
-Message-Id: <20100602093356.5fb2d6da.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100601081059.GA2804@balbir.in.ibm.com>
-References: <20100430224316.056084208@cmpxchg.org>
-	<xr93sk57yl9o.fsf@ninji.mtv.corp.google.com>
-	<20100601122140.2436.A69D9226@jp.fujitsu.com>
-	<20100601081059.GA2804@balbir.in.ibm.com>
+Subject: Re: [RFC][2/3] memcg safe operaton for checking a cgroup is under
+ move accounts
+Message-Id: <20100602093732.1026eaf3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100601112529.GE2804@balbir.in.ibm.com>
+References: <20100601182406.1ede3581.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100601182720.f1562de6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100601112529.GE2804@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: balbir@linux.vnet.ibm.com
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010 13:40:59 +0530
+On Tue, 1 Jun 2010 16:55:29 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-06-01 12:29:41]:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-01 18:27:20]:
 > 
-> > CC to memcg folks.
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > > I agree with the direction of this patch, but I am seeing a hang when
-> > > testing with mmotm-2010-05-21-16-05.  The following test hangs, unless I
-> > > remove this patch from mmotm:
-> > >   mount -t cgroup none /cgroups -o memory
-> > >   mkdir /cgroups/cg1
-> > >   echo $$ > /cgroups/cg1/tasks
-> > >   dd bs=1024 count=1024 if=/dev/null of=/data/foo
-> > >   echo $$ > /cgroups/tasks
-> > >   echo 1 > /cgroups/cg1/memory.force_empty
-> > > 
-> > > I think the hang is caused by the following portion of
-> > > mem_cgroup_force_empty():
-> > > 	while (nr_retries && mem->res.usage > 0) {
-> > > 		int progress;
-> > > 
-> > > 		if (signal_pending(current)) {
-> > > 			ret = -EINTR;
-> > > 			goto out;
-> > > 		}
-> > > 		progress = try_to_free_mem_cgroup_pages(mem, GFP_KERNEL,
-> > > 						false, get_swappiness(mem));
-> > > 		if (!progress) {
-> > > 			nr_retries--;
-> > > 			/* maybe some writeback is necessary */
-> > > 			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > > 		}
-> > > 
-> > > 	}
-> > > 
-> > > With this patch applied, it is possible that when do_try_to_free_pages()
-> > > calls shrink_zones() for priority 0 that shrink_zones() may return 1
-> > > indicating progress, even though no pages may have been reclaimed.
-> > > Because this is a cgroup operation, scanning_global_lru() is false and
-> > > the following portion of do_try_to_free_pages() fails to set ret=0.
-> > > > 	if (ret && scanning_global_lru(sc))
-> > > >  		ret = sc->nr_reclaimed;
-> > > This leaves ret=1 indicating that do_try_to_free_pages() reclaimed 1
-> > > page even though it did not reclaim any pages.  Therefore
-> > > mem_cgroup_force_empty() erroneously believes that
-> > > try_to_free_mem_cgroup_pages() is making progress (one page at a time),
-> > > so there is an endless loop.
+> > Now, for checking a memcg is under task-account-moving, we do css_tryget()
+> > against mc.to and mc.from. But this ust complicates things. This patch
+> > makes the check easier. (And I doubt the current code has some races..)
 > > 
-> > Good catch!
+> > This patch adds a spinlock to move_charge_struct and guard modification
+> > of mc.to and mc.from. By this, we don't have to think about complicated
+> > races around this not-critical path.
 > > 
-> > Yeah, your analysis is fine. thank you for both your testing and
-> > making analysis.
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/memcontrol.c |   48 ++++++++++++++++++++++++++++--------------------
+> >  1 file changed, 28 insertions(+), 20 deletions(-)
 > > 
-> > Unfortunatelly, this logic need more fix. because It have already been
-> > corrupted by another regression. my point is, if priority==0 reclaim 
-> > failure occur, "ret = sc->nr_reclaimed" makes no sense at all.
+> > Index: mmotm-2.6.34-May21/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-2.6.34-May21.orig/mm/memcontrol.c
+> > +++ mmotm-2.6.34-May21/mm/memcontrol.c
+> > @@ -268,6 +268,7 @@ enum move_type {
 > > 
-> > The fixing patch is here. What do you think?
+> >  /* "mc" and its members are protected by cgroup_mutex */
+> >  static struct move_charge_struct {
+> > +	spinlock_t	  lock; /* for from, to, moving_task */
+> >  	struct mem_cgroup *from;
+> >  	struct mem_cgroup *to;
+> >  	unsigned long precharge;
+> > @@ -276,6 +277,7 @@ static struct move_charge_struct {
+> >  	struct task_struct *moving_task;	/* a task moving charges */
+> >  	wait_queue_head_t waitq;		/* a waitq for other context */
+> >  } mc = {
+> > +	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
+> >  	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
+> >  };
 > > 
+> > @@ -1076,26 +1078,25 @@ static unsigned int get_swappiness(struc
 > > 
-> > 
-> > From 49a395b21fe1b2f864112e71d027ffcafbdc9fc0 Mon Sep 17 00:00:00 2001
-> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Date: Tue, 1 Jun 2010 11:29:50 +0900
-> > Subject: [PATCH] vmscan: Fix do_try_to_free_pages() return value when priority==0 reclaim failure
-> > 
-> > Greg Thelen reported recent Johannes's stack diet patch makes kernel
-> > hang. His test is following.
-> > 
-> >   mount -t cgroup none /cgroups -o memory
-> >   mkdir /cgroups/cg1
-> >   echo $$ > /cgroups/cg1/tasks
-> >   dd bs=1024 count=1024 if=/dev/null of=/data/foo
-> >   echo $$ > /cgroups/tasks
-> >   echo 1 > /cgroups/cg1/memory.force_empty
-> > 
-> > Actually, This OOM hard to try logic have been corrupted
-> > since following two years old patch.
-> > 
-> > 	commit a41f24ea9fd6169b147c53c2392e2887cc1d9247
-> > 	Author: Nishanth Aravamudan <nacc@us.ibm.com>
-> > 	Date:   Tue Apr 29 00:58:25 2008 -0700
-> > 
-> > 	    page allocator: smarter retry of costly-order allocations
-> > 
-> > Original intention was "return success if the system have shrinkable
-> > zones though priority==0 reclaim was failure". But the above patch
-> > changed to "return nr_reclaimed if .....". Oh, That forgot nr_reclaimed
-> > may be 0 if priority==0 reclaim failure.
-> > 
-> > And Johannes's patch made more corrupt. Originally, priority==0 recliam
-> > failure on memcg return 0, but this patch changed to return 1. It
-> > totally confused memcg.
-> > 
-> > This patch fixes it completely.
-> >
+> >  static bool mem_cgroup_under_move(struct mem_cgroup *mem)
+> >  {
+> > -	struct mem_cgroup *from = mc.from;
+> > -	struct mem_cgroup *to = mc.to;
+> > +	struct mem_cgroup *from;
+> > +	struct mem_cgroup *to;
+> >  	bool ret = false;
+> > -
+> > -	if (from == mem || to == mem)
+> > -		return true;
+> > -
+> > -	if (!from || !to || !mem->use_hierarchy)
+> > -		return false;
+> > -
+> > -	rcu_read_lock();
+> > -	if (css_tryget(&from->css)) {
+> > -		ret = css_is_ancestor(&from->css, &mem->css);
+> > -		css_put(&from->css);
+> > -	}
+> > -	if (!ret && css_tryget(&to->css)) {
+> > -		ret = css_is_ancestor(&to->css,	&mem->css);
+> > +	/*
+> > +	 * Unlike task_move routines, we access mc.to, mc.from not under
+> > +	 * mutual execution by cgroup_mutex. Here, we take spinlock instead.
+>                  ^^^^^
+>         Typo should be exclusion
+Sure.
+
 > 
-> The patch seems reasonable to me, although I've not tested it
+> > +	 */
+> > +	spin_lock_irq(&mc.lock);
 > 
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->  
-Don't worry, I tested.
+> Why do we use the _irq variant here?
+> 
+
+Hmm. I'd like to add preemption_disable() or disable irq here. This spinlock
+is held as
+
+	cgroup_mutex();
+	  -> mc.lock
+Then, I don't want to have a risk for preemption. But yes, logically, disabling irq
+isn't necessary. I'll remove _irq() in the next.
 
 Thanks,
 -Kame
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
