@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5729F6B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 16:39:47 -0400 (EDT)
-Date: Wed, 2 Jun 2010 22:38:27 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: Make coredump interruptible
-Message-ID: <20100602203827.GA29244@redhat.com>
-References: <20100601093951.2430.A69D9226@jp.fujitsu.com> <20100601201843.GA20732@redhat.com> <20100602221805.F524.A69D9226@jp.fujitsu.com> <20100602154210.GA9622@redhat.com> <20100602172956.5A3E34A491@magilla.sf.frob.com> <20100602175325.GA16474@redhat.com> <20100602185812.4B5894A549@magilla.sf.frob.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 16F046B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 17:02:35 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o52L2VAF030399
+	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 14:02:32 -0700
+Received: from pvg16 (pvg16.prod.google.com [10.241.210.144])
+	by wpaz29.hot.corp.google.com with ESMTP id o52L2UrL018010
+	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 14:02:30 -0700
+Received: by pvg16 with SMTP id 16so475070pvg.5
+        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 14:02:29 -0700 (PDT)
+Date: Wed, 2 Jun 2010 14:02:25 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] oom: remove PF_EXITING check completely
+In-Reply-To: <20100602155455.GB9622@redhat.com>
+Message-ID: <alpine.DEB.2.00.1006021359430.32666@chino.kir.corp.google.com>
+References: <20100601093951.2430.A69D9226@jp.fujitsu.com> <20100601201843.GA20732@redhat.com> <20100602200732.F518.A69D9226@jp.fujitsu.com> <20100602155455.GB9622@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100602185812.4B5894A549@magilla.sf.frob.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Roland McGrath <roland@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 06/02, Roland McGrath wrote:
->
-> > when select_bad_process() finds the task P to kill it can participate
-> > in the core dump (sleep in exit_mm), but we should somehow inform the
-> > thread which actually dumps the core: P->mm->core_state->dumper.
->
-> Perhaps it should simply do that: if you would choose P to oom-kill, and
-> P->mm->core_state!=NULL, then choose P->mm->core_state->dumper instead.
+On Wed, 2 Jun 2010, Oleg Nesterov wrote:
 
-... to set TIF_MEMDIE which should be checked in elf_core_dump().
+> > Today, I've thought to make some bandaid patches for this issue. but
+> > yes, I've reached the same conclusion.
+> >
+> > If we think multithread and core dump situation, all fixes are just
+> > bandaid. We can't remove deadlock chance completely.
+> >
+> > The deadlock is certenaly worst result, then, minor PF_EXITING optimization
+> > doesn't have so much worth.
+> 
+> Agreed! I was always wondering if it really helps in practice.
+> 
 
-Probably yes.
+Nack, this certainly does help in practice, it prevents needlessly killing 
+additional tasks when one is exiting and may free memory.  It's much 
+better to defer killing something temporarily if an eligible task (i.e. 
+one that has a high probability of memory allocations on current's nodes 
+or contributing to its memcg) is exiting.
 
-> > Well, we can use TIF_MEMDIE if we chose the right thread, I think.
-> > But perhaps mm->flags |= MMF_OOM is better, it can have other user.
-> > I dunno.
->
-> This is all the quick hack before get around to just making core dumping
-> fully-interruptible, no?  So we should go with whatever is the simplest
-> change now.
-
-Yes.
-
-> Perhaps this belongs in another thread as you suggested.  But I wonder what
-> we might get just from s/TASK_UNINTERRUPTIBLE/TASK_KILLABLE/ in exit_mm.
-
-Oh. This needs more thinking. Definitely the task sleeping in exit_mm()
-must not exit until core_state->dumper->thread returns from do_coredump().
-If nothing else, the dumper can use its task_struct and it relies on
-the stable core_thread->next list. And right now TASK_KILLABLE can't
-work anyway, it is possible that fatal_signal_pending() is true.
-
-But perhaps we can do something later. Assuming that do_coredump() is
-interruptible, TASK_KILLABLE can make the difference only if the dumper
-belongs to another thread-group.
-
-Oleg.
+We depend on this check specifically for our use of cpusets, so please 
+don't remove it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
