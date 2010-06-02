@@ -1,62 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 392586B01B5
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:54:07 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o52Ds53i021508
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F0D236B01B7
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:54:08 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o52Ds43O021507
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
 	Wed, 2 Jun 2010 22:54:05 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3D9045DE4F
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A528345DE54
 	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C857645DE4E
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6571E45DE4E
 	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B37FE1DB8014
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 42BE61DB805B
 	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A6951DB8013
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EC77A1DB8040
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:03 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
-References: <20100601163627.245D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
-Message-Id: <20100602225252.F536.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] oom: select_bad_process: check PF_KTHREAD instead of !mm to skip kthreads
+In-Reply-To: <alpine.DEB.2.00.1006011424200.16725@chino.kir.corp.google.com>
+References: <20100601212023.GA24917@redhat.com> <alpine.DEB.2.00.1006011424200.16725@chino.kir.corp.google.com>
+Message-Id: <20100602223612.F52D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Date: Wed,  2 Jun 2010 22:54:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> Why?
+> On Tue, 1 Jun 2010, Oleg Nesterov wrote:
 > 
-> If it's because the patch is too big, I've explained a few times that 
-> functionally you can't break it apart into anything meaningful.  I do not 
-> believe it is better to break functional changes into smaller patches that 
-> simply change function signatures to pass additional arguments that are 
-> unused in the first patch, for example.
+> > But yes, I agree, the problem is minor. But nevertheless it is bug,
+> > the longstanding bug with the simple fix. Why should we "hide" this fix
+> > inside the long series of non-trivial patches which rewrite oom-killer?
+> > And it is completely orthogonal to other changes.
+> > 
 > 
-> If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
-> allowed since otherwise it would be useless with the old heuristic.  In 
-> other words, you cannot apply oom_score_adj's meaning to the bitshift in 
-> any sane way.
-> 
-> I'll suggest what I have multiple times: the easiest way to review the 
-> functional change here is to merge the patch into your own tree and then 
-> review oom_badness().  I agree that the way the diff comes out it is a 
-> little difficult to read just from the patch form, so merging it and 
-> reviewing the actual heuristic function is the easiest way.
+> Again, the question is whether or not the fix is rc material or not, 
+> otherwise there's no difference in the route that it gets upstream: the 
+> patch is duplicated in both series.  If you feel that this minor issue 
+> (which has never been reported in at least the last three years and 
+> doesn't have any side effects other than a couple of millisecond delay 
+> until unuse_mm() when the oom killer will kill something else) should be 
+> addressed in 2.6.35-rc2, then that's a conversation to be had with Andrew.
 
-I've already explained the reason. 1) all-of-rewrite patches are 
-always unacceptable. that's prevent our code maintainance. 2) no justification
-patches are also unacceptable. you need to write more proper patch descriptaion
-at least.
-
-We don't need pointless suggestion. you only need to fix the patch.
+Well, we have bugfix-at-first development rule. Why do you refuse our
+development process?
 
 
 
