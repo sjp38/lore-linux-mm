@@ -1,145 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AA206B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 17:49:11 -0400 (EDT)
-Date: Wed, 2 Jun 2010 14:49:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: vmap area cache
-Message-Id: <20100602144905.aa613dec.akpm@linux-foundation.org>
-In-Reply-To: <20100531080757.GE9453@laptop>
-References: <20100531080757.GE9453@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 00AF46B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 19:04:48 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <489aa002-6d42-4dd5-bb66-81c665f8cdd1@default>
+Date: Wed, 2 Jun 2010 16:02:40 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 0/7] Cleancache (was Transcendent Memory): overview
+References: <20100528173510.GA12166@ca-server1.us.oracle.comAANLkTilV-4_QaNq5O0WSplDx1Oq7JvkgVrEiR1rgf1up@mail.gmail.com>
+ <1d88619a-bb1e-493f-ad96-bf204b60938d@default
+ 20100602163827.GA5450@barrios-desktop>
+In-Reply-To: <20100602163827.GA5450@barrios-desktop>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 31 May 2010 18:07:57 +1000
-Nick Piggin <npiggin@suse.de> wrote:
+> From: Minchan Kim [mailto:minchan.kim@gmail.com]
 
-> Hi Andrew,
-> 
-> Could you put this in your tree? It could do with a bit more testing. I
-> will update you with updates or results from Steven.
-> 
-> Thanks,
-> Nick
-> --
-> 
-> Provide a free area cache for the vmalloc virtual address allocator, based
-> on the approach taken in the user virtual memory allocator.
-> 
-> This reduces the number of rbtree operations and linear traversals over
-> the vmap extents to find a free area. The lazy vmap flushing makes this problem
-> worse because because freed but not yet flushed vmaps tend to build up in
-> the address space between flushes.
-> 
-> Steven noticed a performance problem with GFS2. Results are as follows...
-> 
-> 
-> 
+> > I am also eagerly awaiting Nitin Gupta's cleancache backend
+> > and implementation to do in-kernel page cache compression.
+>=20
+> Do Nitin say he will make backend of cleancache for
+> page cache compression?
+>=20
+> It would be good feature.
+> I have a interest, too. :)
 
-changelog got truncated - the "results" and the signoff are missing.
+That was Nitin's plan for his GSOC project when we last discussed
+this.  Nitin is on the cc list and can comment if this has
+changed.
 
-> --- linux-2.6.orig/mm/vmalloc.c
-> +++ linux-2.6/mm/vmalloc.c
-> @@ -262,8 +262,14 @@ struct vmap_area {
->  };
->  
->  static DEFINE_SPINLOCK(vmap_area_lock);
-> -static struct rb_root vmap_area_root = RB_ROOT;
->  static LIST_HEAD(vmap_area_list);
-> +static struct rb_root vmap_area_root = RB_ROOT;
-> +
-> +static struct rb_node *free_vmap_cache;
-> +static unsigned long cached_hole_size;
-> +static unsigned long cached_start;
-> +static unsigned long cached_align;
-> +
->  static unsigned long vmap_area_pcpu_hole;
->  
->  static struct vmap_area *__find_vmap_area(unsigned long addr)
-> @@ -332,9 +338,11 @@ static struct vmap_area *alloc_vmap_area
->  	struct rb_node *n;
->  	unsigned long addr;
->  	int purged = 0;
-> +	struct vmap_area *first;
->  
->  	BUG_ON(!size);
->  	BUG_ON(size & ~PAGE_MASK);
-> +	BUG_ON(!is_power_of_2(align));
+> > By "move", do you mean changing the virtual mappings?  Yes,
+> > this could be done as long as the source and destination are
+> > both directly addressable (that is, true physical RAM), but
+> > requires TLB manipulation and has some complicated corner
+> > cases.  The copy semantics simplifies the implementation on
+> > both the "frontend" and the "backend" and also allows the
+> > backend to do fancy things on-the-fly like page compression
+> > and page deduplication.
+>=20
+> Agree. But I don't mean it.
+> If I use brd as backend, i want to do it follwing as.
+>=20
+> <snip>
+>=20
+> Of course, I know it's impossible without new metadata and
+> modification of page cache handling and it makes front and
+> backend's good layered design.
+>=20
+> What I want is to remove copy overhead when backend is ram
+> and it's also part of main memory(ie, we have page descriptor).
+>=20
+> Do you have an idea?
 
-Worried.  How do we know this won't trigger?
+Copy overhead on modern processors is very low now due to
+very wide memory buses.  The additional metadata and code
+to handle coherency and concurrency, plus existing overhead
+for batching and asynchronous access to brd is likely much
+higher than the cost to avoid copying.
 
->  	va = kmalloc_node(sizeof(struct vmap_area),
->  			gfp_mask & GFP_RECLAIM_MASK, node);
-> @@ -342,17 +350,39 @@ static struct vmap_area *alloc_vmap_area
->  		return ERR_PTR(-ENOMEM);
->  
->  retry:
-> -	addr = ALIGN(vstart, align);
-> -
->  	spin_lock(&vmap_area_lock);
-> -	if (addr + size - 1 < addr)
-> -		goto overflow;
-> +	/* invalidate cache if we have more permissive parameters */
-> +	if (!free_vmap_cache ||
-> +			size <= cached_hole_size ||
-> +			vstart < cached_start ||
-> +			align < cached_align) {
-> +nocache:
-> +		cached_hole_size = 0;
-> +		free_vmap_cache = NULL;
-> +	}
-> +	/* record if we encounter less permissive parameters */
-> +	cached_start = vstart;
-> +	cached_align = align;
-> +
-> +	/* find starting point for our search */
-> +	if (free_vmap_cache) {
-> +		first = rb_entry(free_vmap_cache, struct vmap_area, rb_node);
-> +		addr = ALIGN(first->va_end + PAGE_SIZE, align);
-> +		if (addr < vstart)
-> +			goto nocache;
-> +		if (addr + size - 1 < addr)
-> +			goto overflow;
+But if you did implement this without copying, I think
+you might need a different set of hooks in various places.
+I don't know.
 
-Some comments attached to the `if' tests would make it easier to
-understand what's going on.
+> > Or did you mean a cleancache_ops "backend"?  For tmem, there
+> > is one file linux/drivers/xen/tmem.c and it interfaces between
+> > the cleancache_ops calls and Xen hypercalls.  It should be in
+> > a Xenlinux pv_ops tree soon, or I can email it sooner.
+>=20
+> I mean "backend". :)
 
-> +
-> +	} else {
-> +		addr = ALIGN(vstart, align);
-> +		if (addr + size - 1 < addr)
-> +			goto overflow;
-> -	/* XXX: could have a last_hole cache */
-> -	n = vmap_area_root.rb_node;
-> -	if (n) {
-> -		struct vmap_area *first = NULL;
-> +		n = vmap_area_root.rb_node;
-> +		if (!n)
-> +			goto found;
->  
-> +		first = NULL;
->  		do {
->  			struct vmap_area *tmp;
->  			tmp = rb_entry(n, struct vmap_area, rb_node);
+I dropped the code used for a RHEL6beta Xen tmem driver here:
+http://oss.oracle.com/projects/tmem/dist/files/RHEL6beta/tmem-backend.patch=
+=20
 
-this?
-
---- a/mm/vmalloc.c~mm-vmap-area-cache-fix
-+++ a/mm/vmalloc.c
-@@ -265,6 +265,7 @@ static DEFINE_SPINLOCK(vmap_area_lock);
- static LIST_HEAD(vmap_area_list);
- static struct rb_root vmap_area_root = RB_ROOT;
- 
-+/* The vmap cache globals are protected by vmap_area_lock */
- static struct rb_node *free_vmap_cache;
- static unsigned long cached_hole_size;
- static unsigned long cached_start;
-_
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
