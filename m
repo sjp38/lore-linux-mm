@@ -1,36 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 002086B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 13:54:45 -0400 (EDT)
-Date: Wed, 2 Jun 2010 19:53:25 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: Make coredump interruptible
-Message-ID: <20100602175325.GA16474@redhat.com>
-References: <20100601093951.2430.A69D9226@jp.fujitsu.com> <20100601201843.GA20732@redhat.com> <20100602221805.F524.A69D9226@jp.fujitsu.com> <20100602154210.GA9622@redhat.com> <20100602172956.5A3E34A491@magilla.sf.frob.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100602172956.5A3E34A491@magilla.sf.frob.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 554E16B01AF
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 14:17:02 -0400 (EDT)
+Date: Wed, 2 Jun 2010 11:16:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/8] hugetlb, rmap: add reverse mapping for hugepage
+Message-Id: <20100602111617.0c292178.akpm@linux-foundation.org>
+In-Reply-To: <1275006562-18946-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1275006562-18946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1275006562-18946-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Roland McGrath <roland@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On 06/02, Roland McGrath wrote:
->
-> Why not just test TIF_MEMDIE?
+On Fri, 28 May 2010 09:29:16 +0900
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Because it is per-thread.
+> +#ifdef CONFIG_HUGETLBFS
+> +/*
+> + * The following three functions are for anonymous (private mapped) hugepages.
+> + * Unlike common anonymous pages, anonymous hugepages have no accounting code
+> + * and no lru code, because we handle hugepages differently from common pages.
+> + */
+> +static void __hugepage_set_anon_rmap(struct page *page,
+> +	struct vm_area_struct *vma, unsigned long address, int exclusive)
+> +{
+> +	struct anon_vma *anon_vma = vma->anon_vma;
+> +	BUG_ON(!anon_vma);
+> +	if (!exclusive) {
+> +		struct anon_vma_chain *avc;
+> +		avc = list_entry(vma->anon_vma_chain.prev,
+> +				 struct anon_vma_chain, same_vma);
+> +		anon_vma = avc->anon_vma;
+> +	}
+> +	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> +	page->mapping = (struct address_space *) anon_vma;
+> +	page->index = linear_page_index(vma, address);
+> +}
+> +
+> +void hugepage_add_anon_rmap(struct page *page,
+> +			    struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	struct anon_vma *anon_vma = vma->anon_vma;
+> +	int first;
+> +	BUG_ON(!anon_vma);
+> +	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> +	first = atomic_inc_and_test(&page->_mapcount);
+> +	if (first)
+> +		__hugepage_set_anon_rmap(page, vma, address, 0);
+> +}
+> +
+> +void hugepage_add_new_anon_rmap(struct page *page,
+> +			struct vm_area_struct *vma, unsigned long address)
+> +{
+> +	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> +	atomic_set(&page->_mapcount, 0);
+> +	__hugepage_set_anon_rmap(page, vma, address, 1);
+> +}
+> +#endif /* CONFIG_HUGETLBFS */
 
-when select_bad_process() finds the task P to kill it can participate
-in the core dump (sleep in exit_mm), but we should somehow inform the
-thread which actually dumps the core: P->mm->core_state->dumper.
+This code still make sense if CONFIG_HUGETLBFS=n, I think?  Should it
+instead depend on CONFIG_HUGETLB_PAGE?
 
-Well, we can use TIF_MEMDIE if we chose the right thread, I think.
-But perhaps mm->flags |= MMF_OOM is better, it can have other user.
-I dunno.
-
-Oleg.
+I have a feeling that we make that confusion relatively often.  Perhaps
+CONFIG_HUGETLB_PAGE=y && CONFIG_HUGETLBFS=n makes no sense and we
+should unify them...  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
