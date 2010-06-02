@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 64A1B6B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 15:29:14 -0400 (EDT)
-Date: Wed, 2 Jun 2010 12:29:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data
- structure changes
-Message-Id: <20100602122910.71f981e8.akpm@linux-foundation.org>
-In-Reply-To: <20100528174041.GA28176@ca-server1.us.oracle.com>
-References: <20100528174041.GA28176@ca-server1.us.oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5729F6B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 16:39:47 -0400 (EDT)
+Date: Wed, 2 Jun 2010 22:38:27 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: Make coredump interruptible
+Message-ID: <20100602203827.GA29244@redhat.com>
+References: <20100601093951.2430.A69D9226@jp.fujitsu.com> <20100601201843.GA20732@redhat.com> <20100602221805.F524.A69D9226@jp.fujitsu.com> <20100602154210.GA9622@redhat.com> <20100602172956.5A3E34A491@magilla.sf.frob.com> <20100602175325.GA16474@redhat.com> <20100602185812.4B5894A549@magilla.sf.frob.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100602185812.4B5894A549@magilla.sf.frob.com>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hugh.dickins@tiscali.co.uk, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@suse.de, riel@redhat.com, avi@redhat.com, pavel@ucw.cz, konrad.wilk@oracle.com
+To: Roland McGrath <roland@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 May 2010 10:40:41 -0700
-Dan Magenheimer <dan.magenheimer@oracle.com> wrote:
+On 06/02, Roland McGrath wrote:
+>
+> > when select_bad_process() finds the task P to kill it can participate
+> > in the core dump (sleep in exit_mm), but we should somehow inform the
+> > thread which actually dumps the core: P->mm->core_state->dumper.
+>
+> Perhaps it should simply do that: if you would choose P to oom-kill, and
+> P->mm->core_state!=NULL, then choose P->mm->core_state->dumper instead.
 
-> [PATCH V2 1/4] Frontswap (was Transcendent Memory): swap data structure changes
-> 
-> Core swap data structures are needed by frontswap.c but we don't
-> need to expose them to the dozens of files that include swap.h
-> so create a new swapfile.h just to extern-ify these.
-> 
-> Add frontswap-related elements to swap_info_struct.  Don't tie
-> these to CONFIG_FRONTSWAP to avoid unnecessary clutter around
-> various frontswap hooks.
-> 
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> 
-> Diffstat:
->  swap.h                                   |    2 ++
->  swapfile.h                               |   13 +++++++++++++
->  2 files changed, 15 insertions(+)
-> 
-> --- linux-2.6.34/include/linux/swapfile.h	1969-12-31 17:00:00.000000000 -0700
-> +++ linux-2.6.34-frontswap/include/linux/swapfile.h	2010-05-21 16:36:45.000000000 -0600
-> @@ -0,0 +1,13 @@
-> +#ifndef _LINUX_SWAPFILE_H
-> +#define _LINUX_SWAPFILE_H
-> +
-> +/*
-> + * these were static in swapfile.c but frontswap.c needs them and we don't
-> + * want to expose them to the dozens of source files that include swap.h
-> + */
-> +extern spinlock_t swap_lock;
-> +extern struct swap_list_t swap_list;
-> +extern struct swap_info_struct *swap_info[];
-> +extern int try_to_unuse(unsigned int, bool, unsigned long);
-> +
-> +#endif /* _LINUX_SWAPFILE_H */
-> --- linux-2.6.34/include/linux/swap.h	2010-05-16 15:17:36.000000000 -0600
-> +++ linux-2.6.34-frontswap/include/linux/swap.h	2010-05-24 10:13:41.000000000 -0600
-> @@ -182,6 +182,8 @@ struct swap_info_struct {
->  	struct block_device *bdev;	/* swap device or bdev of swap file */
->  	struct file *swap_file;		/* seldom referenced */
->  	unsigned int old_block_size;	/* seldom referenced */
-> +	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
-> +	unsigned int frontswap_pages;	/* frontswap pages in-use counter */
+... to set TIF_MEMDIE which should be checked in elf_core_dump().
 
-Is a 32-bit uint large enough?  Maybe there are other things in swap
-which restrict us to less than 16TB, dunno.
+Probably yes.
 
+> > Well, we can use TIF_MEMDIE if we chose the right thread, I think.
+> > But perhaps mm->flags |= MMF_OOM is better, it can have other user.
+> > I dunno.
+>
+> This is all the quick hack before get around to just making core dumping
+> fully-interruptible, no?  So we should go with whatever is the simplest
+> change now.
 
->  };
->  
->  struct swap_list_t {
+Yes.
+
+> Perhaps this belongs in another thread as you suggested.  But I wonder what
+> we might get just from s/TASK_UNINTERRUPTIBLE/TASK_KILLABLE/ in exit_mm.
+
+Oh. This needs more thinking. Definitely the task sleeping in exit_mm()
+must not exit until core_state->dumper->thread returns from do_coredump().
+If nothing else, the dumper can use its task_struct and it relies on
+the stable core_thread->next list. And right now TASK_KILLABLE can't
+work anyway, it is possible that fatal_signal_pending() is true.
+
+But perhaps we can do something later. Assuming that do_coredump() is
+interruptible, TASK_KILLABLE can make the difference only if the dumper
+belongs to another thread-group.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
