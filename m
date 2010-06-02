@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D7AF6B01AF
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 02:33:51 -0400 (EDT)
-Date: Wed, 2 Jun 2010 14:45:45 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][BUGFIX][PATCH 1/2] transhuge-memcg: fix for memcg compound
-Message-Id: <20100602144545.1e865f15.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
-References: <20100521000539.GA5733@random.random>
-	<20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4546B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 04:27:56 -0400 (EDT)
+Subject: Re: [PATCH 2/5] change direct call of spin_lock(anon_vma->lock) to
+ inline function
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100601150402.c828b219.akpm@linux-foundation.org>
+References: <20100526153819.6e5cec0d@annuminas.surriel.com>
+	 <20100526153926.1272945b@annuminas.surriel.com>
+	 <20100601150402.c828b219.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Wed, 02 Jun 2010 10:27:55 +0200
+Message-ID: <1275467275.27810.30644.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-We should increase/decrease css->refcnt properly in charging/uncharging compound pages.
+On Tue, 2010-06-01 at 15:04 -0700, Andrew Morton wrote:
+> On Wed, 26 May 2010 15:39:26 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+>=20
+> > @@ -303,10 +303,10 @@ again:
+> >  		goto out;
+> > =20
+> >  	anon_vma =3D (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+> > -	spin_lock(&anon_vma->lock);
+> > +	anon_vma_lock(anon_vma);
+> > =20
+> >  	if (page_rmapping(page) !=3D anon_vma) {
+> > -		spin_unlock(&anon_vma->lock);
+> > +		anon_vma_unlock(anon_vma);
+> >  		goto again;
+> >  	}
+> > =20
+>=20
+> This bit is dependent upon Peter's
+> mm-revalidate-anon_vma-in-page_lock_anon_vma.patch (below).  I've been
+> twiddling thumbs for weeks awaiting the updated version of that patch
+> (hint).
 
-Without this patch, a bug like below happens:
+Yeah, drop it, the updated patch is only a comment trying to explain why
+the current code is ok.
 
-1. create a memcg directory.
-2. run a program which uses enough memory to allocate them as transparent huge pages.
-3. kill the program.
-4. try to remove the directory, which will never finish.
+> Do we think that this patch series is needed in 2.6.35?  If so, why?=20
+> And if so I guess we'll need to route around
+> mm-revalidate-anon_vma-in-page_lock_anon_vma.patch, or just merge it
+> as-is.
+>=20
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b1ac9b1..b74bd83 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1650,8 +1650,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	}
- 	if (csize > page_size)
- 		refill_stock(mem, csize - page_size);
-+	/* increase css->refcnt by the number of tail pages */
- 	if (page_size != PAGE_SIZE)
--		__css_get(&mem->css, page_size);
-+		__css_get(&mem->css, (page_size >> PAGE_SHIFT) - 1);
- done:
- 	return 0;
- nomem:
-@@ -2237,7 +2238,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	memcg_check_events(mem, page);
- 	/* at swapout, this memcg will be accessed to record to swap */
- 	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
--		css_put(&mem->css);
-+		__css_put(&mem->css, page_size >> PAGE_SHIFT);
- 
- 	return mem;
- 
+I don't actually think that patch of mine is needed, the reject Rik's
+patch generates without it is rather trivial to fix up, if you want I
+can send you a fixed up version.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
