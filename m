@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EE846B01AF
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 21:46:11 -0400 (EDT)
-Date: Wed, 2 Jun 2010 10:39:48 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][1/3] memcg clean up try charge
-Message-Id: <20100602103948.baeb3090.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100602094527.776cc1ce.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100601182406.1ede3581.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100601231914.6874165e.d-nishimura@mtf.biglobe.ne.jp>
-	<20100602094527.776cc1ce.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5296D6B01B2
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 21:57:39 -0400 (EDT)
+Date: Tue, 1 Jun 2010 18:57:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] fs: run emergency remount on dedicated workqueue
+Message-Id: <20100601185700.32ed2a0c.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTikhC_cVbuTjSSaOffEH5dpCU-S-JBpcXNk8N2QC@mail.gmail.com>
+References: <25328.1274886067@redhat.com>
+	<4BFE4203.5010803@kernel.org>
+	<20100601164603.39dfedf7.akpm@linux-foundation.org>
+	<AANLkTikhC_cVbuTjSSaOffEH5dpCU-S-JBpcXNk8N2QC@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Dave Young <hidave.darkstar@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, davem@davemloft.net, jens.axboe@oracle.com, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >                 case CHARGE_RETRY: /* not in OOM situation but retry */
-> > 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> > 			csize = PAGE_SIZE;
-> > 			break;
-> > 
-> > later.
-> > 
-> Hmmmmmmm. ok.
-> 
-> 
-I'm sorry that, considering more, this will change current behavior, so I think
-your original patch would be better about this part.
+On Wed, 2 Jun 2010 09:02:40 +0800 Dave Young <hidave.darkstar@gmail.com> wrote:
 
+> ...
+>
+> > Another possibility might be to change lru_add_drain_all() to use IPI
+> > interrupts rather than schedule_on_each_cpu(). __That would greatly
+> > speed up lru_add_drain_all(). __I don't recall why we did it that way
+> > and I don't immediately see a reason not to. __A few things in core mm
+> > would need to be changed from spin_lock_irq() to spin_lock_irqsave().
+> >
+> > But I do have vague memories that there was a reason for it.
+> >
+> > <It's a huge PITA locating the commit which initially added
+> > lru_add_drain_all()>
+> >
+> > <ten minutes later>
+> >
+> > : tree 05d7615894131a368fc4943f641b11acdd2ae694
+> > : parent e236a166b2bc437769a9b8b5d19186a3761bde48
+> > : author Nick Piggin <npiggin@suse.de> Thu, 19 Jan 2006 09:42:27 -0800
+> > : committer Linus Torvalds <torvalds@g5.osdl.org> Thu, 19 Jan 2006 11:20:17 -0800
+> > :
+> > : [PATCH] mm: migration page refcounting fix
+> > :
+> > : Migration code currently does not take a reference to target page
+> > : properly, so between unlocking the pte and trying to take a new
+> > : reference to the page with isolate_lru_page, anything could happen to
+> > : it.
+> > :
+> > : Fix this by holding the pte lock until we get a chance to elevate the
+> > : refcount.
+> > :
+> > : Other small cleanups while we're here.
+> >
+> > It didn't tell us.
+> >
+> > <looks in the linux-mm archives>
+> >
+> > Nope, no rationale is provided there either.
+> 
+> Maybe this thread?
+> 
+> http://lkml.org/lkml/2008/10/23/226
 
-Thanks,
-Daisuke Nishimura.
+Close.  There's some talk there of using smp_call_function() (actually
+on_each_cpu()) within lru_add_drain_all(), but nobody seems to have
+tried it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
