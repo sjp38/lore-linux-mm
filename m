@@ -1,90 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 08DC26B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 05:57:02 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6E7BB6B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 06:46:55 -0400 (EDT)
+Date: Wed, 2 Jun 2010 20:46:21 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch -mm 13/18] oom: avoid race for oom killed tasks
+ detaching mm prior to exit
+Message-ID: <20100602104621.GA6152@laptop>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1006010016460.29202@chino.kir.corp.google.com>
+ <20100601164026.2472.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1006011158230.32024@chino.kir.corp.google.com>
+ <20100601204342.GC20732@redhat.com>
+ <20100602092819.58579806.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1006020230140.26724@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Date: Wed, 02 Jun 2010 13:56:58 +0200
-From: kernel <kernel@tauceti.net>
-Subject: Re: [Bugme-new] [Bug 15709] New: swapper page allocation failure
-In-Reply-To: <4BFC2CB2.9050305@tauceti.net>
-References: <4BC43097.3060000@tauceti.net> <4BCC52B9.8070200@tauceti.net> <20100419131718.GB16918@redhat.com> <dbf86fc1c370496138b3a74a3c74ec18@tauceti.net> <20100421094249.GC30855@redhat.com> <c638ec9fdee2954ec5a7a2bd405aa2ba@tauceti.net> <20100422100304.GC30532@redhat.com> <4BD12F9C.30802@tauceti.net> <20100425091759.GA9993@redhat.com> <4BD4A917.70702@tauceti.net> <20100425204916.GA12686@redhat.com> <1272284154.4252.34.camel@localhost.localdomain> <4BD5F6C5.8080605@tauceti.net> <1272315854.8984.125.camel@localhost.localdomain> <4BD61147.40709@tauceti.net> <1272324536.16814.45.camel@localhost.localdomain> <4BD76B81.2070606@tauceti.net> <be8a0f012ebb2ae02522998591e6f1a5@tauceti.net> <4BE33259.3000609@tauceti.net> <1273181438.22155.26.camel@localhost.localdomain> <4BEC6A5D.5070304@tauceti.net> <1273785234.22932.14.camel@localhost.localdomain> <a133ef4ed022a00afd40b505719ae3d2@tauceti.net> <4BFC2CB2.9050305@tauceti.net>
-Message-ID: <570793a158a0db68d623d424c38672bd@tauceti.net>
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1006020230140.26724@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Robert Wimmer <kernel@tauceti.net>
-Cc: Trond Myklebust <Trond.Myklebust@netapp.com>, mst@redhat.com, Avi Kivity <avi@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, Mel Gorman <mel@csn.ul.ie>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Trond,
-
-currently it seems that the problem was 
-fixed by accident... ;-) Since 2.6.34 is now
-in Gentoo portage I thought I should give
-it a try. Using my 2.6.35-r5 .config 
-the 2.6.34 release is now working for 4 hours
-(instead of 5-10 minutes before). Hmmm...
-Hopefully it will run for some more hours
-and days now. Since I've definitely changed
-nothing besides the kernel it must have been
-fixed (hopefully) in one of the 2.6.34-rc's.
-
-If it's still running tomorrow I'll close
-the bug.
-
-Greetings
-Robert
-
-On Tue, 25 May 2010 22:01:54 +0200, Robert Wimmer <kernel@tauceti.net>
-wrote:
-> Hi Trond,
+On Wed, Jun 02, 2010 at 02:49:49AM -0700, David Rientjes wrote:
+> On Wed, 2 Jun 2010, KAMEZAWA Hiroyuki wrote:
 > 
-> just a little reminder ;-)
+> > > > No, it applies to mmotm-2010-05-21-16-05 as all of these patches do. I
+> > > > know you've pushed Oleg's patches
+> > > 
+> > > (plus other fixes)
+> > > 
+> > > > but they are also included here so no
+> > > > respin is necessary unless they are merged first (and I think that should
+> > > > only happen if Andrew considers them to be rc material).
+> > > 
+> > > Well, I disagree.
+> > > 
+> > > I think it is always better to push the simple bugfixes first, then
+> > > change/improve the logic.
+> > > 
+> > yes..yes...I hope David finish easy-to-be-merged ones and go to new stage.
+> > IOW, please reduce size of patches sent at once.
+> > 
 > 
-> Thanks!
-> Robert
+> How do you define "easy-to-be-merged"?  We've been through several 
+> iterations of this patchset where the end result is that it's been merged 
+> in -mm once, removed from -mm six weeks later, and nobody providing any 
+> feedback that I can work from.  Providing simple "nack" emails does 
+> nothing for the development of the patchset unless you actively get 
+> involved in the review process and subsequent discussion on how to move 
+> forward.
 > 
-> On 05/20/10 09:39, kernel@tauceti.net wrote:
->> Hi Trond,
->>
->> have you had some time to download the wireshark dump?
->>
->> Thanks!
->> Robert
->>
->> On Thu, 13 May 2010 17:13:54 -0400, Trond Myklebust
->> <Trond.Myklebust@netapp.com> wrote:
->>   
->>> On Thu, 2010-05-13 at 23:08 +0200, Robert Wimmer wrote: 
->>>     
->>>> Finally I've had some time to do the next test.
->>>> Here is a wireshark dump (~750 MByte):
->>>> http://213.252.12.93/2.6.34-rc5.cap.gz
->>>>
->>>> dmesg output after page allocation failure:
->>>> https://bugzilla.kernel.org/attachment.cgi?id=26371
->>>>
->>>> stack trace before page allocation failure:
->>>> https://bugzilla.kernel.org/attachment.cgi?id=26369
->>>>
->>>> stack trace after page allocation failure:
->>>> https://bugzilla.kernel.org/attachment.cgi?id=26370
->>>>
->>>> I hope the wireshark dump is not to big to download.
->>>> It was created with
->>>> tshark -f "tcp port 2049" -i eth0 -w 2.6.34-rc5.cap
->>>>
->>>> Thanks!
->>>> Robert
->>>>       
->>> Hi Robert,
->>>
->>> I tried the above wireshark dump URL, but it appears to point to an
->>> empty file.
->>>
->>> Cheers
->>>   Trond
->>>
+> Listen, I want to hear everybody's ideas and suggestions on improvements.  
+> In fact, I think I've responded in a way that demonstrates that quite 
+> well: I've dropped the consolidation of sysctls, I've avoided deprecation 
+> of existing sysctls, I've unified the semantics of panic_on_oom, and I've 
+> split out patches where possible.  All of those were at the requests of 
+> people whom I've asked to review this patchset time and time again.
+> 
+> Kame, you've been very helpful in your feedback with regards to this 
+> patchset and I've valued your feedback from the first revision.  We had 
+> some differing views of how to handle task selection early on in other 
+> threads, but I sincerely enjoy hearing your feedback because it's 
+> interesting and challenging; you find things that I've missed and 
+> challenge me to defend decisions that were made.  I really, really like 
+> doing that type of development, I just wish we all could make some forward 
+> progress on this thing instead of staling out all the time.
+
+Well there are a large number of patches with no objections, some of
+which are bug-fixes which may need to be backported to earlier kernels.
+It would be nice if the patchset would be rearranged so all these can
+be merged soon (I don't want the situation where a couple of patches
+hold up your entire patchset again).
+
+When you are reduced to a few patches changing major functionality, it
+could be eaiser to get those reviewed and merged on their own.
+
+ 
+> I'm asking everyone to please review this work and comment on what you 
+> don't like or provide suggestions on how to improve it.  It's been posted 
+> in its various forms about eight times now over the course of a few 
+> months, I really hope there's no big surprises in it to anyone anymore.  
+> Sure, there are cleanups here that possibly could be considered rc 
+> material even though they admittedly aren't critical, but that isn't a 
+> reason to just stall out all of this work.  I'm sure Andrew can decide 
+> what he wants to merge into 2.6.35-rc2 after looking at the discussion and 
+> analyzing the impact; let us please focus on the actual implementation and 
+> design choices of the new oom killer presented here rather than get 
+> sidetracked.
+
+Well the merge window is closed and even if it wasn't the patches would
+be better to sit in -mm for a bit. So I don't think there is a big rush
+now, let's just get it right so everything is lined up to get into the
+next merge window.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
