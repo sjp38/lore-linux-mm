@@ -1,105 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 83E7F6B01C7
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 18:04:42 -0400 (EDT)
-Date: Tue, 1 Jun 2010 15:04:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] change direct call of spin_lock(anon_vma->lock) to
- inline function
-Message-Id: <20100601150402.c828b219.akpm@linux-foundation.org>
-In-Reply-To: <20100526153926.1272945b@annuminas.surriel.com>
-References: <20100526153819.6e5cec0d@annuminas.surriel.com>
-	<20100526153926.1272945b@annuminas.surriel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5BA026B01B0
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 20:32:44 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o520Wfhe018252
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 2 Jun 2010 09:32:41 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B203445DE54
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:32:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4235945DE62
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:32:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E5C20E08020
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:32:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 99FC1E0800A
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:32:37 +0900 (JST)
+Date: Wed, 2 Jun 2010 09:28:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm 13/18] oom: avoid race for oom killed tasks
+ detaching mm prior to exit
+Message-Id: <20100602092819.58579806.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100601204342.GC20732@redhat.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1006010016460.29202@chino.kir.corp.google.com>
+	<20100601164026.2472.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1006011158230.32024@chino.kir.corp.google.com>
+	<20100601204342.GC20732@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 May 2010 15:39:26 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On Tue, 1 Jun 2010 22:43:42 +0200
+Oleg Nesterov <oleg@redhat.com> wrote:
 
-> @@ -303,10 +303,10 @@ again:
->  		goto out;
->  
->  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> -	spin_lock(&anon_vma->lock);
-> +	anon_vma_lock(anon_vma);
->  
->  	if (page_rmapping(page) != anon_vma) {
-> -		spin_unlock(&anon_vma->lock);
-> +		anon_vma_unlock(anon_vma);
->  		goto again;
->  	}
->  
+> On 06/01, David Rientjes wrote:
+> >
+> > No, it applies to mmotm-2010-05-21-16-05 as all of these patches do. I
+> > know you've pushed Oleg's patches
+> 
+> (plus other fixes)
+> 
+> > but they are also included here so no
+> > respin is necessary unless they are merged first (and I think that should
+> > only happen if Andrew considers them to be rc material).
+> 
+> Well, I disagree.
+> 
+> I think it is always better to push the simple bugfixes first, then
+> change/improve the logic.
+> 
+yes..yes...I hope David finish easy-to-be-merged ones and go to new stage.
+IOW, please reduce size of patches sent at once.
 
-This bit is dependent upon Peter's
-mm-revalidate-anon_vma-in-page_lock_anon_vma.patch (below).  I've been
-twiddling thumbs for weeks awaiting the updated version of that patch
-(hint).
-
-Do we think that this patch series is needed in 2.6.35?  If so, why? 
-And if so I guess we'll need to route around
-mm-revalidate-anon_vma-in-page_lock_anon_vma.patch, or just merge it
-as-is.
-
-
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
-There is nothing preventing the anon_vma from being detached while we are
-spinning to acquire the lock.  Most (all?) current users end up calling
-something like vma_address(page, vma) on it, which has a fairly good
-chance of weeding out wonky vmas.
-
-However suppose the anon_vma got freed and re-used while we were waiting
-to acquire the lock, and the new anon_vma fits with the page->index
-(because that is the only thing vma_address() uses to determine if the
-page fits in a particular vma, we could end up traversing faulty anon_vma
-chains.
-
-Close this hole for good by re-validating that page->mapping still holds
-the very same anon_vma pointer after we acquire the lock, if not be
-utterly paranoid and retry the whole operation (which will very likely
-bail, because it's unlikely the page got attached to a different anon_vma
-in the meantime).
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/rmap.c |    7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff -puN mm/rmap.c~mm-revalidate-anon_vma-in-page_lock_anon_vma mm/rmap.c
---- a/mm/rmap.c~mm-revalidate-anon_vma-in-page_lock_anon_vma
-+++ a/mm/rmap.c
-@@ -370,6 +370,7 @@ struct anon_vma *page_lock_anon_vma(stru
- 	unsigned long anon_mapping;
- 
- 	rcu_read_lock();
-+again:
- 	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
- 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
- 		goto out;
-@@ -378,6 +379,12 @@ struct anon_vma *page_lock_anon_vma(stru
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
- 	spin_lock(&anon_vma->lock);
-+
-+	if (page_rmapping(page) != anon_vma) {
-+		spin_unlock(&anon_vma->lock);
-+		goto again;
-+	}
-+
- 	return anon_vma;
- out:
- 	rcu_read_unlock();
-_
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
