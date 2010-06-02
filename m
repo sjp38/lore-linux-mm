@@ -1,112 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 402316B01B6
-	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 20:47:11 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o520l7Uj026003
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 122256B01B6
+	for <linux-mm@kvack.org>; Tue,  1 Jun 2010 20:49:45 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o520nhSF025447
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 2 Jun 2010 09:47:08 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8656245DE70
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:47:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CE8145DE4D
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:47:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 176991DB803E
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:47:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C71BD1DB803A
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:47:06 +0900 (JST)
-Date: Wed, 2 Jun 2010 09:42:53 +0900
+	Wed, 2 Jun 2010 09:49:44 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF6BB45DE51
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:49:42 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BB80745DE50
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:49:42 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 980DF1DB804E
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:49:42 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FA331DB8048
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:49:42 +0900 (JST)
+Date: Wed, 2 Jun 2010 09:45:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][1/3] memcg clean up try charge
-Message-Id: <20100602094253.1ca5f3f8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100601113658.GF2804@balbir.in.ibm.com>
+Message-Id: <20100602094527.776cc1ce.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100601231914.6874165e.d-nishimura@mtf.biglobe.ne.jp>
 References: <20100601182406.1ede3581.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100601113658.GF2804@balbir.in.ibm.com>
+	<20100601231914.6874165e.d-nishimura@mtf.biglobe.ne.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: nishimura@mxp.nes.nec.co.jp
+Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Jun 2010 17:06:58 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 1 Jun 2010 23:19:14 +0900
+Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-01 18:24:06]:
-> >    why we retry or quit by return code.
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |  244 +++++++++++++++++++++++++++++++++-----------------------
-> >  1 file changed, 145 insertions(+), 99 deletions(-)
-> > 
-> > Index: mmotm-2.6.34-May21/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-2.6.34-May21.orig/mm/memcontrol.c
-> > +++ mmotm-2.6.34-May21/mm/memcontrol.c
-> > @@ -1072,6 +1072,49 @@ static unsigned int get_swappiness(struc
-> >  	return swappiness;
-> >  }
-> > 
-> > +/* A routine for testing mem is not under move_account */
-> > +
-> > +static bool mem_cgroup_under_move(struct mem_cgroup *mem)
-> > +{
-> > +	struct mem_cgroup *from = mc.from;
-> > +	struct mem_cgroup *to = mc.to;
-> > +	bool ret = false;
-> > +
-> > +	if (from == mem || to == mem)
-> > +		return true;
-> > +
-> > +	if (!from || !to || !mem->use_hierarchy)
-> > +		return false;
-> > +
-> > +	rcu_read_lock();
-> > +	if (css_tryget(&from->css)) {
-> > +		ret = css_is_ancestor(&from->css, &mem->css);
-> > +		css_put(&from->css);
-> > +	}
-> > +	if (!ret && css_tryget(&to->css)) {
-> > +		ret = css_is_ancestor(&to->css,	&mem->css);
-> > +		css_put(&to->css);
-> > +	}
-> > +	rcu_read_unlock();
-> > +	return ret;
-> > +}
-> > +
-> > +static bool mem_cgroup_wait_acct_move(struct mem_cgroup *mem)
-> > +{
-> > +	if (mc.moving_task && current != mc.moving_task) {
-> > +		if (mem_cgroup_under_move(mem)) {
-> > +			DEFINE_WAIT(wait);
-> > +			prepare_to_wait(&mc.waitq, &wait, TASK_INTERRUPTIBLE);
-> > +			/* moving charge context might have finished. */
-> > +			if (mc.moving_task)
-> > +				schedule();
+> On Tue, 1 Jun 2010 18:24:06 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> If we sleep with TASK_INTERRUPTIBLE, we should also check for
-> signal_pending() at the end of the schedule and handle it
-> appropriately to cancel the operation. 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > mem_cgroup_try_charge() has a big loop (doesn't fits in screee) and seems to be
+> > hard to read. Most of routines are for slow paths. This patch moves codes out
+> > from the loop and make it clear what's done.
+> > 
+> I like this cleanup :)
 > 
-Hmm. yes. and if signal is a fatal one, we can use "bypass" root.
+> I have some comments for now.
+> 
+> > -	while (1) {
+> > -		int ret = 0;
+> > -		unsigned long flags = 0;
+> > +	while (ret != CHARGE_OK) {
+> > +		int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> reset nr_oom_retries at the beginning of every loop ? :)
 
-> Looks good to me otherwise.
+This initialization is done only once ;) 
 
-Thank you.
+> I think this line should be at the top of this function, and we should do like:
+> 
+But ok, will do that.
 
-Regards,
+
+>                 case CHARGE_RETRY: /* not in OOM situation but retry */
+> 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> 			csize = PAGE_SIZE;
+> 			break;
+> 
+> later.
+> 
+Hmmmmmmm. ok.
+
+
+> > +		case CHARGE_NOMEM: /* OOM routine works */
+> >  			if (!oom)
+> >  				goto nomem;
+> > -			if (mem_cgroup_handle_oom(mem_over_limit, gfp_mask)) {
+> > -				nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> > -				continue;
+> > -			}
+> > -			/* When we reach here, current task is dying .*/
+> > -			css_put(&mem->css);
+> > +			/* If !oom, we never return -ENOMEM */
+> s/!oom/oom ?   
+> 
+
+yes.
+
+Thanks,
 -Kame
-> 
-
-> 
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
