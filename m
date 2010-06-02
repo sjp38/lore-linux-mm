@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A19A56B01B0
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:54:06 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o52Ds4XH016905
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 392586B01B5
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 09:54:07 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o52Ds53i021508
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 2 Jun 2010 22:54:04 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B59C45DE51
+	Wed, 2 Jun 2010 22:54:05 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3D9045DE4F
 	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DA39545DE4F
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C75C31DB803B
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:03 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C857645DE4E
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B37FE1DB8014
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A34C1DB803E
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:03 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A6951DB8013
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 22:54:04 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <alpine.DEB.2.00.1006011144340.32024@chino.kir.corp.google.com>
-References: <20100601074620.GR9453@laptop> <alpine.DEB.2.00.1006011144340.32024@chino.kir.corp.google.com>
-Message-Id: <20100602222347.F527.A69D9226@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
+References: <20100601163627.245D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
+Message-Id: <20100602225252.F536.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Wed,  2 Jun 2010 22:54:02 +0900 (JST)
+Date: Wed,  2 Jun 2010 22:54:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Such that you can look at your test case or workload and see that
-> > it is really improved?
-> > 
+> Why?
 > 
-> I'm glad you asked that because some recent conversation has been 
-> slightly confusing to me about how this affects the desktop; this rewrite 
-> significantly improves the oom killer's response for desktop users.  The 
-> core ideas were developed in the thread from this mailing list back in 
-> February called "Improving OOM killer" at 
-> http://marc.info/?t=126506191200004&r=4&w=2 -- users constantly report 
-> that vital system tasks such as kdeinit are killed whenever a memory 
-> hogging task is forked either intentionally or unintentionally.  I argued 
-> for a while that KDE should be taking proper precautions by adjusting its 
-> own oom_adj score and that of its forked children as it's an inherited 
-> value, but I was eventually convinced that an overall improvement to the 
-> heuristic must be made to kill a task that was known to free a large 
-> amount of memory that is resident in RAM and that we have a consistent way 
-> of defining oom priorities when a task is run uncontained and when it is a 
-> member of a memcg or cpuset (or even mempolicy now), even in the case when 
-> it's contained out from under the task's knowledge.  When faced with 
-> memory pressure from an out of control or memory hogging task on the 
-> desktop, the oom killer now kills it instead of a vital task such as an X 
-> server (and oracle, webserver, etc on server platforms) because of the use 
-> of the task's rss instead of total_vm statistic.
+> If it's because the patch is too big, I've explained a few times that 
+> functionally you can't break it apart into anything meaningful.  I do not 
+> believe it is better to break functional changes into smaller patches that 
+> simply change function signatures to pass additional arguments that are 
+> unused in the first patch, for example.
+> 
+> If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
+> allowed since otherwise it would be useless with the old heuristic.  In 
+> other words, you cannot apply oom_score_adj's meaning to the bitshift in 
+> any sane way.
+> 
+> I'll suggest what I have multiple times: the easiest way to review the 
+> functional change here is to merge the patch into your own tree and then 
+> review oom_badness().  I agree that the way the diff comes out it is a 
+> little difficult to read just from the patch form, so merging it and 
+> reviewing the actual heuristic function is the easiest way.
 
-The above story teach us oom-killer need some improvement. but it haven't
-prove your patches are correct solution. that's why you got to ask testing way.
+I've already explained the reason. 1) all-of-rewrite patches are 
+always unacceptable. that's prevent our code maintainance. 2) no justification
+patches are also unacceptable. you need to write more proper patch descriptaion
+at least.
 
-Nobody have objection to fix KDE OOM issue.
+We don't need pointless suggestion. you only need to fix the patch.
+
 
 
 --
