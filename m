@@ -1,166 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DCCCD6B01E5
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:42:54 -0400 (EDT)
-Date: Thu, 3 Jun 2010 15:40:31 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 2/2] memcg make move_task_charge check clearer
-Message-Id: <20100603154031.f80fc900.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100603115119.be29ec13.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100603115119.be29ec13.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BA77C6B01E7
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:44:46 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id o536igL3012989
+	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 23:44:42 -0700
+Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
+	by kpbe19.cbf.corp.google.com with ESMTP id o536ieT9010793
+	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 23:44:41 -0700
+Received: by pxi10 with SMTP id 10so3280280pxi.21
+        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 23:44:40 -0700 (PDT)
+Date: Wed, 2 Jun 2010 23:44:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
+In-Reply-To: <20100603090552.1206dfb4.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006022342120.22441@chino.kir.corp.google.com>
+References: <20100601074620.GR9453@laptop> <alpine.DEB.2.00.1006011144340.32024@chino.kir.corp.google.com> <20100602222347.F527.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006021421540.32666@chino.kir.corp.google.com>
+ <20100603090552.1206dfb4.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jun 2010 11:51:19 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, for checking a memcg is under task-account-moving, we do css_tryget()
-> against mc.to and mc.from. But this is just complicating things. This patch
-> makes the check easier.
-> 
-> This patch adds a spinlock to move_charge_struct and guard modification
-> of mc.to and mc.from. By this, we don't have to think about complicated
-> races around this not-critical path.
-> 
-> Changelog:
->  - removed disable/enable irq.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   48 ++++++++++++++++++++++++++++--------------------
->  1 file changed, 28 insertions(+), 20 deletions(-)
-> 
-> Index: mmotm-2.6.34-May21/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.34-May21.orig/mm/memcontrol.c
-> +++ mmotm-2.6.34-May21/mm/memcontrol.c
-> @@ -268,6 +268,7 @@ enum move_type {
->  
->  /* "mc" and its members are protected by cgroup_mutex */
->  static struct move_charge_struct {
-> +	spinlock_t	  lock; /* for from, to, moving_task */
->  	struct mem_cgroup *from;
->  	struct mem_cgroup *to;
->  	unsigned long precharge;
-> @@ -276,6 +277,7 @@ static struct move_charge_struct {
->  	struct task_struct *moving_task;	/* a task moving charges */
->  	wait_queue_head_t waitq;		/* a waitq for other context */
->  } mc = {
-> +	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
->  	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
->  };
->  
-> @@ -1076,26 +1078,25 @@ static unsigned int get_swappiness(struc
->  
->  static bool mem_cgroup_under_move(struct mem_cgroup *mem)
->  {
-> -	struct mem_cgroup *from = mc.from;
-> -	struct mem_cgroup *to = mc.to;
-> +	struct mem_cgroup *from;
-> +	struct mem_cgroup *to;
->  	bool ret = false;
-> -
-> -	if (from == mem || to == mem)
-> -		return true;
-> -
-> -	if (!from || !to || !mem->use_hierarchy)
-> -		return false;
-> -
-> -	rcu_read_lock();
-> -	if (css_tryget(&from->css)) {
-> -		ret = css_is_ancestor(&from->css, &mem->css);
-> -		css_put(&from->css);
-> -	}
-> -	if (!ret && css_tryget(&to->css)) {
-> -		ret = css_is_ancestor(&to->css,	&mem->css);
-> +	/*
-> +	 * Unlike task_move routines, we access mc.to, mc.from not under
-> +	 * mutual exclusion by cgroup_mutex. Here, we take spinlock instead.
-> +	 */
-> +	spin_lock(&mc.lock);
-> +	from = mc.from;
-> +	to = mc.to;
-> +	if (!from)
-> +		goto unlock;
-> +	if (from == mem || to == mem
-> +	    || (mem->use_hierarchy && css_is_ancestor(&from->css, &mem->css))
-> +	    || (mem->use_hierarchy && css_is_ancestor(&to->css,	&mem->css)))
->  		css_put(&to->css);
-I think this css_put() must be removed too.
-Except for it, this patch looks good to me.
+On Thu, 3 Jun 2010, KAMEZAWA Hiroyuki wrote:
 
-Thank you for cleaning up my dirty code :)
-
-Thanks,
-Daisuke Nishimura.
-
-> -	}
-> -	rcu_read_unlock();
-> +		ret = true;
-> +unlock:
-> +	spin_unlock(&mc.lock);
->  	return ret;
->  }
->  
-> @@ -4447,11 +4448,13 @@ static int mem_cgroup_precharge_mc(struc
->  
->  static void mem_cgroup_clear_mc(void)
->  {
-> +	struct mem_cgroup *from = mc.from;
-> +	struct mem_cgroup *to = mc.to;
-> +
->  	/* we must uncharge all the leftover precharges from mc.to */
->  	if (mc.precharge) {
->  		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
->  		mc.precharge = 0;
-> -		memcg_oom_recover(mc.to);
->  	}
->  	/*
->  	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
-> @@ -4460,7 +4463,6 @@ static void mem_cgroup_clear_mc(void)
->  	if (mc.moved_charge) {
->  		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
->  		mc.moved_charge = 0;
-> -		memcg_oom_recover(mc.from);
->  	}
->  	/* we must fixup refcnts and charges */
->  	if (mc.moved_swap) {
-> @@ -4485,9 +4487,13 @@ static void mem_cgroup_clear_mc(void)
->  
->  		mc.moved_swap = 0;
->  	}
-> +	spin_lock(&mc.lock);
->  	mc.from = NULL;
->  	mc.to = NULL;
->  	mc.moving_task = NULL;
-> +	spin_unlock(&mc.lock);
-> +	memcg_oom_recover(from);
-> +	memcg_oom_recover(to);
->  	wake_up_all(&mc.waitq);
->  }
->  
-> @@ -4516,12 +4522,14 @@ static int mem_cgroup_can_attach(struct 
->  			VM_BUG_ON(mc.moved_charge);
->  			VM_BUG_ON(mc.moved_swap);
->  			VM_BUG_ON(mc.moving_task);
-> +			spin_lock(&mc.lock);
->  			mc.from = from;
->  			mc.to = mem;
->  			mc.precharge = 0;
->  			mc.moved_charge = 0;
->  			mc.moved_swap = 0;
->  			mc.moving_task = current;
-> +			spin_unlock(&mc.lock);
->  
->  			ret = mem_cgroup_precharge_mc(mm);
->  			if (ret)
+> > > > I'm glad you asked that because some recent conversation has been 
+> > > > slightly confusing to me about how this affects the desktop; this rewrite 
+> > > > significantly improves the oom killer's response for desktop users.  The 
+> > > > core ideas were developed in the thread from this mailing list back in 
+> > > > February called "Improving OOM killer" at 
+> > > > http://marc.info/?t=126506191200004&r=4&w=2 -- users constantly report 
+> > > > that vital system tasks such as kdeinit are killed whenever a memory 
+> > > > hogging task is forked either intentionally or unintentionally.  I argued 
+> > > > for a while that KDE should be taking proper precautions by adjusting its 
+> > > > own oom_adj score and that of its forked children as it's an inherited 
+> > > > value, but I was eventually convinced that an overall improvement to the 
+> > > > heuristic must be made to kill a task that was known to free a large 
+> > > > amount of memory that is resident in RAM and that we have a consistent way 
+> > > > of defining oom priorities when a task is run uncontained and when it is a 
+> > > > member of a memcg or cpuset (or even mempolicy now), even in the case when 
+> > > > it's contained out from under the task's knowledge.  When faced with 
+> > > > memory pressure from an out of control or memory hogging task on the 
+> > > > desktop, the oom killer now kills it instead of a vital task such as an X 
+> > > > server (and oracle, webserver, etc on server platforms) because of the use 
+> > > > of the task's rss instead of total_vm statistic.
+> > > 
+> > > The above story teach us oom-killer need some improvement. but it haven't
+> > > prove your patches are correct solution. that's why you got to ask testing way.
+> > > 
+> > 
+> > I would consider what I said above, "when faced with memory pressure from 
+> > an out of control or memory hogging task on the desktop, the oom killer 
+> > now kills it instead of a vital task such as an X server because of the 
+> > use of the task's rss instead of total_vm statistic" as an improvement 
+> > over killing X in those cases which it currently does.  How do you 
+> > disagree?
+> > 
 > 
+> It was you who disagree using RSS for oom killing in the last winter.
+> By what observation did you change your mind ? (Don't take this as criticism.
+> I'm just curious.) 
+> 
+
+The fact that when I ran the new heuristic it improved the oom killer on 
+my desktop to save KDE and kill a memory-hogging task that stressed it.  I 
+became supportive of the idea through the discussion that went on 
+specifically about using total_vm as a baseline and was convinced that it 
+was better to use rss as well as a more powerful user interface so that 
+admins could more accurately set their oom kill priorities even when their 
+cpuset, memcg, or mempolicy placement was changed out from under it.
+
+> My stand point:
+> I don't like the new interface at all but welcome the concept for using RSS .
+
+Using rss is not a new interface.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
