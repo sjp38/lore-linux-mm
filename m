@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A7BCC6B01AD
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 14:36:08 -0400 (EDT)
-Message-ID: <4C07F5EC.20600@cray.com>
-Date: Thu, 3 Jun 2010 11:35:24 -0700
-From: Doug Doan <dougd@cray.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A90EA6B01AD
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 16:11:34 -0400 (EDT)
+Received: from hpaq11.eem.corp.google.com (hpaq11.eem.corp.google.com [172.25.149.11])
+	by smtp-out.google.com with ESMTP id o53KBTMT002422
+	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:11:30 -0700
+Received: from pwi9 (pwi9.prod.google.com [10.241.219.9])
+	by hpaq11.eem.corp.google.com with ESMTP id o53KBQRd024597
+	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:11:28 -0700
+Received: by pwi9 with SMTP id 9so292009pwi.16
+        for <linux-mm@kvack.org>; Thu, 03 Jun 2010 13:11:26 -0700 (PDT)
+Date: Thu, 3 Jun 2010 13:11:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/5] oom: select_bad_process: check PF_KTHREAD instead
+ of !mm to skip kthreads
+In-Reply-To: <20100603142717.GC3548@redhat.com>
+Message-ID: <alpine.DEB.2.00.1006031308430.10856@chino.kir.corp.google.com>
+References: <20100601212023.GA24917@redhat.com> <alpine.DEB.2.00.1006011424200.16725@chino.kir.corp.google.com> <20100602223612.F52D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006021405280.32666@chino.kir.corp.google.com> <20100602213331.GA31949@redhat.com>
+ <alpine.DEB.2.00.1006021437010.4765@chino.kir.corp.google.com> <20100603142717.GC3548@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] hugetlb: call mmu notifiers on hugepage cow
-References: <4BFED954.8060807@cray.com>	<20100601231600.3b3bf499.akpm@linux-foundation.org>	<4C06E5A6.6@cray.com>	<20100602163346.b8f8b8a4.akpm@linux-foundation.org>	<4C07E800.5010701@cray.com> <20100603111125.8cd6a787.akpm@linux-foundation.org>
-In-Reply-To: <20100603111125.8cd6a787.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "rientjes@google.com" <rientjes@google.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, Andrea Arcangeli <aarcange@redhat.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 06/03/2010 11:11 AM, Andrew Morton wrote:
-> On Thu, 3 Jun 2010 10:36:00 -0700
-> Doug Doan<dougd@cray.com>  wrote:
->
->>> Well, specifically it means that
->>> mmu_notifier_invalidate_range_start/end() implemetnations can no longer
->>> take page_table_lock or any lock which nests outside page_table_lock.
->>> That lessens flexibility.
->>>
->>> As the other mmu_notifier_invalidate_range_start/end() callsite in this
->>> function carefully nested those calls outside page_table_lock, perhaps
->>> that was thought to be a significant thing.
->>
->> Here's my rationale: for the normal page case, the invalidation call is done
->> inside a page_table_lock,
->
-> It is?  Where does that happen?
+On Thu, 3 Jun 2010, Oleg Nesterov wrote:
 
-handle_pte_fault() acquires the lock before calling do_wp_page():
+> David, I don't understand why do you refuse to re-diff your changes
+> on top of Kosaki's work. If nothing else, this will help to review
+> your changes.
+> 
 
-         ptl = pte_lockptr(mm, pmd);
-         spin_lock(ptl);
-         if (unlikely(!pte_same(*pte, entry)))
-                 goto unlock;
-         if (flags & FAULT_FLAG_WRITE) {
-                 if (!pte_write(entry))
-                         return do_wp_page(mm, vma, address,
-                                         pte, pmd, ptl, entry);
-                 entry = pte_mkdirty(entry);
-         }
+I simply don't have enough time in a day to rebase my rewrite patches on 
+top of what Andrew may or may not merge into -mm.  When he merges 
+something, that would be different.
 
-do_wp_page() calls set_pte_at_notify(), which either calls 
-mmu_notifier_change_pte() or mmu_notifier_invalidate_page().
-
->
->> so the same should also be done in the huge page case.
->> Does it really make sense to call invalidation on one hugepage and have another
->> call invalidate the same hugepage while the first call is still not finished?
+I don't think we need to push anything to -mm right now that isn't rc 
+material since the rewrite should make it in before the merge window.  If 
+there are outstanding fixes that should go into rc (and probably stable 
+material as well), those need to be pushed to Andrew immediately.  I 
+disagree that I've seen any to date that are immediate fixes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
