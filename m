@@ -1,43 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ED896B01AD
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 16:32:13 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o53KW9rj023265
-	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:32:09 -0700
-Received: from pzk2 (pzk2.prod.google.com [10.243.19.130])
-	by wpaz21.hot.corp.google.com with ESMTP id o53KVpHY003702
-	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:32:07 -0700
-Received: by pzk2 with SMTP id 2so394453pzk.25
-        for <linux-mm@kvack.org>; Thu, 03 Jun 2010 13:32:07 -0700 (PDT)
-Date: Thu, 3 Jun 2010 13:32:03 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C90D6B01B2
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 16:33:28 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id o53KXOSV022933
+	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:33:24 -0700
+Received: from pvg16 (pvg16.prod.google.com [10.241.210.144])
+	by kpbe14.cbf.corp.google.com with ESMTP id o53KWspE025307
+	for <linux-mm@kvack.org>; Thu, 3 Jun 2010 13:33:22 -0700
+Received: by pvg16 with SMTP id 16so298514pvg.33
+        for <linux-mm@kvack.org>; Thu, 03 Jun 2010 13:33:22 -0700 (PDT)
+Date: Thu, 3 Jun 2010 13:33:19 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC] oom-kill: give the dying task a higher priority
-In-Reply-To: <1275551449.27810.34905.camel@twins>
-Message-ID: <alpine.DEB.2.00.1006031327480.10856@chino.kir.corp.google.com>
-References: <20100601173535.GD23428@uudg.org> <alpine.DEB.2.00.1006011347060.13136@chino.kir.corp.google.com> <20100602220429.F51E.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006021410300.32666@chino.kir.corp.google.com> <1275551449.27810.34905.camel@twins>
+Subject: Re: [patch -mm 09/18] oom: add forkbomb penalty to badness
+ heuristic
+In-Reply-To: <alpine.DEB.2.00.1006011157050.32024@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006031333070.10856@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015220.29202@chino.kir.corp.google.com> <20100601163705.2460.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011157050.32024@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jun 2010, Peter Zijlstra wrote:
+On Tue, 1 Jun 2010, David Rientjes wrote:
 
-> > And that can reduce the runtime of the thread holding a writelock on 
-> > mm->mmap_sem, making the exit actually take longer than without the patch 
-> > if its priority is significantly higher, especially on smaller machines. 
+> On Tue, 1 Jun 2010, KOSAKI Motohiro wrote:
 > 
-> /me smells an inversion... on -rt we solved those ;-)
+> > > Add a forkbomb penalty for processes that fork an excessively large
+> > > number of children to penalize that group of tasks and not others.  A
+> > > threshold is configurable from userspace to determine how many first-
+> > > generation execve children (those with their own address spaces) a task
+> > > may have before it is considered a forkbomb.  This can be tuned by
+> > > altering the value in /proc/sys/vm/oom_forkbomb_thres, which defaults to
+> > > 1000.
+> > > 
+> > > When a task has more than 1000 first-generation children with different
+> > > address spaces than itself, a penalty of
+> > > 
+> > > 	(average rss of children) * (# of 1st generation execve children)
+> > > 	-----------------------------------------------------------------
+> > > 			oom_forkbomb_thres
+> > > 
+> > > is assessed.  So, for example, using the default oom_forkbomb_thres of
+> > > 1000, the penalty is twice the average rss of all its execve children if
+> > > there are 2000 such tasks.  A task is considered to count toward the
+> > > threshold if its total runtime is less than one second; for 1000 of such
+> > > tasks to exist, the parent process must be forking at an extremely high
+> > > rate either erroneously or maliciously.
+> > > 
+> > > Even though a particular task may be designated a forkbomb and selected as
+> > > the victim, the oom killer will still kill the 1st generation execve child
+> > > with the highest badness() score in its place.  The avoids killing
+> > > important servers or system daemons.  When a web server forks a very large
+> > > number of threads for client connections, for example, it is much better
+> > > to kill one of those threads than to kill the server and make it
+> > > unresponsive.
+> > > 
+> > > [oleg@redhat.com: optimize task_lock when iterating children]
+> > > Signed-off-by: David Rientjes <rientjes@google.com>
+> > 
+> > nack
+> > 
+> 
+> Why?
 > 
 
-Right, but I don't see how increasing an oom killed tasks priority to a 
-divine priority doesn't impact the priorities of other tasks which may be 
-blocking the exit of that task, namely a coredumper or holder of 
-mm->mmap_sem.  This patch also doesn't address how it negatively impacts 
-the priorities of jobs running in different cpusets (although sharing the 
-same cpus) because one cpuset is oom.
+Still waiting for an answer to this, KOSAKI.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
