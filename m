@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B52216B021D
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 06:38:12 -0400 (EDT)
-Date: Thu, 3 Jun 2010 19:38:09 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [PATCH 1/2] memcg clean up try_charge main loop
-Message-Id: <20100603193809.9d5f6314.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20100603152830.8b9e5e27.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100603150619.4bbe61bb.nishimura@mxp.nes.nec.co.jp>
-	<20100603152830.8b9e5e27.kamezawa.hiroyu@jp.fujitsu.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2EC836B01B5
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 09:41:35 -0400 (EDT)
+Date: Thu, 3 Jun 2010 08:34:20 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: Possible bug in 2.6.34 slub
+In-Reply-To: <AANLkTinxOJShwd7xUornVI89BmJnbX9-a7LVWaciNdr5@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1006030833070.24954@router.home>
+References: <AANLkTimEFy6VM3InWlqhVooQjKGSD3yBxlgeRbQC2r1L@mail.gmail.com> <20100531165528.35a323fb.rdunlap@xenotime.net> <4C047CF9.9000804@tmr.com> <AANLkTilLq-hn59CBcLnOsnT37ZizQR6MrZX6btKPhfpb@mail.gmail.com> <20100601123959.747228c6.rdunlap@xenotime.net>
+ <alpine.DEB.2.00.1006011445100.9438@router.home> <AANLkTinxOJShwd7xUornVI89BmJnbX9-a7LVWaciNdr5@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, Giangiacomo Mariotti <gg.mariotti@gmail.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86 maintainers <x86@kernel.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-One more comment.
+On Thu, 3 Jun 2010, Pekka Enberg wrote:
 
-> +	ret = res_counter_charge(&mem->res, csize, &fail_res);
-> +
-> +	if (likely(!ret)) {
-> +		if (!do_swap_account)
-> +			return CHARGE_OK;
-> +		ret = res_counter_charge(&mem->memsw, csize, &fail_res);
-> +		if (likely(!ret))
-> +			return CHARGE_OK;
-> +
-> +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
-This must be mem_cgroup_from_res_counter(fail_res, memsw).
-We will access to an invalid pointer, otherwise.
+> On Tue, Jun 1, 2010 at 10:48 PM, Christoph Lameter
+> <cl@linux-foundation.org> wrote:
+> > On Tue, 1 Jun 2010, Randy Dunlap wrote:
+> >
+> >> > >>> My cpu is an I7 920, so it has 4 cores and there's hyperthreading
+> >> > >>> enabled, so there are 8 logical cpus. Is this a bug?
+> >
+> > Yes its a bug in the arch code or BIOS. The system configuration tells us
+> > that there are more possible cpus and therefore the system prepares for
+> > the additional cpus to be activated at some later time.
+>
+> I guess we should CC x86 maintainers then!
 
-> +		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> +	} else
-> +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
-> +
-
-Thanks,
-Daisuke Nishimura.
+Its also a know BIOS problem with Dell f.e. They often indicate more
+potential cpus even if this particular hw configuration cannot do cpu
+hotplug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
