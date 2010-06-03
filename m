@@ -1,79 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 335A16B01AF
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 20:47:26 -0400 (EDT)
-Received: by iwn39 with SMTP id 39so1639281iwn.14
-        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 17:46:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2BB286B01AF
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 20:52:53 -0400 (EDT)
+Received: by gyg4 with SMTP id 4so5669998gyg.14
+        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 17:52:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100603093548.7237.A69D9226@jp.fujitsu.com>
-References: <20100603084829.7234.A69D9226@jp.fujitsu.com>
-	<AANLkTilBq_dRXW1u56gbqc3Z5fU1I66UiFiQbbRU_2Ur@mail.gmail.com>
-	<20100603093548.7237.A69D9226@jp.fujitsu.com>
-Date: Thu, 3 Jun 2010 09:46:24 +0900
-Message-ID: <AANLkTinez8RX4rADp42f03AocWe2c0zimLQ7aT65nM1d@mail.gmail.com>
-Subject: Re: [PATCH 5/5] oom: dump_tasks() use find_lock_task_mm() too
+In-Reply-To: <20100603083259.7231.A69D9226@jp.fujitsu.com>
+References: <20100602220429.F51E.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1006021410300.32666@chino.kir.corp.google.com>
+	<20100603083259.7231.A69D9226@jp.fujitsu.com>
+Date: Thu, 3 Jun 2010 09:52:49 +0900
+Message-ID: <AANLkTinxHv6VfaG-RXymfPwOMQi-cJTX3Tj0x6ROkZzo@mail.gmail.com>
+Subject: Re: [RFC] oom-kill: give the dying task a higher priority
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+Cc: David Rientjes <rientjes@google.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mel@csn.ul.ie>, williams@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 3, 2010 at 9:41 AM, KOSAKI Motohiro
+On Thu, Jun 3, 2010 at 8:36 AM, KOSAKI Motohiro
 <kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Thu, Jun 3, 2010 at 9:06 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mm =3D p->mm;
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!mm) {
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0* total_vm and rss sizes do not exist for tasks with no
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0* mm so there's no need to report them; they can't be
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0* oom killed anyway.
->> >> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0*/
->> >>
->> >> Please, do not remove the comment for mm newbies unless you think it'=
-s useless.
+>> On Wed, 2 Jun 2010, KOSAKI Motohiro wrote:
+>>
+>> > > > @@ -291,9 +309,10 @@ static struct task_struct *select_bad_process=
+(unsigned long *ppoints,
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Ot=
+herwise we could get an easy OOM deadlock.
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (p->fla=
+gs & PF_EXITING) {
+>> > > > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 if (p !=3D current)
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 if (p !=3D current) {
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 boost_dying_task_prio(p, mem);
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return ERR_PTR(-1UL);
+>> > > > -
+>> > > > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 }
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 chosen =3D p;
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 *ppoints =3D ULONG_MAX;
+>> > > > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }
+>> > >
+>> > > This has the potential to actually make it harder to free memory if =
+p is
+>> > > waiting to acquire a writelock on mm->mmap_sem in the exit path whil=
+e the
+>> > > thread holding mm->mmap_sem is trying to run.
 >> >
->> > How is this?
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 task =3D find_lock_ta=
-sk_mm(p);
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!task)
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0/*
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 * Probably oom vs task-exiting race was happen and ->mm
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 * have been detached. thus there's no need to report them;
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 * they can't be oom killed anyway.
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 */
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0continue;
+>> > if p is waiting, changing prio have no effect. It continue tol wait to=
+ release mmap_sem.
 >> >
 >>
->> Looks good to adding story about racing. but my point was "total_vm
->> and rss sizes do not exist for tasks with no mm". But I don't want to
->> bother you due to trivial.
->> It depends on you. :)
+>> And that can reduce the runtime of the thread holding a writelock on
+>> mm->mmap_sem, making the exit actually take longer than without the patc=
+h
+>> if its priority is significantly higher, especially on smaller machines.
 >
->
-> old ->mm check have two intention.
->
-> =C2=A0 a) the task is kernel thread?
-> =C2=A0 b) the task have alredy detached ->mm
-> but a) is not strictly correct check because we should think use_mm().
-> therefore we appended PF_KTHREAD check. then, here find_lock_task_mm()
-> focus exiting race, I think.
+> If p need mmap_sem, p is going to sleep to wait mmap_sem. if p doesn't,
+> quickly exit is good thing. In other word, task fairness is not our goal
+> when oom occur.
 >
 
-No objection.
+Tend to agree. I didn't agree boosting of whole threads' priority.
+
+Task fairness VS system hang is trade off. task fairness is best
+effort but system hang is critical.
+Also, we have tried to it.
+
+        /*
+         * We give our sacrificial lamb high priority and access to
+         * all the memory it needs. That way it should be able to
+         * exit() and clear out its resources quickly...
+         */
+        p->rt.time_slice =3D HZ;
+        set_tsk_thread_flag(p, TIF_MEMDIE);
+
+But I think above code is meaningless unless p use SCHED_RR.
+So boosting of lowest RT priority with FIFO is to meet above comment's
+goal, I think.
 
 --=20
 Kind regards,
