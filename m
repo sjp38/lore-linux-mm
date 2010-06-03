@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B6866B01D9
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:35:00 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o536Yv5c023110
-	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 23:34:57 -0700
-Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
-	by wpaz9.hot.corp.google.com with ESMTP id o536Yt1i007905
-	for <linux-mm@kvack.org>; Wed, 2 Jun 2010 23:34:56 -0700
-Received: by pzk38 with SMTP id 38so3780913pzk.31
-        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 23:34:55 -0700 (PDT)
-Date: Wed, 2 Jun 2010 23:34:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 09/12] oom: remove PF_EXITING check completely
-In-Reply-To: <20100603152436.7262.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006022332320.22441@chino.kir.corp.google.com>
-References: <20100603135106.7247.A69D9226@jp.fujitsu.com> <20100603152436.7262.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D73FE6B01DA
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:35:40 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o536Zcla014014
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 3 Jun 2010 15:35:39 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AD4945DE5A
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:35:38 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 22D7D45DE55
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:35:38 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E36CD1DB8052
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:35:37 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C993E38006
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:35:36 +0900 (JST)
+Date: Thu, 3 Jun 2010 15:31:22 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 06/12] oom: remove warning for in mm-less task
+ __oom_kill_process()
+Message-Id: <20100603153122.7267a556.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100603145330.7259.A69D9226@jp.fujitsu.com>
+References: <20100603135106.7247.A69D9226@jp.fujitsu.com>
+	<20100603145330.7259.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jun 2010, KOSAKI Motohiro wrote:
+On Thu,  3 Jun 2010 15:23:03 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Currently, PF_EXITING check is completely broken. because 1) It only
-> care main-thread and ignore sub-threads
-
-Then check the subthreads.
-
-> 2) If user enable core-dump
-> feature, it can makes deadlock because the task during coredump ignore
-> SIGKILL.
+> If the race of mm detach in task exiting vs oom is happen,
+> find_lock_task_mm() can be return NULL.
 > 
-
-It may ignore SIGKILL, but does not ignore fatal_signal_pending() being 
-true which gives it access to memory reserves with my patchset so that it 
-may quickly finish.
-
-> The deadlock is certenaly worst result, then, minor PF_EXITING
-> optimization worth is relatively ignorable.
-> 
-> This patch removes it.
+> So, the warning is pointless.
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: Oleg Nesterov <oleg@redhat.com>
 
-Nacked-by: David Rientjes <rientjes@google.com>
-
-You have no real world experience in using the oom killer for memory 
-containment and don't understand how critical it is to protect other 
-vital system tasks that are needlessly killed as the result of this patch.
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
