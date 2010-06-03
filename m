@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E9CDF6B0220
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 10:05:33 -0400 (EDT)
-Date: Thu, 3 Jun 2010 16:03:57 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2264C6B0222
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 10:28:40 -0400 (EDT)
+Date: Thu, 3 Jun 2010 16:27:17 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: Make coredump interruptible
-Message-ID: <20100603140357.GB3548@redhat.com>
-References: <20100601093951.2430.A69D9226@jp.fujitsu.com> <20100601201843.GA20732@redhat.com> <20100602221805.F524.A69D9226@jp.fujitsu.com> <20100602154210.GA9622@redhat.com> <20100602172956.5A3E34A491@magilla.sf.frob.com> <20100602175325.GA16474@redhat.com> <20100602185812.4B5894A549@magilla.sf.frob.com> <20100602203827.GA29244@redhat.com>
+Subject: Re: [PATCH 1/5] oom: select_bad_process: check PF_KTHREAD instead
+	of !mm to skip kthreads
+Message-ID: <20100603142717.GC3548@redhat.com>
+References: <20100601212023.GA24917@redhat.com> <alpine.DEB.2.00.1006011424200.16725@chino.kir.corp.google.com> <20100602223612.F52D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006021405280.32666@chino.kir.corp.google.com> <20100602213331.GA31949@redhat.com> <alpine.DEB.2.00.1006021437010.4765@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100602203827.GA29244@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1006021437010.4765@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Roland McGrath <roland@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 06/02, Oleg Nesterov wrote:
+On 06/02, David Rientjes wrote:
 >
-> On 06/02, Roland McGrath wrote:
+> On Wed, 2 Jun 2010, Oleg Nesterov wrote:
+>
+> > > This isn't a bugfix, it simply prevents a recall to the oom killer after
+> > > the kthread has called unuse_mm().  Please show where any side effects of
+> > > oom killing a kthread, which cannot exit, as a result of use_mm() causes a
+> > > problem _anywhere_.
 > >
-> > > when select_bad_process() finds the task P to kill it can participate
-> > > in the core dump (sleep in exit_mm), but we should somehow inform the
-> > > thread which actually dumps the core: P->mm->core_state->dumper.
+> > I already showed you the side effects, but you removed this part in your
+> > reply.
 > >
-> > Perhaps it should simply do that: if you would choose P to oom-kill, and
-> > P->mm->core_state!=NULL, then choose P->mm->core_state->dumper instead.
+> > From http://marc.info/?l=linux-kernel&m=127542732121077
+> >
+> > 	It can't die but force_sig() does bad things which shouldn't be done
+> > 	with workqueue thread. Note that it removes SIG_IGN, sets
+> > 	SIGNAL_GROUP_EXIT, makes signal_pending/fatal_signal_pedning true, etc.
+> >
+> > A workqueue thread must not run with SIGNAL_GROUP_EXIT set, SIGKILL
+> > must be ignored, signal_pending() must not be true.
+> >
+> > This is bug. It is minor, agreed, currently use_mm() is only used by aio.
 >
-> ... to set TIF_MEMDIE which should be checked in elf_core_dump().
->
-> Probably yes.
+> It's a problem that would probably never happen in practice because
 
-Well, nothing can protect mm->core_state, the dumper owns it. Of course
-we can add the locking, but this is not nice.
+No need to convince me this bug is minor. I repeated this every time.
+I only argued with the "isn't a bugfix, no side effects".
 
-And again, perhaps MMF_OOMKILLED can be useful anyway.
+> considered the ideal task to kill.  If you think this is rc material, then
+> push it to Andrew and say that.
 
-So, I think this would be the most quick/simple fix for now.
+No, I don't think it is strictly necessary to push this fix into rc.
+But I don't understand why this matters. And in any case, when it comes
+to oom, I am in no position to make any authoritative decisions.
+
+
+David, I don't understand why do you refuse to re-diff your changes
+on top of Kosaki's work. If nothing else, this will help to review
+your changes.
 
 Oleg.
 
