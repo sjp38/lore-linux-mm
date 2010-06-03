@@ -1,40 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A636B022B
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 11:43:43 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9888B6B01AD
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 13:36:59 -0400 (EDT)
+Message-ID: <4C07E800.5010701@cray.com>
+Date: Thu, 3 Jun 2010 10:36:00 -0700
+From: Doug Doan <dougd@cray.com>
 MIME-Version: 1.0
-Message-ID: <6e97a82a-c754-493e-bbf5-58f0bb6a18b5@default>
-Date: Thu, 3 Jun 2010 08:43:05 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V2 0/7] Cleancache (was Transcendent Memory): overview
-References: <20100528173510.GA12166%ca-server1.us.oracle.comAANLkTilV-4_QaNq5O0WSplDx1Oq7JvkgVrEiR1rgf1up@mail.gmail.com>
- <489aa002-6d42-4dd5-bb66-81c665f8cdd1@default> <4C07179F.5080106@vflare.org>
- <3721BEE2-DF2D-452A-8F01-E690E32C6B33@oracle.com 4C074ACE.9020704@vflare.org>
-In-Reply-To: <4C074ACE.9020704@vflare.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] hugetlb: call mmu notifiers on hugepage cow
+References: <4BFED954.8060807@cray.com>	<20100601231600.3b3bf499.akpm@linux-foundation.org>	<4C06E5A6.6@cray.com> <20100602163346.b8f8b8a4.akpm@linux-foundation.org>
+In-Reply-To: <20100602163346.b8f8b8a4.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org, andreas.dilger@oracle.com
-Cc: Minchan Kim <minchan.kim@gmail.com>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "rientjes@google.com" <rientjes@google.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, Andrea Arcangeli <andrea@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On 06/03/2010 10:23 AM, Andreas Dilger wrote:
-> > On 2010-06-02, at 20:46, Nitin Gupta wrote:
->=20
-> > I was thinking it would be quite clever to do compression in, say,
-> > 64kB or 128kB chunks in a mapping (to get decent compression) and
-> > then write these compressed chunks directly from the page cache
-> > to disk in btrfs and/or a revived compressed ext4.
->=20
-> Batching of pages to get good compression ratio seems doable.
+On 06/02/2010 04:33 PM, Andrew Morton wrote:
+> On Wed, 2 Jun 2010 16:13:42 -0700
+> Doug Doan<dougd@cray.com>  wrote:
+>
+>> On 06/01/2010 11:16 PM, Andrew Morton wrote:
+>>> On Thu, 27 May 2010 13:43:00 -0700 Doug Doan<dougd@cray.com>   wrote:
+>>>
+>>>>
+>>>> When a copy-on-write occurs, we take one of two paths in handle_mm_fault:
+>>>> through handle_pte_fault for normal pages, or through hugetlb_fault for huge pages.
+>>>>
+>>>> In the normal page case, we eventually get to do_wp_page and call mmu notifiers
+>>>> via ptep_clear_flush_notify. There is no callout to the mmmu notifiers in the
+>>>> huge page case. This patch fixes that.
+>>>>
+>>>> Signed-off-by: Doug Doan<dougd@cray.com>
+>>>> ---
+>>>>
+>>>> [patch  text/plain (802B)]
+>>>> --- mm/hugetlb.c.orig	2010-05-27 13:07:58.569546314 -0700
+>>>> +++ mm/hugetlb.c	2010-05-26 14:41:06.449296524 -0700
+>>>
+>>> (In patch -p1 form, please.  So a/mm/hugetlb.c)
+>>>
+>>>> @@ -2345,11 +2345,17 @@ retry_avoidcopy:
+>>>>    	ptep = huge_pte_offset(mm, address&   huge_page_mask(h));
+>>>>    	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
+>>>>    		/* Break COW */
+>>>> +		mmu_notifier_invalidate_range_start(mm,
+>>>> +			address&   huge_page_mask(h),
+>>>> +			(address&   huge_page_mask(h)) + huge_page_size(h));
+>>>>    		huge_ptep_clear_flush(vma, address, ptep);
+>>>>    		set_huge_pte_at(mm, address, ptep,
+>>>>    				make_huge_pte(vma, new_page, 1));
+>>>>    		/* Make the old page be freed below */
+>>>>    		new_page = old_page;
+>>>> +		mmu_notifier_invalidate_range_end(mm,
+>>>> +			address&   huge_page_mask(h),
+>>>> +			(address&   huge_page_mask(h)) + huge_page_size(h));
+>>>>    	}
+>>>>    	page_cache_release(new_page);
+>>>>    	page_cache_release(old_page);
+>>>
+>>> This causes mmu_notifier_invalidate_range_start() to be called under
+>>> page_table_lock.  The immediately preceding code seems to take some
+>>> care to avoid doing that.  I took a quick look at other callsites and
+>>> cannot immediately see other cases where
+>>> mmu_notifier_invalidate_range_start/end() are called under that lock.
+>>>
+>>> This may not introduce bugs with current notifier implementations (I
+>>> didn't check), but it does lessen flexibility?
+>>
+>> In the normal page case, handle_pte_fault calls do_wp_page inside a spinlock on
+>> ptl = pte_lockptr(mm, pmd), which uses mm->page_table_lock if USE_SPLIT_PTLOCKS
+>> is not defined.
+>>
+>> I don't understand what you mean by lessen flexibilty.
+>
+> Well, specifically it means that
+> mmu_notifier_invalidate_range_start/end() implemetnations can no longer
+> take page_table_lock or any lock which nests outside page_table_lock.
+> That lessens flexibility.
+>
+> As the other mmu_notifier_invalidate_range_start/end() callsite in this
+> function carefully nested those calls outside page_table_lock, perhaps
+> that was thought to be a significant thing.
 
-Is there evidence that batching a set of random individual 4K
-pages will have a significantly better compression ratio than
-compressing the pages separately?  I certainly understand that
-if the pages are from the same file, compression is likely to
-be better, but pages evicted from the page cache (which is
-the source for all cleancache_puts) are likely to be quite a
-bit more random than that, aren't they?
+Here's my rationale: for the normal page case, the invalidation call is done 
+inside a page_table_lock, so the same should also be done in the huge page case. 
+Does it really make sense to call invalidation on one hugepage and have another 
+call invalidate the same hugepage while the first call is still not finished?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
