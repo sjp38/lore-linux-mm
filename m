@@ -1,109 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 562D86B01C4
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:24:42 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o536Of78009065
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 3 Jun 2010 15:24:42 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B27F545DE50
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:24:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 992E645DE4C
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:24:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F4A61DB8012
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:24:41 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 392471DB8013
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 15:24:41 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 08/12] oom: dump_tasks() use find_lock_task_mm() too
-In-Reply-To: <20100603135106.7247.A69D9226@jp.fujitsu.com>
-References: <20100603135106.7247.A69D9226@jp.fujitsu.com>
-Message-Id: <20100603152350.725F.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4E6176B01C7
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 02:25:17 -0400 (EDT)
+Received: by pva18 with SMTP id 18so290207pva.14
+        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 23:25:17 -0700 (PDT)
+Message-ID: <4C074ACE.9020704@vflare.org>
+Date: Thu, 03 Jun 2010 11:55:18 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH V2 0/7] Cleancache (was Transcendent Memory): overview
+References: <20100528173510.GA12166%ca-server1.us.oracle.comAANLkTilV-4_QaNq5O0WSplDx1Oq7JvkgVrEiR1rgf1up@mail.gmail.com> <489aa002-6d42-4dd5-bb66-81c665f8cdd1@default> <4C07179F.5080106@vflare.org> <3721BEE2-DF2D-452A-8F01-E690E32C6B33@oracle.com>
+In-Reply-To: <3721BEE2-DF2D-452A-8F01-E690E32C6B33@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Thu,  3 Jun 2010 15:24:36 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Andreas Dilger <andreas.dilger@oracle.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan.kim@gmail.com>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-dump_task() should use find_lock_task_mm() too. It is necessary for
-protecting task-exiting race.
+On 06/03/2010 10:23 AM, Andreas Dilger wrote:
+> On 2010-06-02, at 20:46, Nitin Gupta wrote:
+>> On 06/03/2010 04:32 AM, Dan Magenheimer wrote:
+>>>> From: Minchan Kim [mailto:minchan.kim@gmail.com]
+>>>
+>>>>> I am also eagerly awaiting Nitin Gupta's cleancache backend
+>>>>> and implementation to do in-kernel page cache compression.
+>>>>
+>>>> Do Nitin say he will make backend of cleancache for
+>>>> page cache compression?
+>>>>
+>>>> It would be good feature.
+>>>> I have a interest, too. :)
+>>>
+>>> That was Nitin's plan for his GSOC project when we last discussed
+>>> this.  Nitin is on the cc list and can comment if this has
+>>> changed.
+>>
+>> Yes, I have just started work on in-kernel page cache compression
+>> backend for cleancache :)
+> 
+> Is there a design doc for this implementation?
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/oom_kill.c |   37 ++++++++++++++++++++-----------------
- 1 files changed, 20 insertions(+), 17 deletions(-)
+Its all on physical paper :)
+Anyways, the design is quite simple as it simply has to act on cleancache
+callbacks.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 35a2ecc..6360c56 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -345,35 +345,38 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
-  */
- static void dump_tasks(const struct mem_cgroup *mem)
- {
--	struct task_struct *g, *p;
-+	struct task_struct *p;
-+	struct task_struct *task;
- 
- 	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
- 	       "name\n");
--	do_each_thread(g, p) {
--		struct mm_struct *mm;
- 
--		if (mem && !task_in_mem_cgroup(p, mem))
-+	for_each_process(p) {
-+		/*
-+		 * We don't have is_global_init() check here, because the old
-+		 * code do that. printing init process is not big matter. But 
-+		 * we don't hope to make unnecessary compatiblity breaking.
-+		 */
-+		if (p->flags & PF_KTHREAD)
- 			continue;
--		if (!thread_group_leader(p))
-+		if (mem && !task_in_mem_cgroup(p, mem))
- 			continue;
- 
--		task_lock(p);
--		mm = p->mm;
--		if (!mm) {
-+		task = find_lock_task_mm(p);
-+		if (!task)
- 			/*
--			 * total_vm and rss sizes do not exist for tasks with no
--			 * mm so there's no need to report them; they can't be
--			 * oom killed anyway.
-+			 * Probably oom vs task-exiting race was happen and ->mm
-+			 * have been detached. thus there's no need to report them;
-+			 * they can't be oom killed anyway.
- 			 */
--			task_unlock(p);
- 			continue;
--		}
-+
- 		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
--		       p->pid, __task_cred(p)->uid, p->tgid, mm->total_vm,
--		       get_mm_rss(mm), (int)task_cpu(p), p->signal->oom_adj,
-+		       task->pid, __task_cred(task)->uid, task->tgid, task->mm->total_vm,
-+		       get_mm_rss(task->mm), (int)task_cpu(task), task->signal->oom_adj,
- 		       p->comm);
--		task_unlock(p);
--	} while_each_thread(g, p);
-+		task_unlock(task);
-+	}
- }
- 
- static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
--- 
-1.6.5.2
+> I was thinking it would be quite clever to do compression in, say, 64kB or 128kB chunks in a mapping (to get decent compression) and then write these compressed chunks directly from the page cache to disk in btrfs and/or a revived compressed ext4.
+> 
 
+Batching of pages to get good compression ratio seems doable.
 
+However, writing this compressed data (with/without batching) to disk seems
+quite difficult. Pages given out to cleancache are not part of pagecache and
+the disk might also contain uncompressed version of the same data. There is
+also the problem of efficient on-disk structure for storing variable sized
+compressed chunks. I'm not sure how we can deal with all these issues.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
