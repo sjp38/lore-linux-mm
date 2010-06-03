@@ -1,89 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 06E546B01AD
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 18:13:07 -0400 (EDT)
-Date: Fri, 4 Jun 2010 00:11:45 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 09/12] oom: remove PF_EXITING check completely
-Message-ID: <20100603221145.GB8511@redhat.com>
-References: <20100603135106.7247.A69D9226@jp.fujitsu.com> <20100603152436.7262.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006022332320.22441@chino.kir.corp.google.com> <20100603140008.GA3548@redhat.com> <alpine.DEB.2.00.1006031313040.10856@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1006031313040.10856@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 655266B01AD
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 19:11:23 -0400 (EDT)
+Date: Thu, 3 Jun 2010 16:10:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
+Message-Id: <20100603161030.074d9b98.akpm@linux-foundation.org>
+In-Reply-To: <20100602225252.F536.A69D9226@jp.fujitsu.com>
+References: <20100601163627.245D.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
+	<20100602225252.F536.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/03, David Rientjes wrote:
->
-> On Thu, 3 Jun 2010, Oleg Nesterov wrote:
->
-> > On 06/02, David Rientjes wrote:
-> > >
-> > > On Thu, 3 Jun 2010, KOSAKI Motohiro wrote:
-> > >
-> > > > Currently, PF_EXITING check is completely broken. because 1) It only
-> > > > care main-thread and ignore sub-threads
-> > >
-> > > Then check the subthreads.
-> > >
->
-> Did you want to respond to this?
+On Wed,  2 Jun 2010 22:54:03 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Please explain what you mean. There were already a lot of discussions
-about mt issues, I do not know what you have in mind.
+> > Why?
+> > 
+> > If it's because the patch is too big, I've explained a few times that 
+> > functionally you can't break it apart into anything meaningful.  I do not 
+> > believe it is better to break functional changes into smaller patches that 
+> > simply change function signatures to pass additional arguments that are 
+> > unused in the first patch, for example.
+> > 
+> > If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
+> > allowed since otherwise it would be useless with the old heuristic.  In 
+> > other words, you cannot apply oom_score_adj's meaning to the bitshift in 
+> > any sane way.
+> > 
+> > I'll suggest what I have multiple times: the easiest way to review the 
+> > functional change here is to merge the patch into your own tree and then 
+> > review oom_badness().  I agree that the way the diff comes out it is a 
+> > little difficult to read just from the patch form, so merging it and 
+> > reviewing the actual heuristic function is the easiest way.
+> 
+> I've already explained the reason. 1) all-of-rewrite patches are 
+> always unacceptable. that's prevent our code maintainance.
 
-> > > It may ignore SIGKILL, but does not ignore fatal_signal_pending() being
-> > > true
-> >
-> > Wrong.
-> >
-> > Unless the oom victim is exactly the thread which dumps the core,
-> > fatal_signal_pending() won't be true for the dumper. Even if the
-> > victim and the dumper are from the same group, this thread group
-> > already has SIGNAL_GROUP_EXIT. And if they do not belong to the
-> > same group, SIGKILL has even less effect.
-> >
->
-> I'm guessing at the relevancy here because the changelog is extremely
-> poorly worded (if I were Andrew I would have no idea how important this
-> patch is based on the description other than the alarmist words of "... is
-> completely broken)", but if we're concerned about the coredumper not being
-> able to find adequate resources to allocate memory from, we can give it
-> access to reserves specifically,
+No, we'll sometime completely replace implementations.  There's no hard
+rule apart from "whatever makes sense".  If wholesale replacement makes
+sense as a patch-presentation method then we'll do that.
 
-I don't think so. If oom-kill wants to kill the task which dumps the
-code, it should stop the coredumping and exit.
+> 2) no justification
+> patches are also unacceptable. you need to write more proper patch descriptaion
+> at least.
 
-> we don't need to go killing additional
-> tasks which may have their own coredumpers.
+The descriptions look better than usual from a quick scan.  I haven't
+really got into them yet.
 
-Sorry, can't understand.
 
-> That's an alternative solution as well, but I'm disagreeing with the
-> approach here because this enforces absolutely no guarantee that the next
-> task to be oom killed will be the coredumper, its much more likely that
-> we're just going to kill yet another task for the coredump.  That task may
-> have a coredumper too.  Who knows.
+And I'm going to have to get into it because of you guys' seeming
+inability to get your act together.
 
-Again, please explain this to me.
+The unsubstantiated "nack"s are of no use and I shall just be ignoring
+them and making my own decisions.  If you have specific objections then
+let's hear them.  In detail, please - don't refer to previous
+conversations because that's all too confusing - there is benefit in
+starting again.
 
-> > > Nacked-by: David Rientjes <rientjes@google.com>
-> >
-> > Kosaki removes the code which only pretends to work, but it doesn't
-> > and leads to problems.
-> >
->
-> LOL, this code doesn't pretend to work,
-> ...
-> certain code doesn't do a complete job in certain cases or it can
-> introduce a deadlock in situations
-
-OK, agreed. It is not that it never works.
-
-Oleg.
+I expect I'll be looking at the oom-killer situation in depth early
+next week.  It would be useful if between now and then you can send
+any specific, detailed and actionable comments which you have.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
