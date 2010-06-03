@@ -1,42 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EEDA6B01AC
-	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 20:21:10 -0400 (EDT)
-Message-ID: <4C06F571.3050306@goop.org>
-Date: Wed, 02 Jun 2010 17:21:05 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5B5C06B01AC
+	for <linux-mm@kvack.org>; Wed,  2 Jun 2010 20:32:50 -0400 (EDT)
+Received: by ywh17 with SMTP id 17so2565182ywh.1
+        for <linux-mm@kvack.org>; Wed, 02 Jun 2010 17:32:48 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
-References: <20100528173550.GA12219@ca-server1.us.oracle.com 20100602122900.6c893a6a.akpm@linux-foundation.org> <0be9e88e-7b0d-471d-8d49-6dc593dd43be@default>
-In-Reply-To: <0be9e88e-7b0d-471d-8d49-6dc593dd43be@default>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20100603084829.7234.A69D9226@jp.fujitsu.com>
+References: <20100601145033.2446.A69D9226@jp.fujitsu.com>
+	<20100602150304.GA5326@barrios-desktop>
+	<20100603084829.7234.A69D9226@jp.fujitsu.com>
+Date: Thu, 3 Jun 2010 09:32:47 +0900
+Message-ID: <AANLkTilBq_dRXW1u56gbqc3Z5fU1I66UiFiQbbRU_2Ur@mail.gmail.com>
+Subject: Re: [PATCH 5/5] oom: dump_tasks() use find_lock_task_mm() too
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 06/02/2010 05:06 PM, Dan Magenheimer wrote:
-> It is intended that there be different flavours but only
-> one can be used in any running kernel.  A driver file/module
-> claims the cleancache_ops pointer (and should check to ensure
-> it is not already claimed).  And if nobody claims cleancache_ops,
-> the hooks should be as non-intrusive as possible.
+On Thu, Jun 3, 2010 at 9:06 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
 >
-> Also note that the operations occur on the order of the number
-> of I/O's, so definitely a lot, but "zillion" may be a bit high. :-)
+>> > @@ -344,35 +344,30 @@ static struct task_struct *select_bad_process(un=
+signed long *ppoints,
+>> > =C2=A0 */
+>> > =C2=A0static void dump_tasks(const struct mem_cgroup *mem)
+>> > =C2=A0{
+>> > - =C2=A0 struct task_struct *g, *p;
+>> > + =C2=A0 struct task_struct *p;
+>> > + =C2=A0 struct task_struct *task;
+>> >
+>> > =C2=A0 =C2=A0 printk(KERN_INFO "[ pid ] =C2=A0 uid =C2=A0tgid total_vm=
+ =C2=A0 =C2=A0 =C2=A0rss cpu oom_adj "
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0"name\n");
+>> > - =C2=A0 do_each_thread(g, p) {
+>> > +
+>> > + =C2=A0 for_each_process(p) {
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct mm_struct *mm;
+>> >
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (mem && !task_in_mem_cgroup(p,=
+ mem))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (is_global_init(p) || (p->flag=
+s & PF_KTHREAD))
+>>
+>> select_bad_process needs is_global_init check to not select init as vict=
+im.
+>> But in this case, it is just for dumping information of tasks.
 >
-> If you think this is a showstoppper, it could be changed
-> to be bound only at compile-time, but then (I think) the claimer
-> could never be a dynamically-loadable module.
->   
+> But dumping oom unrelated process is useless and making confusion.
+> Do you have any suggestion? Instead, adding unkillable field?
 
-Andrew is suggesting that rather than making cleancache_ops a pointer to
-a structure, just make it a structure, so that calling a function is a
-matter of cleancache_ops.func rather than cleancache_ops->func, thereby
-avoiding a pointer dereference.
+I think it's not unrelated. Of course, init process doesn't consume
+lots of memory but might consume more memory than old as time goes by
+or some BUG although it is unlikely.
 
-    J
+I think whether we print information of init or not isn't a big deal.
+But we have been done it until now and you are trying to change it.
+At least, we need some description why you want to remove it.
+Making confusion? Hmm.. I don't think it make many people confusion.
+
+>
+>
+>>
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+continue;
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!thread_group_leader(p))
+>> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (mem && !task_in_mem_cgroup(p,=
+ mem))
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+continue;
+>> >
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 task_lock(p);
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mm =3D p->mm;
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!mm) {
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /*
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0* total_vm and rss sizes do not exist for tasks with no
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0* mm so there's no need to report them; they can't be
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0* oom killed anyway.
+>> > - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0*/
+>>
+>> Please, do not remove the comment for mm newbies unless you think it's u=
+seless.
+>
+> How is this?
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 task =3D find_lock_task_=
+mm(p);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (!task)
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0/*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * Probably oom vs task-exiting race was happen and ->mm
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * have been detached. thus there's no need to report them;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 * they can't be oom killed anyway.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 */
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0continue;
+>
+
+Looks good to adding story about racing. but my point was "total_vm
+and rss sizes do not exist for tasks with no mm". But I don't want to
+bother you due to trivial.
+It depends on you. :)
+
+Thanks, Kosaki.
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
