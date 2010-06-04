@@ -1,178 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AE9D76B01AD
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 01:54:04 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o545s1Pg020427
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C02416B01AD
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 02:01:48 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5461ktJ023676
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Jun 2010 14:54:01 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8752A45DE50
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:01 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C60045DE4F
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:01 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F3E391DB804C
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:00 +0900 (JST)
+	Fri, 4 Jun 2010 15:01:46 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 58CDF45DE6F
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 15:01:46 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2938245DE60
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 15:01:46 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0ED831DB8037
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 15:01:46 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A038A1DB8044
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:00 +0900 (JST)
-Date: Fri, 4 Jun 2010 14:49:43 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7E20E38004
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 15:01:42 +0900 (JST)
+Date: Fri, 4 Jun 2010 14:57:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/2] memcg clean up waiting move acct v2
-Message-Id: <20100604144943.760312ea.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100604144553.54b52c9e.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100604144553.54b52c9e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
+Message-Id: <20100604145723.e16d7fe0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100604092047.7b7d7bb1.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100601163627.245D.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
+	<20100602225252.F536.A69D9226@jp.fujitsu.com>
+	<20100603161030.074d9b98.akpm@linux-foundation.org>
+	<20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100603170443.011fdf7c.akpm@linux-foundation.org>
+	<20100604092047.7b7d7bb1.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-No functional changes but rebased onto mmotm-2010-0603 and tested again.
+On Fri, 4 Jun 2010 09:20:47 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> On Thu, 3 Jun 2010 17:04:43 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > Sure, bugfixes should come separately and first.  For a number of
+> > reasons:
+> > 
+> > - people (including the -stable maintainers) might want to backport them
+> > 
+> > - we might end up not merging the larger, bugfix-including patches at all
+> > 
+> > - the large bugfix-including patches might blow up and need
+> >   reverting.  If we do that, we accidentally revert bugfixes!
+> > 
+> > Have we identified specifically which bugfixes should be separated out
+> > in this fashion?
+> > 
+> 
+> In my personal observation
+> 
+>  [1/18]  for better behavior under cpuset.
+>  [2/18]  for better behavior under cpuset.
+>  [3/18]  for better behavior under mempolicy.
+>  [4/18]  refactoring.
+>  [5/18]  refactoring.
+>  [6/18]  clean up.
+>  [7/18]  changing the deault sysctl value.
+>  [8/18]  completely new logic.
+>  [9/18]  completely new logic.
+>  [10/18] a supplement for 8,9.
+>  [11/18] for better behavior under lowmem oom (disable oom kill)
+>  [12/18] clean up
+>  [13/18] bugfix for a possible race condition. (I'm not sure about details)
+>  [14/18] bugfix
+>  [15/18] bugfix
+>  [16/18] bugfix
+>  [17/18] bugfix
+>  [18/18] clean up.
+> 
+> If distro admins are aggresive, them may backport 1,2,3,7,11 but
+> it changes current logic. So, it's distro's decision.
+> 
 
-Now, for checking a memcg is under task-account-moving, we do css_tryget()
-against mc.to and mc.from. But this is just complicating things. This patch
-makes the check easier.
+IMHO, without considering HUNKs, the patch order should be
 
-This patch adds a spinlock to move_charge_struct and guard modification
-of mc.to and mc.from. By this, we don't have to think about complicated
-races arount this not-critical path.
+  13,14,15,16,17,1,2,3,7,11,4,5,6,18,12,8,9,10.
 
-Changelog: 2010-06-04
- - rebased onto mmotm-2010-06-03
-Changelog:
- - removed disable/enable irq.
- - removed unnecessary css_put()
+bugfix -> patches for things making better -> refactoring -> the new implementation.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   49 ++++++++++++++++++++++++++++---------------------
- 1 file changed, 28 insertions(+), 21 deletions(-)
+David, I have no objections to functions itself. But please start from small
+good things. "Refactoring" is good but it tend to make backporting
+not-straightforward. So, I think it should be done when there is no known issues.
+I think you can do.
 
-Index: mmotm-2.6.34-Jun6/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.34-Jun6.orig/mm/memcontrol.c
-+++ mmotm-2.6.34-Jun6/mm/memcontrol.c
-@@ -268,6 +268,7 @@ enum move_type {
- 
- /* "mc" and its members are protected by cgroup_mutex */
- static struct move_charge_struct {
-+	spinlock_t	  lock; /* for from, to, moving_task */
- 	struct mem_cgroup *from;
- 	struct mem_cgroup *to;
- 	unsigned long precharge;
-@@ -276,6 +277,7 @@ static struct move_charge_struct {
- 	struct task_struct *moving_task;	/* a task moving charges */
- 	wait_queue_head_t waitq;		/* a waitq for other context */
- } mc = {
-+	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
- 	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
- };
- 
-@@ -1076,26 +1078,24 @@ static unsigned int get_swappiness(struc
- 
- static bool mem_cgroup_under_move(struct mem_cgroup *mem)
- {
--	struct mem_cgroup *from = mc.from;
--	struct mem_cgroup *to = mc.to;
-+	struct mem_cgroup *from;
-+	struct mem_cgroup *to;
- 	bool ret = false;
--
--	if (from == mem || to == mem)
--		return true;
--
--	if (!from || !to || !mem->use_hierarchy)
--		return false;
--
--	rcu_read_lock();
--	if (css_tryget(&from->css)) {
--		ret = css_is_ancestor(&from->css, &mem->css);
--		css_put(&from->css);
--	}
--	if (!ret && css_tryget(&to->css)) {
--		ret = css_is_ancestor(&to->css,	&mem->css);
--		css_put(&to->css);
--	}
--	rcu_read_unlock();
-+	/*
-+	 * Unlike task_move routines, we access mc.to, mc.from not under
-+	 * mutual exclusion by cgroup_mutex. Here, we take spinlock instead.
-+	 */
-+	spin_lock(&mc.lock);
-+	from = mc.from;
-+	to = mc.to;
-+	if (!from)
-+		goto unlock;
-+	if (from == mem || to == mem
-+	    || (mem->use_hierarchy && css_is_ancestor(&from->css, &mem->css))
-+	    || (mem->use_hierarchy && css_is_ancestor(&to->css,	&mem->css)))
-+		ret = true;
-+unlock:
-+	spin_unlock(&mc.lock);
- 	return ret;
- }
- 
-@@ -4448,11 +4448,13 @@ static int mem_cgroup_precharge_mc(struc
- 
- static void mem_cgroup_clear_mc(void)
- {
-+	struct mem_cgroup *from = mc.from;
-+	struct mem_cgroup *to = mc.to;
-+
- 	/* we must uncharge all the leftover precharges from mc.to */
- 	if (mc.precharge) {
- 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
- 		mc.precharge = 0;
--		memcg_oom_recover(mc.to);
- 	}
- 	/*
- 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
-@@ -4461,7 +4463,6 @@ static void mem_cgroup_clear_mc(void)
- 	if (mc.moved_charge) {
- 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
- 		mc.moved_charge = 0;
--		memcg_oom_recover(mc.from);
- 	}
- 	/* we must fixup refcnts and charges */
- 	if (mc.moved_swap) {
-@@ -4486,9 +4487,13 @@ static void mem_cgroup_clear_mc(void)
- 
- 		mc.moved_swap = 0;
- 	}
-+	spin_lock(&mc.lock);
- 	mc.from = NULL;
- 	mc.to = NULL;
- 	mc.moving_task = NULL;
-+	spin_unlock(&mc.lock);
-+	memcg_oom_recover(from);
-+	memcg_oom_recover(to);
- 	wake_up_all(&mc.waitq);
- }
- 
-@@ -4517,12 +4522,14 @@ static int mem_cgroup_can_attach(struct 
- 			VM_BUG_ON(mc.moved_charge);
- 			VM_BUG_ON(mc.moved_swap);
- 			VM_BUG_ON(mc.moving_task);
-+			spin_lock(&mc.lock);
- 			mc.from = from;
- 			mc.to = mem;
- 			mc.precharge = 0;
- 			mc.moved_charge = 0;
- 			mc.moved_swap = 0;
- 			mc.moving_task = current;
-+			spin_unlock(&mc.lock);
- 
- 			ret = mem_cgroup_precharge_mc(mm);
- 			if (ret)
+Bye,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
