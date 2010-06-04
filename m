@@ -1,38 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E49E06B01B6
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 05:44:58 -0400 (EDT)
-Date: Fri, 4 Jun 2010 11:43:32 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C83DC6B01B7
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 06:05:40 -0400 (EDT)
+Date: Fri, 4 Jun 2010 12:04:16 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-Message-ID: <20100604094332.GA8569@redhat.com>
-References: <20100601163627.245D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com> <20100602225252.F536.A69D9226@jp.fujitsu.com> <20100603161030.074d9b98.akpm@linux-foundation.org> <20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 09/12] oom: remove PF_EXITING check completely
+Message-ID: <20100604100416.GB8569@redhat.com>
+References: <20100603135106.7247.A69D9226@jp.fujitsu.com> <20100603152436.7262.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006022332320.22441@chino.kir.corp.google.com> <20100603140008.GA3548@redhat.com> <alpine.DEB.2.00.1006031313040.10856@chino.kir.corp.google.com> <20100603221145.GB8511@redhat.com> <alpine.DEB.2.00.1006031618230.30302@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1006031618230.30302@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 06/04, KAMEZAWA Hiroyuki wrote:
+On 06/03, David Rientjes wrote:
 >
-> On Thu, 3 Jun 2010 16:10:30 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 4 Jun 2010, Oleg Nesterov wrote:
 >
-> But this series includes both of bug fixes and new features at random.
-> Then, a small bugfixes, which doens't require refactoring, seems to do that.
-> That's irritating guys (at least me)
+> > > > > > Currently, PF_EXITING check is completely broken. because 1) It only
+> > > > > > care main-thread and ignore sub-threads
+> > > > >
+> > > > > Then check the subthreads.
+> > > > >
+> > >
+> > > Did you want to respond to this?
+> >
+> > Please explain what you mean. There were already a lot of discussions
+> > about mt issues, I do not know what you have in mind.
+>
+> Can you check the subthreads to see if they are not PF_EXITING?
 
-Me too.
+To detect the process with the dead group leader?
 
-And Kosaki tries to fix these long-standing (and obvious) bugs first,
-before refactoring.
+Yes, we can. We already discussed this. Probably it is better to check
+PF_EXITING and signal_group_exit().
 
-So far (iiuc) David technically disagrees with the single patch which
-removes the PF_EXITING check. OK, probably it needs more discussion
-(once again: I can't judge, but I understand why Kosaki removed it).
+> > > I'm guessing at the relevancy here because the changelog is extremely
+> > > poorly worded (if I were Andrew I would have no idea how important this
+> > > patch is based on the description other than the alarmist words of "... is
+> > > completely broken)", but if we're concerned about the coredumper not being
+> > > able to find adequate resources to allocate memory from, we can give it
+> > > access to reserves specifically,
+> >
+> > I don't think so. If oom-kill wants to kill the task which dumps the
+> > code, it should stop the coredumping and exit.
+>
+> That's a coredump change, not an oom killer change.
+
+Yes. do_coredump() should be fixed. This is not trivial (and needs the
+subtle changes outside of fs/exec.c), we are looking for the simple fix
+for now.
+
+> If the coredumper
+> needs memory and runs into the oom killer, this PF_EXITING check, which
+> you want to remove, gives it access to memory reserves by setting
+> TIF_MEMDIE so it can quickly finish and die.  This allows it to exit
+> without oom killing anything else because the tasklist scan in the oom
+> killer is not preempted by finding a TIF_MEMDIE task.
+
+David, sorry. I already tried to explain (at least twice) that TIF_MEMDIE
+(or SIGKILL even if do_coredump() was interruptible) can not help unless
+you find the right thread, this is not trivial even if we forget about
+CLONE_VM tasks.
+
+And personally I disagree that it should use memory reserves, but this
+doesn't matter.
+
+
+Let's stop this. You shouldn't convince me. I am not the author of this
+patch, and I said many times that I do not pretend I understand oom-kill
+needs. I jumped into this discussion because your initial objection
+(fatal_signal_pending() should fix the problems) was technically wrong.
 
 Oleg.
 
