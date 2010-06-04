@@ -1,83 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 341526B01AD
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 20:05:03 -0400 (EDT)
-Date: Thu, 3 Jun 2010 17:04:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 34BEB6B01AD
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 20:25:09 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o540P6Lo008092
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 4 Jun 2010 09:25:06 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F84145DE50
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2557345DE4C
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:06 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F30051DB8015
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:05 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AC5CC1DB8012
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:05 +0900 (JST)
+Date: Fri, 4 Jun 2010 09:20:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-Message-Id: <20100603170443.011fdf7c.akpm@linux-foundation.org>
-In-Reply-To: <20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20100604092047.7b7d7bb1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100603170443.011fdf7c.akpm@linux-foundation.org>
 References: <20100601163627.245D.A69D9226@jp.fujitsu.com>
 	<alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
 	<20100602225252.F536.A69D9226@jp.fujitsu.com>
 	<20100603161030.074d9b98.akpm@linux-foundation.org>
 	<20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100603170443.011fdf7c.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Jun 2010 08:53:47 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, 3 Jun 2010 17:04:43 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> On Thu, 3 Jun 2010 16:10:30 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+> Sure, bugfixes should come separately and first.  For a number of
+> reasons:
 > 
-> > On Wed,  2 Jun 2010 22:54:03 +0900 (JST)
-> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > 
-> > > > Why?
-> > > > 
-> > > > If it's because the patch is too big, I've explained a few times that 
-> > > > functionally you can't break it apart into anything meaningful.  I do not 
-> > > > believe it is better to break functional changes into smaller patches that 
-> > > > simply change function signatures to pass additional arguments that are 
-> > > > unused in the first patch, for example.
-> > > > 
-> > > > If it's because it adds /proc/pid/oom_score_adj in the same patch, that's 
-> > > > allowed since otherwise it would be useless with the old heuristic.  In 
-> > > > other words, you cannot apply oom_score_adj's meaning to the bitshift in 
-> > > > any sane way.
-> > > > 
-> > > > I'll suggest what I have multiple times: the easiest way to review the 
-> > > > functional change here is to merge the patch into your own tree and then 
-> > > > review oom_badness().  I agree that the way the diff comes out it is a 
-> > > > little difficult to read just from the patch form, so merging it and 
-> > > > reviewing the actual heuristic function is the easiest way.
-> > > 
-> > > I've already explained the reason. 1) all-of-rewrite patches are 
-> > > always unacceptable. that's prevent our code maintainance.
-> > 
-> > No, we'll sometime completely replace implementations.  There's no hard
-> > rule apart from "whatever makes sense".  If wholesale replacement makes
-> > sense as a patch-presentation method then we'll do that.
-> > 
-> I agree. 
+> - people (including the -stable maintainers) might want to backport them
 > 
-> IMHO.
+> - we might end up not merging the larger, bugfix-including patches at all
 > 
-> But this series includes both of bug fixes and new features at random.
-> Then, a small bugfixes, which doens't require refactoring, seems to do that.
-> That's irritating guys (at least me) because it seems that he tries to sneak
-> his own new logic into bugfix and moreover, it makes backport to distro difficult.
-> I'd like to beg him separate them into 2 series as bugfix and something new.
+> - the large bugfix-including patches might blow up and need
+>   reverting.  If we do that, we accidentally revert bugfixes!
+> 
+> Have we identified specifically which bugfixes should be separated out
+> in this fashion?
 > 
 
-Sure, bugfixes should come separately and first.  For a number of
-reasons:
+In my personal observation
 
-- people (including the -stable maintainers) might want to backport them
+ [1/18]  for better behavior under cpuset.
+ [2/18]  for better behavior under cpuset.
+ [3/18]  for better behavior under mempolicy.
+ [4/18]  refactoring.
+ [5/18]  refactoring.
+ [6/18]  clean up.
+ [7/18]  changing the deault sysctl value.
+ [8/18]  completely new logic.
+ [9/18]  completely new logic.
+ [10/18] a supplement for 8,9.
+ [11/18] for better behavior under lowmem oom (disable oom kill)
+ [12/18] clean up
+ [13/18] bugfix for a possible race condition. (I'm not sure about details)
+ [14/18] bugfix
+ [15/18] bugfix
+ [16/18] bugfix
+ [17/18] bugfix
+ [18/18] clean up.
 
-- we might end up not merging the larger, bugfix-including patches at all
+If distro admins are aggresive, them may backport 1,2,3,7,11 but
+it changes current logic. So, it's distro's decision.
 
-- the large bugfix-including patches might blow up and need
-  reverting.  If we do that, we accidentally revert bugfixes!
+Thanks,
+-Kame
 
-Have we identified specifically which bugfixes should be separated out
-in this fashion?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
