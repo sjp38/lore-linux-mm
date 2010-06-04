@@ -1,87 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 34BEB6B01AD
-	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 20:25:09 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o540P6Lo008092
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D56DA6B01AD
+	for <linux-mm@kvack.org>; Thu,  3 Jun 2010 20:31:00 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o540Uwn3021891
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Jun 2010 09:25:06 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F84145DE50
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:06 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2557345DE4C
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:06 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F30051DB8015
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:05 +0900 (JST)
+	Fri, 4 Jun 2010 09:30:59 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A0F9645DE5D
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:30:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7781745DE4F
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:30:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6386D1DB803C
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:30:58 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AC5CC1DB8012
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:25:05 +0900 (JST)
-Date: Fri, 4 Jun 2010 09:20:47 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 178041DB8038
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 09:30:58 +0900 (JST)
+Date: Fri, 4 Jun 2010 09:26:41 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-Message-Id: <20100604092047.7b7d7bb1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100603170443.011fdf7c.akpm@linux-foundation.org>
-References: <20100601163627.245D.A69D9226@jp.fujitsu.com>
-	<alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com>
-	<20100602225252.F536.A69D9226@jp.fujitsu.com>
-	<20100603161030.074d9b98.akpm@linux-foundation.org>
-	<20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100603170443.011fdf7c.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] memcg clean up try_charge main loop
+Message-Id: <20100604092641.e1e5a7c1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100603193809.9d5f6314.d-nishimura@mtf.biglobe.ne.jp>
+References: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100603150619.4bbe61bb.nishimura@mxp.nes.nec.co.jp>
+	<20100603152830.8b9e5e27.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100603193809.9d5f6314.d-nishimura@mtf.biglobe.ne.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: nishimura@mxp.nes.nec.co.jp
+Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Jun 2010 17:04:43 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 3 Jun 2010 19:38:09 +0900
+Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
 
-> Sure, bugfixes should come separately and first.  For a number of
-> reasons:
+> One more comment.
 > 
-> - people (including the -stable maintainers) might want to backport them
+> > +	ret = res_counter_charge(&mem->res, csize, &fail_res);
+> > +
+> > +	if (likely(!ret)) {
+> > +		if (!do_swap_account)
+> > +			return CHARGE_OK;
+> > +		ret = res_counter_charge(&mem->memsw, csize, &fail_res);
+> > +		if (likely(!ret))
+> > +			return CHARGE_OK;
+> > +
+> > +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> This must be mem_cgroup_from_res_counter(fail_res, memsw).
+> We will access to an invalid pointer, otherwise.
 > 
-> - we might end up not merging the larger, bugfix-including patches at all
-> 
-> - the large bugfix-including patches might blow up and need
->   reverting.  If we do that, we accidentally revert bugfixes!
-> 
-> Have we identified specifically which bugfixes should be separated out
-> in this fashion?
-> 
+ouch..ok. (my test wasn't enough..)
 
-In my personal observation
-
- [1/18]  for better behavior under cpuset.
- [2/18]  for better behavior under cpuset.
- [3/18]  for better behavior under mempolicy.
- [4/18]  refactoring.
- [5/18]  refactoring.
- [6/18]  clean up.
- [7/18]  changing the deault sysctl value.
- [8/18]  completely new logic.
- [9/18]  completely new logic.
- [10/18] a supplement for 8,9.
- [11/18] for better behavior under lowmem oom (disable oom kill)
- [12/18] clean up
- [13/18] bugfix for a possible race condition. (I'm not sure about details)
- [14/18] bugfix
- [15/18] bugfix
- [16/18] bugfix
- [17/18] bugfix
- [18/18] clean up.
-
-If distro admins are aggresive, them may backport 1,2,3,7,11 but
-it changes current logic. So, it's distro's decision.
+I'll rewrite this against the new mmotm.
 
 Thanks,
 -Kame
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
