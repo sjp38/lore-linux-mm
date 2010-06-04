@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3DF156B01AD
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 01:50:41 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id AE9D76B01AD
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 01:54:04 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o545ocBg019455
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o545s1Pg020427
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 4 Jun 2010 14:50:38 +0900
+	Fri, 4 Jun 2010 14:54:01 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F3E1545DE5E
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:50:37 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8752A45DE50
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:01 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BFAB445DE50
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:50:37 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C60045DE4F
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:01 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F1CBC1DB804F
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:50:36 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AD881DB8048
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:50:33 +0900 (JST)
-Date: Fri, 4 Jun 2010 14:45:53 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F3E391DB804C
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:00 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A038A1DB8044
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 14:54:00 +0900 (JST)
+Date: Fri, 4 Jun 2010 14:49:43 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/2] memcg clean up try_charge main loop v2
-Message-Id: <20100604144553.54b52c9e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/2] memcg clean up waiting move acct v2
+Message-Id: <20100604144943.760312ea.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100604144553.54b52c9e.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100603114837.6e6d4d0f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100604144553.54b52c9e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,343 +33,146 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Rebased onto the latest mmotm and tested again.
+No functional changes but rebased onto mmotm-2010-0603 and tested again.
 
-=
+==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-mem_cgroup_try_charge() has a big loop in it and seems to be hard to read.
-Most of routines are for slow path. This patch moves codes out from the
-loop and make it clear what's done.
+Now, for checking a memcg is under task-account-moving, we do css_tryget()
+against mc.to and mc.from. But this is just complicating things. This patch
+makes the check easier.
 
-Summary:
- - refactoring a function to detect a memcg is under acccount move or not.
- - refactoring a function to wait for the end of moving task acct.
- - refactoring a main loop('s slow path) as a function and make it clear
-   why we retry or quit by return code.
- - add fatal_signal_pending() check for bypassing charge loops.
+This patch adds a spinlock to move_charge_struct and guard modification
+of mc.to and mc.from. By this, we don't have to think about complicated
+races arount this not-critical path.
 
-Changelog 2010--6-04
- - fixed getting mem_over_limit 
-
-Changelog 2010-06-03
- - fixed oom retry handling.
- - use do...while()
-Changelog 2010-06-01
- - added fatal_signal_pending() to bypass charge loop. This is useful
-   and valid to do because if signal is fatal, charging against it
-   isn't very necessary and the user can see smooth kill even under
-   heavy workload on a memcg.
+Changelog: 2010-06-04
+ - rebased onto mmotm-2010-06-03
+Changelog:
+ - removed disable/enable irq.
+ - removed unnecessary css_put()
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  248 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 148 insertions(+), 100 deletions(-)
+ mm/memcontrol.c |   49 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 28 insertions(+), 21 deletions(-)
 
 Index: mmotm-2.6.34-Jun6/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.34-Jun6.orig/mm/memcontrol.c
 +++ mmotm-2.6.34-Jun6/mm/memcontrol.c
-@@ -1072,6 +1072,49 @@ static unsigned int get_swappiness(struc
- 	return swappiness;
+@@ -268,6 +268,7 @@ enum move_type {
+ 
+ /* "mc" and its members are protected by cgroup_mutex */
+ static struct move_charge_struct {
++	spinlock_t	  lock; /* for from, to, moving_task */
+ 	struct mem_cgroup *from;
+ 	struct mem_cgroup *to;
+ 	unsigned long precharge;
+@@ -276,6 +277,7 @@ static struct move_charge_struct {
+ 	struct task_struct *moving_task;	/* a task moving charges */
+ 	wait_queue_head_t waitq;		/* a waitq for other context */
+ } mc = {
++	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
+ 	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
+ };
+ 
+@@ -1076,26 +1078,24 @@ static unsigned int get_swappiness(struc
+ 
+ static bool mem_cgroup_under_move(struct mem_cgroup *mem)
+ {
+-	struct mem_cgroup *from = mc.from;
+-	struct mem_cgroup *to = mc.to;
++	struct mem_cgroup *from;
++	struct mem_cgroup *to;
+ 	bool ret = false;
+-
+-	if (from == mem || to == mem)
+-		return true;
+-
+-	if (!from || !to || !mem->use_hierarchy)
+-		return false;
+-
+-	rcu_read_lock();
+-	if (css_tryget(&from->css)) {
+-		ret = css_is_ancestor(&from->css, &mem->css);
+-		css_put(&from->css);
+-	}
+-	if (!ret && css_tryget(&to->css)) {
+-		ret = css_is_ancestor(&to->css,	&mem->css);
+-		css_put(&to->css);
+-	}
+-	rcu_read_unlock();
++	/*
++	 * Unlike task_move routines, we access mc.to, mc.from not under
++	 * mutual exclusion by cgroup_mutex. Here, we take spinlock instead.
++	 */
++	spin_lock(&mc.lock);
++	from = mc.from;
++	to = mc.to;
++	if (!from)
++		goto unlock;
++	if (from == mem || to == mem
++	    || (mem->use_hierarchy && css_is_ancestor(&from->css, &mem->css))
++	    || (mem->use_hierarchy && css_is_ancestor(&to->css,	&mem->css)))
++		ret = true;
++unlock:
++	spin_unlock(&mc.lock);
+ 	return ret;
  }
  
-+/* A routine for testing mem is not under move_account */
-+
-+static bool mem_cgroup_under_move(struct mem_cgroup *mem)
-+{
+@@ -4448,11 +4448,13 @@ static int mem_cgroup_precharge_mc(struc
+ 
+ static void mem_cgroup_clear_mc(void)
+ {
 +	struct mem_cgroup *from = mc.from;
 +	struct mem_cgroup *to = mc.to;
-+	bool ret = false;
 +
-+	if (from == mem || to == mem)
-+		return true;
-+
-+	if (!from || !to || !mem->use_hierarchy)
-+		return false;
-+
-+	rcu_read_lock();
-+	if (css_tryget(&from->css)) {
-+		ret = css_is_ancestor(&from->css, &mem->css);
-+		css_put(&from->css);
-+	}
-+	if (!ret && css_tryget(&to->css)) {
-+		ret = css_is_ancestor(&to->css,	&mem->css);
-+		css_put(&to->css);
-+	}
-+	rcu_read_unlock();
-+	return ret;
-+}
-+
-+static bool mem_cgroup_wait_acct_move(struct mem_cgroup *mem)
-+{
-+	if (mc.moving_task && current != mc.moving_task) {
-+		if (mem_cgroup_under_move(mem)) {
-+			DEFINE_WAIT(wait);
-+			prepare_to_wait(&mc.waitq, &wait, TASK_INTERRUPTIBLE);
-+			/* moving charge context might have finished. */
-+			if (mc.moving_task)
-+				schedule();
-+			finish_wait(&mc.waitq, &wait);
-+			return true;
-+		}
-+	}
-+	return false;
-+}
-+
- static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
- {
- 	int *val = data;
-@@ -1582,16 +1625,83 @@ static int __cpuinit memcg_stock_cpu_cal
- 	return NOTIFY_OK;
- }
- 
-+
-+/* See __mem_cgroup_try_charge() for details */
-+enum {
-+	CHARGE_OK,		/* success */
-+	CHARGE_RETRY,		/* need to retry but retry is not bad */
-+	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
-+	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
-+	CHARGE_OOM_DIE,		/* the current is killed because of OOM */
-+};
-+
-+static int __mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
-+				int csize, bool oom_check)
-+{
-+	struct mem_cgroup *mem_over_limit;
-+	struct res_counter *fail_res;
-+	unsigned long flags = 0;
-+	int ret;
-+
-+	ret = res_counter_charge(&mem->res, csize, &fail_res);
-+
-+	if (likely(!ret)) {
-+		if (!do_swap_account)
-+			return CHARGE_OK;
-+		ret = res_counter_charge(&mem->memsw, csize, &fail_res);
-+		if (likely(!ret))
-+			return CHARGE_OK;
-+
-+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-+		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-+	} else
-+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
-+
-+	if (csize > PAGE_SIZE) /* change csize and retry */
-+		return CHARGE_RETRY;
-+
-+	if (!(gfp_mask & __GFP_WAIT))
-+		return CHARGE_WOULDBLOCK;
-+
-+	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-+					gfp_mask, flags);
-+	/*
-+	 * try_to_free_mem_cgroup_pages() might not give us a full
-+	 * picture of reclaim. Some pages are reclaimed and might be
-+	 * moved to swap cache or just unmapped from the cgroup.
-+	 * Check the limit again to see if the reclaim reduced the
-+	 * current usage of the cgroup before giving up
-+	 */
-+	if (ret || mem_cgroup_check_under_limit(mem_over_limit))
-+		return CHARGE_RETRY;
-+
-+	/*
-+	 * At task move, charge accounts can be doubly counted. So, it's
-+	 * better to wait until the end of task_move if something is going on.
-+	 */
-+	if (mem_cgroup_wait_acct_move(mem_over_limit))
-+		return CHARGE_RETRY;
-+
-+	/* If we don't need to call oom-killer at el, return immediately */
-+	if (!oom_check)
-+		return CHARGE_NOMEM;
-+	/* check OOM */
-+	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask))
-+		return CHARGE_OOM_DIE;
-+
-+	return CHARGE_RETRY;
-+}
-+
- /*
-  * Unlike exported interface, "oom" parameter is added. if oom==true,
-  * oom-killer can be invoked.
-  */
- static int __mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
-+		gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
- {
--	struct mem_cgroup *mem, *mem_over_limit;
--	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
--	struct res_counter *fail_res;
-+	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct mem_cgroup *mem = NULL;
-+	int ret;
- 	int csize = CHARGE_SIZE;
- 
- 	/*
-@@ -1609,120 +1719,56 @@ static int __mem_cgroup_try_charge(struc
- 	 * thread group leader migrates. It's possible that mm is not
- 	 * set, if so charge the init_mm (happens for pagecache usage).
- 	 */
--	mem = *memcg;
--	if (likely(!mem)) {
-+	if (*memcg) {
-+		mem = *memcg;
-+		css_get(&mem->css);
-+	} else {
- 		mem = try_get_mem_cgroup_from_mm(mm);
-+		if (unlikely(!mem))
-+			return 0;
- 		*memcg = mem;
--	} else {
--		css_get(&mem->css);
+ 	/* we must uncharge all the leftover precharges from mc.to */
+ 	if (mc.precharge) {
+ 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
+ 		mc.precharge = 0;
+-		memcg_oom_recover(mc.to);
  	}
--	if (unlikely(!mem))
--		return 0;
+ 	/*
+ 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
+@@ -4461,7 +4463,6 @@ static void mem_cgroup_clear_mc(void)
+ 	if (mc.moved_charge) {
+ 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
+ 		mc.moved_charge = 0;
+-		memcg_oom_recover(mc.from);
+ 	}
+ 	/* we must fixup refcnts and charges */
+ 	if (mc.moved_swap) {
+@@ -4486,9 +4487,13 @@ static void mem_cgroup_clear_mc(void)
  
- 	VM_BUG_ON(css_is_removed(&mem->css));
- 	if (mem_cgroup_is_root(mem))
- 		goto done;
- 
--	while (1) {
--		int ret = 0;
--		unsigned long flags = 0;
-+	do {
-+		bool oom_check;
- 
- 		if (consume_stock(mem))
--			goto done;
--
--		ret = res_counter_charge(&mem->res, csize, &fail_res);
--		if (likely(!ret)) {
--			if (!do_swap_account)
--				break;
--			ret = res_counter_charge(&mem->memsw, csize, &fail_res);
--			if (likely(!ret))
--				break;
--			/* mem+swap counter fails */
--			res_counter_uncharge(&mem->res, csize);
--			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
--			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
--									memsw);
--		} else
--			/* mem counter fails */
--			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
--									res);
-+			goto done; /* don't need to fill stock */
-+		/* If killed, bypass charge */
-+		if (fatal_signal_pending(current))
-+			goto bypass;
- 
--		/* reduce request size and retry */
--		if (csize > PAGE_SIZE) {
--			csize = PAGE_SIZE;
--			continue;
-+		oom_check = false;
-+		if (oom && !nr_oom_retries) {
-+			oom_check = true;
-+			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
--		if (!(gfp_mask & __GFP_WAIT))
--			goto nomem;
--
--		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
--						gfp_mask, flags);
--		if (ret)
--			continue;
- 
--		/*
--		 * try_to_free_mem_cgroup_pages() might not give us a full
--		 * picture of reclaim. Some pages are reclaimed and might be
--		 * moved to swap cache or just unmapped from the cgroup.
--		 * Check the limit again to see if the reclaim reduced the
--		 * current usage of the cgroup before giving up
--		 *
--		 */
--		if (mem_cgroup_check_under_limit(mem_over_limit))
--			continue;
-+		ret = __mem_cgroup_do_charge(mem, gfp_mask, csize, oom_check);
- 
--		/* try to avoid oom while someone is moving charge */
--		if (mc.moving_task && current != mc.moving_task) {
--			struct mem_cgroup *from, *to;
--			bool do_continue = false;
--			/*
--			 * There is a small race that "from" or "to" can be
--			 * freed by rmdir, so we use css_tryget().
--			 */
--			from = mc.from;
--			to = mc.to;
--			if (from && css_tryget(&from->css)) {
--				if (mem_over_limit->use_hierarchy)
--					do_continue = css_is_ancestor(
--							&from->css,
--							&mem_over_limit->css);
--				else
--					do_continue = (from == mem_over_limit);
--				css_put(&from->css);
--			}
--			if (!do_continue && to && css_tryget(&to->css)) {
--				if (mem_over_limit->use_hierarchy)
--					do_continue = css_is_ancestor(
--							&to->css,
--							&mem_over_limit->css);
--				else
--					do_continue = (to == mem_over_limit);
--				css_put(&to->css);
--			}
--			if (do_continue) {
--				DEFINE_WAIT(wait);
--				prepare_to_wait(&mc.waitq, &wait,
--							TASK_INTERRUPTIBLE);
--				/* moving charge context might have finished. */
--				if (mc.moving_task)
--					schedule();
--				finish_wait(&mc.waitq, &wait);
--				continue;
--			}
--		}
--
--		if (!nr_retries--) {
-+		switch (ret) {
-+		case CHARGE_OK:
-+			break;
-+		case CHARGE_RETRY: /* not in OOM situation but retry */
-+			csize = PAGE_SIZE;
-+			break;
-+		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
-+			goto nomem;
-+		case CHARGE_NOMEM: /* OOM routine works */
- 			if (!oom)
- 				goto nomem;
--			if (mem_cgroup_handle_oom(mem_over_limit, gfp_mask)) {
--				nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
--				continue;
--			}
--			/* When we reach here, current task is dying .*/
--			css_put(&mem->css);
-+			/* If oom, we never return -ENOMEM */
-+			nr_oom_retries--;
-+			break;
-+		case CHARGE_OOM_DIE: /* Killed by OOM Killer */
- 			goto bypass;
- 		}
--	}
-+	} while (ret != CHARGE_OK);
-+
- 	if (csize > PAGE_SIZE)
- 		refill_stock(mem, csize - PAGE_SIZE);
- done:
-@@ -1731,6 +1777,8 @@ nomem:
- 	css_put(&mem->css);
- 	return -ENOMEM;
- bypass:
-+	if (mem)
-+		css_put(&mem->css);
- 	*memcg = NULL;
- 	return 0;
+ 		mc.moved_swap = 0;
+ 	}
++	spin_lock(&mc.lock);
+ 	mc.from = NULL;
+ 	mc.to = NULL;
+ 	mc.moving_task = NULL;
++	spin_unlock(&mc.lock);
++	memcg_oom_recover(from);
++	memcg_oom_recover(to);
+ 	wake_up_all(&mc.waitq);
  }
+ 
+@@ -4517,12 +4522,14 @@ static int mem_cgroup_can_attach(struct 
+ 			VM_BUG_ON(mc.moved_charge);
+ 			VM_BUG_ON(mc.moved_swap);
+ 			VM_BUG_ON(mc.moving_task);
++			spin_lock(&mc.lock);
+ 			mc.from = from;
+ 			mc.to = mem;
+ 			mc.precharge = 0;
+ 			mc.moved_charge = 0;
+ 			mc.moved_swap = 0;
+ 			mc.moving_task = current;
++			spin_unlock(&mc.lock);
+ 
+ 			ret = mem_cgroup_precharge_mc(mm);
+ 			if (ret)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
