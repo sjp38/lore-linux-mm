@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A84526B01B0
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 05:22:56 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o549MqeJ032676
-	for <linux-mm@kvack.org>; Fri, 4 Jun 2010 02:22:52 -0700
-Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
-	by wpaz5.hot.corp.google.com with ESMTP id o549MpqR008537
-	for <linux-mm@kvack.org>; Fri, 4 Jun 2010 02:22:51 -0700
-Received: by pzk9 with SMTP id 9so628240pzk.18
-        for <linux-mm@kvack.org>; Fri, 04 Jun 2010 02:22:51 -0700 (PDT)
-Date: Fri, 4 Jun 2010 02:22:48 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <20100604145723.e16d7fe0.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006040219350.26022@chino.kir.corp.google.com>
-References: <20100601163627.245D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006011140110.32024@chino.kir.corp.google.com> <20100602225252.F536.A69D9226@jp.fujitsu.com> <20100603161030.074d9b98.akpm@linux-foundation.org> <20100604085347.80c7b43f.kamezawa.hiroyu@jp.fujitsu.com>
- <20100603170443.011fdf7c.akpm@linux-foundation.org> <20100604092047.7b7d7bb1.kamezawa.hiroyu@jp.fujitsu.com> <20100604145723.e16d7fe0.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3A3716B01B4
+	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 05:36:51 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so217734pxi.14
+        for <linux-mm@kvack.org>; Fri, 04 Jun 2010 02:36:50 -0700 (PDT)
+Message-ID: <4C08C931.3080306@vflare.org>
+Date: Fri, 04 Jun 2010 15:06:49 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH V2 0/7] Cleancache (was Transcendent Memory): overview
+References: <20100528173510.GA12166%ca-server1.us.oracle.comAANLkTilV-4_QaNq5O0WSplDx1Oq7JvkgVrEiR1rgf1up@mail.gmail.com> <489aa002-6d42-4dd5-bb66-81c665f8cdd1@default> <4C07179F.5080106@vflare.org> <3721BEE2-DF2D-452A-8F01-E690E32C6B33@oracle.com 4C074ACE.9020704@vflare.org> <6e97a82a-c754-493e-bbf5-58f0bb6a18b5@default>
+In-Reply-To: <6e97a82a-c754-493e-bbf5-58f0bb6a18b5@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: andreas.dilger@oracle.com, Minchan Kim <minchan.kim@gmail.com>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Jun 2010, KAMEZAWA Hiroyuki wrote:
-
-> > In my personal observation
-> > 
-> >  [1/18]  for better behavior under cpuset.
-> >  [2/18]  for better behavior under cpuset.
-> >  [3/18]  for better behavior under mempolicy.
-> >  [4/18]  refactoring.
-> >  [5/18]  refactoring.
-> >  [6/18]  clean up.
-> >  [7/18]  changing the deault sysctl value.
-> >  [8/18]  completely new logic.
-> >  [9/18]  completely new logic.
-> >  [10/18] a supplement for 8,9.
-> >  [11/18] for better behavior under lowmem oom (disable oom kill)
-> >  [12/18] clean up
-> >  [13/18] bugfix for a possible race condition. (I'm not sure about details)
-> >  [14/18] bugfix
-> >  [15/18] bugfix
-> >  [16/18] bugfix
-> >  [17/18] bugfix
-> >  [18/18] clean up.
-> > 
-> > If distro admins are aggresive, them may backport 1,2,3,7,11 but
-> > it changes current logic. So, it's distro's decision.
-> > 
+On 06/03/2010 09:13 PM, Dan Magenheimer wrote:
+>> On 06/03/2010 10:23 AM, Andreas Dilger wrote:
+>>> On 2010-06-02, at 20:46, Nitin Gupta wrote:
+>>
+>>> I was thinking it would be quite clever to do compression in, say,
+>>> 64kB or 128kB chunks in a mapping (to get decent compression) and
+>>> then write these compressed chunks directly from the page cache
+>>> to disk in btrfs and/or a revived compressed ext4.
+>>
+>> Batching of pages to get good compression ratio seems doable.
 > 
-> IMHO, without considering HUNKs, the patch order should be
-> 
->   13,14,15,16,17,1,2,3,7,11,4,5,6,18,12,8,9,10.
-> 
-> bugfix -> patches for things making better -> refactoring -> the new implementation.
+> Is there evidence that batching a set of random individual 4K
+> pages will have a significantly better compression ratio than
+> compressing the pages separately?  I certainly understand that
+> if the pages are from the same file, compression is likely to
+> be better, but pages evicted from the page cache (which is
+> the source for all cleancache_puts) are likely to be quite a
+> bit more random than that, aren't they?
 > 
 
-Thank you for very much for taking the time to look through each 
-individual patch and suggest a different order.  If the ordering of the 
-patches will help move us forward, then I'd be extremely happy to do it :)
 
-> David, I have no objections to functions itself. But please start from small
-> good things. "Refactoring" is good but it tend to make backporting
-> not-straightforward. So, I think it should be done when there is no known issues.
-> I think you can do.
-> 
+Batching of pages from random files may not be so effective but
+it would be interesting to collect some data for this. Still,
+per-inode batching of pages seems doable and this should help
+us get over this problem.
 
-I'll reorganize the patchset itself without any implementation changes so 
-it flows better and is more appropriately seperated as you suggest.  I 
-still believe there is no -rc material within this series (implying there 
-is no -stable material either), but if you believe so then please reply to 
-those patches with the new posting so Andrew can consider pushing it to 
-Linus.
-
-Thanks Kame.
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
