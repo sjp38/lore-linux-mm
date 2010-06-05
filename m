@@ -1,176 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6C0806B01AD
-	for <linux-mm@kvack.org>; Fri,  4 Jun 2010 21:38:10 -0400 (EDT)
-Date: Sat, 5 Jun 2010 11:38:02 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
- page tagging
-Message-ID: <20100605013802.GG26335@laptop>
-References: <1275677231-15662-1-git-send-email-jack@suse.cz>
- <1275677231-15662-3-git-send-email-jack@suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 8B72D6B01AC
+	for <linux-mm@kvack.org>; Sat,  5 Jun 2010 19:14:18 -0400 (EDT)
+Received: from unknown (HELO delta.home.cesarb.net) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
+          (envelope-sender <cesarb@cesarb.net>)
+          by smtp-03.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
+          for <linux-mm@kvack.org>; 5 Jun 2010 23:14:13 -0000
+Message-ID: <4C0ADA44.4020406@cesarb.net>
+Date: Sat, 05 Jun 2010 20:14:12 -0300
+From: Cesar Eduardo Barros <cesarb@cesarb.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1275677231-15662-3-git-send-email-jack@suse.cz>
+Subject: [PATCH v2 0/3] mm: Swap checksum
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, david@fromorbit.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jens.axboe@oracle.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 04, 2010 at 08:47:11PM +0200, Jan Kara wrote:
-> We try to avoid livelocks of writeback when some steadily creates
-> dirty pages in a mapping we are writing out. For memory-cleaning
-> writeback, using nr_to_write works reasonably well but we cannot
-> really use it for data integrity writeback. This patch tries to
-> solve the problem.
-> 
-> The idea is simple: Tag all pages that should be written back
-> with a special tag (TOWRITE) in the radix tree. This can be done
-> rather quickly and thus livelocks should not happen in practice.
-> Then we start doing the hard work of locking pages and sending
-> them to disk only for those pages that have TOWRITE tag set.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  include/linux/fs.h         |    1 +
->  include/linux/radix-tree.h |    2 +-
->  mm/page-writeback.c        |   44 ++++++++++++++++++++++++++++++++++++++++++--
->  3 files changed, 44 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 3428393..fe308f0 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -685,6 +685,7 @@ struct block_device {
->   */
->  #define PAGECACHE_TAG_DIRTY	0
->  #define PAGECACHE_TAG_WRITEBACK	1
-> +#define PAGECACHE_TAG_TOWRITE	2
->  
->  int mapping_tagged(struct address_space *mapping, int tag);
->  
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index efdfb07..f7ebff8 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -55,7 +55,7 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
->  
->  /*** radix-tree API starts here ***/
->  
-> -#define RADIX_TREE_MAX_TAGS 2
-> +#define RADIX_TREE_MAX_TAGS 3
->  
->  /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
->  struct radix_tree_root {
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index b289310..f590a12 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -807,6 +807,30 @@ void __init page_writeback_init(void)
->  }
->  
->  /**
-> + * tag_pages_for_writeback - tag pages to be written by write_cache_pages
-> + * @mapping: address space structure to write
-> + * @start: starting page index
-> + * @end: ending page index (inclusive)
-> + *
-> + * This function scans the page range from @start to @end and tags all pages
-> + * that have DIRTY tag set with a special TOWRITE tag. The idea is that
-> + * write_cache_pages (or whoever calls this function) will then use TOWRITE tag
-> + * to identify pages eligible for writeback.  This mechanism is used to avoid
-> + * livelocking of writeback by a process steadily creating new dirty pages in
-> + * the file (thus it is important for this function to be damn quick so that it
-> + * can tag pages faster than a dirtying process can create them).
-> + */
-> +void tag_pages_for_writeback(struct address_space *mapping,
-> +			     pgoff_t start, pgoff_t end)
-> +{
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	radix_tree_gang_tag_if_tagged(&mapping->page_tree, start, end,
-> +				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +}
-> +EXPORT_SYMBOL(tag_pages_for_writeback);
-> +
-> +/**
->   * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
->   * @mapping: address space structure to write
->   * @wbc: subtract the number of written pages from *@wbc->nr_to_write
-> @@ -820,6 +844,13 @@ void __init page_writeback_init(void)
->   * the call was made get new I/O started against them.  If wbc->sync_mode is
->   * WB_SYNC_ALL then we were called for data integrity and we must wait for
->   * existing IO to complete.
-> + *
-> + * To avoid livelocks (when other process dirties new pages), we first tag
-> + * pages which should be written back with TOWRITE tag and only then start
-> + * writing them. For data-integrity sync we have to be careful so that we do
-> + * not miss some pages (e.g., because some other process has cleared TOWRITE
-> + * tag we set). The rule we follow is that TOWRITE tag can be cleared only
-> + * by the process clearing the DIRTY tag (and submitting the page for IO).
->   */
->  int write_cache_pages(struct address_space *mapping,
->  		      struct writeback_control *wbc, writepage_t writepage,
-> @@ -836,6 +867,7 @@ int write_cache_pages(struct address_space *mapping,
->  	int cycled;
->  	int range_whole = 0;
->  	long nr_to_write = wbc->nr_to_write;
-> +	int tag;
->  
->  	pagevec_init(&pvec, 0);
->  	if (wbc->range_cyclic) {
-> @@ -853,13 +885,18 @@ int write_cache_pages(struct address_space *mapping,
->  			range_whole = 1;
->  		cycled = 1; /* ignore range_cyclic tests */
->  	}
-> +	if (wbc->sync_mode == WB_SYNC_ALL)
-> +		tag = PAGECACHE_TAG_TOWRITE;
-> +	else
-> +		tag = PAGECACHE_TAG_DIRTY;
->  retry:
-> +	if (wbc->sync_mode == WB_SYNC_ALL)
-> +		tag_pages_for_writeback(mapping, index, end);
+Add support for checksumming the swap pages written to disk, using the
+same checksum as btrfs (crc32c). Since the contents of the swap do not
+matter after a shutdown, the checksum is kept in memory only.
 
-I wonder if this is too much spinlock latency in a huge dirty file?
-Some kid of batching of the operation perhaps would be good?
+This protects against silent corruption of the swap caused by hardware
+problems, the same way the btrfs checksum protects against silent
+corruption of the filesystem. It is useful even with
+CONFIG_BLK_DEV_INTEGRITY because it also protects against reads of stale
+data.
 
+The checksum is done in the swap layer (instead of in a separate block
+device or in the block layer) to allow the checksums to be tracked
+together with the rest of swap state (also allowing later for things
+like Avi Kivity's suggestions of keeping the checksum in the pte when
+possible and converting zeroed pages to a pte_none), to better allow for
+different things to be done by the software suspend code (which writes
+to the same place but has different needs), to simplify configuration
+(no need to edit the fstab), and because it felt the most natural layer
+to do it.
 
->  	done_index = index;
->  	while (!done && (index <= end)) {
->  		int i;
->  
-> -		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-> -			      PAGECACHE_TAG_DIRTY,
-> +		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
->  			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
->  		if (nr_pages == 0)
->  			break;
+Note that this code does not currently checksum the software suspend
+image. That will need to be done later.
 
-Would it be neat to clear the tag even if we didn't set page to
-writeback? It should be uncommon case.
+Lightly tested on a x86 VM.
 
+Changes since -v1:
+   Rebase to 2.6.35-rc1 (code moved from swap.c to block_io.c)
+   Use bio_data_dir() instead of acessing bi_rw directly
+   Use __read_mostly for swapcsum_workqueue
+   Include highmem.h instead of pagemap.h
 
-> @@ -1319,6 +1356,9 @@ int test_set_page_writeback(struct page *page)
->  			radix_tree_tag_clear(&mapping->page_tree,
->  						page_index(page),
->  						PAGECACHE_TAG_DIRTY);
-> +		radix_tree_tag_clear(&mapping->page_tree,
-> +				     page_index(page),
-> +				     PAGECACHE_TAG_TOWRITE);
->  		spin_unlock_irqrestore(&mapping->tree_lock, flags);
->  	} else {
->  		ret = TestSetPageWriteback(page);
+Cesar Eduardo Barros (3):
+       mm/swapfile.c: better messages for swap_info_get
+       kernel/power/block_io.c: do not use end_swap_bio_read
+       mm: Swap checksum
 
-It would be nice to have bitwise tag clearing so we can clear multiple
-at once. Then
+  include/linux/swap.h    |   31 ++++++-
+  kernel/power/block_io.c |   22 +++++-
+  mm/Kconfig              |   22 +++++
+  mm/Makefile             |    1 +
+  mm/page_io.c            |   92 +++++++++++++++++--
+  mm/swapcsum.c           |   94 ++++++++++++++++++++
+  mm/swapfile.c           |  187 +++++++++++++++++++++++++++++++++++++--
+  7 files changed, 431 insertions(+), 18 deletions(-)
+  create mode 100644 mm/swapcsum.c
 
-clear_tag = PAGECACHE_TAG_TOWRITE;
-if (!PageDirty(page))
-  clear_tag |= PAGECACHE_TAG_DIRTY;
-
-That could reduce overhead a bit more.
-
+-- 
+Cesar Eduardo Barros
+cesarb@cesarb.net
+cesar.barros@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
