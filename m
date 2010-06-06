@@ -1,677 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 065676B01B0
-	for <linux-mm@kvack.org>; Sat,  5 Jun 2010 19:14:48 -0400 (EDT)
-Received: from unknown (HELO localhost.localdomain) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
-          (envelope-sender <cesarb@cesarb.net>)
-          by smtp-02.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
-          for <linux-mm@kvack.org>; 5 Jun 2010 23:14:44 -0000
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
-Subject: [PATCH v2 3/3] mm: Swap checksum
-Date: Sat,  5 Jun 2010 20:14:36 -0300
-Message-Id: <1275779676-19120-3-git-send-email-cesarb@cesarb.net>
-In-Reply-To: <4C0ADA44.4020406@cesarb.net>
-References: <4C0ADA44.4020406@cesarb.net>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 923AB6B01B8
+	for <linux-mm@kvack.org>; Sun,  6 Jun 2010 00:51:51 -0400 (EDT)
+Date: Sun, 6 Jun 2010 12:08:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/2 RFC v3] Livelock avoidance for data integrity
+ writeback
+Message-ID: <20100606040819.GA16293@localhost>
+References: <1275677231-15662-1-git-send-email-jack@suse.cz>
+ <20100605011447.GF26335@laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100605011447.GF26335@laptop>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-pm@lists.linux-foundation.org, Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Jens Axboe <jens.axboe@oracle.com>, Hugh Dickins <hughd@google.com>, Cesar Eduardo Barros <cesarb@cesarb.net>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add support for checksumming the swap pages written to disk, using the
-same checksum as btrfs (crc32c). Since the contents of the swap do not
-matter after a shutdown, the checksum is kept in memory only.
+On Sat, Jun 05, 2010 at 11:14:47AM +1000, Nick Piggin wrote:
+> On Fri, Jun 04, 2010 at 08:47:09PM +0200, Jan Kara wrote:
+> > 
+> >   Hi,
+> > 
+> >   I've revived my patches to implement livelock avoidance for data integrity
+> > writes. Due to some concerns whether tagging of pages before writeout cannot
+> > be too costly to use for WB_SYNC_NONE mode (where we stop after nr_to_write
+> > pages) I've changed the patch to use page tagging only in WB_SYNC_ALL mode
+> > where we are sure that we write out all the tagged pages. Later, we can think
+> > about using tagging for livelock avoidance for WB_SYNC_NONE mode as well...
+> 
+> Hmm what concerns? Do you have any numbers?
 
-This protects against silent corruption of the swap caused by hardware
-problems, the same way the btrfs checksum protects against silent
-corruption of the filesystem. It is useful even with
-CONFIG_BLK_DEV_INTEGRITY because it also protects against reads of stale
-data.
+sync() is performed in two stages: the WB_SYNC_NONE run and the
+WB_SYNC_ALL run. The WB_SYNC_NONE stage can still be livelocked.
 
-The checksum is done in the swap layer (instead of in a separate block
-device or in the block layer) to allow the checksums to be tracked
-together with the rest of swap state (also allowing later for things
-like Avi Kivity's suggestions of keeping the checksum in the pte when
-possible and converting zeroed pages to a pte_none), to better allow for
-different things to be done by the software suspend code (which writes
-to the same place but has different needs), to simplify configuration
-(no need to edit the fstab), and because it felt the most natural layer
-to do it.
+We may switch to wbc.for_sync (instead of testing WB_SYNC_ALL only)
+provided by the following patch. Jan, would you add it to your series
+(with necessary improvements)?
 
-Note that this code does not currently checksum the software suspend
-image. That will need to be done later.
-
-Lightly tested on a x86 VM.
-
-Changes since -v1:
-  Use __read_mostly for swapcsum_workqueue
-  Include highmem.h instead of pagemap.h
-
-Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
+Thanks,
+Fengguang
 ---
- include/linux/swap.h |   30 ++++++++
- mm/Kconfig           |   22 ++++++
- mm/Makefile          |    1 +
- mm/page_io.c         |   90 +++++++++++++++++++++++---
- mm/swapcsum.c        |   94 ++++++++++++++++++++++++++
- mm/swapfile.c        |  179 +++++++++++++++++++++++++++++++++++++++++++++++++-
- 6 files changed, 405 insertions(+), 11 deletions(-)
- create mode 100644 mm/swapcsum.c
+introduce wbc.for_sync to cover the two sync() stages
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 33a98a6..1e0cbf3 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -15,6 +15,9 @@
- struct notifier_block;
+The sync() is performed in two stages: the WB_SYNC_NONE sync and
+the WB_SYNC_ALL sync. It is necessary to tag both stages with
+wbc.for_sync, so as to prevent either of them being livelocked.
+
+The next patch will utilize this flag to do the livelock prevention.
+
+btw, the nr_pages param in bdi_start_writeback() is dropped:
+
+1) better livelock prevention will be used. Limiting nr_to_write was
+   inferior in that it may miss some pages to sync. And it does not
+   really avoid livelock for single huge file: write_cache_pages()
+   ignores nr_to_write for WB_SYNC_NONE at all.
+
+2) It is very unlikely to impact some not-for-sync existing users.
+   For example the ubifs call writeback_inodes_sb() to writeback some
+   pages. And the ext4 also intents to write somehow enough pages with
+   writeback_inodes_sb_if_idle().  However they seem not really care to
+   write more pages.
+
+CC: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c           |   28 ++++++++--------------------
+ include/linux/backing-dev.h |    2 +-
+ include/linux/writeback.h   |    8 ++++++++
+ mm/page-writeback.c         |    2 +-
+ 4 files changed, 18 insertions(+), 22 deletions(-)
+
+--- linux.orig/fs/fs-writeback.c	2010-06-06 11:16:42.000000000 +0800
++++ linux/fs/fs-writeback.c	2010-06-06 11:21:13.000000000 +0800
+@@ -42,6 +42,7 @@ struct wb_writeback_args {
+ 	long nr_pages;
+ 	struct super_block *sb;
+ 	enum writeback_sync_modes sync_mode;
++	int for_sync:1;
+ 	unsigned int for_kupdate:1;
+ 	unsigned int range_cyclic:1;
+ 	unsigned int for_background:1;
+@@ -228,6 +229,7 @@ static void bdi_sync_writeback(struct ba
+ 	struct wb_writeback_args args = {
+ 		.sb		= sb,
+ 		.sync_mode	= WB_SYNC_ALL,
++		.for_sync	= 1,
+ 		.nr_pages	= LONG_MAX,
+ 		.range_cyclic	= 0,
+ 	};
+@@ -244,7 +246,6 @@ static void bdi_sync_writeback(struct ba
+  * bdi_start_writeback - start writeback
+  * @bdi: the backing device to write from
+  * @sb: write inodes from this super_block
+- * @nr_pages: the number of pages to write
+  *
+  * Description:
+  *   This does WB_SYNC_NONE opportunistic writeback. The IO is only
+@@ -253,24 +254,17 @@ static void bdi_sync_writeback(struct ba
+  *
+  */
+ void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
+-			 long nr_pages)
++			 long mission)
+ {
+ 	struct wb_writeback_args args = {
+ 		.sb		= sb,
+ 		.sync_mode	= WB_SYNC_NONE,
+-		.nr_pages	= nr_pages,
++		.nr_pages	= LONG_MAX,
++		.for_background	= mission == WB_FOR_BACKGROUND,
++		.for_sync	= mission == WB_FOR_SYNC,
+ 		.range_cyclic	= 1,
+ 	};
  
- struct bio;
-+struct bio_vec;
-+
-+struct workqueue_struct;
+-	/*
+-	 * We treat @nr_pages=0 as the special case to do background writeback,
+-	 * ie. to sync pages until the background dirty threshold is reached.
+-	 */
+-	if (!nr_pages) {
+-		args.nr_pages = LONG_MAX;
+-		args.for_background = 1;
+-	}
+-
+ 	bdi_alloc_queue_work(bdi, &args);
+ }
  
- #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
- #define SWAP_FLAG_PRIO_MASK	0x7fff
-@@ -182,6 +185,10 @@ struct swap_info_struct {
- 	struct swap_extent *curr_swap_extent;
- 	struct swap_extent first_swap_extent;
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	unsigned short *csum_count;	/* usage count of a csum page */
-+	u32 **csum;			/* vmalloc'ed array of swap csums */
-+#endif
- 	struct file *swap_file;		/* seldom referenced */
- 	unsigned int old_block_size;	/* seldom referenced */
+@@ -757,6 +751,7 @@ static long wb_writeback(struct bdi_writ
+ 		.older_than_this	= NULL,
+ 		.for_kupdate		= args->for_kupdate,
+ 		.for_background		= args->for_background,
++		.for_sync		= args->for_sync,
+ 		.range_cyclic		= args->range_cyclic,
+ 	};
+ 	unsigned long oldest_jif;
+@@ -1216,14 +1211,7 @@ static void wait_sb_inodes(struct super_
+  */
+ void writeback_inodes_sb(struct super_block *sb)
+ {
+-	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
+-	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
+-	long nr_to_write;
+-
+-	nr_to_write = nr_dirty + nr_unstable +
+-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+-
+-	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
++	bdi_start_writeback(sb->s_bdi, sb, WB_FOR_SYNC);
+ }
+ EXPORT_SYMBOL(writeback_inodes_sb);
+ 
+--- linux.orig/include/linux/backing-dev.h	2010-06-06 11:16:42.000000000 +0800
++++ linux/include/linux/backing-dev.h	2010-06-06 11:21:13.000000000 +0800
+@@ -106,7 +106,7 @@ int bdi_register_dev(struct backing_dev_
+ void bdi_unregister(struct backing_dev_info *bdi);
+ int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
+ void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
+-				long nr_pages);
++				long mission);
+ int bdi_writeback_task(struct bdi_writeback *wb);
+ int bdi_has_dirty_io(struct backing_dev_info *bdi);
+ void bdi_arm_supers_timer(void);
+--- linux.orig/include/linux/writeback.h	2010-06-06 11:16:42.000000000 +0800
++++ linux/include/linux/writeback.h	2010-06-06 11:58:58.000000000 +0800
+@@ -21,6 +21,13 @@ enum writeback_sync_modes {
+ 	WB_SYNC_ALL,	/* Wait on every mapping */
  };
-@@ -371,6 +378,29 @@ static inline void mem_cgroup_uncharge_swap(swp_entry_t ent)
- }
- #endif
  
-+#ifdef CONFIG_SWAP_CHECKSUM
-+/* linux/mm/swapfile.c */
-+extern int swap_csum_set(swp_entry_t entry, u32 crc);
-+extern int swap_csum_get(swp_entry_t entry, u32 *crc);
-+
-+/* linux/mm/swapcsum.c */
-+extern bool noswapcsum __read_mostly;
-+extern bool swap_csum_verify(struct page *page);
-+extern struct workqueue_struct *swapcsum_workqueue __read_mostly;
-+#else
-+#define noswapcsum true
-+#endif
-+
-+/* linux/mm/swapcsum.c */
-+extern int _swap_csum_write(struct page *page);
-+
-+static inline int swap_csum_write(struct page *page)
-+{
-+	if (noswapcsum)
-+		return 0;
-+	return _swap_csum_write(page);
-+}
-+
- #else /* CONFIG_SWAP */
- 
- #define nr_swap_pages				0L
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 527136b..6616242 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -298,3 +298,25 @@ config NOMMU_INITIAL_TRIM_EXCESS
- 	  of 1 says that all excess pages should be trimmed.
- 
- 	  See Documentation/nommu-mmap.txt for more information.
-+
-+config SWAP_CHECKSUM
-+	bool "Swap checksum"
-+	depends on SWAP && EXPERIMENTAL
-+	select LIBCRC32C
-+	default n
-+	help
-+	  This option enables checksumming of swap pages when saved to disk.
-+
-+	  Use the kernel command line options "swapcsum" to enable and
-+	  "noswapcsum" to disable. The default value is configurable.
-+
-+	  Note that this option does not checksum the software suspend image.
-+
-+config SWAP_CHECKSUM_DEFAULT
-+	bool "Enable swap checksum by default"
-+	depends on SWAP_CHECKSUM
-+	default y
-+	help
-+	  You can use the kernel command line options "swapcsum" to enable and
-+	  "noswapcsum" to disable swap checksumming. This option controls the
-+	  default value.
-diff --git a/mm/Makefile b/mm/Makefile
-index 8982504..cf2c578 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -17,6 +17,7 @@ obj-y += init-mm.o
- 
- obj-$(CONFIG_BOUNCE)	+= bounce.o
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
-+obj-$(CONFIG_SWAP_CHECKSUM)	+= swapcsum.o
- obj-$(CONFIG_HAS_DMA)	+= dmapool.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
- obj-$(CONFIG_NUMA) 	+= mempolicy.o
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 0e2d4e8..ed0a856 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -18,6 +18,8 @@
- #include <linux/bio.h>
- #include <linux/swapops.h>
- #include <linux/writeback.h>
-+#include <linux/workqueue.h>
-+#include <linux/slab.h>
- #include <asm/pgtable.h>
- 
- static struct bio *get_swap_bio(gfp_t gfp_flags,
-@@ -66,22 +68,71 @@ static void end_swap_bio_write(struct bio *bio, int err)
- 	bio_put(bio);
- }
- 
-+static void end_swap_page_read_error(struct page *page)
-+{
-+	SetPageError(page);
-+	ClearPageUptodate(page);
-+	unlock_page(page);
-+}
-+
-+static void end_swap_page_read(struct page *page)
-+{
-+	SetPageUptodate(page);
-+	unlock_page(page);
-+}
-+
-+struct swap_readpage_csum_work {
-+	struct work_struct work;
-+	struct page *page;
++enum writeback_mission {
++	WB_FOR_BACKGROUND,	/* stop on hitting background threshold */
++	WB_FOR_SYNC,		/* write all now-dirty inodes/pages,
++				 * but take care not to live lock
++				 */
 +};
 +
-+#ifdef CONFIG_SWAP_CHECKSUM
-+static void swap_readpage_csum_work_func(struct work_struct *work)
-+{
-+	struct swap_readpage_csum_work *csum_work =
-+		container_of(work, struct swap_readpage_csum_work, work);
-+	struct page *page = csum_work->page;
-+
-+	kfree(csum_work);
-+
-+	if (unlikely(!swap_csum_verify(page)))
-+		end_swap_page_read_error(page);
-+	else
-+		end_swap_page_read(page);
-+}
-+
-+static void swap_readpage_queue_csum_work(struct page *page, void *bi_private)
-+{
-+	struct swap_readpage_csum_work *csum_work = bi_private;
-+
-+	INIT_WORK(&csum_work->work, swap_readpage_csum_work_func);
-+	csum_work->page = page;
-+	queue_work(swapcsum_workqueue, &csum_work->work);
-+}
-+#else
-+/* The call to this function should be optimized out. */
-+extern void swap_readpage_queue_csum_work(struct page *page, void *bi_private);
-+#endif
-+
- static void end_swap_bio_read(struct bio *bio, int err)
- {
- 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
- 	struct page *page = bio->bi_io_vec[0].bv_page;
- 
- 	if (!uptodate) {
--		SetPageError(page);
--		ClearPageUptodate(page);
-+		if (!noswapcsum)
-+			kfree(bio->bi_private);
-+		end_swap_page_read_error(page);
- 		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
- 				imajor(bio->bi_bdev->bd_inode),
- 				iminor(bio->bi_bdev->bd_inode),
- 				(unsigned long long)bio->bi_sector);
- 	} else {
--		SetPageUptodate(page);
-+		if (noswapcsum)
-+			end_swap_page_read(page);
-+		else
-+			swap_readpage_queue_csum_work(page, bio->bi_private);
- 	}
--	unlock_page(page);
- 	bio_put(bio);
+ /*
+  * A control structure which tells the writeback code what to do.  These are
+  * always on the stack, and hence need no locking.  They are always initialised
+@@ -53,6 +60,7 @@ struct writeback_control {
+ 	unsigned encountered_congestion:1; /* An output: a queue is full */
+ 	unsigned for_kupdate:1;		/* A kupdate writeback */
+ 	unsigned for_background:1;	/* A background writeback */
++	unsigned for_sync:1;		/* A writeback for sync */
+ 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
+ 	unsigned range_cyclic:1;	/* range_start is cyclic */
+ 	unsigned more_io:1;		/* more io to be dispatched */
+--- linux.orig/mm/page-writeback.c	2010-06-06 11:16:42.000000000 +0800
++++ linux/mm/page-writeback.c	2010-06-06 11:21:13.000000000 +0800
+@@ -597,7 +597,7 @@ static void balance_dirty_pages(struct a
+ 	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
+ 			       + global_page_state(NR_UNSTABLE_NFS))
+ 					  > background_thresh)))
+-		bdi_start_writeback(bdi, NULL, 0);
++		bdi_start_writeback(bdi, NULL, WB_FOR_BACKGROUND);
  }
  
-@@ -100,11 +151,12 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
- 	}
- 	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
- 	if (bio == NULL) {
--		set_page_dirty(page);
--		unlock_page(page);
- 		ret = -ENOMEM;
--		goto out;
-+		goto out_error;
- 	}
-+	ret = swap_csum_write(page);
-+	if (unlikely(ret))
-+		goto out_error_put;
- 	if (wbc->sync_mode == WB_SYNC_ALL)
- 		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
- 	count_vm_event(PSWPOUT);
-@@ -113,6 +165,13 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
- 	submit_bio(rw, bio);
- out:
- 	return ret;
-+
-+out_error_put:
-+	bio_put(bio);
-+out_error:
-+	set_page_dirty(page);
-+	unlock_page(page);
-+	goto out;
- }
- 
- int swap_readpage(struct page *page)
-@@ -124,12 +183,25 @@ int swap_readpage(struct page *page)
- 	VM_BUG_ON(PageUptodate(page));
- 	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
- 	if (bio == NULL) {
--		unlock_page(page);
- 		ret = -ENOMEM;
--		goto out;
-+		goto out_error;
-+	}
-+	if (!noswapcsum) {
-+		bio->bi_private = kmalloc(
-+			sizeof(struct swap_readpage_csum_work), GFP_KERNEL);
-+		if (unlikely(!bio->bi_private)) {
-+			ret = -ENOMEM;
-+			goto out_error_put;
-+		}
- 	}
- 	count_vm_event(PSWPIN);
- 	submit_bio(READ, bio);
- out:
- 	return ret;
-+
-+out_error_put:
-+	bio_put(bio);
-+out_error:
-+	unlock_page(page);
-+	goto out;
- }
-diff --git a/mm/swapcsum.c b/mm/swapcsum.c
-new file mode 100644
-index 0000000..d736b23
---- /dev/null
-+++ b/mm/swapcsum.c
-@@ -0,0 +1,94 @@
-+#include <linux/crc32c.h>
-+#include <linux/highmem.h>
-+#include <linux/init.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
-+#include <linux/workqueue.h>
-+
-+#ifdef CONFIG_SWAP_CHECKSUM_DEFAULT
-+#define NOSWAPCSUM_DEFAULT false
-+#else
-+#define NOSWAPCSUM_DEFAULT true
-+#endif
-+
-+bool noswapcsum __read_mostly = NOSWAPCSUM_DEFAULT;
-+
-+static int __init swap_csum_enable(char *s)
-+{
-+	noswapcsum = false;
-+	return 1;
-+}
-+__setup("swapcsum", swap_csum_enable);
-+
-+static int __init swap_csum_disable(char *s)
-+{
-+	noswapcsum = true;
-+	return 1;
-+}
-+__setup("noswapcsum", swap_csum_disable);
-+
-+static u32 swap_csum_page(struct page *page)
-+{
-+	void *address;
-+	u32 crc;
-+
-+	address = kmap_atomic(page, KM_USER0);
-+	crc = ~crc32c(~(u32)0, address, PAGE_SIZE);
-+	kunmap_atomic(address, KM_USER0);
-+	return crc;
-+}
-+
-+int _swap_csum_write(struct page *page)
-+{
-+	swp_entry_t entry;
-+
-+	VM_BUG_ON(!PageSwapCache(page));
-+
-+	entry.val = page_private(page);
-+	return swap_csum_set(entry, swap_csum_page(page));
-+}
-+
-+bool swap_csum_verify(struct page *page)
-+{
-+	swp_entry_t entry;
-+	u32 crc, old_crc;
-+
-+	VM_BUG_ON(!PageSwapCache(page));
-+
-+	entry.val = page_private(page);
-+
-+	if (unlikely(swap_csum_get(entry, &old_crc))) {
-+		printk(KERN_ALERT "Missing swap checksum for page "
-+			"type %u offset %lu\n",
-+			swp_type(entry), swp_offset(entry));
-+		WARN_ON(true);
-+		return false;
-+	}
-+
-+	crc = swap_csum_page(page);
-+	if (unlikely(crc != old_crc)) {
-+		printk(KERN_ALERT "Wrong swap checksum for page "
-+			"type %u offset %lu (0x%08x != 0x%08x)\n",
-+			swp_type(entry), swp_offset(entry),
-+			(unsigned)crc, (unsigned)old_crc);
-+		return false;
-+	}
-+
-+	return true;
-+}
-+
-+struct workqueue_struct *swapcsum_workqueue __read_mostly;
-+
-+/* TODO: create the workqueue on swapon, destroy the workqueue on swapoff */
-+static int __init swap_csum_init(void)
-+{
-+	if (noswapcsum)
-+		return 0;
-+
-+	swapcsum_workqueue = create_workqueue("swapcsum");
-+	BUG_ON(!swapcsum_workqueue);
-+	return 0;
-+}
-+module_init(swap_csum_init)
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 68765c9..54e25a0 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -63,6 +63,50 @@ static inline unsigned char swap_count(unsigned char ent)
- 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
- }
- 
-+#ifdef CONFIG_SWAP_CHECKSUM
-+/*
-+ * The swap checksums are stored in checksum pages, with CSUMS_PER_PAGE
-+ * checksums per page. The checksum pages are allocated on the first
-+ * write, and freed when none of the pages with checksums on that
-+ * checksum page is in use anymore.
-+ *
-+ * To simplify the freeing of the checksum pages, si->csum_count has a
-+ * count of the in-use pages corresponding to that checksum page. For
-+ * the purpose of this count, pages with any count other than 0 or
-+ * SWAP_MAP_BAD are in use.
-+ */
-+
-+#define CSUMS_PER_PAGE (PAGE_SIZE / sizeof(u32))
-+
-+static void __swap_csum_count_inc(struct swap_info_struct *si,
-+					unsigned long offset)
-+{
-+	if (noswapcsum)
-+		return;
-+
-+	++si->csum_count[offset / CSUMS_PER_PAGE];
-+}
-+
-+static void __swap_csum_count_dec(struct swap_info_struct *si,
-+					unsigned long offset)
-+{
-+	if (noswapcsum)
-+		return;
-+
-+	BUG_ON(!si->csum_count[offset / CSUMS_PER_PAGE]);
-+
-+	if (!--si->csum_count[offset / CSUMS_PER_PAGE]) {
-+		free_page((unsigned long)si->csum[offset / CSUMS_PER_PAGE]);
-+		si->csum[offset / CSUMS_PER_PAGE] = NULL;
-+	}
-+}
-+#else
-+static inline void __swap_csum_count_inc(struct swap_info_struct *si,
-+					unsigned long offset) { }
-+static inline void __swap_csum_count_dec(struct swap_info_struct *si,
-+					unsigned long offset) { }
-+#endif
-+
- /* returns 1 if swap entry is freed */
- static int
- __try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
-@@ -343,6 +387,7 @@ checks:
- 		si->highest_bit = 0;
- 	}
- 	si->swap_map[offset] = usage;
-+	__swap_csum_count_inc(si, offset);
- 	si->cluster_next = offset + 1;
- 	si->flags -= SWP_SCANNING;
- 
-@@ -503,7 +548,7 @@ swp_entry_t get_swap_page_of_type(int type)
- 	return (swp_entry_t) {0};
- }
- 
--static struct swap_info_struct *swap_info_get(swp_entry_t entry)
-+static struct swap_info_struct *swap_info_get_unlocked(swp_entry_t entry)
- {
- 	struct swap_info_struct *p;
- 	unsigned long offset, type;
-@@ -521,7 +566,6 @@ static struct swap_info_struct *swap_info_get(swp_entry_t entry)
- 		goto bad_offset;
- 	if (!p->swap_map[offset])
- 		goto bad_free;
--	spin_lock(&swap_lock);
- 	return p;
- 
- bad_free:
-@@ -539,6 +583,14 @@ out:
- 	return NULL;
- }
- 
-+static struct swap_info_struct *swap_info_get(swp_entry_t entry)
-+{
-+	struct swap_info_struct *p = swap_info_get_unlocked(entry);
-+	if (likely(p))
-+		spin_lock(&swap_lock);
-+	return p;
-+}
-+
- static unsigned char swap_entry_free(struct swap_info_struct *p,
- 				     swp_entry_t entry, unsigned char usage)
- {
-@@ -578,6 +630,9 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 	/* free if no reference */
- 	if (!usage) {
- 		struct gendisk *disk = p->bdev->bd_disk;
-+
-+		__swap_csum_count_dec(p, offset);
-+
- 		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
- 		if (offset > p->highest_bit)
-@@ -1532,6 +1587,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- {
- 	struct swap_info_struct *p = NULL;
- 	unsigned char *swap_map;
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	unsigned short *csum_count;
-+	u32 **csum;
-+#endif
- 	struct file *swap_file, *victim;
- 	struct address_space *mapping;
- 	struct inode *inode;
-@@ -1646,10 +1705,18 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	p->max = 0;
- 	swap_map = p->swap_map;
- 	p->swap_map = NULL;
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	csum_count = p->csum_count;
-+	csum = p->csum;
-+#endif
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	vfree(csum_count);
-+	vfree(csum);
-+#endif
- 	/* Destroy swap account informatin */
- 	swap_cgroup_swapoff(type);
- 
-@@ -1805,6 +1872,11 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	unsigned long maxpages;
- 	unsigned long swapfilepages;
- 	unsigned char *swap_map = NULL;
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	unsigned long csum_pages = 0;
-+	unsigned short *csum_count = NULL;
-+	u32 **csum = NULL;
-+#endif
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
- 	int did_down = 0;
-@@ -1991,7 +2063,34 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
- 	}
- 
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	if (!noswapcsum) {
-+		csum_pages = DIV_ROUND_UP(maxpages, CSUMS_PER_PAGE);
-+
-+		csum = vmalloc(csum_pages * sizeof(*csum));
-+		if (!csum) {
-+			error = -ENOMEM;
-+			goto bad_swap;
-+		}
-+
-+		csum_count = vmalloc(csum_pages * sizeof(*csum_count));
-+		if (!csum_count) {
-+			error = -ENOMEM;
-+			goto bad_swap;
-+		}
-+	}
-+
-+	p->csum_count = csum_count;
-+	p->csum = csum;
-+#endif
-+
- 	memset(swap_map, 0, maxpages);
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	if (!noswapcsum) {
-+		memset(csum_count, 0, csum_pages * sizeof(*csum_count));
-+		memset(csum, 0, csum_pages * sizeof(*csum));
-+	}
-+#endif
- 	nr_good_pages = maxpages - 1;	/* omit header page */
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
-@@ -2084,6 +2183,10 @@ bad_swap_2:
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
-+#ifdef CONFIG_SWAP_CHECKSUM
-+	vfree(csum_count);
-+	vfree(csum);
-+#endif
- 	if (swap_file)
- 		filp_close(swap_file, NULL);
- out:
-@@ -2495,3 +2598,75 @@ static void free_swap_count_continuations(struct swap_info_struct *si)
- 		}
- 	}
- }
-+
-+#ifdef CONFIG_SWAP_CHECKSUM
-+int swap_csum_set(swp_entry_t entry, u32 crc)
-+{
-+	int ret = 0;
-+	struct swap_info_struct *si;
-+	unsigned long offset;
-+	u32 *csum_page;
-+
-+	si = swap_info_get(entry);
-+	if (unlikely(!si))
-+		return -EINVAL;
-+	offset = swp_offset(entry);
-+
-+	BUG_ON(!si->csum);
-+	csum_page = si->csum[offset / CSUMS_PER_PAGE];
-+	if (!csum_page) {
-+		csum_page = (void *)__get_free_page(GFP_ATOMIC);
-+		if (unlikely(!csum_page)) {
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+
-+		si->csum[offset / CSUMS_PER_PAGE] = csum_page;
-+	}
-+
-+	csum_page[offset % CSUMS_PER_PAGE] = crc;
-+
-+out:
-+	spin_unlock(&swap_lock);
-+	return ret;
-+}
-+
-+int swap_csum_get(swp_entry_t entry, u32 *crc)
-+{
-+	int ret = 0;
-+	struct swap_info_struct *si;
-+	unsigned long offset;
-+	u32 *csum_page;
-+
-+	/*
-+	 * Not locking swap_lock here is safe because:
-+	 *
-+	 * - We are within end_swap_bio_read for a page in this
-+	 *   swapfile, thus it is in use and its swap_info_struct
-+	 *   cannot be freed.
-+	 * - If we are reading a page from the swapfile, its count must
-+	 *   be nonzero, thus the corresponding csum_count must also be
-+	 *   nonzero, meaning the corresponding checksum page will not
-+	 *   be freed.
-+	 * - The checksum value itself is only modified when the page
-+	 *   is written, but doing so makes no sense since we are
-+	 *   currently in the middle of reading it.
-+	 */
-+	si = swap_info_get_unlocked(entry);
-+	if (unlikely(!si))
-+		return -EINVAL;
-+	offset = swp_offset(entry);
-+
-+	BUG_ON(!si->csum);
-+	csum_page = si->csum[offset / CSUMS_PER_PAGE];
-+	if (unlikely(!csum_page)) {
-+		ret = -ENOENT;
-+		goto out;
-+	}
-+
-+	*crc = csum_page[offset % CSUMS_PER_PAGE];
-+
-+out:
-+	return ret;
-+}
-+#endif
--- 
-1.6.6.1
+ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
