@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 162956B01BF
-	for <linux-mm@kvack.org>; Sun,  6 Jun 2010 18:34:34 -0400 (EDT)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id o56MYWVN009327
-	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:32 -0700
-Received: from pzk42 (pzk42.prod.google.com [10.243.19.170])
-	by kpbe18.cbf.corp.google.com with ESMTP id o56MYVqH018758
-	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:31 -0700
-Received: by pzk42 with SMTP id 42so1147680pzk.4
-        for <linux-mm@kvack.org>; Sun, 06 Jun 2010 15:34:31 -0700 (PDT)
-Date: Sun, 6 Jun 2010 15:34:28 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7182E6B01C6
+	for <linux-mm@kvack.org>; Sun,  6 Jun 2010 18:34:40 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id o56MYcCN022556
+	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:38 -0700
+Received: from pwj3 (pwj3.prod.google.com [10.241.219.67])
+	by wpaz21.hot.corp.google.com with ESMTP id o56MYbbw031368
+	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:38 -0700
+Received: by pwj3 with SMTP id 3so2483978pwj.18
+        for <linux-mm@kvack.org>; Sun, 06 Jun 2010 15:34:37 -0700 (PDT)
+Date: Sun, 6 Jun 2010 15:34:35 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 08/18] oom: sacrifice child with highest badness score for
- parent
+Subject: [patch 10/18] oom: enable oom tasklist dump by default
 In-Reply-To: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006061524470.32225@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006061525150.32225@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,91 +23,44 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a task is chosen for oom kill, the oom killer first attempts to
-sacrifice a child not sharing its parent's memory instead.  Unfortunately,
-this often kills in a seemingly random fashion based on the ordering of
-the selected task's child list.  Additionally, it is not guaranteed at all
-to free a large amount of memory that we need to prevent additional oom
-killing in the very near future.
+The oom killer tasklist dump, enabled with the oom_dump_tasks sysctl, is
+very helpful information in diagnosing why a user's task has been killed.
+It emits useful information such as each eligible thread's memory usage
+that can determine why the system is oom, so it should be enabled by
+default.
 
-Instead, we now only attempt to sacrifice the worst child not sharing its
-parent's memory, if one exists.  The worst child is indicated with the
-highest badness() score.  This serves two advantages: we kill a
-memory-hogging task more often, and we allow the configurable
-/proc/pid/oom_adj value to be considered as a factor in which child to
-kill.
-
-Reviewers may observe that the previous implementation would iterate
-through the children and attempt to kill each until one was successful and
-then the parent if none were found while the new code simply kills the
-most memory-hogging task or the parent.  Note that the only time
-oom_kill_task() fails, however, is when a child does not have an mm or has
-a /proc/pid/oom_adj of OOM_DISABLE.  badness() returns 0 for both cases,
-so the final oom_kill_task() will always succeed.
-
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Nick Piggin <npiggin@suse.de>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   23 +++++++++++++++++------
- 1 files changed, 17 insertions(+), 6 deletions(-)
+ Documentation/sysctl/vm.txt |    2 +-
+ mm/oom_kill.c               |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -511,7 +511,7 @@ information may not be desired.
+ If this is set to non-zero, this information is shown whenever the
+ OOM killer actually kills a memory-hogging task.
+ 
+-The default value is 0.
++The default value is 1 (enabled).
+ 
+ ==============================================================
+ 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index ef048c1..833de48 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -441,8 +441,11 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    unsigned long points, struct mem_cgroup *mem,
- 			    const char *message)
- {
-+	struct task_struct *victim = p;
- 	struct task_struct *c;
- 	struct task_struct *t = p;
-+	unsigned long victim_points = 0;
-+	struct timespec uptime;
+@@ -32,7 +32,7 @@
  
- 	if (printk_ratelimit())
- 		dump_header(p, gfp_mask, order, mem);
-@@ -456,22 +459,30 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		return 0;
- 	}
+ int sysctl_panic_on_oom;
+ int sysctl_oom_kill_allocating_task;
+-int sysctl_oom_dump_tasks;
++int sysctl_oom_dump_tasks = 1;
+ static DEFINE_SPINLOCK(zone_scan_lock);
+ /* #define DEBUG */
  
--	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
--					message, task_pid_nr(p), p->comm, points);
-+	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
-+		message, task_pid_nr(p), p->comm, points);
- 
--	/* Try to kill a child first */
-+	/* Try to sacrifice the worst child first */
-+	do_posix_clock_monotonic_gettime(&uptime);
- 	do {
-+		unsigned long cpoints;
-+
- 		list_for_each_entry(c, &t->children, sibling) {
- 			if (c->mm == p->mm)
- 				continue;
- 			if (mem && !task_in_mem_cgroup(c, mem))
- 				continue;
--			if (!oom_kill_task(c))
--				return 0;
-+
-+			/* badness() returns 0 if the thread is unkillable */
-+			cpoints = badness(c, uptime.tv_sec);
-+			if (cpoints > victim_points) {
-+				victim = c;
-+				victim_points = cpoints;
-+			}
- 		}
- 	} while_each_thread(p, t);
- 
--	return oom_kill_task(p);
-+	return oom_kill_task(victim);
- }
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
