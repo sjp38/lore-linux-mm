@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1CA4D6B01B8
-	for <linux-mm@kvack.org>; Sun,  6 Jun 2010 12:15:45 -0400 (EDT)
-Date: Sun, 6 Jun 2010 18:15:41 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: 2.6.35-rc2 : OOPS with LTP memcg regression test run.
-Message-ID: <20100606161541.GA1808@arch.tripp.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D256B0071
+	for <linux-mm@kvack.org>; Sun,  6 Jun 2010 18:34:05 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o56MY1RG008890
+	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:02 -0700
+Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
+	by wpaz29.hot.corp.google.com with ESMTP id o56MXxFY028846
+	for <linux-mm@kvack.org>; Sun, 6 Jun 2010 15:34:00 -0700
+Received: by pwj8 with SMTP id 8so1813230pwj.26
+        for <linux-mm@kvack.org>; Sun, 06 Jun 2010 15:33:59 -0700 (PDT)
+Date: Sun, 6 Jun 2010 15:33:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 00/18] oom killer rewrite
+Message-ID: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100606154048.GJ31073@ZenIV.linux.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Sachin Sant <sachinp@in.ibm.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux/PPC Development <linuxppc-dev@ozlabs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This is the latest update of the oom killer rewrite based on
+mmotm-2010-06-03-16-36, although it applies cleanly to 2.6.35-rc2 as
+well.
 
->> And few more of these. Previous snapshot release 2.6.35-rc1-git5(6c5de280b6...)
->> was good.
->
->That's very odd, since
->; git diff --stat 6c5de280b6..v2.6.35-rc2         
-> Makefile                             |    2 +-
-> drivers/gpu/drm/i915/intel_display.c |    9 +++++++
-> fs/ext4/inode.c                      |   40 +++++++++++++++++++--------------
-> fs/ext4/move_extent.c                |    3 ++
-> 4 files changed, 36 insertions(+), 18 deletions(-)
->
->and nothing of that looks like good candidates...
+There are two changes in this update, which I hope to now be considered
+for -mm inclusion and pushed for 2.6.36:
 
-I may have the same problem on my machine.
-(See also the thread: ext4 2.6.35-rc2 regression (ext4: Make sure the MOVE_EXT ioctl...))
+ - reordered the patches to more accurately seperate fixes from
+   enhancements: the order is now very close to how KAMEZAWA Hiroyuki
+   suggested (thanks!), and
 
-general protection fault: 0000 [#1] SMP
-last sysfs file: /sys/devices/pci0000:00/0000:00:11.0/host2/target2:0:0/2:0:0:0/block/sdb/size
-CPU 2
-Pid: 1683, comm: iptables-restor Not tainted 2.6.35-rc2-00033-gcc1f375 #46 M4A78T-E/System Product Name
-RIP: 0010:[<ffffffff810cc6e6>]  [<ffffffff810cc6e6>] kmem_cache_alloc+0x59/0xda
-RSP: 0018:ffff88011c993d78  EFLAGS: 00010002
-RAX: 0000000000000000 RBX: 0720072007200720 RCX: ffffffff810bd4c9
-RDX: 00007f076cee3000 RSI: 00000000000000d0 RDI: ffff88011fc01800
-RBP: ffff88011c993db8 R08: ffff880001b13f48 R09: 0000000000000000
-R10: ffff88011d387c00 R11: ffff88011c983930 R12: ffff88011fc01800
-R13: 0000000000000202 R14: 00000000000000d0 R15: 00000000000000d0
-FS:  00007f076dc43700(0000) GS:ffff880001b00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 00007f8595d364f8 CR3: 000000011b8b0000 CR4: 00000000000006e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Process iptables-restor (pid: 1683, threadinfo ffff88011c992000, task ffff88011ec09610)
-Stack:
-ffff88011d387c10 ffff88011c983930 ffff88011c993d98 000000000000fffa
-<0> ffff88011d387bd0 00007f076cee3000 ffff88011f77ea40 0000000000000000
-<0> ffff88011c993e08 ffffffff810bd4c9 ffff88011b8f5cc0 ffffffff810bd639
-Call Trace:
-[<ffffffff810bd4c9>] __split_vma+0x33/0x18d
-[<ffffffff810bd639>] ? vma_merge+0x16/0x1fc
-[<ffffffff810bdc01>] split_vma+0x23/0x28
-[<ffffffff810bf572>] mprotect_fixup+0x146/0x54c
-[<ffffffff810befff>] ? do_mmap_pgoff+0x2a4/0x2fe
-[<ffffffff810bfaf0>] sys_mprotect+0x178/0x1f4
-[<ffffffff8102b93b>] system_call_fastpath+0x16/0x1b
-Code: 65 4c 8b 04 25 88 d4 00 00 48 8b 07 49 01 c0 49 8b 18 48 85 db 75 10 83 ca ff 44 89 f6 e8 58 fa ff ff 48 89 c3 eb 0b 48 63 47 18 <48> 8b 04 03 49 89 00 41 55 9d 48 85 db 74 15 41 81 e6 00 80 00
-RIP  [<ffffffff810cc6e6>] kmem_cache_alloc+0x59/0xda
-RSP <ffff88011c993d78>
----[ end trace e2fb1ccd3cb9dd77 ]---
--- 
-Markus
+ - the changelog for "oom: badness heuristic rewrite" was slightly
+   expanded to mention how this rewrite improves the oom killer's
+   behavior on the desktop.
+
+Many thanks to Nick Piggin <npiggin@suse.de> for converting the remaining
+architectures that weren't using the oom killer to handle pagefault oom
+conditions to do so.  His patches have hit mainline, so there is no
+longer an inconsistency in the semantics of panic_on_oom in such cases!
+
+Many thanks to KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> for his
+help and patience in working with me on this patchset.
+---
+ Documentation/feature-removal-schedule.txt |   25 +
+ Documentation/filesystems/proc.txt         |  100 ++--
+ Documentation/sysctl/vm.txt                |   23 
+ fs/proc/base.c                             |  107 ++++
+ include/linux/memcontrol.h                 |    8 
+ include/linux/mempolicy.h                  |   13 
+ include/linux/oom.h                        |   27 +
+ include/linux/sched.h                      |    3 
+ kernel/fork.c                              |    1 
+ kernel/sysctl.c                            |   12 
+ mm/memcontrol.c                            |   18 
+ mm/mempolicy.c                             |   44 +
+ mm/oom_kill.c                              |  675 ++++++++++++++++-------------
+ mm/page_alloc.c                            |   29 -
+ 14 files changed, 727 insertions(+), 358 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
