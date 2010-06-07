@@ -1,104 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C79826B01B4
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 02:04:06 -0400 (EDT)
-Date: Mon, 7 Jun 2010 14:53:37 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [cleanup][PATCH -mmotm 2/2] memcg: remove mem from arg of
- charge_common
-Message-Id: <20100607145337.c0b5ad79.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4C7256B01AF
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 02:06:43 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5766e02027946
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 7 Jun 2010 15:06:40 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EDD9145DE6E
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:06:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C8CF045DE79
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:06:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A40581DB8042
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:06:39 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 236201DB8040
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:06:39 +0900 (JST)
+Date: Mon, 7 Jun 2010 15:02:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [cleanup][PATCH -mmotm 1/2] memcg: remove redundant codes
+Message-Id: <20100607150207.6971b8b9.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100607145239.cb5cb917.nishimura@mxp.nes.nec.co.jp>
 References: <20100607145239.cb5cb917.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+On Mon, 7 Jun 2010 14:52:39 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-mem_cgroup_charge_common() is always called with @mem = NULL, so it's
-meaningless. This patch removes it.
+> These patches are based on mmotm-2010-06-03-16-36 + some already merged patches
+> for memcg.
+> 
+> ===
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+> - try_get_mem_cgroup_from_mm() calls rcu_read_lock/unlock by itself, so we
+>   don't have to call them in task_in_mem_cgroup().
+> - *mz is not used in __mem_cgroup_uncharge_common().
+> - we don't have to call lookup_page_cgroup() in mem_cgroup_end_migration()
+>   after we've cleared PCG_MIGRATION of @oldpage.
+> - remove empty comment.
+> - remove redundant empty line in mem_cgroup_cache_charge().
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   17 ++++++++---------
- 1 files changed, 8 insertions(+), 9 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7146055..8f57ec2 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2025,10 +2025,9 @@ out:
-  * < 0 if the cgroup is over its limit
-  */
- static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
--				gfp_t gfp_mask, enum charge_type ctype,
--				struct mem_cgroup *memcg)
-+				gfp_t gfp_mask, enum charge_type ctype)
- {
--	struct mem_cgroup *mem;
-+	struct mem_cgroup *mem = NULL;
- 	struct page_cgroup *pc;
- 	int ret;
- 
-@@ -2038,7 +2037,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
- 		return 0;
- 	prefetchw(pc);
- 
--	mem = memcg;
- 	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
- 	if (ret || !mem)
- 		return ret;
-@@ -2066,7 +2064,7 @@ int mem_cgroup_newpage_charge(struct page *page,
- 	if (unlikely(!mm))
- 		mm = &init_mm;
- 	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-+				MEM_CGROUP_CHARGE_TYPE_MAPPED);
- }
- 
- static void
-@@ -2076,7 +2074,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
--	struct mem_cgroup *mem = NULL;
- 	int ret;
- 
- 	if (mem_cgroup_disabled())
-@@ -2108,22 +2105,24 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		unlock_page_cgroup(pc);
- 	}
- 
--	if (unlikely(!mm && !mem))
-+	if (unlikely(!mm))
- 		mm = &init_mm;
- 
- 	if (page_is_file_cache(page))
- 		return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
-+				MEM_CGROUP_CHARGE_TYPE_CACHE);
- 
- 	/* shmem */
- 	if (PageSwapCache(page)) {
-+		struct mem_cgroup *mem = NULL;
-+
- 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
- 		if (!ret)
- 			__mem_cgroup_commit_charge_swapin(page, mem,
- 					MEM_CGROUP_CHARGE_TYPE_SHMEM);
- 	} else
- 		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
--					MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
-+					MEM_CGROUP_CHARGE_TYPE_SHMEM);
- 
- 	return ret;
- }
--- 
-1.6.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
