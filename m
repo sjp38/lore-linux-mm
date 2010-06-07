@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2196B01AD
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:50:22 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o57JoH5q004810
-	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 12:50:18 -0700
-Received: from pzk38 (pzk38.prod.google.com [10.243.19.166])
-	by wpaz37.hot.corp.google.com with ESMTP id o57JoGKn013429
-	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 12:50:16 -0700
-Received: by pzk38 with SMTP id 38so30807pzk.28
-        for <linux-mm@kvack.org>; Mon, 07 Jun 2010 12:50:16 -0700 (PDT)
-Date: Mon, 7 Jun 2010 12:50:13 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D6B9B6B0071
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 17:44:55 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o57Liodd003946
+	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 14:44:52 -0700
+Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
+	by kpbe16.cbf.corp.google.com with ESMTP id o57LilK3027618
+	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 14:44:49 -0700
+Received: by pxi6 with SMTP id 6so1371620pxi.15
+        for <linux-mm@kvack.org>; Mon, 07 Jun 2010 14:44:47 -0700 (PDT)
+Date: Mon, 7 Jun 2010 14:44:42 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 01/18] oom: check PF_KTHREAD instead of !mm to skip
- kthreads
-In-Reply-To: <20100607121204.GV4603@balbir.in.ibm.com>
-Message-ID: <alpine.DEB.2.00.1006071249310.30389@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061521160.32225@chino.kir.corp.google.com> <20100607121204.GV4603@balbir.in.ibm.com>
+Subject: Re: [RFC V2 SLEB 01/14] slab: Introduce a constant for a unspecified
+ node.
+In-Reply-To: <20100521211537.530913777@quilx.com>
+Message-ID: <alpine.DEB.2.00.1006071443120.10905@chino.kir.corp.google.com>
+References: <20100521211452.659982351@quilx.com> <20100521211537.530913777@quilx.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Jun 2010, Balbir Singh wrote:
+On Fri, 21 May 2010, Christoph Lameter wrote:
 
-> > select_bad_process() thinks a kernel thread can't have ->mm != NULL, this
-> > is not true due to use_mm().
-> > 
-> > Change the code to check PF_KTHREAD.
-> >
+> kmalloc_node() and friends can be passed a constant -1 to indicate
+> that no choice was made for the node from which the object needs to
+> come.
 > 
-> Quick check are all kernel threads marked with PF_KTHREAD? daemonize()
-> marks threads as kernel threads and I suppose children of init_task
-> inherit the flag on fork. I suppose both should cover all kernel
-> threads, but just checking to see if we missed anything.
->  
+> Add a constant for this.
+> 
 
-Right, it's the inheritance from init_task that is the key which gets 
-cleared on exec for all user threads.
+I think it would be better to simply use the generic NUMA_NO_NODE for this 
+purpose, which is identical to how hugetlb, pxm mappings, etc, use it to 
+specify no specific node affinity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
