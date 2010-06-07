@@ -1,121 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 715676B0071
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 09:49:31 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so1520408iwn.14
-        for <linux-mm@kvack.org>; Mon, 07 Jun 2010 06:49:29 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 982586B0071
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 12:09:25 -0400 (EDT)
+Date: Mon, 7 Jun 2010 18:09:03 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
+ page tagging
+Message-ID: <20100607160903.GE6293@quack.scz.novell.com>
+References: <1275677231-15662-1-git-send-email-jack@suse.cz>
+ <1275677231-15662-3-git-send-email-jack@suse.cz>
+ <20100605013802.GG26335@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20100607125828.GW4603@balbir.in.ibm.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1006061521310.32225@chino.kir.corp.google.com>
-	<20100607125828.GW4603@balbir.in.ibm.com>
-Date: Mon, 7 Jun 2010 22:49:29 +0900
-Message-ID: <AANLkTilNvqKqjiKUdKRjILBiTxy5L7-IpS4dTSzjzPDJ@mail.gmail.com>
-Subject: Re: [patch 02/18] oom: introduce find_lock_task_mm() to fix !mm false
-	positives
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100605013802.GG26335@laptop>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Balbir.
+On Sat 05-06-10 11:38:02, Nick Piggin wrote:
+> On Fri, Jun 04, 2010 at 08:47:11PM +0200, Jan Kara wrote:
+> > We try to avoid livelocks of writeback when some steadily creates
+> > dirty pages in a mapping we are writing out. For memory-cleaning
+> > writeback, using nr_to_write works reasonably well but we cannot
+> > really use it for data integrity writeback. This patch tries to
+> > solve the problem.
+> > 
+> > The idea is simple: Tag all pages that should be written back
+> > with a special tag (TOWRITE) in the radix tree. This can be done
+> > rather quickly and thus livelocks should not happen in practice.
+> > Then we start doing the hard work of locking pages and sending
+> > them to disk only for those pages that have TOWRITE tag set.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  include/linux/fs.h         |    1 +
+> >  include/linux/radix-tree.h |    2 +-
+> >  mm/page-writeback.c        |   44 ++++++++++++++++++++++++++++++++++++++++++--
+> >  3 files changed, 44 insertions(+), 3 deletions(-)
+...
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index b289310..f590a12 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -807,6 +807,30 @@ void __init page_writeback_init(void)
+> >  }
+> >  
+> >  /**
+> > + * tag_pages_for_writeback - tag pages to be written by write_cache_pages
+> > + * @mapping: address space structure to write
+> > + * @start: starting page index
+> > + * @end: ending page index (inclusive)
+> > + *
+> > + * This function scans the page range from @start to @end and tags all pages
+> > + * that have DIRTY tag set with a special TOWRITE tag. The idea is that
+> > + * write_cache_pages (or whoever calls this function) will then use TOWRITE tag
+> > + * to identify pages eligible for writeback.  This mechanism is used to avoid
+> > + * livelocking of writeback by a process steadily creating new dirty pages in
+> > + * the file (thus it is important for this function to be damn quick so that it
+> > + * can tag pages faster than a dirtying process can create them).
+> > + */
+> > +void tag_pages_for_writeback(struct address_space *mapping,
+> > +			     pgoff_t start, pgoff_t end)
+> > +{
+> > +	spin_lock_irq(&mapping->tree_lock);
+> > +	radix_tree_gang_tag_if_tagged(&mapping->page_tree, start, end,
+> > +				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
+> > +	spin_unlock_irq(&mapping->tree_lock);
+> > +}
+> > +EXPORT_SYMBOL(tag_pages_for_writeback);
+> > +
+> > +/**
+> >   * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
+> >   * @mapping: address space structure to write
+> >   * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+> > @@ -820,6 +844,13 @@ void __init page_writeback_init(void)
+> >   * the call was made get new I/O started against them.  If wbc->sync_mode is
+> >   * WB_SYNC_ALL then we were called for data integrity and we must wait for
+> >   * existing IO to complete.
+> > + *
+> > + * To avoid livelocks (when other process dirties new pages), we first tag
+> > + * pages which should be written back with TOWRITE tag and only then start
+> > + * writing them. For data-integrity sync we have to be careful so that we do
+> > + * not miss some pages (e.g., because some other process has cleared TOWRITE
+> > + * tag we set). The rule we follow is that TOWRITE tag can be cleared only
+> > + * by the process clearing the DIRTY tag (and submitting the page for IO).
+> >   */
+> >  int write_cache_pages(struct address_space *mapping,
+> >  		      struct writeback_control *wbc, writepage_t writepage,
+> > @@ -836,6 +867,7 @@ int write_cache_pages(struct address_space *mapping,
+> >  	int cycled;
+> >  	int range_whole = 0;
+> >  	long nr_to_write = wbc->nr_to_write;
+> > +	int tag;
+> >  
+> >  	pagevec_init(&pvec, 0);
+> >  	if (wbc->range_cyclic) {
+> > @@ -853,13 +885,18 @@ int write_cache_pages(struct address_space *mapping,
+> >  			range_whole = 1;
+> >  		cycled = 1; /* ignore range_cyclic tests */
+> >  	}
+> > +	if (wbc->sync_mode == WB_SYNC_ALL)
+> > +		tag = PAGECACHE_TAG_TOWRITE;
+> > +	else
+> > +		tag = PAGECACHE_TAG_DIRTY;
+> >  retry:
+> > +	if (wbc->sync_mode == WB_SYNC_ALL)
+> > +		tag_pages_for_writeback(mapping, index, end);
+> 
+> I wonder if this is too much spinlock latency in a huge dirty file?
+> Some kid of batching of the operation perhaps would be good?
+  You mean like copy tags for 4096 pages, then cond_resched the spin lock
+and continue? That should be doable but it will give tasks that try to
+livelock us more time (i.e. if there were 4096 tasks creating dirty pages
+than probably they would be able to livelock us, won't they? Maybe we don't
+care?).
 
-On Mon, Jun 7, 2010 at 9:58 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
-ote:
-> * David Rientjes <rientjes@google.com> [2010-06-06 15:34:03]:
->
->> From: Oleg Nesterov <oleg@redhat.com>
->>
->> Almost all ->mm =3D=3D NUL checks in oom_kill.c are wrong.
->
-> typo should be NULL
->
->>
->> The current code assumes that the task without ->mm has already
->> released its memory and ignores the process. However this is not
->> necessarily true when this process is multithreaded, other live
->> sub-threads can use this ->mm.
->>
->> - Remove the "if (!p->mm)" check in select_bad_process(), it is
->> =C2=A0 just wrong.
->>
->> - Add the new helper, find_lock_task_mm(), which finds the live
->> =C2=A0 thread which uses the memory and takes task_lock() to pin ->mm
->>
->> - change oom_badness() to use this helper instead of just checking
->> =C2=A0 ->mm !=3D NULL.
->>
->> - As David pointed out, select_bad_process() must never choose the
->> =C2=A0 task without ->mm, but no matter what oom_badness() returns the
->> =C2=A0 task can be chosen if nothing else has been found yet.
->>
->> =C2=A0 Change oom_badness() to return int, change it to return -1 if
->> =C2=A0 find_lock_task_mm() fails, and change select_bad_process() to
->> =C2=A0 check points >=3D 0.
->>
->> Note! This patch is not enough, we need more changes.
->>
->> =C2=A0 =C2=A0 =C2=A0 - oom_badness() was fixed, but oom_kill_task() stil=
-l ignores
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 the task without ->mm
->>
->> =C2=A0 =C2=A0 =C2=A0 - oom_forkbomb_penalty() should use find_lock_task_=
-mm() too,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 and it also needs other changes to actually =
-find the first
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 first-descendant children
->>
->> This will be addressed later.
->>
->> [kosaki.motohiro@jp.fujitsu.com: use in badness(), __oom_kill_task()]
->> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
->> Signed-off-by: David Rientjes <rientjes@google.com>
->> ---
->> =C2=A0mm/oom_kill.c | =C2=A0 74 +++++++++++++++++++++++++++++++++-------=
------------------
->> =C2=A01 files changed, 43 insertions(+), 31 deletions(-)
->>
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -52,6 +52,20 @@ static int has_intersects_mems_allowed(struct task_st=
-ruct *tsk)
->> =C2=A0 =C2=A0 =C2=A0 return 0;
->> =C2=A0}
->>
->> +static struct task_struct *find_lock_task_mm(struct task_struct *p)
->> +{
->> + =C2=A0 =C2=A0 struct task_struct *t =3D p;
->> +
->> + =C2=A0 =C2=A0 do {
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 task_lock(t);
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (likely(t->mm))
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-return t;
->> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 task_unlock(t);
->> + =C2=A0 =C2=A0 } while_each_thread(p, t);
->> +
->> + =C2=A0 =C2=A0 return NULL;
->> +}
->> +
->
-> Even if we miss this mm via p->mm, won't for_each_process actually
-> catch it? Are you suggesting that the main thread could have detached
-> the mm and a thread might still have it mapped?
+> >  	done_index = index;
+> >  	while (!done && (index <= end)) {
+> >  		int i;
+> >  
+> > -		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+> > -			      PAGECACHE_TAG_DIRTY,
+> > +		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
+> >  			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
+> >  		if (nr_pages == 0)
+> >  			break;
+> 
+> Would it be neat to clear the tag even if we didn't set page to
+> writeback? It should be uncommon case.
+  Yeah, why not.
 
-Yes.  Although main thread detach mm, sub-thread still may have the mm.
-As you have confused, I think this function name isn't good.
-So I suggested following as.
+> > @@ -1319,6 +1356,9 @@ int test_set_page_writeback(struct page *page)
+> >  			radix_tree_tag_clear(&mapping->page_tree,
+> >  						page_index(page),
+> >  						PAGECACHE_TAG_DIRTY);
+> > +		radix_tree_tag_clear(&mapping->page_tree,
+> > +				     page_index(page),
+> > +				     PAGECACHE_TAG_TOWRITE);
+> >  		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+> >  	} else {
+> >  		ret = TestSetPageWriteback(page);
+> 
+> It would be nice to have bitwise tag clearing so we can clear multiple
+> at once. Then
+> 
+> clear_tag = PAGECACHE_TAG_TOWRITE;
+> if (!PageDirty(page))
+>   clear_tag |= PAGECACHE_TAG_DIRTY;
+> 
+> That could reduce overhead a bit more.
+  Good idea. Will do.
 
-http://lkml.org/lkml/2010/6/2/325
+								Honza
 
-Anyway, It does make sense to me.
---=20
-Kind regards,
-Minchan Kim
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
