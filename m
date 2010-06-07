@@ -1,50 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 97C886B01AF
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 02:09:25 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5769M7V017847
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 7 Jun 2010 15:09:22 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3746945DE5B
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:09:22 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EEA4345DE4F
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:09:21 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D63771DB805E
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:09:21 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 846431DB803C
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 15:09:21 +0900 (JST)
-Date: Mon, 7 Jun 2010 15:05:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [cleanup][PATCH -mmotm 2/2] memcg: remove mem from arg of
- charge_common
-Message-Id: <20100607150506.2c3c9a38.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100607145337.c0b5ad79.nishimura@mxp.nes.nec.co.jp>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6744C6B01AC
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 02:54:50 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o576fg03028773
+	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 02:41:42 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o576sl4s137072
+	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 02:54:47 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o576slmj027350
+	for <linux-mm@kvack.org>; Mon, 7 Jun 2010 03:54:47 -0300
+Date: Mon, 7 Jun 2010 12:24:31 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [cleanup][PATCH -mmotm 1/2] memcg: remove redundant codes
+Message-ID: <20100607065431.GQ4603@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <20100607145239.cb5cb917.nishimura@mxp.nes.nec.co.jp>
-	<20100607145337.c0b5ad79.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100607145239.cb5cb917.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Jun 2010 14:53:37 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-06-07 14:52:39]:
 
+> These patches are based on mmotm-2010-06-03-16-36 + some already merged patches
+> for memcg.
+> 
+> ===
 > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> mem_cgroup_charge_common() is always called with @mem = NULL, so it's
-> meaningless. This patch removes it.
+> - try_get_mem_cgroup_from_mm() calls rcu_read_lock/unlock by itself, so we
+>   don't have to call them in task_in_mem_cgroup().
+> - *mz is not used in __mem_cgroup_uncharge_common().
+> - we don't have to call lookup_page_cgroup() in mem_cgroup_end_migration()
+>   after we've cleared PCG_MIGRATION of @oldpage.
+> - remove empty comment.
+> - remove redundant empty line in mem_cgroup_cache_charge().
 > 
 > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Acked-by: KAMEZAWA Hioryuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
