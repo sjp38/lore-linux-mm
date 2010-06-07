@@ -1,62 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id F15226B01B4
-	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 01:20:44 -0400 (EDT)
-Received: by gyg4 with SMTP id 4so2407058gyg.14
-        for <linux-mm@kvack.org>; Sun, 06 Jun 2010 22:20:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTillFhDzhz06IXArHKbZCy9zBI5Isl4c2DiROXlz@mail.gmail.com>
-References: <AANLkTilb4QNYznFeJVfMmvPAlBY-B02EY0i0d7NK9X7O@mail.gmail.com>
-	<tnxvd9zcbr9.fsf@e102109-lin.cambridge.arm.com>
-	<AANLkTillFhDzhz06IXArHKbZCy9zBI5Isl4c2DiROXlz@mail.gmail.com>
-Date: Mon, 7 Jun 2010 13:20:42 +0800
-Message-ID: <AANLkTikXdy6GOQ2EzDt-yrcJ_jMIPvLsH3neWBozpVCK@mail.gmail.com>
-Subject: Re: mmotm 2010-06-03-16-36 lots of suspected kmemleak
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ABDE96B01AF
+	for <linux-mm@kvack.org>; Mon,  7 Jun 2010 02:03:17 -0400 (EDT)
+Date: Mon, 7 Jun 2010 14:52:39 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [cleanup][PATCH -mmotm 1/2] memcg: remove redundant codes
+Message-Id: <20100607145239.cb5cb917.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 4, 2010 at 9:55 PM, Dave Young <hidave.darkstar@gmail.com> wrote:
-> On Fri, Jun 4, 2010 at 6:50 PM, Catalin Marinas <catalin.marinas@arm.com> wrote:
->> Dave Young <hidave.darkstar@gmail.com> wrote:
->>> With mmotm 2010-06-03-16-36, I gots tuns of kmemleaks
->>
->> Do you have CONFIG_NO_BOOTMEM enabled? I posted a patch for this but
->> hasn't been reviewed yet (I'll probably need to repost, so if it fixes
->> the problem for you a Tested-by would be nice):
->>
->> http://lkml.org/lkml/2010/5/4/175
->
->
-> I'd like to test, but I can not access the test pc during weekend. So
-> I will test it next monday.
+These patches are based on mmotm-2010-06-03-16-36 + some already merged patches
+for memcg.
 
-Bad news, the patch does not fix this issue.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
->
-> For CONFIG_NO_BOOTMEM, I don't remember. I guess set as 'y'
+- try_get_mem_cgroup_from_mm() calls rcu_read_lock/unlock by itself, so we
+  don't have to call them in task_in_mem_cgroup().
+- *mz is not used in __mem_cgroup_uncharge_common().
+- we don't have to call lookup_page_cgroup() in mem_cgroup_end_migration()
+  after we've cleared PCG_MIGRATION of @oldpage.
+- remove empty comment.
+- remove redundant empty line in mem_cgroup_cache_charge().
 
-Confirmed, CONFIG_NO_BOOTMEM=y
->>
->> Thanks.
->>
->> --
->> Catalin
->>
->
-> --
-> Regards
-> dave
->
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |   10 ----------
+ 1 files changed, 0 insertions(+), 10 deletions(-)
 
-
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 9c1d227..7146055 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -840,9 +840,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
+ 	struct mem_cgroup *curr = NULL;
+ 
+ 	task_lock(task);
+-	rcu_read_lock();
+ 	curr = try_get_mem_cgroup_from_mm(task->mm);
+-	rcu_read_unlock();
+ 	task_unlock(task);
+ 	if (!curr)
+ 		return 0;
+@@ -2099,7 +2097,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 	if (!(gfp_mask & __GFP_WAIT)) {
+ 		struct page_cgroup *pc;
+ 
+-
+ 		pc = lookup_page_cgroup(page);
+ 		if (!pc)
+ 			return 0;
+@@ -2293,7 +2290,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ {
+ 	struct page_cgroup *pc;
+ 	struct mem_cgroup *mem = NULL;
+-	struct mem_cgroup_per_zone *mz;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+@@ -2347,7 +2343,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+ 	 * special functions.
+ 	 */
+ 
+-	mz = page_cgroup_zoneinfo(pc);
+ 	unlock_page_cgroup(pc);
+ 
+ 	memcg_check_events(mem, page);
+@@ -2659,11 +2654,8 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 	ClearPageCgroupMigration(pc);
+ 	unlock_page_cgroup(pc);
+ 
+-	if (unused != oldpage)
+-		pc = lookup_page_cgroup(unused);
+ 	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+ 
+-	pc = lookup_page_cgroup(used);
+ 	/*
+ 	 * If a page is a file cache, radix-tree replacement is very atomic
+ 	 * and we can skip this check. When it was an Anon page, its mapcount
+@@ -3807,8 +3799,6 @@ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+ 	return 0;
+ }
+ 
+-/*
+- */
+ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 	struct cftype *cft, u64 val)
+ {
 -- 
-Regards
-dave
+1.6.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
