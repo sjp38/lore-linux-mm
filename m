@@ -1,49 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B59126B01B4
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 19:36:00 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o58NZtZR006114
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:35:55 -0700
-Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
-	by kpbe16.cbf.corp.google.com with ESMTP id o58NZsIF014113
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:35:54 -0700
-Received: by pzk27 with SMTP id 27so161133pzk.2
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 16:35:54 -0700 (PDT)
-Date: Tue, 8 Jun 2010 16:35:52 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 210366B01C1
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 19:40:15 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o58NeB9Y027941
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:40:11 -0700
+Received: from pvh1 (pvh1.prod.google.com [10.241.210.193])
+	by kpbe12.cbf.corp.google.com with ESMTP id o58NeA1g021454
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:40:10 -0700
+Received: by pvh1 with SMTP id 1so186857pvh.1
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 16:40:10 -0700 (PDT)
+Date: Tue, 8 Jun 2010 16:40:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC V2 SLEB 01/14] slab: Introduce a constant for a unspecified
- node.
-In-Reply-To: <AANLkTikQhjlCPnwiK7AZo27Xb3h-Lj2JyCeqFQaVzpHX@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006081633450.19582@chino.kir.corp.google.com>
-References: <20100521211452.659982351@quilx.com> <20100521211537.530913777@quilx.com> <alpine.DEB.2.00.1006071443120.10905@chino.kir.corp.google.com> <alpine.DEB.2.00.1006071729560.12482@router.home> <AANLkTikOKy6ZQQh2zORJDvGDE0golvyzsvlvDj-P5cur@mail.gmail.com>
- <alpine.DEB.2.00.1006072319330.31780@chino.kir.corp.google.com> <AANLkTikQhjlCPnwiK7AZo27Xb3h-Lj2JyCeqFQaVzpHX@mail.gmail.com>
+Subject: Re: [patch 01/18] oom: check PF_KTHREAD instead of !mm to skip
+ kthreads
+In-Reply-To: <20100608123320.11e501a4.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1006081639420.19582@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061521160.32225@chino.kir.corp.google.com> <20100608123320.11e501a4.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jun 2010, Pekka Enberg wrote:
+On Tue, 8 Jun 2010, Andrew Morton wrote:
 
-> > An incremental patch in this case would change everything that the
-> > original patch did, so it'd probably be best to simply revert and queue
-> > the updated version.
+> > From: Oleg Nesterov <oleg@redhat.com>
+> > 
+> > select_bad_process() thinks a kernel thread can't have ->mm != NULL, this
+> > is not true due to use_mm().
+> > 
+> > Change the code to check PF_KTHREAD.
+> > 
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/oom_kill.c |    9 +++------
+> >  1 files changed, 3 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -256,14 +256,11 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+> >  	for_each_process(p) {
+> >  		unsigned long points;
+> >  
+> > -		/*
+> > -		 * skip kernel threads and tasks which have already released
+> > -		 * their mm.
+> > -		 */
+> > +		/* skip tasks that have already released their mm */
+> >  		if (!p->mm)
+> >  			continue;
+> > -		/* skip the init task */
+> > -		if (is_global_init(p))
+> > +		/* skip the init task and kthreads */
+> > +		if (is_global_init(p) || (p->flags & PF_KTHREAD))
+> >  			continue;
+> >  		if (mem && !task_in_mem_cgroup(p, mem))
+> >  			continue;
 > 
-> If I revert it, we end up with two commits instead of one. And I
-> really prefer not to *rebase* a topic branch even though it might be
-> doable for a small tree like slab.git.
+> Applied, thanks.  A minor bugfix.
 > 
 
-I commented on improvements for three of the five patches you've added as 
-slub cleanups and Christoph has shown an interest in proposing them again 
-(perhaps seperating patches 1-5 out as a seperate set of cleanups?), so 
-it's probably cleaner to just reset and reapply with the revisions.  
-
-Let me know if my suggested changes should be add-on patches to 
-Christoph's first five and I'll come up with a three patch series to do 
-just that.
+Thanks!  I didn't see it added to -mm, though, so I'll assume it's being 
+queued for 2.6.35-rc3 instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
