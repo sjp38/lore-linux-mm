@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 19EB66B01DD
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 15:05:09 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DEB0E6B01DE
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 15:07:32 -0400 (EDT)
 Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o58J56EM020585
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 12:05:06 -0700
-Received: from pvc21 (pvc21.prod.google.com [10.241.209.149])
-	by hpaq1.eem.corp.google.com with ESMTP id o58J4x5s014598
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 12:05:04 -0700
-Received: by pvc21 with SMTP id 21so470507pvc.34
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 12:05:04 -0700 (PDT)
-Date: Tue, 8 Jun 2010 12:05:01 -0700 (PDT)
+	by smtp-out.google.com with ESMTP id o58J7UF6007459
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 12:07:30 -0700
+Received: from pwj5 (pwj5.prod.google.com [10.241.219.69])
+	by hpaq1.eem.corp.google.com with ESMTP id o58J7Skq016650
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 12:07:29 -0700
+Received: by pwj5 with SMTP id 5so3391857pwj.5
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 12:07:28 -0700 (PDT)
+Date: Tue, 8 Jun 2010 12:07:23 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 09/10] oom: filter tasks not sharing the same cpuset
-In-Reply-To: <20100608210148.7695.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006081201530.18848@chino.kir.corp.google.com>
-References: <20100608204621.767A.A69D9226@jp.fujitsu.com> <20100608210148.7695.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 06/10] oom: cleanup has_intersects_mems_allowed()
+In-Reply-To: <20100608205829.768C.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006081206090.23776@chino.kir.corp.google.com>
+References: <20100608204621.767A.A69D9226@jp.fujitsu.com> <20100608205829.768C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,25 +25,15 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
 
-> From: David Rientjes <rientjes@google.com>
+> Now has_intersects_mems_allowed() has own thread iterate logic, but
+> it should use while_each_thread().
 > 
-> Tasks that do not share the same set of allowed nodes with the task that
-> triggered the oom should not be considered as candidates for oom kill.
+> It slightly improve the code readability.
 > 
 
-You're not a maintainer, as I obviously have to point out to you often 
-enough.  I've repeatedly asked you to work with me in reviewing my oom 
-killer rewrite on linux-mm, yet you seldom offer any valuable feedback 
-other than a simple "nack".  I don't consider any of your patchset here to 
-be more applicable than my patchset, which has been developed over the 
-course of several months, and your lack of participation in the process is 
-really quite shocking to me.
-
-In case nobody has told you before: Andrew maintains this code and these 
-patches will be going through the -mm tree.  You are not a maintainer of 
-it (or any other kernel code), so please act within your role of kernel 
-hacker and review patches as people propose them by offering your 
-constructive feedback.
+These cleanups should be done on top of my oom killer rewrite instead, 
+please work with others in their work instead of getting in the way of it 
+time and time again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
