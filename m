@@ -1,88 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 323AC6B01D2
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:53:34 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o58IrUAL029234
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:53:30 -0700
-Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
-	by wpaz13.hot.corp.google.com with ESMTP id o58IpuS1020160
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:53:29 -0700
-Received: by pxi1 with SMTP id 1so2329792pxi.8
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:53:29 -0700 (PDT)
-Date: Tue, 8 Jun 2010 11:53:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 08/18] oom: sacrifice child with highest badness score
- for parent
-In-Reply-To: <20100608203443.7666.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006081152080.18848@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524470.32225@chino.kir.corp.google.com> <20100608203443.7666.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A37B46B01D4
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:56:14 -0400 (EDT)
+Subject: Re: RFC: dirty_ratio back to 40%
+From: Larry Woodman <lwoodman@redhat.com>
+In-Reply-To: <20100608184913.GA12154@infradead.org>
+References: <4BF51B0A.1050901@redhat.com>
+	 <20100608184913.GA12154@infradead.org>
+Content-Type: text/plain
+Date: Tue, 08 Jun 2010 15:01:24 -0400
+Message-Id: <1276023684.8736.51.camel@dhcp-100-19-198.bos.redhat.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
+On Tue, 2010-06-08 at 14:49 -0400, Christoph Hellwig wrote:
+> Did this patch get merged somewhere?
 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -441,8 +441,11 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> >  			    unsigned long points, struct mem_cgroup *mem,
-> >  			    const char *message)
-> >  {
-> > +	struct task_struct *victim = p;
-> >  	struct task_struct *c;
-> >  	struct task_struct *t = p;
-> > +	unsigned long victim_points = 0;
-> > +	struct timespec uptime;
-> >  
-> >  	if (printk_ratelimit())
-> >  		dump_header(p, gfp_mask, order, mem);
-> > @@ -456,22 +459,30 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> >  		return 0;
-> >  	}
-> >  
-> > -	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
-> > -					message, task_pid_nr(p), p->comm, points);
-> > +	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
-> > +		message, task_pid_nr(p), p->comm, points);
-> >  
-> > -	/* Try to kill a child first */
-> > +	/* Try to sacrifice the worst child first */
-> > +	do_posix_clock_monotonic_gettime(&uptime);
-> >  	do {
-> > +		unsigned long cpoints;
-> > +
-> >  		list_for_each_entry(c, &t->children, sibling) {
-> >  			if (c->mm == p->mm)
-> >  				continue;
-> >  			if (mem && !task_in_mem_cgroup(c, mem))
-> >  				continue;
-> > -			if (!oom_kill_task(c))
-> > -				return 0;
-> > +
-> > +			/* badness() returns 0 if the thread is unkillable */
-> > +			cpoints = badness(c, uptime.tv_sec);
-> > +			if (cpoints > victim_points) {
-> > +				victim = c;
-> > +				victim_points = cpoints;
-> > +			}
-> >  		}
-> >  	} while_each_thread(p, t);
-> >  
-> > -	return oom_kill_task(p);
-> > +	return oom_kill_task(victim);
-> >  }
-> >  
-> >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> 
-> better version already is there in my patch kit.
-> 
+I dont think it ever did, about 1/2 of responses were for it and the
+other 1/2 against it.
 
-Would you like to review this one?
+Larry
+
+> 
+> On Thu, May 20, 2010 at 07:20:42AM -0400, Larry Woodman wrote:
+> > We've seen multiple performance regressions linked to the lower(20%)
+> > dirty_ratio.  When performing enough IO to overwhelm the background
+> > flush daemons the percent of dirty pagecache memory quickly climbs
+> > to the new/lower dirty_ratio value of 20%.  At that point all
+> > writing processes are forced to stop and write dirty pagecache pages
+> > back to disk.  This causes performance regressions in several
+> > benchmarks as well as causing
+> > a noticeable overall sluggishness.  We all know that the dirty_ratio is
+> > an integrity vs performance trade-off but the file system journaling
+> > will cover any devastating effects in the event of a system crash.
+> > 
+> > Increasing the dirty_ratio to 40% will regain the performance loss seen
+> > in several benchmarks.  Whats everyone think about this???
+> > 
+> > 
+> > 
+> > 
+> > 
+> > ------------------------------------------------------------------------
+> > 
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index ef27e73..645a462 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -78,7 +78,7 @@ int vm_highmem_is_dirtyable;
+> > /*
+> >  * The generator of dirty data starts writeback at this percentage
+> >  */
+> > -int vm_dirty_ratio = 20;
+> > +int vm_dirty_ratio = 40;
+> > 
+> > /*
+> >  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> ---end quoted text---
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
