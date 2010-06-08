@@ -1,316 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 607336B0239
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 07:42:52 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o58BfudJ012347
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 8 Jun 2010 20:41:56 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4931045DE52
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:41:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 27B8645DE4E
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:41:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CB6521DB8012
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:41:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 73DD41DB801D
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:41:55 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 03/18] oom: select task from tasklist for mempolicy ooms
-In-Reply-To: <alpine.DEB.2.00.1006010013360.29202@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010013360.29202@chino.kir.corp.google.com>
-Message-Id: <20100608165055.8799.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BE06B01DF
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 07:50:40 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id o58Bm2tG004638
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 21:48:02 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o58BoW2A1896636
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 21:50:32 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o58BoVtP021356
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 21:50:31 +1000
+Message-ID: <4C0E2E84.6060605@in.ibm.com>
+Date: Tue, 08 Jun 2010 17:20:28 +0530
+From: Sachin Sant <sachinp@in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: 2.6.35-rc2: GPF while executing libhugetlbfs tests on x86_64
+References: <4C0BC7F0.8030109@in.ibm.com> <20100608091817.GA27717@csn.ul.ie>
+In-Reply-To: <20100608091817.GA27717@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Tue,  8 Jun 2010 20:41:54 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> The oom killer presently kills current whenever there is no more memory
-> free or reclaimable on its mempolicy's nodes.  There is no guarantee that
-> current is a memory-hogging task or that killing it will free any
-> substantial amount of memory, however.
-> 
-> In such situations, it is better to scan the tasklist for nodes that are
-> allowed to allocate on current's set of nodes and kill the task with the
-> highest badness() score.  This ensures that the most memory-hogging task,
-> or the one configured by the user with /proc/pid/oom_adj, is always
-> selected in such scenarios.
-> 
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  include/linux/mempolicy.h |   13 +++++++-
->  mm/mempolicy.c            |   44 +++++++++++++++++++++++++
->  mm/oom_kill.c             |   77 +++++++++++++++++++++++++++-----------------
->  3 files changed, 103 insertions(+), 31 deletions(-)
-> 
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -210,6 +210,8 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
->  				unsigned long addr, gfp_t gfp_flags,
->  				struct mempolicy **mpol, nodemask_t **nodemask);
->  extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-> +extern bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-> +				const nodemask_t *mask);
->  extern unsigned slab_node(struct mempolicy *policy);
->  
->  extern enum zone_type policy_zone;
-> @@ -338,7 +340,16 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
->  	return node_zonelist(0, gfp_flags);
->  }
->  
-> -static inline bool init_nodemask_of_mempolicy(nodemask_t *m) { return false; }
-> +static inline bool init_nodemask_of_mempolicy(nodemask_t *m)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-> +			const nodemask_t *mask)
-> +{
-> +	return false;
-> +}
->  
->  static inline int do_migrate_pages(struct mm_struct *mm,
->  			const nodemask_t *from_nodes,
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1712,6 +1712,50 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
->  }
->  #endif
->  
-> +/*
-> + * mempolicy_nodemask_intersects
-> + *
-> + * If tsk's mempolicy is "default" [NULL], return 'true' to indicate default
-> + * policy.  Otherwise, check for intersection between mask and the policy
-> + * nodemask for 'bind' or 'interleave' policy.  For 'perferred' or 'local'
-> + * policy, always return true since it may allocate elsewhere on fallback.
-> + *
-> + * Takes task_lock(tsk) to prevent freeing of its mempolicy.
-> + */
-> +bool mempolicy_nodemask_intersects(struct task_struct *tsk,
-> +					const nodemask_t *mask)
-> +{
-> +	struct mempolicy *mempolicy;
-> +	bool ret = true;
-> +
-> +	if (!mask)
-> +		return ret;
-> +	task_lock(tsk);
-> +	mempolicy = tsk->mempolicy;
-> +	if (!mempolicy)
-> +		goto out;
-> +
-> +	switch (mempolicy->mode) {
-> +	case MPOL_PREFERRED:
-> +		/*
-> +		 * MPOL_PREFERRED and MPOL_F_LOCAL are only preferred nodes to
-> +		 * allocate from, they may fallback to other nodes when oom.
-> +		 * Thus, it's possible for tsk to have allocated memory from
-> +		 * nodes in mask.
-> +		 */
-> +		break;
-> +	case MPOL_BIND:
-> +	case MPOL_INTERLEAVE:
-> +		ret = nodes_intersects(mempolicy->v.nodes, *mask);
-> +		break;
-> +	default:
-> +		BUG();
-> +	}
-> +out:
-> +	task_unlock(tsk);
-> +	return ret;
-> +}
-> +
->  /* Allocate a page in interleaved policy.
->     Own path because it needs to do special accounting. */
->  static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -27,6 +27,7 @@
->  #include <linux/module.h>
->  #include <linux/notifier.h>
->  #include <linux/memcontrol.h>
-> +#include <linux/mempolicy.h>
->  #include <linux/security.h>
->  
->  int sysctl_panic_on_oom;
-> @@ -37,19 +38,35 @@ static DEFINE_SPINLOCK(zone_scan_lock);
->  
->  /*
->   * Do all threads of the target process overlap our allowed nodes?
-> + * @tsk: task struct of which task to consider
-> + * @mask: nodemask passed to page allocator for mempolicy ooms
->   */
-> -static int has_intersects_mems_allowed(struct task_struct *tsk)
-> +static bool has_intersects_mems_allowed(struct task_struct *tsk,
-> +						const nodemask_t *mask)
+Mel Gorman wrote:
+> On Sun, Jun 06, 2010 at 09:38:16PM +0530, Sachin Sant wrote:
+>   
+>> While executing libhugetlbfs tests against 2.6.35-rc2 on
+>> a x86_64 box came across the following GPF
+>>
+>> eneral protection fault: 0000 [#1] SMP
+>> last sysfs file: /sys/devices/system/cpu/cpu3/cache/index2/shared_cpu_map
+>> CPU 3
+>> Modules linked in: ipv6 mperf fuse loop dm_mod sr_mod cdrom usb_storage sg i2c_piix4 rtc_cmos bnx2 k8temp pcspkr serio_raw mptctl i2c_core rtc_core rtc_lib shpchp button pci_hotplug usbhid hid ohci_hcd ehci_hcd sd_mod crc_t10dif usbcore edd ext3 jbd fan thermal processor thermal_sys hwmon mptsas mptscsih mptbase scsi_transport_sas scsi_mod
+>>
+>> Pid: 20232, comm: autotest Not tainted 2.6.35-rc2-autotest #1 Server Blade/BladeCenter LS21 -[79716AA]-
+>> RIP: 0010:[<ffffffff813968ca>]  [<ffffffff813968ca>] _raw_spin_lock+0x9/0x20
+>> RSP: 0018:ffff880126e43d88  EFLAGS: 00010202
+>> RAX: 0000000000010000 RBX: 0720072007200720 RCX: 0000000000000000
+>> RDX: 0000000000000011 RSI: ffff8801293a7470 RDI: 0720072007200720
+>> RBP: ffff880126e43d88 R08: ffff8801279df270 R09: 09f911029d74e35b
+>> R10: 09f911029d74e35b R11: dead000000100100 R12: ffff8801278cae00
+>> R13: 0720072007200710 R14: ffff8801297e71f8 R15: 0000000000000000
+>> FS:  00007f461d6866f0(0000) GS:ffff880006180000(0000) knlGS:0000000055731b00
+>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> CR2: 00007f461d45a7b8 CR3: 0000000001713000 CR4: 00000000000006e0
+>> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>> Process autotest (pid: 20232, threadinfo ffff880126e42000, task ffff8801297e4190)
+>> Stack:
+>> ffff880126e43db8 ffffffff810f6b80 ffff8801297ae858 ffff8801297e7190
+>> <0> ffff8801297e7190 00007f461940e000 ffff880126e43e08 ffffffff810f025e
+>> <0> 00000000ffffffff 0000000000000000 ffff88000618d690 ffff88000618d690
+>> Call Trace:
+>> [<ffffffff810f6b80>] unlink_anon_vmas+0x37/0xf2
+>> [<ffffffff810f025e>] free_pgtables+0x5f/0xc9
+>> [<ffffffff810f1ac1>] exit_mmap+0xe6/0x141
+>>     
+>
+> While at first glance this looks like a general bug, it might still be
+> some oddity in hugetlbfs. Sachin, how reproducible is this? I just ran the
+> libhugetlbfs tests just fine on x86-64. Can you post your .config please?
+>   
+I think the root cause for this problem was same as the one
+mentioned in this thread (Bug kmalloc-4096 : Poison overwritten)
 
-nodemask is better name than plain "mask".
+http://marc.info/?l=linux-kernel&m=127586004308747&w=2 <http://marc.info/?l=linux-kernel&m=127586004308747&w=2>
 
->  {
-> -	struct task_struct *t;
-> +	struct task_struct *start = tsk;
->  
-> -	t = tsk;
->  	do {
-> -		if (cpuset_mems_allowed_intersects(current, t))
-> -			return 1;
-> -		t = next_thread(t);
-> -	} while (t != tsk);
-> -
-> -	return 0;
-> +		if (mask) {
-> +			/*
-> +			 * If this is a mempolicy constrained oom, tsk's
-> +			 * cpuset is irrelevant.  Only return true if its
-> +			 * mempolicy intersects current, otherwise it may be
-> +			 * needlessly killed.
-> +			 */
-> +			if (mempolicy_nodemask_intersects(tsk, mask))
-> +				return true;
-> +		} else {
-> +			/*
-> +			 * This is not a mempolicy constrained oom, so only
-> +			 * check the mems of tsk's cpuset.
-> +			 */
-> +			if (cpuset_mems_allowed_intersects(current, tsk))
-> +				return true;
-> +		}
-> +		tsk = next_thread(tsk);
-> +	} while (tsk != start);
-> +	return false;
+Some of the registers from the trace does seem to contain the
+peculiar pattern : 0720072007200720
 
-I had rewrite this to use while_each_thread(). please see it.
+I was not able to recreate this problem again with latest snapshot.
+
+Thanks
+-Sachin
+
+>   
+>> [<ffffffff81064a6d>] mmput+0x39/0xdb
+>> [<ffffffff81068b4b>] exit_mm+0x119/0x126
+>> [<ffffffff8106a3bb>] do_exit+0x225/0x721
+>> [<ffffffff8106a928>] do_group_exit+0x71/0x9a
+>> [<ffffffff8106a963>] sys_exit_group+0x12/0x16
+>> [<ffffffff8102896b>] system_call_fastpath+0x16/0x1b
+>> Code: c2 c1 c0 10 39 c2 8d 90 00 00 01 00 75 04 f0 0f b1 17 0f 94 c2 0f b6 c2 85 c0 c9 0f 95 c0 0f b6 c0 c3 55 b8 00 00 01 00 48 89 e5 <f0> 0f c1 07 0f b7 d0 c1 e8 10 39 c2 74 07 f3 90 0f b7 17 eb f5
+>> RIP  [<ffffffff813968ca>] _raw_spin_lock+0x9/0x20
+>> RSP <ffff880126e43d88>
+>> ---[ end trace 844bcf9372ef8fa1 ]---
+>> Clocksource tsc unstable (delta = 4398037966381 ns)
+>> Fixing recursive fault but reboot is needed!
+>>
+>> Previous snapshot release (2.6.35-rc1-git5 6c5de280b6..) was good.
+>> I am using version 2.8 of libhugetlbfs tests from
+>> http://sourceforge.net/projects/libhugetlbfs/files/
+>>
+>>     
+>
+> This implies it might not be easily reproducible because no commits
+> happened between that window that affected anon_vma locking. I have the
+> test running in a loop to see can I reproduce it.
+>
+> Thanks
+>
+>   
 
 
->  }
->  
->  /**
-> @@ -237,7 +254,8 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
->   * (not docbooked, we don't want this one cluttering up the manual)
->   */
->  static struct task_struct *select_bad_process(unsigned long *ppoints,
-> -						struct mem_cgroup *mem)
-> +		struct mem_cgroup *mem, enum oom_constraint constraint,
-> +		const nodemask_t *mask)
+-- 
 
-dont need constraint argument. when !CONSTRAINT_MEMORY_POLICY case,
-we can just pass mask==NULL.
-
-and, here is also nodemask is better name.
-
-
->  {
->  	struct task_struct *p;
->  	struct task_struct *chosen = NULL;
-> @@ -259,7 +277,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
->  			continue;
->  		if (mem && !task_in_mem_cgroup(p, mem))
->  			continue;
-> -		if (!has_intersects_mems_allowed(p))
-> +		if (!has_intersects_mems_allowed(p,
-> +				constraint == CONSTRAINT_MEMORY_POLICY ? mask :
-> +									 NULL))
->  			continue;
->  
->  		/*
-> @@ -483,7 +503,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
->  		panic("out of memory(memcg). panic_on_oom is selected.\n");
->  	read_lock(&tasklist_lock);
->  retry:
-> -	p = select_bad_process(&points, mem);
-> +	p = select_bad_process(&points, mem, CONSTRAINT_NONE, NULL);
->  	if (!p || PTR_ERR(p) == -1UL)
->  		goto out;
->  
-> @@ -562,7 +582,8 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
->  /*
->   * Must be called with tasklist_lock held for read.
->   */
-> -static void __out_of_memory(gfp_t gfp_mask, int order)
-> +static void __out_of_memory(gfp_t gfp_mask, int order,
-> +			enum oom_constraint constraint, const nodemask_t *mask)
->  {
->  	struct task_struct *p;
->  	unsigned long points;
-> @@ -576,7 +597,7 @@ retry:
->  	 * Rambo mode: Shoot down a process and hope it solves whatever
->  	 * issues we may have.
->  	 */
-> -	p = select_bad_process(&points, NULL);
-> +	p = select_bad_process(&points, NULL, constraint, mask);
->  
->  	if (PTR_ERR(p) == -1UL)
->  		return;
-> @@ -610,7 +631,8 @@ void pagefault_out_of_memory(void)
->  		panic("out of memory from page fault. panic_on_oom is selected.\n");
->  
->  	read_lock(&tasklist_lock);
-> -	__out_of_memory(0, 0); /* unknown gfp_mask and order */
-> +	/* unknown gfp_mask and order */
-> +	__out_of_memory(0, 0, CONSTRAINT_NONE, NULL);
->  	read_unlock(&tasklist_lock);
->  
->  	/*
-> @@ -626,6 +648,7 @@ void pagefault_out_of_memory(void)
->   * @zonelist: zonelist pointer
->   * @gfp_mask: memory allocation flags
->   * @order: amount of memory being requested as a power of 2
-> + * @nodemask: nodemask passed to page allocator
->   *
->   * If we run out of memory, we have the choice between either
->   * killing a random task (bad), letting the system crash (worse)
-> @@ -654,24 +677,18 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->  	 */
->  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
->  	read_lock(&tasklist_lock);
-> -
-> -	switch (constraint) {
-> -	case CONSTRAINT_MEMORY_POLICY:
-> -		oom_kill_process(current, gfp_mask, order, 0, NULL,
-> -				"No available memory (MPOL_BIND)");
-> -		break;
-> -
-> -	case CONSTRAINT_NONE:
-> -		if (sysctl_panic_on_oom) {
-> +	if (unlikely(sysctl_panic_on_oom)) {
-> +		/*
-> +		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
-> +		 * should not panic for cpuset or mempolicy induced memory
-> +		 * failures.
-> +		 */
-> +		if (constraint == CONSTRAINT_NONE) {
->  			dump_header(NULL, gfp_mask, order, NULL);
-> -			panic("out of memory. panic_on_oom is selected\n");
-> +			panic("Out of memory: panic_on_oom is enabled\n");
-
-you shouldn't immix unrelated change.
-
->  		}
-> -		/* Fall-through */
-> -	case CONSTRAINT_CPUSET:
-> -		__out_of_memory(gfp_mask, order);
-> -		break;
->  	}
-> -
-> +	__out_of_memory(gfp_mask, order, constraint, nodemask);
->  	read_unlock(&tasklist_lock);
->  
->  	/*
-
-
+---------------------------------
+Sachin Sant
+IBM Linux Technology Center
+India Systems and Technology Labs
+Bangalore, India
+---------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
