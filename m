@@ -1,43 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 100176B01DD
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 16:12:20 -0400 (EDT)
-Date: Tue, 8 Jun 2010 13:12:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 05/18] oom: give current access to memory reserves if it
- has been killed
-Message-Id: <20100608131211.e769e3a1.akpm@linux-foundation.org>
-In-Reply-To: <20100608203216.765D.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1006061524080.32225@chino.kir.corp.google.com>
-	<20100608203216.765D.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 440796B01DD
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 16:15:32 -0400 (EDT)
+Date: Tue, 8 Jun 2010 22:14:03 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch 02/18] oom: introduce find_lock_task_mm() to fix !mm
+	false positives
+Message-ID: <20100608201403.GA10264@redhat.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061521310.32225@chino.kir.corp.google.com> <20100608124246.9258ccab.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100608124246.9258ccab.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  8 Jun 2010 20:41:57 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On 06/08, Andrew Morton wrote:
+>
+> On Sun, 6 Jun 2010 15:34:03 -0700 (PDT)
+> David Rientjes <rientjes@google.com> wrote:
+>
+> > [kosaki.motohiro@jp.fujitsu.com: use in badness(), __oom_kill_task()]
+> > Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+>
+> I assume from the above that we should have a Signed-off-by:kosaki
+> here.  I didn't make that change yet - please advise.
 
-> > +
-> >  	if (sysctl_panic_on_oom == 2) {
-> >  		dump_header(NULL, gfp_mask, order, NULL);
-> >  		panic("out of memory. Compulsory panic_on_oom is selected.\n");
-> 
-> Sorry, I had found this patch works incorrect. I don't pulled.
+Yes. The patch mixes 2 changes: find_lock_task_mm patch + "do not forget
+about the sub-thread's children". The changelog doesn't match the actual
+changes.
 
-Saying "it doesn't work and I'm not telling you why" is unhelpful.  In
-fact it's the opposite of helpful because it blocks merging of the fix
-and doesn't give us any way to move forward.
+> > @@ -115,12 +126,17 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+> >  	 * child is eating the vast majority of memory, adding only half
+> >  	 * to the parents will make the child our kill candidate of choice.
+> >  	 */
+> > -	list_for_each_entry(child, &p->children, sibling) {
+> > -		task_lock(child);
+> > -		if (child->mm != mm && child->mm)
+> > -			points += child->mm->total_vm/2 + 1;
+> > -		task_unlock(child);
+> > -	}
+> > +	t = p;
+> > +	do {
+> > +		list_for_each_entry(c, &t->children, sibling) {
+> > +			child = find_lock_task_mm(c);
+> > +			if (child) {
+> > +				if (child->mm != p->mm)
+> > +					points += child->mm->total_vm/2 + 1;
+>
+> What if 1000 children share the same mm?  Doesn't this give a grossly
+> wrong result?
 
-So what can I do?  Hard.
+Can't answer. Obviusly it is hard to explain what is the "right" result here.
+But otoh, without this change we can't account children. Kosaki sent this
+as a separate change.
 
-What I shall do is to merge the patch in the hope that someone else will
-discover the undescribed problem and we will fix it then.  That's very
-inefficient.
+> > @@ -256,9 +272,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+> >  	for_each_process(p) {
+> >  		unsigned long points;
+> >
+> > -		/* skip tasks that have already released their mm */
+> > -		if (!p->mm)
+> > -			continue;
+
+We shouldn't remove this without removing OR updating the PF_EXITING check
+below. That is why we had another patch.
+
+This change alone allows to trivially disable oom-kill. If we have a process
+with the dead leader, select_bad_process() will always return -1.
+
+We either need another patch from Kosaki's series
+
+	- if (p->flags & PF_EXITING)
+	+ if (p->flags & PF_EXITING && p->mm)
+
+or remove this check (David objects).
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
