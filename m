@@ -1,315 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0386B01D1
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 05:08:42 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E6F6B01B0
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 05:18:38 -0400 (EDT)
+Date: Tue, 8 Jun 2010 10:18:18 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 5/6] vmscan: Write out ranges of pages contiguous to the inode where possible
-Date: Tue,  8 Jun 2010 10:02:24 +0100
-Message-Id: <1275987745-21708-6-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
-References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: 2.6.35-rc2: GPF while executing libhugetlbfs tests on x86_64
+Message-ID: <20100608091817.GA27717@csn.ul.ie>
+References: <4C0BC7F0.8030109@in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4C0BC7F0.8030109@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+To: Sachin Sant <sachinp@in.ibm.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Page reclaim cleans individual pages using a_ops->writepage() because from
-the VM perspective, it is known that pages in a particular zone must be freed
-soon, it considers the target page to be the oldest and it does not want
-to wait while background flushers cleans other pages. From a filesystem
-perspective this is extremely inefficient as it generates a very seeky
-IO pattern leading to the perverse situation where it can take longer to
-clean all dirty pages than it would have otherwise.
+On Sun, Jun 06, 2010 at 09:38:16PM +0530, Sachin Sant wrote:
+> While executing libhugetlbfs tests against 2.6.35-rc2 on
+> a x86_64 box came across the following GPF
+>
+> eneral protection fault: 0000 [#1] SMP
+> last sysfs file: /sys/devices/system/cpu/cpu3/cache/index2/shared_cpu_map
+> CPU 3
+> Modules linked in: ipv6 mperf fuse loop dm_mod sr_mod cdrom usb_storage sg i2c_piix4 rtc_cmos bnx2 k8temp pcspkr serio_raw mptctl i2c_core rtc_core rtc_lib shpchp button pci_hotplug usbhid hid ohci_hcd ehci_hcd sd_mod crc_t10dif usbcore edd ext3 jbd fan thermal processor thermal_sys hwmon mptsas mptscsih mptbase scsi_transport_sas scsi_mod
+>
+> Pid: 20232, comm: autotest Not tainted 2.6.35-rc2-autotest #1 Server Blade/BladeCenter LS21 -[79716AA]-
+> RIP: 0010:[<ffffffff813968ca>]  [<ffffffff813968ca>] _raw_spin_lock+0x9/0x20
+> RSP: 0018:ffff880126e43d88  EFLAGS: 00010202
+> RAX: 0000000000010000 RBX: 0720072007200720 RCX: 0000000000000000
+> RDX: 0000000000000011 RSI: ffff8801293a7470 RDI: 0720072007200720
+> RBP: ffff880126e43d88 R08: ffff8801279df270 R09: 09f911029d74e35b
+> R10: 09f911029d74e35b R11: dead000000100100 R12: ffff8801278cae00
+> R13: 0720072007200710 R14: ffff8801297e71f8 R15: 0000000000000000
+> FS:  00007f461d6866f0(0000) GS:ffff880006180000(0000) knlGS:0000000055731b00
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f461d45a7b8 CR3: 0000000001713000 CR4: 00000000000006e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> Process autotest (pid: 20232, threadinfo ffff880126e42000, task ffff8801297e4190)
+> Stack:
+> ffff880126e43db8 ffffffff810f6b80 ffff8801297ae858 ffff8801297e7190
+> <0> ffff8801297e7190 00007f461940e000 ffff880126e43e08 ffffffff810f025e
+> <0> 00000000ffffffff 0000000000000000 ffff88000618d690 ffff88000618d690
+> Call Trace:
+> [<ffffffff810f6b80>] unlink_anon_vmas+0x37/0xf2
+> [<ffffffff810f025e>] free_pgtables+0x5f/0xc9
+> [<ffffffff810f1ac1>] exit_mmap+0xe6/0x141
 
-This patch recognises that there are cases where a number of pages
-belonging to the same inode are being written out. When this happens and
-writepages() is implemented, the range of pages will be written out with
-a_ops->writepages. The inode is pinned and the page lock released before
-submitting the range to the filesystem. While this potentially means that
-more pages are cleaned than strictly necessary, the expectation is that the
-filesystem will be able to writeout the pages more efficiently and improve
-overall performance.
+While at first glance this looks like a general bug, it might still be
+some oddity in hugetlbfs. Sachin, how reproducible is this? I just ran the
+libhugetlbfs tests just fine on x86-64. Can you post your .config please?
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |  220 +++++++++++++++++++++++++++++++++++++++++++++++------------
- 1 files changed, 176 insertions(+), 44 deletions(-)
+> [<ffffffff81064a6d>] mmput+0x39/0xdb
+> [<ffffffff81068b4b>] exit_mm+0x119/0x126
+> [<ffffffff8106a3bb>] do_exit+0x225/0x721
+> [<ffffffff8106a928>] do_group_exit+0x71/0x9a
+> [<ffffffff8106a963>] sys_exit_group+0x12/0x16
+> [<ffffffff8102896b>] system_call_fastpath+0x16/0x1b
+> Code: c2 c1 c0 10 39 c2 8d 90 00 00 01 00 75 04 f0 0f b1 17 0f 94 c2 0f b6 c2 85 c0 c9 0f 95 c0 0f b6 c0 c3 55 b8 00 00 01 00 48 89 e5 <f0> 0f c1 07 0f b7 d0 c1 e8 10 39 c2 74 07 f3 90 0f b7 17 eb f5
+> RIP  [<ffffffff813968ca>] _raw_spin_lock+0x9/0x20
+> RSP <ffff880126e43d88>
+> ---[ end trace 844bcf9372ef8fa1 ]---
+> Clocksource tsc unstable (delta = 4398037966381 ns)
+> Fixing recursive fault but reboot is needed!
+>
+> Previous snapshot release (2.6.35-rc1-git5 6c5de280b6..) was good.
+> I am using version 2.8 of libhugetlbfs tests from
+> http://sourceforge.net/projects/libhugetlbfs/files/
+>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 58527c4..b2eb2a6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -323,6 +323,55 @@ typedef enum {
- 	PAGE_CLEAN,
- } pageout_t;
- 
-+int write_reclaim_page(struct page *page, struct address_space *mapping,
-+						enum pageout_io sync_writeback)
-+{
-+	int res;
-+	struct writeback_control wbc = {
-+		.sync_mode = WB_SYNC_NONE,
-+		.nr_to_write = SWAP_CLUSTER_MAX,
-+		.range_start = 0,
-+		.range_end = LLONG_MAX,
-+		.nonblocking = 1,
-+		.for_reclaim = 1,
-+	};
-+
-+	if (!clear_page_dirty_for_io(page))
-+		return PAGE_CLEAN;
-+
-+	SetPageReclaim(page);
-+	res = mapping->a_ops->writepage(page, &wbc);
-+	/*
-+	 * XXX: This is the Holy Hand Grenade of PotentiallyInvalidMapping. As
-+	 * the page lock has been dropped by ->writepage, that mapping could
-+	 * be anything
-+	 */
-+	if (res < 0)
-+		handle_write_error(mapping, page, res);
-+	if (res == AOP_WRITEPAGE_ACTIVATE) {
-+		ClearPageReclaim(page);
-+		return PAGE_ACTIVATE;
-+	}
-+
-+	/*
-+	 * Wait on writeback if requested to. This happens when
-+	 * direct reclaiming a large contiguous area and the
-+	 * first attempt to free a range of pages fails.
-+	 */
-+	if (PageWriteback(page) && sync_writeback == PAGEOUT_IO_SYNC)
-+		wait_on_page_writeback(page);
-+
-+	if (!PageWriteback(page)) {
-+		/* synchronous write or broken a_ops? */
-+		ClearPageReclaim(page);
-+	}
-+	trace_mm_vmscan_writepage(page,
-+		sync_writeback == PAGEOUT_IO_SYNC);
-+	inc_zone_page_state(page, NR_VMSCAN_WRITE);
-+
-+	return PAGE_SUCCESS;
-+}
-+
- /*
-  * pageout is called by shrink_page_list() for each dirty page.
-  * Calls ->writepage().
-@@ -367,45 +416,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 	if (!may_write_to_queue(mapping->backing_dev_info))
- 		return PAGE_KEEP;
- 
--	if (clear_page_dirty_for_io(page)) {
--		int res;
--		struct writeback_control wbc = {
--			.sync_mode = WB_SYNC_NONE,
--			.nr_to_write = SWAP_CLUSTER_MAX,
--			.range_start = 0,
--			.range_end = LLONG_MAX,
--			.nonblocking = 1,
--			.for_reclaim = 1,
--		};
--
--		SetPageReclaim(page);
--		res = mapping->a_ops->writepage(page, &wbc);
--		if (res < 0)
--			handle_write_error(mapping, page, res);
--		if (res == AOP_WRITEPAGE_ACTIVATE) {
--			ClearPageReclaim(page);
--			return PAGE_ACTIVATE;
--		}
--
--		/*
--		 * Wait on writeback if requested to. This happens when
--		 * direct reclaiming a large contiguous area and the
--		 * first attempt to free a range of pages fails.
--		 */
--		if (PageWriteback(page) && sync_writeback == PAGEOUT_IO_SYNC)
--			wait_on_page_writeback(page);
--
--		if (!PageWriteback(page)) {
--			/* synchronous write or broken a_ops? */
--			ClearPageReclaim(page);
--		}
--		trace_mm_vmscan_writepage(page,
--			sync_writeback == PAGEOUT_IO_SYNC);
--		inc_zone_page_state(page, NR_VMSCAN_WRITE);
--		return PAGE_SUCCESS;
--	}
--
--	return PAGE_CLEAN;
-+	return write_reclaim_page(page, mapping, sync_writeback);
- }
- 
- /*
-@@ -621,20 +632,120 @@ static enum page_references page_check_references(struct page *page,
- }
- 
- /*
-+ * Clean a list of pages in contiguous ranges where possible. It is expected
-+ * that all the pages on page_list have been locked as part of isolation from
-+ * the LRU
-+ *
-+ * XXX: Is there a problem with holding multiple page locks like this?
-+ */
-+static noinline_for_stack void clean_page_list(struct list_head *page_list,
-+				struct scan_control *sc)
-+{
-+	LIST_HEAD(ret_pages);
-+	struct page *cursor, *page, *tmp;
-+
-+	struct writeback_control wbc = {
-+		.sync_mode = WB_SYNC_NONE,
-+	};
-+
-+	if (!sc->may_writepage)
-+		return;
-+
-+	/* Write the pages out to disk in ranges where possible */
-+	while (!list_empty(page_list)) {
-+		struct address_space *mapping;
-+		bool may_enter_fs;
-+
-+		cursor = lru_to_page(page_list);
-+		list_del(&cursor->lru);
-+		list_add(&cursor->lru, &ret_pages);
-+		mapping = page_mapping(cursor);
-+		if (!mapping || !may_write_to_queue(mapping->backing_dev_info)) {
-+			unlock_page(cursor);
-+			continue;
-+		}
-+
-+		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
-+			(PageSwapCache(cursor) && (sc->gfp_mask & __GFP_IO));
-+		if (!may_enter_fs) {
-+			unlock_page(cursor);
-+			continue;
-+		}
-+
-+		wbc.nr_to_write = LONG_MAX;
-+		wbc.range_start = page_offset(cursor);
-+		wbc.range_end = page_offset(cursor) + PAGE_CACHE_SIZE - 1;
-+
-+		/* Only search if there is an inode to pin the address_space with */
-+		if (!mapping->host)
-+			goto writeout;
-+
-+		/* Only search if the address_space is smart about ranges */
-+		if (!mapping->a_ops->writepages)
-+			goto writeout;
-+
-+		/* Find a range of pages to clean within this list */
-+		list_for_each_entry_safe(page, tmp, page_list, lru) {
-+			if (!PageDirty(page) || PageWriteback(page))
-+				continue;
-+			if (page_mapping(page) != mapping)
-+				continue;
-+
-+			list_del(&page->lru);
-+			unlock_page(page);
-+			list_add(&page->lru, &ret_pages);
-+
-+			wbc.range_start = min(wbc.range_start, page_offset(page));
-+			wbc.range_end = max(wbc.range_end, 
-+				(page_offset(page) + PAGE_CACHE_SIZE - 1));
-+		}
-+
-+writeout:
-+		if (wbc.range_start == wbc.range_end - PAGE_CACHE_SIZE + 1) {
-+			/* Write single page */
-+			switch (write_reclaim_page(cursor, mapping, PAGEOUT_IO_ASYNC)) {
-+			case PAGE_KEEP:
-+			case PAGE_ACTIVATE:
-+			case PAGE_CLEAN:
-+				unlock_page(cursor);
-+				break;
-+			case PAGE_SUCCESS:
-+				break;
-+			}
-+		} else {
-+			/* Grab inode under page lock before writing range */
-+			struct inode *inode = igrab(mapping->host);
-+			unlock_page(cursor);
-+			if (inode) {
-+				do_writepages(mapping, &wbc);
-+				iput(inode);
-+			}
-+		}
-+	}
-+	list_splice(&ret_pages, page_list);
-+}
-+
-+/*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
- 					struct scan_control *sc,
- 					enum pageout_io sync_writeback)
- {
--	LIST_HEAD(ret_pages);
-+	LIST_HEAD(putback_pages);
-+	LIST_HEAD(dirty_pages);
-+	struct list_head *ret_list = page_list;
- 	struct pagevec freed_pvec;
--	int pgactivate = 0;
-+	int pgactivate;
-+	bool cleaned = false;
- 	unsigned long nr_reclaimed = 0;
- 
-+	pgactivate = 0;
- 	cond_resched();
- 
- 	pagevec_init(&freed_pvec, 1);
-+
-+restart_dirty:
- 	while (!list_empty(page_list)) {
- 		enum page_references references;
- 		struct address_space *mapping;
-@@ -723,7 +834,18 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			}
- 		}
- 
--		if (PageDirty(page)) {
-+		if (PageDirty(page))  {
-+			/*
-+			 * On the first pass, dirty pages are put on a separate
-+			 * list. IO is then queued based on ranges of pages for
-+			 * each unique mapping in the list
-+			 */
-+			if (!cleaned) {
-+				/* Keep locked for clean_page_list */
-+				list_add(&page->lru, &dirty_pages);
-+				goto keep_dirty;
-+			}
-+
- 			if (references == PAGEREF_RECLAIM_CLEAN)
- 				goto keep_locked;
- 			if (!may_enter_fs)
-@@ -832,10 +954,20 @@ activate_locked:
- keep_locked:
- 		unlock_page(page);
- keep:
--		list_add(&page->lru, &ret_pages);
-+		list_add(&page->lru, &putback_pages);
-+keep_dirty:
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
- 	}
--	list_splice(&ret_pages, page_list);
-+
-+	if (!cleaned && !list_empty(&dirty_pages)) {
-+		clean_page_list(&dirty_pages, sc);
-+		page_list = &dirty_pages;
-+		cleaned = true;
-+		goto restart_dirty;
-+	}
-+	BUG_ON(!list_empty(&dirty_pages));
-+
-+	list_splice(&putback_pages, ret_list);
- 	if (pagevec_count(&freed_pvec))
- 		__pagevec_free(&freed_pvec);
- 	count_vm_events(PGACTIVATE, pgactivate);
+This implies it might not be easily reproducible because no commits
+happened between that window that affected anon_vma locking. I have the
+test running in a loop to see can I reproduce it.
+
+Thanks
+
 -- 
-1.7.1
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
