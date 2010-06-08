@@ -1,64 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 21BF06B01C4
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:45:30 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id o58IjPIV025984
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:45:25 -0700
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A46E76B01C4
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:47:45 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o58IlOIN008371
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:47:24 -0700
 Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
-	by hpaq12.eem.corp.google.com with ESMTP id o58IjOc7030478
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:45:24 -0700
-Received: by pxi19 with SMTP id 19so2322545pxi.17
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:45:23 -0700 (PDT)
-Date: Tue, 8 Jun 2010 11:45:18 -0700 (PDT)
+	by kpbe12.cbf.corp.google.com with ESMTP id o58IlJao015160
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:47:23 -0700
+Received: by pxi19 with SMTP id 19so2324335pxi.17
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:47:23 -0700 (PDT)
+Date: Tue, 8 Jun 2010 11:47:17 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 02/18] oom: sacrifice child with highest badness
- score for parent
-In-Reply-To: <20100607221121.8781.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006081144460.18848@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010013220.29202@chino.kir.corp.google.com> <20100607221121.8781.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 05/18] oom: give current access to memory reserves if it
+ has been killed
+In-Reply-To: <20100608203216.765D.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006081145560.18848@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524080.32225@chino.kir.corp.google.com> <20100608203216.765D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
 
-> > @@ -447,19 +450,27 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> >  		return 0;
-> >  	}
+> > It's possible to livelock the page allocator if a thread has mm->mmap_sem
+> > and fails to make forward progress because the oom killer selects another
+> > thread sharing the same ->mm to kill that cannot exit until the semaphore
+> > is dropped.
+> > 
+> > The oom killer will not kill multiple tasks at the same time; each oom
+> > killed task must exit before another task may be killed.  Thus, if one
+> > thread is holding mm->mmap_sem and cannot allocate memory, all threads
+> > sharing the same ->mm are blocked from exiting as well.  In the oom kill
+> > case, that means the thread holding mm->mmap_sem will never free
+> > additional memory since it cannot get access to memory reserves and the
+> > thread that depends on it with access to memory reserves cannot exit
+> > because it cannot acquire the semaphore.  Thus, the page allocators
+> > livelocks.
+> > 
+> > When the oom killer is called and current happens to have a pending
+> > SIGKILL, this patch automatically gives it access to memory reserves and
+> > returns.  Upon returning to the page allocator, its allocation will
+> > hopefully succeed so it can quickly exit and free its memory.  If not, the
+> > page allocator will fail the allocation if it is not __GFP_NOFAIL.
+> > 
+> > Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Signed-off-by: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/oom_kill.c |   10 ++++++++++
+> >  1 files changed, 10 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -650,6 +650,16 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >  		/* Got some memory back in the last second. */
+> >  		return;
 > >  
-> > -	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
-> > -					message, task_pid_nr(p), p->comm, points);
-> > +	pr_err("%s: Kill process %d (%s) with score %lu or sacrifice child\n",
-> > +		message, task_pid_nr(p), p->comm, points);
-> >  
-> > -	/* Try to kill a child first */
-> > +	do_posix_clock_monotonic_gettime(&uptime);
-> > +	/* Try to sacrifice the worst child first */
-> >  	list_for_each_entry(c, &p->children, sibling) {
-> > +		unsigned long cpoints;
+> > +	/*
+> > +	 * If current has a pending SIGKILL, then automatically select it.  The
+> > +	 * goal is to allow it to allocate so that it may quickly exit and free
+> > +	 * its memory.
+> > +	 */
+> > +	if (fatal_signal_pending(current)) {
+> > +		set_thread_flag(TIF_MEMDIE);
+> > +		return;
+> > +	}
 > > +
-> >  		if (c->mm == p->mm)
-> >  			continue;
-> >  		if (mem && !task_in_mem_cgroup(c, mem))
-> >  			continue;
-> > -		if (!oom_kill_task(c))
-> > -			return 0;
-> > +
+> >  	if (sysctl_panic_on_oom == 2) {
+> >  		dump_header(NULL, gfp_mask, order, NULL);
+> >  		panic("out of memory. Compulsory panic_on_oom is selected.\n");
 > 
-> need to the check of cpuset (and memplicy) memory intersection here, probably.
-> otherwise, this may selected innocence task.
+> Sorry, I had found this patch works incorrect. I don't pulled.
 > 
 
-I'll do this, then, if you don't want to post your own patch.  Fine.
+You're taking back your ack?
 
-> also, OOM_DISABL check is necessary?
-> 
+Why does this not work?  It's not killing a potentially immune task, the 
+task is already dying.  We're simply giving it access to memory reserves 
+so that it may quickly exit and die.  OOM_DISABLE does not imply that a 
+task cannot exit on its own or be killed by another application or user, 
+we simply don't want to needlessly kill another task when current is dying 
+in the first place without being able to allocate memory.
 
-No, badness() is 0 for tasks that are OOM_DISABLE.
+Please reconsider your thought.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
