@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 04D616B01C8
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:43:26 -0400 (EDT)
-Date: Tue, 8 Jun 2010 20:41:44 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 08/10] oom: use send_sig() instead force_sig()
-Message-ID: <20100608184144.GA5914@redhat.com>
-References: <20100608204621.767A.A69D9226@jp.fujitsu.com> <20100608210000.7692.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 21BF06B01C4
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:45:30 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id o58IjPIV025984
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:45:25 -0700
+Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
+	by hpaq12.eem.corp.google.com with ESMTP id o58IjOc7030478
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:45:24 -0700
+Received: by pxi19 with SMTP id 19so2322545pxi.17
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:45:23 -0700 (PDT)
+Date: Tue, 8 Jun 2010 11:45:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 02/18] oom: sacrifice child with highest badness
+ score for parent
+In-Reply-To: <20100607221121.8781.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006081144460.18848@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010013220.29202@chino.kir.corp.google.com> <20100607221121.8781.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100608210000.7692.A69D9226@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/08, KOSAKI Motohiro wrote:
->
-> Oleg pointed out oom_kill.c has force_sig() abuse. force_sig() mean
-> ignore signal mask. but SIGKILL itself is not maskable.
+On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
 
-Yes. And we have other reasons to avoid force_sig(). It should be used
-only for synchronous signals.
+> > @@ -447,19 +450,27 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  		return 0;
+> >  	}
+> >  
+> > -	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
+> > -					message, task_pid_nr(p), p->comm, points);
+> > +	pr_err("%s: Kill process %d (%s) with score %lu or sacrifice child\n",
+> > +		message, task_pid_nr(p), p->comm, points);
+> >  
+> > -	/* Try to kill a child first */
+> > +	do_posix_clock_monotonic_gettime(&uptime);
+> > +	/* Try to sacrifice the worst child first */
+> >  	list_for_each_entry(c, &p->children, sibling) {
+> > +		unsigned long cpoints;
+> > +
+> >  		if (c->mm == p->mm)
+> >  			continue;
+> >  		if (mem && !task_in_mem_cgroup(c, mem))
+> >  			continue;
+> > -		if (!oom_kill_task(c))
+> > -			return 0;
+> > +
+> 
+> need to the check of cpuset (and memplicy) memory intersection here, probably.
+> otherwise, this may selected innocence task.
+> 
 
-But,
+I'll do this, then, if you don't want to post your own patch.  Fine.
 
-> @@ -399,7 +399,7 @@ static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem)
->  	p->rt.time_slice = HZ;
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
->
-> -	force_sig(SIGKILL, p);
-> +	send_sig(SIGKILL, p, 1);
+> also, OOM_DISABL check is necessary?
+> 
 
-This is not right, we need send_sig(SIGKILL, p, 0). Better yet,
-send_sig_info(SIGKILL, SEND_SIG_NOINFO). I think send_sig() should
-die.
-
-The reason is that si_fromuser() must be true, otherwise we can't kill
-the SIGNAL_UNKILLABLE (sub-namespace inits) tasks.
-
-Oh. This reminds me, we really need the trivial (but annoying) cleanups
-here. The usage of SEND_SIG_ constants is messy, and they should be
-renamed at least.
-
-And in fact, we need the new one which acts like SEND_SIG_FORCED but
-si_fromuser(). We do not want to allocate the memory when the caller
-is oom_kill or zap_pid_ns_processes().
-
-OK. I'll send the simple patch which adds the new helper with the
-comment. send_sigkill() or kernel_kill_task(), or do you see a
-better name?
-
-Oleg.
+No, badness() is 0 for tasks that are OOM_DISABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
