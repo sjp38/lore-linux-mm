@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9336B01AF
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 04:55:07 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o588t0dJ006403
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 01:55:02 -0700
-Received: from pwj1 (pwj1.prod.google.com [10.241.219.65])
-	by hpaq2.eem.corp.google.com with ESMTP id o588subr029909
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 01:54:59 -0700
-Received: by pwj1 with SMTP id 1so2366013pwj.13
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 01:54:56 -0700 (PDT)
-Date: Tue, 8 Jun 2010 01:54:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC V2 SLEB 05/14] SLUB: is_kmalloc_cache
-In-Reply-To: <20100521211539.878341791@quilx.com>
-Message-ID: <alpine.DEB.2.00.1006080152060.15571@chino.kir.corp.google.com>
-References: <20100521211452.659982351@quilx.com> <20100521211539.878341791@quilx.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C27D46B01B9
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 05:02:30 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim and use a_ops->writepages() where possible
+Date: Tue,  8 Jun 2010 10:02:19 +0100
+Message-Id: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 May 2010, Christoph Lameter wrote:
+I finally got a chance last week to visit the topic of direct reclaim
+avoiding the writing out pages. As it came up during discussions the last
+time, I also had a stab at making the VM writing ranges of pages instead
+of individual pages. I am not proposing for merging yet until I want to see
+what people think of this general direction and if we can agree on if this
+is the right one or not.
 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2010-05-12 14:46:58.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2010-05-12 14:49:37.000000000 -0500
-> @@ -312,6 +312,11 @@ static inline int oo_objects(struct kmem
->  	return x.x & OO_MASK;
->  }
->  
-> +static int is_kmalloc_cache(struct kmem_cache *s)
-> +{
-> +	return (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches);
-> +}
-> +
->  #ifdef CONFIG_SLUB_DEBUG
->  /*
->   * Debug settings:
-> @@ -2076,7 +2081,7 @@ static DEFINE_PER_CPU(struct kmem_cache_
->  
->  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
->  {
-> -	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
-> +	if (is_kmalloc_cache(s))
->  		/*
->  		 * Boot time creation of the kmalloc array. Use static per cpu data
->  		 * since the per cpu allocator is not available yet.
-> @@ -2158,8 +2163,7 @@ static int init_kmem_cache_nodes(struct 
->  	int node;
->  	int local_node;
->  
-> -	if (slab_state >= UP && (s < kmalloc_caches ||
-> -			s >= kmalloc_caches + KMALLOC_CACHES))
-> +	if (slab_state >= UP && !is_kmalloc_cache(s))
->  		local_node = page_to_nid(virt_to_page(s));
->  	else
->  		local_node = 0;
+To summarise, there are two big problems with page reclaim right now. The
+first is that page reclaim uses a_op->writepage to write a back back
+under the page lock which is inefficient from an IO perspective due to
+seeky patterns.  The second is that direct reclaim calling the filesystem
+splices two potentially deep call paths together and potentially overflows
+the stack on complex storage or filesystems. This series is an early draft
+at tackling both of these problems and is in three stages.
 
-Looks good, how about extending it to dma_kmalloc_cache() as well?
----
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2641,13 +2641,12 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
- 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
- 			 (unsigned int)realsize);
- 
--	s = NULL;
- 	for (i = 0; i < KMALLOC_CACHES; i++)
- 		if (!kmalloc_caches[i].size)
- 			break;
- 
--	BUG_ON(i >= KMALLOC_CACHES);
- 	s = kmalloc_caches + i;
-+	BUG_ON(!is_kmalloc_cache(s));
- 
- 	/*
- 	 * Must defer sysfs creation to a workqueue because we don't know
+The first 4 patches are a forward-port of trace points that are partly
+based on trace points defined by Larry Woodman but never merged. They trace
+parts of kswapd, direct reclaim, LRU page isolation and page writeback. The
+tracepoints can be used to evaluate what is happening within reclaim and
+whether things are getting better or worse. They do not have to be part of
+the final series but might be useful during discussion.
+
+Patch 5 writes out contiguous ranges of pages where possible using
+a_ops->writepages. When writing a range, the inode is pinned and the page
+lock released before submitting to writepages(). This potentially generates
+a better IO pattern and it should avoid a lock inversion problem within the
+filesystem that wants the same page lock held by the VM. The downside with
+writing ranges is that the VM may not be generating more IO than necessary.
+
+Patch 6 prevents direct reclaim writing out pages at all and instead dirty
+pages are put back on the LRU. For lumpy reclaim, the caller will briefly
+wait on dirty pages to be written out before trying to reclaim the dirty
+pages a second time.
+
+The last patch increases the responsibility of kswapd somewhat because
+it's now cleaning pages on behalf of direct reclaimers but kswapd seemed
+a better fit than background flushers to clean pages as it knows where the
+pages needing cleaning are. As it's async IO, it should not cause kswapd to
+stall (at least until the queue is congested) but the order that pages are
+reclaimed on the LRU is altered. Dirty pages that would have been reclaimed
+by direct reclaimers are getting another lap on the LRU. The dirty pages
+could have been put on a dedicated list but this increased counter overhead
+and the number of lists and it is unclear if it is necessary.
+
+The series has survived performance and stress testing, particularly around
+high-order allocations on X86, X86-64 and PPC64. The results of the tests
+showed that while lumpy reclaim has a slightly lower success rate when
+allocating huge pages but it was still very acceptable rates, reclaim was
+a lot less disruptive and allocation latency was lower.
+
+Comments?
+
+ .../trace/postprocess/trace-vmscan-postprocess.pl  |  623 ++++++++++++++++++++
+ include/trace/events/gfpflags.h                    |   37 ++
+ include/trace/events/kmem.h                        |   38 +--
+ include/trace/events/vmscan.h                      |  184 ++++++
+ mm/vmscan.c                                        |  299 ++++++++--
+ 5 files changed, 1092 insertions(+), 89 deletions(-)
+ create mode 100644 Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+ create mode 100644 include/trace/events/gfpflags.h
+ create mode 100644 include/trace/events/vmscan.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
