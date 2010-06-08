@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A95086B0233
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 08:00:00 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o58BxwOW014941
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B14326B0237
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 08:01:48 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o58C1kXd020570
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 8 Jun 2010 20:59:58 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 57FC945DE4E
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:59:58 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D6ED45DD71
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:59:58 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 27B361DB8018
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:59:58 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D5B231DB8015
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:59:57 +0900 (JST)
+	Tue, 8 Jun 2010 21:01:46 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5488845DE50
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 21:01:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 337B745DE4F
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 21:01:46 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1ECADE18003
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 21:01:46 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA293E08001
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 21:01:45 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 07/10] oom: kill useless debug print
+Subject: [PATCH 08/10] oom: use send_sig() instead force_sig()
 In-Reply-To: <20100608204621.767A.A69D9226@jp.fujitsu.com>
 References: <20100608204621.767A.A69D9226@jp.fujitsu.com>
-Message-Id: <20100608205909.768F.A69D9226@jp.fujitsu.com>
+Message-Id: <20100608210000.7692.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  8 Jun 2010 20:59:57 +0900 (JST)
+Date: Tue,  8 Jun 2010 21:01:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Now, all of oom developers usually are using sysctl_oom_dump_tasks.
-Redundunt useless debug print can be removed.
+Oleg, I parsed your mention mean following patch, correct?
 
+
+===========================================
+Oleg pointed out oom_kill.c has force_sig() abuse. force_sig() mean 
+ignore signal mask. but SIGKILL itself is not maskable.
+So, we can use send_sig() sefely.
+
+Cc: Oleg Nesterov <oleg@redhat.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |    5 -----
- 1 files changed, 0 insertions(+), 5 deletions(-)
+ mm/oom_kill.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8376ad1..e7d3a5d 100644
+index e7d3a5d..599f977 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -33,7 +33,6 @@ int sysctl_panic_on_oom;
- int sysctl_oom_kill_allocating_task;
- int sysctl_oom_dump_tasks = 1;
- static DEFINE_SPINLOCK(zone_scan_lock);
--/* #define DEBUG */
+@@ -399,7 +399,7 @@ static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem)
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
  
- /*
-  * Is all threads of the target process nodes overlap ours?
-@@ -201,10 +200,6 @@ unsigned long oom_badness(struct task_struct *p, unsigned long uptime)
- 			points >>= -(oom_adj);
- 	}
+-	force_sig(SIGKILL, p);
++	send_sig(SIGKILL, p, 1);
  
--#ifdef DEBUG
--	printk(KERN_DEBUG "OOMkill: task %d (%s) got %lu points\n",
--	p->pid, p->comm, points);
--#endif
- 	return points;
+ 	return 0;
  }
- 
 -- 
 1.6.5.2
 
