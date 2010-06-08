@@ -1,35 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3CB6B01C8
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 19:28:15 -0400 (EDT)
-Date: Tue, 8 Jun 2010 16:28:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch -mm 03/18] oom: select task from tasklist for mempolicy
- ooms
-Message-Id: <20100608162807.d73d02ef.akpm@linux-foundation.org>
-In-Reply-To: <20100607085714.8750.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1006010013360.29202@chino.kir.corp.google.com>
-	<20100607085714.8750.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B59126B01B4
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 19:36:00 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o58NZtZR006114
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:35:55 -0700
+Received: from pzk27 (pzk27.prod.google.com [10.243.19.155])
+	by kpbe16.cbf.corp.google.com with ESMTP id o58NZsIF014113
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 16:35:54 -0700
+Received: by pzk27 with SMTP id 27so161133pzk.2
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 16:35:54 -0700 (PDT)
+Date: Tue, 8 Jun 2010 16:35:52 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC V2 SLEB 01/14] slab: Introduce a constant for a unspecified
+ node.
+In-Reply-To: <AANLkTikQhjlCPnwiK7AZo27Xb3h-Lj2JyCeqFQaVzpHX@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1006081633450.19582@chino.kir.corp.google.com>
+References: <20100521211452.659982351@quilx.com> <20100521211537.530913777@quilx.com> <alpine.DEB.2.00.1006071443120.10905@chino.kir.corp.google.com> <alpine.DEB.2.00.1006071729560.12482@router.home> <AANLkTikOKy6ZQQh2zORJDvGDE0golvyzsvlvDj-P5cur@mail.gmail.com>
+ <alpine.DEB.2.00.1006072319330.31780@chino.kir.corp.google.com> <AANLkTikQhjlCPnwiK7AZo27Xb3h-Lj2JyCeqFQaVzpHX@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  8 Jun 2010 20:41:52 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 8 Jun 2010, Pekka Enberg wrote:
 
-> > -			panic("out of memory. panic_on_oom is selected\n");
-> > +			panic("Out of memory: panic_on_oom is enabled\n");
+> > An incremental patch in this case would change everything that the
+> > original patch did, so it'd probably be best to simply revert and queue
+> > the updated version.
 > 
-> you shouldn't immix undocumented and unnecessary change.
+> If I revert it, we end up with two commits instead of one. And I
+> really prefer not to *rebase* a topic branch even though it might be
+> doable for a small tree like slab.git.
+> 
 
-Well...  strictly true.  But there's not a lot of benefit in being all
-dogmatic about these things.  If the change is simple and is of some
-benefit and deosn't muck up the patch too much, I just let it go, shrug.
+I commented on improvements for three of the five patches you've added as 
+slub cleanups and Christoph has shown an interest in proposing them again 
+(perhaps seperating patches 1-5 out as a seperate set of cleanups?), so 
+it's probably cleaner to just reset and reapply with the revisions.  
+
+Let me know if my suggested changes should be add-on patches to 
+Christoph's first five and I'll come up with a three patch series to do 
+just that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
