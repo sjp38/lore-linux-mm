@@ -1,74 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AB6A66B0216
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 07:54:59 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o58BsuMh013012
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C47D76B0212
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 07:55:35 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o58BtYZU013380
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 8 Jun 2010 20:54:56 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BF9C445DE4D
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:54:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F0B545DE4F
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:54:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 898661DB803F
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:54:55 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 492DEE18003
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:54:52 +0900 (JST)
+	Tue, 8 Jun 2010 20:55:34 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EF35845DE55
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:55:33 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C949345DE52
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:55:33 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E1C8E08002
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:55:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AE161DB803C
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:55:33 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 01/10] oom: don't try to kill oom_unkillable child
+Subject: [PATCH 02/10] oom: remove verbose argument from __oom_kill_process()
 In-Reply-To: <20100608204621.767A.A69D9226@jp.fujitsu.com>
 References: <20100608204621.767A.A69D9226@jp.fujitsu.com>
-Message-Id: <20100608205343.767D.A69D9226@jp.fujitsu.com>
+Message-Id: <20100608205454.7680.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  8 Jun 2010 20:54:51 +0900 (JST)
+Date: Tue,  8 Jun 2010 20:55:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Now, badness() doesn't care neigher CPUSET nor mempolicy. Then
-if the victim child process is oom_unkillable()==1, __out_of_memory()
-can makes kernel hang eventually.
+Now, verbose argument is unused. This patch remove it.
 
-This patch fixes it.
+[remark: this patch is needed to fold to "oom: remove PF_EXITING
+check completely"]
 
-
-[remark: this is needed to fold "oom: sacrifice child with highest
-badness score for parent"]
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ mm/oom_kill.c |   20 +++++++++-----------
+ 1 files changed, 9 insertions(+), 11 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d49d542..0d7397b 100644
+index 0d7397b..3c83fba 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -387,9 +387,6 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem,
- 			      int verbose)
+@@ -384,20 +384,18 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+  * set.
+  */
+-static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem,
+-			      int verbose)
++static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem)
  {
--	if (oom_unkillable(p, mem))
--		return 1;
--
  	p = find_lock_task_mm(p);
  	if (!p)
  		return 1;
-@@ -440,6 +437,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 
+-	if (verbose)
+-		printk(KERN_ERR "Killed process %d (%s) "
+-		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+-		       task_pid_nr(p), p->comm,
+-		       K(p->mm->total_vm),
+-		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
+-		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
++	printk(KERN_ERR "Killed process %d (%s) "
++	       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
++	       task_pid_nr(p), p->comm,
++	       K(p->mm->total_vm),
++	       K(get_mm_counter(p->mm, MM_ANONPAGES)),
++	       K(get_mm_counter(p->mm, MM_FILEPAGES)));
+ 	task_unlock(p);
+ 
+ 	/*
+@@ -437,7 +435,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
  
  			if (c->mm == p->mm)
  				continue;
-+			if (oom_unkillable(c, mem, nodemask))
-+				continue;
+-			if (oom_unkillable(c, mem, nodemask))
++			if (oom_unkillable(c, mem))
+ 				continue;
  
  			/* badness() returns 0 if the thread is unkillable */
- 			cpoints = badness(c, uptime.tv_sec);
+@@ -449,7 +447,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		}
+ 	} while_each_thread(p, t);
+ 
+-	return __oom_kill_process(victim, mem, 1);
++	return __oom_kill_process(victim, mem);
+ }
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 -- 
 1.6.5.2
 
