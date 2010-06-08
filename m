@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 07DD76B01C4
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:38:05 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o58Ibx3e007308
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:38:00 -0700
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by kpbe16.cbf.corp.google.com with ESMTP id o58IbwR3031940
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:37:58 -0700
-Received: by pwj6 with SMTP id 6so226050pwj.8
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:37:58 -0700 (PDT)
-Date: Tue, 8 Jun 2010 11:37:52 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E6C46B01C6
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:39:03 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id o58IcxnU016494
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:38:59 -0700
+Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
+	by hpaq7.eem.corp.google.com with ESMTP id o58IcR1B017091
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:38:58 -0700
+Received: by pzk30 with SMTP id 30so4279452pzk.6
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:38:58 -0700 (PDT)
+Date: Tue, 8 Jun 2010 11:38:54 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 01/18] oom: filter tasks not sharing the same
- cpuset
-In-Reply-To: <20100606170713.8718.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006081135510.18848@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010013080.29202@chino.kir.corp.google.com> <20100606170713.8718.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch -mm 11/18] oom: avoid oom killer for lowmem allocations
+In-Reply-To: <20100606184014.8727.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006081138290.18848@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006010008410.29202@chino.kir.corp.google.com> <alpine.DEB.2.00.1006010015460.29202@chino.kir.corp.google.com> <20100606184014.8727.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,31 +25,22 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
 
-> > @@ -267,6 +259,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
-> >  			continue;
-> >  		if (mem && !task_in_mem_cgroup(p, mem))
-> >  			continue;
-> > +		if (!has_intersects_mems_allowed(p))
-> > +			continue;
-> >  
-> >  		/*
-> >  		 * This task already has access to memory reserves and is
+> > Previously, the heuristic provided some protection for those tasks with
+> > CAP_SYS_RAWIO, but this is no longer necessary since we will not be
+> > killing tasks for the purposes of ISA allocations.
 > 
-> now we have three places of oom filtering
->   (1) select_bad_process
-
-Done.
-
->   (2) dump_tasks
-
-dump_tasks() has never filtered on this, it's possible for tasks is other 
-cpusets to allocate memory on our nodes.
-
->   (3) oom_kill_task (when oom_kill_allocating_task==1 only)
+> Seems incorrect. CAP_SYS_RAWIO tasks usually both use GFP_KERNEL and GFP_DMA.
+> Even if last allocation is GFP_KERNEL, it doesn't provide any gurantee the
+> process doesn't have any in flight I/O.
 > 
 
-Why would care about cpuset attachment in oom_kill_task()?  You mean 
-oom_kill_process() to filter the children list?
+Right, that's why I said it "provided some protection".
+
+> Then, we can't remove for RAWIO protection from oom heuristics. but the code
+> itself seems ok though.
+> 
+
+It's removed with my heuristic rewrite.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
