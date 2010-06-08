@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 969B36B01CC
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:49:17 -0400 (EDT)
-Date: Tue, 8 Jun 2010 14:49:14 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: RFC: dirty_ratio back to 40%
-Message-ID: <20100608184913.GA12154@infradead.org>
-References: <4BF51B0A.1050901@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BFD26B01D1
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 14:51:52 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o58IpkUh026908
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:51:47 -0700
+Received: from pwi6 (pwi6.prod.google.com [10.241.219.6])
+	by wpaz29.hot.corp.google.com with ESMTP id o58IpUEC024526
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 11:51:45 -0700
+Received: by pwi6 with SMTP id 6so1833113pwi.28
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 11:51:45 -0700 (PDT)
+Date: Tue, 8 Jun 2010 11:51:32 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 07/18] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <20100608203342.7663.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006081149320.18848@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524310.32225@chino.kir.corp.google.com> <20100608203342.7663.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4BF51B0A.1050901@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Did this patch get merged somewhere?
+On Tue, 8 Jun 2010, KOSAKI Motohiro wrote:
 
-On Thu, May 20, 2010 at 07:20:42AM -0400, Larry Woodman wrote:
-> We've seen multiple performance regressions linked to the lower(20%)
-> dirty_ratio.  When performing enough IO to overwhelm the background
-> flush daemons the percent of dirty pagecache memory quickly climbs
-> to the new/lower dirty_ratio value of 20%.  At that point all
-> writing processes are forced to stop and write dirty pagecache pages
-> back to disk.  This causes performance regressions in several
-> benchmarks as well as causing
-> a noticeable overall sluggishness.  We all know that the dirty_ratio is
-> an integrity vs performance trade-off but the file system journaling
-> will cover any devastating effects in the event of a system crash.
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -184,14 +184,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+> >  		points /= 4;
+> >  
+> >  	/*
+> > -	 * If p's nodes don't overlap ours, it may still help to kill p
+> > -	 * because p may have allocated or otherwise mapped memory on
+> > -	 * this node before. However it will be less likely.
+> > -	 */
+> > -	if (!has_intersects_mems_allowed(p))
+> > -		points /= 8;
+> > -
+> > -	/*
+> >  	 * Adjust the score by oom_adj.
+> >  	 */
+> >  	if (oom_adj) {
+> > @@ -277,6 +269,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
+> >  			continue;
+> >  		if (mem && !task_in_mem_cgroup(p, mem))
+> >  			continue;
+> > +		if (!has_intersects_mems_allowed(p))
+> > +			continue;
+> >  
+> >  		/*
+> >  		 * This task already has access to memory reserves and is
 > 
-> Increasing the dirty_ratio to 40% will regain the performance loss seen
-> in several benchmarks.  Whats everyone think about this???
+> pulled. but I'll merge my fix. and append historical remark.
 > 
-> 
-> 
-> 
-> 
-> ------------------------------------------------------------------------
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index ef27e73..645a462 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -78,7 +78,7 @@ int vm_highmem_is_dirtyable;
-> /*
->  * The generator of dirty data starts writeback at this percentage
->  */
-> -int vm_dirty_ratio = 20;
-> +int vm_dirty_ratio = 40;
-> 
-> /*
->  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
----end quoted text---
+
+Andrew, are you the maintainer for these fixes or is KOSAKI?
+
+I've been posting this particular patch for at least three months with 
+five acks:
+
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Nick Piggin <npiggin@suse.de>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+and now he's saying he'll merge his own fix and rewrite the changelog and 
+pull it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
