@@ -1,145 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 49AA36B01D6
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 05:19:06 -0400 (EDT)
-Received: by vws8 with SMTP id 8so329175vws.14
-        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 02:19:03 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E6C6B01BA
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 05:52:23 -0400 (EDT)
+Date: Wed, 9 Jun 2010 10:52:00 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+	and use a_ops->writepages() where possible
+Message-ID: <20100609095200.GA5650@csn.ul.ie>
+References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie> <20100609115211.435a45f7.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
-References: <AANLkTin1OS3LohKBvWyS81BoAk15Y-riCiEdcevSA7ye@mail.gmail.com>
-	<1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
-	<AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
-Date: Wed, 9 Jun 2010 17:19:02 +0800
-Message-ID: <AANLkTik-cwrabXH_bQRPFtTo3C9r30B83jMf4IwJKCms@mail.gmail.com>
-Subject: Re: mmotm 2010-06-03-16-36 lots of suspected kmemleak
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100609115211.435a45f7.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, riel@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 9, 2010 at 10:37 AM, Dave Young <hidave.darkstar@gmail.com> wro=
-te:
-> On Tue, Jun 8, 2010 at 12:43 AM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
->> On Mon, 2010-06-07 at 11:00 +0100, Dave Young wrote:
->>> On Mon, Jun 7, 2010 at 5:19 PM, Catalin Marinas <catalin.marinas@arm.co=
-m> wrote:
->>> > On Mon, 2010-06-07 at 06:20 +0100, Dave Young wrote:
->>> >> On Fri, Jun 4, 2010 at 9:55 PM, Dave Young <hidave.darkstar@gmail.co=
-m> wrote:
->>> >> > On Fri, Jun 4, 2010 at 6:50 PM, Catalin Marinas <catalin.marinas@a=
-rm.com> wrote:
->>> >> >> Dave Young <hidave.darkstar@gmail.com> wrote:
->>> >> >>> With mmotm 2010-06-03-16-36, I gots tuns of kmemleaks
->>> >> >>
->>> >> >> Do you have CONFIG_NO_BOOTMEM enabled? I posted a patch for this =
-but
->>> >> >> hasn't been reviewed yet (I'll probably need to repost, so if it =
-fixes
->>> >> >> the problem for you a Tested-by would be nice):
->>> >> >>
->>> >> >> http://lkml.org/lkml/2010/5/4/175
->>> >> >
->>> >> >
->>> >> > I'd like to test, but I can not access the test pc during weekend.=
- So
->>> >> > I will test it next monday.
->>> >>
->>> >> Bad news, the patch does not fix this issue.
->>> >
->>> > Thanks for trying. Could you please just disable CONFIG_NO_BOOTMEM an=
-d
->>> > post the kmemleak reported leaks again?
->>>
->>> Still too many suspected leaks, results similar with
->>> (CONFIG_NO_BOOTMEM =3D y && apply your patch), looks like a little
->>> different from original ones? I just copy some of them here:
->>>
->>> unreferenced object 0xde3c7420 (size 44):
->>> =C2=A0 comm "bash", pid 1631, jiffies 4294897023 (age 223.573s)
->>> =C2=A0 hex dump (first 32 bytes):
->>> =C2=A0 =C2=A0 05 05 00 00 ad 4e ad de ff ff ff ff ff ff ff ff =C2=A0...=
-..N..........
->>> =C2=A0 =C2=A0 98 42 d9 c1 00 00 00 00 50 fe 63 c1 10 32 8f dd =C2=A0.B.=
-.....P.c..2..
->>> =C2=A0 backtrace:
->>> =C2=A0 =C2=A0 [<c1498ad2>] kmemleak_alloc+0x4a/0x83
->>> =C2=A0 =C2=A0 [<c10c1ace>] kmem_cache_alloc+0xde/0x12a
->>> =C2=A0 =C2=A0 [<c10b421b>] anon_vma_fork+0x31/0x88
->>> =C2=A0 =C2=A0 [<c102c71d>] dup_mm+0x1d3/0x38f
->>> =C2=A0 =C2=A0 [<c102d20d>] copy_process+0x8ce/0xf39
->>> =C2=A0 =C2=A0 [<c102d990>] do_fork+0x118/0x295
->>> =C2=A0 =C2=A0 [<c1007fe0>] sys_clone+0x1f/0x24
->>> =C2=A0 =C2=A0 [<c10029b1>] ptregs_clone+0x15/0x24
->>> =C2=A0 =C2=A0 [<ffffffff>] 0xffffffff
->>
->> I'll try to test the mmotm kernel as well. I don't get any kmemleak
->> reports with the 2.6.35-rc1 kernel.
->
-> Manually bisected mm patches, the memleak caused by following patch:
->
-> mm-extend-ksm-refcounts-to-the-anon_vma-root.patch
+On Wed, Jun 09, 2010 at 11:52:11AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue,  8 Jun 2010 10:02:19 +0100
+> > <SNIP>
+> > 
+> > Patch 5 writes out contiguous ranges of pages where possible using
+> > a_ops->writepages. When writing a range, the inode is pinned and the page
+> > lock released before submitting to writepages(). This potentially generates
+> > a better IO pattern and it should avoid a lock inversion problem within the
+> > filesystem that wants the same page lock held by the VM. The downside with
+> > writing ranges is that the VM may not be generating more IO than necessary.
+> > 
+> > Patch 6 prevents direct reclaim writing out pages at all and instead dirty
+> > pages are put back on the LRU. For lumpy reclaim, the caller will briefly
+> > wait on dirty pages to be written out before trying to reclaim the dirty
+> > pages a second time.
+> > 
+> > The last patch increases the responsibility of kswapd somewhat because
+> > it's now cleaning pages on behalf of direct reclaimers but kswapd seemed
+> > a better fit than background flushers to clean pages as it knows where the
+> > pages needing cleaning are. As it's async IO, it should not cause kswapd to
+> > stall (at least until the queue is congested) but the order that pages are
+> > reclaimed on the LRU is altered. Dirty pages that would have been reclaimed
+> > by direct reclaimers are getting another lap on the LRU. The dirty pages
+> > could have been put on a dedicated list but this increased counter overhead
+> > and the number of lists and it is unclear if it is necessary.
+> > 
+> > <SNIP>
+> 
+> My concern is how memcg should work. IOW, what changes will be necessary for
+> memcg to work with the new vmscan logic as no-direct-writeback.
+> 
 
-Add following debug code:
+At worst, memcg waits on background flushers to clean their pages but
+obviously this could lead to stalls in containers if it happened to be full
+of dirty pages.
 
- void drop_anon_vma(struct anon_vma *anon_vma)
- {
-+       int a, b;
-+       a =3D  anonvma_external_refcount(anon_vma);
-+       b =3D  anonvma_external_refcount(anon_vma->root);
-+       if (!a || !b) {
-+               printk("drop_anon_vma: ref %d ", a);
-+               printk("root ref %d\n", b);
-+       }
+Do you have test scenarios already setup for functional and performance
+regression testing of containers? If so, can you run tests with this series
+and see what sort of impact you find? I haven't done performance testing
+with containers to date so I don't know what the expected values are.
 
-result in below debug output:
+> Maybe an ideal solution will be
+>  - support buffered I/O tracking in I/O cgroup.
+>  - flusher threads should work with I/O cgroup.
+>  - memcg itself should support dirty ratio. and add a trigger to kick flusher
+>    threads for dirty pages in a memcg.
+> But I know it's a long way.
+> 
 
-[   52.948614] drop_anon_vma: ref 0 root ref 0
-[   52.949770] Pid: 1403, comm: ps Not tainted 2.6.35-rc1-mm1 #29
-[   52.951386] Call Trace:
-[   52.952062]  [<c14b1128>] ? printk+0x20/0x24
-[   52.953210]  [<c10b409c>] drop_anon_vma+0x37/0xb3
-[   52.954503]  [<c10b418c>] unlink_anon_vmas+0x74/0xc4
-[   52.955854]  [<c10aeaa0>] free_pgtables+0x45/0x95
-[   52.957142]  [<c10b00fd>] exit_mmap+0xab/0xfe
-[   52.958325]  [<c102fafa>] ? exit_mm+0xdd/0xec
-[   52.959497]  [<c102c25d>] mmput+0x49/0xcf
-[   52.960605]  [<c102fb01>] exit_mm+0xe4/0xec
-[   52.961750]  [<c103137c>] do_exit+0x1b4/0x64b
-[   52.962921]  [<c1031875>] do_group_exit+0x62/0x85
-[   52.964212]  [<c10318ab>] sys_exit_group+0x13/0x17
-[   52.965523]  [<c14b344d>] syscall_call+0x7/0xb
+I'm not very familiar with memcg I'm afraid or its requirements so I am
+having trouble guessing which of these would behave the best. You could take
+a gamble on having memcg doing writeback in direct reclaim but you may run
+into the same problem of overflowing stacks.
 
-So I guess the refcount break, either drop-without-get or over-drop
+I'm not sure how a flusher thread would work just within a cgroup. It
+would have to do a lot of searching to find the pages it needs
+considering that it's looking at inodes rather than pages.
 
->
-> cc Rik van Riel
->
->>
->> Can you send me your .config file? Do you have CONFIG_HUGETLBFS enabled?
->>
->> Thanks.
->>
->> --
->> Catalin
->>
->>
->
->
->
-> --
-> Regards
-> dave
->
+One possibility I guess would be to create a flusher-like thread if a direct
+reclaimer finds that the dirty pages in the container are above the dirty
+ratio. It would scan and clean all dirty pages in the container LRU on behalf
+of dirty reclaimers.
 
+Another possibility would be to have kswapd work in containers.
+Specifically, if wakeup_kswapd() is called with a cgroup that it's added
+to a list. kswapd gives priority to global reclaim but would
+occasionally check if there is a container that needs kswapd on a
+pending list and if so, work within the container. Is there a good
+reason why kswapd does not work within container groups?
 
+Finally, you could just allow reclaim within a memcg do writeback. Right
+now, the check is based on current_is_kswapd() but I could create a helper
+function that also checked for sc->mem_cgroup. Direct reclaim from the
+page allocator never appears to work within a container group (which
+raises questions in itself such as why a process in a container would
+reclaim pages outside the container?) so it would remain safe.
 
---=20
-Regards
-dave
+> How the new logic works with memcg ? Because memcg doesn't trigger kswapd,
+> memcg has to wait for a flusher thread make pages clean ?
+
+Right now, memcg has to wait for a flusher thread to make pages clean.
+
+> Or memcg should have kswapd-for-memcg ?
+> 
+> Is it okay to call writeback directly when !scanning_global_lru() ?
+> memcg's reclaim routine is only called from specific positions, so, I guess
+> no stack problem.
+
+It's a judgement call from you really. I see that direct reclaimers do
+not set mem_cgroup so it's down to - are you reasonably sure that all
+the paths that reclaim based on a container are not deep? I looked
+around for a while and the bulk appeared to be in the fault path so I
+would guess "yes" but as I'm not familiar with the memcg implementation
+I'll have missed a lot.
+
+> But we just have I/O pattern problem.
+
+True.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
