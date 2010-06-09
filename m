@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 543F76B01AF
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 12:22:05 -0400 (EDT)
-Date: Wed, 9 Jun 2010 11:18:24 -0500 (CDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 379656B01B0
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 12:23:17 -0400 (EDT)
+Date: Wed, 9 Jun 2010 11:20:02 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 1/4] slub: replace SLAB_NODE_UNSPECIFIED with
- NUMA_NO_NODE
-In-Reply-To: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006091114580.21686@router.home>
-References: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com>
+Subject: Re: [patch 2/4] slub: rename debug_on to cache_debug_on
+In-Reply-To: <alpine.DEB.2.00.1006082348160.30606@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006091119000.21686@router.home>
+References: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com> <alpine.DEB.2.00.1006082348160.30606@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,16 +15,14 @@ To: David Rientjes <rientjes@google.com>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 8 Jun 2010, David Rientjes wrote:
 
-Sigh. I wish we could have avoided this. Neither name is satisfactory
-here. The meaning of -1 is unspecified. A node specification may be
-implicit here depending on the memory allocation policy. I was not sure
-how exactly to resolve the situation.
+> debug_on() is too generic of a name for a slub function, so rename it to
+> the more appropriate cache_debug_on().
 
-But this way work with NUMA_NO_NODE. Certainly better.
+Urgh. Sounds Slabby. Cache is too generic. kmem_cache_debug_on()?
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-
+I thought the generic is ok here since its only use is within slub.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
