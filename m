@@ -1,45 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 91C146B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 17:05:38 -0400 (EDT)
-Date: Wed, 9 Jun 2010 23:03:59 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: Make coredump interruptible
-Message-ID: <20100609210358.GA16545@redhat.com>
-References: <20100602185812.4B5894A549@magilla.sf.frob.com> <20100602203827.GA29244@redhat.com> <20100604194635.72D3.A69D9226@jp.fujitsu.com> <20100604112721.GA12582@redhat.com> <20100609195309.GA6899@redhat.com> <alpine.DEB.2.00.1006091341040.3490@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1006091341040.3490@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE106B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 19:31:26 -0400 (EDT)
+Date: Wed, 9 Jun 2010 16:30:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] radix-tree: Implement function
+ radix_tree_gang_tag_if_tagged
+Message-Id: <20100609163045.797ae621.akpm@linux-foundation.org>
+In-Reply-To: <1275676854-15461-2-git-send-email-jack@suse.cz>
+References: <1275676854-15461-1-git-send-email-jack@suse.cz>
+	<1275676854-15461-2-git-send-email-jack@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Roland McGrath <roland@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@kernel.org, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/09, David Rientjes wrote:
->
-> On Wed, 9 Jun 2010, Oleg Nesterov wrote:
->
-> > --- x/mm/oom_kill.c
-> > +++ x/mm/oom_kill.c
-> > @@ -414,6 +414,7 @@ static void __oom_kill_task(struct task_
-> >  	p->rt.time_slice = HZ;
-> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> >
-> > +	clear_bit(MMF_COREDUMP, &p->mm->flags);
-> >  	force_sig(SIGKILL, p);
-> >  }
-> >
->
-> This requires task_lock(p).
+On Fri,  4 Jun 2010 20:40:53 +0200
+Jan Kara <jack@suse.cz> wrote:
 
-Yes, yes, sure. This is only template. I'll wait for the next mmotm
-to send the actual patch on top of recent changes. Unless Kosaki/Roland
-have other ideas.
+> Implement function for setting one tag if another tag is set
+> for each item in given range.
+> 
+>
+> ...
+>
+>  /**
+> + * radix_tree_gang_tag_if_tagged - for each item in given range set given
+> + *				   tag if item has another tag set
+> + * @root:		radix tree root
+> + * @first_index:	starting index of a range to scan
+> + * @last_index:		last index of a range to scan
+> + * @iftag: 		tag index to test
+> + * @settag:		tag index to set if tested tag is set
+> + *
+> + * This function scans range of radix tree from first_index to last_index.
+> + * For each item in the range if iftag is set, the function sets also
+> + * settag.
+> + *
+> + * The function returns number of leaves where the tag was set.
+> + */
+> +unsigned long radix_tree_gang_tag_if_tagged(struct radix_tree_root *root,
+> +                unsigned long first_index, unsigned long last_index,
+> +                unsigned int iftag, unsigned int settag)
 
-Imho, we really need to fix the coredump/oom problem.
+This is kind of a misuse of the term "gang".
 
-Oleg.
+First we had radix_tree_lookup(), which returned a single page.
+
+That was a bit inefficient, so then we added radix_tree_gang_lookup(),
+which retuned a "gang" of pages.
+
+But radix_tree_gang_tag_if_tagged() doesn't return a gang of anything
+(it has no `void **results' argument).
+
+radix_tree_range_tag_if_tagged()?
+
+
+> +{
+> +	unsigned int height = root->height, shift;
+> +	unsigned long tagged = 0, index = first_index;
+> +	struct radix_tree_node *open_slots[height], *slot;
+> +
+> +	last_index = min(last_index, radix_tree_maxindex(height));
+> +	if (first_index > last_index)
+> +		return 0;
+> +	if (!root_tag_get(root, iftag))
+> +		return 0;
+> +	if (height == 0) {
+> +		root_tag_set(root, settag);
+> +		return 1;
+> +	}
+> +
+> +	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
+> +	slot = radix_tree_indirect_to_ptr(root->rnode);
+> +
+> +	for (;;) {
+> +		int offset;
+> +
+> +		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+> +		if (!slot->slots[offset])
+> +			goto next;
+> +		if (!tag_get(slot, iftag, offset))
+> +			goto next;
+> +		tag_set(slot, settag, offset);
+> +		if (height == 1) {
+> +			tagged++;
+> +			goto next;
+> +		}
+> +		/* Go down one level */
+> +		height--;
+> +		shift -= RADIX_TREE_MAP_SHIFT;
+> +		open_slots[height] = slot;
+> +		slot = slot->slots[offset];
+> +		continue;
+> +next:
+> +		/* Go to next item at level determined by 'shift' */
+> +		index = ((index >> shift) + 1) << shift;
+> +		if (index > last_index)
+> +			break;
+> +		while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
+> +			/*
+> +			 * We've fully scanned this node. Go up. Because
+> +			 * last_index is guaranteed to be in the tree, what
+> +			 * we do below cannot wander astray.
+> +			 */
+> +			slot = open_slots[height];
+> +			height++;
+> +			shift += RADIX_TREE_MAP_SHIFT;
+> +		}
+> +	}
+> +	/*
+> +	 * The iftag must have been set somewhere because otherwise
+> +	 * we would return immediated at the beginning of the function
+> +	 */
+> +	root_tag_set(root, settag);
+> +
+> +	return tagged;
+> +}
+> +EXPORT_SYMBOL(radix_tree_gang_tag_if_tagged);
+
+Wouldn't this be a lot simpler if it used __lookup_tag()?  Along the
+lines of
+
+	do {
+		slot *slots[N];
+
+		n = __lookup_tag(.., slots, ...);
+		for (i = 0; i < n; i++)
+			tag_set(slots[i], ...);
+	} while (something);
+
+?
+
+That's still one cache miss per slot and misses on the slots will
+preponderate, so the performance won't be much different.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
