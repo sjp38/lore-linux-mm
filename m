@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B0BFA6B01DF
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:25:35 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o590PXQn026009
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:25:33 -0700
-Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
-	by wpaz1.hot.corp.google.com with ESMTP id o590PEoV027716
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:25:32 -0700
-Received: by pzk33 with SMTP id 33so5554763pzk.17
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:25:31 -0700 (PDT)
-Date: Tue, 8 Jun 2010 17:25:26 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 360CE6B01D2
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:30:32 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id o590URMt024073
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:30:29 -0700
+Received: from pvc7 (pvc7.prod.google.com [10.241.209.135])
+	by hpaq7.eem.corp.google.com with ESMTP id o590UPaO015672
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:30:26 -0700
+Received: by pvc7 with SMTP id 7so38533pvc.34
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:30:25 -0700 (PDT)
+Date: Tue, 8 Jun 2010 17:30:21 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 07/18] oom: filter tasks not sharing the same cpuset
-In-Reply-To: <20100608132339.54db2317.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1006081718240.19582@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524310.32225@chino.kir.corp.google.com> <20100608132339.54db2317.akpm@linux-foundation.org>
+Subject: Re: [patch 08/18] oom: sacrifice child with highest badness score
+ for parent
+In-Reply-To: <20100608133356.6e941d20.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1006081726550.19582@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524470.32225@chino.kir.corp.google.com> <20100608133356.6e941d20.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,61 +26,84 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, Andrew Morton wrote:
 
-> > Tasks that do not share the same set of allowed nodes with the task that
-> > triggered the oom should not be considered as candidates for oom kill.
-> > 
-> > Tasks in other cpusets with a disjoint set of mems would be unfairly
-> > penalized otherwise because of oom conditions elsewhere; an extreme
-> > example could unfairly kill all other applications on the system if a
-> > single task in a user's cpuset sets itself to OOM_DISABLE and then uses
-> > more memory than allowed.
-> > 
-> > Killing tasks outside of current's cpuset rarely would free memory for
-> > current anyway.  To use a sane heuristic, we must ensure that killing a
-> > task would likely free memory for current and avoid needlessly killing
-> > others at all costs just because their potential memory freeing is
-> > unknown.  It is better to kill current than another task needlessly.
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -441,8 +441,11 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  			    unsigned long points, struct mem_cgroup *mem,
+> >  			    const char *message)
+> >  {
+> > +	struct task_struct *victim = p;
+> >  	struct task_struct *c;
+> >  	struct task_struct *t = p;
+> > +	unsigned long victim_points = 0;
+> > +	struct timespec uptime;
+> >  
+> >  	if (printk_ratelimit())
+> >  		dump_header(p, gfp_mask, order, mem);
+> > @@ -456,22 +459,30 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  		return 0;
+> >  	}
+> >  
+> > -	printk(KERN_ERR "%s: kill process %d (%s) score %li or a child\n",
+> > -					message, task_pid_nr(p), p->comm, points);
+> > +	pr_err("%s: Kill process %d (%s) score %lu or sacrifice child\n",
+> > +		message, task_pid_nr(p), p->comm, points);
 > 
-> This is all a bit arbitrary, isn't it?  The key word here is "rarely". 
-
-"rarely" certainly is an arbitrary term in this case because it depends 
-heavily on the memory usage of other cpuset's on the system.  Consider a 
-cpuset with 16G of memory and a single task which consumes most of that 
-memory.  Then consider a cpuset with a single 1G node and a task that ooms 
-within it; the 16G task in the other cpuset gets killed.
-
-There must either be a complete exclusion or inclusion of a task for 
-candidacy if the scale of memory usage amongst our cpusets cannot be 
-properly attributed with a single heuristic (such as divide by 4, divide 
-by 8, etc).  To me, it never seems approprate to penalize another cpuset's 
-tasks by the small chance that it may have allocated atomic memory 
-elsewhere or the nodes have been recently changed.  The goal is to be more 
-predictable about oom killing decisions without negatively impacting other 
-cpusets, and this is a step in that direction.
-
-> If indeed this task had allocated gobs of memory from `current's nodes
-> and then sneakily switched nodes, this will be a big regression!
+> fyi, access to another task's ->comm is racy against prctl().  Fixable
+> with get_task_comm().  But that takes task_lock(), which is risky in
+> this code.  The world wouldn't end if we didn't fix this ;)
 > 
 
-It could be, but that's the fault of userspace for allocating a node that 
-is almost full to a new cpuset and expecting it to be completely free.  In 
-other words, we can arrange our cpusets with mems however we want but 
-we need some guarantee that giving a cpuset completely free memory and 
-then killing a task within it because another cpuset went oom doesn't 
-happen.
+I'll look into doing that, thanks!
 
-> So..  It's not completely clear to me how we justify this decision. 
-> Are we erring too far on the side of keep-tasks-running?  Is failing to
-> clear the oom a lot bigger problem than killing an innocent task?  I
-> think so.  In which case we should err towards slaughtering the
-> innocent?
+> > -	/* Try to kill a child first */
+> > +	/* Try to sacrifice the worst child first */
+> > +	do_posix_clock_monotonic_gettime(&uptime);
+> >  	do {
+> > +		unsigned long cpoints;
+> 
+> This could be local to the list_for_each_entry() block.
 > 
 
-The one thing we know is that if the victim's mems_allowed is truly 
-disjoint from current that there's no guarantee we'll be freeing memory at 
-all.  And if we free any, it's the result of the GFP_ATOMIC allocations 
-that are allowed anywhere or was previously allocated on one of current's 
-mems.
+Ok.
+
+> What does "cpoints" mean?
+> 
+
+child points :)  I'll send an incremental patch.
+
+> >  		list_for_each_entry(c, &t->children, sibling) {
+> 
+> I'm surprised we don't have a sched.h helper for this.  Maybe it's not
+> a very common thing to do.
+> 
+> >  			if (c->mm == p->mm)
+> >  				continue;
+> >  			if (mem && !task_in_mem_cgroup(c, mem))
+> >  				continue;
+> > -			if (!oom_kill_task(c))
+> > -				return 0;
+> > +
+> > +			/* badness() returns 0 if the thread is unkillable */
+> > +			cpoints = badness(c, uptime.tv_sec);
+> > +			if (cpoints > victim_points) {
+> > +				victim = c;
+> > +				victim_points = cpoints;
+> > +			}
+> >  		}
+> >  	} while_each_thread(p, t);
+> >  
+> > -	return oom_kill_task(p);
+> > +	return oom_kill_task(victim);
+> >  }
+> 
+> And this function is secretly called under tasklist_lock, which is what
+> pins *victim, yes?
+> 
+
+All of the out_of_memory() helper functions are called under 
+tasklist_lock, which is what makes all these iterations safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
