@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BD5C56B01AD
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 15:47:37 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o59JlYEU016239
-	for <linux-mm@kvack.org>; Wed, 9 Jun 2010 12:47:34 -0700
-Received: from pwi9 (pwi9.prod.google.com [10.241.219.9])
-	by kpbe16.cbf.corp.google.com with ESMTP id o59JlV21015995
-	for <linux-mm@kvack.org>; Wed, 9 Jun 2010 12:47:33 -0700
-Received: by pwi9 with SMTP id 9so958686pwi.30
-        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 12:47:31 -0700 (PDT)
-Date: Wed, 9 Jun 2010 12:47:28 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 3/4] slub: use is_kmalloc_cache in dma_kmalloc_cache
-In-Reply-To: <alpine.DEB.2.00.1006091120460.21686@router.home>
-Message-ID: <alpine.DEB.2.00.1006091246160.26827@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com> <alpine.DEB.2.00.1006082348310.30606@chino.kir.corp.google.com> <alpine.DEB.2.00.1006091120460.21686@router.home>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A671B6B01AD
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 15:54:43 -0400 (EDT)
+Date: Wed, 9 Jun 2010 21:53:09 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: Make coredump interruptible
+Message-ID: <20100609195309.GA6899@redhat.com>
+References: <20100602185812.4B5894A549@magilla.sf.frob.com> <20100602203827.GA29244@redhat.com> <20100604194635.72D3.A69D9226@jp.fujitsu.com> <20100604112721.GA12582@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100604112721.GA12582@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Roland McGrath <roland@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jun 2010, Christoph Lameter wrote:
-
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -2649,13 +2649,12 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
-> >  	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
-> >  			 (unsigned int)realsize);
+On 06/04, Oleg Nesterov wrote:
+>
+> On 06/04, KOSAKI Motohiro wrote:
 > >
-> > -	s = NULL;
-> >  	for (i = 0; i < KMALLOC_CACHES; i++)
-> >  		if (!kmalloc_caches[i].size)
-> >  			break;
+> > In multi threaded OOM case, we have two problematic routine, coredump
+> > and vmscan. Roland's idea can only solve the former.
 > >
-> > -	BUG_ON(i >= KMALLOC_CACHES);
-> >  	s = kmalloc_caches + i;
-> > +	BUG_ON(!is_kmalloc_cache(s));
-> 
-> The point here is to check if the index I is still within the bonds of
-> kmalloc_cache. Use of is_kmalloc_cache() will confuse the reader.
-> 
+> > But I also interest vmscan quickly exit if OOM received.
+>
+> Yes, agreed. See another email from me, MMF_ flags looks "obviously
+> useful" to me.
 
-Why does that confuse the reader?  It ensures that s is actually still a 
-kmalloc_cache, meaning that i is within the bounds of the kmalloc_caches 
-array.  Seems pretty straightforward to me.
+Well. But somehow we forgot about the !coredumping case... Suppose
+that select_bad_process() chooses the process P to kill and we have
+other processes (not sub-threads) which share the same ->mm.
+
+In that case I am not sure we should blindly set MMF_OOMKILL. Suppose
+that we kill P and after that the "out-of-memory" condition goes away.
+But its ->mm still has MMF_OOMKILL set, and it is used. Who/when will
+clear this flag?
+
+Perhaps something like below makes sense for now.
+
+Oleg.
+
+--- x/fs/exec.c
++++ x/fs/exec.c
+@@ -1594,6 +1594,7 @@ static inline int zap_threads(struct tas
+ 	spin_lock_irq(&tsk->sighand->siglock);
+ 	if (!signal_group_exit(tsk->signal)) {
+ 		mm->core_state = core_state;
++		set_bit(MMF_COREDUMP, &mm->flags);
+ 		nr = zap_process(tsk, exit_code);
+ 	}
+ 	spin_unlock_irq(&tsk->sighand->siglock);
+--- x/fs/binfmt_elf.c
++++ x/fs/binfmt_elf.c
+@@ -2028,6 +2028,9 @@ static int elf_core_dump(struct coredump
+ 			struct page *page;
+ 			int stop;
+ 
++			if (!test_bit(MMF_COREDUMP, &current->mm->flags))
++				goto end_coredump;
++
+ 			page = get_dump_page(addr);
+ 			if (page) {
+ 				void *kaddr = kmap(page);
+--- x/mm/oom_kill.c
++++ x/mm/oom_kill.c
+@@ -414,6 +414,7 @@ static void __oom_kill_task(struct task_
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+ 
++	clear_bit(MMF_COREDUMP, &p->mm->flags);
+ 	force_sig(SIGKILL, p);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
