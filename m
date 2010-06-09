@@ -1,81 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 297C76B01CC
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 01:18:23 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o595IJr1018109
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 9 Jun 2010 14:18:20 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6178845DE55
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 14:18:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 35F5045DE4F
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 14:18:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 203A51DB8017
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 14:18:19 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C358F1DB8012
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 14:18:18 +0900 (JST)
-Date: Wed, 9 Jun 2010 14:14:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages
-Message-Id: <20100609141401.ecdad9f1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100609094734.cbb744aa.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100608054003.GY4603@balbir.in.ibm.com>
-	<20100609094734.cbb744aa.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B787D6B01C4
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 01:55:21 -0400 (EDT)
+Received: by bwz1 with SMTP id 1so1808649bwz.14
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 22:55:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1006081633450.19582@chino.kir.corp.google.com>
+References: <20100521211452.659982351@quilx.com>
+	<20100521211537.530913777@quilx.com>
+	<alpine.DEB.2.00.1006071443120.10905@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1006071729560.12482@router.home>
+	<AANLkTikOKy6ZQQh2zORJDvGDE0golvyzsvlvDj-P5cur@mail.gmail.com>
+	<alpine.DEB.2.00.1006072319330.31780@chino.kir.corp.google.com>
+	<AANLkTikQhjlCPnwiK7AZo27Xb3h-Lj2JyCeqFQaVzpHX@mail.gmail.com>
+	<alpine.DEB.2.00.1006081633450.19582@chino.kir.corp.google.com>
+Date: Wed, 9 Jun 2010 08:55:18 +0300
+Message-ID: <AANLkTimFmupRJ-np-V9TeiUNAqXmnyui3uYMs3PD1bWB@mail.gmail.com>
+Subject: Re: [RFC V2 SLEB 01/14] slab: Introduce a constant for a unspecified
+	node.
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jun 2010 09:47:34 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Hi David,
 
-> > Looks nice, Kamezawa-San could you please confirm the source of
-> > raw_spin_lock_irqsave and trylock from /proc/lock_stat?
-> >  
-> Sure. But above result can be got when lockdep etc..are off.
-> (it increase lock overhead)
-> 
-> But yes, new _raw_spin_lock seems strange.
-> 
-Here.
-==
-         ------------------------------
-          &(&mm->page_table_lock)->rlock       20812995          [<ffffffff81124019>] handle_mm_fault+0x7a9/0x9b0
-          &(&mm->page_table_lock)->rlock              9          [<ffffffff81120c5b>] __pte_alloc+0x4b/0xf0
-          &(&mm->page_table_lock)->rlock              4          [<ffffffff8112c70d>] anon_vma_prepare+0xad/0x180
-          &(&mm->page_table_lock)->rlock          83395          [<ffffffff811204b4>] unmap_vmas+0x3c4/0xa60
-          ------------------------------
-          &(&mm->page_table_lock)->rlock              7          [<ffffffff81120c5b>] __pte_alloc+0x4b/0xf0
-          &(&mm->page_table_lock)->rlock       20812987          [<ffffffff81124019>] handle_mm_fault+0x7a9/0x9b0
-          &(&mm->page_table_lock)->rlock              2          [<ffffffff8112c70d>] anon_vma_prepare+0xad/0x180
-          &(&mm->page_table_lock)->rlock          83408          [<ffffffff811204b4>] unmap_vmas+0x3c4/0xa60
+(I'm LKML and Ingo to CC.)
 
-                &(&p->alloc_lock)->rlock:       6304532        6308276           0.14        1772.97     7098177.74       23165904       23222238           0.00        1980.76    12445023.62
-                ------------------------
-                &(&p->alloc_lock)->rlock        6308277          [<ffffffff81153e17>] __mem_cgroup_try_charge+0x327/0x590
-                ------------------------
-                &(&p->alloc_lock)->rlock        6308277          [<ffffffff81153e17>] __mem_cgroup_try_charge+0x327/0x590
+On Tue, 8 Jun 2010, Pekka Enberg wrote:
+>> > An incremental patch in this case would change everything that the
+>> > original patch did, so it'd probably be best to simply revert and queue
+>> > the updated version.
+>>
+>> If I revert it, we end up with two commits instead of one. And I
+>> really prefer not to *rebase* a topic branch even though it might be
+>> doable for a small tree like slab.git.
 
+On Wed, Jun 9, 2010 at 2:35 AM, David Rientjes <rientjes@google.com> wrote:
+> I commented on improvements for three of the five patches you've added as
+> slub cleanups and Christoph has shown an interest in proposing them again
+> (perhaps seperating patches 1-5 out as a seperate set of cleanups?), so
+> it's probably cleaner to just reset and reapply with the revisions.
 
+As I said, we can probably get away with that in slab.git because
+we're so small but that doesn't work in general.
 
-==
+If we ignore the fact how painful the actual rebase operation is
+(there's a 'sleb/core' branch that shares the commits), I don't think
+the revised history is 'cleaner' by any means. The current patches are
+known to be good (I've tested them) but if I just replace them, all
+the testing effort was basically wasted. So if I need to do a
+git-bisect, for example, I didn't benefit one bit from testing the
+original patches.
 
-Then, new raw_spin_lock is task_lock(). This is because task_lock(mm->owner) makes
-cacheline ping pong ;(
+The other issue is patch metadata. If I just nuke the existing
+patches, I'm also could be dropping important stuff like Tested-by or
+Reported-by tags. Yes, I realize that in this particular case, there's
+none but the approach works only as long as you remember exactly what
+you merged.
 
-So, this is not very good patch for multi-threaded programs, Sigh...
-I'll consider how I can get safe access without locks again..
+There are probably other benefits for larger trees but those two are
+enough for me to keep my published branches append-only.
 
-Thanks,
--Kame
+On Wed, Jun 9, 2010 at 2:35 AM, David Rientjes <rientjes@google.com> wrote:
+> Let me know if my suggested changes should be add-on patches to
+> Christoph's first five and I'll come up with a three patch series to do
+> just that.
+
+Yes, I really would prefer incremental patches on top of the
+'slub/cleanups' branch.
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
