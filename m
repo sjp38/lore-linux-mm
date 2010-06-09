@@ -1,115 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7194C6B01D2
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 22:44:13 -0400 (EDT)
-Received: by vws19 with SMTP id 19so952151vws.14
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 19:44:11 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
-References: <AANLkTin1OS3LohKBvWyS81BoAk15Y-riCiEdcevSA7ye@mail.gmail.com>
-	<1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
-	<AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
-Date: Wed, 9 Jun 2010 10:44:10 +0800
-Message-ID: <AANLkTilbhdPy8tq-brAotFDlOkyZxB3uEXSD-PQJLpBL@mail.gmail.com>
-Subject: Re: mmotm 2010-06-03-16-36 lots of suspected kmemleak
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CD09B6B01CD
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 22:56:38 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o592uZDs023169
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 9 Jun 2010 11:56:35 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 160A645DE5D
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 11:56:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D714045DE4F
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 11:56:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BD0901DB803B
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 11:56:34 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 59012E08002
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 11:56:31 +0900 (JST)
+Date: Wed, 9 Jun 2010 11:52:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+ and use a_ops->writepages() where possible
+Message-Id: <20100609115211.435a45f7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
+References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, riel@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 9, 2010 at 10:37 AM, Dave Young <hidave.darkstar@gmail.com> wro=
-te:
-> On Tue, Jun 8, 2010 at 12:43 AM, Catalin Marinas
-> <catalin.marinas@arm.com> wrote:
->> On Mon, 2010-06-07 at 11:00 +0100, Dave Young wrote:
->>> On Mon, Jun 7, 2010 at 5:19 PM, Catalin Marinas <catalin.marinas@arm.co=
-m> wrote:
->>> > On Mon, 2010-06-07 at 06:20 +0100, Dave Young wrote:
->>> >> On Fri, Jun 4, 2010 at 9:55 PM, Dave Young <hidave.darkstar@gmail.co=
-m> wrote:
->>> >> > On Fri, Jun 4, 2010 at 6:50 PM, Catalin Marinas <catalin.marinas@a=
-rm.com> wrote:
->>> >> >> Dave Young <hidave.darkstar@gmail.com> wrote:
->>> >> >>> With mmotm 2010-06-03-16-36, I gots tuns of kmemleaks
->>> >> >>
->>> >> >> Do you have CONFIG_NO_BOOTMEM enabled? I posted a patch for this =
-but
->>> >> >> hasn't been reviewed yet (I'll probably need to repost, so if it =
-fixes
->>> >> >> the problem for you a Tested-by would be nice):
->>> >> >>
->>> >> >> http://lkml.org/lkml/2010/5/4/175
->>> >> >
->>> >> >
->>> >> > I'd like to test, but I can not access the test pc during weekend.=
- So
->>> >> > I will test it next monday.
->>> >>
->>> >> Bad news, the patch does not fix this issue.
->>> >
->>> > Thanks for trying. Could you please just disable CONFIG_NO_BOOTMEM an=
-d
->>> > post the kmemleak reported leaks again?
->>>
->>> Still too many suspected leaks, results similar with
->>> (CONFIG_NO_BOOTMEM =3D y && apply your patch), looks like a little
->>> different from original ones? I just copy some of them here:
->>>
->>> unreferenced object 0xde3c7420 (size 44):
->>> =C2=A0 comm "bash", pid 1631, jiffies 4294897023 (age 223.573s)
->>> =C2=A0 hex dump (first 32 bytes):
->>> =C2=A0 =C2=A0 05 05 00 00 ad 4e ad de ff ff ff ff ff ff ff ff =C2=A0...=
-..N..........
->>> =C2=A0 =C2=A0 98 42 d9 c1 00 00 00 00 50 fe 63 c1 10 32 8f dd =C2=A0.B.=
-.....P.c..2..
->>> =C2=A0 backtrace:
->>> =C2=A0 =C2=A0 [<c1498ad2>] kmemleak_alloc+0x4a/0x83
->>> =C2=A0 =C2=A0 [<c10c1ace>] kmem_cache_alloc+0xde/0x12a
->>> =C2=A0 =C2=A0 [<c10b421b>] anon_vma_fork+0x31/0x88
->>> =C2=A0 =C2=A0 [<c102c71d>] dup_mm+0x1d3/0x38f
->>> =C2=A0 =C2=A0 [<c102d20d>] copy_process+0x8ce/0xf39
->>> =C2=A0 =C2=A0 [<c102d990>] do_fork+0x118/0x295
->>> =C2=A0 =C2=A0 [<c1007fe0>] sys_clone+0x1f/0x24
->>> =C2=A0 =C2=A0 [<c10029b1>] ptregs_clone+0x15/0x24
->>> =C2=A0 =C2=A0 [<ffffffff>] 0xffffffff
->>
->> I'll try to test the mmotm kernel as well. I don't get any kmemleak
->> reports with the 2.6.35-rc1 kernel.
+On Tue,  8 Jun 2010 10:02:19 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-maybe you do not set CONFIG_KSM?
+> I finally got a chance last week to visit the topic of direct reclaim
+> avoiding the writing out pages. As it came up during discussions the last
+> time, I also had a stab at making the VM writing ranges of pages instead
+> of individual pages. I am not proposing for merging yet until I want to see
+> what people think of this general direction and if we can agree on if this
+> is the right one or not.
+> 
+> To summarise, there are two big problems with page reclaim right now. The
+> first is that page reclaim uses a_op->writepage to write a back back
+> under the page lock which is inefficient from an IO perspective due to
+> seeky patterns.  The second is that direct reclaim calling the filesystem
+> splices two potentially deep call paths together and potentially overflows
+> the stack on complex storage or filesystems. This series is an early draft
+> at tackling both of these problems and is in three stages.
+> 
+> The first 4 patches are a forward-port of trace points that are partly
+> based on trace points defined by Larry Woodman but never merged. They trace
+> parts of kswapd, direct reclaim, LRU page isolation and page writeback. The
+> tracepoints can be used to evaluate what is happening within reclaim and
+> whether things are getting better or worse. They do not have to be part of
+> the final series but might be useful during discussion.
+> 
+> Patch 5 writes out contiguous ranges of pages where possible using
+> a_ops->writepages. When writing a range, the inode is pinned and the page
+> lock released before submitting to writepages(). This potentially generates
+> a better IO pattern and it should avoid a lock inversion problem within the
+> filesystem that wants the same page lock held by the VM. The downside with
+> writing ranges is that the VM may not be generating more IO than necessary.
+> 
+> Patch 6 prevents direct reclaim writing out pages at all and instead dirty
+> pages are put back on the LRU. For lumpy reclaim, the caller will briefly
+> wait on dirty pages to be written out before trying to reclaim the dirty
+> pages a second time.
+> 
+> The last patch increases the responsibility of kswapd somewhat because
+> it's now cleaning pages on behalf of direct reclaimers but kswapd seemed
+> a better fit than background flushers to clean pages as it knows where the
+> pages needing cleaning are. As it's async IO, it should not cause kswapd to
+> stall (at least until the queue is congested) but the order that pages are
+> reclaimed on the LRU is altered. Dirty pages that would have been reclaimed
+> by direct reclaimers are getting another lap on the LRU. The dirty pages
+> could have been put on a dedicated list but this increased counter overhead
+> and the number of lists and it is unclear if it is necessary.
+> 
+> The series has survived performance and stress testing, particularly around
+> high-order allocations on X86, X86-64 and PPC64. The results of the tests
+> showed that while lumpy reclaim has a slightly lower success rate when
+> allocating huge pages but it was still very acceptable rates, reclaim was
+> a lot less disruptive and allocation latency was lower.
+> 
+> Comments?
+> 
 
->
-> Manually bisected mm patches, the memleak caused by following patch:
->
-> mm-extend-ksm-refcounts-to-the-anon_vma-root.patch
->
-> cc Rik van Riel
->
->>
->> Can you send me your .config file? Do you have CONFIG_HUGETLBFS enabled?
->>
->> Thanks.
->>
->> --
->> Catalin
->>
->>
->
->
->
-> --
-> Regards
-> dave
->
+My concern is how memcg should work. IOW, what changes will be necessary for
+memcg to work with the new vmscan logic as no-direct-writeback.
+
+Maybe an ideal solution will be
+ - support buffered I/O tracking in I/O cgroup.
+ - flusher threads should work with I/O cgroup.
+ - memcg itself should support dirty ratio. and add a trigger to kick flusher
+   threads for dirty pages in a memcg.
+But I know it's a long way.
+
+How the new logic works with memcg ? Because memcg doesn't trigger kswapd,
+memcg has to wait for a flusher thread make pages clean ?
+Or memcg should have kswapd-for-memcg ?
+
+Is it okay to call writeback directly when !scanning_global_lru() ?
+memcg's reclaim routine is only called from specific positions, so, I guess
+no stack problem. But we just have I/O pattern problem.
+
+Thanks,
+-Kame
 
 
 
---=20
-Regards
-dave
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
