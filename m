@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9EB6B01DD
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 23:59:32 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o593xTE8002690
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 20:59:29 -0700
-Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
-	by hpaq2.eem.corp.google.com with ESMTP id o593xIes006983
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 20:59:28 -0700
-Received: by pzk30 with SMTP id 30so4749714pzk.6
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 20:59:27 -0700 (PDT)
-Date: Tue, 8 Jun 2010 20:59:24 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id EB1496B01E0
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 23:59:35 -0400 (EDT)
+Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
+	by smtp-out.google.com with ESMTP id o593xXVB004989
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 20:59:33 -0700
+Received: from pxi4 (pxi4.prod.google.com [10.243.27.4])
+	by kpbe14.cbf.corp.google.com with ESMTP id o593xW5h024065
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 20:59:32 -0700
+Received: by pxi4 with SMTP id 4so2898031pxi.26
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 20:59:32 -0700 (PDT)
+Date: Tue, 8 Jun 2010 20:59:28 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 5/6] oom: sacrifice child with highest badness score for
- parent fix
+Subject: [patch -mm 6/6] oom: improve commentary in dump_tasks()
 In-Reply-To: <alpine.DEB.2.00.1006082053130.6219@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006082058260.6219@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006082058400.6219@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1006082053130.6219@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,67 +23,53 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Oleg Nesterov <oleg@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Elaborate on the comment in oom_kill_process() so it's clear why a
-killable child with a different mm is sacrificied for its parent.
+The comments in dump_tasks() should be updated to be more clear about why
+tasks are filtered and how they are filtered by its argument.
 
-At the same time, rename auto variable `c' to "child" and move "cpoints"
-inside the list_for_each_entry() loop with a more descriptive name as
-akpm suggests.
+An unnecessary comment concerning a check for is_global_init() is removed
+since it isn't of importance.
 
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/oom_kill.c |   25 +++++++++++++++----------
- 1 files changed, 15 insertions(+), 10 deletions(-)
+ mm/oom_kill.c |   11 +++--------
+ 1 files changed, 3 insertions(+), 8 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -440,7 +440,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			    const char *message)
- {
- 	struct task_struct *victim = p;
--	struct task_struct *c;
-+	struct task_struct *child;
- 	struct task_struct *t = p;
- 	unsigned long victim_points = 0;
- 	struct timespec uptime;
-@@ -462,22 +462,27 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		message, task_pid_nr(p), p->comm, points);
- 	task_unlock(p);
+@@ -351,7 +351,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
  
--	/* Try to sacrifice the worst child first */
-+	/*
-+	 * If any of p's children has a different mm and is eligible for kill,
-+	 * the one with the highest badness() score is sacrificed for its
-+	 * parent.  This attempts to lose the minimal amount of work done while
-+	 * still freeing memory.
-+	 */
- 	do_posix_clock_monotonic_gettime(&uptime);
- 	do {
--		unsigned long cpoints;
-+		list_for_each_entry(child, &t->children, sibling) {
-+			unsigned long child_points;
- 
--		list_for_each_entry(c, &t->children, sibling) {
--			if (c->mm == p->mm)
-+			if (child->mm == p->mm)
- 				continue;
--			if (mem && !task_in_mem_cgroup(c, mem))
-+			if (mem && !task_in_mem_cgroup(child, mem))
- 				continue;
- 
- 			/* badness() returns 0 if the thread is unkillable */
--			cpoints = badness(c, uptime.tv_sec);
--			if (cpoints > victim_points) {
--				victim = c;
--				victim_points = cpoints;
-+			child_points = badness(child, uptime.tv_sec);
-+			if (child_points > victim_points) {
-+				victim = child;
-+				victim_points = child_points;
- 			}
- 		}
- 	} while_each_thread(p, t);
+ /**
+  * dump_tasks - dump current memory state of all system tasks
+- * @mem: target memory controller
++ * @mem: current's memory controller, if constrained
+  *
+  * Dumps the current memory state of all system tasks, excluding kernel threads.
+  * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
+@@ -370,11 +370,6 @@ static void dump_tasks(const struct mem_cgroup *mem)
+ 	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
+ 	       "name\n");
+ 	for_each_process(p) {
+-		/*
+-		 * We don't have is_global_init() check here, because the old
+-		 * code do that. printing init process is not big matter. But
+-		 * we don't hope to make unnecessary compatibility breaking.
+-		 */
+ 		if (p->flags & PF_KTHREAD)
+ 			continue;
+ 		if (mem && !task_in_mem_cgroup(p, mem))
+@@ -383,8 +378,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
+ 		task = find_lock_task_mm(p);
+ 		if (!task) {
+ 			/*
+-			 * Probably oom vs task-exiting race was happen and ->mm
+-			 * have been detached. thus there's no need to report
++			 * This is a kthread or all of p's threads have already
++			 * detached their mm's.  There's no need to report 
+ 			 * them; they can't be oom killed anyway.
+ 			 */
+ 			continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
