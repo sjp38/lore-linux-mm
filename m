@@ -1,193 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DCD76B01CC
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:46:54 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o590kpju017376
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:46:51 -0700
-Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
-	by kpbe19.cbf.corp.google.com with ESMTP id o590kok0002836
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:46:50 -0700
-Received: by pzk1 with SMTP id 1so3769149pzk.8
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:46:50 -0700 (PDT)
-Date: Tue, 8 Jun 2010 17:46:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 09/18] oom: select task from tasklist for mempolicy
- ooms
-In-Reply-To: <20100608140818.b413c335.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1006081741150.19582@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061525000.32225@chino.kir.corp.google.com> <20100608140818.b413c335.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E56B06B01D2
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:51:58 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o590ptre014612
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 9 Jun 2010 09:51:55 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E6EF3A62C4
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 09:51:55 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 31F3F1EF086
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 09:51:53 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 171DF1DB801A
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 09:51:53 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7510D1DB8017
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 09:51:52 +0900 (JST)
+Date: Wed, 9 Jun 2010 09:47:34 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages
+Message-Id: <20100609094734.cbb744aa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100608054003.GY4603@balbir.in.ibm.com>
+References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100608054003.GY4603@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jun 2010, Andrew Morton wrote:
+On Tue, 8 Jun 2010 11:10:04 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> > The oom killer presently kills current whenever there is no more memory
-> > free or reclaimable on its mempolicy's nodes.  There is no guarantee that
-> > current is a memory-hogging task or that killing it will free any
-> > substantial amount of memory, however.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-08 12:19:01]:
+> 
+> > Now, I think pre_destroy->force_empty() works very well and we can get rid of
+> > css_put/get per pages. This has very big effect in some special case.
 > > 
-> > In such situations, it is better to scan the tasklist for nodes that are
-> > allowed to allocate on current's set of nodes and kill the task with the
-> > highest badness() score.  This ensures that the most memory-hogging task,
-> > or the one configured by the user with /proc/pid/oom_adj, is always
-> > selected in such scenarios.
+> > This is a test result with a multi-thread page fault program
+> > (I used at rwsem discussion.)
 > > 
+> > [Before patch]
+> >    25.72%  multi-fault-all  [kernel.kallsyms]      [k] clear_page_c
+> >      8.18%  multi-fault-all  [kernel.kallsyms]      [k] try_get_mem_cgroup_from_mm
+> >      8.17%  multi-fault-all  [kernel.kallsyms]      [k] down_read_trylock
+> >      8.03%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock_irqsave
+> >      5.46%  multi-fault-all  [kernel.kallsyms]      [k] __css_put
+> >      5.45%  multi-fault-all  [kernel.kallsyms]      [k] __alloc_pages_nodemask
+> >      4.36%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock_irq
+> >      4.35%  multi-fault-all  [kernel.kallsyms]      [k] up_read
+> >      3.59%  multi-fault-all  [kernel.kallsyms]      [k] css_put
+> >      2.37%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock
+> >      1.80%  multi-fault-all  [kernel.kallsyms]      [k] mem_cgroup_add_lru_list
+> >      1.78%  multi-fault-all  [kernel.kallsyms]      [k] __rmqueue
+> >      1.65%  multi-fault-all  [kernel.kallsyms]      [k] handle_mm_fault
+> > 
+> > try_get_mem_cgroup_from_mm() is a one of heavy ops because of false-sharing in
+> > css's counter for css_get/put.
+> > 
+> > I removed that.
+> > 
+> > [After]
+> >    26.16%  multi-fault-all  [kernel.kallsyms]      [k] clear_page_c
+> >     11.73%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock
+> >      9.23%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock_irqsave
+> >      9.07%  multi-fault-all  [kernel.kallsyms]      [k] down_read_trylock
+> >      6.09%  multi-fault-all  [kernel.kallsyms]      [k] _raw_spin_lock_irq
+> >      5.57%  multi-fault-all  [kernel.kallsyms]      [k] __alloc_pages_nodemask
+> >      4.86%  multi-fault-all  [kernel.kallsyms]      [k] up_read
+> >      2.54%  multi-fault-all  [kernel.kallsyms]      [k] __mem_cgroup_commit_charge
+> >      2.29%  multi-fault-all  [kernel.kallsyms]      [k] _cond_resched
+> >      2.04%  multi-fault-all  [kernel.kallsyms]      [k] mem_cgroup_add_lru_list
+> >      1.82%  multi-fault-all  [kernel.kallsyms]      [k] handle_mm_fault
+> > 
+> > Hmm. seems nice. But I don't convince my patch has no race.
+> > I'll continue test but your help is welcome.
 > >
-> > ...
-> >
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -27,6 +27,7 @@
-> >  #include <linux/module.h>
-> >  #include <linux/notifier.h>
-> >  #include <linux/memcontrol.h>
-> > +#include <linux/mempolicy.h>
-> >  #include <linux/security.h>
-> >  
-> >  int sysctl_panic_on_oom;
-> > @@ -36,20 +37,36 @@ static DEFINE_SPINLOCK(zone_scan_lock);
-> >  /* #define DEBUG */
-> >  
-> >  /*
-> > - * Is all threads of the target process nodes overlap ours?
-> > + * Do all threads of the target process overlap our allowed nodes?
-> > + * @tsk: task struct of which task to consider
-> > + * @mask: nodemask passed to page allocator for mempolicy ooms
 > 
-> The comment uses kerneldoc annotation but isn't a kerneldoc comment.
-> 
+> Looks nice, Kamezawa-San could you please confirm the source of
+> raw_spin_lock_irqsave and trylock from /proc/lock_stat?
+>  
+Sure. But above result can be got when lockdep etc..are off.
+(it increase lock overhead)
 
-I'll fix it.
+But yes, new _raw_spin_lock seems strange.
 
-> >   */
-> > -static int has_intersects_mems_allowed(struct task_struct *tsk)
-> > +static bool has_intersects_mems_allowed(struct task_struct *tsk,
-> > +					const nodemask_t *mask)
-> >  {
-> > -	struct task_struct *t;
-> > +	struct task_struct *start = tsk;
-> >  
-> > -	t = tsk;
-> >  	do {
-> > -		if (cpuset_mems_allowed_intersects(current, t))
-> > -			return 1;
-> > -		t = next_thread(t);
-> > -	} while (t != tsk);
-> > -
-> > -	return 0;
-> > +		if (mask) {
-> > +			/*
-> > +			 * If this is a mempolicy constrained oom, tsk's
-> > +			 * cpuset is irrelevant.  Only return true if its
-> > +			 * mempolicy intersects current, otherwise it may be
-> > +			 * needlessly killed.
-> > +			 */
-> > +			if (mempolicy_nodemask_intersects(tsk, mask))
-> > +				return true;
-> 
-> The comment refers to `current' but the code does not?
-> 
 
-mempolicy_nodemask_intersects() compares tsk's mempolicy to current's, we 
-don't need to pass current into the function (and we optimize for that 
-since we don't need to do task_lock(current): nothing else can change its 
-mempolicy).
+> > ==
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Now, memory cgroup increments css(cgroup subsys state)'s reference
+> > count per a charged page. And the reference count is kept until
+> > the page is uncharged. But this has 2 bad effect. 
+> > 
+> >  1. Because css_get/put calls atoimic_inc()/dec, heavy call of them
+> >     on large smp will not scale well.
+> >  2. Because css's refcnt cannot be in a state as "ready-to-release",
+> >     cgroup's notify_on_release handler can't work with memcg.
+> > 
+> > This is a trial to remove css's refcnt per a page. Even if we remove
+>                                              ^^ (per page)
+> > refcnt, pre_destroy() does enough synchronization.
+> 
+> Could you also document what the rules for css_get/put now become? I
+> like the idea, but I am not sure if I understand the new rules
+> correctly by looking at the code.
 
-> > +		} else {
-> > +			/*
-> > +			 * This is not a mempolicy constrained oom, so only
-> > +			 * check the mems of tsk's cpuset.
-> > +			 */
-> 
-> The comment doesn't refer to `current', but the code does.  Confused.
-> 
+Hm. I'll try....but this just removes css_get/put per pages..
 
-This simply compares the cpuset mems_allowed of both tasks passed into the 
-function.
-
-> > +			if (cpuset_mems_allowed_intersects(current, tsk))
-> > +				return true;
-> > +		}
-> > +		tsk = next_thread(tsk);
-> 
-> hm, next_thread() uses list_entry_rcu().  What are the locking rules
-> here?  It's one of both of rcu_read_lock() and read_lock(&tasklist_lock),
-> I think?
-> 
-
-Oleg addressed this in his response.
-
-> > +	} while (tsk != start);
-> > +	return false;
-> >  }
-> 
-> This is all bloat and overhead for non-NUMA builds.  I doubt if gcc is
-> able to eliminate the task_struct walk (although I didn't check).
-> 
-> The function isn't oom-killer-specific at all - give it a better name
-> then move it to mempolicy.c or similar?  If so, the text "oom"
-> shouldn't appear in the comments.
-> 
-
-It's the only place where we want to filter tasks based on whether they 
-share mempolicy nodes or cpuset mems, though, so I think it's 
-appropriately placed in mm/oom_kill.c.  I agree that we can add a
-#ifndef CONFIG_NUMA variant and I'll do so, thanks.
-
-> >
-> > ...
-> >
-> > @@ -676,24 +699,19 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> >  	 */
-> >  	constraint = constrained_alloc(zonelist, gfp_mask, nodemask);
-> >  	read_lock(&tasklist_lock);
-> > -
-> > -	switch (constraint) {
-> > -	case CONSTRAINT_MEMORY_POLICY:
-> > -		oom_kill_process(current, gfp_mask, order, 0, NULL,
-> > -				"No available memory (MPOL_BIND)");
-> > -		break;
-> > -
-> > -	case CONSTRAINT_NONE:
-> > -		if (sysctl_panic_on_oom) {
-> > +	if (unlikely(sysctl_panic_on_oom)) {
-> > +		/*
-> > +		 * panic_on_oom only affects CONSTRAINT_NONE, the kernel
-> > +		 * should not panic for cpuset or mempolicy induced memory
-> > +		 * failures.
-> > +		 */
-> 
-> This wasn't changelogged?
-> 
-
-It's not a functional change, sysctl_panic_on_oom == 2 is already handled 
-earlier in the function.  This was intended to elaborate on why we're only 
-concerned about CONSTRAINT_NONE here since the switch statement was 
-removed.
-
-> > +		if (constraint == CONSTRAINT_NONE) {
-> >  			dump_header(NULL, gfp_mask, order, NULL);
-> > -			panic("out of memory. panic_on_oom is selected\n");
-> > +			read_unlock(&tasklist_lock);
-> > +			panic("Out of memory: panic_on_oom is enabled\n");
-> >  		}
-> > -		/* Fall-through */
-> > -	case CONSTRAINT_CPUSET:
-> > -		__out_of_memory(gfp_mask, order);
-> > -		break;
-> >  	}
-> > -
-> > +	__out_of_memory(gfp_mask, order, constraint, nodemask);
-> >  	read_unlock(&tasklist_lock);
-> >  
-> >  	/*
-> 
-> 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
