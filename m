@@ -1,143 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 43D6C6B01DD
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:06:43 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o5906dsK012739
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:06:40 -0700
-Received: from pva18 (pva18.prod.google.com [10.241.209.18])
-	by kpbe15.cbf.corp.google.com with ESMTP id o5906a00019882
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:06:38 -0700
-Received: by pva18 with SMTP id 18so6116027pva.0
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:06:36 -0700 (PDT)
-Date: Tue, 8 Jun 2010 17:06:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DB2AF6B01DF
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:14:48 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o590Ekmu024643
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:14:47 -0700
+Received: from pzk7 (pzk7.prod.google.com [10.243.19.135])
+	by wpaz5.hot.corp.google.com with ESMTP id o590EiHp012507
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:14:45 -0700
+Received: by pzk7 with SMTP id 7so2938428pzk.30
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:14:44 -0700 (PDT)
+Date: Tue, 8 Jun 2010 17:14:42 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 03/18] oom: dump_tasks use find_lock_task_mm too
-In-Reply-To: <20100608125533.086a4191.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1006081657560.19582@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061523360.32225@chino.kir.corp.google.com> <20100608125533.086a4191.akpm@linux-foundation.org>
+Subject: Re: [patch 05/18] oom: give current access to memory reserves if it
+ has been killed
+In-Reply-To: <20100608130804.8794d029.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1006081707540.19582@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524080.32225@chino.kir.corp.google.com> <20100608130804.8794d029.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, Andrew Morton wrote:
 
-> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > It's possible to livelock the page allocator if a thread has mm->mmap_sem
+> 
+> What is the state of this thread?  Trying to allocate memory, I assume.  
+> 
+
+Right, which I agree is a bad scenario to be in but indeed does happen 
+(and we have a workaround at Google that identifies these particular cases 
+and kills the holder of the writelock on mm->mmap_sem).  We have one 
+thread holding a readlock on mm->mmap_sem while trying to allocate memory 
+so the oom killer becomes a no-op to prevent needless task killing while 
+waiting for the killed task to exit, but that killed task can't exit 
+because it requires a writelock on the same semaphore.
+
+> > and fails to make forward progress because the oom killer selects another
+> > thread sharing the same ->mm to kill that cannot exit until the semaphore
+> > is dropped.
 > > 
-> > dump_task() should use find_lock_task_mm() too. It is necessary for
-> > protecting task-exiting race.
+> > The oom killer will not kill multiple tasks at the same time; each oom
+> > killed task must exit before another task may be killed.
 > 
-> A full description of the race would help people understand the code
-> and the change.
+> This sounds like a quite risky design.  The possibility that we'll
+> cause other dead/livelocks similar to this one seems pretty high.  It
+> applies to all sleeping locks in the entire kernel, doesn't it?
 > 
 
-Ok, here's a description of it that you can add to KOSAKI's changelog if 
-you'd like:
+It applies to any writelock that is taken during the exitpath of an oom 
+killed task if a thread holding a readlock is trying to allocate memory 
+itself.  This is how it's always been done at least within the past few 
+years and we haven't had a problem other than with mm->mmap_sem.  At one 
+point we used an oom killer timeout to kill other tasks after a period of 
+time had elapsed, but that hasn't been required since we've been killing 
+the thread holding the writelock on mm->mmap_sem.
 
-dump_tasks() currently filters any task that does not have an attached 
-->mm since it incorrectly assumes that it must either be in process of 
-exiting and has detached its memory or that it's a kernel thread; 
-multithreaded tasks may actually have subthreads that have a valid ->mm 
-pointer and thus those threads should actually be displayed.  This change 
-finds those threads, if they exist, and emit its information along with 
-the rest of the candidate tasks for kill.
-
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Signed-off-by: David Rientjes <rientjes@google.com>
-> > ---
-> >  mm/oom_kill.c |   39 +++++++++++++++++++++------------------
-> >  1 files changed, 21 insertions(+), 18 deletions(-)
+> >  Thus, if one
+> > thread is holding mm->mmap_sem and cannot allocate memory, all threads
+> > sharing the same ->mm are blocked from exiting as well.  In the oom kill
+> > case, that means the thread holding mm->mmap_sem will never free
+> > additional memory since it cannot get access to memory reserves and the
+> > thread that depends on it with access to memory reserves cannot exit
+> > because it cannot acquire the semaphore.  Thus, the page allocators
+> > livelocks.
 > > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -336,35 +336,38 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
-> >   */
-> >  static void dump_tasks(const struct mem_cgroup *mem)
+> > When the oom killer is called and current happens to have a pending
+> > SIGKILL, this patch automatically gives it access to memory reserves and
+> > returns.  Upon returning to the page allocator, its allocation will
+> > hopefully succeed so it can quickly exit and free its memory.  If not, the
+> > page allocator will fail the allocation if it is not __GFP_NOFAIL.
 > 
-> The comment over this function needs to be updated to describe the role
-> of incoming argument `mem'.
+> You said "hopefully".
 > 
 
-Ok, I can take care of this as another comment cleanup in a followup 
-patch.
+"hopefully" in this case means that the allocation better succeed or we've 
+depleted all memory reserves and we're deadlocked, it doesn't mean that 
+this is a speculative change that may or may not work.
 
-> >  {
-> > -	struct task_struct *g, *p;
-> > +	struct task_struct *p;
-> > +	struct task_struct *task;
-> >  
-> >  	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
-> >  	       "name\n");
-> > -	do_each_thread(g, p) {
-> > -		struct mm_struct *mm;
-> > -
-> > -		if (mem && !task_in_mem_cgroup(p, mem))
-> > +	for_each_process(p) {
-> 
-> The switch from do_each_thread() to for_each_process() is
-> unchangelogged.  It looks like a little cleanup to me.
-> 
-> > +		/*
-> > +		 * We don't have is_global_init() check here, because the old
-> > +		 * code do that. printing init process is not big matter. But
-> > +		 * we don't hope to make unnecessary compatibility breaking.
-> > +		 */
-> 
-> When merging others' patches, please do review and if necessary fix or
-> enhance the comments and the changelog.  I don't think people take
-> offense.
+> Does it actually work?  Any real-world testing results?  If so, they'd
+> be a useful addition to the changelog.
 > 
 
-Ok, I wasn't sure of the etiquette and I didn't want anything else holding 
-this work up.
-
-> Also, I don't think it's really valuable to document *changes* within
-> the code comments.  This comment is referring to what the old code did
-> versus the new code.  Generally it's best to just document the code as
-> it presently stands and leave the documentation of the delta to the
-> changelog.
-> 
-> That's not always true, of course - we should document oddball code
-> which is left there for userspace-visible back-compatibility reasons.
-> 
-
-Agreed, I think KOSAKI might be working on a patch that moves all of this 
-tasklist filtering logic to a helper function and would probably fix this 
-up.  KOSAKI?
-
-> 
-> > +		if (p->flags & PF_KTHREAD)
-> >  			continue;
-> > -		if (!thread_group_leader(p))
-> > +		if (mem && !task_in_mem_cgroup(p, mem))
-> >  			continue;
-> >  
-> > -		task_lock(p);
-> > -		mm = p->mm;
-> > -		if (!mm) {
-> > +		task = find_lock_task_mm(p);
-> > +		if (!task) {
-> >  			/*
-> > -			 * total_vm and rss sizes do not exist for tasks with no
-> > -			 * mm so there's no need to report them; they can't be
-> > -			 * oom killed anyway.
-> > +			 * Probably oom vs task-exiting race was happen and ->mm
-> > +			 * have been detached. thus there's no need to report
-> > +			 * them; they can't be oom killed anyway.
-> >  			 */
-> 
-> OK, that hinted at the race but still didn't really tell readers what it is.
-> 
-
-It's actually mostly incorrect, it does short-circuit the iteration when a 
-task is found to have already exited or detached its memory while we're 
-holding tasklist_lock, but the old comment was probably better.  The 
-scenario where this condition will be true 99% of the time is when 
-iterating through the tasklist and finding a kthread.  I'll fix this up.
+It certain does, and prevents needlessly killing another task when we know 
+current is exiting.  The nice thing about that is that we don't need to do 
+anything like checking if a child should be sacrified or if current is 
+OOM_DISABLE: we already know it's dying so it should simply get access to 
+memory reserves either to return and handle its pending SIGKILL or 
+continue down the exitpath.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
