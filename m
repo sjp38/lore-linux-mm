@@ -1,63 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AFE66B01D3
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 22:13:13 -0400 (EDT)
-Date: Wed, 9 Jun 2010 11:05:35 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages
-Message-Id: <20100609110535.8005ef04.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100609095448.1f020a22.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100608163129.9297f3aa.nishimura@mxp.nes.nec.co.jp>
-	<20100609095448.1f020a22.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D88CD6B01B0
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 22:37:15 -0400 (EDT)
+Received: by vws19 with SMTP id 19so944148vws.14
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 19:37:14 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
+References: <AANLkTin1OS3LohKBvWyS81BoAk15Y-riCiEdcevSA7ye@mail.gmail.com>
+	<1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
+Date: Wed, 9 Jun 2010 10:37:13 +0800
+Message-ID: <AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
+Subject: Re: mmotm 2010-06-03-16-36 lots of suspected kmemleak
+From: Dave Young <hidave.darkstar@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jun 2010 09:54:48 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 8 Jun 2010 16:31:29 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > On Tue, 8 Jun 2010 12:19:01 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-(snip)
-> > >  1. Because css_get/put calls atoimic_inc()/dec, heavy call of them
-> > >     on large smp will not scale well.
-> > I'm sorry if I'm asking a stupid question, the number of css_get/put
-> > would be:
-> > 
-> > 	before:
-> > 		get:1 in charge
-> > 		put:1 in uncharge
-> > 	after:
-> > 		get:1, put:1 in charge
-> > 		no get/put in uncharge
-> > 
-> > right ?
-> 
-> No.
-> 
-> 	before: get 1 in charge.
-> 		put 1 at charge
-> 
-> 	after:
-> 		no get at charge in fast path (cunsume_stcok hits.)
-> 		get 1 at accssing res_counter and reclaim, put 1 after it.
-> 		no get/put in uncharge.
-> 
-> > Then, isn't there any change as a whole ?
-> > 
-> We get much benefit when consume_stock() works. 
-> 
-Ah, I missed comsume_stock(). The number of get/put would be decreased very much.
-Thank you for your explanation.
+On Tue, Jun 8, 2010 at 12:43 AM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> On Mon, 2010-06-07 at 11:00 +0100, Dave Young wrote:
+>> On Mon, Jun 7, 2010 at 5:19 PM, Catalin Marinas <catalin.marinas@arm.com=
+> wrote:
+>> > On Mon, 2010-06-07 at 06:20 +0100, Dave Young wrote:
+>> >> On Fri, Jun 4, 2010 at 9:55 PM, Dave Young <hidave.darkstar@gmail.com=
+> wrote:
+>> >> > On Fri, Jun 4, 2010 at 6:50 PM, Catalin Marinas <catalin.marinas@ar=
+m.com> wrote:
+>> >> >> Dave Young <hidave.darkstar@gmail.com> wrote:
+>> >> >>> With mmotm 2010-06-03-16-36, I gots tuns of kmemleaks
+>> >> >>
+>> >> >> Do you have CONFIG_NO_BOOTMEM enabled? I posted a patch for this b=
+ut
+>> >> >> hasn't been reviewed yet (I'll probably need to repost, so if it f=
+ixes
+>> >> >> the problem for you a Tested-by would be nice):
+>> >> >>
+>> >> >> http://lkml.org/lkml/2010/5/4/175
+>> >> >
+>> >> >
+>> >> > I'd like to test, but I can not access the test pc during weekend. =
+So
+>> >> > I will test it next monday.
+>> >>
+>> >> Bad news, the patch does not fix this issue.
+>> >
+>> > Thanks for trying. Could you please just disable CONFIG_NO_BOOTMEM and
+>> > post the kmemleak reported leaks again?
+>>
+>> Still too many suspected leaks, results similar with
+>> (CONFIG_NO_BOOTMEM =3D y && apply your patch), looks like a little
+>> different from original ones? I just copy some of them here:
+>>
+>> unreferenced object 0xde3c7420 (size 44):
+>> =C2=A0 comm "bash", pid 1631, jiffies 4294897023 (age 223.573s)
+>> =C2=A0 hex dump (first 32 bytes):
+>> =C2=A0 =C2=A0 05 05 00 00 ad 4e ad de ff ff ff ff ff ff ff ff =C2=A0....=
+.N..........
+>> =C2=A0 =C2=A0 98 42 d9 c1 00 00 00 00 50 fe 63 c1 10 32 8f dd =C2=A0.B..=
+....P.c..2..
+>> =C2=A0 backtrace:
+>> =C2=A0 =C2=A0 [<c1498ad2>] kmemleak_alloc+0x4a/0x83
+>> =C2=A0 =C2=A0 [<c10c1ace>] kmem_cache_alloc+0xde/0x12a
+>> =C2=A0 =C2=A0 [<c10b421b>] anon_vma_fork+0x31/0x88
+>> =C2=A0 =C2=A0 [<c102c71d>] dup_mm+0x1d3/0x38f
+>> =C2=A0 =C2=A0 [<c102d20d>] copy_process+0x8ce/0xf39
+>> =C2=A0 =C2=A0 [<c102d990>] do_fork+0x118/0x295
+>> =C2=A0 =C2=A0 [<c1007fe0>] sys_clone+0x1f/0x24
+>> =C2=A0 =C2=A0 [<c10029b1>] ptregs_clone+0x15/0x24
+>> =C2=A0 =C2=A0 [<ffffffff>] 0xffffffff
+>
+> I'll try to test the mmotm kernel as well. I don't get any kmemleak
+> reports with the 2.6.35-rc1 kernel.
+
+Manually bisected mm patches, the memleak caused by following patch:
+
+mm-extend-ksm-refcounts-to-the-anon_vma-root.patch
+
+cc Rik van Riel
+
+>
+> Can you send me your .config file? Do you have CONFIG_HUGETLBFS enabled?
+>
+> Thanks.
+>
+> --
+> Catalin
+>
+>
 
 
-Thanks,
-Daisuke Nishimura.
+
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
