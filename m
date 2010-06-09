@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DB2AF6B01DF
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:14:48 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o590Ekmu024643
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:14:47 -0700
-Received: from pzk7 (pzk7.prod.google.com [10.243.19.135])
-	by wpaz5.hot.corp.google.com with ESMTP id o590EiHp012507
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:14:45 -0700
-Received: by pzk7 with SMTP id 7so2938428pzk.30
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:14:44 -0700 (PDT)
-Date: Tue, 8 Jun 2010 17:14:42 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B0BFA6B01DF
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 20:25:35 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o590PXQn026009
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:25:33 -0700
+Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
+	by wpaz1.hot.corp.google.com with ESMTP id o590PEoV027716
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 17:25:32 -0700
+Received: by pzk33 with SMTP id 33so5554763pzk.17
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 17:25:31 -0700 (PDT)
+Date: Tue, 8 Jun 2010 17:25:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 05/18] oom: give current access to memory reserves if it
- has been killed
-In-Reply-To: <20100608130804.8794d029.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1006081707540.19582@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524080.32225@chino.kir.corp.google.com> <20100608130804.8794d029.akpm@linux-foundation.org>
+Subject: Re: [patch 07/18] oom: filter tasks not sharing the same cpuset
+In-Reply-To: <20100608132339.54db2317.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1006081718240.19582@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524310.32225@chino.kir.corp.google.com> <20100608132339.54db2317.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,71 +25,61 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 8 Jun 2010, Andrew Morton wrote:
 
-> > It's possible to livelock the page allocator if a thread has mm->mmap_sem
-> 
-> What is the state of this thread?  Trying to allocate memory, I assume.  
-> 
-
-Right, which I agree is a bad scenario to be in but indeed does happen 
-(and we have a workaround at Google that identifies these particular cases 
-and kills the holder of the writelock on mm->mmap_sem).  We have one 
-thread holding a readlock on mm->mmap_sem while trying to allocate memory 
-so the oom killer becomes a no-op to prevent needless task killing while 
-waiting for the killed task to exit, but that killed task can't exit 
-because it requires a writelock on the same semaphore.
-
-> > and fails to make forward progress because the oom killer selects another
-> > thread sharing the same ->mm to kill that cannot exit until the semaphore
-> > is dropped.
+> > Tasks that do not share the same set of allowed nodes with the task that
+> > triggered the oom should not be considered as candidates for oom kill.
 > > 
-> > The oom killer will not kill multiple tasks at the same time; each oom
-> > killed task must exit before another task may be killed.
-> 
-> This sounds like a quite risky design.  The possibility that we'll
-> cause other dead/livelocks similar to this one seems pretty high.  It
-> applies to all sleeping locks in the entire kernel, doesn't it?
-> 
-
-It applies to any writelock that is taken during the exitpath of an oom 
-killed task if a thread holding a readlock is trying to allocate memory 
-itself.  This is how it's always been done at least within the past few 
-years and we haven't had a problem other than with mm->mmap_sem.  At one 
-point we used an oom killer timeout to kill other tasks after a period of 
-time had elapsed, but that hasn't been required since we've been killing 
-the thread holding the writelock on mm->mmap_sem.
-
-> >  Thus, if one
-> > thread is holding mm->mmap_sem and cannot allocate memory, all threads
-> > sharing the same ->mm are blocked from exiting as well.  In the oom kill
-> > case, that means the thread holding mm->mmap_sem will never free
-> > additional memory since it cannot get access to memory reserves and the
-> > thread that depends on it with access to memory reserves cannot exit
-> > because it cannot acquire the semaphore.  Thus, the page allocators
-> > livelocks.
+> > Tasks in other cpusets with a disjoint set of mems would be unfairly
+> > penalized otherwise because of oom conditions elsewhere; an extreme
+> > example could unfairly kill all other applications on the system if a
+> > single task in a user's cpuset sets itself to OOM_DISABLE and then uses
+> > more memory than allowed.
 > > 
-> > When the oom killer is called and current happens to have a pending
-> > SIGKILL, this patch automatically gives it access to memory reserves and
-> > returns.  Upon returning to the page allocator, its allocation will
-> > hopefully succeed so it can quickly exit and free its memory.  If not, the
-> > page allocator will fail the allocation if it is not __GFP_NOFAIL.
+> > Killing tasks outside of current's cpuset rarely would free memory for
+> > current anyway.  To use a sane heuristic, we must ensure that killing a
+> > task would likely free memory for current and avoid needlessly killing
+> > others at all costs just because their potential memory freeing is
+> > unknown.  It is better to kill current than another task needlessly.
 > 
-> You said "hopefully".
+> This is all a bit arbitrary, isn't it?  The key word here is "rarely". 
+
+"rarely" certainly is an arbitrary term in this case because it depends 
+heavily on the memory usage of other cpuset's on the system.  Consider a 
+cpuset with 16G of memory and a single task which consumes most of that 
+memory.  Then consider a cpuset with a single 1G node and a task that ooms 
+within it; the 16G task in the other cpuset gets killed.
+
+There must either be a complete exclusion or inclusion of a task for 
+candidacy if the scale of memory usage amongst our cpusets cannot be 
+properly attributed with a single heuristic (such as divide by 4, divide 
+by 8, etc).  To me, it never seems approprate to penalize another cpuset's 
+tasks by the small chance that it may have allocated atomic memory 
+elsewhere or the nodes have been recently changed.  The goal is to be more 
+predictable about oom killing decisions without negatively impacting other 
+cpusets, and this is a step in that direction.
+
+> If indeed this task had allocated gobs of memory from `current's nodes
+> and then sneakily switched nodes, this will be a big regression!
 > 
 
-"hopefully" in this case means that the allocation better succeed or we've 
-depleted all memory reserves and we're deadlocked, it doesn't mean that 
-this is a speculative change that may or may not work.
+It could be, but that's the fault of userspace for allocating a node that 
+is almost full to a new cpuset and expecting it to be completely free.  In 
+other words, we can arrange our cpusets with mems however we want but 
+we need some guarantee that giving a cpuset completely free memory and 
+then killing a task within it because another cpuset went oom doesn't 
+happen.
 
-> Does it actually work?  Any real-world testing results?  If so, they'd
-> be a useful addition to the changelog.
+> So..  It's not completely clear to me how we justify this decision. 
+> Are we erring too far on the side of keep-tasks-running?  Is failing to
+> clear the oom a lot bigger problem than killing an innocent task?  I
+> think so.  In which case we should err towards slaughtering the
+> innocent?
 > 
 
-It certain does, and prevents needlessly killing another task when we know 
-current is exiting.  The nice thing about that is that we don't need to do 
-anything like checking if a child should be sacrified or if current is 
-OOM_DISABLE: we already know it's dying so it should simply get access to 
-memory reserves either to return and handle its pending SIGKILL or 
-continue down the exitpath.
+The one thing we know is that if the victim's mems_allowed is truly 
+disjoint from current that there's no guarantee we'll be freeing memory at 
+all.  And if we free any, it's the result of the GFP_ATOMIC allocations 
+that are allowed anywhere or was previously allocated on one of current's 
+mems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
