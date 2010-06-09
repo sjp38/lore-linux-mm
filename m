@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE106B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 19:31:26 -0400 (EDT)
-Date: Wed, 9 Jun 2010 16:30:45 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 686B06B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 19:41:46 -0400 (EDT)
+Date: Wed, 9 Jun 2010 16:41:15 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] radix-tree: Implement function
- radix_tree_gang_tag_if_tagged
-Message-Id: <20100609163045.797ae621.akpm@linux-foundation.org>
-In-Reply-To: <1275676854-15461-2-git-send-email-jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
+ page tagging
+Message-Id: <20100609164115.22723403.akpm@linux-foundation.org>
+In-Reply-To: <1275676854-15461-3-git-send-email-jack@suse.cz>
 References: <1275676854-15461-1-git-send-email-jack@suse.cz>
-	<1275676854-15461-2-git-send-email-jack@suse.cz>
+	<1275676854-15461-3-git-send-email-jack@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,126 +18,119 @@ To: Jan Kara <jack@suse.cz>
 Cc: linux-fsdevel@kernel.org, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  4 Jun 2010 20:40:53 +0200
+On Fri,  4 Jun 2010 20:40:54 +0200
 Jan Kara <jack@suse.cz> wrote:
 
-> Implement function for setting one tag if another tag is set
-> for each item in given range.
+> We try to avoid livelocks of writeback when some steadily creates
+> dirty pages in a mapping we are writing out. For memory-cleaning
+> writeback, using nr_to_write works reasonably well but we cannot
+> really use it for data integrity writeback. This patch tries to
+> solve the problem.
 > 
->
-> ...
->
+> The idea is simple: Tag all pages that should be written back
+> with a special tag (TOWRITE) in the radix tree. This can be done
+> rather quickly and thus livelocks should not happen in practice.
+> Then we start doing the hard work of locking pages and sending
+> them to disk only for those pages that have TOWRITE tag set.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  include/linux/fs.h         |    1 +
+>  include/linux/radix-tree.h |    2 +-
+>  mm/page-writeback.c        |   44 ++++++++++++++++++++++++++++++++++++++++++--
+>  3 files changed, 44 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 3428393..fe308f0 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -685,6 +685,7 @@ struct block_device {
+>   */
+>  #define PAGECACHE_TAG_DIRTY	0
+>  #define PAGECACHE_TAG_WRITEBACK	1
+> +#define PAGECACHE_TAG_TOWRITE	2
+>  
+>  int mapping_tagged(struct address_space *mapping, int tag);
+>  
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index efdfb07..f7ebff8 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -55,7 +55,7 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
+>  
+>  /*** radix-tree API starts here ***/
+>  
+> -#define RADIX_TREE_MAX_TAGS 2
+> +#define RADIX_TREE_MAX_TAGS 3
+>  
+>  /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
+>  struct radix_tree_root {
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index b289310..f590a12 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -807,6 +807,30 @@ void __init page_writeback_init(void)
+>  }
+>  
 >  /**
-> + * radix_tree_gang_tag_if_tagged - for each item in given range set given
-> + *				   tag if item has another tag set
-> + * @root:		radix tree root
-> + * @first_index:	starting index of a range to scan
-> + * @last_index:		last index of a range to scan
-> + * @iftag: 		tag index to test
-> + * @settag:		tag index to set if tested tag is set
+> + * tag_pages_for_writeback - tag pages to be written by write_cache_pages
+> + * @mapping: address space structure to write
+> + * @start: starting page index
+> + * @end: ending page index (inclusive)
 > + *
-> + * This function scans range of radix tree from first_index to last_index.
-> + * For each item in the range if iftag is set, the function sets also
-> + * settag.
-> + *
-> + * The function returns number of leaves where the tag was set.
+> + * This function scans the page range from @start to @end
+
+I'd add "inclusive" here as well.  Add it everywhere, very carefully
+(or "exclusive").  it really is a minefield and we've had off-by-ones
+from this before
+
+
+> and tags all pages
+> + * that have DIRTY tag set with a special TOWRITE tag. The idea is that
+> + * write_cache_pages (or whoever calls this function) will then use TOWRITE tag
+> + * to identify pages eligible for writeback.  This mechanism is used to avoid
+> + * livelocking of writeback by a process steadily creating new dirty pages in
+> + * the file (thus it is important for this function to be damn quick so that it
+> + * can tag pages faster than a dirtying process can create them).
 > + */
-> +unsigned long radix_tree_gang_tag_if_tagged(struct radix_tree_root *root,
-> +                unsigned long first_index, unsigned long last_index,
-> +                unsigned int iftag, unsigned int settag)
-
-This is kind of a misuse of the term "gang".
-
-First we had radix_tree_lookup(), which returned a single page.
-
-That was a bit inefficient, so then we added radix_tree_gang_lookup(),
-which retuned a "gang" of pages.
-
-But radix_tree_gang_tag_if_tagged() doesn't return a gang of anything
-(it has no `void **results' argument).
-
-radix_tree_range_tag_if_tagged()?
-
-
+> +void tag_pages_for_writeback(struct address_space *mapping,
+> +			     pgoff_t start, pgoff_t end)
 > +{
-> +	unsigned int height = root->height, shift;
-> +	unsigned long tagged = 0, index = first_index;
-> +	struct radix_tree_node *open_slots[height], *slot;
-> +
-> +	last_index = min(last_index, radix_tree_maxindex(height));
-> +	if (first_index > last_index)
-> +		return 0;
-> +	if (!root_tag_get(root, iftag))
-> +		return 0;
-> +	if (height == 0) {
-> +		root_tag_set(root, settag);
-> +		return 1;
-> +	}
-> +
-> +	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
-> +	slot = radix_tree_indirect_to_ptr(root->rnode);
-> +
-> +	for (;;) {
-> +		int offset;
-> +
-> +		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-> +		if (!slot->slots[offset])
-> +			goto next;
-> +		if (!tag_get(slot, iftag, offset))
-> +			goto next;
-> +		tag_set(slot, settag, offset);
-> +		if (height == 1) {
-> +			tagged++;
-> +			goto next;
-> +		}
-> +		/* Go down one level */
-> +		height--;
-> +		shift -= RADIX_TREE_MAP_SHIFT;
-> +		open_slots[height] = slot;
-> +		slot = slot->slots[offset];
-> +		continue;
-> +next:
-> +		/* Go to next item at level determined by 'shift' */
-> +		index = ((index >> shift) + 1) << shift;
-> +		if (index > last_index)
-> +			break;
-> +		while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
-> +			/*
-> +			 * We've fully scanned this node. Go up. Because
-> +			 * last_index is guaranteed to be in the tree, what
-> +			 * we do below cannot wander astray.
-> +			 */
-> +			slot = open_slots[height];
-> +			height++;
-> +			shift += RADIX_TREE_MAP_SHIFT;
-> +		}
-> +	}
-> +	/*
-> +	 * The iftag must have been set somewhere because otherwise
-> +	 * we would return immediated at the beginning of the function
-> +	 */
-> +	root_tag_set(root, settag);
-> +
-> +	return tagged;
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	radix_tree_gang_tag_if_tagged(&mapping->page_tree, start, end,
+> +				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
+> +	spin_unlock_irq(&mapping->tree_lock);
 > +}
-> +EXPORT_SYMBOL(radix_tree_gang_tag_if_tagged);
+> +EXPORT_SYMBOL(tag_pages_for_writeback);
 
-Wouldn't this be a lot simpler if it used __lookup_tag()?  Along the
-lines of
+Problem.  For how long can this disable interrupts?  Maybe 1TB of dirty
+pagecache before the NMI watchdog starts getting involved?  Could be a
+problem in some situations.
 
-	do {
-		slot *slots[N];
+Easy enough to fix - just walk the range in 1000(?) page hunks,
+dropping the lock and doing cond_resched() each time. 
+radix_tree_gang_tag_if_tagged() will need to return next_index to make
+that efficient with sparse files.
 
-		n = __lookup_tag(.., slots, ...);
-		for (i = 0; i < n; i++)
-			tag_set(slots[i], ...);
-	} while (something);
+> +/**
+>   * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
+>   * @mapping: address space structure to write
+>   * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+> @@ -820,6 +844,13 @@ void __init page_writeback_init(void)
+>   * the call was made get new I/O started against them.  If wbc->sync_mode is
+>   * WB_SYNC_ALL then we were called for data integrity and we must wait for
+>   * existing IO to complete.
+> + *
+> + * To avoid livelocks (when other process dirties new pages), we first tag
+> + * pages which should be written back with TOWRITE tag and only then start
+> + * writing them. For data-integrity sync we have to be careful so that we do
+> + * not miss some pages (e.g., because some other process has cleared TOWRITE
+> + * tag we set). The rule we follow is that TOWRITE tag can be cleared only
+> + * by the process clearing the DIRTY tag (and submitting the page for IO).
+>   */
 
-?
-
-That's still one cache miss per slot and misses on the slots will
-preponderate, so the performance won't be much different.
-
+Seems simple enough and I can't think of any bugs which the obvious
+races will cause.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
