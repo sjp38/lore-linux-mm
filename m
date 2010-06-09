@@ -1,78 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A671B6B01AD
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 15:54:43 -0400 (EDT)
-Date: Wed, 9 Jun 2010 21:53:09 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 65A0B6B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 16:16:01 -0400 (EDT)
+Date: Wed, 9 Jun 2010 22:14:30 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: Make coredump interruptible
-Message-ID: <20100609195309.GA6899@redhat.com>
-References: <20100602185812.4B5894A549@magilla.sf.frob.com> <20100602203827.GA29244@redhat.com> <20100604194635.72D3.A69D9226@jp.fujitsu.com> <20100604112721.GA12582@redhat.com>
+Subject: Re: [patch 06/18] oom: avoid sending exiting tasks a SIGKILL
+Message-ID: <20100609201430.GA8210@redhat.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524190.32225@chino.kir.corp.google.com> <20100608202611.GA11284@redhat.com> <alpine.DEB.2.00.1006082330160.30606@chino.kir.corp.google.com> <20100609162523.GA30464@redhat.com> <alpine.DEB.2.00.1006091241330.26827@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100604112721.GA12582@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1006091241330.26827@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Roland McGrath <roland@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/04, Oleg Nesterov wrote:
+On 06/09, David Rientjes wrote:
 >
-> On 06/04, KOSAKI Motohiro wrote:
-> >
-> > In multi threaded OOM case, we have two problematic routine, coredump
-> > and vmscan. Roland's idea can only solve the former.
-> >
-> > But I also interest vmscan quickly exit if OOM received.
+> On Wed, 9 Jun 2010, Oleg Nesterov wrote:
 >
-> Yes, agreed. See another email from me, MMF_ flags looks "obviously
-> useful" to me.
+> > David, currently I do not know how the code looks with all patches
+> > applied, could you please confirm there is no problem here? I am
+> > looking at Linus's tree,
+> >
+> > 	mem_cgroup_out_of_memory:
+> >
+> > 		 p = select_bad_process();
+> > 		 oom_kill_process(p);
+> >
+>
+> mem_cgroup_out_of_memory() does this under tasklist_lock:
+>
+> retry:
+> 	p = select_bad_process(&points, mem, CONSTRAINT_MEMCG, NULL);
+> 	if (!p || PTR_ERR(p) == -1UL)
+> 		goto out;
+>
+> 	if (oom_kill_process(p, gfp_mask, 0, points, mem,
+> 				"Memory cgroup out of memory"))
+> 		goto retry;
+> out:
+> 	...
+>
+> > Now, again, select_bad_process() can return the dead group-leader
+> > of the memory-hog-thread-group.
+> >
+>
+> select_bad_process() already has:
+>
+> 	if ((p->flags & PF_EXITING) && p->mm) {
+> 		if (p != current)
+> 			return ERR_PTR(-1UL);
+>
+> 		chosen = p;
+> 		*ppoints = ULONG_MAX;
+> 	}
+>
+> so we can disregard the check for p == current
 
-Well. But somehow we forgot about the !coredumping case... Suppose
-that select_bad_process() chooses the process P to kill and we have
-other processes (not sub-threads) which share the same ->mm.
+Not sure I understand... We can just ignore this check, in this case
+p->mm == NULL.
 
-In that case I am not sure we should blindly set MMF_OOMKILL. Suppose
-that we kill P and after that the "out-of-memory" condition goes away.
-But its ->mm still has MMF_OOMKILL set, and it is used. Who/when will
-clear this flag?
+> in this case since it would
+> not be allocating memory without p->mm.
 
-Perhaps something like below makes sense for now.
+This thread will not allocate the memory, yes. But its sub-threads can.
+And select_bad_process() can constantly return the same (dead) thread P,
+badness() inspects ->mm under find_lock_task_mm() which finds the thread
+with the valid ->mm.
+
+OK. Probably this doesn't matter. I don't know if task_in_mem_cgroup(task)
+was fixed or not, but currently it also looks at task->mm and thus have
+the same boring problem: it is trivial to make the memory-hog process
+invisible to oom. Unless I missed something, of course.
 
 Oleg.
-
---- x/fs/exec.c
-+++ x/fs/exec.c
-@@ -1594,6 +1594,7 @@ static inline int zap_threads(struct tas
- 	spin_lock_irq(&tsk->sighand->siglock);
- 	if (!signal_group_exit(tsk->signal)) {
- 		mm->core_state = core_state;
-+		set_bit(MMF_COREDUMP, &mm->flags);
- 		nr = zap_process(tsk, exit_code);
- 	}
- 	spin_unlock_irq(&tsk->sighand->siglock);
---- x/fs/binfmt_elf.c
-+++ x/fs/binfmt_elf.c
-@@ -2028,6 +2028,9 @@ static int elf_core_dump(struct coredump
- 			struct page *page;
- 			int stop;
- 
-+			if (!test_bit(MMF_COREDUMP, &current->mm->flags))
-+				goto end_coredump;
-+
- 			page = get_dump_page(addr);
- 			if (page) {
- 				void *kaddr = kmap(page);
---- x/mm/oom_kill.c
-+++ x/mm/oom_kill.c
-@@ -414,6 +414,7 @@ static void __oom_kill_task(struct task_
- 	p->rt.time_slice = HZ;
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
- 
-+	clear_bit(MMF_COREDUMP, &p->mm->flags);
- 	force_sig(SIGKILL, p);
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
