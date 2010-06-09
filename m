@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B78DC6B01DD
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 02:49:19 -0400 (EDT)
-Received: from kpbe15.cbf.corp.google.com (kpbe15.cbf.corp.google.com [172.25.105.79])
-	by smtp-out.google.com with ESMTP id o596nFcK023670
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 23:49:15 -0700
-Received: from pzk33 (pzk33.prod.google.com [10.243.19.161])
-	by kpbe15.cbf.corp.google.com with ESMTP id o596nDMp008509
-	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 23:49:14 -0700
-Received: by pzk33 with SMTP id 33so5683219pzk.17
-        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 23:49:13 -0700 (PDT)
-Date: Tue, 8 Jun 2010 23:49:10 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5C26B01DE
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 02:49:20 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o596nI8f011497
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 23:49:18 -0700
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by wpaz1.hot.corp.google.com with ESMTP id o596mbgx030284
+	for <linux-mm@kvack.org>; Tue, 8 Jun 2010 23:49:17 -0700
+Received: by pvg7 with SMTP id 7so3783310pvg.25
+        for <linux-mm@kvack.org>; Tue, 08 Jun 2010 23:49:17 -0700 (PDT)
+Date: Tue, 8 Jun 2010 23:49:14 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch 3/4] slub: use is_kmalloc_cache in dma_kmalloc_cache
+Subject: [patch 4/4] slub: remove gfp_flags argument from
+ create_kmalloc_cache
 In-Reply-To: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006082348310.30606@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006082348450.30606@chino.kir.corp.google.com>
 References: <alpine.DEB.2.00.1006082347440.30606@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -23,34 +24,75 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-dma_kmalloc_cache() can use the new is_kmalloc_cache() helper function.
-
-Also removes an unnecessary assignment to local variable `s'.
+create_kmalloc_cache() is always passed a gfp_t of GFP_NOWAIT, so it may
+be hardwired into the function itself instead of passed.
 
 Cc: Christoph Lameter <cl@linux.com>
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/slub.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+ mm/slub.c |   18 ++++++------------
+ 1 files changed, 6 insertions(+), 12 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -2649,13 +2649,12 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
- 	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
- 			 (unsigned int)realsize);
+@@ -2572,7 +2572,7 @@ static int __init setup_slub_nomerge(char *str)
+ __setup("slub_nomerge", setup_slub_nomerge);
  
--	s = NULL;
- 	for (i = 0; i < KMALLOC_CACHES; i++)
- 		if (!kmalloc_caches[i].size)
- 			break;
+ static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
+-		const char *name, int size, gfp_t gfp_flags)
++				const char *name, int size)
+ {
+ 	unsigned int flags = 0;
  
--	BUG_ON(i >= KMALLOC_CACHES);
- 	s = kmalloc_caches + i;
-+	BUG_ON(!is_kmalloc_cache(s));
+@@ -2582,14 +2582,11 @@ static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
+ 		return s;
+ 	}
  
+-	if (gfp_flags & SLUB_DMA)
+-		flags = SLAB_CACHE_DMA;
+-
  	/*
- 	 * Must defer sysfs creation to a workqueue because we don't know
+ 	 * This function is called with IRQs disabled during early-boot on
+ 	 * single CPU so there's no need to take slub_lock here.
+ 	 */
+-	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
++	if (!kmem_cache_open(s, GFP_NOWAIT, name, size, ARCH_KMALLOC_MINALIGN,
+ 								flags, NULL))
+ 		goto panic;
+ 
+@@ -3077,7 +3074,7 @@ void __init kmem_cache_init(void)
+ 	 */
+ 	i = kmalloc_index(sizeof(struct kmem_cache_node));
+ 	create_kmalloc_cache(&kmalloc_caches[i], "bootstrap",
+-		sizeof(struct kmem_cache_node), GFP_NOWAIT);
++		sizeof(struct kmem_cache_node));
+ 	kmalloc_caches[i].refcount = -1;
+ 	caches++;
+ 
+@@ -3089,19 +3086,16 @@ void __init kmem_cache_init(void)
+ 
+ 	/* Caches that are not of the two-to-the-power-of size */
+ 	if (KMALLOC_MIN_SIZE <= 32) {
+-		create_kmalloc_cache(&kmalloc_caches[1],
+-				"kmalloc-96", 96, GFP_NOWAIT);
++		create_kmalloc_cache(&kmalloc_caches[1], "kmalloc-96", 96);
+ 		caches++;
+ 	}
+ 	if (KMALLOC_MIN_SIZE <= 64) {
+-		create_kmalloc_cache(&kmalloc_caches[2],
+-				"kmalloc-192", 192, GFP_NOWAIT);
++		create_kmalloc_cache(&kmalloc_caches[2], "kmalloc-192", 192);
+ 		caches++;
+ 	}
+ 
+ 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
+-		create_kmalloc_cache(&kmalloc_caches[i],
+-			"kmalloc", 1 << i, GFP_NOWAIT);
++		create_kmalloc_cache(&kmalloc_caches[i], "kmalloc", 1 << i);
+ 		caches++;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
