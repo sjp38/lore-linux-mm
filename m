@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0D77E6B01D7
-	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 21:22:40 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o591Mdh9028008
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 9 Jun 2010 10:22:39 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E520B45DE53
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 10:22:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C2F8445DE50
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 10:22:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A755B1DB803F
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 10:22:38 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 60BB11DB803C
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 10:22:38 +0900 (JST)
-Date: Wed, 9 Jun 2010 10:18:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: memory limit/quota per user
-Message-Id: <20100609101821.31a06be8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTikV3ZKYeZggPnuCgI7qBfN83d4d4q9JP3bsr43-@mail.gmail.com>
-References: <AANLkTikV3ZKYeZggPnuCgI7qBfN83d4d4q9JP3bsr43-@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AFE66B01D3
+	for <linux-mm@kvack.org>; Tue,  8 Jun 2010 22:13:13 -0400 (EDT)
+Date: Wed, 9 Jun 2010 11:05:35 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages
+Message-Id: <20100609110535.8005ef04.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100609095448.1f020a22.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100608163129.9297f3aa.nishimura@mxp.nes.nec.co.jp>
+	<20100609095448.1f020a22.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jun 2010 11:27:10 +0100
-Tharindu Rukshan Bamunuarachchi <btharindu@gmail.com> wrote:
+On Wed, 9 Jun 2010 09:54:48 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 8 Jun 2010 16:31:29 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > On Tue, 8 Jun 2010 12:19:01 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+(snip)
+> > >  1. Because css_get/put calls atoimic_inc()/dec, heavy call of them
+> > >     on large smp will not scale well.
+> > I'm sorry if I'm asking a stupid question, the number of css_get/put
+> > would be:
+> > 
+> > 	before:
+> > 		get:1 in charge
+> > 		put:1 in uncharge
+> > 	after:
+> > 		get:1, put:1 in charge
+> > 		no get/put in uncharge
+> > 
+> > right ?
+> 
+> No.
+> 
+> 	before: get 1 in charge.
+> 		put 1 at charge
+> 
+> 	after:
+> 		no get at charge in fast path (cunsume_stcok hits.)
+> 		get 1 at accssing res_counter and reclaim, put 1 after it.
+> 		no get/put in uncharge.
+> 
+> > Then, isn't there any change as a whole ?
+> > 
+> We get much benefit when consume_stock() works. 
+> 
+Ah, I missed comsume_stock(). The number of get/put would be decreased very much.
+Thank you for your explanation.
 
-> Hello All,
-> 
-> Is it possible to limit memory quota per user (like disk quota) in linux ?
-> 
-> AFAIK, RLIMIT_* (i.e. RSS, DATA) are applicable per process not per user.
-> 
-
-please check memory cgroup and libcgroup.
-(memory cgroup is for limiting memory usage per a group of processes,
- libcgroup provides automatic grouping method.)
 
 Thanks,
--Kame
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
