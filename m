@@ -1,68 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AE2926B01AF
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:32:54 -0400 (EDT)
-Received: by pxi12 with SMTP id 12so3094216pxi.14
-        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:32:50 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EC5116B01B0
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:38:59 -0400 (EDT)
+Received: by pva18 with SMTP id 18so17927pva.14
+        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:38:58 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [mmotm] Cleanup: use for_each_online_cpu in vmstat
-Date: Thu, 10 Jun 2010 22:32:31 +0900
-Message-Id: <1276176751-2990-1-git-send-email-minchan.kim@gmail.com>
+Subject: [PATCH] Cleanup : change try_set_zone_oom with try_set_zonelist_oom
+Date: Thu, 10 Jun 2010 22:38:44 +0900
+Message-Id: <1276177124-3395-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Sorry. It's not [1/2] and I used Chrisopth's old mail address.
-Resend. 
+We have been used naming try_set_zone_oom and clear_zonelist_oom.
+The role of functions is to lock of zonelist for preventing parallel
+OOM. So clear_zonelist_oom makes sense but try_set_zone_oome is rather
+awkward and unmatched with clear_zonelist_oom.
 
---
+Let's change it with try_set_zonelist_oom.
 
-The sum_vm_events passes cpumask for for_each_cpu.
-But it's useless since we have for_each_online_cpu.
-Althougth it's tirival overhead, it's not good about
-coding consistency.
-
-Let's use for_each_online_cpu instead of for_each_cpu with
-cpumask argument.
-
+Cc: David Rientjes <rientjes@google.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>
+Let's change it with try_set_zonelist_oom.
+
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/vmstat.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+ include/linux/oom.h |    2 +-
+ mm/oom_kill.c       |    4 ++--
+ mm/page_alloc.c     |    2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7759941..15a14b1 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -22,14 +22,14 @@
- DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
- EXPORT_PER_CPU_SYMBOL(vm_event_states);
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 5376623..2e4b90b 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -24,7 +24,7 @@ enum oom_constraint {
+ 	CONSTRAINT_MEMORY_POLICY,
+ };
  
--static void sum_vm_events(unsigned long *ret, const struct cpumask *cpumask)
-+static void sum_vm_events(unsigned long *ret)
+-extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
++extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+ 
+ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 709aedf..84840f3 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -509,7 +509,7 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+  * if a parallel OOM killing is already taking place that includes a zone in
+  * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
+  */
+-int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
++int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
  {
- 	int cpu;
- 	int i;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+@@ -526,7 +526,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
+ 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
+ 		/*
+ 		 * Lock each zone in the zonelist under zone_scan_lock so a
+-		 * parallel invocation of try_set_zone_oom() doesn't succeed
++		 * parallel invocation of try_set_zonelist_oom() doesn't succeed
+ 		 * when it shouldn't.
+ 		 */
+ 		zone_set_flag(zone, ZONE_OOM_LOCKED);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 431214b..492c200 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1738,7 +1738,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page;
  
- 	memset(ret, 0, NR_VM_EVENT_ITEMS * sizeof(unsigned long));
- 
--	for_each_cpu(cpu, cpumask) {
-+	for_each_online_cpu(cpu) {
- 		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
- 
- 		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-@@ -45,7 +45,7 @@ static void sum_vm_events(unsigned long *ret, const struct cpumask *cpumask)
- void all_vm_events(unsigned long *ret)
- {
- 	get_online_cpus();
--	sum_vm_events(ret, cpu_online_mask);
-+	sum_vm_events(ret);
- 	put_online_cpus();
- }
- EXPORT_SYMBOL_GPL(all_vm_events);
+ 	/* Acquire the OOM killer lock for the zones in zonelist */
+-	if (!try_set_zone_oom(zonelist, gfp_mask)) {
++	if (!try_set_zonelist_oom(zonelist, gfp_mask)) {
+ 		schedule_timeout_uninterruptible(1);
+ 		return NULL;
+ 	}
 -- 
 1.7.0.5
 
