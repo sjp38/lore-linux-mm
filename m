@@ -1,79 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB0466B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 04:12:50 -0400 (EDT)
-Date: Thu, 10 Jun 2010 10:12:29 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
- page tagging
-Message-ID: <20100610081228.GA10827@quack.suse.cz>
-References: <1275677231-15662-1-git-send-email-jack@suse.cz>
- <1275677231-15662-3-git-send-email-jack@suse.cz>
- <20100605013802.GG26335@laptop>
- <20100607160903.GE6293@quack.scz.novell.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 820906B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 05:43:15 -0400 (EDT)
+Message-ID: <4C10B3AF.7020908@redhat.com>
+Date: Thu, 10 Jun 2010 12:43:11 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100607160903.GE6293@quack.scz.novell.com>
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
+ control
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com> <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
+In-Reply-To: <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, david@fromorbit.com, linux-mm@kvack.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 07-06-10 18:09:03, Jan Kara wrote:
-> On Sat 05-06-10 11:38:02, Nick Piggin wrote:
-> > On Fri, Jun 04, 2010 at 08:47:11PM +0200, Jan Kara wrote:
-> > >  	done_index = index;
-> > >  	while (!done && (index <= end)) {
-> > >  		int i;
-> > >  
-> > > -		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-> > > -			      PAGECACHE_TAG_DIRTY,
-> > > +		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
-> > >  			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
-> > >  		if (nr_pages == 0)
-> > >  			break;
-> > 
-> > Would it be neat to clear the tag even if we didn't set page to
-> > writeback? It should be uncommon case.
->   Yeah, why not.
-  Looking at this more, we shouldn't leave any TOWRITE tags dangling in
-WB_SYNC_ALL mode - as soon as someone writes the page, he does
-set_page_writeback() which clears the tag. Similarly if the page is removed
-from the mapping, the tag is cleared. Or am I missing something?
+On 06/08/2010 06:51 PM, Balbir Singh wrote:
+> Balloon unmapped page cache pages first
+>
+> From: Balbir Singh<balbir@linux.vnet.ibm.com>
+>
+> This patch builds on the ballooning infrastructure by ballooning unmapped
+> page cache pages first. It looks for low hanging fruit first and tries
+> to reclaim clean unmapped pages first.
+>    
 
-> > > @@ -1319,6 +1356,9 @@ int test_set_page_writeback(struct page *page)
-> > >  			radix_tree_tag_clear(&mapping->page_tree,
-> > >  						page_index(page),
-> > >  						PAGECACHE_TAG_DIRTY);
-> > > +		radix_tree_tag_clear(&mapping->page_tree,
-> > > +				     page_index(page),
-> > > +				     PAGECACHE_TAG_TOWRITE);
-> > >  		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-> > >  	} else {
-> > >  		ret = TestSetPageWriteback(page);
-> > 
-> > It would be nice to have bitwise tag clearing so we can clear multiple
-> > at once. Then
-> > 
-> > clear_tag = PAGECACHE_TAG_TOWRITE;
-> > if (!PageDirty(page))
-> >   clear_tag |= PAGECACHE_TAG_DIRTY;
-> > 
-> > That could reduce overhead a bit more.
->   Good idea. Will do.
-  On a second thought, will it bring us enough to justify a new interface
-(which will be inconsistent with all the other radix tree interfaces
-because they use tag numbers and not bitmaps)? Because looking at the code,
-all we could save is the transformation of page index into a radix tree
-path.  We would have to do all the other work for each tag separately
-anyway and it won't probably have any great cache locality either because
-radix trees for different tags are separate.
+I'm not sure victimizing unmapped cache pages is a good idea.  Shouldn't 
+page selection use the LRU for recency information instead of the cost 
+of guest reclaim?  Dropping a frequently used unmapped cache page can be 
+more expensive than dropping an unused text page that was loaded as part 
+of some executable's initialization and forgotten.
 
-									Honza
+Many workloads have many unmapped cache pages, for example static web 
+serving and the all-important kernel build.
+
+> The key advantage was that it resulted in lesser RSS usage in the host and
+> more cached usage, indicating that the caching had been pushed towards
+> the host. The guest cached memory usage was lower and free memory in
+> the guest was also higher.
+>    
+
+Caching in the host is only helpful if the cache can be shared, 
+otherwise it's better to cache in the guest.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
