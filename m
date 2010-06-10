@@ -1,97 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D8BD76B01AD
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:41:51 -0400 (EDT)
-Received: by pwi7 with SMTP id 7so293330pwi.14
-        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 18:41:50 -0700 (PDT)
-Message-ID: <4C1042E0.8080403@vflare.org>
-Date: Thu, 10 Jun 2010 07:11:52 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
-References: <20100528173550.GA12219@ca-server1.us.oracle.com>
-In-Reply-To: <20100528173550.GA12219@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AB0706B01AD
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:47:36 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5A1lULM018009
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 10 Jun 2010 10:47:30 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F057C45DE50
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:47:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C971D45DE4F
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:47:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B2B7D1DB803B
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:47:29 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E0A01DB8037
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:47:29 +0900 (JST)
+Date: Thu, 10 Jun 2010 10:43:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 06/18] oom: avoid sending exiting tasks a SIGKILL
+Message-Id: <20100610104309.f7559f31.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100610012101.GA5412@redhat.com>
+References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1006061524190.32225@chino.kir.corp.google.com>
+	<20100608202611.GA11284@redhat.com>
+	<alpine.DEB.2.00.1006082330160.30606@chino.kir.corp.google.com>
+	<20100609162523.GA30464@redhat.com>
+	<alpine.DEB.2.00.1006091241330.26827@chino.kir.corp.google.com>
+	<20100609201430.GA8210@redhat.com>
+	<20100610091547.d2c88d4c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100610012101.GA5412@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 10 Jun 2010 03:21:01 +0200
+Oleg Nesterov <oleg@redhat.com> wrote:
 
-On 05/28/2010 11:05 PM, Dan Magenheimer wrote:
-> [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
+> On 06/10, KAMEZAWA Hiroyuki wrote:
+> >
+> > On Wed, 9 Jun 2010 22:14:30 +0200
+> > Oleg Nesterov <oleg@redhat.com> wrote:
+> >
+> > > > in this case since it would
+> > > > not be allocating memory without p->mm.
+> > >
+> > > This thread will not allocate the memory, yes. But its sub-threads can.
+> > > And select_bad_process() can constantly return the same (dead) thread P,
+> > > badness() inspects ->mm under find_lock_task_mm() which finds the thread
+> > > with the valid ->mm.
+> > >
+> > > OK. Probably this doesn't matter. I don't know if task_in_mem_cgroup(task)
+> > > was fixed or not, but currently it also looks at task->mm and thus have
+> > > the same boring problem: it is trivial to make the memory-hog process
+> > > invisible to oom. Unless I missed something, of course.
+> >
+> > HmHm...your concern is that there is a case when mem_cgroup_out_of_memory()
+> > can't kill anything ?
+> 
+> Or it can kill the wrong task. But once again, I am only speculating
+> looking at the current code.
+> 
+> > Now, memcg doesn't return -ENOMEM in usual case.
+> > So, it loops until there are some available memory under its limit.
+> > Then, if memory_cgroup_out_of_memory() can kill a process in several trial,
+> > we'll not have terrible problem. (even if it's slow.)
+> >
+> > Hmm. What I can't understand is whether there is a case when PF_EXITING
+> > thread never exit. If so, we need some care (in memcg?)
+> 
+> 	void *thread_func(void *)
+> 	{
+> 		for (;;)
+> 			malloc();
+> 	}
+> 
+> 	int main(void)
+> 	{
+> 		pthread_create(..., thread_func, ...);
+> 		pthread_exit();
+> 	}
+> 
+> This process runs with the dead group-leader (PF_EXITING is set, ->mm == NULL).
+> mem_cgroup_out_of_memory()->select_bad_process() can't see it due to
+> task_in_mem_cgroup() check.
+> 
+> Afaics
+> 
+> 	- task_in_mem_cgroup() should use find_lock_task_mm() too
+> 
+> 	- oom_kill_process() should check "PF_EXITING && p->mm",
+> 	  like select_bad_process() does.
+> 
 
-I just finished a rough (but working) implementation of in-kernel
-page cache compression backend (called zcache). During this work,
-I found some issues with cleancache, mostly related to (lack of)
-comments/documentation:
+Hm. I'd like to look into that when the next mmotm is shipped.
+(too many pactches in flight..)
 
+The problem is
+  
+  for (walking each 'process') 
+	if (task_in_mem_cgroup(p, memcg))
 
-> +
-> +static inline int cleancache_init_fs(size_t pagesize)
-> +
+ can't check 'p' containes threads belongs to given memcg because p->mm can
+ be NULL. So, task_in_mem_cgroup should call find_lock_task_mm() when
+ getting "mm" struct.
 
- - It is not very obvious that this function is called when
-an instance of cleancache supported filesystem is *mounted*.
-Initially, I thought this is called which any such filesystem
-module is loaded.
-
- - It seems that returning pool_id of 0 is considered as error
-condition (as it appears from deactivate_locked_super() changes). 
-This seems weird; I think only negative pool_id should considered
-as error. Anyway, please add function comments for these.
-
-> +int __cleancache_get_page(struct page *page)
-> +{
-> +	int ret = 0;
-> +	int pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> +
-> +	if (pool_id >= 0) {
-> +		ret = (*cleancache_ops->get_page)(pool_id,
-> +						  page->mapping->host->i_ino,
-> +						  page->index,
-> +						  page);
-> +		if (ret == CLEANCACHE_GET_PAGE_SUCCESS)
-> +			succ_gets++;
-> +		else
-> +			failed_gets++;
-> +	}
-> +	return ret;
-> +}
-
-It seems "non-standard" to use '1' as success code. You could simply use
-0 for success and negative error code as failure. Then you can also get
-rid of CLEANCACHE_GET_PAGE_SUCCESS.
-
-> +
-> +int __cleancache_put_page(struct page *page)
-
-What return values stands for successful put? 1? Anyway, following the
-same, 0 for success, negative codes for errors, seems to be better.
-
-> +
-> +int __cleancache_flush_page(struct address_space *mapping, struct page *page)
-
-> +int __cleancache_flush_inode(struct address_space *mapping)
-
-Return values for all the flush functions is ignored everywhere, so
-why not make them return void instead?
-
-> +static inline void cleancache_flush_fs(int pool_id)
-
-Like init_fs, please document that it is called when a cleancache
-aware filesystem is unmounted (or in other cases too?).
-
-
-
-Page cache compression was a long-pending project. I'm glad its
-coming into shape with the help of cleancache :)
 
 Thanks,
-Nitin
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
