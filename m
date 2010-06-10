@@ -1,17 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 26F206B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:29:04 -0400 (EDT)
-Received: by pwi7 with SMTP id 7so506051pwi.14
-        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:29:02 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AE2926B01AF
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:32:54 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so3094216pxi.14
+        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:32:50 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH 1/2] Cleanup: use for_each_online_cpu in vmstat
-Date: Thu, 10 Jun 2010 22:28:46 +0900
-Message-Id: <1276176526-2952-1-git-send-email-minchan.kim@gmail.com>
+Subject: [mmotm] Cleanup: use for_each_online_cpu in vmstat
+Date: Thu, 10 Jun 2010 22:32:31 +0900
+Message-Id: <1276176751-2990-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
+
+Sorry. It's not [1/2] and I used Chrisopth's old mail address.
+Resend. 
+
+--
 
 The sum_vm_events passes cpumask for for_each_cpu.
 But it's useless since we have for_each_online_cpu.
@@ -22,7 +27,7 @@ Let's use for_each_online_cpu instead of for_each_cpu with
 cpumask argument.
 
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <clameter@sgi.com>
+Cc: Christoph Lameter <cl@linux.com>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
  mm/vmstat.c |    6 +++---
