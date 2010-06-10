@@ -1,113 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1DE326B01AD
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:34:29 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5A1YOBi028988
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 10 Jun 2010 10:34:25 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AF88845DE51
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:34:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 83EB845DE4D
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:34:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A51E1DB804F
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:34:24 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 10CD61DB8041
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:34:24 +0900 (JST)
-Date: Thu, 10 Jun 2010 10:29:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
- and use a_ops->writepages() where possible
-Message-Id: <20100610102959.ccbcfb32.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100610011035.GG5650@csn.ul.ie>
-References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
-	<20100609115211.435a45f7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100609095200.GA5650@csn.ul.ie>
-	<20100610093842.6a038ab0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100610011035.GG5650@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D8BD76B01AD
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:41:51 -0400 (EDT)
+Received: by pwi7 with SMTP id 7so293330pwi.14
+        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 18:41:50 -0700 (PDT)
+Message-ID: <4C1042E0.8080403@vflare.org>
+Date: Thu, 10 Jun 2010 07:11:52 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
+MIME-Version: 1.0
+Subject: Re: [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
+References: <20100528173550.GA12219@ca-server1.us.oracle.com>
+In-Reply-To: <20100528173550.GA12219@ca-server1.us.oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Jun 2010 02:10:35 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
-> >   # mount -t cgroup none /cgroups -o memory
-> >   # mkdir /cgroups/A
-> >   # echo $$ > /cgroups/A
-> >   # echo 300M > /cgroups/memory.limit_in_bytes
-> >   # make -j 8 or make -j 16
-> > 
-> 
-> That sort of scenario would be barely pushed by kernbench. For a single
-> kernel build, it's about 250-400M depending on the .config but it's still
-> a bit unreliable. Critically, it's not the sort of workload that would have
-> lots of long-lived mappings that would hurt a workload a lot if it was being
-> paged out.
+Hi,
 
-You're right. An excuse for me is that my concern is usually the amount of
-swap-out and OOM at rapid/heavy pressure comes because it's visible to
-users easily. So, I use short-lived process test.
+On 05/28/2010 11:05 PM, Dan Magenheimer wrote:
+> [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
 
-> Maybe it would be reasonable as a starting point but we'd have to be
-> very careful of the stack usage figures? I'm leaning towards this
-> approach to start with.
-> 
-> I'm preparing another release that takes my two most important patches
-> about reclaim but also reduces usage in page relcaim (a combination of
-> two previously released series). In combination, it might be ok for the
-> memcg paths to reclaim pages from a stack perspective although the IO
-> pattern might still blow.
-
-sounds nice.
-
-> > > I'm not sure how a flusher thread would work just within a cgroup. It
-> > > would have to do a lot of searching to find the pages it needs
-> > > considering that it's looking at inodes rather than pages.
-> > > 
-> >
-> > yes. So, I(we) need some way for coloring inode for selectable writeback.
-> > But people in this area are very nervous about performance (me too ;), I've
-> > not found the answer yet.
-> > 
-> 
-> I worry that too much targetting of writing back a specific inode would
-> have other consequences.
-
-I personally think this(writeback scheduling) is a job for I/O cgroup.
-So, I guess what memcg can do is dirty-ratio-limiting, at most. The user has to
-set well-balanced combination of memory+I/O cgroup.
-Sorry for wrong mixture of story.
+I just finished a rough (but working) implementation of in-kernel
+page cache compression backend (called zcache). During this work,
+I found some issues with cleancache, mostly related to (lack of)
+comments/documentation:
 
 
-> > Okay, I'll consider about how to kick kswapd via memcg or flusher-for-memcg.
-> > Please go ahead as you want. I love good I/O pattern, too.
-> > 
-> 
-> For the moment, I'm strongly leaning towards allowing memcg to write
-> back pages. The IO pattern might not be great, but it would be in line
-> with current behaviour. The critical question is really "is it possible
-> to overflow the stack?".
-> 
+> +
+> +static inline int cleancache_init_fs(size_t pagesize)
+> +
 
-Because I don't use XFS, I don't have relaiable answer, now. But, at least,
-memcg's memory reclaim will never be called as top of do_select(), which
-uses 1000 bytes. 
+ - It is not very obvious that this function is called when
+an instance of cleancache supported filesystem is *mounted*.
+Initially, I thought this is called which any such filesystem
+module is loaded.
 
-We have to consider long-term fix for I/O patterns under memmcg but
-please global-reclaim-update-first. We did in that way when splitting LRU
-to ANON and FILE. I don't want to make memcg as a burden for updating
-vmscan.c better. 
+ - It seems that returning pool_id of 0 is considered as error
+condition (as it appears from deactivate_locked_super() changes). 
+This seems weird; I think only negative pool_id should considered
+as error. Anyway, please add function comments for these.
+
+> +int __cleancache_get_page(struct page *page)
+> +{
+> +	int ret = 0;
+> +	int pool_id = page->mapping->host->i_sb->cleancache_poolid;
+> +
+> +	if (pool_id >= 0) {
+> +		ret = (*cleancache_ops->get_page)(pool_id,
+> +						  page->mapping->host->i_ino,
+> +						  page->index,
+> +						  page);
+> +		if (ret == CLEANCACHE_GET_PAGE_SUCCESS)
+> +			succ_gets++;
+> +		else
+> +			failed_gets++;
+> +	}
+> +	return ret;
+> +}
+
+It seems "non-standard" to use '1' as success code. You could simply use
+0 for success and negative error code as failure. Then you can also get
+rid of CLEANCACHE_GET_PAGE_SUCCESS.
+
+> +
+> +int __cleancache_put_page(struct page *page)
+
+What return values stands for successful put? 1? Anyway, following the
+same, 0 for success, negative codes for errors, seems to be better.
+
+> +
+> +int __cleancache_flush_page(struct address_space *mapping, struct page *page)
+
+> +int __cleancache_flush_inode(struct address_space *mapping)
+
+Return values for all the flush functions is ignored everywhere, so
+why not make them return void instead?
+
+> +static inline void cleancache_flush_fs(int pool_id)
+
+Like init_fs, please document that it is called when a cleancache
+aware filesystem is unmounted (or in other cases too?).
+
+
+
+Page cache compression was a long-pending project. I'm glad its
+coming into shape with the help of cleancache :)
 
 Thanks,
--Kame
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
