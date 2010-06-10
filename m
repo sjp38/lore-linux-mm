@@ -1,109 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 895CE6B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 22:53:53 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5A2rocs013359
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 10 Jun 2010 11:53:50 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 76A8E45DE79
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 11:53:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 535F545DE6E
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 11:53:50 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 35BE3E38004
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 11:53:50 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7BDEE38001
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 11:53:49 +0900 (JST)
-Date: Thu, 10 Jun 2010 11:49:29 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages v2
-Message-Id: <20100610114929.1f3fc130.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100610113424.d1037621.nishimura@mxp.nes.nec.co.jp>
-References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100609155940.dd121130.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100610113424.d1037621.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 896A36B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 23:29:54 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <c773d65b-e107-428c-ba6f-04d4ca9f8361@default>
+Date: Wed, 9 Jun 2010 20:28:21 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V2 2/7] Cleancache (was Transcendent Memory): core files
+References: <20100528173550.GA12219@ca-server1.us.oracle.com
+ 4C1042E0.8080403@vflare.org>
+In-Reply-To: <4C1042E0.8080403@vflare.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: ngupta@vflare.org
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Jun 2010 11:34:24 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> I just finished a rough (but working) implementation of in-kernel
+> page cache compression backend (called zcache). During this work,
+> I found some issues with cleancache, mostly related to (lack of)
+> comments/documentation:
 
-> I can't find any trivial bugs from my review at the moment.
-> I'll do some tests.
-> 
+Great to hear!  And excellent feedback on the missing
+documentation... I am working on this right now so your
+feedback is very timely.
 
-Thank you for review.
+(documentation and funcition return values comments deleted
+as I will fix all of them)
 
-> Some minor commens.
-> 
-> On Wed, 9 Jun 2010 15:59:40 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > Still RFC, added lkml to CC: list.
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > Now, memory cgroup increments css(cgroup subsys state)'s reference
-> > count per a charged page. And the reference count is kept until
-> > the page is uncharged. But this has 2 bad effect. 
-> > 
-> >  1. Because css_get/put calls atoimic_inc()/dec, heavy call of them
-> >     on large smp will not scale well.
-> >  2. Because css's refcnt cannot be in a state as "ready-to-release",
-> >     cgroup's notify_on_release handler can't work with memcg.
-> > 
-> > This is a trial to remove css's refcnt per a page. Even if we remove
-> > refcnt, pre_destroy() does enough synchronization.
-> > 
-> > After this patch, it seems css_get() is still called in try_charge().
-> > But the logic is.
-> > 
-> >   1. task_lock(mm->owner)
-> There is no task_lock() in this version :)
-> 
-yes.
+> > +
+> > +static inline int cleancache_init_fs(size_t pagesize)
+> > +
+>=20
+>  - It seems that returning pool_id of 0 is considered as error
+> condition (as it appears from deactivate_locked_super() changes).
+> This seems weird; I think only negative pool_id should considered
+> as error. Anyway, please add function comments for these.
 
+Hmmm... this is a bug.  0 is a valid pool_id.  I'll fix it
+for the next rev.
 
-> (snip)
-> > @@ -4219,7 +4252,6 @@ static int mem_cgroup_do_precharge(unsig
-> >  		mc.precharge += count;
-> >  		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-> >  		WARN_ON_ONCE(count > INT_MAX);
-> > -		__css_get(&mem->css, (int)count);
-> >  		return ret;
-> >  	}
-> >  one_by_one:
-> You can remove VM_BUG_ON() and WARN_ON_ONCE() here, too.
-> 
-ok.
+> Page cache compression was a long-pending project. I'm glad its
+> coming into shape with the help of cleancache :)
 
-
-> > @@ -4469,8 +4501,6 @@ static void mem_cgroup_clear_mc(void)
-> >  			 */
-> >  			res_counter_uncharge(&mc.to->res,
-> >  						PAGE_SIZE * mc.moved_swap);
-> > -			VM_BUG_ON(test_bit(CSS_ROOT, &mc.to->css.flags));
-> > -			__css_put(&mc.to->css, mc.moved_swap);
-> >  		}
-> >  		/* we've already done mem_cgroup_get(mc.to) */
-> >  
-> > 
-> And, you can remove "WARN_ON_ONCE(mc.moved_swap > INT_MAX)" at the beginning
-> of this block, too.
-> 
-Hmm. ok.
-Ah...them, this patch fixes the limitation by "css's refcnt is int" problem.
-sounds nice.
-
-Thanks,
--Kmae
+Thanks!
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
