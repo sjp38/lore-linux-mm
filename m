@@ -1,77 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6188F6B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:22:30 -0400 (EDT)
-Date: Thu, 10 Jun 2010 03:21:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [patch 06/18] oom: avoid sending exiting tasks a SIGKILL
-Message-ID: <20100610012101.GA5412@redhat.com>
-References: <alpine.DEB.2.00.1006061520520.32225@chino.kir.corp.google.com> <alpine.DEB.2.00.1006061524190.32225@chino.kir.corp.google.com> <20100608202611.GA11284@redhat.com> <alpine.DEB.2.00.1006082330160.30606@chino.kir.corp.google.com> <20100609162523.GA30464@redhat.com> <alpine.DEB.2.00.1006091241330.26827@chino.kir.corp.google.com> <20100609201430.GA8210@redhat.com> <20100610091547.d2c88d4c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 81D996B01AD
+	for <linux-mm@kvack.org>; Wed,  9 Jun 2010 21:30:14 -0400 (EDT)
+Received: by vws8 with SMTP id 8so1473541vws.14
+        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 18:30:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100610091547.d2c88d4c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100609211617.3e7e41bd@annuminas.surriel.com>
+References: <AANLkTin1OS3LohKBvWyS81BoAk15Y-riCiEdcevSA7ye@mail.gmail.com>
+	<1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
+	<AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
+	<AANLkTik-cwrabXH_bQRPFtTo3C9r30B83jMf4IwJKCms@mail.gmail.com>
+	<20100609211617.3e7e41bd@annuminas.surriel.com>
+Date: Thu, 10 Jun 2010 09:30:12 +0800
+Message-ID: <AANLkTin9UTy3qSWJ8u3b1hwhnsX5NHCZNzkFbH9_-vIZ@mail.gmail.com>
+Subject: Re: [PATCH -mm] only drop root anon_vma if not self
+From: Dave Young <hidave.darkstar@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/10, KAMEZAWA Hiroyuki wrote:
+On Thu, Jun 10, 2010 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
+> On Wed, 9 Jun 2010 17:19:02 +0800
+> Dave Young <hidave.darkstar@gmail.com> wrote:
 >
-> On Wed, 9 Jun 2010 22:14:30 +0200
-> Oleg Nesterov <oleg@redhat.com> wrote:
+>> > Manually bisected mm patches, the memleak caused by following patch:
+>> >
+>> > mm-extend-ksm-refcounts-to-the-anon_vma-root.patch
+>>
+>>
+>> So I guess the refcount break, either drop-without-get or over-drop
 >
-> > > in this case since it would
-> > > not be allocating memory without p->mm.
-> >
-> > This thread will not allocate the memory, yes. But its sub-threads can.
-> > And select_bad_process() can constantly return the same (dead) thread P,
-> > badness() inspects ->mm under find_lock_task_mm() which finds the thread
-> > with the valid ->mm.
-> >
-> > OK. Probably this doesn't matter. I don't know if task_in_mem_cgroup(task)
-> > was fixed or not, but currently it also looks at task->mm and thus have
-> > the same boring problem: it is trivial to make the memory-hog process
-> > invisible to oom. Unless I missed something, of course.
+> I'm guessing I did not run the kernel with enough debug options enabled
+> when I tested my patches...
 >
-> HmHm...your concern is that there is a case when mem_cgroup_out_of_memory()
-> can't kill anything ?
-
-Or it can kill the wrong task. But once again, I am only speculating
-looking at the current code.
-
-> Now, memcg doesn't return -ENOMEM in usual case.
-> So, it loops until there are some available memory under its limit.
-> Then, if memory_cgroup_out_of_memory() can kill a process in several trial,
-> we'll not have terrible problem. (even if it's slow.)
+> Dave & Catalin, thank you for tracking this down.
 >
-> Hmm. What I can't understand is whether there is a case when PF_EXITING
-> thread never exit. If so, we need some care (in memcg?)
+> Dave, does the below patch fix your issue?
 
-	void *thread_func(void *)
-	{
-		for (;;)
-			malloc();
-	}
+Yes, it fixed the issue. Thanks.
 
-	int main(void)
-	{
-		pthread_create(..., thread_func, ...);
-		pthread_exit();
-	}
+Tested-by: Dave Young <hidave.darkstar@gmail.com>
 
-This process runs with the dead group-leader (PF_EXITING is set, ->mm == NULL).
-mem_cgroup_out_of_memory()->select_bad_process() can't see it due to
-task_in_mem_cgroup() check.
+>
+> Andrew, if the patch below works, you'll probably want to merge it as
+> mm-extend-ksm-refcounts-to-the-anon_vma-root-fix.patch :)
+>
+> ----------------
+>
+> With the new anon_vma code we take a refcount on the root anon_vma.
+> However, the root anon_vma does not have a refcount on itself, so
+> we should not try to do a drop on itself when it is being unlinked.
+>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+>
+> --- linux-2.6-rtavma/mm/rmap.c.orig =C2=A0 =C2=A0 2010-06-09 21:10:07.349=
+376896 -0400
+> +++ linux-2.6-rtavma/mm/rmap.c =C2=A02010-06-09 21:10:24.180406299 -0400
+> @@ -275,7 +275,8 @@ static void anon_vma_unlink(struct anon_
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (empty) {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* We no longer ne=
+ed the root anon_vma */
+> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 drop_anon_vma(anon_vma=
+->root);
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (anon_vma->root !=
+=3D anon_vma)
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 drop_anon_vma(anon_vma->root);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0anon_vma_free(anon=
+_vma);
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
+> =C2=A0}
+>
 
-Afaics
 
-	- task_in_mem_cgroup() should use find_lock_task_mm() too
 
-	- oom_kill_process() should check "PF_EXITING && p->mm",
-	  like select_bad_process() does.
-
-Oleg.
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
