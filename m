@@ -1,44 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F305C6B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 02:07:57 -0400 (EDT)
-Received: by bwz1 with SMTP id 1so2313391bwz.14
-        for <linux-mm@kvack.org>; Wed, 09 Jun 2010 23:07:55 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1BD1B6B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 03:17:31 -0400 (EDT)
+Received: by iwn5 with SMTP id 5so650094iwn.14
+        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 00:17:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTinCW0Bt_avQqDuGUouZTXbSKrEBx3ICcqKpmj9v@mail.gmail.com>
-References: <20100521211452.659982351@quilx.com>
-	<20100521211540.439539135@quilx.com>
-	<alpine.DEB.2.00.1006082311130.28827@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1006091112120.21686@router.home>
-	<AANLkTinCW0Bt_avQqDuGUouZTXbSKrEBx3ICcqKpmj9v@mail.gmail.com>
-Date: Thu, 10 Jun 2010 09:07:55 +0300
-Message-ID: <AANLkTinLpb81M6MNMH8Kraz5JRC91PbJp9VLj49w-bL0@mail.gmail.com>
-Subject: Re: [RFC V2 SLEB 06/14] SLUB: Get rid of the kmalloc_node slab
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Date: Thu, 10 Jun 2010 15:17:29 +0800
+Message-ID: <AANLkTik6xP9vVEyW4QG-4RfZu-iEuHcl2pBV_-mfHP4y@mail.gmail.com>
+Subject: oom killer and long-waiting processes
+From: Ryan Wang <openspace.wang@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 9, 2010 at 7:14 PM, Christoph Lameter
-> <cl@linux-foundation.org> wrote:
->> The patch needs a rework since it sometimes calculates the wrong kmalloc
->> slab. Value needs to be rounded up to the next kmalloc slab size. This
->> problem shows up if CONFIG_SLUB_DEBUG is enabled.
->>
->> Please do not merge patches that are marked "RFC". That usually means
->> that I am not satisfied with their quality yet.
+Hi all,
 
-On Wed, Jun 9, 2010 at 7:26 PM, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> I actually _asked_ you whether or not it's OK to merge patches 1-5. Do
-> you want to guess what you said? I have it all in writing stashed in
-> my mailbox if you want to refresh your memory. ;-)
+        I have one question about oom killer:
+If many processes dealing with network communications,
+but due to bad network traffic, the processes have to wait
+for a very long time. And meanwhile they may consume
+some memeory separately for computation. The number
+of such processes may be large.
 
-I only now realized you were talking about patch number six which
-shouldn't have been merged. Sorry for that, Christoph.
+        I wonder whether oom killer will kill these processes
+when the system is under high pressure?
 
-                          Pekka
+thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
