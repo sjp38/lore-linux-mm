@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 820906B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 05:43:15 -0400 (EDT)
-Message-ID: <4C10B3AF.7020908@redhat.com>
-Date: Thu, 10 Jun 2010 12:43:11 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
- control
-References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com> <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
-In-Reply-To: <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 309796B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 07:21:19 -0400 (EDT)
+Subject: Re: [PATCH -mm] only drop root anon_vma if not self
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <AANLkTin9UTy3qSWJ8u3b1hwhnsX5NHCZNzkFbH9_-vIZ@mail.gmail.com>
+References: <AANLkTin1OS3LohKBvWyS81BoAk15Y-riCiEdcevSA7ye@mail.gmail.com>
+	 <1275929000.3021.56.camel@e102109-lin.cambridge.arm.com>
+	 <AANLkTilsCkBiGtfEKkNXYclsRKhfuq4yI_1mrxMa8yJG@mail.gmail.com>
+	 <AANLkTik-cwrabXH_bQRPFtTo3C9r30B83jMf4IwJKCms@mail.gmail.com>
+	 <20100609211617.3e7e41bd@annuminas.surriel.com>
+	 <AANLkTin9UTy3qSWJ8u3b1hwhnsX5NHCZNzkFbH9_-vIZ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 10 Jun 2010 12:21:06 +0100
+Message-ID: <1276168866.24535.25.camel@e102109-lin.cambridge.arm.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Young <hidave.darkstar@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/08/2010 06:51 PM, Balbir Singh wrote:
-> Balloon unmapped page cache pages first
->
-> From: Balbir Singh<balbir@linux.vnet.ibm.com>
->
-> This patch builds on the ballooning infrastructure by ballooning unmapped
-> page cache pages first. It looks for low hanging fruit first and tries
-> to reclaim clean unmapped pages first.
->    
+Dave,
 
-I'm not sure victimizing unmapped cache pages is a good idea.  Shouldn't 
-page selection use the LRU for recency information instead of the cost 
-of guest reclaim?  Dropping a frequently used unmapped cache page can be 
-more expensive than dropping an unused text page that was loaded as part 
-of some executable's initialization and forgotten.
+On Thu, 2010-06-10 at 02:30 +0100, Dave Young wrote:
+> On Thu, Jun 10, 2010 at 9:16 AM, Rik van Riel <riel@redhat.com> wrote:
+> > On Wed, 9 Jun 2010 17:19:02 +0800
+> > Dave Young <hidave.darkstar@gmail.com> wrote:
+> >
+> >> > Manually bisected mm patches, the memleak caused by following patch:
+> >> >
+> >> > mm-extend-ksm-refcounts-to-the-anon_vma-root.patch
+> >>
+> >>
+> >> So I guess the refcount break, either drop-without-get or over-drop
+> >
+> > I'm guessing I did not run the kernel with enough debug options enabled
+> > when I tested my patches...
+> >
+> > Dave & Catalin, thank you for tracking this down.
+> >
+> > Dave, does the below patch fix your issue?
+> 
+> Yes, it fixed the issue. Thanks.
 
-Many workloads have many unmapped cache pages, for example static web 
-serving and the all-important kernel build.
+Thanks for investigating this issue.
 
-> The key advantage was that it resulted in lesser RSS usage in the host and
-> more cached usage, indicating that the caching had been pushed towards
-> the host. The guest cached memory usage was lower and free memory in
-> the guest was also higher.
->    
+BTW, without my kmemleak nobootmem patch (and CONFIG_NOBOOTMEM enabled),
+do you get other leaks (false positives). If my patch fixes the
+nobootmem problem, can I add a Tested-by: Dave Young?
 
-Caching in the host is only helpful if the cache can be shared, 
-otherwise it's better to cache in the guest.
+Thanks.
 
 -- 
-error compiling committee.c: too many arguments to function
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
