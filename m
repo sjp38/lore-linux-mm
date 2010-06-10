@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7EB5E6B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 08:43:04 -0400 (EDT)
-Date: Thu, 10 Jun 2010 14:42:31 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
- page tagging
-Message-ID: <20100610124231.GE10827@quack.suse.cz>
-References: <1275676854-15461-1-git-send-email-jack@suse.cz>
- <1275676854-15461-3-git-send-email-jack@suse.cz>
- <20100609164533.9d5c34dd.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100609164533.9d5c34dd.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 26F206B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:29:04 -0400 (EDT)
+Received: by pwi7 with SMTP id 7so506051pwi.14
+        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:29:02 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH 1/2] Cleanup: use for_each_online_cpu in vmstat
+Date: Thu, 10 Jun 2010 22:28:46 +0900
+Message-Id: <1276176526-2952-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@kernel.org, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <clameter@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed 09-06-10 16:45:33, Andrew Morton wrote:
-> On Fri,  4 Jun 2010 20:40:54 +0200
-> Jan Kara <jack@suse.cz> wrote:
-> 
-> > -#define RADIX_TREE_MAX_TAGS 2
-> > +#define RADIX_TREE_MAX_TAGS 3
-> 
-> Adds another eight bytes to the radix_tree_node, I think.  What effect
-> does this have upon the radix_tree_node_cachep packing for sl[aeiou]b? 
-> Please add to changelog if you can work it out ;).
-  The sizes of structure are:
-32-bit: 288 vs 296
-64-bit: 552 vs 560
-  I have now checked (running different kernels because I wasn't sure the
-computations I do are right) and that gives 7 objects per page with SLAB
-and SLUB on a 64-bit kernel. I'll try to get also SLOB numbers for 64-bit
-and possibly numbers for 32-bit archs (although it gets a bit tiring to try
-all the kernels ;).
+The sum_vm_events passes cpumask for for_each_cpu.
+But it's useless since we have for_each_online_cpu.
+Althougth it's tirival overhead, it's not good about
+coding consistency.
 
-								Honza
+Let's use for_each_online_cpu instead of for_each_cpu with
+cpumask argument.
+
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <clameter@sgi.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmstat.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7759941..15a14b1 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -22,14 +22,14 @@
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+ EXPORT_PER_CPU_SYMBOL(vm_event_states);
+ 
+-static void sum_vm_events(unsigned long *ret, const struct cpumask *cpumask)
++static void sum_vm_events(unsigned long *ret)
+ {
+ 	int cpu;
+ 	int i;
+ 
+ 	memset(ret, 0, NR_VM_EVENT_ITEMS * sizeof(unsigned long));
+ 
+-	for_each_cpu(cpu, cpumask) {
++	for_each_online_cpu(cpu) {
+ 		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
+ 
+ 		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
+@@ -45,7 +45,7 @@ static void sum_vm_events(unsigned long *ret, const struct cpumask *cpumask)
+ void all_vm_events(unsigned long *ret)
+ {
+ 	get_online_cpus();
+-	sum_vm_events(ret, cpu_online_mask);
++	sum_vm_events(ret);
+ 	put_online_cpus();
+ }
+ EXPORT_SYMBOL_GPL(all_vm_events);
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
