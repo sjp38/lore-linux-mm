@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EC5116B01B0
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 09:38:59 -0400 (EDT)
-Received: by pva18 with SMTP id 18so17927pva.14
-        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 06:38:58 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] Cleanup : change try_set_zone_oom with try_set_zonelist_oom
-Date: Thu, 10 Jun 2010 22:38:44 +0900
-Message-Id: <1276177124-3395-1-git-send-email-minchan.kim@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 694776B01B4
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 10:25:19 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e31.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o5AEEuA4004609
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 08:14:56 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5AEPHSW017888
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 08:25:22 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o5AEPHnG016104
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 08:25:17 -0600
+Date: Thu, 10 Jun 2010 19:55:12 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
+ control
+Message-ID: <20100610142512.GB5191@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>
+ <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
+ <4C10B3AF.7020908@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <4C10B3AF.7020908@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-We have been used naming try_set_zone_oom and clear_zonelist_oom.
-The role of functions is to lock of zonelist for preventing parallel
-OOM. So clear_zonelist_oom makes sense but try_set_zone_oome is rather
-awkward and unmatched with clear_zonelist_oom.
+* Avi Kivity <avi@redhat.com> [2010-06-10 12:43:11]:
 
-Let's change it with try_set_zonelist_oom.
+> On 06/08/2010 06:51 PM, Balbir Singh wrote:
+> >Balloon unmapped page cache pages first
+> >
+> >From: Balbir Singh<balbir@linux.vnet.ibm.com>
+> >
+> >This patch builds on the ballooning infrastructure by ballooning unmapped
+> >page cache pages first. It looks for low hanging fruit first and tries
+> >to reclaim clean unmapped pages first.
+> 
+> I'm not sure victimizing unmapped cache pages is a good idea.
+> Shouldn't page selection use the LRU for recency information instead
+> of the cost of guest reclaim?  Dropping a frequently used unmapped
+> cache page can be more expensive than dropping an unused text page
+> that was loaded as part of some executable's initialization and
+> forgotten.
+>
 
-Cc: David Rientjes <rientjes@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Let's change it with try_set_zonelist_oom.
+We victimize the unmapped cache only if it is unused (in LRU order).
+We don't force the issue too much. We also have free slab cache to go
+after.
 
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- include/linux/oom.h |    2 +-
- mm/oom_kill.c       |    4 ++--
- mm/page_alloc.c     |    2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+> Many workloads have many unmapped cache pages, for example static
+> web serving and the all-important kernel build.
+> 
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 5376623..2e4b90b 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -24,7 +24,7 @@ enum oom_constraint {
- 	CONSTRAINT_MEMORY_POLICY,
- };
- 
--extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
-+extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
- extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
- 
- extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 709aedf..84840f3 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -509,7 +509,7 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
-  * if a parallel OOM killing is already taking place that includes a zone in
-  * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
-  */
--int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
-+int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
-@@ -526,7 +526,7 @@ int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
- 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
- 		/*
- 		 * Lock each zone in the zonelist under zone_scan_lock so a
--		 * parallel invocation of try_set_zone_oom() doesn't succeed
-+		 * parallel invocation of try_set_zonelist_oom() doesn't succeed
- 		 * when it shouldn't.
- 		 */
- 		zone_set_flag(zone, ZONE_OOM_LOCKED);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 431214b..492c200 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1738,7 +1738,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	struct page *page;
- 
- 	/* Acquire the OOM killer lock for the zones in zonelist */
--	if (!try_set_zone_oom(zonelist, gfp_mask)) {
-+	if (!try_set_zonelist_oom(zonelist, gfp_mask)) {
- 		schedule_timeout_uninterruptible(1);
- 		return NULL;
- 	}
+I've tested kernbench, you can see the results in the original posting
+and there is no observable overhead as a result of the patch in my
+run.
+
+> >The key advantage was that it resulted in lesser RSS usage in the host and
+> >more cached usage, indicating that the caching had been pushed towards
+> >the host. The guest cached memory usage was lower and free memory in
+> >the guest was also higher.
+> 
+> Caching in the host is only helpful if the cache can be shared,
+> otherwise it's better to cache in the guest.
+>
+
+Hmm.. so we would need a ballon cache hint from the monitor, so that
+it is not unconditional? Overall my results show the following
+
+1. No drastic reduction of guest unmapped cache, just sufficient to
+show lesser RSS in the host. More freeable memory (as in cached
+memory + free memory) visible on the host.
+2. No significant impact on the benchmark (numbers) running in the
+guest.
+
 -- 
-1.7.0.5
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
