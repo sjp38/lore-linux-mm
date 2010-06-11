@@ -1,74 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E9F96B01CA
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 08:33:42 -0400 (EDT)
-Date: Fri, 11 Jun 2010 13:33:20 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 586756B01CC
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 08:49:57 -0400 (EDT)
+Date: Fri, 11 Jun 2010 13:49:36 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
-	and use a_ops->writepages() where possible
-Message-ID: <20100611123320.GA8798@csn.ul.ie>
-References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie> <20100610225749.c8cc3bc3.akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/6] vmscan: Write out ranges of pages contiguous to
+	the inode where possible
+Message-ID: <20100611124936.GB8798@csn.ul.ie>
+References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie> <1275987745-21708-6-git-send-email-mel@csn.ul.ie> <20100610231045.7fcd6f9d.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100610225749.c8cc3bc3.akpm@linux-foundation.org>
+In-Reply-To: <20100610231045.7fcd6f9d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 10, 2010 at 10:57:49PM -0700, Andrew Morton wrote:
-> On Tue,  8 Jun 2010 10:02:19 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, Jun 10, 2010 at 11:10:45PM -0700, Andrew Morton wrote:
+> On Tue,  8 Jun 2010 10:02:24 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > To summarise, there are two big problems with page reclaim right now. The
-> > first is that page reclaim uses a_op->writepage to write a back back
-> > under the page lock which is inefficient from an IO perspective due to
-> > seeky patterns.
+> > Page reclaim cleans individual pages using a_ops->writepage() because from
+> > the VM perspective, it is known that pages in a particular zone must be freed
+> > soon, it considers the target page to be the oldest and it does not want
+> > to wait while background flushers cleans other pages. From a filesystem
+> > perspective this is extremely inefficient as it generates a very seeky
+> > IO pattern leading to the perverse situation where it can take longer to
+> > clean all dirty pages than it would have otherwise.
+> > 
+> > This patch recognises that there are cases where a number of pages
+> > belonging to the same inode are being written out. When this happens and
+> > writepages() is implemented, the range of pages will be written out with
+> > a_ops->writepages. The inode is pinned and the page lock released before
+> > submitting the range to the filesystem. While this potentially means that
+> > more pages are cleaned than strictly necessary, the expectation is that the
+> > filesystem will be able to writeout the pages more efficiently and improve
+> > overall performance.
+> > 
+> > ...
+> >
+> > +			/* Write single page */
+> > +			switch (write_reclaim_page(cursor, mapping, PAGEOUT_IO_ASYNC)) {
+> > +			case PAGE_KEEP:
+> > +			case PAGE_ACTIVATE:
+> > +			case PAGE_CLEAN:
+> > +				unlock_page(cursor);
+> > +				break;
+> > +			case PAGE_SUCCESS:
+> > +				break;
+> > +			}
+> > +		} else {
+> > +			/* Grab inode under page lock before writing range */
+> > +			struct inode *inode = igrab(mapping->host);
+> > +			unlock_page(cursor);
+> > +			if (inode) {
+> > +				do_writepages(mapping, &wbc);
+> > +				iput(inode);
 > 
-> No it isn't.  If we have a pile of file-contiguous, disk-contiguous
-> dirty pages on the tail of the LRU then the single writepage()s will
-> work just fine due to request merging.
+> Buggy.
+
+It's buggy all right. Under heavy stress on one machine using XFS, it locks
+up. I setup the XFS-based tests after I posted the series which is why I
+missed it.
+
+> 
+> I did this, umm ~8 years ago and ended up reverting it because it was
+> complex and didn't seem to buy us anything.  Of course, that was before
+> we broke the VM and started writing out lots of LRU pages.  That code
+> was better than your code - it grabbed the address_space and did
+> writearound around the target page.
 > 
 
-Ok, I was under the mistaken impression that filesystems wanted to be
-given ranges of pages where possible. Considering that there has been no
-reaction to the patch in question from the filesystem people cc'd, I'll
-drop the problem for now.
+I considered duplicating the writing around the target page but decided
+that the VM had no idea if they needed to be cleaned or not. That's why this
+patch only considered ranges of pages the VM wanted to clean now.
 
+> The reason this code is buggy is that under extreme memory pressure
+> (<oldfart>the sort of testing nobody does any more</oldfart>) it can be
+> the case that this iput() is the final iput() on this inode.
 > 
-> 
-> Look.  This is getting very frustrating.  I keep saying the same thing
-> and keep getting ignored.  Once more:
-> 
-> 	WE BROKE IT!
-> 
-> 	PLEASE STOP WRITING CODE!
-> 
-> 	FIND OUT HOW WE BROKE IT!
-> 
-> Loud enough yet?
-> 
+> Now go take a look at iput_final(), which I bet has never been executed
+> on this path in your testing. 
 
-Yep. I've started a new series of tests that capture the trace points
-during each test to get some data on how many dirty pages are really
-being written back. They takes a long time to complete unfortunately.
+I didn't check if iput_final was being hit or not. Certainly the lockup I
+experienced was under heavy load when a lot of files were being created and
+deleleted but I hadn't pinned down where it went wrong before this mail. I
+think it was because I wasn't unlocking all the pages in the list properly.
 
-> It used to be the case that only very small amounts of IO occurred in
-> page reclaim - the vast majority of writeback happened within
-> write()->balance_dirty_pages().  Then (and I think it was around 2.6.12)
-> we broke it, and page reclaim started doing lots of writeout.
+> It takes a large number of high-level
+> VFS locks.  Locks which cannot be taken from deep within page reclaim
+> without causing various deadlocks.
 > 
 
-Ok, I'll work out exactly how many dirty pages are being  written back
-then. The data I have at the moment covers the whole test, so I cannot
-be certain if all the writeback happened during one stress test or
-whether it's a comment event.
+Can you explain this a bit more please? I can see the inode_lock is very
+important in this path for example but am not seeing how page reclaim taking
+it would cause a deadlock.
 
-> So the thing to do is to either find out how we broke it and see if it
-> can be repaired, or change the VM so that it doesn't do so much
-> LRU-based writeout.  Rather than fiddling around trying to make the
-> we-broke-it code run its brokenness faster.
+> I did solve that problem before reverting it all but I forget how.  By
+> holding a page lock to pin the address_space rather than igrab(),
+> perhaps. 
+
+But this is what I did. That function has a list of locked pages. When I
+call igrab(), the page is locked so the address_space should be pinned. I
+unlock the page after I call igrab.
+
+> Go take a look - it was somewhere between 2.5.1 and 2.5.10 if
+> I vaguely recall correctly.
 > 
+> Or don't take a look - we shouldn't need to do any of this anyway.
+> 
+
+I'll take a closer look if there is real interest in having the VM use
+writepages() but it sounds like it's a waste of time. I'll focus on
+
+a) identifying how many dirty pages the VM is really writing back with
+   tracepoints
+b) not using writepage from direct reclaim because it overflows the
+   stack
 
 -- 
 Mel Gorman
