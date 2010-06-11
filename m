@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 760A86B01D7
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 12:27:56 -0400 (EDT)
-Date: Fri, 11 Jun 2010 12:27:51 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A531A6B01D9
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 12:29:17 -0400 (EDT)
+Date: Fri, 11 Jun 2010 12:29:12 -0400
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 5/6] vmscan: Write out ranges of pages contiguous to the
- inode where possible
-Message-ID: <20100611162751.GB24707@infradead.org>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+ and use a_ops->writepages() where possible
+Message-ID: <20100611162912.GC24707@infradead.org>
 References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
- <1275987745-21708-6-git-send-email-mel@csn.ul.ie>
- <20100610231045.7fcd6f9d.akpm@linux-foundation.org>
+ <20100608090811.GA5949@infradead.org>
+ <20100608092814.GB27717@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100610231045.7fcd6f9d.akpm@linux-foundation.org>
+In-Reply-To: <20100608092814.GB27717@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 10, 2010 at 11:10:45PM -0700, Andrew Morton wrote:
-> I did this, umm ~8 years ago and ended up reverting it because it was
-> complex and didn't seem to buy us anything.  Of course, that was before
-> we broke the VM and started writing out lots of LRU pages.  That code
-> was better than your code - it grabbed the address_space and did
-> writearound around the target page.
+On Tue, Jun 08, 2010 at 10:28:14AM +0100, Mel Gorman wrote:
+> >  - we also need to care about ->releasepage.  At least for XFS it
+> >    can end up in the same deep allocator chain as ->writepage because
+> >    it does all the extent state conversions, even if it doesn't
+> >    start I/O. 
+> 
+> Dang.
+> 
+> >    I haven't managed yet to decode the ext4/btrfs codepaths
+> >    for ->releasepage yet to figure out how they release a page that
+> >    covers a delayed allocated or unwritten range.
+> > 
+> 
+> If ext4/btrfs are also very deep call-chains and this series is going more
+> or less the right direction, then avoiding calling ->releasepage from direct
+> reclaim is one, somewhat unfortunate, option. The second is to avoid it on
+> a per-filesystem basis for direct reclaim using PF_MEMALLOC to detect
+> reclaimers and PF_KSWAPD to tell the difference between direct
+> reclaimers and kswapd.
 
-> Or don't take a look - we shouldn't need to do any of this anyway.
-
-Doing nearly 100% of the writepage from the flusher threads would
-also be preferable from the filesystem point of view - getting I/O
-from one thread helps to make it more local and work around all the
-stupid I/O controller logic that tries to make our life difficult.
-
-Of course getting rid of ->writepage from the AOPs API one day would
-also be nice to simplify the filesystems code, but it's not that
-important.
+I went throught this a bit more and I can't actually hit that code in
+XFS ->releasepage anymore.  I've also audited the caller and can't see
+how we could theoretically hit it anymore.  Do the VM gurus know a case
+where we would call ->releasepage on a page that's actually dirty and
+hasn't been through block_invalidatepage before?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
