@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E94D6B0071
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 01:40:05 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp02.au.ibm.com (8.14.4/8.13.1) with ESMTP id o5B5Zc8P031845
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:35:38 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5B5dMfT1527858
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:39:22 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o5B5dMXO024752
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:39:22 +1000
-Message-ID: <4C11CC08.9080503@in.ibm.com>
-Date: Fri, 11 Jun 2010 11:09:20 +0530
-From: Sachin Sant <sachinp@in.ibm.com>
-MIME-Version: 1.0
-Subject: Re: 2.6.35-rc2 : OOPS with LTP memcg regression test run.
-References: <4C0BB98E.9030101@in.ibm.com> <201006102200.57617.maciej.rutecki@gmail.com> <20100611103509.520671b2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100611103509.520671b2.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 12F696B0071
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 01:58:28 -0400 (EDT)
+Date: Thu, 10 Jun 2010 22:57:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+ and use a_ops->writepages() where possible
+Message-Id: <20100610225749.c8cc3bc3.akpm@linux-foundation.org>
+In-Reply-To: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
+References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: maciej.rutecki@gmail.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux/PPC Development <linuxppc-dev@ozlabs.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Thu, 10 Jun 2010 22:00:57 +0200
-> Maciej Rutecki <maciej.rutecki@gmail.com> wrote:
->
->   
->> I created a Bugzilla entry at 
->> https://bugzilla.kernel.org/show_bug.cgi?id=16178
->> for your bug report, please add your address to the CC list in there, thanks!
->>
->>     
->
-> Hmm... It seems a panic in SLUB or SLAB.
-> Is .config available ?
->   
-I think the root cause for this problem was same as the one
-mentioned in this thread (Bug kmalloc-4096 : Poison overwritten)
+On Tue,  8 Jun 2010 10:02:19 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
 
-http://marc.info/?l=linux-kernel&m=127586004308747&w=2 <http://marc.info/?l=linux-kernel&m=127586004308747&w=2>
+> To summarise, there are two big problems with page reclaim right now. The
+> first is that page reclaim uses a_op->writepage to write a back back
+> under the page lock which is inefficient from an IO perspective due to
+> seeky patterns.
 
-I verified that the problem goes away after applying the commit 386f40c.
-
-Thanks
--Sachin 
+No it isn't.  If we have a pile of file-contiguous, disk-contiguous
+dirty pages on the tail of the LRU then the single writepage()s will
+work just fine due to request merging.
 
 
--- 
 
----------------------------------
-Sachin Sant
-IBM Linux Technology Center
-India Systems and Technology Labs
-Bangalore, India
----------------------------------
+Look.  This is getting very frustrating.  I keep saying the same thing
+and keep getting ignored.  Once more:
+
+	WE BROKE IT!
+
+	PLEASE STOP WRITING CODE!
+
+	FIND OUT HOW WE BROKE IT!
+
+Loud enough yet?
+
+It used to be the case that only very small amounts of IO occurred in
+page reclaim - the vast majority of writeback happened within
+write()->balance_dirty_pages().  Then (and I think it was around 2.6.12)
+we broke it, and page reclaim started doing lots of writeout.
+
+So the thing to do is to either find out how we broke it and see if it
+can be repaired, or change the VM so that it doesn't do so much
+LRU-based writeout.  Rather than fiddling around trying to make the
+we-broke-it code run its brokenness faster.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
