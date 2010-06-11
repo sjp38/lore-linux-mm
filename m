@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B116B0071
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 16:32:35 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id o5AKWVsl006073
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 13:32:31 -0700
-Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
-	by hpaq13.eem.corp.google.com with ESMTP id o5AKWT9v000823
-	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 13:32:29 -0700
-Received: by pwi7 with SMTP id 7so323696pwi.0
-        for <linux-mm@kvack.org>; Thu, 10 Jun 2010 13:32:28 -0700 (PDT)
-Date: Thu, 10 Jun 2010 13:32:25 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: oom killer and long-waiting processes
-In-Reply-To: <AANLkTik6xP9vVEyW4QG-4RfZu-iEuHcl2pBV_-mfHP4y@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006101326440.20197@chino.kir.corp.google.com>
-References: <AANLkTik6xP9vVEyW4QG-4RfZu-iEuHcl2pBV_-mfHP4y@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F8866B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 20:08:57 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o5B07IQi015085
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 20:07:18 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5B07YOb132998
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 20:07:34 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o5B07YEQ030239
+	for <linux-mm@kvack.org>; Thu, 10 Jun 2010 20:07:34 -0400
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page
+ cache control
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100610142512.GB5191@balbir.in.ibm.com>
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>
+	 <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>
+	 <4C10B3AF.7020908@redhat.com>  <20100610142512.GB5191@balbir.in.ibm.com>
+Content-Type: text/plain
+Date: Thu, 10 Jun 2010 17:07:32 -0700
+Message-Id: <1276214852.6437.1427.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ryan Wang <openspace.wang@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: balbir@linux.vnet.ibm.com
+Cc: Avi Kivity <avi@redhat.com>, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Jun 2010, Ryan Wang wrote:
-
-> Hi all,
+On Thu, 2010-06-10 at 19:55 +0530, Balbir Singh wrote:
+> > I'm not sure victimizing unmapped cache pages is a good idea.
+> > Shouldn't page selection use the LRU for recency information instead
+> > of the cost of guest reclaim?  Dropping a frequently used unmapped
+> > cache page can be more expensive than dropping an unused text page
+> > that was loaded as part of some executable's initialization and
+> > forgotten.
 > 
->         I have one question about oom killer:
-> If many processes dealing with network communications,
-> but due to bad network traffic, the processes have to wait
-> for a very long time. And meanwhile they may consume
-> some memeory separately for computation. The number
-> of such processes may be large.
-> 
->         I wonder whether oom killer will kill these processes
-> when the system is under high pressure?
-> 
+> We victimize the unmapped cache only if it is unused (in LRU order).
+> We don't force the issue too much. We also have free slab cache to go
+> after.
 
-The kernel can deal with "high pressure" quite well, but in some cases 
-such as when all of your RAM or your memory controller is filled with 
-anonymous memory and cannot be reclaimed, the oom killer may be called to 
-kill "something".  It prefers to kill something that will free a large 
-amount of memory to avoid having to subsequently kill additional tasks 
-when it kills something small first.
+Just to be clear, let's say we have a mapped page (say of /sbin/init)
+that's been unreferenced since _just_ after the system booted.  We also
+have an unmapped page cache page of a file often used at runtime, say
+one from /etc/resolv.conf or /etc/passwd.
 
-If there are tasks that you'd either like to protect from the oom killer 
-or always prefer in oom conditions, you can influence its decision-making 
-from userspace by tuning /proc/<pid>/oom_adj of the task in question.  
-Users typically set an oom_adj value of "-17" to completely disable oom 
-killing of pid (the kernel will even panic if it can't find anything 
-killable as a result of this!), a value of "-16" to prefer that pid gets 
-killed last, and a value of "15" to always prefer pid gets killed first.
+Which page will be preferred for eviction with this patch set?
 
-Lowering a /proc/<pid>/oom_adj value for a pid from its current value (it 
-inherits its value from the parent, which is usually 0) is only allowed by 
-root, more specifically, it may only be done by the CAP_SYS_RESOURCE 
-capability.
-
-You can refer to Documentation/filesystems/proc.txt for information on 
-oom_adj.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
