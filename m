@@ -1,47 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 471E26B01AD
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 02:17:31 -0400 (EDT)
-Date: Thu, 10 Jun 2010 23:17:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/6] vmscan: Do not writeback pages in direct reclaim
-Message-Id: <20100610231706.1d7528f2.akpm@linux-foundation.org>
-In-Reply-To: <1275987745-21708-7-git-send-email-mel@csn.ul.ie>
-References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
-	<1275987745-21708-7-git-send-email-mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 81B646B01AF
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 02:26:10 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5B6Q7AG029788
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 11 Jun 2010 15:26:07 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6549145DE4F
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:26:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3487B45DE4E
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:26:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 17AF31DB8042
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:26:07 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B733F1DB803F
+	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 15:26:06 +0900 (JST)
+Date: Fri, 11 Jun 2010 15:21:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memcg remove css_get/put per pages v2
+Message-Id: <20100611152144.e53d72b3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100611061102.GF5191@balbir.in.ibm.com>
+References: <20100608121901.3cab9bdf.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100609155940.dd121130.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100611061102.GF5191@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  8 Jun 2010 10:02:25 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 11 Jun 2010 11:41:02 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> When memory is under enough pressure, a process may enter direct
-> reclaim to free pages in the same manner kswapd does. If a dirty page is
-> encountered during the scan, this page is written to backing storage using
-> mapping->writepage. This can result in very deep call stacks, particularly
-> if the target storage or filesystem are complex. It has already been observed
-> on XFS that the stack overflows but the problem is not XFS-specific.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-09 15:59:40]:
 > 
-> This patch prevents direct reclaim writing back pages by not setting
-> may_writepage in scan_control. Instead, dirty pages are placed back on the
-> LRU lists for either background writing by the BDI threads or kswapd. If
-> in direct lumpy reclaim and dirty pages are encountered, the process will
-> kick the background flushter threads before trying again.
+> > +		if (consume_stock(mem)) {
+> > +			/*
+> > +			 * It seems dagerous to access memcg without css_get().
+> > +			 * But considering how consume_stok works, it's not
+> > +			 * necessary. If consume_stock success, some charges
+> > +			 * from this memcg are cached on this cpu. So, we
+> > +			 * don't need to call css_get()/css_tryget() before
+> > +			 * calling consume_stock().
+> > +			 */
+> > +			rcu_read_unlock();
+> > +			goto done;
+> > +		}
+> > +		if (!css_tryget(&mem->css)) {
 > 
+> If tryget fails, can one assume that this due to a race and the mem is
+> about to be freed?
+> 
+Yes. it's due to a race and "mem" will be no longer used.
+This does the same thing which try_get_mem_cgrou_from_mm() does now.
 
-This wouldn't have worked at all well back in the days when you could
-dirty all memory with MAP_SHARED.  The balance_dirty_pages() calls on
-the fault path will now save us but if for some reason we were ever to
-revert those, we'd need to revert this change too, I suspect.
-
-
-As it stands, it would be wildly incautious to make a change like
-this without first working out why we're pulling so many dirty pages
-off the LRU tail, and fixing that.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
