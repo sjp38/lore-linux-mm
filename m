@@ -1,54 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E05896B01AC
-	for <linux-mm@kvack.org>; Fri, 11 Jun 2010 21:50:36 -0400 (EDT)
-Received: by vws8 with SMTP id 8so2282455vws.14
-        for <linux-mm@kvack.org>; Fri, 11 Jun 2010 18:50:35 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC436B01AD
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:20:09 -0400 (EDT)
+Date: Sun, 13 Jun 2010 12:19:44 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: 2.6.35-rc2: GPF while executing libhugetlbfs tests on x86_64
+Message-ID: <20100613111944.GA22015@csn.ul.ie>
+References: <4C0BC7F0.8030109@in.ibm.com> <20100608091817.GA27717@csn.ul.ie> <4C0E2E84.6060605@in.ibm.com> <20100608123622.GE27717@csn.ul.ie> <4C11CA71.9010606@in.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1276250772.12258.57.camel@e102109-lin.cambridge.arm.com>
-References: <AANLkTiktcGrj-tcMspzR3sXplKk-PFB7M4q7rb-WiwYP@mail.gmail.com>
-	<1276250772.12258.57.camel@e102109-lin.cambridge.arm.com>
-Date: Sat, 12 Jun 2010 09:50:34 +0800
-Message-ID: <AANLkTikc3NAxOXANiFLJ9SqhdHs_11QsnX-JlwF95Alz@mail.gmail.com>
-Subject: Re: [PATCH -mm] only drop root anon_vma if not self
-From: Dave Young <hidave.darkstar@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <4C11CA71.9010606@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Sachin Sant <sachinp@in.ibm.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 11, 2010 at 6:06 PM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> On Fri, 2010-06-11 at 10:48 +0100, Dave Young wrote:
->> I got an oops when shutdown kvm guest with rik's patch applied, but
->> without your bootmem patch, is it kmemleak problem?
->
-> It could be, though I've never got it before.
->
-> Can you run this on your vmlinux file?
->
-> addr2line -i -f -e vmlinux c10c5c88
-
-The vmlinux is lost, I rebuid it with same config
-
-bash-3.1$ addr2line -i -f -e vmlinux 0xc10c5c88
-put_object
-/home/dave/mm/linux-2.6.35-rc1/mm/kmemleak.c:45
-
->
-> Thanks.
->
-> --
-> Catalin
->
+On Fri, Jun 11, 2010 at 11:02:33AM +0530, Sachin Sant wrote:
+> Mel Gorman wrote:
+>> If the problem has gone away since 2.6.35-rc2, the most likely candidate fix
+>> patch is commit [386f40: Revert "tty: fix a little bug in scrup, vt.c"] which
+>> reverts the patch you previously identified as being a problem.  The commit
+>> message also matches roughly what you are seeing with the 0x0720 patterns.
+>>
+>> Can you retest with 2.6.35-rc2 with commit 386f40 applied and see if it
+>> also fixes up your problem please?
+>>   
+> I could not recreate this problem against 2.6.35-rc2 + commit 386f40.
 >
 
-
+Great, I will consider this bug resolved so. Thanks for testing.
 
 -- 
-Regards
-dave
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
