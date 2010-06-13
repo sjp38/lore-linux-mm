@@ -1,84 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 100686B01B6
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:24:57 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5DBOtRg021755
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 43C386B01B7
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:24:58 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5DBOs49007405
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 13 Jun 2010 20:24:56 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AAB6845DE52
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8787745DE4D
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 656911DB8051
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:55 +0900 (JST)
+	Sun, 13 Jun 2010 20:24:54 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F241445DE54
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0AC545DE50
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 90B9E1DB8040
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:53 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 13EA01DB8045
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:55 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CFA91DB803F
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:53 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 01/18] oom: filter tasks not sharing the same cpuset
-In-Reply-To: <20100608170630.80753ed1.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1006081654020.19582@chino.kir.corp.google.com> <20100608170630.80753ed1.akpm@linux-foundation.org>
-Message-Id: <20100613184604.6184.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 08/10] oom: use send_sig() instead force_sig()
+In-Reply-To: <20100608184144.GA5914@redhat.com>
+References: <20100608210000.7692.A69D9226@jp.fujitsu.com> <20100608184144.GA5914@redhat.com>
+Message-Id: <20100613180912.617B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Sun, 13 Jun 2010 20:24:54 +0900 (JST)
+Date: Sun, 13 Jun 2010 20:24:52 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 8 Jun 2010 16:54:31 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
+> On 06/08, KOSAKI Motohiro wrote:
+> >
+> > Oleg pointed out oom_kill.c has force_sig() abuse. force_sig() mean
+> > ignore signal mask. but SIGKILL itself is not maskable.
 > 
-> > On Tue, 8 Jun 2010, Andrew Morton wrote:
-> > 
-> > > And I wonder if David has observed some problem which the 2010 change
-> > > fixes!
-> > > 
-> > 
-> > Yes, as explained in my changelog.  I'll paste it:
-> > 
-> > Tasks that do not share the same set of allowed nodes with the task that
-> > triggered the oom should not be considered as candidates for oom kill.
-> > 
-> > Tasks in other cpusets with a disjoint set of mems would be unfairly
-> > penalized otherwise because of oom conditions elsewhere; an extreme
-> > example could unfairly kill all other applications on the system if a
-> > single task in a user's cpuset sets itself to OOM_DISABLE and then uses
-> > more memory than allowed.
+> Yes. And we have other reasons to avoid force_sig(). It should be used
+> only for synchronous signals.
 > 
-> OK, so Nick's change didn't anticipate things being set to OOM_DISABLE?
+> But,
 > 
-> OOM_DISABLE seems pretty dangerous really - allows malicious
-> unprivileged users to go homicidal?
+> > @@ -399,7 +399,7 @@ static int __oom_kill_process(struct task_struct *p, struct mem_cgroup *mem)
+> >  	p->rt.time_slice = HZ;
+> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> >
+> > -	force_sig(SIGKILL, p);
+> > +	send_sig(SIGKILL, p, 1);
+> 
+> This is not right, we need send_sig(SIGKILL, p, 0). Better yet,
+> send_sig_info(SIGKILL, SEND_SIG_NOINFO). I think send_sig() should
+> die.
+> 
+> The reason is that si_fromuser() must be true, otherwise we can't kill
+> the SIGNAL_UNKILLABLE (sub-namespace inits) tasks.
 
-Just clarify. 
+Thanks. I am not signal expert. 
+To be honest, current special siginfo arguments have a bit unclear meanings
+to me ;)
+current definition (following) doesn't teach anything.
 
-David's patch have following Pros/Cons.
-
-Pros
-	- 1/8 badness was inaccurate and a bit unclear why 1/8.
-	- Usually, almost processes don't change their cpuset mask
-	  in their life time. then, cpuset_mems_allowed_intersects()
-	  is so so good heuristic.
-
-Cons
-	- But, they can change CPUSET mask. we can't assume 
-	  cpuset_mems_allowed_intersects() return always correct 
-	  memory usage.
-	- The task may have mlocked page cache out of CPUSET mask.
-	  (probably they are using cpuset.memory_spread_page, perhaps)
+sched.h
+=====================
+/* These can be the second arg to send_sig_info/send_group_sig_info.  */
+#define SEND_SIG_NOINFO ((struct siginfo *) 0)
+#define SEND_SIG_PRIV   ((struct siginfo *) 1)
+#define SEND_SIG_FORCED ((struct siginfo *) 2)
 
 
-I don't think this is OOM_DISABLE related issue. I think just heuristic choice
-matter. Both approaches have corner case obviously. Then, I asked most 
-typical workload concern and test result. 
+If anyone write exact meanings, I'm really really glad.
 
+
+
+> Oh. This reminds me, we really need the trivial (but annoying) cleanups
+> here. The usage of SEND_SIG_ constants is messy, and they should be
+> renamed at least.
+> 
+> And in fact, we need the new one which acts like SEND_SIG_FORCED but
+> si_fromuser(). We do not want to allocate the memory when the caller
+> is oom_kill or zap_pid_ns_processes().
+> 
+> OK. I'll send the simple patch which adds the new helper with the
+> comment. send_sigkill() or kernel_kill_task(), or do you see a
+> better name?
+
+Very thanks. both name are pretty good to me.
 
 
 
