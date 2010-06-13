@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E86DD6B01BE
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:25:02 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5DBP0xD021786
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 13 Jun 2010 20:25:00 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9225C45DE4D
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:25:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F34045DE4E
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:25:00 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AA0C1DB8038
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:25:00 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BB441DB803B
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:57 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 05/18] oom: give current access to memory reserves if it has been killed
-In-Reply-To: <20100608131211.e769e3a1.akpm@linux-foundation.org>
-References: <20100608203216.765D.A69D9226@jp.fujitsu.com> <20100608131211.e769e3a1.akpm@linux-foundation.org>
-Message-Id: <20100613202009.619F.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5C11E6B01AC
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 11:30:57 -0400 (EDT)
+Date: Sun, 13 Jun 2010 17:29:18 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 1/1] signals: introduce send_sigkill() helper
+Message-ID: <20100613152918.GA8024@redhat.com>
+References: <20100608204621.767A.A69D9226@jp.fujitsu.com> <20100608210000.7692.A69D9226@jp.fujitsu.com> <20100608184144.GA5914@redhat.com> <20100610005937.GA4727@redhat.com> <20100610010023.GB4727@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
-Date: Sun, 13 Jun 2010 20:24:56 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100610010023.GB4727@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Roland McGrath <roland@redhat.com>
+Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue,  8 Jun 2010 20:41:57 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > +
-> > >  	if (sysctl_panic_on_oom == 2) {
-> > >  		dump_header(NULL, gfp_mask, order, NULL);
-> > >  		panic("out of memory. Compulsory panic_on_oom is selected.\n");
-> > 
-> > Sorry, I had found this patch works incorrect. I don't pulled.
-> 
-> Saying "it doesn't work and I'm not telling you why" is unhelpful.  In
-> fact it's the opposite of helpful because it blocks merging of the fix
-> and doesn't give us any way to move forward.
-> 
-> So what can I do?  Hard.
-> 
-> What I shall do is to merge the patch in the hope that someone else will
-> discover the undescribed problem and we will fix it then.  That's very
-> inefficient.
+Andrew, please drop
 
-Please see 5 minute before positng e-mail. thanks.
+	signals-introduce-send_sigkill-helper.patch
 
+I am stupid.
+
+On 06/10, Oleg Nesterov wrote:
+>
+> Cleanup, no functional changes.
+>
+> There are a lot of buggy SIGKILL users in kernel. For example, almost
+> every force_sig(SIGKILL) is wrong. force_sig() is not safe, it assumes
+> that the task has the valid ->sighand, and in general it should be used
+> only for synchronous signals. send_sig(SIGKILL, p, 1) or
+> send_xxx(SEND_SIG_FORCED/SEND_SIG_PRIV) is not right too but this is not
+> immediately obvious.
+>
+> The only way to correctly send SIGKILL is send_sig_info(SEND_SIG_NOINFO)
+
+No, SEND_SIG_NOINFO doesn't work too. Oh, can't understand what I was
+thinking about. current is the random task, but send_signal() checks
+if the caller is from-parent-ns.
+
+> Note: we need more cleanups here, this is only the first change.
+
+We need the cleanups first. Until then oom-killer has to use force_sig()
+if we want to kill the SIGNAL_UNKILLABLE tasks too.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
