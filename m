@@ -1,40 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC436B01AD
-	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:20:09 -0400 (EDT)
-Date: Sun, 13 Jun 2010 12:19:44 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: 2.6.35-rc2: GPF while executing libhugetlbfs tests on x86_64
-Message-ID: <20100613111944.GA22015@csn.ul.ie>
-References: <4C0BC7F0.8030109@in.ibm.com> <20100608091817.GA27717@csn.ul.ie> <4C0E2E84.6060605@in.ibm.com> <20100608123622.GE27717@csn.ul.ie> <4C11CA71.9010606@in.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 86F456B01B0
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 07:24:53 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5DBOp4j022624
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Sun, 13 Jun 2010 20:24:51 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D60AD45DE52
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:50 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B57B045DE51
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:50 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BDE21DB803F
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:50 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 572A31DB8038
+	for <linux-mm@kvack.org>; Sun, 13 Jun 2010 20:24:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [mmotm] Cleanup: use for_each_online_cpu in vmstat
+In-Reply-To: <1276176751-2990-1-git-send-email-minchan.kim@gmail.com>
+References: <1276176751-2990-1-git-send-email-minchan.kim@gmail.com>
+Message-Id: <20100613162540.6157.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4C11CA71.9010606@in.ibm.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+Date: Sun, 13 Jun 2010 20:24:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Sachin Sant <sachinp@in.ibm.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 11, 2010 at 11:02:33AM +0530, Sachin Sant wrote:
-> Mel Gorman wrote:
->> If the problem has gone away since 2.6.35-rc2, the most likely candidate fix
->> patch is commit [386f40: Revert "tty: fix a little bug in scrup, vt.c"] which
->> reverts the patch you previously identified as being a problem.  The commit
->> message also matches roughly what you are seeing with the 0x0720 patterns.
->>
->> Can you retest with 2.6.35-rc2 with commit 386f40 applied and see if it
->> also fixes up your problem please?
->>   
-> I could not recreate this problem against 2.6.35-rc2 + commit 386f40.
->
+> Sorry. It's not [1/2] and I used Chrisopth's old mail address.
+> Resend. 
+> 
+> --
+> 
+> The sum_vm_events passes cpumask for for_each_cpu.
+> But it's useless since we have for_each_online_cpu.
+> Althougth it's tirival overhead, it's not good about
+> coding consistency.
+> 
+> Let's use for_each_online_cpu instead of for_each_cpu with
+> cpumask argument.
+> 
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Great, I will consider this bug resolved so. Thanks for testing.
+Thank you.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
