@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E9F726B01D8
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 17:13:53 -0400 (EDT)
-Message-ID: <4C169B81.8010707@redhat.com>
-Date: Mon, 14 Jun 2010 17:13:37 -0400
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 791376B01AC
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 17:56:31 -0400 (EDT)
+Message-ID: <4C16A567.4080000@redhat.com>
+Date: Mon, 14 Jun 2010 17:55:51 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-12-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1276514273-27693-12-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-13-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1276514273-27693-13-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,26 +17,24 @@ Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 List-ID: <linux-mm.kvack.org>
 
 On 06/14/2010 07:17 AM, Mel Gorman wrote:
-> Page reclaim cleans individual pages using a_ops->writepage() because from
-> the VM perspective, it is known that pages in a particular zone must be freed
-> soon, it considers the target page to be the oldest and it does not want
-> to wait while background flushers cleans other pages. From a filesystem
-> perspective this is extremely inefficient as it generates a very seeky
-> IO pattern leading to the perverse situation where it can take longer to
-> clean all dirty pages than it would have otherwise.
 
-Reclaiming clean pages should be fast enough that this should
-make little, if any, difference.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4856a2a..574e816 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -372,6 +372,12 @@ int write_reclaim_page(struct page *page, struct address_space *mapping,
+>   	return PAGE_SUCCESS;
+>   }
+>
+> +/* kswapd and memcg can writeback as they are unlikely to overflow stack */
+> +static inline bool reclaim_can_writeback(struct scan_control *sc)
+> +{
+> +	return current_is_kswapd() || sc->mem_cgroup != NULL;
+> +}
+> +
 
-> This patch queues all dirty pages at once to maximise the chances that
-> the write requests get merged efficiently. It also makes the next patch
-> that avoids writeout from direct reclaim more straight-forward.
-
-However, this is a convincing argument :)
-
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
-
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I'm not entirely convinced on this bit, but am willing to
+be convinced by the data.
 
 -- 
 All rights reversed
