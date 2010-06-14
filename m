@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E94AA6B01EC
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 11:35:46 -0400 (EDT)
-Message-ID: <4C164C22.1050503@redhat.com>
-Date: Mon, 14 Jun 2010 18:34:58 +0300
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3ABF16B01BA
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 11:44:38 -0400 (EDT)
+Message-ID: <4C164E63.2020204@redhat.com>
+Date: Mon, 14 Jun 2010 18:44:35 +0300
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
  control
-References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>	 <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>	 <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com>	 <1276214852.6437.1427.camel@nimitz>	 <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com>	 <20100614084810.GT5191@balbir.in.ibm.com> <1276528376.6437.7176.camel@nimitz>
-In-Reply-To: <1276528376.6437.7176.camel@nimitz>
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>	 <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>	 <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com>	 <1276214852.6437.1427.camel@nimitz>	 <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com>	 <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com>	 <20100614125010.GU5191@balbir.in.ibm.com>  <4C162846.7030303@redhat.com> <1276529596.6437.7216.camel@nimitz>
+In-Reply-To: <1276529596.6437.7216.camel@nimitz>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,45 +17,40 @@ To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: balbir@linux.vnet.ibm.com, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/14/2010 06:12 PM, Dave Hansen wrote:
-> On Mon, 2010-06-14 at 14:18 +0530, Balbir Singh wrote:
+On 06/14/2010 06:33 PM, Dave Hansen wrote:
+> On Mon, 2010-06-14 at 16:01 +0300, Avi Kivity wrote:
 >    
->> 1. A slab page will not be freed until the entire page is free (all
->> slabs have been kfree'd so to speak). Normal reclaim will definitely
->> free this page, but a lot of it depends on how frequently we are
->> scanning the LRU list and when this page got added.
+>> If we drop unmapped pagecache pages, we need to be sure they can be
+>> backed by the host, and that depends on the amount of sharing.
 >>      
-> You don't have to be freeing entire slab pages for the reclaim to have
-> been useful.  You could just be making space so that _future_
-> allocations fill in the slab holes you just created.  You may not be
-> freeing pages, but you're reducing future system pressure.
+> You also have to set up the host up properly, and continue to maintain
+> it in a way that finds and eliminates duplicates.
+>
+> I saw some benchmarks where KSM was doing great, finding lots of
+> duplicate pages.  Then, the host filled up, and guests started
+> reclaiming.  As memory pressure got worse, so did KSM's ability to find
+> duplicates.
 >    
 
-Depends.  If you've evicted something that will be referenced soon, 
-you're increasing system pressure.
+Yup.  KSM needs to be backed up by ballooning, swap, and live migration.
 
-> If unmapped page cache is the easiest thing to evict, then it should be
-> the first thing that goes when a balloon request comes in, which is the
-> case this patch is trying to handle.  If it isn't the easiest thing to
-> evict, then we _shouldn't_ evict it.
+> At the same time, I see what you're trying to do with this.  It really
+> can be an alternative to ballooning if we do it right, since ballooning
+> would probably evict similar pages.  Although it would only work in idle
+> guests, what about a knob that the host can turn to just get the guest
+> to start running reclaim?
 >    
 
-Easy to evict is just one measure.  There's benefit (size of data 
-evicted), cost to refill (seeks, cpu), and likelihood that the cost to 
-refill will be incurred (recency).
+Isn't the knob in this proposal the balloon?  AFAICT, the idea here is 
+to change how the guest reacts to being ballooned, but the trigger 
+itself would not change.
 
-It's all very complicated.  We need better information to make these 
-decisions.  For one thing, I'd like to see age information tied to 
-objects.  We may have two pages that were referenced in wildly different 
-times be next to each other in LRU order.  We have many LRUs, but no 
-idea of the relative recency of the tails of those LRUs.
+My issue is that changing the type of object being preferentially 
+reclaimed just changes the type of workload that would prematurely 
+suffer from reclaim.  In this case, workloads that use a lot of unmapped 
+pagecache would suffer.
 
-If each page or object had an age, we could scale those ages by the 
-benefit from reclaim and cost to refill and make a better decision as to 
-what to evict first.  But of course page->age means increasing sizeof 
-struct page, and we can only approximate its value by scanning the 
-accessed bit, not determine it accurately (unlike the other objects 
-managed by the cache).
+btw, aren't /proc/sys/vm/swapiness and vfs_cache_pressure similar knobs?
 
 -- 
 error compiling committee.c: too many arguments to function
