@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8843D6B01D4
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 16:57:37 -0400 (EDT)
-Subject: Re: [PATCH 03/12] tracing, vmscan: Add trace event when a page is
-	written
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id ABE8D6B01D7
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 16:58:57 -0400 (EDT)
+Subject: Re: [PATCH 04/12] tracing, vmscan: Add a postprocessing script for
+	reclaim-related ftrace events
 From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <1276514273-27693-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1276514273-27693-5-git-send-email-mel@csn.ul.ie>
 References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
-	 <1276514273-27693-4-git-send-email-mel@csn.ul.ie>
+	 <1276514273-27693-5-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain
-Date: Mon, 14 Jun 2010 17:02:51 -0400
-Message-Id: <1276549371.8736.105.camel@dhcp-100-19-198.bos.redhat.com>
+Date: Mon, 14 Jun 2010 17:03:44 -0400
+Message-Id: <1276549425.8736.107.camel@dhcp-100-19-198.bos.redhat.com>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,13 +19,9 @@ Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2010-06-14 at 12:17 +0100, Mel Gorman wrote:
-> This patch adds a trace event for when page reclaim queues a page for IO and
-> records whether it is synchronous or asynchronous. Excessive synchronous
-> IO for a process can result in noticeable stalls during direct reclaim.
-> Excessive IO from page reclaim may indicate that the system is seriously
-> under provisioned for the amount of dirty pages that exist.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> This patch adds a simple post-processing script for the reclaim-related
+> trace events.  It can be used to give an indication of how much traffic
+> there is on the LRU lists and how severe latencies due to reclaim are.
 
 Acked-by: Larry Woodman <lwoodman@redhat.com>
 
