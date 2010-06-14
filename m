@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 441806B01E9
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 14:05:19 -0400 (EDT)
-Message-ID: <4C166F2E.4030606@redhat.com>
-Date: Mon, 14 Jun 2010 14:04:30 -0400
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E5D786B01ED
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 14:06:51 -0400 (EDT)
+Message-ID: <4C166F95.3030907@redhat.com>
+Date: Mon, 14 Jun 2010 14:06:13 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/12] vmscan: kill prev_priority completely
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-6-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1276514273-27693-6-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 06/12] vmscan: simplify shrink_inactive_list()
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-7-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1276514273-27693-7-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,18 +19,33 @@ List-ID: <linux-mm.kvack.org>
 On 06/14/2010 07:17 AM, Mel Gorman wrote:
 > From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 >
-> Since 2.6.28 zone->prev_priority is unused. Then it can be removed
-> safely. It reduce stack usage slightly.
+> Now, max_scan of shrink_inactive_list() is always passed less than
+> SWAP_CLUSTER_MAX. then, we can remove scanning pages loop in it.
+> This patch also help stack diet.
 >
-> Now I have to say that I'm sorry. 2 years ago, I thought prev_priority
-> can be integrate again, it's useful. but four (or more) times trying
-> haven't got good performance number. Thus I give up such approach.
+> detail
+>   - remove "while (nr_scanned<  max_scan)" loop
+>   - remove nr_freed (now, we use nr_reclaimed directly)
+>   - remove nr_scan (now, we use nr_scanned directly)
+>   - rename max_scan to nr_to_scan
+>   - pass nr_to_scan into isolate_pages() directly instead
+>     using SWAP_CLUSTER_MAX
 >
 > Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 > Reviewed-by: Johannes Weiner<hannes@cmpxchg.org>
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+
+Other than the weird whitespace below,
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
+
+> +	/*
+> +	 * If we are direct reclaiming for contiguous pages and we do
+> +	 * not reclaim everything in the list, try again and wait
+> +	 * for IO to complete. This will stall high-order allocations
+> +	 * but that should be acceptable to the caller
+> +	 */
+> +	if (nr_reclaimed<  nr_taken&&  !current_is_kswapd()&&  sc->lumpy_reclaim_mode) {
+> +		congestion_wait(BLK_RW_ASYNC, HZ/10);
 
 -- 
 All rights reversed
