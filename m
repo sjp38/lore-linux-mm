@@ -1,87 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8435D6B01C4
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 07:08:27 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5EB8OOO007551
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 14 Jun 2010 20:08:24 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DAACD45DE51
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 20:08:23 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B8E3645DE4F
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 20:08:23 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 631AE1DB8038
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 20:08:23 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B281E1DB805B
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 20:08:22 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 05/18] oom: give current access to memory reserves if it has been killed
-In-Reply-To: <alpine.DEB.2.00.1006081145560.18848@chino.kir.corp.google.com>
-References: <20100608203216.765D.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006081145560.18848@chino.kir.corp.google.com>
-Message-Id: <20100614195055.9DAE.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 14 Jun 2010 20:08:21 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFE86B01CA
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 07:17:59 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 02/12] tracing, vmscan: Add trace events for LRU page isolation
+Date: Mon, 14 Jun 2010 12:17:43 +0100
+Message-Id: <1276514273-27693-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> > > +	/*
-> > > +	 * If current has a pending SIGKILL, then automatically select it.  The
-> > > +	 * goal is to allow it to allocate so that it may quickly exit and free
-> > > +	 * its memory.
-> > > +	 */
-> > > +	if (fatal_signal_pending(current)) {
-> > > +		set_thread_flag(TIF_MEMDIE);
-> > > +		return;
-> > > +	}
-> > > +
-> > >  	if (sysctl_panic_on_oom == 2) {
-> > >  		dump_header(NULL, gfp_mask, order, NULL);
-> > >  		panic("out of memory. Compulsory panic_on_oom is selected.\n");
-> > 
-> > Sorry, I had found this patch works incorrect. I don't pulled.
-> > 
-> 
-> You're taking back your ack?
-> 
-> Why does this not work?  It's not killing a potentially immune task, the 
-> task is already dying.  We're simply giving it access to memory reserves 
-> so that it may quickly exit and die.  OOM_DISABLE does not imply that a 
-> task cannot exit on its own or be killed by another application or user, 
-> we simply don't want to needlessly kill another task when current is dying 
-> in the first place without being able to allocate memory.
-> 
-> Please reconsider your thought.
+This patch adds an event for when pages are isolated en-masse from the
+LRU lists. This event augments the information available on LRU traffic
+and can be used to evaluate lumpy reclaim.
 
-Oh, I didn't talk about OOM_DISABLE. probably my explanation was too
-poor.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ include/trace/events/vmscan.h |   46 +++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                   |   14 ++++++++++++
+ 2 files changed, 60 insertions(+), 0 deletions(-)
 
-My point is, the above code assume SIGKILL is good sign of the task is
-going exit soon. but It is not always true. Only if the task is regular
-userland process, it's true. kernel module author freely makes very strange
-kernel thread.
-
-note: Linux is one of most popular generic purpose OS in the world and
-we have million out of funny drivers.
-
-Plus, If false positive occur, setting TIF_MEMDIE is very dangerous because
-if there is TIF_MEMDIE task, our kernl don't send next OOM-Kill. It mean
-the systam can reach dead lock. In the other hand, false negative is relatively
-safe. It cause one innocent task kill. but the system doesn't cause lockup.
-
-Then, we have strongly motivation to avoid false positive. I hope you add 
-some conservative check.
-
-I don't disagree your patch concept. I only worry about the dangerousness.
-
-
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index f76521f..a331454 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -109,6 +109,52 @@ TRACE_EVENT(mm_vmscan_direct_reclaim_end,
+ 	TP_printk("nr_reclaimed=%lu", __entry->nr_reclaimed)
+ );
+ 
++TRACE_EVENT(mm_vmscan_lru_isolate,
++
++	TP_PROTO(int order,
++		unsigned long nr_requested,
++		unsigned long nr_scanned,
++		unsigned long nr_taken,
++		unsigned long nr_lumpy_taken,
++		unsigned long nr_lumpy_dirty,
++		unsigned long nr_lumpy_failed,
++		int isolate_mode),
++
++	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode),
++
++	TP_STRUCT__entry(
++		__field(int, order)
++		__field(unsigned long, nr_requested)
++		__field(unsigned long, nr_scanned)
++		__field(unsigned long, nr_taken)
++		__field(unsigned long, nr_lumpy_taken)
++		__field(unsigned long, nr_lumpy_dirty)
++		__field(unsigned long, nr_lumpy_failed)
++		__field(int, isolate_mode)
++	),
++
++	TP_fast_assign(
++		__entry->order = order;
++		__entry->nr_requested = nr_requested;
++		__entry->nr_scanned = nr_scanned;
++		__entry->nr_taken = nr_taken;
++		__entry->nr_lumpy_taken = nr_lumpy_taken;
++		__entry->nr_lumpy_dirty = nr_lumpy_dirty;
++		__entry->nr_lumpy_failed = nr_lumpy_failed;
++		__entry->isolate_mode = isolate_mode;
++	),
++
++	TP_printk("isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu contig_taken=%lu contig_dirty=%lu contig_failed=%lu",
++		__entry->isolate_mode,
++		__entry->order,
++		__entry->nr_requested,
++		__entry->nr_scanned,
++		__entry->nr_taken,
++		__entry->nr_lumpy_taken,
++		__entry->nr_lumpy_dirty,
++		__entry->nr_lumpy_failed)
++);
++		
+ #endif /* _TRACE_VMSCAN_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 6bfb579..25bf05a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -917,6 +917,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 		unsigned long *scanned, int order, int mode, int file)
+ {
+ 	unsigned long nr_taken = 0;
++	unsigned long nr_lumpy_taken = 0, nr_lumpy_dirty = 0, nr_lumpy_failed = 0;
+ 	unsigned long scan;
+ 
+ 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+@@ -994,12 +995,25 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 				list_move(&cursor_page->lru, dst);
+ 				mem_cgroup_del_lru(cursor_page);
+ 				nr_taken++;
++				nr_lumpy_taken++;
++				if (PageDirty(cursor_page))
++					nr_lumpy_dirty++;
+ 				scan++;
++			} else {
++				if (mode == ISOLATE_BOTH &&
++						page_count(cursor_page))
++					nr_lumpy_failed++;
+ 			}
+ 		}
+ 	}
+ 
+ 	*scanned = scan;
++
++	trace_mm_vmscan_lru_isolate(order, 
++			nr_to_scan, scan,
++			nr_taken,
++			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
++			mode);
+ 	return nr_taken;
+ }
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
