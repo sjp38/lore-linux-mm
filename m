@@ -1,103 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 207266B01B5
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 09:02:04 -0400 (EDT)
-Message-ID: <4C162846.7030303@redhat.com>
-Date: Mon, 14 Jun 2010 16:01:58 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
- control
-References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com> <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com> <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com> <1276214852.6437.1427.camel@nimitz> <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com> <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com> <20100614125010.GU5191@balbir.in.ibm.com>
-In-Reply-To: <20100614125010.GU5191@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 560B86B01EB
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 09:58:19 -0400 (EDT)
+Subject: [RFC PATCH] mm: let the bdi_writeout fraction respond more quickly
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+Content-Type: multipart/mixed; boundary="=-FZFkKOI+7B3iB1fSeZz7"
+Date: Mon, 14 Jun 2010 14:58:14 +0100
+Message-ID: <1276523894.1980.85.camel@castor.rsk>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jens Axboe <jens.axboe@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 06/14/2010 03:50 PM, Balbir Singh wrote:
->
->>
->>> let me try to reason a bit. First let me explain the
->>> problem
->>>
->>> Memory is a precious resource in a consolidated environment.
->>> We don't want to waste memory via page cache duplication
->>> (cache=writethrough and cache=writeback mode).
->>>
->>> Now here is what we are trying to do
->>>
->>> 1. A slab page will not be freed until the entire page is free (all
->>> slabs have been kfree'd so to speak). Normal reclaim will definitely
->>> free this page, but a lot of it depends on how frequently we are
->>> scanning the LRU list and when this page got added.
->>> 2. In the case of page cache (specifically unmapped page cache), there
->>> is duplication already, so why not go after unmapped page caches when
->>> the system is under memory pressure?
->>>
->>> In the case of 1, we don't force a dentry to be freed, but rather a
->>> freed page in the slab cache to be reclaimed ahead of forcing reclaim
->>> of mapped pages.
->>>        
->> Sounds like this should be done unconditionally, then.  An empty
->> slab page is worth less than an unmapped pagecache page at all
->> times, no?
->>
->>      
-> In a consolidated environment, even at the cost of some CPU to run
-> shrinkers, I think potentially yes.
->    
 
-I don't understand.  If you're running the shrinkers then you're 
-evicting live entries, which could cost you an I/O each.  That's 
-expensive, consolidated or not.
+--=-FZFkKOI+7B3iB1fSeZz7
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 
-If you're not running the shrinkers, why does it matter if you're 
-consolidated or not?  Drop that age unconditionally.
+Hi all,
+The fraction of vm cache allowed to each BDI as calculated by
+get_dirty_limits (mm/page-writeback.c) respond very slowly to changes in
+workload.
 
->>> Does the problem statement make sense? If so, do you agree with 1 and
->>> 2? Is there major concern about subverting regular reclaim? Does
->>> subverting it make sense in the duplicated scenario?
->>>
->>>        
->> In the case of 2, how do you know there is duplication?  You know
->> the guest caches the page, but you have no information about the
->> host.  Since the page is cached in the guest, the host doesn't see
->> it referenced, and is likely to drop it.
->>      
-> True, that is why the first patch is controlled via a boot parameter
-> that the host can pass. For the second patch, I think we'll need
-> something like a balloon<size>  <cache?>  with the cache argument being
-> optional.
->    
+Running a simple test that alternately writes 1Gb to sda then sdb,
+twice, shows the bdi_threshold taking approximately 15 seconds to reach
+a steady state value. This prevents a application from using all of the
+available cache and forces it to write to the physical disk earlier than
+strictly necessary.  
+As you can see from the attached graph, bdi_thresh_before.png, our
+current control system responds to this kind of workload very slowly.
 
-Whether a page is duplicated on the host or not is per-page, it cannot 
-be a boot parameter.
+The below patch speeds up the recalculation and lets it reach a steady
+state value in a couple of seconds. see bdi_thresh_after.png.
 
-If we drop unmapped pagecache pages, we need to be sure they can be 
-backed by the host, and that depends on the amount of sharing.
+I get better throughput with this patch applied and have been running
+some variation of this on and off for some months without any obvious
+problems.
 
-Overall, I don't see how a user can tune this.  If I were a guest admin, 
-I'd play it safe by not assuming the host will back me, and disabling 
-the feature.
+(These tests were all run on 2.6.35-rc3,
+where dm-2 is a sata drive lvm/ext4 and sdb is ide ext4.
+I've got lots more results and graphs but won't bore you all with
+them ;) )
 
-To get something like this to work, we need to reward cooperating guests 
-somehow.
+I see this as a considerable improvement but I have found the magic
+number of -4 empirically so it may just be tuned to my system. I'm not
+sure how to decide on a value that is suitable for everyone. 
 
->> If there is no duplication, then you may have dropped a
->> recently-used page and will likely cause a major fault soon.
->>      
-> Yes, agreed.
->    
+Does anyone have any suggestions or thoughts?
 
-So how do we deal with this?
+Unfortunately I don't have any other hardware to try this on, so I would
+be very interest to hear if anyone tries this on their favourite
+workload.
+
+regards
+Richard
+ 
+patch against 2.6.35-rc3
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 2fdda90..315dd04 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -144,7 +144,7 @@ static int calc_period_shift(void)
+ 	else
+ 		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+ 				100;
+-	return 2 + ilog2(dirty_total - 1);
++	return ilog2(dirty_total - 1) - 4;
+ }
+ 
+ /*
 
 
+--=-FZFkKOI+7B3iB1fSeZz7
+Content-Type: image/png; name="bdi_thresh_before.png"
+Content-Disposition: attachment; filename="bdi_thresh_before.png"
+Content-Transfer-Encoding: base64
 
--- 
-error compiling committee.c: too many arguments to function
+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
+
+
+--=-FZFkKOI+7B3iB1fSeZz7
+Content-Type: image/png; name="bdi_thresh_after.png"
+Content-Disposition: attachment; filename="bdi_thresh_after.png"
+Content-Transfer-Encoding: base64
+
+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
+rkJggg==
+
+
+--=-FZFkKOI+7B3iB1fSeZz7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
