@@ -1,106 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B3CA86B01E1
-	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 07:23:42 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 09/12] vmscan: Setup pagevec as late as possible in shrink_page_list()
-Date: Mon, 14 Jun 2010 12:17:50 +0100
-Message-Id: <1276514273-27693-10-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 943C16B01E5
+	for <linux-mm@kvack.org>; Mon, 14 Jun 2010 08:40:33 -0400 (EDT)
+Message-ID: <4C16233C.1040108@redhat.com>
+Date: Mon, 14 Jun 2010 15:40:28 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
+ control
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com> <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com> <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com> <1276214852.6437.1427.camel@nimitz> <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com> <20100614084810.GT5191@balbir.in.ibm.com>
+In-Reply-To: <20100614084810.GT5191@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: balbir@linux.vnet.ibm.com
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-shrink_page_list() sets up a pagevec to release pages as according as they
-are free. It uses significant amounts of stack on the pagevec. This
-patch adds pages to be freed via pagevec to a linked list which is then
-freed en-masse at the end. This avoids using stack in the main path that
-potentially calls writepage().
+On 06/14/2010 11:48 AM, Balbir Singh wrote:
+>>>
+>>> In this case the order is as follows
+>>>
+>>> 1. First we pick free pages if any
+>>> 2. If we don't have free pages, we go after unmapped page cache and
+>>> slab cache
+>>> 3. If that fails as well, we go after regularly memory
+>>>
+>>> In the scenario that you describe, we'll not be able to easily free up
+>>> the frequently referenced page from /etc/*. The code will move on to
+>>> step 3 and do its regular reclaim.
+>>>        
+>> Still it seems to me you are subverting the normal order of reclaim.
+>> I don't see why an unmapped page cache or slab cache item should be
+>> evicted before a mapped page.  Certainly the cost of rebuilding a
+>> dentry compared to the gain from evicting it, is much higher than
+>> that of reestablishing a mapped page.
+>>
+>>      
+> Subverting to aviod memory duplication, the word subverting is
+> overloaded,
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   37 +++++++++++++++++++++++++++++--------
- 1 files changed, 29 insertions(+), 8 deletions(-)
+Right, should have used a different one.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 34c5c87..165c2f5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -620,6 +620,25 @@ static enum page_references page_check_references(struct page *page,
- 	return PAGEREF_RECLAIM;
- }
- 
-+static noinline_for_stack void free_page_list(struct list_head *free_pages)
-+{
-+	struct pagevec freed_pvec;
-+	struct page *page, *tmp;
-+
-+	pagevec_init(&freed_pvec, 1);
-+
-+	list_for_each_entry_safe(page, tmp, free_pages, lru) {
-+		list_del(&page->lru);
-+		if (!pagevec_add(&freed_pvec, page)) {
-+			__pagevec_free(&freed_pvec);
-+			pagevec_reinit(&freed_pvec);
-+		}
-+	}
-+
-+	if (pagevec_count(&freed_pvec))
-+		__pagevec_free(&freed_pvec);
-+}
-+
- /*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
-@@ -628,13 +647,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					enum pageout_io sync_writeback)
- {
- 	LIST_HEAD(ret_pages);
--	struct pagevec freed_pvec;
-+	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
- 	unsigned long nr_reclaimed = 0;
- 
- 	cond_resched();
- 
--	pagevec_init(&freed_pvec, 1);
- 	while (!list_empty(page_list)) {
- 		enum page_references references;
- 		struct address_space *mapping;
-@@ -809,10 +827,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		__clear_page_locked(page);
- free_it:
- 		nr_reclaimed++;
--		if (!pagevec_add(&freed_pvec, page)) {
--			__pagevec_free(&freed_pvec);
--			pagevec_reinit(&freed_pvec);
--		}
-+
-+		/*
-+		 * Is there need to periodically free_page_list? It would
-+		 * appear not as the counts should be low
-+		 */
-+		list_add(&page->lru, &free_pages);
- 		continue;
- 
- cull_mlocked:
-@@ -835,9 +855,10 @@ keep:
- 		list_add(&page->lru, &ret_pages);
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
- 	}
-+
-+	free_page_list(&free_pages);
-+
- 	list_splice(&ret_pages, page_list);
--	if (pagevec_count(&freed_pvec))
--		__pagevec_free(&freed_pvec);
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	return nr_reclaimed;
- }
+> let me try to reason a bit. First let me explain the
+> problem
+>
+> Memory is a precious resource in a consolidated environment.
+> We don't want to waste memory via page cache duplication
+> (cache=writethrough and cache=writeback mode).
+>
+> Now here is what we are trying to do
+>
+> 1. A slab page will not be freed until the entire page is free (all
+> slabs have been kfree'd so to speak). Normal reclaim will definitely
+> free this page, but a lot of it depends on how frequently we are
+> scanning the LRU list and when this page got added.
+> 2. In the case of page cache (specifically unmapped page cache), there
+> is duplication already, so why not go after unmapped page caches when
+> the system is under memory pressure?
+>
+> In the case of 1, we don't force a dentry to be freed, but rather a
+> freed page in the slab cache to be reclaimed ahead of forcing reclaim
+> of mapped pages.
+>    
+
+Sounds like this should be done unconditionally, then.  An empty slab 
+page is worth less than an unmapped pagecache page at all times, no?
+
+> Does the problem statement make sense? If so, do you agree with 1 and
+> 2? Is there major concern about subverting regular reclaim? Does
+> subverting it make sense in the duplicated scenario?
+>
+>    
+
+In the case of 2, how do you know there is duplication?  You know the 
+guest caches the page, but you have no information about the host.  
+Since the page is cached in the guest, the host doesn't see it 
+referenced, and is likely to drop it.
+
+If there is no duplication, then you may have dropped a recently-used 
+page and will likely cause a major fault soon.
+
 -- 
-1.7.1
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
