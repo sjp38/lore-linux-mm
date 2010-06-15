@@ -1,58 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 47A1E6B023C
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 10:22:52 -0400 (EDT)
-Date: Tue, 15 Jun 2010 16:22:19 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
- and use a_ops->writepages() where possible
-Message-ID: <20100615142219.GE28052@random.random>
-References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
- <20100615140011.GD28052@random.random>
- <20100615141122.GA27893@infradead.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7C5226B023D
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 10:37:59 -0400 (EDT)
+Message-ID: <4C1787DF.3020102@redhat.com>
+Date: Tue, 15 Jun 2010 10:02:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100615141122.GA27893@infradead.org>
+Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-13-git-send-email-mel@csn.ul.ie> <4C16A567.4080000@redhat.com> <20100615114510.GE26788@csn.ul.ie> <4C17815A.8080402@redhat.com> <20100615133727.GA27980@infradead.org>
+In-Reply-To: <20100615133727.GA27980@infradead.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Christoph Hellwig <hch@infradead.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 15, 2010 at 10:11:22AM -0400, Christoph Hellwig wrote:
-> On Tue, Jun 15, 2010 at 04:00:11PM +0200, Andrea Arcangeli wrote:
-> > collecting clean cache doesn't still satisfy the allocation), during
-> > allocations in direct reclaim and increase the THREAD_SIZE than doing
-> > this purely for stack reasons as the VM will lose reliability if we
-> 
-> This basically means doubling the stack size, as you can splice together
-> two extremtly stack hungry codepathes in the worst case.  Do you really
-> want order 2 stack allocations?
+On 06/15/2010 09:37 AM, Christoph Hellwig wrote:
+> On Tue, Jun 15, 2010 at 09:34:18AM -0400, Rik van Riel wrote:
+>> If direct reclaim can overflow the stack, so can direct
+>> memcg reclaim.  That means this patch does not solve the
+>> stack overflow, while admitting that we do need the
+>> ability to get specific pages flushed to disk from the
+>> pageout code.
+>
+> Can you explain what the hell memcg reclaim is and why it needs
+> to reclaim from random contexts?
 
-If we were forbidden to call ->writepage just because of stack
-overflow yes as I don't think it's big deal with memory compaction and
-I see this as a too limiting design to allow ->writepage only in
-kernel thread. ->writepage is also called by the pagecache layer,
-msync etc.. not just by kswapd.
+The page fault code will call the cgroup accounting code.
 
-But let's defer this after we have any resemblance of hard numbers of
-worst-case stack usage measured during the aforementioned workload, I
-didn't read all the details as I'm quite against this design, but I
-didn't see any stack usage number or any sign of stack-overflow debug
-triggering. I'd suggest to measure the max stack usage first and worry
-later.
+When a cgroup goes over its memory limit, __mem_cgroup_try_charge
+will call mem_cgroup_hierarchical_reclaim, which will then go
+into the page reclaim code.
 
-And if ->writepage is a stack hog in some fs, I'd rather see
-->writepage made less stack hungry (with proper warning at runtime
-with debug option enabled) than vetoed. The VM itself shouldn't be a
-stack hog already. I don't see a particular reason why writepage
-should be so stuck hungry compared to the rest of the kernel, it just
-have to do I/O, if it requires complex data structure it should
-kmalloc those and stay light on stack as everybody else.
+> It seems everything that has a cg in it's name that I stumbled over
+> lately seems to be some ugly wart..
 
-And if something I'm worried more about slab shrink than ->writepage
-as that enters the vfs layer and then the lowlevel fs to collect the
-dentry, inode etc...
+No argument there.  It took me a few minutes to find the code
+path above :)
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
