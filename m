@@ -1,296 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C6D16620089
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 14:41:31 -0400 (EDT)
-From: Valerie Aurora <vaurora@redhat.com>
-Subject: [PATCH 09/38] whiteout: tmpfs whiteout support
-Date: Tue, 15 Jun 2010 11:39:39 -0700
-Message-Id: <1276627208-17242-10-git-send-email-vaurora@redhat.com>
-In-Reply-To: <1276627208-17242-1-git-send-email-vaurora@redhat.com>
-References: <1276627208-17242-1-git-send-email-vaurora@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6C03D6B024B
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 15:06:19 -0400 (EDT)
+Date: Tue, 15 Jun 2010 14:03:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: slub: Use a constant for a unspecified node.
+Message-ID: <alpine.DEB.2.00.1006151401330.10865@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Jan Blunck <jblunck@suse.de>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, David Woodhouse <dwmw2@infradead.org>, Valerie Aurora <vaurora@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jan Blunck <jblunck@suse.de>
+Subject: slub: Use a constant for a unspecified node.
 
-Add support for whiteout dentries to tmpfs.  This includes adding
-support for whiteouts to d_genocide(), which is called to tear down
-pinned tmpfs dentries.  Whiteouts have to be persistent, so they have
-a pinning extra ref count that needs to be dropped by d_genocide().
+kmalloc_node() and friends can be passed a constant -1 to indicate
+that no choice was made for the node from which the object needs to
+come.
 
-Signed-off-by: Jan Blunck <jblunck@suse.de>
-Signed-off-by: David Woodhouse <dwmw2@infradead.org>
-Signed-off-by: Valerie Aurora <vaurora@redhat.com>
-Cc: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: linux-mm@kvack.org
+Use NUMA_NO_NODE instead of -1.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
 ---
- fs/dcache.c |   13 +++++-
- mm/shmem.c  |  149 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 147 insertions(+), 15 deletions(-)
+ include/linux/slab.h |    2 ++
+ mm/slub.c            |   10 +++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 265015d..3b0e525 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -2229,7 +2229,18 @@ resume:
- 		struct list_head *tmp = next;
- 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
- 		next = tmp->next;
--		if (d_unhashed(dentry)||!dentry->d_inode)
-+		/*
-+		 * Skip unhashed and negative dentries, but process
-+		 * positive dentries and whiteouts.  A whiteout looks
-+		 * kind of like a negative dentry for purposes of
-+		 * lookup, but it has an extra pinning ref count
-+		 * because it can't be evicted like a negative dentry
-+		 * can.  What we care about here is ref counts - and
-+		 * we need to drop the ref count on a whiteout before
-+		 * we can evict it.
-+		 */
-+		if (d_unhashed(dentry)||(!dentry->d_inode &&
-+					 !d_is_whiteout(dentry)))
- 			continue;
- 		if (!list_empty(&dentry->d_subdirs)) {
- 			this_parent = dentry;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index eef4ebe..c58ecf4 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1805,6 +1805,76 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
- 	return 0;
- }
- 
-+static int shmem_rmdir(struct inode *dir, struct dentry *dentry);
-+static int shmem_unlink(struct inode *dir, struct dentry *dentry);
-+
-+/*
-+ * This is the whiteout support for tmpfs. It uses one singleton whiteout
-+ * inode per superblock thus it is very similar to shmem_link().
-+ */
-+static int shmem_whiteout(struct inode *dir, struct dentry *old_dentry,
-+			  struct dentry *new_dentry)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(dir->i_sb);
-+	struct dentry *dentry;
-+
-+	if (!(dir->i_sb->s_flags & MS_WHITEOUT))
-+		return -EPERM;
-+
-+	/* This gives us a proper initialized negative dentry */
-+	dentry = simple_lookup(dir, new_dentry, NULL);
-+	if (dentry && IS_ERR(dentry))
-+		return PTR_ERR(dentry);
-+
-+	/*
-+	 * No ordinary (disk based) filesystem counts whiteouts as inodes;
-+	 * but each new link needs a new dentry, pinning lowmem, and
-+	 * tmpfs dentries cannot be pruned until they are unlinked.
-+	 */
-+	if (sbinfo->max_inodes) {
-+		spin_lock(&sbinfo->stat_lock);
-+		if (!sbinfo->free_inodes) {
-+			spin_unlock(&sbinfo->stat_lock);
-+			return -ENOSPC;
-+		}
-+		sbinfo->free_inodes--;
-+		spin_unlock(&sbinfo->stat_lock);
-+	}
-+
-+	if (old_dentry->d_inode) {
-+		if (S_ISDIR(old_dentry->d_inode->i_mode))
-+			shmem_rmdir(dir, old_dentry);
-+		else
-+			shmem_unlink(dir, old_dentry);
-+	}
-+
-+	dir->i_size += BOGO_DIRENT_SIZE;
-+	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-+	/* Extra pinning count for the created dentry */
-+	dget(new_dentry);
-+	spin_lock(&new_dentry->d_lock);
-+	new_dentry->d_flags |= DCACHE_WHITEOUT;
-+	spin_unlock(&new_dentry->d_lock);
-+	return 0;
-+}
-+
-+static void shmem_d_instantiate(struct inode *dir, struct dentry *dentry,
-+				struct inode *inode)
-+{
-+	if (d_is_whiteout(dentry)) {
-+		/* Re-using an existing whiteout */
-+		shmem_free_inode(dir->i_sb);
-+		if (S_ISDIR(inode->i_mode))
-+			inode->i_mode |= S_OPAQUE;
-+	} else {
-+		/* New dentry */
-+		dir->i_size += BOGO_DIRENT_SIZE;
-+		dget(dentry); /* Extra count - pin the dentry in core */
-+	}
-+	/* Will clear DCACHE_WHITEOUT flag */
-+	d_instantiate(dentry, inode);
-+
-+}
- /*
-  * File creation. Allocate an inode, and we're done..
-  */
-@@ -1838,10 +1908,10 @@ shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
- 			if (S_ISDIR(mode))
- 				inode->i_mode |= S_ISGID;
- 		}
--		dir->i_size += BOGO_DIRENT_SIZE;
-+
-+		shmem_d_instantiate(dir, dentry, inode);
-+
- 		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
--		d_instantiate(dentry, inode);
--		dget(dentry); /* Extra count - pin the dentry in core */
- 	}
- 	return error;
- }
-@@ -1879,12 +1949,11 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
- 	if (ret)
- 		goto out;
- 
--	dir->i_size += BOGO_DIRENT_SIZE;
-+	shmem_d_instantiate(dir, dentry, inode);
-+
- 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
- 	inc_nlink(inode);
- 	atomic_inc(&inode->i_count);	/* New dentry reference */
--	dget(dentry);		/* Extra pinning count for the created dentry */
--	d_instantiate(dentry, inode);
- out:
- 	return ret;
- }
-@@ -1893,21 +1962,61 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-06-01 08:51:39.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-06-01 08:58:46.000000000 -0500
+@@ -1073,7 +1073,7 @@ static inline struct page *alloc_slab_pa
+
+ 	flags |= __GFP_NOTRACK;
+
+-	if (node == -1)
++	if (node == NUMA_NO_NODE)
+ 		return alloc_pages(flags, order);
+ 	else
+ 		return alloc_pages_exact_node(node, flags, order);
+@@ -1727,7 +1727,7 @@ static __always_inline void *slab_alloc(
+
+ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
  {
- 	struct inode *inode = dentry->d_inode;
- 
--	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode))
--		shmem_free_inode(inode->i_sb);
-+	if (d_is_whiteout(dentry) || (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode)))
-+		shmem_free_inode(dir->i_sb);
- 
-+	if (inode) {
-+		inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-+		drop_nlink(inode);
-+	}
- 	dir->i_size -= BOGO_DIRENT_SIZE;
--	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
--	drop_nlink(inode);
- 	dput(dentry);	/* Undo the count from "create" - this does all the work */
- 	return 0;
- }
- 
-+static void shmem_dir_unlink_whiteouts(struct inode *dir, struct dentry *dentry)
-+{
-+	if (!dentry->d_inode)
-+		return;
-+
-+	/* Remove whiteouts from logical empty directory */
-+	if (S_ISDIR(dentry->d_inode->i_mode) &&
-+	    dentry->d_inode->i_sb->s_flags & MS_WHITEOUT) {
-+		struct dentry *child, *next;
-+		LIST_HEAD(list);
-+
-+		spin_lock(&dcache_lock);
-+		list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child) {
-+			spin_lock(&child->d_lock);
-+			if (d_is_whiteout(child)) {
-+				__d_drop(child);
-+				if (!list_empty(&child->d_lru)) {
-+					list_del(&child->d_lru);
-+					dentry_stat.nr_unused--;
-+				}
-+				list_add(&child->d_lru, &list);
-+			}
-+			spin_unlock(&child->d_lock);
-+		}
-+		spin_unlock(&dcache_lock);
-+
-+		list_for_each_entry_safe(child, next, &list, d_lru) {
-+			spin_lock(&child->d_lock);
-+			list_del_init(&child->d_lru);
-+			spin_unlock(&child->d_lock);
-+
-+			shmem_unlink(dentry->d_inode, child);
-+		}
-+	}
-+}
-+
- static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
+-	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
++	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+
+ 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
+
+@@ -1738,7 +1738,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
+ #ifdef CONFIG_TRACING
+ void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
  {
- 	if (!simple_empty(dentry))
- 		return -ENOTEMPTY;
- 
-+	/* Remove whiteouts from logical empty directory */
-+	shmem_dir_unlink_whiteouts(dir, dentry);
- 	drop_nlink(dentry->d_inode);
- 	drop_nlink(dir);
- 	return shmem_unlink(dir, dentry);
-@@ -1916,7 +2025,7 @@ static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
- /*
-  * The VFS layer already does all the dentry stuff for rename,
-  * we just have to decrement the usage count for the target if
-- * it exists so that the VFS layer correctly free's it when it
-+ * it exists so that the VFS layer correctly frees it when it
-  * gets overwritten.
-  */
- static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct inode *new_dir, struct dentry *new_dentry)
-@@ -1927,7 +2036,12 @@ static int shmem_rename(struct inode *old_dir, struct dentry *old_dentry, struct
- 	if (!simple_empty(new_dentry))
- 		return -ENOTEMPTY;
- 
-+	if (d_is_whiteout(new_dentry))
-+		shmem_unlink(new_dir, new_dentry);
-+
- 	if (new_dentry->d_inode) {
-+		/* Remove whiteouts from logical empty directory */
-+		shmem_dir_unlink_whiteouts(new_dir, new_dentry);
- 		(void) shmem_unlink(new_dir, new_dentry);
- 		if (they_are_dirs)
- 			drop_nlink(old_dir);
-@@ -1992,12 +2106,12 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
- 		unlock_page(page);
- 		page_cache_release(page);
- 	}
-+
-+	shmem_d_instantiate(dir, dentry, inode);
-+
- 	if (dir->i_mode & S_ISGID)
- 		inode->i_gid = dir->i_gid;
--	dir->i_size += BOGO_DIRENT_SIZE;
- 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
--	d_instantiate(dentry, inode);
--	dget(dentry);
- 	return 0;
+-	return slab_alloc(s, gfpflags, -1, _RET_IP_);
++	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
  }
- 
-@@ -2375,6 +2489,12 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	if (!root)
- 		goto failed_iput;
- 	sb->s_root = root;
-+
-+#ifdef CONFIG_TMPFS
-+	if (!(sb->s_flags & MS_NOUSER))
-+		sb->s_flags |= MS_WHITEOUT;
-+#endif
-+
- 	return 0;
- 
- failed_iput:
-@@ -2475,6 +2595,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
- 	.rmdir		= shmem_rmdir,
- 	.mknod		= shmem_mknod,
- 	.rename		= shmem_rename,
-+	.whiteout       = shmem_whiteout,
+ EXPORT_SYMBOL(kmem_cache_alloc_notrace);
  #endif
- #ifdef CONFIG_TMPFS_POSIX_ACL
- 	.setattr	= shmem_notify_change,
--- 
-1.6.3.3
+@@ -2728,7 +2728,7 @@ void *__kmalloc(size_t size, gfp_t flags
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+
+-	ret = slab_alloc(s, flags, -1, _RET_IP_);
++	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
+
+ 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
+
+@@ -3312,7 +3312,7 @@ void *__kmalloc_track_caller(size_t size
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+
+-	ret = slab_alloc(s, gfpflags, -1, caller);
++	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
+
+ 	/* Honor the call site pointer we recieved. */
+ 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
