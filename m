@@ -1,125 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 19FAE6B01C4
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:29:30 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5F6TS51013155
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 15 Jun 2010 15:29:28 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C578E45DE4E
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 15:29:27 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AE5E45DE50
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 15:29:27 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D78B1DB8054
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 15:29:27 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0683B1DB804F
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 15:29:27 +0900 (JST)
-Date: Tue, 15 Jun 2010 15:24:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] use find_lock_task_mm in memory cgroups oom
-Message-Id: <20100615152450.f82c1f8c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E77726B01C7
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:37:40 -0400 (EDT)
+Date: Tue, 15 Jun 2010 16:36:43 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
+Message-ID: <20100615063643.GS6590@dastard>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
+ <1276514273-27693-12-git-send-email-mel@csn.ul.ie>
+ <20100614231144.GG6590@dastard>
+ <20100614162143.04783749.akpm@linux-foundation.org>
+ <20100615003943.GK6590@dastard>
+ <20100614183957.ad0cdb58.akpm@linux-foundation.org>
+ <20100615032034.GR6590@dastard>
+ <20100614211515.dd9880dc.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100614211515.dd9880dc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Jun 14, 2010 at 09:15:15PM -0700, Andrew Morton wrote:
+> On Tue, 15 Jun 2010 13:20:34 +1000 Dave Chinner <david@fromorbit.com> wrote:
+> 
+> > On Mon, Jun 14, 2010 at 06:39:57PM -0700, Andrew Morton wrote:
+> > > On Tue, 15 Jun 2010 10:39:43 +1000 Dave Chinner <david@fromorbit.com> wrote:
+> > > 
+> > > > 
+> > > > IOWs, IMO anywhere there is a context with significant queue of IO,
+> > > > that's where we should be doing a better job of sorting before that
+> > > > IO is dispatched to the lower layers. This is still no guarantee of
+> > > > better IO (e.g. if the filesystem fragments the file) but it does
+> > > > give the lower layers a far better chance at optimal allocation and
+> > > > scheduling of IO...
+> > > 
+> > > None of what you said had much to do with what I said.
+> > > 
+> > > What you've described are implementation problems in the current block
+> > > layer because it conflates "sorting" with "queueing".  I'm saying "fix
+> > > that".
+> > 
+> > You can't sort until you've queued.
+> 
+> Yes you can.  That's exactly what you're recommending!
 
-based on  oom-introduce-find_lock_task_mm-to-fix-mm-false-positives.patch
-tested on mm-of-the-moment snapshot 2010-06-11-16-40.
+Umm, I suggested sorting a queue dirty pages that was build by
+reclaim before dispatching them. How does that translate to
+me recommending "sort before queuing"?
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Only you're
+> recommending doing it at the wrong level.
 
-When the OOM killer scans task, it check a task is under memcg or
-not when it's called via memcg's context.
+If you feed a filesystem garbage IO, you'll get garbage performance
+and there's nothing that a block layer sort queue can do to fix the
+damage it does to both performance and filesystem fragmentation
+levels. It's not just about IO issue - delayed allocation pretty
+much requires writeback to be issuing well formed IOs to reap the
+benefits it can provide....
 
-But, as Oleg pointed out, a thread group leader may have NULL ->mm
-and task_in_mem_cgroup() may do wrong decision. We have to use
-find_lock_task_mm() in memcg as generic OOM-Killer does.
+> > > And...  sorting at the block layer will always be superior to sorting
+> > > at the pagecache layer because the block layer sorts at the physical
+> > > block level and can handle not-well-laid-out files and can sort and merge
+> > > pages from different address_spaces.
+> > 
+> > Yes it, can do that. And it still does that even if the higher
+> > layers sort their I/O dispatch better,
+> > 
+> > Filesystems try very hard to allocate adjacent logical offsets in a
+> > file in adjacent physical blocks on disk - that's the whole point of
+> > extent-indexed filesystems. Hence with modern filesystems there is
+> > generally a direct correlation between the page {mapping,index}
+> > tuple and the physical location of the mapped block.
+> > 
+> > i.e. there is generally zero physical correlation between pages in
+> > different mappings, but there is a high physical correlation
+> > between the index of pages on the same mapping.
+> 
+> Nope.  Large-number-of-small-files is a pretty common case.  If the fs
+> doesn't handle that well (ie: by placing them nearby on disk), it's
+> borked.
 
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/oom.h |    2 ++
- mm/memcontrol.c     |   10 +++++++---
- mm/oom_kill.c       |    8 ++++++--
- 3 files changed, 15 insertions(+), 5 deletions(-)
+Filesystems already handle this case just fine as we see it from
+writeback all the time. Untarring a kernel is a good example of
+this...
 
-Index: mmotm-2.6.35-0611/include/linux/oom.h
-===================================================================
---- mmotm-2.6.35-0611.orig/include/linux/oom.h
-+++ mmotm-2.6.35-0611/include/linux/oom.h
-@@ -45,6 +45,8 @@ static inline void oom_killer_enable(voi
- 	oom_killer_disabled = false;
- }
- 
-+extern struct task_struct *find_lock_task_mm(struct task_struct *p);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-Index: mmotm-2.6.35-0611/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.35-0611.orig/mm/memcontrol.c
-+++ mmotm-2.6.35-0611/mm/memcontrol.c
-@@ -47,6 +47,7 @@
- #include <linux/mm_inline.h>
- #include <linux/page_cgroup.h>
- #include <linux/cpu.h>
-+#include <linux/oom.h>
- #include "internal.h"
- 
- #include <asm/uaccess.h>
-@@ -838,10 +839,13 @@ int task_in_mem_cgroup(struct task_struc
- {
- 	int ret;
- 	struct mem_cgroup *curr = NULL;
-+	struct task_struct *p;
- 
--	task_lock(task);
--	curr = try_get_mem_cgroup_from_mm(task->mm);
--	task_unlock(task);
-+	p = find_lock_task_mm(task);
-+	if (!p)
-+		return 0;
-+	curr = try_get_mem_cgroup_from_mm(p->mm);
-+	task_unlock(p);
- 	if (!curr)
- 		return 0;
- 	/*
-Index: mmotm-2.6.35-0611/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.35-0611.orig/mm/oom_kill.c
-+++ mmotm-2.6.35-0611/mm/oom_kill.c
-@@ -81,13 +81,17 @@ static bool has_intersects_mems_allowed(
- }
- #endif /* CONFIG_NUMA */
- 
--/*
-+/**
-+ * find_lock_task_mm - Checking a process which a task belongs to has valid mm
-+ * and return a locked task which has a valid pointer to mm.
-+ *
-+ * @p: the task of a process to be checked.
-  * The process p may have detached its own ->mm while exiting or through
-  * use_mm(), but one or more of its subthreads may still have a valid
-  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
-  * task_lock() held.
-  */
--static struct task_struct *find_lock_task_mm(struct task_struct *p)
-+struct task_struct *find_lock_task_mm(struct task_struct *p)
- {
- 	struct task_struct *t = p;
- 
+I suggested sorting all the IO to be issued into per-mapping page
+groups because:
+	a) makes IO issued from reclaim look almost exactly the same
+	   to the filesytem as if writeback is pushing out the IO.
+	b) it looks to be a trivial addition to the new code.
+
+To me that's a no-brainer.
+
+> It would be interesting to code up a little test patch though, see if
+> there's benefit to be had going down this path.
+
+I doubt Mel's tests cases will show anything - they simply didn't
+show enough IO issued from reclaim to make any difference.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
