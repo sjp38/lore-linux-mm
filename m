@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 81D966B0218
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 07:13:44 -0400 (EDT)
-Date: Tue, 15 Jun 2010 21:13:37 +1000
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C7D896B021A
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 07:20:23 -0400 (EDT)
+Date: Tue, 15 Jun 2010 21:20:18 +1000
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-Message-ID: <20100615111337.GK6138@laptop>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
- <1276514273-27693-12-git-send-email-mel@csn.ul.ie>
- <20100615105341.GB31051@infradead.org>
+Message-ID: <20100615112018.GL6138@laptop>
+References: <20100614231144.GG6590@dastard>
+ <20100614162143.04783749.akpm@linux-foundation.org>
+ <20100615003943.GK6590@dastard>
+ <20100614183957.ad0cdb58.akpm@linux-foundation.org>
+ <20100615032034.GR6590@dastard>
+ <20100614211515.dd9880dc.akpm@linux-foundation.org>
+ <20100615063643.GS6590@dastard>
+ <20100615102822.GA4010@ioremap.net>
+ <20100615105538.GI6138@laptop>
+ <20100615111026.GF31051@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100615105341.GB31051@infradead.org>
+In-Reply-To: <20100615111026.GF31051@infradead.org>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Hellwig <hch@infradead.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Evgeniy Polyakov <zbr@ioremap.net>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 15, 2010 at 06:53:41AM -0400, Christoph Hellwig wrote:
-> > +	/*
-> > +	 * XXX: This is the Holy Hand Grenade of PotentiallyInvalidMapping. As
-> > +	 * the page lock has been dropped by ->writepage, that mapping could
-> > +	 * be anything
-> > +	 */
+On Tue, Jun 15, 2010 at 07:10:26AM -0400, Christoph Hellwig wrote:
+> On Tue, Jun 15, 2010 at 08:55:38PM +1000, Nick Piggin wrote:
+> > 
+> > What I do in fsblock is to maintain a block-nr sorted tree of dirty
+> > blocks. This works nicely because fsblock dirty state is properly
+> > synchronized with page dirty state. So writeout can just walk this in
+> > order and it provides pretty optimal submission pattern of any
+> > interleavings of data and metadata. No need for buffer boundary or
+> > hacks like that. (needs some intelligence for delalloc, though).
 > 
-> Why is this an XXX comment?
+> I think worrying about indirect blocks really doesn't matter much
+> these days.  For one thing extent based filesystems have a lot less
+> of these, and second for a journaling filesystem we only need to log
+> modification to the indirect blocks and not actually write them back
+> in place during the sync.  At least for XFS the actual writeback can
+> happen a lot later, as part of the ordered list of delwri buffers.
 
-It's just a pretty simple use-after-free. Maybe people forget it because
-->writepage is an asynchronous API.
-
-
-> > + *
-> > + * XXX: Is there a problem with holding multiple page locks like this?
-> 
-> I think there is.  There's quite a few places that do hold multiple
-> pages locked, but they always lock pages in increasing page->inxex order.
-> Given that this locks basically in random order it could cause problems
-> for those places.
-
-There shouldn't be a problem _holding_ the locks, but there is a problem
-waiting for multiple locks out of page->index order.
-
-But there is a problem with holding the lock of a lot of pages while
-calling ->writepage on them. So yeah, you can't do that.
-
-Hmm, I should rediff that lockdep page_lock patch and get it merged.
-(although I don't know if that can catch these all these problems easily)
+That's true, more importantly I meant any interleavings of data from
+more than one file too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
