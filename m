@@ -1,65 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC016B01CA
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:56:21 -0400 (EDT)
-Subject: Re: [PATCH 15/35] x86, lmb: Add lmb_reserve_area_overlap_ok()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <4C16C928.2000406@kernel.org>
-References: <1273796396-29649-1-git-send-email-yinghai@kernel.org>
-	 <1273796396-29649-16-git-send-email-yinghai@kernel.org>
-	 <1273804337.21352.396.camel@pasglop> <4BECF158.5070200@oracle.com>
-	 <1273825807.21352.601.camel@pasglop> <4BED7CE3.1020507@oracle.com>
-	 <1273876234.21352.639.camel@pasglop>  <20100515073231.GB9877@elte.hu>
-	 <1274056773.21352.700.camel@pasglop>  <4BF0DE0C.2000905@oracle.com>
-	 <1274081072.21352.718.camel@pasglop>  <4BF17A50.1050905@oracle.com>
-	 <1274133686.21352.755.camel@pasglop>  <4C09A9EA.6060005@oracle.com>
-	 <1275702466.1931.1425.camel@pasglop>  <4C16C928.2000406@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 15 Jun 2010 16:55:43 +1000
-Message-ID: <1276584943.2552.99.camel@pasglop>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 45C946B01CC
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:58:37 -0400 (EDT)
+Message-ID: <4C172499.7090800@redhat.com>
+Date: Tue, 15 Jun 2010 09:58:33 +0300
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
+ control
+References: <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com> <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com> <20100614125010.GU5191@balbir.in.ibm.com> <4C162846.7030303@redhat.com> <1276529596.6437.7216.camel@nimitz> <4C164E63.2020204@redhat.com> <1276530932.6437.7259.camel@nimitz> <4C1659F8.3090300@redhat.com> <20100614174548.GB5191@balbir.in.ibm.com>
+In-Reply-To: <20100614174548.GB5191@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
+To: balbir@linux.vnet.ibm.com
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-06-14 at 17:28 -0700, Yinghai Lu wrote:
-> On 06/04/2010 06:47 PM, Benjamin Herrenschmidt wrote:
-> > On Fri, 2010-06-04 at 18:35 -0700, Yinghai Lu wrote:
-> ..
-> >> can you rebase powerpc/lmb, so we can put lmb for x86 changes to tip
-> >> and next? 
-> > 
-> > I will. I've been kept busy with all sort of emergencies and the merge
-> > window, but I will do that and a could of other things to it some time
-> > next week.
-> 
-> Ping!
+On 06/14/2010 08:45 PM, Balbir Singh wrote:
+>
+>> There are two decisions that need to be made:
+>>
+>> - how much memory a guest should be given
+>> - given some guest memory, what's the best use for it
+>>
+>> The first question can perhaps be answered by looking at guest I/O
+>> rates and giving more memory to more active guests.  The second
+>> question is hard, but not any different than running non-virtualized
+>> - except if we can detect sharing or duplication.  In this case,
+>> dropping a duplicated page is worthwhile, while dropping a shared
+>> page provides no benefit.
+>>      
+> I think there is another way of looking at it, give some free memory
+>
+> 1. Can the guest run more applications or run faster
+>    
 
-(Adding back the list)
+That's my second question.  How to best use this memory.  More 
+applications == drop the page from cache, faster == keep page in cache.
 
-I've updated the series (*) It's just a rebase from the previous one,
-and one change: I don't allow resizing until after lmb_analyze() has run
-since on various platforms, doing it too early such as when constructing
-the memory array is risky as we haven't done the necessary lmb_reserve()
-of whatever regions are unsuitable for allocation.
+All we need is to select the right page to drop.
 
-We can improve on that later, maybe by doing those reservations early,
-before we add memory, or whatever, but that can wait.
+> 2. Can the host potentially get this memory via ballooning or some
+> other means to start newer guest instances
+>    
 
-Yinghai, is there any other chance you want me to do to the core ?
+Well, we already have ballooning.  The question is can we improve the 
+eviction algorithm.
 
-Another thing to add at some stage for ARM will be a default alloc base
-in addition to limit, that constraints "standard" allocations.
+> I think the answer to 1 and 2 is yes.
+>
+>    
+>> How the patch helps answer either question, I'm not sure.  I don't
+>> think preferential dropping of unmapped page cache is the answer.
+>>
+>>      
+> Preferential dropping as selected by the host, that knows about the
+> setup and if there is duplication involved. While we use the term
+> preferential dropping, remember it is still via LRU and we don't
+> always succeed. It is a best effort (if you can and the unmapped pages
+> are not highly referenced) scenario.
+>    
 
-(*) Usual place:
+How can the host tell if there is duplication?  It may know it has some 
+pagecache, but it has no idea whether or to what extent guest pagecache 
+duplicates host pagecache.
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git lmb
+>>> Those tell you how to balance going after the different classes of
+>>> things that we can reclaim.
+>>>
+>>> Again, this is useless when ballooning is being used.  But, I'm thinking
+>>> of a more general mechanism to force the system to both have MemFree
+>>> _and_ be acting as if it is under memory pressure.
+>>>        
+>> If there is no memory pressure on the host, there is no reason for
+>> the guest to pretend it is under pressure.  If there is memory
+>> pressure on the host, it should share the pain among its guests by
+>> applying the balloon.  So I don't think voluntarily dropping cache
+>> is a good direction.
+>>
+>>      
+> There are two situations
+>
+> 1. Voluntarily drop cache, if it was setup to do so (the host knows
+> that it caches that information anyway)
+>    
 
-Cheers,
-Ben.
+It doesn't, really.  The host only has aggregate information about 
+itself, and no information about the guest.
 
+Dropping duplicate pages would be good if we could identify them.  Even 
+then, it's better to drop the page from the host, not the guest, unless 
+we know the same page is cached by multiple guests.
+
+But why would the guest voluntarily drop the cache?  If there is no 
+memory pressure, dropping caches increases cpu overhead and latency even 
+if the data is still cached on the host.
+
+> 2. Drop the cache on either a special balloon option, again the host
+> knows it caches that very same information, so it prefers to free that
+> up first.
+>    
+
+Dropping in response to pressure is good.  I'm just not convinced the 
+patch helps in selecting the correct page to drop.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
