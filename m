@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 437366B022B
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 09:32:55 -0400 (EDT)
-Message-ID: <4C1780F2.7010003@redhat.com>
-Date: Tue, 15 Jun 2010 09:32:34 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 59EC06B022D
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 09:34:52 -0400 (EDT)
+Message-ID: <4C17815A.8080402@redhat.com>
+Date: Tue, 15 Jun 2010 09:34:18 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-12-git-send-email-mel@csn.ul.ie> <20100614231144.GG6590@dastard> <20100614162143.04783749.akpm@linux-foundation.org> <20100615003943.GK6590@dastard> <4C16D46D.3020302@redhat.com> <20100615110102.GD31051@infradead.org>
-In-Reply-To: <20100615110102.GD31051@infradead.org>
+Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-13-git-send-email-mel@csn.ul.ie> <4C16A567.4080000@redhat.com> <20100615114510.GE26788@csn.ul.ie>
+In-Reply-To: <20100615114510.GE26788@csn.ul.ie>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On 06/15/2010 07:01 AM, Christoph Hellwig wrote:
-> On Mon, Jun 14, 2010 at 09:16:29PM -0400, Rik van Riel wrote:
->>> Besides, there really isn't the right context in the block layer to
->>> be able to queue and prioritise large amounts of IO without
->>> significant penalties to some higher layer operation.
+On 06/15/2010 07:45 AM, Mel Gorman wrote:
+> On Mon, Jun 14, 2010 at 05:55:51PM -0400, Rik van Riel wrote:
+>> On 06/14/2010 07:17 AM, Mel Gorman wrote:
 >>
->> Can we kick flushing for the whole inode at once from
->> vmscan.c?
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index 4856a2a..574e816 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -372,6 +372,12 @@ int write_reclaim_page(struct page *page, struct address_space *mapping,
+>>>    	return PAGE_SUCCESS;
+>>>    }
+>>>
+>>> +/* kswapd and memcg can writeback as they are unlikely to overflow stack */
+>>> +static inline bool reclaim_can_writeback(struct scan_control *sc)
+>>> +{
+>>> +	return current_is_kswapd() || sc->mem_cgroup != NULL;
+>>> +}
+>>> +
+>>
+>> I'm not entirely convinced on this bit, but am willing to
+>> be convinced by the data.
+>>
 >
-> kswapd really should be a last effort tool to clean filesystem pages.
-> If it does enough I/O for this to matter significantly we need to
-> fix the VM to move more work to the flusher threads instead of trying
-> to fix kswapd.
+> Which bit?
 >
->> Would it be hard to add a "please flush this file"
->> way to call the filesystem flushing threads?
->
-> We already have that API, in Jens' latest tree that's
-> sync_inodes_sb/writeback_inodes_sb.  We could also add a non-waiting
-> variant if required, but I think the big problem with kswapd is that
-> we want to wait on I/O completion under circumstances.
+> You're not convinced that kswapd should be allowed to write back?
+> You're not convinced that memcg should be allowed to write back?
+> You're not convinced that direct reclaim writing back pages can overflow
+> 	the stack?
 
-However, kswapd does not need to wait on I/O completion of
-any page in particular - it just wants to wait on I/O
-completion of any inactive pages in the zone (or memcg)
-where memory is being freed.
+If direct reclaim can overflow the stack, so can direct
+memcg reclaim.  That means this patch does not solve the
+stack overflow, while admitting that we do need the
+ability to get specific pages flushed to disk from the
+pageout code.
 
 -- 
 All rights reversed
