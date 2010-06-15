@@ -1,109 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 45C946B01CC
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:58:37 -0400 (EDT)
-Message-ID: <4C172499.7090800@redhat.com>
-Date: Tue, 15 Jun 2010 09:58:33 +0300
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 51C806B01CF
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 03:07:51 -0400 (EDT)
+Message-ID: <4C1726C4.8050300@redhat.com>
+Date: Tue, 15 Jun 2010 10:07:48 +0300
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
  control
-References: <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com> <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com> <20100614125010.GU5191@balbir.in.ibm.com> <4C162846.7030303@redhat.com> <1276529596.6437.7216.camel@nimitz> <4C164E63.2020204@redhat.com> <1276530932.6437.7259.camel@nimitz> <4C1659F8.3090300@redhat.com> <20100614174548.GB5191@balbir.in.ibm.com>
-In-Reply-To: <20100614174548.GB5191@balbir.in.ibm.com>
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>	 <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>	 <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com>	 <1276214852.6437.1427.camel@nimitz>	 <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com>	 <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com>	 <20100614125010.GU5191@balbir.in.ibm.com> <4C162846.7030303@redhat.com>	 <1276529596.6437.7216.camel@nimitz> <4C164E63.2020204@redhat.com>	 <1276530932.6437.7259.camel@nimitz>  <4C1659F8.3090300@redhat.com> <1276538293.6437.7528.camel@nimitz>
+In-Reply-To: <1276538293.6437.7528.camel@nimitz>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: balbir@linux.vnet.ibm.com, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/14/2010 08:45 PM, Balbir Singh wrote:
->
->> There are two decisions that need to be made:
->>
->> - how much memory a guest should be given
->> - given some guest memory, what's the best use for it
->>
->> The first question can perhaps be answered by looking at guest I/O
->> rates and giving more memory to more active guests.  The second
->> question is hard, but not any different than running non-virtualized
->> - except if we can detect sharing or duplication.  In this case,
->> dropping a duplicated page is worthwhile, while dropping a shared
->> page provides no benefit.
->>      
-> I think there is another way of looking at it, give some free memory
->
-> 1. Can the guest run more applications or run faster
+On 06/14/2010 08:58 PM, Dave Hansen wrote:
+> On Mon, 2010-06-14 at 19:34 +0300, Avi Kivity wrote:
 >    
-
-That's my second question.  How to best use this memory.  More 
-applications == drop the page from cache, faster == keep page in cache.
-
-All we need is to select the right page to drop.
-
-> 2. Can the host potentially get this memory via ballooning or some
-> other means to start newer guest instances
->    
-
-Well, we already have ballooning.  The question is can we improve the 
-eviction algorithm.
-
-> I think the answer to 1 and 2 is yes.
->
->    
->> How the patch helps answer either question, I'm not sure.  I don't
->> think preferential dropping of unmapped page cache is the answer.
->>
->>      
-> Preferential dropping as selected by the host, that knows about the
-> setup and if there is duplication involved. While we use the term
-> preferential dropping, remember it is still via LRU and we don't
-> always succeed. It is a best effort (if you can and the unmapped pages
-> are not highly referenced) scenario.
->    
-
-How can the host tell if there is duplication?  It may know it has some 
-pagecache, but it has no idea whether or to what extent guest pagecache 
-duplicates host pagecache.
-
->>> Those tell you how to balance going after the different classes of
->>> things that we can reclaim.
->>>
 >>> Again, this is useless when ballooning is being used.  But, I'm thinking
 >>> of a more general mechanism to force the system to both have MemFree
 >>> _and_ be acting as if it is under memory pressure.
+>>>
 >>>        
->> If there is no memory pressure on the host, there is no reason for
->> the guest to pretend it is under pressure.  If there is memory
->> pressure on the host, it should share the pain among its guests by
->> applying the balloon.  So I don't think voluntarily dropping cache
->> is a good direction.
->>
+>> If there is no memory pressure on the host, there is no reason for the
+>> guest to pretend it is under pressure.
 >>      
-> There are two situations
+> I can think of quite a few places where this would be beneficial.
 >
-> 1. Voluntarily drop cache, if it was setup to do so (the host knows
-> that it caches that information anyway)
+> Ballooning is dangerous.  I've OOMed quite a few guests by
+> over-ballooning them.  Anything that's voluntary like this is safer than
+> things imposed by the host, although you do trade of effectiveness.
 >    
 
-It doesn't, really.  The host only has aggregate information about 
-itself, and no information about the guest.
+That's a bug that needs to be fixed.  Eventually the host will come 
+under pressure and will balloon the guest.  If that kills the guest, the 
+ballooning is not effective as a host memory management technique.
 
-Dropping duplicate pages would be good if we could identify them.  Even 
-then, it's better to drop the page from the host, not the guest, unless 
-we know the same page is cached by multiple guests.
+Trying to defer ballooning by voluntarily dropping cache is simply 
+trying to defer being bitten by the bug.
 
-But why would the guest voluntarily drop the cache?  If there is no 
-memory pressure, dropping caches increases cpu overhead and latency even 
-if the data is still cached on the host.
+> If all the guests do this, then it leaves that much more free memory on
+> the host, which can be used flexibly for extra host page cache, new
+> guests, etc...
 
-> 2. Drop the cache on either a special balloon option, again the host
-> knows it caches that very same information, so it prefers to free that
-> up first.
+If the host detects lots of pagecache misses it can balloon guests 
+down.  If pagecache is quiet, why change anything?
+
+If the host wants to start new guests, it can balloon guests down.  If 
+no new guests are wanted, why change anything?
+
+etc...
+
+> A system in this state where everyone is proactively
+> keeping their footprints down is more likely to be able to handle load
+> spikes.
+
+That is true.  But from the guest's point of view, voluntarily giving up 
+memory means dropping the guest's cushion vs load spikes.
+
+> Reclaim is an expensive, costly activity, and this ensures that
+> we don't have to do that when we're busy doing other things like
+> handling load spikes.
+
+The guest doesn't want to reclaim memory from the host when it's under a 
+load spike either.
+
+> This was one of the concepts behind CMM2: reduce
+> the overhead during peak periods.
 >    
 
-Dropping in response to pressure is good.  I'm just not convinced the 
-patch helps in selecting the correct page to drop.
+Ah, but CMM2 actually reduced work being done by sharing information 
+between guest and host.
+
+> It's also handy for planning.  Guests exhibiting this behavior will
+> _act_ as if they're under pressure.  That's a good thing to approximate
+> how a guest will act when it _is_ under pressure.
+>    
+
+If a guest acts as if it is under pressure, then it will be slower and 
+consume more cpu.  Bad for both guest and host.
+
+>> If there is memory pressure on
+>> the host, it should share the pain among its guests by applying the
+>> balloon.  So I don't think voluntarily dropping cache is a good direction.
+>>      
+> I think we're trying to consider things slightly outside of ballooning
+> at this point.  If ballooning was the end-all solution, I'm fairly sure
+> Balbir wouldn't be looking at this stuff.  Just trying to keep options
+> open. :)
+>    
+
+I see this as an extension to ballooning - perhaps I'm missing the big 
+picture.  I would dearly love to have CMM2 where decisions are made on a 
+per-page basis instead of using heuristics.
 
 -- 
 error compiling committee.c: too many arguments to function
