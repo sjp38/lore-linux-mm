@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ADD416B01E4
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 06:19:16 -0400 (EDT)
-Date: Tue, 15 Jun 2010 11:18:58 +0100
-From: Mel Gorman <mel@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3EF9F6B01E5
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 06:28:29 -0400 (EDT)
+Date: Tue, 15 Jun 2010 14:28:22 +0400
+From: Evgeniy Polyakov <zbr@ioremap.net>
 Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-Message-ID: <20100615101857.GB26788@csn.ul.ie>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-12-git-send-email-mel@csn.ul.ie> <4C169B81.8010707@redhat.com>
+Message-ID: <20100615102822.GA4010@ioremap.net>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-12-git-send-email-mel@csn.ul.ie> <20100614231144.GG6590@dastard> <20100614162143.04783749.akpm@linux-foundation.org> <20100615003943.GK6590@dastard> <20100614183957.ad0cdb58.akpm@linux-foundation.org> <20100615032034.GR6590@dastard> <20100614211515.dd9880dc.akpm@linux-foundation.org> <20100615063643.GS6590@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C169B81.8010707@redhat.com>
+In-Reply-To: <20100615063643.GS6590@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 14, 2010 at 05:13:37PM -0400, Rik van Riel wrote:
-> On 06/14/2010 07:17 AM, Mel Gorman wrote:
->> Page reclaim cleans individual pages using a_ops->writepage() because from
->> the VM perspective, it is known that pages in a particular zone must be freed
->> soon, it considers the target page to be the oldest and it does not want
->> to wait while background flushers cleans other pages. From a filesystem
->> perspective this is extremely inefficient as it generates a very seeky
->> IO pattern leading to the perverse situation where it can take longer to
->> clean all dirty pages than it would have otherwise.
->
-> Reclaiming clean pages should be fast enough that this should
-> make little, if any, difference.
->
+On Tue, Jun 15, 2010 at 04:36:43PM +1000, Dave Chinner (david@fromorbit.com) wrote:
+> > Nope.  Large-number-of-small-files is a pretty common case.  If the fs
+> > doesn't handle that well (ie: by placing them nearby on disk), it's
+> > borked.
+> 
+> Filesystems already handle this case just fine as we see it from
+> writeback all the time. Untarring a kernel is a good example of
+> this...
+> 
+> I suggested sorting all the IO to be issued into per-mapping page
+> groups because:
+> 	a) makes IO issued from reclaim look almost exactly the same
+> 	   to the filesytem as if writeback is pushing out the IO.
+> 	b) it looks to be a trivial addition to the new code.
+> 
+> To me that's a no-brainer.
 
-Indeed, this was a bit weak. The original point of the patch was to write
-contiguous pages belonging to the same inode when they were encountered in
-that batch which made a bit more sense but didn't work out at first
-pass.
+That doesn't coverup large-number-of-small-files pattern, since
+untarring subsequently means creating something new, which FS can
+optimize. Much more interesting case is when we have dirtied large
+number of small files in kind-of random order and submitted them
+down to disk.
 
->> This patch queues all dirty pages at once to maximise the chances that
->> the write requests get merged efficiently. It also makes the next patch
->> that avoids writeout from direct reclaim more straight-forward.
->
-> However, this is a convincing argument :)
->
-
-Thanks.
-
->> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
->
-> Reviewed-by: Rik van Riel <riel@redhat.com>
->
-
-Thanks again :)
+Per-mapping sorting will not do anything good in this case, even if
+files were previously created in a good facion being placed closely and
+so on, and only block layer will find a correlation between adjacent
+blocks in different files. But with existing queue management it has
+quite a small opportunity, and that's what I think Andrew is arguing
+about.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
