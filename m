@@ -1,68 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5226B0232
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 09:59:48 -0400 (EDT)
-Date: Tue, 15 Jun 2010 14:59:28 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
-Message-ID: <20100615135928.GK26788@csn.ul.ie>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-13-git-send-email-mel@csn.ul.ie> <4C16A567.4080000@redhat.com> <20100615114510.GE26788@csn.ul.ie> <4C17815A.8080402@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 897FF6B0234
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 10:00:43 -0400 (EDT)
+Date: Tue, 15 Jun 2010 16:00:11 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+ and use a_ops->writepages() where possible
+Message-ID: <20100615140011.GD28052@random.random>
+References: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C17815A.8080402@redhat.com>
+In-Reply-To: <1275987745-21708-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 15, 2010 at 09:34:18AM -0400, Rik van Riel wrote:
-> On 06/15/2010 07:45 AM, Mel Gorman wrote:
->> On Mon, Jun 14, 2010 at 05:55:51PM -0400, Rik van Riel wrote:
->>> On 06/14/2010 07:17 AM, Mel Gorman wrote:
->>>
->>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>>> index 4856a2a..574e816 100644
->>>> --- a/mm/vmscan.c
->>>> +++ b/mm/vmscan.c
->>>> @@ -372,6 +372,12 @@ int write_reclaim_page(struct page *page, struct address_space *mapping,
->>>>    	return PAGE_SUCCESS;
->>>>    }
->>>>
->>>> +/* kswapd and memcg can writeback as they are unlikely to overflow stack */
->>>> +static inline bool reclaim_can_writeback(struct scan_control *sc)
->>>> +{
->>>> +	return current_is_kswapd() || sc->mem_cgroup != NULL;
->>>> +}
->>>> +
->>>
->>> I'm not entirely convinced on this bit, but am willing to
->>> be convinced by the data.
->>>
->>
->> Which bit?
->>
->> You're not convinced that kswapd should be allowed to write back?
->> You're not convinced that memcg should be allowed to write back?
->> You're not convinced that direct reclaim writing back pages can overflow
->> 	the stack?
->
-> If direct reclaim can overflow the stack, so can direct
-> memcg reclaim.  That means this patch does not solve the
-> stack overflow, while admitting that we do need the
-> ability to get specific pages flushed to disk from the
-> pageout code.
->
+Hi Mel,
 
-What path is taken with memcg != NULL that could overflow the stack? I
-couldn't spot one but mm/memcontrol.c is a bit tangled so finding all
-its use cases is tricky. The critical path I had in mind though was
-direct reclaim and for that path, memcg == NULL or did I miss something?
+I know lots of people doesn't like direct reclaim, but I personally do
+and I think if memory pressure is hard enough we should eventually
+enter direct reclaim full force including ->writepage to avoid false
+positive OOM failures. Transparent hugepage allocation in fact won't
+even wakeup kswapd that would be insist to create hugepages and shrink
+an excessive amount of memory (especially before memory compaction was
+merged, it shall be tried again but if memory compaction fails in
+kswapd context, definitely kswapd should immediately stop and not go
+ahead trying the create hugepages the blind way, kswapd
+order-awareness the blind way is surely detrimental and pointless).
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+When memory pressure is low, not going into ->writepage may be
+beneficial from latency prospective too. (but again it depends how
+much it matters to go in LRU and how beneficial is the cache, to know
+if it's worth taking clean cache away even if hotter than dirty cache)
+
+About the stack overflow did you ever got any stack-debug error? We've
+plenty of instrumentation and ->writepage definitely runs with irq
+enable, so if there's any issue, it can't possibly be unnoticed. The
+worry about stack overflow shall be backed by numbers.
+
+You posted lots of latency numbers (surely latency will improve but
+it's only safe approach on light memory pressure, on heavy pressure
+it'll early-oom not to call ->writepage, and if cache is very
+important and system has little ram, not going in lru order may also
+screw fs-cache performance), but I didn't see any max-stack usage hard
+numbers, to back the claim that we're going to overflow.
+
+In any case I'd prefer to be able to still call ->writepage if memory
+pressure is high (at some point when priority going down and
+collecting clean cache doesn't still satisfy the allocation), during
+allocations in direct reclaim and increase the THREAD_SIZE than doing
+this purely for stack reasons as the VM will lose reliability if we
+forbid ->writepage at all in direct reclaim. Throttling on kswapd is
+possible but it's probably less efficient and on the stack we know
+exactly which kind of memory we should allocate, kswapd doesn't and it
+works global.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
