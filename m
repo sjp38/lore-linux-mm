@@ -1,112 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E77726B01C7
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:37:40 -0400 (EDT)
-Date: Tue, 15 Jun 2010 16:36:43 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-Message-ID: <20100615063643.GS6590@dastard>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
- <1276514273-27693-12-git-send-email-mel@csn.ul.ie>
- <20100614231144.GG6590@dastard>
- <20100614162143.04783749.akpm@linux-foundation.org>
- <20100615003943.GK6590@dastard>
- <20100614183957.ad0cdb58.akpm@linux-foundation.org>
- <20100615032034.GR6590@dastard>
- <20100614211515.dd9880dc.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100614211515.dd9880dc.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 5DC016B01CA
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 02:56:21 -0400 (EDT)
+Subject: Re: [PATCH 15/35] x86, lmb: Add lmb_reserve_area_overlap_ok()
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <4C16C928.2000406@kernel.org>
+References: <1273796396-29649-1-git-send-email-yinghai@kernel.org>
+	 <1273796396-29649-16-git-send-email-yinghai@kernel.org>
+	 <1273804337.21352.396.camel@pasglop> <4BECF158.5070200@oracle.com>
+	 <1273825807.21352.601.camel@pasglop> <4BED7CE3.1020507@oracle.com>
+	 <1273876234.21352.639.camel@pasglop>  <20100515073231.GB9877@elte.hu>
+	 <1274056773.21352.700.camel@pasglop>  <4BF0DE0C.2000905@oracle.com>
+	 <1274081072.21352.718.camel@pasglop>  <4BF17A50.1050905@oracle.com>
+	 <1274133686.21352.755.camel@pasglop>  <4C09A9EA.6060005@oracle.com>
+	 <1275702466.1931.1425.camel@pasglop>  <4C16C928.2000406@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 15 Jun 2010 16:55:43 +1000
+Message-ID: <1276584943.2552.99.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mundt <lethal@linux-sh.org>, Russell King <linux@arm.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 14, 2010 at 09:15:15PM -0700, Andrew Morton wrote:
-> On Tue, 15 Jun 2010 13:20:34 +1000 Dave Chinner <david@fromorbit.com> wrote:
+On Mon, 2010-06-14 at 17:28 -0700, Yinghai Lu wrote:
+> On 06/04/2010 06:47 PM, Benjamin Herrenschmidt wrote:
+> > On Fri, 2010-06-04 at 18:35 -0700, Yinghai Lu wrote:
+> ..
+> >> can you rebase powerpc/lmb, so we can put lmb for x86 changes to tip
+> >> and next? 
+> > 
+> > I will. I've been kept busy with all sort of emergencies and the merge
+> > window, but I will do that and a could of other things to it some time
+> > next week.
 > 
-> > On Mon, Jun 14, 2010 at 06:39:57PM -0700, Andrew Morton wrote:
-> > > On Tue, 15 Jun 2010 10:39:43 +1000 Dave Chinner <david@fromorbit.com> wrote:
-> > > 
-> > > > 
-> > > > IOWs, IMO anywhere there is a context with significant queue of IO,
-> > > > that's where we should be doing a better job of sorting before that
-> > > > IO is dispatched to the lower layers. This is still no guarantee of
-> > > > better IO (e.g. if the filesystem fragments the file) but it does
-> > > > give the lower layers a far better chance at optimal allocation and
-> > > > scheduling of IO...
-> > > 
-> > > None of what you said had much to do with what I said.
-> > > 
-> > > What you've described are implementation problems in the current block
-> > > layer because it conflates "sorting" with "queueing".  I'm saying "fix
-> > > that".
-> > 
-> > You can't sort until you've queued.
-> 
-> Yes you can.  That's exactly what you're recommending!
+> Ping!
 
-Umm, I suggested sorting a queue dirty pages that was build by
-reclaim before dispatching them. How does that translate to
-me recommending "sort before queuing"?
+(Adding back the list)
 
-> Only you're
-> recommending doing it at the wrong level.
+I've updated the series (*) It's just a rebase from the previous one,
+and one change: I don't allow resizing until after lmb_analyze() has run
+since on various platforms, doing it too early such as when constructing
+the memory array is risky as we haven't done the necessary lmb_reserve()
+of whatever regions are unsuitable for allocation.
 
-If you feed a filesystem garbage IO, you'll get garbage performance
-and there's nothing that a block layer sort queue can do to fix the
-damage it does to both performance and filesystem fragmentation
-levels. It's not just about IO issue - delayed allocation pretty
-much requires writeback to be issuing well formed IOs to reap the
-benefits it can provide....
+We can improve on that later, maybe by doing those reservations early,
+before we add memory, or whatever, but that can wait.
 
-> > > And...  sorting at the block layer will always be superior to sorting
-> > > at the pagecache layer because the block layer sorts at the physical
-> > > block level and can handle not-well-laid-out files and can sort and merge
-> > > pages from different address_spaces.
-> > 
-> > Yes it, can do that. And it still does that even if the higher
-> > layers sort their I/O dispatch better,
-> > 
-> > Filesystems try very hard to allocate adjacent logical offsets in a
-> > file in adjacent physical blocks on disk - that's the whole point of
-> > extent-indexed filesystems. Hence with modern filesystems there is
-> > generally a direct correlation between the page {mapping,index}
-> > tuple and the physical location of the mapped block.
-> > 
-> > i.e. there is generally zero physical correlation between pages in
-> > different mappings, but there is a high physical correlation
-> > between the index of pages on the same mapping.
-> 
-> Nope.  Large-number-of-small-files is a pretty common case.  If the fs
-> doesn't handle that well (ie: by placing them nearby on disk), it's
-> borked.
+Yinghai, is there any other chance you want me to do to the core ?
 
-Filesystems already handle this case just fine as we see it from
-writeback all the time. Untarring a kernel is a good example of
-this...
+Another thing to add at some stage for ARM will be a default alloc base
+in addition to limit, that constraints "standard" allocations.
 
-I suggested sorting all the IO to be issued into per-mapping page
-groups because:
-	a) makes IO issued from reclaim look almost exactly the same
-	   to the filesytem as if writeback is pushing out the IO.
-	b) it looks to be a trivial addition to the new code.
+(*) Usual place:
 
-To me that's a no-brainer.
-
-> It would be interesting to code up a little test patch though, see if
-> there's benefit to be had going down this path.
-
-I doubt Mel's tests cases will show anything - they simply didn't
-show enough IO issued from reclaim to make any difference.
+  git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git lmb
 
 Cheers,
+Ben.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
