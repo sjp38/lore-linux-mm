@@ -1,138 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8A1736B01B6
-	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 20:08:08 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 744B56B01B7
+	for <linux-mm@kvack.org>; Tue, 15 Jun 2010 20:22:29 -0400 (EDT)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5G0841K004251
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5G0MPN6007483
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Jun 2010 09:08:05 +0900
+	Wed, 16 Jun 2010 09:22:25 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 745F645DE55
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:08:04 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B30D45DE50
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:22:25 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 41B8845DE4C
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:08:04 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F0B745DE4F
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:22:25 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 23806E38004
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:08:04 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BA5161DB8013
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:08:03 +0900 (JST)
-Date: Wed, 16 Jun 2010 09:03:34 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3DE46E38002
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:22:25 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DB2901DB8012
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 09:22:24 +0900 (JST)
+Date: Wed, 16 Jun 2010 09:17:55 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] use find_lock_task_mm in memory cgroups oom v2
-Message-Id: <20100616090334.d27e0c4e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTinEEYWULLICKqBr4yX7GL01E4cq0jQSfuN8J6Jq@mail.gmail.com>
-References: <20100615152450.f82c1f8c.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTinEEYWULLICKqBr4yX7GL01E4cq0jQSfuN8J6Jq@mail.gmail.com>
+Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
+Message-Id: <20100616091755.7121c7d3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100615141601.GL26788@csn.ul.ie>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
+	<1276514273-27693-13-git-send-email-mel@csn.ul.ie>
+	<4C16A567.4080000@redhat.com>
+	<20100615114510.GE26788@csn.ul.ie>
+	<4C17815A.8080402@redhat.com>
+	<20100615135928.GK26788@csn.ul.ie>
+	<4C178868.2010002@redhat.com>
+	<20100615141601.GL26788@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Jun 2010 18:59:25 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Tue, 15 Jun 2010 15:16:01 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> > -/*
-> > +/**
-> > + * find_lock_task_mm - Checking a process which a task belongs to has valid mm
-> > + * and return a locked task which has a valid pointer to mm.
-> > + *
+> On Tue, Jun 15, 2010 at 10:04:24AM -0400, Rik van Riel wrote:
+> > On 06/15/2010 09:59 AM, Mel Gorman wrote:
+> >> On Tue, Jun 15, 2010 at 09:34:18AM -0400, Rik van Riel wrote:
+> >>> On 06/15/2010 07:45 AM, Mel Gorman wrote:
+> >
+> >>>>>>
+> >>>>>> +/* kswapd and memcg can writeback as they are unlikely to overflow stack */
+> >>>>>> +static inline bool reclaim_can_writeback(struct scan_control *sc)
+> >>>>>> +{
+> >>>>>> +	return current_is_kswapd() || sc->mem_cgroup != NULL;
+> >>>>>> +}
+> >
+> >>> If direct reclaim can overflow the stack, so can direct
+> >>> memcg reclaim.  That means this patch does not solve the
+> >>> stack overflow, while admitting that we do need the
+> >>> ability to get specific pages flushed to disk from the
+> >>> pageout code.
+> >>>
+> >>
+> >> What path is taken with memcg != NULL that could overflow the stack? I
+> >> couldn't spot one but mm/memcontrol.c is a bit tangled so finding all
+> >> its use cases is tricky. The critical path I had in mind though was
+> >> direct reclaim and for that path, memcg == NULL or did I miss something?
+> >
+> > mem_cgroup_hierarchical_reclaim -> try_to_free_mem_cgroup_pages
+> >
 > 
-> This comment should have been another patch.
-> BTW, below comment uses "subthread" word.
-> Personally it's easy to understand function's goal to me. :)
+> But in turn, where is mem_cgroup_hierarchical_reclaim called from direct
+> reclaim? It appears to be only called from the fault path or as a result
+> of the memcg changing size.
 > 
-> How about following as?
-> Checking a process which has any subthread with vaild mm
-> ....
-> 
-Sure. thank you. v2 is here. I removed unnecessary parts.
+yes. It's only called from 
+	- page fault
+	- add_to_page_cache()
 
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I think we'll see no stack problem. Now, memcg doesn't wakeup kswapd for
+reclaiming memory, it needs direct writeback.
 
-When the OOM killer scans task, it check a task is under memcg or
-not when it's called via memcg's context.
-
-But, as Oleg pointed out, a thread group leader may have NULL ->mm
-and task_in_mem_cgroup() may do wrong decision. We have to use
-find_lock_task_mm() in memcg as generic OOM-Killer does.
-
-Changelog:
- - removed unnecessary changes in comments.
-
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/oom.h |    2 ++
- mm/memcontrol.c     |   10 +++++++---
- mm/oom_kill.c       |    2 +-
- 3 files changed, 10 insertions(+), 4 deletions(-)
-
-Index: mmotm-2.6.35-0611/include/linux/oom.h
-===================================================================
---- mmotm-2.6.35-0611.orig/include/linux/oom.h
-+++ mmotm-2.6.35-0611/include/linux/oom.h
-@@ -45,6 +45,8 @@ static inline void oom_killer_enable(voi
- 	oom_killer_disabled = false;
- }
- 
-+extern struct task_struct *find_lock_task_mm(struct task_struct *p);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-Index: mmotm-2.6.35-0611/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.35-0611.orig/mm/memcontrol.c
-+++ mmotm-2.6.35-0611/mm/memcontrol.c
-@@ -47,6 +47,7 @@
- #include <linux/mm_inline.h>
- #include <linux/page_cgroup.h>
- #include <linux/cpu.h>
-+#include <linux/oom.h>
- #include "internal.h"
- 
- #include <asm/uaccess.h>
-@@ -838,10 +839,13 @@ int task_in_mem_cgroup(struct task_struc
- {
- 	int ret;
- 	struct mem_cgroup *curr = NULL;
-+	struct task_struct *p;
- 
--	task_lock(task);
--	curr = try_get_mem_cgroup_from_mm(task->mm);
--	task_unlock(task);
-+	p = find_lock_task_mm(task);
-+	if (!p)
-+		return 0;
-+	curr = try_get_mem_cgroup_from_mm(p->mm);
-+	task_unlock(p);
- 	if (!curr)
- 		return 0;
- 	/*
-Index: mmotm-2.6.35-0611/mm/oom_kill.c
-===================================================================
---- mmotm-2.6.35-0611.orig/mm/oom_kill.c
-+++ mmotm-2.6.35-0611/mm/oom_kill.c
-@@ -87,7 +87,7 @@ static bool has_intersects_mems_allowed(
-  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
-  * task_lock() held.
-  */
--static struct task_struct *find_lock_task_mm(struct task_struct *p)
-+struct task_struct *find_lock_task_mm(struct task_struct *p)
- {
- 	struct task_struct *t = p;
- 
-
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
