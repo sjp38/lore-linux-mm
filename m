@@ -1,79 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C618E6B01CF
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:34:46 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5GBYiw1006361
+	by kanga.kvack.org (Postfix) with SMTP id 42F6F6B01D1
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:35:22 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5GBZJOm025085
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 16 Jun 2010 20:34:45 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A565545DE6E
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:34:44 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8429145DE4D
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:34:44 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 695E81DB803B
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:34:44 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 237B81DB8037
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:34:44 +0900 (JST)
+	Wed, 16 Jun 2010 20:35:19 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C78445DE4F
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 32C9545DD70
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A14E1DB8012
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D0EF31DB8015
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:15 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 7/9] oom: unify CAP_SYS_RAWIO check into other superuser check
+Subject: [PATCH 8/9] oom: cleanup has_intersects_mems_allowed()
 In-Reply-To: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
 References: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
-Message-Id: <20100616203404.72E9.A69D9226@jp.fujitsu.com>
+Message-Id: <20100616203445.72EC.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 16 Jun 2010 20:34:43 +0900 (JST)
+Date: Wed, 16 Jun 2010 20:35:15 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
 
-Now, CAP_SYS_RAWIO check is very strange. if the user have both
-CAP_SYS_ADMIN and CAP_SYS_RAWIO, points will makes 1/16.
+Now has_intersects_mems_allowed() has own thread iterate logic, but
+it should use while_each_thread().
 
-Superuser's 1/4 bonus worthness is quite a bit dubious, but
-considerable. However 1/16 is obviously insane.
+It slightly improve the code readability.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |   17 ++++++-----------
- 1 files changed, 6 insertions(+), 11 deletions(-)
+ mm/oom_kill.c |    8 ++++----
+ 1 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index e4b1146..4236d39 100644
+index 4236d39..7e9942d 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -198,19 +198,14 @@ unsigned long oom_badness(struct task_struct *p, unsigned long uptime)
+@@ -46,10 +46,10 @@ static DEFINE_SPINLOCK(zone_scan_lock);
+  * shares the same mempolicy nodes as current if it is bound by such a policy
+  * and whether or not it has the same set of allowed cpuset nodes.
+  */
+-static bool has_intersects_mems_allowed(struct task_struct *tsk,
++static bool has_intersects_mems_allowed(struct task_struct *p,
+ 					const nodemask_t *mask)
+ {
+-	struct task_struct *start = tsk;
++	struct task_struct *tsk = p;
  
- 	/*
- 	 * Superuser processes are usually more important, so we make it
--	 * less likely that we kill those.
-+	 * less likely that we kill those. And we don't want to kill a
-+	 * process with direct hardware access. Not only could that mess
-+	 * up the hardware, but usually users tend to only have this
-+	 * flag set on applications they think of as important.
- 	 */
- 	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
--	    has_capability_noaudit(p, CAP_SYS_RESOURCE))
--		points /= 4;
--
--	/*
--	 * We don't want to kill a process with direct hardware access.
--	 * Not only could that mess up the hardware, but usually users
--	 * tend to only have this flag set on applications they think
--	 * of as important.
--	 */
--	if (has_capability_noaudit(p, CAP_SYS_RAWIO))
-+	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
-+	    has_capability_noaudit(p, CAP_SYS_RAWIO))
- 		points /= 4;
- 
- 	/*
+ 	do {
+ 		if (mask) {
+@@ -69,8 +69,8 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
+ 			if (cpuset_mems_allowed_intersects(current, tsk))
+ 				return true;
+ 		}
+-		tsk = next_thread(tsk);
+-	} while (tsk != start);
++	} while_each_thread(p, tsk);
++
+ 	return false;
+ }
+ #else
 -- 
 1.6.5.2
 
