@@ -1,44 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2686B01AC
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:54:34 -0400 (EDT)
-Subject: Re: [RFC PATCH] mm: let the bdi_writeout fraction respond more
- quickly
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1276526681.1980.89.camel@castor.rsk>
-References: <1276523894.1980.85.camel@castor.rsk>
-	 <1276526681.1980.89.camel@castor.rsk>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 16 Jun 2010 20:54:26 +0200
-Message-ID: <1276714466.1745.625.camel@laptop>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 43C9D6B01AC
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 15:54:57 -0400 (EDT)
+Received: by wyf28 with SMTP id 28so6658085wyf.14
+        for <linux-mm@kvack.org>; Wed, 16 Jun 2010 12:54:54 -0700 (PDT)
+Date: Wed, 16 Jun 2010 16:54:47 -0300
+From: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
+Subject: Re: [PATCH 9/9] oom: give the dying task a higher priority
+Message-ID: <20100616195447.GH5009@uudg.org>
+References: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
+ <20100616203517.72EF.A69D9226@jp.fujitsu.com>
+ <20100616153120.GH9278@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100616153120.GH9278@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-06-14 at 15:44 +0100, Richard Kennedy wrote:
-> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> > index 2fdda90..315dd04 100644
-> > --- a/mm/page-writeback.c
-> > +++ b/mm/page-writeback.c
-> > @@ -144,7 +144,7 @@ static int calc_period_shift(void)
-> >       else
-> >               dirty_total =3D (vm_dirty_ratio * determine_dirtyable_mem=
-ory()) /
-> >                               100;
-> > -     return 2 + ilog2(dirty_total - 1);
-> > +     return ilog2(dirty_total - 1) - 4;
-> >  }=20
+On Thu, Jun 17, 2010 at 12:31:20AM +0900, Minchan Kim wrote:
+| >         /*
+| >          * We give our sacrificial lamb high priority and access to
+| >          * all the memory it needs. That way it should be able to
+| >          * exit() and clear out its resources quickly...
+| >          */
+| >  	p->rt.time_slice = HZ;
+| >  	set_tsk_thread_flag(p, TIF_MEMDIE);
+...
+| > +	if (rt_task(p)) {
+| > +		p->rt.time_slice = HZ;
+| > +		return;
 
-IIRC I suggested similar things in the past and all we needed to do was
-find people doing the measurements on different bits of hardware or so..
+I am not sure the code above will have any real effect for an RT task.
+Kosaki-san, was this change motivated by test results or was it just a code
+cleanup? I ask that out of curiosity.
 
-I don't have any problems with the approach, all we need to make sure is
-that we never return 0 or a negative number (possibly ensure a minimum
-positive shift value).
+| I have a question from long time ago. 
+| If we change rt.time_slice _without_ setscheduler, is it effective?
+| I mean scheduler pick up the task faster than other normal task?
 
+$ git log --pretty=oneline -Stime_slice mm/oom_kill.c
+1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
+
+This code ("time_slice = HZ;") is around for quite a while and
+probably comes from a time where having a big time slice was enough to be
+sure you would be the next on the line. I would say sched_setscheduler is
+indeed necessary.
+
+Regards,
+Luis
+-- 
+[ Luis Claudio R. Goncalves             Red Hat  -  Realtime Team ]
+[ Fingerprint: 4FDD B8C4 3C59 34BD 8BE9  2696 7203 D980 A448 C8F8 ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
