@@ -1,43 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B1E426B01AC
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 18:15:59 -0400 (EDT)
-Date: Thu, 17 Jun 2010 08:15:41 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: your mail
-Message-ID: <20100616221541.GV6590@dastard>
-References: <1276706031-29421-1-git-send-email-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1276706031-29421-1-git-send-email-jack@suse.cz>
+	by kanga.kvack.org (Postfix) with SMTP id 8A7D46B01AC
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 19:30:14 -0400 (EDT)
+Subject: Current topics for LSF10/MM Summit 8-9 August in Boston
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 16 Jun 2010 18:30:10 -0500
+Message-ID: <1276731010.2847.639.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de
+To: linux-ide <linux-ide@vger.kernel.org>, linux-mm@kvack.org
+Cc: lsf10-pc@lists.linuxfoundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 16, 2010 at 06:33:49PM +0200, Jan Kara wrote:
->   Hello,
-> 
->   here is the fourth version of the writeback livelock avoidance patches
-> for data integrity writes. To quickly summarize the idea: we tag dirty
-> pages at the beginning of write_cache_pages with a new TOWRITE tag and
-> then write only tagged pages to avoid parallel writers to livelock us.
-> See changelogs of the patches for more details.
->   I have tested the patches with fsx and a test program I wrote which
-> checks that if we crash after fsync, the data is indeed on disk.
->   If there are no more concerns, can these patches get merged?
+Given that we're under two months out, I thought it would be time to
+post a summary of the topics we've collected so far (Nick will post the
+MM summit ones later).  Look this over, and if there's anything missing,
+propose it ... or if you have cross Storage/FS/MM topics, post them too.
 
-Has it been run through xfstests? I'd suggest doing that at least
-with XFS as there are several significant sync sanity tests for XFS
-in the suite...
+Oh, and since we're not the most organised bunch, if you posted a topic
+and don't see it in the list, please resend ... we probably lost it in
+an email shuffle.
 
-Cheers,
+Current Filesystem Topics:
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Alex Elder	Upstream maintainer for XFS, general discussion on FS/IO
+Aneesh Kumar	Rich-acl patches which work better with NFSv4 acl and CIFS acl
+Anshul Madan	reflink for NFS
+Chuck Lever	NFS/IPV6 and NFS O_DIRECT, Wu's read-ahead work, vitro perf tools
+Eric Sandeen	Advances in testing, TRIM/DISCARD/Alignment, writeback sanity
+James Lentini	reflink for NFS
+Jan Kara	Discuss/drive sanity review of writeback and general ext*/jbd 
+Michael Rubin	Writeback scaling
+Sage Weil	Statlite, generic interface for describing file striping for distributed FS, VFS scalability
+Al Viro	Sorting out d_revalidate and other dcache issues
+Coly Li		directory/large file scalability
+Sorin Faibish	Cache writeback discussion
+
+Current Storage Topics:
+
+Eric Seppanen	Next generation SSDs, performance implications on Linux I/O
+Boaz Harrosh	PNFS performance considerations, bio_list based/async raidN for generic use; stable pages for I/O
+FUJITA Tomonori	SCSI target mode, iSCSI, block layer SG (bsg), sg, IOMMU, DMA issues
+Hannes Reinecke	libfc/multipath/error handing
+James Smart	FCOE proposal for rework of the FC sysfs tree, work with Hannes on other transport/SCSI subsystem topics
+Jeff Moyer	IO scheduler
+Joel Becker	SAN management plugin
+Martin Petersen	Updates on DIF/DIX, TRIM/DISCARD/UNMAP, generic support for WRITE_SAME
+
+Plus some MM summit ones which Nick will summarise.
+
+For the benefit of those who've forgotten here's the original Call for
+topics and attendees:
+
+This year we'll hold the Linux Storage and Filesystems summit jointly
+with the VM summit on the two days before LinuxCon in Boston (that's
+Sunday and Monday) at the Renaissance Hotel:
+
+http://events.linuxfoundation.org/events/linuxcon
+
+We're planning to hold some sessions jointly and split into three tracks
+(Filesystems, Storage and VM) for others, so we're encouraging proposals
+for discussion that cover areas relevant to all three groups as well as
+more specific technical topics.
+
+Suggestions for agenda topics should be sent to
+
+lsf10-pc@lists.linuxfoundation.org
+
+and optionally cc the Linux list which would be most interested in it:
+
+SCSI: linux-scsi@vger.kernel.org
+FS: linux-fsdevel@vger.kernel.org (plus relevant fs specific list)
+MM: linux-mm@kvack.org
+
+Please tag your subject with [LSF/VM TOPIC] so those of us who're not
+very organised can find them easily in our inboxes.  The agenda topics
+and attendees will be selected by the programme committee, but the final
+agenda will be by formed by consensus of the attendees on the day.
+
+We'll try to cap attendance at around 20 per track to facilitate
+discussions although the final numbers will depend on the room sizes
+at the venue.
+
+Requests to attend should be sent to:
+
+lsf10-pc@lists.linuxfoundation.org
+
+please summarise what you'll bring to the meeting, and what you'd like
+to discuss.  please also tag your email with [ATTEND] so there's less
+chance of it getting lost in the large mail pile.
+
+Presentations are allowed to guide discussion, but are strongly
+discouraged.  There will be no recording or audio bridge, however
+written minutes will be published as in previous years:
+
+2009:
+http://lwn.net/Articles/327601/
+http://lwn.net/Articles/327740/
+http://lwn.net/Articles/328347/
+
+Prior years:
+http://www.usenix.org/events/lsf08/tech/lsf08sums.pdf
+http://www.usenix.org/publications/login/2007-06/openpdfs/lsf07sums.pdf
+
+If you have feedback on last year's meeting that we can use to improve
+this year's, please also send that to:
+
+lsf10-pc@lists.linuxfoundation.org
+
+Thanks,
+
+James Bottomley
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
