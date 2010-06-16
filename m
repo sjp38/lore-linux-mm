@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DE49F6B01AF
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:05:27 -0400 (EDT)
-Date: Wed, 16 Jun 2010 19:04:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
- and use a_ops->writepages() where possible
-Message-ID: <20100616170446.GI5816@random.random>
-References: <20100615144342.GA3339@infradead.org>
- <20100615150850.GF28052@random.random>
- <20100615152526.GA3468@infradead.org>
- <20100615154516.GG28052@random.random>
- <20100615162600.GA9910@infradead.org>
- <4C17AF2D.2060904@redhat.com>
- <20100615165423.GA16868@infradead.org>
- <4C17D0C5.9030203@redhat.com>
- <20100616075723.GT6138@laptop>
- <4C19030A.4070406@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 248EE6B01B5
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:18:32 -0400 (EDT)
+Message-ID: <4C190748.7030400@kernel.org>
+Date: Wed, 16 Jun 2010 19:18:00 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4C19030A.4070406@redhat.com>
+Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home>
+In-Reply-To: <alpine.DEB.2.00.1006161131520.4554@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 16, 2010 at 12:59:54PM -0400, Rik van Riel wrote:
-> __GFP_IO can wait for filesystem activity
+Hello,
 
-Hmm I think it's for submitting I/O, not about waiting. At some point
-you may not enter the FS because of the FS locks you already hold
-(like within writepage itself), but you can still submit I/O through
-blkdev layer.
+On 06/16/2010 06:33 PM, Christoph Lameter wrote:
+> On Wed, 16 Jun 2010, Tejun Heo wrote:
+>>> Tejun: Is it somehow possible to reliably use the alloc_percpu() on all
+>>> platforms during early boot before the slab allocator is up?
+>>
+>> Hmmm... first chunk allocation is done using bootmem, so if we give it
+>> enough to room (for both chunk itself and alloc map) so that it can
+>> serve till slab comes up, it should work fine.  I think what's
+>> important here is making up our minds and decide on how to order them.
+>> If the order is well defined, things can be made to work one way or
+>> the other.  What happened to the get-rid-of-bootmem effort?  Wouldn't
+>> that also interact with this?
+> 
+> Ok how do we make sure that the first chunk has enough room?
 
-> __GFP_FS can kick off new filesystem activity
+It's primarily controlled by PERCPU_DYNAMIC_RESERVE.  I don't think
+there will be any systematic way to do it other than sizing it
+sufficiently.  Can you calculate the upper bound?  The constant has
+been used primarily for optimization so how it's used needs to be
+audited if we wanna guarantee free space in the first chunk but I
+don't think it would be too difficult.
 
-Yes that's for dcache/icache/writepage or anything that can reenter
-the fs locks and deadlock IIRC.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
