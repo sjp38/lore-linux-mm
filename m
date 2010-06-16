@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3496B01AD
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 02:04:42 -0400 (EDT)
-Date: Wed, 16 Jun 2010 16:04:27 +1000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1C0E26B01B0
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 03:57:31 -0400 (EDT)
+Date: Wed, 16 Jun 2010 17:57:23 +1000
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 11/12] vmscan: Write out dirty pages in batch
-Message-ID: <20100616060427.GR6138@laptop>
-References: <20100614231144.GG6590@dastard>
- <20100614162143.04783749.akpm@linux-foundation.org>
- <20100615003943.GK6590@dastard>
- <20100614183957.ad0cdb58.akpm@linux-foundation.org>
- <20100615032034.GR6590@dastard>
- <20100614211515.dd9880dc.akpm@linux-foundation.org>
- <20100615063643.GS6590@dastard>
- <20100615102822.GA4010@ioremap.net>
- <20100615105538.GI6138@laptop>
- <20100615232009.GT6590@dastard>
+Subject: Re: [RFC PATCH 0/6] Do not call ->writepage[s] from direct reclaim
+ and use a_ops->writepages() where possible
+Message-ID: <20100616075723.GT6138@laptop>
+References: <20100615141122.GA27893@infradead.org>
+ <20100615142219.GE28052@random.random>
+ <20100615144342.GA3339@infradead.org>
+ <20100615150850.GF28052@random.random>
+ <20100615152526.GA3468@infradead.org>
+ <20100615154516.GG28052@random.random>
+ <20100615162600.GA9910@infradead.org>
+ <4C17AF2D.2060904@redhat.com>
+ <20100615165423.GA16868@infradead.org>
+ <4C17D0C5.9030203@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100615232009.GT6590@dastard>
+In-Reply-To: <4C17D0C5.9030203@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Evgeniy Polyakov <zbr@ioremap.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 16, 2010 at 09:20:09AM +1000, Dave Chinner wrote:
-> On Tue, Jun 15, 2010 at 08:55:38PM +1000, Nick Piggin wrote:
-> > On Tue, Jun 15, 2010 at 02:28:22PM +0400, Evgeniy Polyakov wrote:
-> > > On Tue, Jun 15, 2010 at 04:36:43PM +1000, Dave Chinner (david@fromorbit.com) wrote:
-> > > Per-mapping sorting will not do anything good in this case, even if
-> > > files were previously created in a good facion being placed closely and
-> > > so on, and only block layer will find a correlation between adjacent
-> > > blocks in different files. But with existing queue management it has
-> > > quite a small opportunity, and that's what I think Andrew is arguing
-> > > about.
-> > 
-> > The solution is not to sort pages on their way to be submitted either,
-> > really.
-> > 
-> > What I do in fsblock is to maintain a block-nr sorted tree of dirty
-> > blocks. This works nicely because fsblock dirty state is properly
-> > synchronized with page dirty state.
+On Tue, Jun 15, 2010 at 03:13:09PM -0400, Rik van Riel wrote:
+> On 06/15/2010 12:54 PM, Christoph Hellwig wrote:
+> >On Tue, Jun 15, 2010 at 12:49:49PM -0400, Rik van Riel wrote:
+> >>This is already in a filesystem.  Why does ->writepage get
+> >>called a second time?  Shouldn't this have a gfp_mask
+> >>without __GFP_FS set?
+> >
+> >Why would it?  GFP_NOFS is not for all filesystem code, but only for
+> >code where we can't re-enter the filesystem due to deadlock potential.
 > 
-> How does this work with delayed allocation where there is no block
-> number associated with the page until writeback calls the allocation
-> routine?
+> Why?   How about because you know the stack is not big enough
+> to have the XFS call path on it twice? :)
+> 
+> Isn't the whole purpose of this patch series to prevent writepage
+> from being called by the VM, when invoked from a deep callstack
+> like xfs writepage?
+> 
+> That sounds a lot like simply wanting to not have GFP_FS...
 
-It doesn't. I have been thinking about how best to make that work.
-The mm/writeback is not in a good position to know what to do, so
-the fs would have to help.
-
-So either an fs callback, or the fs would have to insert the blocks
-(or some marker) into the tree itself. It's relatively easy to do for
-a single file (just walk the radix-tree and do delalloc conversions),
-but between multiple files is harder (current code has the same problem
-though).
+buffered write path uses __GFP_FS by design because huge amounts
+of (dirty) memory can be allocated in doing pagecache writes. If
+would be nasty if that was not allowed to wait for filesystem
+activity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
