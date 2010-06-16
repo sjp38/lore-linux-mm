@@ -1,22 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D0366B0071
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 12:31:41 -0400 (EDT)
-Date: Wed, 16 Jun 2010 11:31:23 -0500 (CDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E68BC6B01AF
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 12:36:59 -0400 (EDT)
+Date: Wed, 16 Jun 2010 11:33:38 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] mempolicy: reduce stack size of migrate_pages()
-In-Reply-To: <20100616135623.d5254b99.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006161131130.4554@router.home>
-References: <20100616130040.3831.A69D9226@jp.fujitsu.com> <20100616135623.d5254b99.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
+In-Reply-To: <4C189119.5050801@kernel.org>
+Message-ID: <alpine.DEB.2.00.1006161131520.4554@router.home>
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 16 Jun 2010, Tejun Heo wrote:
 
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> > Tejun: Is it somehow possible to reliably use the alloc_percpu() on all
+> > platforms during early boot before the slab allocator is up?
+>
+> Hmmm... first chunk allocation is done using bootmem, so if we give it
+> enough to room (for both chunk itself and alloc map) so that it can
+> serve till slab comes up, it should work fine.  I think what's
+> important here is making up our minds and decide on how to order them.
+> If the order is well defined, things can be made to work one way or
+> the other.  What happened to the get-rid-of-bootmem effort?  Wouldn't
+> that also interact with this?
+
+Ok how do we make sure that the first chunk has enough room?
+
+Slab bootstrap occurs after the page allocator has taken over from
+bootmem and after the per cpu areas have been initialized.
 
 
 --
