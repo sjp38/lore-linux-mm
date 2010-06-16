@@ -1,161 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E06966B01B2
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:36:32 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5GBaUAl009002
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 16 Jun 2010 20:36:30 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8345B45DE50
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F41845DE4D
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 435ECE18006
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E0369E18003
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 9/9] oom: give the dying task a higher priority
-In-Reply-To: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
-References: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
-Message-Id: <20100616203517.72EF.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3A3C46B01D6
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:39:06 -0400 (EDT)
+Message-ID: <4C18B7D6.5070300@redhat.com>
+Date: Wed, 16 Jun 2010 14:39:02 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC/T/D][PATCH 2/2] Linux/Guest cooperative unmapped page cache
+ control
+References: <20100608155140.3749.74418.sendpatchset@L34Z31A.ibm.com>	 <20100608155153.3749.31669.sendpatchset@L34Z31A.ibm.com>	 <4C10B3AF.7020908@redhat.com> <20100610142512.GB5191@balbir.in.ibm.com>	 <1276214852.6437.1427.camel@nimitz>	 <20100611045600.GE5191@balbir.in.ibm.com> <4C15E3C8.20407@redhat.com>	 <20100614084810.GT5191@balbir.in.ibm.com> <4C16233C.1040108@redhat.com>	 <20100614125010.GU5191@balbir.in.ibm.com> <4C162846.7030303@redhat.com>	 <1276529596.6437.7216.camel@nimitz> <4C164E63.2020204@redhat.com>	 <1276530932.6437.7259.camel@nimitz> <4C1659F8.3090300@redhat.com>	 <1276538293.6437.7528.camel@nimitz>  <4C1726C4.8050300@redhat.com> <1276613249.6437.11516.camel@nimitz>
+In-Reply-To: <1276613249.6437.11516.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Wed, 16 Jun 2010 20:36:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: balbir@linux.vnet.ibm.com, kvm <kvm@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On 06/15/2010 05:47 PM, Dave Hansen wrote:
+>
+>> That's a bug that needs to be fixed.  Eventually the host will come
+>> under pressure and will balloon the guest.  If that kills the guest, the
+>> ballooning is not effective as a host memory management technique.
+>>      
+> I'm not convinced that it's just a bug that can be fixed.  Consider a
+> case where a host sees a guest with 100MB of free memory at the exact
+> moment that a database app sees that memory.  The host tries to balloon
+> that memory away at the same time that the app goes and allocates it.
+> That can certainly lead to an OOM very quickly, even for very small
+> amounts of memory (much less than 100MB).  Where's the bug?
+>
+> I think the issues are really fundamental to ballooning.
+>    
 
-From: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+There are two issues involved.
 
-In a system under heavy load it was observed that even after the
-oom-killer selects a task to die, the task may take a long time to die.
+One is, can the kernel accurately determine the amount of memory it 
+needs to work?  We have resources such as RAM and swap.  We have 
+liabilities in the form of swappable userspace memory, mlocked userspace 
+memory, kernel memory to support these, and various reclaimable and 
+non-reclaimable kernel caches.  Can we determine the minimum amount of 
+RAM to support are workload at a point in time?
 
-Right after sending a SIGKILL to the task selected by the oom-killer
-this task has it's priority increased so that it can exit() exit soon,
-freeing memory. That is accomplished by:
+If we had this, we could modify the balloon to refuse to balloon if it 
+takes the kernel beneath the minimum amount of RAM needed.
 
-        /*
-         * We give our sacrificial lamb high priority and access to
-         * all the memory it needs. That way it should be able to
-         * exit() and clear out its resources quickly...
-         */
- 	p->rt.time_slice = HZ;
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
+In fact, this is similar to allocating memory with overcommit_memory = 
+0.  The difference is the balloon allocates mlocked memory, while normal 
+allocations can be charged against swap.  But fundamentally it's the same.
 
-It sounds plausible giving the dying task an even higher priority to be
-sure it will be scheduled sooner and free the desired memory. It was
-suggested on LKML using SCHED_FIFO:1, the lowest RT priority so that
-this task won't interfere with any running RT task.
+>>> If all the guests do this, then it leaves that much more free memory on
+>>> the host, which can be used flexibly for extra host page cache, new
+>>> guests, etc...
+>>>        
+>> If the host detects lots of pagecache misses it can balloon guests
+>> down.  If pagecache is quiet, why change anything?
+>>      
+> Page cache misses alone are not really sufficient.  This is the classic
+> problem where we try to differentiate streaming I/O (which we can't
+> effectively cache) from I/O which can be effectively cached.
+>    
 
-If the dying task is already an RT task, leave it untouched.
-Another good suggestion, implemented here, was to avoid boosting the
-dying task priority in case of mem_cgroup OOM.
+True.  Random I/O across a very large dataset is also difficult to cache.
 
-Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/oom_kill.c |   38 +++++++++++++++++++++++++++++++++++---
- 1 files changed, 35 insertions(+), 3 deletions(-)
+>> If the host wants to start new guests, it can balloon guests down.  If
+>> no new guests are wanted, why change anything?
+>>      
+> We're talking about an environment which we're always trying to
+> optimize.  Imagine that we're always trying to consolidate guests on to
+> smaller numbers of hosts.  We're effectively in a state where we
+> _always_ want new guests.
+>    
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7e9942d..1ecfc7a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -82,6 +82,28 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
- #endif /* CONFIG_NUMA */
- 
- /*
-+ * If this is a system OOM (not a memcg OOM) and the task selected to be
-+ * killed is not already running at high (RT) priorities, speed up the
-+ * recovery by boosting the dying task to the lowest FIFO priority.
-+ * That helps with the recovery and avoids interfering with RT tasks.
-+ */
-+static void boost_dying_task_prio(struct task_struct *p,
-+				  struct mem_cgroup *mem)
-+{
-+	struct sched_param param = { .sched_priority = 1 };
-+
-+	if (mem)
-+		return;
-+
-+	if (rt_task(p)) {
-+		p->rt.time_slice = HZ;
-+		return;
-+	}
-+
-+	sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
-+}
-+
-+/*
-  * The process p may have detached its own ->mm while exiting or through
-  * use_mm(), but one or more of its subthreads may still have a valid
-  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
-@@ -416,7 +438,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- }
- 
- #define K(x) ((x) << (PAGE_SHIFT-10))
--static int oom_kill_task(struct task_struct *p)
-+static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- {
- 	p = find_lock_task_mm(p);
- 	if (!p || p->signal->oom_adj == OOM_DISABLE) {
-@@ -429,9 +451,17 @@ static int oom_kill_task(struct task_struct *p)
- 		K(get_mm_counter(p->mm, MM_FILEPAGES)));
- 	task_unlock(p);
- 
--	p->rt.time_slice = HZ;
-+
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
- 	force_sig(SIGKILL, p);
-+
-+	/*
-+	 * We give our sacrificial lamb high priority and access to
-+	 * all the memory it needs. That way it should be able to
-+	 * exit() and clear out its resources quickly...
-+	 */
-+	boost_dying_task_prio(p, mem);
-+
- 	return 0;
- }
- #undef K
-@@ -462,6 +492,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 */
- 	if (p->flags & PF_EXITING) {
- 		set_tsk_thread_flag(p, TIF_MEMDIE);
-+		boost_dying_task_prio(p, mem);
- 		return 0;
- 	}
- 
-@@ -495,7 +526,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		}
- 	} while_each_thread(p, t);
- 
--	return oom_kill_task(victim);
-+	return oom_kill_task(victim, mem);
- }
- 
- /*
-@@ -676,6 +707,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	 */
- 	if (fatal_signal_pending(current)) {
- 		set_thread_flag(TIF_MEMDIE);
-+		boost_dying_task_prio(current, NULL);
- 		return;
- 	}
- 
+If this came at no cost to the guests, you'd be right.  But at some 
+point guest performance will be hit by this, so the advantage gained 
+from freeing memory will be balanced by the disadvantage.
+
+Also, memory is not the only resource.  At some point you become cpu 
+bound; at that point freeing memory doesn't help and in fact may 
+increase your cpu load.
+
 -- 
-1.6.5.2
-
-
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
