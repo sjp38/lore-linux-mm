@@ -1,36 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D314E6B01AC
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 17:41:00 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id o5GLeuI3015486
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:40:56 -0700
-Received: from pvb32 (pvb32.prod.google.com [10.241.209.96])
-	by wpaz29.hot.corp.google.com with ESMTP id o5GLesIg009106
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:40:54 -0700
-Received: by pvb32 with SMTP id 32so1810509pvb.12
-        for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:40:54 -0700 (PDT)
-Date: Wed, 16 Jun 2010 14:40:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/9] oom: rename badness() to oom_badness()
-In-Reply-To: <20100616202920.72DA.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006161440360.11089@chino.kir.corp.google.com>
-References: <20100616201948.72D7.A69D9226@jp.fujitsu.com> <20100616202920.72DA.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B1E426B01AC
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 18:15:59 -0400 (EDT)
+Date: Thu, 17 Jun 2010 08:15:41 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: your mail
+Message-ID: <20100616221541.GV6590@dastard>
+References: <1276706031-29421-1-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1276706031-29421-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jun 2010, KOSAKI Motohiro wrote:
-
+On Wed, Jun 16, 2010 at 06:33:49PM +0200, Jan Kara wrote:
+>   Hello,
 > 
-> badness() is wrong name because it's too generic name. rename it.
-> 
+>   here is the fourth version of the writeback livelock avoidance patches
+> for data integrity writes. To quickly summarize the idea: we tag dirty
+> pages at the beginning of write_cache_pages with a new TOWRITE tag and
+> then write only tagged pages to avoid parallel writers to livelock us.
+> See changelogs of the patches for more details.
+>   I have tested the patches with fsx and a test program I wrote which
+> checks that if we crash after fsync, the data is indeed on disk.
+>   If there are no more concerns, can these patches get merged?
 
-This is already done in my badness heuristic rewrite, can we please focus 
-on its review?
+Has it been run through xfstests? I'd suggest doing that at least
+with XFS as there are several significant sync sanity tests for XFS
+in the suite...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
