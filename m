@@ -1,76 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 42F6F6B01D1
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:35:22 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5GBZJOm025085
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E06966B01B2
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 07:36:32 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5GBaUAl009002
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 16 Jun 2010 20:35:19 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C78445DE4F
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 32C9545DD70
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A14E1DB8012
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:19 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D0EF31DB8015
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:35:15 +0900 (JST)
+	Wed, 16 Jun 2010 20:36:30 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8345B45DE50
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F41845DE4D
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 435ECE18006
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:30 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E0369E18003
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:36:29 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 8/9] oom: cleanup has_intersects_mems_allowed()
+Subject: [PATCH 9/9] oom: give the dying task a higher priority
 In-Reply-To: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
 References: <20100616201948.72D7.A69D9226@jp.fujitsu.com>
-Message-Id: <20100616203445.72EC.A69D9226@jp.fujitsu.com>
+Message-Id: <20100616203517.72EF.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 16 Jun 2010 20:35:15 +0900 (JST)
+Date: Wed, 16 Jun 2010 20:36:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+Cc: kosaki.motohiro@jp.fujitsu.com, "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, Minchan Kim <minchan.kim@gmail.com>, Oleg Nesterov <oleg@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 
-Now has_intersects_mems_allowed() has own thread iterate logic, but
-it should use while_each_thread().
+From: Luis Claudio R. Goncalves <lclaudio@uudg.org>
 
-It slightly improve the code readability.
+In a system under heavy load it was observed that even after the
+oom-killer selects a task to die, the task may take a long time to die.
 
+Right after sending a SIGKILL to the task selected by the oom-killer
+this task has it's priority increased so that it can exit() exit soon,
+freeing memory. That is accomplished by:
+
+        /*
+         * We give our sacrificial lamb high priority and access to
+         * all the memory it needs. That way it should be able to
+         * exit() and clear out its resources quickly...
+         */
+ 	p->rt.time_slice = HZ;
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+
+It sounds plausible giving the dying task an even higher priority to be
+sure it will be scheduled sooner and free the desired memory. It was
+suggested on LKML using SCHED_FIFO:1, the lowest RT priority so that
+this task won't interfere with any running RT task.
+
+If the dying task is already an RT task, leave it untouched.
+Another good suggestion, implemented here, was to avoid boosting the
+dying task priority in case of mem_cgroup OOM.
+
+Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |    8 ++++----
- 1 files changed, 4 insertions(+), 4 deletions(-)
+ mm/oom_kill.c |   38 +++++++++++++++++++++++++++++++++++---
+ 1 files changed, 35 insertions(+), 3 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4236d39..7e9942d 100644
+index 7e9942d..1ecfc7a 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -46,10 +46,10 @@ static DEFINE_SPINLOCK(zone_scan_lock);
-  * shares the same mempolicy nodes as current if it is bound by such a policy
-  * and whether or not it has the same set of allowed cpuset nodes.
-  */
--static bool has_intersects_mems_allowed(struct task_struct *tsk,
-+static bool has_intersects_mems_allowed(struct task_struct *p,
- 					const nodemask_t *mask)
- {
--	struct task_struct *start = tsk;
-+	struct task_struct *tsk = p;
+@@ -82,6 +82,28 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
+ #endif /* CONFIG_NUMA */
  
- 	do {
- 		if (mask) {
-@@ -69,8 +69,8 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
- 			if (cpuset_mems_allowed_intersects(current, tsk))
- 				return true;
- 		}
--		tsk = next_thread(tsk);
--	} while (tsk != start);
-+	} while_each_thread(p, tsk);
+ /*
++ * If this is a system OOM (not a memcg OOM) and the task selected to be
++ * killed is not already running at high (RT) priorities, speed up the
++ * recovery by boosting the dying task to the lowest FIFO priority.
++ * That helps with the recovery and avoids interfering with RT tasks.
++ */
++static void boost_dying_task_prio(struct task_struct *p,
++				  struct mem_cgroup *mem)
++{
++	struct sched_param param = { .sched_priority = 1 };
 +
- 	return false;
++	if (mem)
++		return;
++
++	if (rt_task(p)) {
++		p->rt.time_slice = HZ;
++		return;
++	}
++
++	sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
++}
++
++/*
+  * The process p may have detached its own ->mm while exiting or through
+  * use_mm(), but one or more of its subthreads may still have a valid
+  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
+@@ -416,7 +438,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
  }
- #else
+ 
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+-static int oom_kill_task(struct task_struct *p)
++static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+ {
+ 	p = find_lock_task_mm(p);
+ 	if (!p || p->signal->oom_adj == OOM_DISABLE) {
+@@ -429,9 +451,17 @@ static int oom_kill_task(struct task_struct *p)
+ 		K(get_mm_counter(p->mm, MM_FILEPAGES)));
+ 	task_unlock(p);
+ 
+-	p->rt.time_slice = HZ;
++
+ 	set_tsk_thread_flag(p, TIF_MEMDIE);
+ 	force_sig(SIGKILL, p);
++
++	/*
++	 * We give our sacrificial lamb high priority and access to
++	 * all the memory it needs. That way it should be able to
++	 * exit() and clear out its resources quickly...
++	 */
++	boost_dying_task_prio(p, mem);
++
+ 	return 0;
+ }
+ #undef K
+@@ -462,6 +492,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 */
+ 	if (p->flags & PF_EXITING) {
+ 		set_tsk_thread_flag(p, TIF_MEMDIE);
++		boost_dying_task_prio(p, mem);
+ 		return 0;
+ 	}
+ 
+@@ -495,7 +526,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		}
+ 	} while_each_thread(p, t);
+ 
+-	return oom_kill_task(victim);
++	return oom_kill_task(victim, mem);
+ }
+ 
+ /*
+@@ -676,6 +707,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	 */
+ 	if (fatal_signal_pending(current)) {
+ 		set_thread_flag(TIF_MEMDIE);
++		boost_dying_task_prio(current, NULL);
+ 		return;
+ 	}
+ 
 -- 
 1.6.5.2
 
