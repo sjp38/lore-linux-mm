@@ -1,38 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E68BC6B01AF
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 12:36:59 -0400 (EDT)
-Date: Wed, 16 Jun 2010 11:33:38 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
-In-Reply-To: <4C189119.5050801@kernel.org>
-Message-ID: <alpine.DEB.2.00.1006161131520.4554@router.home>
-References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 50E3B6B01AF
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 12:39:18 -0400 (EDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 1/2] radix-tree: Implement function radix_tree_range_tag_if_tagged
+Date: Wed, 16 Jun 2010 18:33:50 +0200
+Message-Id: <1276706031-29421-2-git-send-email-jack@suse.cz>
+In-Reply-To: <1276706031-29421-1-git-send-email-jack@suse.cz>
+References: <1276706031-29421-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jun 2010, Tejun Heo wrote:
+Implement function for setting one tag if another tag is set
+for each item in given range.
 
-> > Tejun: Is it somehow possible to reliably use the alloc_percpu() on all
-> > platforms during early boot before the slab allocator is up?
->
-> Hmmm... first chunk allocation is done using bootmem, so if we give it
-> enough to room (for both chunk itself and alloc map) so that it can
-> serve till slab comes up, it should work fine.  I think what's
-> important here is making up our minds and decide on how to order them.
-> If the order is well defined, things can be made to work one way or
-> the other.  What happened to the get-rid-of-bootmem effort?  Wouldn't
-> that also interact with this?
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ include/linux/radix-tree.h |    4 ++
+ lib/radix-tree.c           |   92 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+), 0 deletions(-)
 
-Ok how do we make sure that the first chunk has enough room?
-
-Slab bootstrap occurs after the page allocator has taken over from
-bootmem and after the per cpu areas have been initialized.
-
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 55ca73c..a4b00e9 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -192,6 +192,10 @@ unsigned int
+ radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
+ 		unsigned long first_index, unsigned int max_items,
+ 		unsigned int tag);
++unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
++		unsigned long *first_indexp, unsigned long last_index,
++		unsigned long nr_to_tag,
++		unsigned int fromtag, unsigned int totag);
+ int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
+ 
+ static inline void radix_tree_preload_end(void)
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 05da38b..549ce9c 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -609,6 +609,98 @@ int radix_tree_tag_get(struct radix_tree_root *root,
+ EXPORT_SYMBOL(radix_tree_tag_get);
+ 
+ /**
++ * radix_tree_range_tag_if_tagged - for each item in given range set given
++ *				   tag if item has another tag set
++ * @root:		radix tree root
++ * @first_indexp:	pointer to a starting index of a range to scan
++ * @last_index:		last index of a range to scan
++ * @nr_to_tag:		maximum number items to tag
++ * @iftag: 		tag index to test
++ * @settag:		tag index to set if tested tag is set
++ *
++ * This function scans range of radix tree from first_index to last_index
++ * (inclusive).  For each item in the range if iftag is set, the function sets
++ * also settag. The function stops either after tagging nr_to_tag items or
++ * after reaching last_index.
++ *
++ * The function returns number of leaves where the tag was set and sets
++ * *first_indexp to the first unscanned index.
++ */
++unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
++                unsigned long *first_indexp, unsigned long last_index,
++                unsigned long nr_to_tag,
++		unsigned int iftag, unsigned int settag)
++{
++	unsigned int height = root->height, shift;
++	unsigned long tagged = 0, index = *first_indexp;
++	struct radix_tree_node *open_slots[height], *slot;
++
++	last_index = min(last_index, radix_tree_maxindex(height));
++	if (index > last_index)
++		return 0;
++	if (!root_tag_get(root, iftag)) {
++		*first_indexp = last_index + 1;
++		return 0;
++	}
++	if (height == 0) {
++		*first_indexp = last_index + 1;
++		root_tag_set(root, settag);
++		return 1;
++	}
++
++	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
++	slot = radix_tree_indirect_to_ptr(root->rnode);
++
++	for (;;) {
++		int offset;
++
++		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
++		if (!slot->slots[offset])
++			goto next;
++		if (!tag_get(slot, iftag, offset))
++			goto next;
++		tag_set(slot, settag, offset);
++		if (height == 1) {
++			tagged++;
++			goto next;
++		}
++		/* Go down one level */
++		height--;
++		shift -= RADIX_TREE_MAP_SHIFT;
++		open_slots[height] = slot;
++		slot = slot->slots[offset];
++		continue;
++next:
++		/* Go to next item at level determined by 'shift' */
++		index = ((index >> shift) + 1) << shift;
++		if (index > last_index)
++			break;
++		if (tagged > nr_to_tag)
++			break;
++		while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
++			/*
++			 * We've fully scanned this node. Go up. Because
++			 * last_index is guaranteed to be in the tree, what
++			 * we do below cannot wander astray.
++			 */
++			slot = open_slots[height];
++			height++;
++			shift += RADIX_TREE_MAP_SHIFT;
++		}
++	}
++	/*
++	 * The iftag must have been set somewhere because otherwise
++	 * we would return immediated at the beginning of the function
++	 */
++	root_tag_set(root, settag);
++	*first_indexp = index;
++
++	return tagged;
++}
++EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
++
++
++/**
+  *	radix_tree_next_hole    -    find the next hole (not-present entry)
+  *	@root:		tree root
+  *	@index:		index key
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
