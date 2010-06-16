@@ -1,50 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2AFD16B01AD
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 01:00:51 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5G50mEL029357
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 16 Jun 2010 14:00:48 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9FA145DE55
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:00:47 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F06145DE4E
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:00:47 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A9BFE08003
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:00:47 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 32F531DB803A
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 14:00:44 +0900 (JST)
-Date: Wed, 16 Jun 2010 13:56:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] mempolicy: reduce stack size of migrate_pages()
-Message-Id: <20100616135623.d5254b99.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100616130040.3831.A69D9226@jp.fujitsu.com>
-References: <20100616130040.3831.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AF5B26B01AD
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 01:07:06 -0400 (EDT)
+Date: Wed, 16 Jun 2010 01:06:40 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 12/12] vmscan: Do not writeback pages in direct reclaim
+Message-ID: <20100616050640.GA10687@infradead.org>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
+ <1276514273-27693-13-git-send-email-mel@csn.ul.ie>
+ <4C16A567.4080000@redhat.com>
+ <20100615114510.GE26788@csn.ul.ie>
+ <4C17815A.8080402@redhat.com>
+ <20100615135928.GK26788@csn.ul.ie>
+ <4C178868.2010002@redhat.com>
+ <20100615141601.GL26788@csn.ul.ie>
+ <20100616091755.7121c7d3.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100616091755.7121c7d3.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jun 2010 13:36:57 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Wed, Jun 16, 2010 at 09:17:55AM +0900, KAMEZAWA Hiroyuki wrote:
+> yes. It's only called from 
+> 	- page fault
+> 	- add_to_page_cache()
+> 
+> I think we'll see no stack problem. Now, memcg doesn't wakeup kswapd for
+> reclaiming memory, it needs direct writeback.
 
-> 
-> Now, migrate_pages() are using >500 bytes stack. This patch reduce it.
-> 
->    mm/mempolicy.c: In function 'sys_migrate_pages':
->    mm/mempolicy.c:1344: warning: the frame size of 528 bytes is larger than
->    512 bytes
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+The page fault code should be fine, but add_to_page_cache can be called
+with quite deep stacks.  Two examples are grab_cache_page_write_begin
+which already was part of one of the stack overflows mentioned in this
+thread, or find_or_create_page which can be called via
+_xfs_buf_lookup_pages, which can be called from under the whole XFS
+allocator, or via grow_dev_page which might have a similarly deep
+stack for users of the normal buffer cache.  Although for the
+find_or_create_page we usually should not have __GFP_FS set in the
+gfp_mask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
