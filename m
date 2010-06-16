@@ -1,136 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 041196B01AD
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 00:37:02 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5G4axhL019008
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 16 Jun 2010 13:36:59 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D32F45DE5D
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:36:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2555545DE55
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:36:59 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 06C66E18007
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:36:59 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id ADEC61DB8038
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 13:36:58 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mempolicy: reduce stack size of migrate_pages()
-Message-Id: <20100616130040.3831.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4AB556B01AF
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 00:42:27 -0400 (EDT)
+Received: by iwn35 with SMTP id 35so340845iwn.14
+        for <linux-mm@kvack.org>; Tue, 15 Jun 2010 21:42:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 16 Jun 2010 13:36:57 +0900 (JST)
+In-Reply-To: <20100616090334.d27e0c4e.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100615152450.f82c1f8c.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTinEEYWULLICKqBr4yX7GL01E4cq0jQSfuN8J6Jq@mail.gmail.com>
+	<20100616090334.d27e0c4e.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 16 Jun 2010 10:12:20 +0530
+Message-ID: <AANLkTikGcl8l8TvSWx2Ij7I5E-TVjGplRU5YfX0mTAG0@mail.gmail.com>
+Subject: Re: [PATCH] use find_lock_task_mm in memory cgroups oom v2
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Oleg Nesterov <oleg@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jun 16, 2010 at 5:33 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 15 Jun 2010 18:59:25 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> > -/*
+>> > +/**
+>> > + * find_lock_task_mm - Checking a process which a task belongs to has=
+ valid mm
+>> > + * and return a locked task which has a valid pointer to mm.
+>> > + *
+>>
+>> This comment should have been another patch.
+>> BTW, below comment uses "subthread" word.
+>> Personally it's easy to understand function's goal to me. :)
+>>
+>> How about following as?
+>> Checking a process which has any subthread with vaild mm
+>> ....
+>>
+> Sure. thank you. v2 is here. I removed unnecessary parts.
+>
+> =3D=3D
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> When the OOM killer scans task, it check a task is under memcg or
+> not when it's called via memcg's context.
+>
+> But, as Oleg pointed out, a thread group leader may have NULL ->mm
+> and task_in_mem_cgroup() may do wrong decision. We have to use
+> find_lock_task_mm() in memcg as generic OOM-Killer does.
+>
+> Changelog:
+> =A0- removed unnecessary changes in comments.
+>
 
-Now, migrate_pages() are using >500 bytes stack. This patch reduce it.
+mm->owner solves the same problem, but unfortunately we have task
+based selection in OOM killer, so we need this patch. It is quite
+ironic that we find the mm from the task and then eventually the task
+back from mm->owner and then the mem cgroup. If we already know the mm
+from oom_kill.c, I think we can change the function to work off of
+that. mm->owner->cgroup..no?
 
-   mm/mempolicy.c: In function 'sys_migrate_pages':
-   mm/mempolicy.c:1344: warning: the frame size of 528 bytes is larger than
-   512 bytes
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>
----
- mm/mempolicy.c |   35 ++++++++++++++++++++++-------------
- 1 files changed, 22 insertions(+), 13 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 13b09bd..1116427 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1275,33 +1275,39 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
- 		const unsigned long __user *, new_nodes)
- {
- 	const struct cred *cred = current_cred(), *tcred;
--	struct mm_struct *mm;
-+	struct mm_struct *mm = NULL;
- 	struct task_struct *task;
--	nodemask_t old;
--	nodemask_t new;
- 	nodemask_t task_nodes;
- 	int err;
-+	NODEMASK_SCRATCH(scratch);
-+	nodemask_t *old = &scratch->mask1;
-+	nodemask_t *new = &scratch->mask2;
-+
-+	if (!scratch)
-+		return -ENOMEM;
- 
--	err = get_nodes(&old, old_nodes, maxnode);
-+	err = get_nodes(old, old_nodes, maxnode);
- 	if (err)
--		return err;
-+		goto out;
- 
--	err = get_nodes(&new, new_nodes, maxnode);
-+	err = get_nodes(new, new_nodes, maxnode);
- 	if (err)
--		return err;
-+		goto out;
- 
- 	/* Find the mm_struct */
- 	read_lock(&tasklist_lock);
- 	task = pid ? find_task_by_vpid(pid) : current;
- 	if (!task) {
- 		read_unlock(&tasklist_lock);
--		return -ESRCH;
-+		err = -ESRCH;
-+		goto out;
- 	}
- 	mm = get_task_mm(task);
- 	read_unlock(&tasklist_lock);
- 
-+	err = -EINVAL;
- 	if (!mm)
--		return -EINVAL;
-+		goto out;
- 
- 	/*
- 	 * Check if this process has the right to modify the specified
-@@ -1322,12 +1328,12 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
- 
- 	task_nodes = cpuset_mems_allowed(task);
- 	/* Is the user allowed to access the target nodes? */
--	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_NICE)) {
-+	if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
- 		err = -EPERM;
- 		goto out;
- 	}
- 
--	if (!nodes_subset(new, node_states[N_HIGH_MEMORY])) {
-+	if (!nodes_subset(*new, node_states[N_HIGH_MEMORY])) {
- 		err = -EINVAL;
- 		goto out;
- 	}
-@@ -1336,10 +1342,13 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
- 	if (err)
- 		goto out;
- 
--	err = do_migrate_pages(mm, &old, &new,
-+	err = do_migrate_pages(mm, old, new,
- 		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
- out:
--	mmput(mm);
-+	if (mm)
-+		mmput(mm);
-+	NODEMASK_SCRATCH_FREE(scratch);
-+
- 	return err;
- }
- 
--- 
-1.6.5.2
-
-
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
