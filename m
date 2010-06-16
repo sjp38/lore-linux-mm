@@ -1,40 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D5ADA6B01AD
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 19:44:13 -0400 (EDT)
-Date: Wed, 16 Jun 2010 16:43:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 08/12] vmscan: Setup pagevec as late as possible in
- shrink_inactive_list()
-Message-Id: <20100616164309.254b1a0d.akpm@linux-foundation.org>
-In-Reply-To: <1276514273-27693-9-git-send-email-mel@csn.ul.ie>
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>
-	<1276514273-27693-9-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id ED5B76B01AD
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 19:46:16 -0400 (EDT)
+Message-ID: <4C196219.6000901@redhat.com>
+Date: Wed, 16 Jun 2010 19:45:29 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 05/12] vmscan: kill prev_priority completely
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>	<1276514273-27693-6-git-send-email-mel@csn.ul.ie> <20100616163709.1e0f6b56.akpm@linux-foundation.org>
+In-Reply-To: <20100616163709.1e0f6b56.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Jun 2010 12:17:49 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On 06/16/2010 07:37 PM, Andrew Morton wrote:
 
-> shrink_inactive_list() sets up a pagevec to release unfreeable pages. It
-> uses significant amounts of stack doing this. This patch splits
-> shrink_inactive_list() to take the stack usage out of the main path so
-> that callers to writepage() do not contain an unused pagevec on the
-> stack.
+> This would have been badder in earlier days when we were using the
+> scanning priority to decide when to start unmapping pte-mapped pages -
+> page reclaim would have been recirculating large blobs of mapped pages
+> around the LRU until the priority had built to the level where we
+> started to unmap them.
+>
+> However that priority-based decision got removed and right now I don't
+> recall what it got replaced with.  Aren't we now unmapping pages way
+> too early and suffering an increased major&minor fault rate?  Worried.
 
-You can get the entire pagevec off the stack - just make it a
-static-to-shrink_inactive_list() pagevec-per-cpu.
+We keep a different set of statistics to decide whether to
+reclaim only page cache pages, or both page cache and
+anonymous pages. The function get_scan_ratio parses those
+statistics.
 
-Locking just requires pinning to a CPU.  We could trivially co-opt
-shrink_inactive_list()'s spin_lock_irq() for that, but
-pagevec_release() can be relatively expensive so it'd be sad to move
-that inside spin_lock_irq().  It'd be better to slap a
-get_cpu()/put_cpu() around the whole thing.
+>    So.  What's up with that?  I don't even remember _why_ we disable
+>    the swap token once the scanning priority gets severe and the code
+>    comments there are risible.  And why do we wait until priority==0
+>    rather than priority==1?
+
+The reason is that we never page out the pages belonging to the
+process owning the swap token (with the exception of that process
+evicting its own pages).
+
+If that process has a really large RSS in the current zone, and
+we are having problems freeing pages, it may be beneficial to
+also evict pages from that process.
+
+Now that the LRU lists are split out into file backed and swap
+backed, it may be a lot easier to find pages to evict.  That
+may mean we could notice we're getting into trouble at much
+higher priority levels and disable the swap token at a higher
+priority level.
+
+I do not believe prev_priority will be very useful here, since
+we'd like to start out with small scans whenever possible.
+
+> - Busted prev_priority means that lumpy reclaim will act oddly.
+>    Every time someone goes into do some recalim, they'll start out not
+>    doing lumpy reclaim.  Then, after a while, they'll get a clue and
+>    will start doing the lumpy thing.  Then they return from reclaim and
+>    the next recalim caller will again forget that he should have done
+>    lumpy reclaim.
+
+How common are lumpy reclaims, anyway?
+
+Isn't it more likely that in-between every two higher-order
+reclaims, a number of order zero reclaims will be happening?
+
+In that case, the prev_priority logic may have introduced the
+kind of behavioural bug you describe above...
+
+> And one has to wonder: if we're making these incorrect decisions based
+> upon a bogus view of the current scanning difficulty, why are these
+> various priority-based thresholding heuristics even in there?  Are they
+> doing anything useful?
+
+The prev_priority code was useful when we had filesystem and
+swap backed pages mixed on the same LRU list.
+
+I am not convinced it still has any use.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
