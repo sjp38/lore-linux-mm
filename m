@@ -1,117 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B08326B01B2
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 05:24:50 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o5H9N3tj017196
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 03:23:03 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5H9OmbL131992
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 03:24:49 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o5H9Om2v004875
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 03:24:48 -0600
-Date: Thu, 17 Jun 2010 14:54:42 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH -mm] fix bad call of memcg_oom_recover at cancel
- move.
-Message-ID: <20100617092442.GJ4306@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100617172034.00ea8835.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D4E416B01AF
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 06:30:35 -0400 (EDT)
+Date: Thu, 17 Jun 2010 11:30:13 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 08/12] vmscan: Setup pagevec as late as possible in
+	shrink_inactive_list()
+Message-ID: <20100617103012.GA25567@csn.ul.ie>
+References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie> <1276514273-27693-9-git-send-email-mel@csn.ul.ie> <20100616164309.254b1a0d.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100617172034.00ea8835.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100616164309.254b1a0d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-17 17:20:34]:
-
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Wed, Jun 16, 2010 at 04:43:09PM -0700, Andrew Morton wrote:
+> On Mon, 14 Jun 2010 12:17:49 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> When cgroup_cancel_attach() is called via cgroup_attach_task(),
-> mem_cgroup_clear_mc() can be called even when any migration
-> was done. In such case, mc.to and mc.from is NULL.
+> > shrink_inactive_list() sets up a pagevec to release unfreeable pages. It
+> > uses significant amounts of stack doing this. This patch splits
+> > shrink_inactive_list() to take the stack usage out of the main path so
+> > that callers to writepage() do not contain an unused pagevec on the
+> > stack.
 > 
-> But, memcg-clean-up-waiting-move-acct-v2.patch
-> doesn't handle this correctly and pass NULL to memcg_oom_recover.
-> fix it.
+> You can get the entire pagevec off the stack - just make it a
+> static-to-shrink_inactive_list() pagevec-per-cpu.
 > 
-> BUG: unable to handle kernel paging request at 000000000000114c
-> IP: [<ffffffff81153bb9>] memcg_oom_recover+0x9/0x30
-> PGD 61ce4b067 PUD 613ea0067 PMD 0
-> Oops: 0000 [#1] SMP
-> <snip>
-> Call Trace:
->  [<ffffffff81155359>] mem_cgroup_clear_mc+0x119/0x1c0
->  [<ffffffff811554de>] mem_cgroup_cancel_attach+0xe/0x10
->  [<ffffffff810b619c>] cgroup_attach_task+0x26c/0x2c0
->  [<ffffffff810b6257>] cgroup_tasks_write+0x67/0x1c0
->  [<ffffffff81121555>] ? might_fault+0xa5/0xb0
->  [<ffffffff8112150c>] ? might_fault+0x5c/0xb0
->  [<ffffffff810b40a2>] cgroup_file_write+0x2d2/0x330
->  [<ffffffff81093aa2>] ? print_lock_contention_bug+0x22/0xf0
->  [<ffffffff81259fef>] ? security_file_permission+0x1f/0x80
->  [<ffffffff8115d998>] vfs_write+0xc8/0x190
->  [<ffffffff8115e3a1>] sys_write+0x51/0x90
->  [<ffffffff8100b072>] system_call_fastpath+0x16/0x1b
-> Code: 20 48 39 43 20 41 bc f0 ff ff ff 75 c7 45 88 ae 48 11 00 00 45 31 e4 eb bb 66 0f 1f 84 00 00 00 00 00 55 48 89 e5 0f 1f 44 00 00 <8b> 87 4c 11 00 00 85 c0 75 05 c9 c3 0f 1f 00 48 89 f9 31 d2 be
-> RIP  [<ffffffff81153bb9>] memcg_oom_recover+0x9/0x30
+
+That idea has been floated as well. I didn't pursue it because Dave
+said that giving page reclaim a stack diet was never going to be the
+full solution so I didn't think the complexity was justified.
+
+I kept some of the stack reduction stuff because a) it was there and b)
+it would give kswapd extra headroom when calling writepage.
+
+> Locking just requires pinning to a CPU.  We could trivially co-opt
+> shrink_inactive_list()'s spin_lock_irq() for that, but
+> pagevec_release() can be relatively expensive so it'd be sad to move
+> that inside spin_lock_irq().  It'd be better to slap a
+> get_cpu()/put_cpu() around the whole thing.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |    6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> Index: mmotm-2.6.35-0611/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.35-0611.orig/mm/memcontrol.c
-> +++ mmotm-2.6.35-0611/mm/memcontrol.c
-> @@ -4485,8 +4485,10 @@ static void mem_cgroup_clear_mc(void)
->  	mc.to = NULL;
->  	mc.moving_task = NULL;
->  	spin_unlock(&mc.lock);
-> -	memcg_oom_recover(from);
-> -	memcg_oom_recover(to);
-> +	if (from)
-> +		memcg_oom_recover(from);
-> +	if (to)
-> +		memcg_oom_recover(to);
->  	wake_up_all(&mc.waitq);
 
-May I recommend the following change instead
-
-
-Don't crash on a null memcg being passed, check if memcg
-is NULL and handle the condition gracefully
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
- mm/memcontrol.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c6ece0a..d71c488 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1370,7 +1370,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
- 
- static void memcg_oom_recover(struct mem_cgroup *mem)
- {
--	if (mem->oom_kill_disable && atomic_read(&mem->oom_lock))
-+	if (mem && mem->oom_kill_disable && atomic_read(&mem->oom_lock))
- 		memcg_wakeup_oom(mem);
- }
- 
--- 
-1.7.0.1
-
+It'd be something interesting to try out when nothing else was happening but
+I'm not going to focus on it for the moment unless I think it will really
+help this stack overflow problem.
 
 -- 
-	Three Cheers,
-	Balbir
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
