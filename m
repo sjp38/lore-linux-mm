@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D17746B01AD
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 09:27:37 -0400 (EDT)
-Subject: Re: [Lsf10-pc] Current topics for LSF10/MM Summit 8-9 August in
- Boston
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-In-Reply-To: <1276756516.12514.272.camel@haakon2.linux-iscsi.org>
-References: <1276721459.2847.399.camel@mulgrave.site>
-	 <1276756516.12514.272.camel@haakon2.linux-iscsi.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Jun 2010 08:27:29 -0500
-Message-ID: <1276781249.2789.22.camel@mulgrave.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 58A766B01AC
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 09:46:54 -0400 (EDT)
+Date: Thu, 17 Jun 2010 08:43:33 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
+In-Reply-To: <4C19E19D.2020802@kernel.org>
+Message-ID: <alpine.DEB.2.00.1006170842410.22997@router.home>
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home>
+ <4C19E19D.2020802@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Nicholas A. Bellinger" <nab@linux-iscsi.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf10-pc@lists.linuxfoundation.org, linux-scsi@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-06-16 at 23:35 -0700, Nicholas A. Bellinger wrote:
-> I noticed that the bit wrt to the kernel level target mode fabric
-> independent configfs infrastructure is not mentioned in the above..
-> 
-> http://marc.info/?l=linux-scsi&m=127010303618447&w=2
+On Thu, 17 Jun 2010, Tejun Heo wrote:
 
-It's missing because the person collating the spreadsheet forgot it ...
-I've added it in.
+> On 06/16/2010 07:35 PM, Christoph Lameter wrote:
+> >> It's primarily controlled by PERCPU_DYNAMIC_RESERVE.  I don't think
+> >> there will be any systematic way to do it other than sizing it
+> >> sufficiently.  Can you calculate the upper bound?  The constant has
+> >> been used primarily for optimization so how it's used needs to be
+> >> audited if we wanna guarantee free space in the first chunk but I
+> >> don't think it would be too difficult.
+> >
+> > The upper bound is SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu).
+> >
+> > Thats usually 14 * 104 bytes = 1456 bytes. This may increase to more
+> > than 8k given the future plans to add queues into kmem_cache_cpu.
+>
+> Alright, will work on that.  Does slab allocator guarantee to return
+> NULL if called before initialized or is it undefined?  If latter, is
+> there a way to determine whether slab is initialized yet?
 
-James
-
+Behavior is undefined. slab_is_available() determines if slab is up yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
