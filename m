@@ -1,79 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 926CB6B01C3
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 21:51:49 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5H1plKZ029733
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2B74D6B01C1
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 21:51:50 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5H1pjqJ006035
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 17 Jun 2010 10:51:47 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E0E45DE50
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F94C45DE4F
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:47 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B3F61DB803C
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:47 +0900 (JST)
+	Thu, 17 Jun 2010 10:51:46 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A9F5545DE55
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8720A45DE51
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4CFE08004
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:45 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB6441DB8050
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:43 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A10D1DB8038
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:51:45 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 6/9] oom: unify CAP_SYS_RAWIO check into other superuser check
+Subject: [PATCH 7/9] oom: remove child->mm check from oom_kill_process()
 In-Reply-To: <20100617104311.FB7A.A69D9226@jp.fujitsu.com>
 References: <20100617104311.FB7A.A69D9226@jp.fujitsu.com>
-Message-Id: <20100617104756.FB8F.A69D9226@jp.fujitsu.com>
+Message-Id: <20100617105035.FB9B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 17 Jun 2010 10:51:43 +0900 (JST)
+Date: Thu, 17 Jun 2010 10:51:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
 
-Now, CAP_SYS_RAWIO check is very strange. if the user have both
-CAP_SYS_ADMIN and CAP_SYS_RAWIO, points will makes 1/16.
+Current "child->mm == p->mm" mean prevent to select vfork() task.
+But we don't have any reason to prevent it.
 
-Superuser's 1/4 bonus worthness is quite a bit dubious, but
-considerable. However 1/16 is obviously insane.
+Remvoed.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/oom_kill.c |   17 ++++++-----------
- 1 files changed, 6 insertions(+), 11 deletions(-)
+ mm/oom_kill.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index b27db90..7f91151 100644
+index 7f91151..a6bb2d7 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -199,19 +199,14 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
+@@ -475,8 +475,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		list_for_each_entry(child, &t->children, sibling) {
+ 			unsigned long child_points;
  
- 	/*
- 	 * Superuser processes are usually more important, so we make it
--	 * less likely that we kill those.
-+	 * less likely that we kill those. And we don't want to kill a
-+	 * process with direct hardware access. Not only could that mess
-+	 * up the hardware, but usually users tend to only have this
-+	 * flag set on applications they think of as important.
- 	 */
- 	if (has_capability_noaudit(p, CAP_SYS_ADMIN) ||
--	    has_capability_noaudit(p, CAP_SYS_RESOURCE))
--		points /= 4;
--
--	/*
--	 * We don't want to kill a process with direct hardware access.
--	 * Not only could that mess up the hardware, but usually users
--	 * tend to only have this flag set on applications they think
--	 * of as important.
--	 */
--	if (has_capability_noaudit(p, CAP_SYS_RAWIO))
-+	    has_capability_noaudit(p, CAP_SYS_RESOURCE) ||
-+	    has_capability_noaudit(p, CAP_SYS_RAWIO))
- 		points /= 4;
+-			if (child->mm == p->mm)
+-				continue;
+ 			if (oom_unkillable_task(p, mem, nodemask))
+ 				continue;
  
- 	/*
 -- 
 1.6.5.2
 
