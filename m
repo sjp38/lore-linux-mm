@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8D9A26B01AF
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 12:13:45 -0400 (EDT)
-Message-ID: <4C1A49B3.4020903@panasas.com>
-Date: Thu, 17 Jun 2010 12:13:39 -0400
-From: Boaz Harrosh <bharrosh@panasas.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 371D36B01AC
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 12:34:54 -0400 (EDT)
+Message-ID: <4C1A4EA9.40504@vlnb.net>
+Date: Thu, 17 Jun 2010 20:34:49 +0400
+From: Vladislav Bolkhovitin <vst@vlnb.net>
 MIME-Version: 1.0
 Subject: Re: Current topics for LSF10/MM Summit 8-9 August in Boston
 References: <1276721459.2847.399.camel@mulgrave.site>	 <20100617160048.GA11689@schmichrtp.mainz.de.ibm.com> <1276790850.7398.8.camel@mulgrave.site>
 In-Reply-To: <1276790850.7398.8.camel@mulgrave.site>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: James Bottomley <James.Bottomley@HansenPartnership.com>
 Cc: Christof Schmitt <christof.schmitt@de.ibm.com>, linux-scsi@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf10-pc@lists.linuxfoundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/17/2010 12:07 PM, James Bottomley wrote:
+James Bottomley, on 06/17/2010 08:07 PM wrote:
 > On Thu, 2010-06-17 at 18:00 +0200, Christof Schmitt wrote:
 >> On Wed, Jun 16, 2010 at 03:50:59PM -0500, James Bottomley wrote:
 >>> Given that we're under two months out, I thought it would be time to
@@ -68,19 +68,14 @@ On 06/17/2010 12:07 PM, James Bottomley wrote:
 > and copying every fs I/O page would be horrendous both for performance
 > and memory consumption.  Nor has there really been an indication that
 > it's a serious issue.  The two sufferers are DIF and iSCSI checksum.
-> The latter generates the checksum late enough that it can just discard
-> incorrect pages ... the former might need simply to turn off DIF for
-> everything other than DIRECT IO.
 
-What about raid and mirror that do copy the complete IO load
-just because of that? They gave up long ago but wouldn't they
-gain if that was revisited? (And so would DIF/checksum)
+You forgot the third: advanced storage, including MPIO clusters, where 
+retry of the write of the modified in-flight pages while the original 
+write for them not yet completed might cause out of the expected order 
+execution of the writes and data corruption (old data written instead of 
+new).
 
-> 
-> James
-> 
-
-Boaz
+Vlad
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
