@@ -1,115 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E02516B01AC
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:34:50 -0400 (EDT)
-Message-ID: <4C196D81.8090700@redhat.com>
-Date: Wed, 16 Jun 2010 20:34:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BE0906B01AC
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 21:45:17 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5H1jErE023433
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 17 Jun 2010 10:45:14 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B6A145DE4E
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:45:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C39F45DE4D
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:45:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 557DA1DB8037
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:45:14 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 147ADE08003
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:45:11 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/9] oom: don't try to kill oom_unkillable child
+Message-Id: <20100617104311.FB7A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/12] vmscan: kill prev_priority completely
-References: <1276514273-27693-1-git-send-email-mel@csn.ul.ie>	<1276514273-27693-6-git-send-email-mel@csn.ul.ie>	<20100616163709.1e0f6b56.akpm@linux-foundation.org>	<4C196219.6000901@redhat.com> <20100616171847.71703d1a.akpm@linux-foundation.org>
-In-Reply-To: <20100616171847.71703d1a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 17 Jun 2010 10:45:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 06/16/2010 08:18 PM, Andrew Morton wrote:
-> On Wed, 16 Jun 2010 19:45:29 -0400
-> Rik van Riel<riel@redhat.com>  wrote:
->
->> On 06/16/2010 07:37 PM, Andrew Morton wrote:
->>
->>> This would have been badder in earlier days when we were using the
->>> scanning priority to decide when to start unmapping pte-mapped pages -
->>> page reclaim would have been recirculating large blobs of mapped pages
->>> around the LRU until the priority had built to the level where we
->>> started to unmap them.
->>>
->>> However that priority-based decision got removed and right now I don't
->>> recall what it got replaced with.  Aren't we now unmapping pages way
->>> too early and suffering an increased major&minor fault rate?  Worried.
->>
->> We keep a different set of statistics to decide whether to
->> reclaim only page cache pages, or both page cache and
->> anonymous pages. The function get_scan_ratio parses those
->> statistics.
->
-> I wasn't talking about anon-vs-file.  I was referring to mapped-file
-> versus not-mapped file.  If the code sees a mapped page come off the
-> tail of the LRU it'll just unmap and reclaim the thing.  This policy
-> caused awful amounts of paging activity when someone started doing lots
-> of read() activity, which is why the VM was changed to value mapped
-> pagecache higher than unmapped pagecache.  Did this biasing get
-> retained and if so, how?
 
-It changed a little, but we still have it:
+Now, badness() doesn't care neigher CPUSET nor mempolicy. Then
+if the victim child process have disjoint nodemask, __out_of_memory()
+can makes kernel hang eventually.
 
-1) we do not deactivate active file pages if the active file
-    list is smaller than the inactive file list - this protects
-    the working set from streaming IO
+This patch fixes it.
 
-2) we keep mapped referenced executable pages on the active file
-    list if they got accessed while on the active list, while
-    other file pages get deactivated unconditionally
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/oom_kill.c |   10 ++++++----
+ 1 files changed, 6 insertions(+), 4 deletions(-)
 
-> Does thrash-avoidance actually still work?
-
-I suspect it does, but I have not actually tested that code
-in years :)
-
->> I do not believe prev_priority will be very useful here, since
->> we'd like to start out with small scans whenever possible.
->
-> Why?
-
-For one, memory sizes today are a lot larger than they were
-when 2.6.0 came out.
-
-Secondly, we now know more exactly what is on each LRU list.
-That should greatly reduce unnecessary turnover of the list.
-
-For example, if we know there is no swap space available, we
-will not bother scanning the anon LRU lists.
-
-If we know there is not enough file cache left to get us up
-to the zone high water mark, we will not bother scanning the
-few remaining file pages.
-
-Because of those simple checks (in get_scan_priority), I do
-not expect that we will have to scan through all of memory
-as frequently as we had to do in 2.6.0.
-
-Furthermore, we unconditionally deactivate most active pages
-and have a working used-once scheme for pages on the anon
-lists.  This should also contribute to a reduction in the
-number of pages that get scanned.
-
->> In that case, the prev_priority logic may have introduced the
->> kind of behavioural bug you describe above...
->>
->>> And one has to wonder: if we're making these incorrect decisions based
->>> upon a bogus view of the current scanning difficulty, why are these
->>> various priority-based thresholding heuristics even in there?  Are they
->>> doing anything useful?
->>
->> The prev_priority code was useful when we had filesystem and
->> swap backed pages mixed on the same LRU list.
->
-> No, stop saying swap! ;)
->
-> It's all to do with mapped pagecache versus unmapped pagecache.  "ytf
-> does my browser get paged out all the time".
-
-We have other measures in place now to protect the working set
-on the file LRU lists (see above).  We are able to have those
-measures in the kernel because we no longer have mixed LRU
-lists.
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 26ae697..0aeacb2 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -429,7 +429,7 @@ static int oom_kill_task(struct task_struct *p)
+ 
+ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 			    unsigned long points, struct mem_cgroup *mem,
+-			    const char *message)
++			    nodemask_t *nodemask, const char *message)
+ {
+ 	struct task_struct *victim = p;
+ 	struct task_struct *child;
+@@ -469,6 +469,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 				continue;
+ 			if (mem && !task_in_mem_cgroup(child, mem))
+ 				continue;
++			if (!has_intersects_mems_allowed(child, nodemask))
++				continue;
+ 
+ 			/* badness() returns 0 if the thread is unkillable */
+ 			child_points = badness(child, uptime.tv_sec);
+@@ -519,7 +521,7 @@ retry:
+ 	if (!p || PTR_ERR(p) == -1UL)
+ 		goto out;
+ 
+-	if (oom_kill_process(p, gfp_mask, 0, points, mem,
++	if (oom_kill_process(p, gfp_mask, 0, points, mem, NULL,
+ 				"Memory cgroup out of memory"))
+ 		goto retry;
+ out:
+@@ -678,7 +680,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		 * non-zero, current could not be killed so we must fallback to
+ 		 * the tasklist scan.
+ 		 */
+-		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
++		if (!oom_kill_process(current, gfp_mask, order, 0, NULL, nodemask,
+ 				"Out of memory (oom_kill_allocating_task)"))
+ 			return;
+ 	}
+@@ -697,7 +699,7 @@ retry:
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 
+-	if (oom_kill_process(p, gfp_mask, order, points, NULL,
++	if (oom_kill_process(p, gfp_mask, order, points, NULL, nodemask,
+ 			     "Out of memory"))
+ 		goto retry;
+ 	read_unlock(&tasklist_lock);
 -- 
-All rights reversed
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
