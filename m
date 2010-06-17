@@ -1,43 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC0D6B01B2
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 05:01:45 -0400 (EDT)
-Message-ID: <4C19E476.9010303@cs.helsinki.fi>
-Date: Thu, 17 Jun 2010 12:01:42 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C75446B01B5
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 05:12:22 -0400 (EDT)
+Date: Thu, 17 Jun 2010 11:11:57 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/2 v4] Writeback livelock avoidance for data integrity
+ writes
+Message-ID: <20100617091156.GB3453@quack.suse.cz>
+References: <1276706031-29421-1-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
-References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home> <4C19E19D.2020802@kernel.org>
-In-Reply-To: <4C19E19D.2020802@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1276706031-29421-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On 6/17/10 11:49 AM, Tejun Heo wrote:
-> Hello,
->
-> On 06/16/2010 07:35 PM, Christoph Lameter wrote:
->>> It's primarily controlled by PERCPU_DYNAMIC_RESERVE.  I don't think
->>> there will be any systematic way to do it other than sizing it
->>> sufficiently.  Can you calculate the upper bound?  The constant has
->>> been used primarily for optimization so how it's used needs to be
->>> audited if we wanna guarantee free space in the first chunk but I
->>> don't think it would be too difficult.
->>
->> The upper bound is SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu).
->>
->> Thats usually 14 * 104 bytes = 1456 bytes. This may increase to more
->> than 8k given the future plans to add queues into kmem_cache_cpu.
->
-> Alright, will work on that.  Does slab allocator guarantee to return
-> NULL if called before initialized or is it undefined?  If latter, is
-> there a way to determine whether slab is initialized yet?
+  Sorry for replying to my email but I forgot to set a subject while doing
+git send-email. So at least set it now.
 
-It's undefined and you can use slab_is_available() to check if it's 
-available or not.
+								Honza
+
+On Wed 16-06-10 18:33:49, Jan Kara wrote:
+>   Hello,
+> 
+>   here is the fourth version of the writeback livelock avoidance patches
+> for data integrity writes. To quickly summarize the idea: we tag dirty
+> pages at the beginning of write_cache_pages with a new TOWRITE tag and
+> then write only tagged pages to avoid parallel writers to livelock us.
+> See changelogs of the patches for more details.
+>   I have tested the patches with fsx and a test program I wrote which
+> checks that if we crash after fsync, the data is indeed on disk.
+>   If there are no more concerns, can these patches get merged?
+> 
+> 								Honza
+> 
+>   Changes since last version:
+> - tagging function was changed to stop after given amount of pages to
+>   avoid keeping tree_lock and irqs disabled for too long
+> - changed names and updated comments as Andrew suggested
+> - measured memory impact and reported it in the changelog
+> 
+>   Things suggested but not changed (I want to avoid going in circles ;):
+> - use tagging also for WB_SYNC_NONE writeback - there's problem with an
+>   interaction with wbc->nr_to_write. If we tag all dirty pages, we can
+>   spend too much time tagging when we write only a few pages in the end
+>   because of nr_to_write. If we tag only say nr_to_write pages, we may
+>   not have enough pages tagged because some pages are written out by
+>   someone else and so we would have to restart and tagging would become
+>   essentially useless. So my option is - switch to tagging for WB_SYNC_NONE
+>   writeback if we can get rid of nr_to_write. But that's a story for
+>   a different patch set.
+> - implement function for clearing several tags (TOWRITE, DIRTY) at once
+>   - IMHO not worth it because we would save only conversion of page index
+>   to radix tree offsets. The rest would have to be separate anyways. And
+>   the interface would be incosistent as well...
+> - use __lookup_tag to implement radix_tree_range_tag_if_tagged - doesn't
+>   quite work because __lookup_tag returns only leaf nodes so we'd have to
+>   implement tree traversal anyways to tag also internal nodes.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
