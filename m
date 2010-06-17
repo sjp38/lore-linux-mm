@@ -1,96 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 80ADC6B01D0
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 23:28:23 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o5H3SJjt012752
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:28:20 -0700
-Received: from pva18 (pva18.prod.google.com [10.241.209.18])
-	by wpaz37.hot.corp.google.com with ESMTP id o5H3SITm026945
-	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:28:18 -0700
-Received: by pva18 with SMTP id 18so90124pva.32
-        for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:28:18 -0700 (PDT)
-Date: Wed, 16 Jun 2010 20:28:13 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE296B01D0
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 23:33:39 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o5H3XXMj031030
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:33:34 -0700
+Received: from pxi18 (pxi18.prod.google.com [10.243.27.18])
+	by hpaq2.eem.corp.google.com with ESMTP id o5H3XVgh029132
+	for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:33:32 -0700
+Received: by pxi18 with SMTP id 18so1070844pxi.26
+        for <linux-mm@kvack.org>; Wed, 16 Jun 2010 20:33:31 -0700 (PDT)
+Date: Wed, 16 Jun 2010 20:33:28 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 08/18] oom: badness heuristic rewrite
-In-Reply-To: <20100608164722.9724baf9.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1006162023110.21446@chino.kir.corp.google.com>
-References: <20100604195328.72D9.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006041333550.27219@chino.kir.corp.google.com> <20100608172820.7645.A69D9226@jp.fujitsu.com> <20100608164722.9724baf9.akpm@linux-foundation.org>
+Subject: Re: [patch -mm 01/18] oom: filter tasks not sharing the same
+ cpuset
+In-Reply-To: <20100613180405.6178.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006162028410.21446@chino.kir.corp.google.com>
+References: <20100606170713.8718.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006081135510.18848@chino.kir.corp.google.com> <20100613180405.6178.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Jun 2010, Andrew Morton wrote:
+On Sun, 13 Jun 2010, KOSAKI Motohiro wrote:
 
-> > of the patch don't concentrate one thing. 2) That is strongly concentrate 
-> > "what and how to implement". But reviewers don't want such imformation so much 
-> > because they can read C language. reviewers need following information.
-> >   - background
-> >   - why do the author choose this way?
-> >   - why do the author choose this default value?
-> >   - how to confirm your concept and implementation correct?
-> >   - etc etc
+> I have no objection because it's policy matter. but if so, dump_tasks()
+> should display mem_allowed mask too, probably.
+
+You could, but we'd want to do that all under cpuset_buffer_lock so we 
+don't have to allocate it on the stack, which can be particularly lengthy 
+when the page allocator is called.
+
+> > >   (3) oom_kill_task (when oom_kill_allocating_task==1 only)
+> > > 
 > > 
-> > thus, reviewers can trace the author thinking and makes good advise and judgement.
-> > example in this case, you wrote
-> >  - default threshold is 1000
-> >  - only accumurate 1st generation execve children
-> >  - time threshold is a second
-> > 
-> > but not wrote why? mess sentence hide such lack of document. then, I usually enforce
-> > a divide, because a divide naturally reduce to "which place change" document and 
-> > expose what lacking. 
-> > 
-> > Now I haven't get your intention. no test suite accelerate to can't get
-> > author think which workload is a problem workload.
+> > Why would care about cpuset attachment in oom_kill_task()?  You mean 
+> > oom_kill_process() to filter the children list?
 > 
-> hey, you're starting to sound like me.
+> Ah, intersting question. OK, we have to discuss oom_kill_allocating_task
+> design at first.
+> 
+> First of All, oom_kill_process() to filter the children list and this issue
+> are independent and unrelated. My patch was not correct too.
+> 
+> Now, oom_kill_allocating_task basic logic is here. It mean, if oom_kill_process()
+> return 0, oom kill finished successfully. but if oom_kill_process() return 1,
+> fallback to normall __out_of_memory().
 > 
 
-I can certainly elaborate on the forkbomb detector's patch description, 
-but it would be helpful if people would bring this up as their concern 
-rather than obfuscating it with a bunch of "nack"s and guessing.  I had 
-_thought_ that the intent was quite clear in the comments that the patch 
-added:
+Right.
 
-/*
- * Tasks that fork a very large number of children with seperate address spaces
- * may be the result of a bug, user error, malicious applications, or even those
- * with a very legitimate purpose such as a webserver.  The oom killer assesses
- * a penalty equaling
- *
- *	(average rss of children) * (# of 1st generation execve children)
- *	-----------------------------------------------------------------
- *			sysctl_oom_forkbomb_thres
- *
- * for such tasks to target the parent.  oom_kill_process() will attempt to
- * first kill a child, so there's no risk of killing an important system daemon
- * via this method.  A web server, for example, may fork a very large number of
- * threads to respond to client connections; it's much better to kill a child
- * than to kill the parent, making the server unresponsive.  The goal here is
- * to give the user a chance to recover from the error rather than deplete all
- * memory such that the system is unusable, it's not meant to effect a forkbomb
- * policy.
- */
-
-I didn't think it had to be duplicated in the changelog.  I'll do that.
-
-> I think I'm beginning to understand your concerns with these patches. 
-> Finally.
 > 
-> Yes, it's a familiar one.  I do fairly commonly see patches where the
-> description can be summarised as "change lots and lots of stuff to no
-> apparent end" and one does have to push and poke to squeeze out the
-> thinking and the reasons.  It's a useful exercise and will sometimes
-> cause the originator to have a rethink, and sometimes reveals that it
-> just wasn't a good change.
+> 	===================================================
+> 	static void __out_of_memory(gfp_t gfp_mask, int order, nodemask_t *nodemask)
+> 	{
+> 	        struct task_struct *p;
+> 	        unsigned long points;
+> 	
+> 	        if (sysctl_oom_kill_allocating_task)
+> 	                if (!oom_kill_process(current, gfp_mask, order, 0, NULL, nodemask,
+> 	                                      "Out of memory (oom_kill_allocating_task)"))
+> 	                        return;
+> 	retry:
 > 
+> When oom_kill_process() return 1?
+> I think It should be
+> 	- current is OOM_DISABLE
 
-Show me where I have a single undocumented change in the forkbomb detector 
-patch, please.
+In this case, oom_kill_task() returns 1, which causes oom_kill_process() 
+to return 1 if current (and not one of its children) is actually selected 
+to die.
+
+> 	- current have no intersected CPUSET
+
+current will always intersect its own cpuset's mems.
+
+> 	- current is KTHREAD
+
+find_lock_task_mm() should take care of that in oom_kill_task() just like 
+it does for OOM_DISABLE, although we can still race with use_mm(), in 
+which case this would be a good chance.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
