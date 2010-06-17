@@ -1,34 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A68B36B01AF
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 09:48:25 -0400 (EDT)
-Date: Thu, 17 Jun 2010 08:45:09 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] Slabinfo: Fix display format
-In-Reply-To: <20100617155420.GB2693@localhost.localdomain>
-Message-ID: <alpine.DEB.2.00.1006170844300.22997@router.home>
-References: <20100617155420.GB2693@localhost.localdomain>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2AD5E6B01B2
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 10:10:43 -0400 (EDT)
+Received: by iwn35 with SMTP id 35so2061718iwn.14
+        for <linux-mm@kvack.org>; Thu, 17 Jun 2010 07:10:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1006170844300.22997@router.home>
+References: <20100617155420.GB2693@localhost.localdomain>
+	<alpine.DEB.2.00.1006170844300.22997@router.home>
+Date: Thu, 17 Jun 2010 22:10:39 +0800
+Message-ID: <AANLkTimYX9PqGJq3dw2n3FZQiIkX0nOKMEOHdYMndHWo@mail.gmail.com>
+Subject: Re: [PATCH] Slabinfo: Fix display format
+From: wzt wzt <wzt.wzt@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: wzt.wzt@gmail.com
+To: Christoph Lameter <cl@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Jun 2010, wzt.wzt@gmail.com wrote:
+On Thu, Jun 17, 2010 at 9:45 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Thu, 17 Jun 2010, wzt.wzt@gmail.com wrote:
 
-> @@ -4271,7 +4271,7 @@ static int s_show(struct seq_file *m, void *p)
->  	if (error)
->  		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
+> This one may break user space tools that have assumptions about the length
+> of the field. Or do tools not make that assumption?
 >
-> -	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
-> +	seq_printf(m, "%-27s %6lu %6lu %6u %4u %4d",
->  		   name, active_objs, num_objs, cachep->buffer_size,
->  		   cachep->num, (1 << cachep->gfporder));
->  	seq_printf(m, " : tunables %4u %4u %4u",
 
-This one may break user space tools that have assumptions about the length
-of the field. Or do tools not make that assumption?
+User space tools usually use sscanf() to extract this field like:
+sscanf(buff, "%s %d", name, &num);
+If %-27s can break some user space tools that have assumptions about
+the length of the field, the orig %-17s can also break it.
+The longest name inotify_event_private_data is 26 bytes in 2.6.34-rc2,
+the tools still can't extract it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
