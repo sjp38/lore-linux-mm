@@ -1,94 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EA8706B01AC
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 14:43:08 -0400 (EDT)
-Subject: [Patch] Call cond_resched() at bottom of main look in
-	balance_pgdat()
-From: Larry Woodman <lwoodman@redhat.com>
-Content-Type: text/plain
-Date: Thu, 17 Jun 2010 14:48:40 -0400
-Message-Id: <1276800520.8736.236.camel@dhcp-100-19-198.bos.redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 63D216B01AC
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 14:45:23 -0400 (EDT)
+Subject: Re: [RFC PATCH] mm: let the bdi_writeout fraction respond more
+ quickly
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <4C1A09DF.9070809@kernel.dk>
+References: <1276523894.1980.85.camel@castor.rsk>
+	 <1276526681.1980.89.camel@castor.rsk>  <1276714466.1745.625.camel@laptop>
+	 <1276774796.1978.11.camel@castor.rsk>  <4C1A09DF.9070809@kernel.dk>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 17 Jun 2010 19:45:16 +0100
+Message-ID: <1276800316.1978.67.camel@castor.rsk>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-We are seeing a problem where kswapd gets stuck and hogs the CPU on a
-small single CPU system when an OOM kill should occur.  When this
-happens swap space has been exhausted and the pagecache has been shrunk
-to zero.  Once kswapd gets the CPU it never gives it up because at least
-one zone is below high.  Adding a single cond_resched() at the end of
-the main loop in balance_pgdat() fixes the problem by allowing the
-watchdog and tasks to run and eventually do an OOM kill which frees up
-the resources.
+On Thu, 2010-06-17 at 13:41 +0200, Jens Axboe wrote:
+> On 2010-06-17 13:39, Richard Kennedy wrote:
+> > On Wed, 2010-06-16 at 20:54 +0200, Peter Zijlstra wrote:
+> >> On Mon, 2010-06-14 at 15:44 +0100, Richard Kennedy wrote:
+> >>>> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> >>>> index 2fdda90..315dd04 100644
+> >>>> --- a/mm/page-writeback.c
+> >>>> +++ b/mm/page-writeback.c
+> >>>> @@ -144,7 +144,7 @@ static int calc_period_shift(void)
+> >>>>       else
+> >>>>               dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+> >>>>                               100;
+> >>>> -     return 2 + ilog2(dirty_total - 1);
+> >>>> +     return ilog2(dirty_total - 1) - 4;
+> >>>>  } 
+> >>
+> >> IIRC I suggested similar things in the past and all we needed to do was
+> >> find people doing the measurements on different bits of hardware or so..
+> >>
+> >> I don't have any problems with the approach, all we need to make sure is
+> >> that we never return 0 or a negative number (possibly ensure a minimum
+> >> positive shift value).
+> > 
+> > Yep that sounds reasonable. would minimum shift of 4 be ok ?
+> > 
+> > something like
+> > 
+> > 	max ( (ilog2(dirty_total - 1)- 4) , 4);
+> > 
+> > Unfortunately volunteers don't seem to be leaping out of the woodwork,
+> > maybe Andrew could be persuaded to try this in his tree for a while and
+> > see if any one squeaks ?
+> 
+> I'm pretty sure that most volunteers are curious what to actually test,
+> so they shy away from it. If you added a good explanation of an easy way
+> to test the before and after, then it would be more approachable.
+> 
+> I'll give it a spin here.
+> 
+
+Ah - sorry. but I thought what it did was obvious ;)
+
+Finding a test that's going to show a difference isn't going to be that
+easy, It isn't going to have any effect on writing to a single bdi, but
+only workloads writing to 2 (or more) disks.
+
+Calc_period_shift controls the speed that the bdi dirty threshold gets
+updated, which in turn controls how much of the vm_dirty cache a bdi can
+use.
+ The first graph shows that currently it is rather slow in reacting to
+change so that when you switch the writes from sda to sdb, the threshold
+doesn't react quickly enough and sdb isn't allowed to use it's fair
+share of the cache and is forced to write to the spinning disk sooner.
+Therefore it's slower overall. But the speed difference is highly
+dependent on the size of the write v. the size of the cache and the
+speed of the disk v. speed of writing to memory.
+
+The tests I run here are writing a large file to one disk then after a
+small delay start a small write to the second disk, but it's not easy to
+get repeatable results from them.
+
+I don't have a simple test, but the patch will improve the fairness of
+the vm_dirty cache sharing. I had in mind the sort of server workloads
+where some disks are dedicated to particular applications and others to
+general use. There may also be some desktop improvements but they are
+difficult to pin down.  
+
+I'm sorry I wasn't clearer before and hope this has explained what I've
+been trying to do.
+
+regards
+Richard
 
 
-----------------------------------------------------------------
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9c7e57c..c5c46b7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2182,6 +2182,7 @@ loop_again:
-                 */
-                if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-                        break;
-+               cond_resched();
-        }
- out:
-        /*
-
------------------------------------------------------------------
-
-Signed-off-by: Larry Woodman <lwoodman@redhat.com>
 
 
------------------------------------------------------------------
-BUG: soft lockup - CPU#0 stuck for 61s! [kswapd0:26]
-Modules linked in: sunrpc(U) p4_clockmod(U) ipv6(U) dm_mirror(U)...
+ 
 
-Pid: 26, comm: kswapd0 Not tainted (2.6.32-34.el6.i686 #1) HP Compaq dx2300
-EIP: 0060:[<c04e84fb>] EFLAGS: 00000246 CPU: 0
-EIP is at shrink_slab+0x7b/0x170
-EAX: 00000040 EBX: 00000000 ECX: dbf43e54 EDX: 00000000
-ESI: e01c2b30 EDI: 00000000 EBP: c0ad4600 ESP: dbc8dec0
- DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-CR0: 8005003b CR2: 0805090c CR3: 108eb000 CR4: 000006f0
-DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-DR6: ffff0ff0 DR7: 00000400
-Call Trace:
- [<c04eab91>] ? kswapd+0x541/0x830
- [<c04eae80>] ? isolate_pages_global+0x0/0x220
- [<c04702d0>] ? autoremove_wake_function+0x0/0x40
- [<c043d5e0>] ? complete+0x40/0x60
- [<c04ea650>] ? kswapd+0x0/0x830
- [<c0470094>] ? kthread+0x74/0x80
- [<c0470020>] ? kthread+0x0/0x80
- [<c040a547>] ? kernel_thread_helper+0x7/0x10
--------------------------------------------------------------------
-Mem-Info:
-DMA per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-Normal per-cpu:
-CPU    0: hi:  186, btch:  31 usd: 152
-active_anon:54902 inactive_anon:54849 isolated_anon:32
- active_file:0 inactive_file:25 isolated_file:0
- unevictable:660 dirty:0 writeback:6 unstable:0
- free:1172 slab_reclaimable:1969 slab_unreclaimable:8322
- mapped:196 shmem:801 pagetables:1300 bounce:0
-...
-Normal free:2672kB min:2764kB low:3452kB high:4144kB 
-...
-21729 total pagecache pages
-20240 pages in swap cache
-Swap cache stats: add 468211, delete 447971, find 12560445/12560936
-Free swap  = 0kB
-Total swap = 1015800kB
-128720 pages RAM
-0 pages HighMem
-3223 pages reserved
-1206 pages shared
-121413 pages non-shared
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
