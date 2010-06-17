@@ -1,41 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 58A766B01AC
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 09:46:54 -0400 (EDT)
-Date: Thu, 17 Jun 2010 08:43:33 -0500 (CDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A68B36B01AF
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 09:48:25 -0400 (EDT)
+Date: Thu, 17 Jun 2010 08:45:09 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC] slub: Simplify boot kmem_cache_cpu allocations
-In-Reply-To: <4C19E19D.2020802@kernel.org>
-Message-ID: <alpine.DEB.2.00.1006170842410.22997@router.home>
-References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home>
- <4C19E19D.2020802@kernel.org>
+Subject: Re: [PATCH] Slabinfo: Fix display format
+In-Reply-To: <20100617155420.GB2693@localhost.localdomain>
+Message-ID: <alpine.DEB.2.00.1006170844300.22997@router.home>
+References: <20100617155420.GB2693@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: wzt.wzt@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@cs.helsinki.fi, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Jun 2010, Tejun Heo wrote:
+On Thu, 17 Jun 2010, wzt.wzt@gmail.com wrote:
 
-> On 06/16/2010 07:35 PM, Christoph Lameter wrote:
-> >> It's primarily controlled by PERCPU_DYNAMIC_RESERVE.  I don't think
-> >> there will be any systematic way to do it other than sizing it
-> >> sufficiently.  Can you calculate the upper bound?  The constant has
-> >> been used primarily for optimization so how it's used needs to be
-> >> audited if we wanna guarantee free space in the first chunk but I
-> >> don't think it would be too difficult.
-> >
-> > The upper bound is SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu).
-> >
-> > Thats usually 14 * 104 bytes = 1456 bytes. This may increase to more
-> > than 8k given the future plans to add queues into kmem_cache_cpu.
+> @@ -4271,7 +4271,7 @@ static int s_show(struct seq_file *m, void *p)
+>  	if (error)
+>  		printk(KERN_ERR "slab: cache %s error: %s\n", name, error);
 >
-> Alright, will work on that.  Does slab allocator guarantee to return
-> NULL if called before initialized or is it undefined?  If latter, is
-> there a way to determine whether slab is initialized yet?
+> -	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
+> +	seq_printf(m, "%-27s %6lu %6lu %6u %4u %4d",
+>  		   name, active_objs, num_objs, cachep->buffer_size,
+>  		   cachep->num, (1 << cachep->gfporder));
+>  	seq_printf(m, " : tunables %4u %4u %4u",
 
-Behavior is undefined. slab_is_available() determines if slab is up yet.
+This one may break user space tools that have assumptions about the length
+of the field. Or do tools not make that assumption?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
