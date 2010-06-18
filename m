@@ -1,84 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FECE6B01AF
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 17:39:25 -0400 (EDT)
-Date: Fri, 18 Jun 2010 14:38:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mempolicy: reduce stack size of migrate_pages()
-Message-Id: <20100618143851.0661daa2.akpm@linux-foundation.org>
-In-Reply-To: <20100616130040.3831.A69D9226@jp.fujitsu.com>
-References: <20100616130040.3831.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9D76B01B2
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 17:44:30 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id o5ILiQiv010029
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:44:26 -0700
+Received: from pva18 (pva18.prod.google.com [10.241.209.18])
+	by wpaz33.hot.corp.google.com with ESMTP id o5ILiOQq028645
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:44:25 -0700
+Received: by pva18 with SMTP id 18so401245pva.37
+        for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:44:24 -0700 (PDT)
+Date: Fri, 18 Jun 2010 14:44:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: slub: discard_slab_unlock
+In-Reply-To: <alpine.DEB.2.00.1006151405020.10865@router.home>
+Message-ID: <alpine.DEB.2.00.1006181438020.16115@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006151405020.10865@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jun 2010 13:36:57 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 15 Jun 2010, Christoph Lameter wrote:
 
+> Subject: slub: discard_slab_unlock
 > 
-> Now, migrate_pages() are using >500 bytes stack. This patch reduce it.
+> The sequence of unlocking a slab and freeing occurs multiple times.
+> Put the common into a single function.
 > 
->    mm/mempolicy.c: In function 'sys_migrate_pages':
->    mm/mempolicy.c:1344: warning: the frame size of 528 bytes is larger than
->    512 bytes
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> ---
->  mm/mempolicy.c |   35 ++++++++++++++++++++++-------------
->  1 files changed, 22 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 13b09bd..1116427 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1275,33 +1275,39 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
->  		const unsigned long __user *, new_nodes)
->  {
->  	const struct cred *cred = current_cred(), *tcred;
-> -	struct mm_struct *mm;
-> +	struct mm_struct *mm = NULL;
->  	struct task_struct *task;
-> -	nodemask_t old;
-> -	nodemask_t new;
->  	nodemask_t task_nodes;
->  	int err;
-> +	NODEMASK_SCRATCH(scratch);
-> +	nodemask_t *old = &scratch->mask1;
-> +	nodemask_t *new = &scratch->mask2;
->
-> +	if (!scratch)
-> +		return -ENOMEM;
 
-It doesn't matter in practice, but it makes me all queazy to see code
-which plays with pointers which might be NULL.
+I personally don't see the benefit in this patch, it simply makes it 
+harder for me to find if there are unmatched slab_lock() -> slab_unlock().  
+There's no compelling reason to have it and, if done in a generic 
+subsystem, we'd have an infinite number of these unlocking functions to 
+enforce an order that should otherwise be pretty clear.
 
---- a/mm/mempolicy.c~mempolicy-reduce-stack-size-of-migrate_pages-fix
-+++ a/mm/mempolicy.c
-@@ -1279,13 +1279,16 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
- 	struct task_struct *task;
- 	nodemask_t task_nodes;
- 	int err;
-+	nodemask_t *old;
-+	nodemask_t *new;
- 	NODEMASK_SCRATCH(scratch);
--	nodemask_t *old = &scratch->mask1;
--	nodemask_t *new = &scratch->mask2;
+That said, I think something like the following would be better if 
+nothing more than to annotate the code (we tend to read code better than 
+comments :) about the rules:
+
+diff --git a/mm/slub.c b/mm/slub.c
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1233,6 +1233,7 @@ static void free_slab(struct kmem_cache *s, struct page *page)
  
- 	if (!scratch)
- 		return -ENOMEM;
- 
-+	old = &scratch->mask1;
-+	new = &scratch->mask2;
-+
- 	err = get_nodes(old, old_nodes, maxnode);
- 	if (err)
- 		goto out;
-_
+ static void discard_slab(struct kmem_cache *s, struct page *page)
+ {
++	BUG_ON(bit_spin_is_locked(PG_locked, &page->flags));
+ 	dec_slabs_node(s, page_to_nid(page), page->objects);
+ 	free_slab(s, page);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
