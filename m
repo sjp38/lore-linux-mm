@@ -1,84 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 589A66B01C6
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 06:21:55 -0400 (EDT)
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1276797878-28893-1-git-send-email-jack@suse.cz>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 18 Jun 2010 12:21:36 +0200
-Message-ID: <1276856496.27822.1698.camel@twins>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 597C86B01C8
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 07:41:22 -0400 (EDT)
+Received: from d06nrmr1806.portsmouth.uk.ibm.com (d06nrmr1806.portsmouth.uk.ibm.com [9.149.39.193])
+	by mtagate6.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o5IBfJZd021061
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 11:41:19 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1806.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5IBfEBA1572864
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 12:41:19 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o5IBfE6r017277
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 12:41:14 +0100
+Date: Fri, 18 Jun 2010 13:41:14 +0200
+From: Christof Schmitt <christof.schmitt@de.ibm.com>
+Subject: Re: Current topics for LSF10/MM Summit 8-9 August in Boston
+Message-ID: <20100618114113.GA11580@schmichrtp.mainz.de.ibm.com>
+References: <1276721459.2847.399.camel@mulgrave.site>
+ <20100617160048.GA11689@schmichrtp.mainz.de.ibm.com>
+ <1276790850.7398.8.camel@mulgrave.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1276790850.7398.8.camel@mulgrave.site>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: linux-scsi@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, lsf10-pc@lists.linuxfoundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
-> +/* Wait until write_chunk is written or we get below dirty limits */
-> +void bdi_wait_written(struct backing_dev_info *bdi, long write_chunk)
-> +{
-> +       struct bdi_written_count wc =3D {
-> +                                       .list =3D LIST_HEAD_INIT(wc.list)=
-,
-> +                                       .written =3D write_chunk,
-> +                               };
-> +       DECLARE_WAITQUEUE(wait, current);
-> +       int pause =3D 1;
-> +
-> +       bdi_add_writer(bdi, &wc, &wait);
-> +       for (;;) {
-> +               if (signal_pending_state(TASK_KILLABLE, current))
-> +                       break;
-> +
-> +               /*
-> +                * Make the task just killable so that tasks cannot circu=
-mvent
-> +                * throttling by sending themselves non-fatal signals...
-> +                */
-> +               __set_current_state(TASK_KILLABLE);
-> +               io_schedule_timeout(pause);
-> +
-> +               /*
-> +                * The following check is save without wb_written_wait.lo=
-ck
-> +                * because once bdi_remove_writer removes us from the lis=
-t
-> +                * noone will touch us and it's impossible for list_empty=
- check
-> +                * to trigger as false positive. The barrier is there to =
-avoid
-> +                * missing the wakeup when we are removed from the list.
-> +                */
-> +               smp_rmb();
-> +               if (list_empty(&wc.list))
-> +                       break;
-> +
-> +               if (!dirty_limits_exceeded(bdi))
-> +                       break;
-> +
-> +               /*
-> +                * Increase the delay for each loop, up to our previous
-> +                * default of taking a 100ms nap.
-> +                */
-> +               pause <<=3D 1;
-> +               if (pause > HZ / 10)
-> +                       pause =3D HZ / 10;
-> +       }
-> +
-> +       spin_lock_irq(&bdi->wb_written_wait.lock);
-> +       __remove_wait_queue(&bdi->wb_written_wait, &wait);
-> +       if (!list_empty(&wc.list))
-> +               bdi_remove_writer(bdi, &wc);
-> +       spin_unlock_irq(&bdi->wb_written_wait.lock);
-> +}=20
+On Thu, Jun 17, 2010 at 11:07:30AM -0500, James Bottomley wrote:
+> On Thu, 2010-06-17 at 18:00 +0200, Christof Schmitt wrote:
+> > On Wed, Jun 16, 2010 at 03:50:59PM -0500, James Bottomley wrote:
+> > > Given that we're under two months out, I thought it would be time to
+> > > post a summary of the topics we've collected so far (Nick will post the
+> > > MM summit ones later).  Look this over, and if there's anything missing,
+> > > propose it ... or if you have cross Storage/FS/MM topics, post them too.
+> > > 
+> > > Oh, and since we're not the most organised bunch, if you posted a topic
+> > > and don't see it in the list, please resend ... we probably lost it in
+> > > an email shuffle.
+> > > 
+> > > Current Filesystem Topics:
+> > > 
+> > > Alex Elder	Upstream maintainer for XFS, general discussion on FS/IO
+> > > Aneesh Kumar	Rich-acl patches which work better with NFSv4 acl and CIFS acl
+> > > Anshul Madan	reflink for NFS
+> > > Chuck Lever	NFS/IPV6 and NFS O_DIRECT, Wu's read-ahead work, vitro perf tools
+> > > Eric Sandeen	Advances in testing, TRIM/DISCARD/Alignment, writeback sanity
+> > > James Lentini	reflink for NFS
+> > > Jan Kara	Discuss/drive sanity review of writeback and general ext*/jbd 
+> > > Michael Rubin	Writeback scaling
+> > > Sage Weil	Statlite, generic interface for describing file striping for distributed FS, VFS scalability
+> > > Al Viro	Sorting out d_revalidate and other dcache issues
+> > > Coly Li		directory/large file scalability
+> > > Sorin Faibish	Cache writeback discussion
+> > > 
+> > > Current Storage Topics:
+> > > 
+> > > Eric Seppanen	Next generation SSDs, performance implications on Linux I/O
+> > > Boaz Harrosh	PNFS performance considerations, bio_list based/async raidN for generic use; stable pages for I/O
+> > > FUJITA Tomonori	SCSI target mode, iSCSI, block layer SG (bsg), sg, IOMMU, DMA issues
+> > > Hannes Reinecke	libfc/multipath/error handing
+> > > James Smart	FCOE proposal for rework of the FC sysfs tree, work with Hannes on other transport/SCSI subsystem topics
+> > > Jeff Moyer	IO scheduler
+> > > Joel Becker	SAN management plugin
+> > > Martin Petersen	Updates on DIF/DIX, TRIM/DISCARD/UNMAP, generic support for WRITE_SAME
+> > > 
+> > > Plus some MM summit ones which Nick will summarise.
+> > [...]
+> > 
+> > What about the topic "Stable pages while IO"?
+> > http://www.spinics.net/lists/linux-scsi/msg44074.html
+> > 
+> > Was it lost during the e-mail shuffle or will it be part of the MM topics?
+> 
+> It's actually listed under 'dma issues' ... but there's really been no
+> satisfactory resolution or discussion of how one might be achieved.
+> Most filesystems rely on modifications to in-flight pages for efficiency
+> and copying every fs I/O page would be horrendous both for performance
+> and memory consumption.  Nor has there really been an indication that
+> it's a serious issue.  The two sufferers are DIF and iSCSI checksum.
+> The latter generates the checksum late enough that it can just discard
+> incorrect pages ... the former might need simply to turn off DIF for
+> everything other than DIRECT IO.
 
-OK, so the whole pause thing is simply because we don't get a wakeup
-when we drop below the limit, right?
+It is a serious problem when using DIF, so turning off this feature or
+only using XFS and direct i/o does not sound very satisfying. But then
+i also see the points that have been discussed and that there is no
+simple solution.
 
+Christof
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
