@@ -1,347 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 139636B01B9
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 18:30:22 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o5IMUJMQ001723
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 15:30:19 -0700
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by hpaq1.eem.corp.google.com with ESMTP id o5IMUH1C032190
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 15:30:17 -0700
-Received: by pxi5 with SMTP id 5so662107pxi.17
-        for <linux-mm@kvack.org>; Fri, 18 Jun 2010 15:30:16 -0700 (PDT)
-Date: Fri, 18 Jun 2010 15:30:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: slub: remove dynamic dma slab allocation
-In-Reply-To: <alpine.DEB.2.00.1006151406120.10865@router.home>
-Message-ID: <alpine.DEB.2.00.1006181513060.20110@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1006151406120.10865@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5EDB06B01BF
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 19:30:32 -0400 (EDT)
+Date: Sat, 19 Jun 2010 09:29:39 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
+ waiting for flusher thread
+Message-ID: <20100618232939.GG6590@dastard>
+References: <1276797878-28893-1-git-send-email-jack@suse.cz>
+ <20100618060901.GA6590@dastard>
+ <1276852260.27822.1598.camel@twins>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1276852260.27822.1598.camel@twins>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Jun 2010, Christoph Lameter wrote:
+On Fri, Jun 18, 2010 at 11:11:00AM +0200, Peter Zijlstra wrote:
+> On Fri, 2010-06-18 at 16:09 +1000, Dave Chinner wrote:
+> > > +             bdi->wb_written_head = bdi_stat(bdi, BDI_WRITTEN) + wc->written;
+> > 
+> > The resolution of the percpu counters is an issue here, I think.
+> > percpu counters update in batches of 32 counts per CPU. wc->written
+> > is going to have a value of roughly 8 or 32 depending on whether
+> > bdi->dirty_exceeded is set or not. I note that you take this into
+> > account when checking dirty threshold limits, but it doesn't appear
+> > to be taken in to here. 
+> 
+> The BDI stuff uses a custom batch-size, see bdi_stat_error() and
+> related. The total error is in the order of O(n log n) where n is the
+> number of CPUs.
 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2010-06-15 12:40:58.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2010-06-15 12:41:36.000000000 -0500
-> @@ -2070,7 +2070,7 @@ init_kmem_cache_node(struct kmem_cache_n
-> 
->  static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
-> 
-> -static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
-> +static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
->  {
->  	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
-Looks like it'll conflict with "SLUB: is_kmalloc_cache" in slub/cleanups.
+A dual socket server I have here:
 
->  		/*
-> @@ -2097,7 +2097,7 @@ static inline int alloc_kmem_cache_cpus(
->   * when allocating for the kmalloc_node_cache. This is used for bootstrapping
->   * memory on a fresh node that has no slab structures yet.
->   */
-> -static void early_kmem_cache_node_alloc(gfp_t gfpflags, int node)
-> +static void early_kmem_cache_node_alloc(int node)
->  {
->  	struct page *page;
->  	struct kmem_cache_node *n;
-> @@ -2105,7 +2105,7 @@ static void early_kmem_cache_node_alloc(
-> 
->  	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
-> 
-> -	page = new_slab(kmalloc_caches, gfpflags, node);
-> +	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
-> 
->  	BUG_ON(!page);
->  	if (page_to_nid(page) != node) {
+[    0.000000] NR_CPUS:512 nr_cpumask_bits:512 nr_cpu_ids:32 nr_node_ids:2
 
-Hmm, not sure of this.  We can't do GFP_KERNEL allocations in 
-kmem_cache_init(), they must be deferred to kmem_cache_init_late().  So 
-this will be allocating the kmem_cache_node cache while slab_state is 
-still DOWN and yet passing GFP_KERNEL via early_kmem_cache_node_alloc().
+Which means that the bdi per-cpu counter batch size on it would be 48
+and the inaccuracy would be even bigger than I described. ;)
 
-I think this has to be GFP_NOWAIT instead.
+> But yeah, the whole dirty_exceeded thing makes life more
+> interesting.
 
-> @@ -2149,7 +2149,7 @@ static void free_kmem_cache_nodes(struct
->  	}
->  }
-> 
-> -static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
-> +static int init_kmem_cache_nodes(struct kmem_cache *s)
->  {
->  	int node;
-> 
-> @@ -2157,11 +2157,11 @@ static int init_kmem_cache_nodes(struct
->  		struct kmem_cache_node *n;
-> 
->  		if (slab_state == DOWN) {
-> -			early_kmem_cache_node_alloc(gfpflags, node);
-> +			early_kmem_cache_node_alloc(node);
->  			continue;
->  		}
->  		n = kmem_cache_alloc_node(kmalloc_caches,
-> -						gfpflags, node);
-> +						GFP_KERNEL, node);
-> 
->  		if (!n) {
->  			free_kmem_cache_nodes(s);
+I suspect the 8 vs 32 pages could go away without too much impact
+with the Jan's mechanism...
 
-Same here, this can still lead to GFP_KERNEL allocations from 
-kmem_cache_init() because slab_state is PARTIAL or UP.
+Another thing to consider is the impact of mulipage writes on the
+incoming value to balance_dirty_pages - if we get 1024 page writes
+running, then that may impact on the way throttling behaves, too.
 
-> @@ -2178,7 +2178,7 @@ static void free_kmem_cache_nodes(struct
->  {
->  }
-> 
-> -static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
-> +static int init_kmem_cache_nodes(struct kmem_cache *s)
->  {
->  	init_kmem_cache_node(&s->local_node, s);
->  	return 1;
-> @@ -2318,7 +2318,7 @@ static int calculate_sizes(struct kmem_c
-> 
->  }
-> 
-> -static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
-> +static int kmem_cache_open(struct kmem_cache *s,
->  		const char *name, size_t size,
->  		size_t align, unsigned long flags,
->  		void (*ctor)(void *))
-> @@ -2354,10 +2354,10 @@ static int kmem_cache_open(struct kmem_c
->  #ifdef CONFIG_NUMA
->  	s->remote_node_defrag_ratio = 1000;
->  #endif
-> -	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
-> +	if (!init_kmem_cache_nodes(s))
->  		goto error;
-> 
-> -	if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
-> +	if (alloc_kmem_cache_cpus(s))
->  		return 1;
-> 
->  	free_kmem_cache_nodes(s);
-> @@ -2517,6 +2517,10 @@ EXPORT_SYMBOL(kmem_cache_destroy);
->  struct kmem_cache kmalloc_caches[KMALLOC_CACHES] __cacheline_aligned;
->  EXPORT_SYMBOL(kmalloc_caches);
-> 
-> +#ifdef CONFIG_ZONE_DMA
-> +static struct kmem_cache kmalloc_dma_caches[SLUB_PAGE_SHIFT];
-> +#endif
-> +
->  static int __init setup_slub_min_order(char *str)
->  {
->  	get_option(&str, &slub_min_order);
-> @@ -2553,116 +2557,26 @@ static int __init setup_slub_nomerge(cha
-> 
->  __setup("slub_nomerge", setup_slub_nomerge);
-> 
-> -static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
-> -		const char *name, int size, gfp_t gfp_flags)
-> +static void create_kmalloc_cache(struct kmem_cache *s,
-> +		const char *name, int size, unsigned int flags)
->  {
-> -	unsigned int flags = 0;
-> -
-> -	if (gfp_flags & SLUB_DMA)
-> -		flags = SLAB_CACHE_DMA;
-> -
->  	/*
->  	 * This function is called with IRQs disabled during early-boot on
->  	 * single CPU so there's no need to take slub_lock here.
->  	 */
-> -	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
-> +	if (!kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
->  								flags, NULL))
->  		goto panic;
-> 
->  	list_add(&s->list, &slab_caches);
-> 
-> -	if (sysfs_slab_add(s))
-> -		goto panic;
-> -	return s;
-> +	if (!sysfs_slab_add(s))
-> +		return;
-> 
->  panic:
->  	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
->  }
-> 
-> -#ifdef CONFIG_ZONE_DMA
-> -static struct kmem_cache *kmalloc_caches_dma[SLUB_PAGE_SHIFT];
-> -
-> -static void sysfs_add_func(struct work_struct *w)
-> -{
-> -	struct kmem_cache *s;
-> -
-> -	down_write(&slub_lock);
-> -	list_for_each_entry(s, &slab_caches, list) {
-> -		if (s->flags & __SYSFS_ADD_DEFERRED) {
-> -			s->flags &= ~__SYSFS_ADD_DEFERRED;
-> -			sysfs_slab_add(s);
-> -		}
-> -	}
-> -	up_write(&slub_lock);
-> -}
-> -
-> -static DECLARE_WORK(sysfs_add_work, sysfs_add_func);
-> -
-> -static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
-> -{
-> -	struct kmem_cache *s;
-> -	char *text;
-> -	size_t realsize;
-> -	unsigned long slabflags;
-> -	int i;
-> -
-> -	s = kmalloc_caches_dma[index];
-> -	if (s)
-> -		return s;
-> -
-> -	/* Dynamically create dma cache */
-> -	if (flags & __GFP_WAIT)
-> -		down_write(&slub_lock);
-> -	else {
-> -		if (!down_write_trylock(&slub_lock))
-> -			goto out;
-> -	}
-> -
-> -	if (kmalloc_caches_dma[index])
-> -		goto unlock_out;
-> -
-> -	realsize = kmalloc_caches[index].objsize;
-> -	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
-> -			 (unsigned int)realsize);
-> -
-> -	s = NULL;
-> -	for (i = 0; i < KMALLOC_CACHES; i++)
-> -		if (!kmalloc_caches[i].size)
-> -			break;
-> -
-> -	BUG_ON(i >= KMALLOC_CACHES);
-> -	s = kmalloc_caches + i;
-> -
-> -	/*
-> -	 * Must defer sysfs creation to a workqueue because we don't know
-> -	 * what context we are called from. Before sysfs comes up, we don't
-> -	 * need to do anything because our sysfs initcall will start by
-> -	 * adding all existing slabs to sysfs.
-> -	 */
-> -	slabflags = SLAB_CACHE_DMA|SLAB_NOTRACK;
-> -	if (slab_state >= SYSFS)
-> -		slabflags |= __SYSFS_ADD_DEFERRED;
-> -
-> -	if (!text || !kmem_cache_open(s, flags, text,
-> -			realsize, ARCH_KMALLOC_MINALIGN, slabflags, NULL)) {
-> -		s->size = 0;
-> -		kfree(text);
-> -		goto unlock_out;
-> -	}
-> -
-> -	list_add(&s->list, &slab_caches);
-> -	kmalloc_caches_dma[index] = s;
-> -
-> -	if (slab_state >= SYSFS)
-> -		schedule_work(&sysfs_add_work);
-> -
-> -unlock_out:
-> -	up_write(&slub_lock);
-> -out:
-> -	return kmalloc_caches_dma[index];
-> -}
-> -#endif
-> -
->  /*
->   * Conversion table for small slabs sizes / 8 to the index in the
->   * kmalloc array. This is necessary for slabs < 192 since we have non power
-> @@ -2715,7 +2629,7 @@ static struct kmem_cache *get_slab(size_
-> 
->  #ifdef CONFIG_ZONE_DMA
->  	if (unlikely((flags & SLUB_DMA)))
-> -		return dma_kmalloc_cache(index, flags);
-> +		return &kmalloc_dma_caches[index];
-> 
->  #endif
->  	return &kmalloc_caches[index];
-> @@ -3053,7 +2967,7 @@ void __init kmem_cache_init(void)
->  	 * kmem_cache_open for slab_state == DOWN.
->  	 */
->  	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
-> -		sizeof(struct kmem_cache_node), GFP_NOWAIT);
-> +		sizeof(struct kmem_cache_node), 0);
->  	kmalloc_caches[0].refcount = -1;
->  	caches++;
-> 
-> @@ -3066,18 +2980,18 @@ void __init kmem_cache_init(void)
->  	/* Caches that are not of the two-to-the-power-of size */
->  	if (KMALLOC_MIN_SIZE <= 32) {
->  		create_kmalloc_cache(&kmalloc_caches[1],
-> -				"kmalloc-96", 96, GFP_NOWAIT);
-> +				"kmalloc-96", 96, 0);
->  		caches++;
->  	}
->  	if (KMALLOC_MIN_SIZE <= 64) {
->  		create_kmalloc_cache(&kmalloc_caches[2],
-> -				"kmalloc-192", 192, GFP_NOWAIT);
-> +				"kmalloc-192", 192, 0);
->  		caches++;
->  	}
-> 
->  	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
->  		create_kmalloc_cache(&kmalloc_caches[i],
-> -			"kmalloc", 1 << i, GFP_NOWAIT);
-> +			"kmalloc", 1 << i, 0);
->  		caches++;
->  	}
-> 
-> @@ -3124,7 +3038,7 @@ void __init kmem_cache_init(void)
-> 
->  	/* Provide the correct kmalloc names now that the caches are up */
->  	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++)
-> -		kmalloc_caches[i]. name =
-> +		kmalloc_caches[i].name =
->  			kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
-> 
->  #ifdef CONFIG_SMP
-> @@ -3147,6 +3061,21 @@ void __init kmem_cache_init(void)
-> 
->  void __init kmem_cache_init_late(void)
->  {
-> +#ifdef CONFIG_ZONE_DMA
-> +	int i;
-> +
-> +	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
-> +		struct kmem_cache *s = &kmalloc_caches[i];
-> +
-> +		if (s && s->size) {
-> +			char *name = kasprintf(GFP_KERNEL,
-> +				 "dma-kmalloc-%d", s->objsize);
+Cheers,
 
-kasprintf() can return NULL which isn't caught by kmem_cache_open().
-
-> +
-> +			create_kmalloc_cache(&kmalloc_dma_caches[i],
-> +				name, s->objsize, SLAB_CACHE_DMA);
-> +		}
-> +	}
-> +#endif
->  }
-> 
->  /*
-> @@ -3241,7 +3170,7 @@ struct kmem_cache *kmem_cache_create(con
-> 
->  	s = kmalloc(kmem_size, GFP_KERNEL);
->  	if (s) {
-> -		if (kmem_cache_open(s, GFP_KERNEL, name,
-> +		if (kmem_cache_open(s, name,
->  				size, align, flags, ctor)) {
->  			list_add(&s->list, &slab_caches);
->  			up_write(&slub_lock);
-> 
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
