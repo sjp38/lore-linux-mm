@@ -1,70 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AC9B6B01D4
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 11:29:26 -0400 (EDT)
-From: <Mark_Ruder@Dell.com>
-Date: Fri, 18 Jun 2010 10:29:16 -0500
-Subject: RE: [Lsf10-pc] Suggested topic for August LSF summit event
- (SCSI/FS/MM)
-Message-ID: <F8ACFB06B9FB33429F1F0A8D62A89BAA085F53A2D5@AUSX7MCPS303.AMER.DELL.COM>
-References: <F8ACFB06B9FB33429F1F0A8D62A89BAA085F53A240@AUSX7MCPS303.AMER.DELL.COM>
- <1276873901.2850.40.camel@mulgrave.site>
-In-Reply-To: <1276873901.2850.40.camel@mulgrave.site>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD196B01AC
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 12:58:36 -0400 (EDT)
+Message-ID: <4C1BA59C.6000309@kernel.org>
+Date: Fri, 18 Jun 2010 18:58:04 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
+Subject: [PATCH 1/2] percpu: make @dyn_size always mean min dyn_size in first
+ chunk init functions
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home> <4C19E19D.2020802@kernel.org> <alpine.DEB.2.00.1006170842410.22997@router.home>
+In-Reply-To: <alpine.DEB.2.00.1006170842410.22997@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: James.Bottomley@HansenPartnership.com
-Cc: lsf10-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-UmVzZW5kaW5nIGFzIHRleHQuDQoNClNBTiBTdG9yYWdlIEZlYXR1cmVzICAgYWZmZWN0aW5nIHRo
-ZSBLZXJuZWwNCg0K4pePIElTQ1NJIEFycmF5IE11bHRpcGF0aGluZw0K4pePIExVTiBzcGxpdCBv
-dmVyIHNldmVyYWwgYXJyYXlzLiBTZXBhcmF0ZSBkYXRhIGNvbm5lY3Rpb24gdG8NCmVhY2ggYXJy
-YXkgZm9yIHBhcnRzIG9mIHRoZSBMVU4NCuKXjyBSZXF1aXJlcyBrZXJuZWwgaVNDU0kgcGF0aCBz
-ZWxlY3RvciBtb2R1bGUgcGVyLXZlbmRvcg0K4pePIFRoaW4gUHJvdmlzaW9uaW5nDQril48gQWN0
-dWFsIGFsbG9jYXRlZCBzdG9yYWdlIGlzIGxlc3MgdGhhbiByZXF1ZXN0ZWQgc2l6ZSAoYWtpbiB0
-bw0Kc3BhcnNlIGZpbGVzKQ0K4pePIE11c3QgaGFuZGxlIGFsZXJ0cyB3aGVuIFRQIHRocmVzaGhv
-bGRzIHJlYWNoZWQNCuKAkyBDSEVDSyBDT05ESVRJT04gcmFpc2VkIG9uIHdyaXRlcw0K4oCTIExV
-TiBnb2VzIHJlYWQtb25seSBpZiBzcGFjZSBleGhhdXN0ZWQNCuKXjyBUMTAgd29yayBvbmdvaW5n
-IHRvIHN0YW5kYXJkaXplIGludGVyZmFjZXMgYW5kIGJlaGF2aW9yDQoNCuKXjyBUUklNIC8gVU5N
-QVAgLyBXUklURV9TQU1FDQril48gSW5mb3JtIHN0b3JhZ2UgdGhhdCB0aGVzZSBibG9ja3MgYXJl
-IG5vIGxvbmdlciBuZWVkZWQNCuKXjyBVc2VmdWwgb24gU0FOcywgbm90IGp1c3QgU1NEcw0K4peP
-IFQxMCAmIFQxMyBzdGFuZGFyZHMgcHJvcG9zYWxzIGluIGZsdXgNCuKXjyBYQ09QWSDigJMgQXJy
-YXktbGV2ZWwgYmxvY2sgY29weSwgcGVyaGFwcyBjb3B5LW9uLXdyaXRlDQril48gQ29weSBibG9j
-a3Mgdy9vIGluY3VyaW5nIG5ldHdvcmsgYW5kIENQVSBvdmVyaGVhZA0K4pePIFZGUyBmdW5jdGlv
-bj8NCuKXjyBUMTAgc3RhbmRhcmQgYWxyZWFkeSAoU0NTSSBFeHRlbmRlZCBDb3B5KQ0KIA0KU0FO
-IFN0b3JhZ2UgRmVhdHVyZXMgbmVlZGluZyBiYXNpYyBDTEkgd29yaw0KIA0K4pePIE11bHRpLUlR
-TiDigJMgaVNDU0kgSVFOcyBhcmUgYXNzaWduZWQgdG8gR3Vlc3QgVk1zDQril48gSW1wbGVtZW50
-ZWQgaW4gaXNjc2ktaW5pdGlhdG9yLXV0aWxzIHRvZGF5LCB0aGFuayB5b3UhDQril48gVk0gR3Vl
-c3QgYm9vdCBmcm9tIGlTQ1NJDQril48gUmVxdWlyZXMgaVNDU0kgSW5pdGlhdG9yIGluIFZNIEJJ
-T1MNCuKXjyBGZWRvcmEgMTEgS1ZNIHdpbGwgbG9hZCBnUFhFIGlTQ1NJIE9wdGlvbiBST01zLCB0
-aGFuaw0KeW91IQ0K4pePIEFycmF5LWJhc2VkIExVTiBzbmFwc2hvdHMNCuKXjyBpb2N0bChGSUZS
-RUVaRSkgYWRkZWQgSmFuIDA5IGJ5IFRha2FzaGkgU2F0byBvZiBORUMsDQp0aGFuayB5b3UhDQri
-l48gTmVlZCBDTEkgdG8gZnJlZXplIGZpbGUgc3lzdGVtLCBpc3N1ZSBhcnJheS1iYXNlZCBzbmFw
-c2hvdA0KY29tbWFuZCwgYW5kIHRoYXcgZmlsZSBzeXN0ZW0NCg0KDQoNClRoYW5rcywNCk1hcmsN
-Cg0KDQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBKYW1lcyBCb3R0b21sZXkg
-W21haWx0bzpKYW1lcy5Cb3R0b21sZXlASGFuc2VuUGFydG5lcnNoaXAuY29tXSANClNlbnQ6IEZy
-aWRheSwgSnVuZSAxOCwgMjAxMCAxMDoxMiBBTQ0KVG86IFJ1ZGVyLCBNYXJrDQpDYzogbHNmMTAt
-cGNAbGlzdHMubGludXhmb3VuZGF0aW9uLm9yZzsgbGludXgtZnNkZXZlbEB2Z2VyLmtlcm5lbC5v
-cmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgtc2NzaUB2Z2VyLmtlcm5lbC5vcmcNClN1Ympl
-Y3Q6IFJlOiBbTHNmMTAtcGNdIFN1Z2dlc3RlZCB0b3BpYyBmb3IgQXVndXN0IExTRiBzdW1taXQg
-ZXZlbnQgKFNDU0kvRlMvTU0pDQoNCk9uIEZyaSwgMjAxMC0wNi0xOCBhdCAwOTo1NSAtMDUwMCwg
-TWFya19SdWRlckBEZWxsLmNvbSB3cm90ZToNCj4gSSB3YXMgYXNrZWQgdG8gc2hhcmUgc3VnZ2Vz
-dGVkIHRvcGljcyB0aGF0IHdlIHdvdWxkIGJlIGludGVyZXN0ZWQgaW4NCj4gYmVpbmcgZGlzY3Vz
-c2VkIGluIHRoZSB1cGNvbWluZyBMU0YgU3VtbWl0IGV2ZW4gaW4gZWFybHkgQXVndXN0Lg0KPiBS
-YXRoZXIgdGhhdCByZS10eXBpbmcgYWxsIG9mIHRoZW0gaW50byB0aGlzIGVtYWlsLCBJ4oCZdmUg
-YXR0YWNoZWQgYQ0KPiBzbGlkZSBkZWNrIGRldmVsb3BlZCBieSBNYXR0IERvbXNjaCBpbiBEZWxs
-4oCZcyBDVE8gb2ZmaWNlIGFzIGEgc3RhcnRpbmcNCj4gcG9pbnQuIEl0IGlzIGEgYml0IGRhdGVk
-LCBidXQgd2UgZmVlbCB0aGF0IHRvcGljcyBhcmUgc3RpbGwgcmVsZXZhbnQNCj4gdG8gdXMuDQoN
-CldlIGdvdCB0aGlzIG9uIHRoZSBQQyBsaXN0cywgYnV0IGFsbCBvZiB0aGUgb3RoZXIgbWFpbGlu
-ZyBsaXN0cyB3aWxsDQpoYXZlIGRpc2NhcmRlZCBpdCBzaWdodCB1bnNlZW4gKGVuZm9yY2luZyBw
-bGFpbiB0ZXh0IG9ubHkgYW5kIG5vdGhpbmcNCm90aGVyIHRoYW4gdGV4dC9wbGFpbiBhdHRhY2ht
-ZW50cyBpcyBhIHN0YW5kYXJkIGxpc3Qgc3BhbSBtaXRpZ2F0aW9uDQp0ZWNobmlxdWUpLiAgQ291
-bGQgeW91IHN1bW1hcmlzZSBhcyB0ZXh0ICh5b3UgY2FuIGp1c3QgZ28gdG8gdGhlIG91dGxpbmUN
-CnZpZXcgYW5kIHBhc3RlIGV2ZXJ5dGhpbmcgaW50byBhIHRleHQgd2luZG93KS4NCg0KSmFtZXMN
-Cg0KDQoNCg==
+In pcpu_alloc_info() and pcpu_embed_first_chunk(), @dyn_size was
+ssize_t, -1 meant auto-size, 0 forced 0 and positive meant minimum
+size.  There's no use case for forcing 0 and the upcoming early alloc
+support always requires non-zero dynamic size.  Make @dyn_size always
+mean minimum dyn_size.
+
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+These two patches are on top of percpu#for-linus.  The branch is
+available at...
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git early-alloc
+
+It would be a good idea to add BUILD_BUG_ON() in slab to verify
+allocation limits against PERCPU_DYNAMIC_EARLY_SIZE/SLOTS.  Please
+note that two alloc slots might be necessary for each allocation and
+there can be gaps in allocation due to alignment, so giving it some
+headroom would be better.
+
+Please let me know if it's okay for slab.  I'll push it through
+percpu#for-next then.
+
+Thanks.
+
+ include/linux/percpu.h |    4 ++--
+ mm/percpu.c            |   33 +++++++++------------------------
+ 2 files changed, 11 insertions(+), 26 deletions(-)
+
+Index: work/include/linux/percpu.h
+===================================================================
+--- work.orig/include/linux/percpu.h
++++ work/include/linux/percpu.h
+@@ -105,7 +105,7 @@ extern struct pcpu_alloc_info * __init p
+ extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
+
+ extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
++				size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+
+@@ -113,7 +113,7 @@ extern int __init pcpu_setup_first_chunk
+ 					 void *base_addr);
+
+ #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+-extern int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++extern int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				pcpu_fc_alloc_fn_t alloc_fn,
+Index: work/mm/percpu.c
+===================================================================
+--- work.orig/mm/percpu.c
++++ work/mm/percpu.c
+@@ -1013,20 +1013,6 @@ phys_addr_t per_cpu_ptr_to_phys(void *ad
+ 		return page_to_phys(pcpu_addr_to_page(addr));
+ }
+
+-static inline size_t pcpu_calc_fc_sizes(size_t static_size,
+-					size_t reserved_size,
+-					ssize_t *dyn_sizep)
+-{
+-	size_t size_sum;
+-
+-	size_sum = PFN_ALIGN(static_size + reserved_size +
+-			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
+-	if (*dyn_sizep != 0)
+-		*dyn_sizep = size_sum - static_size - reserved_size;
+-
+-	return size_sum;
+-}
+-
+ /**
+  * pcpu_alloc_alloc_info - allocate percpu allocation info
+  * @nr_groups: the number of groups
+@@ -1085,7 +1071,7 @@ void __init pcpu_free_alloc_info(struct
+ /**
+  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  *
+@@ -1104,7 +1090,7 @@ void __init pcpu_free_alloc_info(struct
+  * failure, ERR_PTR value is returned.
+  */
+ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
++				size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
+ {
+@@ -1123,13 +1109,15 @@ struct pcpu_alloc_info * __init pcpu_bui
+ 	memset(group_map, 0, sizeof(group_map));
+ 	memset(group_cnt, 0, sizeof(group_cnt));
+
++	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
++	dyn_size = size_sum - static_size - reserved_size;
++
+ 	/*
+ 	 * Determine min_unit_size, alloc_size and max_upa such that
+ 	 * alloc_size is multiple of atom_size and is the smallest
+ 	 * which can accomodate 4k aligned segments which are equal to
+ 	 * or larger than min_unit_size.
+ 	 */
+-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
+ 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
+
+ 	alloc_size = roundup(min_unit_size, atom_size);
+@@ -1532,7 +1520,7 @@ early_param("percpu_alloc", percpu_alloc
+ /**
+  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: minimum free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  * @alloc_fn: function to allocate percpu page
+@@ -1553,10 +1541,7 @@ early_param("percpu_alloc", percpu_alloc
+  * vmalloc space is not orders of magnitude larger than distances
+  * between node memory addresses (ie. 32bit NUMA machines).
+  *
+- * When @dyn_size is positive, dynamic area might be larger than
+- * specified to fill page alignment.  When @dyn_size is auto,
+- * @dyn_size is just big enough to fill page alignment after static
+- * and reserved areas.
++ * @dyn_size specifies the minimum dynamic area size.
+  *
+  * If the needed size is smaller than the minimum or specified unit
+  * size, the leftover is returned using @free_fn.
+@@ -1564,7 +1549,7 @@ early_param("percpu_alloc", percpu_alloc
+  * RETURNS:
+  * 0 on success, -errno on failure.
+  */
+-int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				  size_t atom_size,
+ 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				  pcpu_fc_alloc_fn_t alloc_fn,
+@@ -1695,7 +1680,7 @@ int __init pcpu_page_first_chunk(size_t
+
+ 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
+
+-	ai = pcpu_build_alloc_info(reserved_size, -1, PAGE_SIZE, NULL);
++	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
+ 	if (IS_ERR(ai))
+ 		return PTR_ERR(ai);
+ 	BUG_ON(ai->nr_groups != 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
