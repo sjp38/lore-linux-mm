@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F576B01AC
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 00:45:34 -0400 (EDT)
-Date: Fri, 18 Jun 2010 13:28:17 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][BUGFIX][PATCH 0/2] transhuge-memcg: some fixes (Re:
- Transparent Hugepage Support #25)
-Message-Id: <20100618132817.657f69b9.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100618010840.GE5787@random.random>
-References: <20100521000539.GA5733@random.random>
-	<20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
-	<20100618010840.GE5787@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 17FC76B01AC
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 02:09:20 -0400 (EDT)
+Message-ID: <4C1B0D8C.1030906@cs.helsinki.fi>
+Date: Fri, 18 Jun 2010 09:09:16 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Slabinfo: Fix display format
+References: <20100617155420.GB2693@localhost.localdomain>	<alpine.DEB.2.00.1006170844300.22997@router.home> <AANLkTimYX9PqGJq3dw2n3FZQiIkX0nOKMEOHdYMndHWo@mail.gmail.com>
+In-Reply-To: <AANLkTimYX9PqGJq3dw2n3FZQiIkX0nOKMEOHdYMndHWo@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>
+To: wzt wzt <wzt.wzt@gmail.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Jun 2010 03:08:40 +0200, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> On Wed, Jun 02, 2010 at 02:44:38PM +0900, Daisuke Nishimura wrote:
-> > These are trial patches to fix the problem(based on THP-25).
-> > 
-> > [1/2] is a simple bug fix, and can be folded into "memcg compound(commit d16259c1
-> > at the http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git)".
-> > [2/2] is a main patch.
-> > 
-> > Unfortunately, there seems to be some problems left, so I'm digging it and
-> > need more tests.
-> > Any comments are welcome.
-> 
-> Both are included in -26, but like you said there are problems
-> left... are you willing to fix those too?
-Will do if necessary, but hmm, I heard from KAMEZAWA-san that he has already sent
-some patches to fix the similar problems on RHEL6, and I prefer his fixes to mine.
-Should I(or KAMEZAWA-san?) forward port his patches onto current aa.git ?
+On 6/17/10 5:10 PM, wzt wzt wrote:
+> On Thu, Jun 17, 2010 at 9:45 PM, Christoph Lameter
+> <cl@linux-foundation.org>  wrote:
+>> On Thu, 17 Jun 2010, wzt.wzt@gmail.com wrote:
+>
+>> This one may break user space tools that have assumptions about the length
+>> of the field. Or do tools not make that assumption?
+>
+> User space tools usually use sscanf() to extract this field like:
+> sscanf(buff, "%s %d", name,&num);
+> If %-27s can break some user space tools that have assumptions about
+> the length of the field, the orig %-17s can also break it.
+> The longest name inotify_event_private_data is 26 bytes in 2.6.34-rc2,
+> the tools still can't extract it.
 
-> There's some slight
-> difference in the code here and there that makes the fixes not so
-> portable across releases (uncharge as param of move_account which
-> wasn't there before as an example...).
-> 
-Agreed. And I think you'll see some extra changes of memcg in 2.6.36...
-Any way, I'll do some test in both RHEL6 and aa.git when I have a time,
-and feel free to tell me if you have any troubles in back/forward porting
-memcg's fixes.
+NAK. It's an ABI so the risks of this format cleanup outweight the benefits.
 
-
-Thanks,
-Daisuke Nishimura.
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
