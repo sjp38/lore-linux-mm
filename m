@@ -1,60 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8E7786B01AC
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:06:32 -0400 (EDT)
-Date: Fri, 18 Jun 2010 13:03:14 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/2] percpu: make @dyn_size always mean min dyn_size in
- first chunk init functions
-In-Reply-To: <4C1BAF51.8020702@kernel.org>
-Message-ID: <alpine.DEB.2.00.1006181300320.14715@router.home>
-References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home>
- <4C19E19D.2020802@kernel.org> <alpine.DEB.2.00.1006170842410.22997@router.home> <4C1BA59C.6000309@kernel.org> <alpine.DEB.2.00.1006181229310.13915@router.home> <4C1BAF51.8020702@kernel.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E5B76B01AC
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 17:36:24 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id o5ILaLY4004421
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:36:21 -0700
+Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
+	by kpbe20.cbf.corp.google.com with ESMTP id o5ILaJTn016055
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:36:20 -0700
+Received: by pwi4 with SMTP id 4so682495pwi.1
+        for <linux-mm@kvack.org>; Fri, 18 Jun 2010 14:36:19 -0700 (PDT)
+Date: Fri, 18 Jun 2010 14:36:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: slub: Constants need UL
+In-Reply-To: <alpine.DEB.2.00.1006151403070.10865@router.home>
+Message-ID: <alpine.DEB.2.00.1006181434430.16115@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1006151403070.10865@router.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 Jun 2010, Tejun Heo wrote:
+On Tue, 15 Jun 2010, Christoph Lameter wrote:
 
-> Hello,
->
-> On 06/18/2010 07:31 PM, Christoph Lameter wrote:
-> > We need SLUB_PAGE_SHIFT * sizeof(kmem_cache_cpu). So it would be
-> >
-> > BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE < SLUB_PAGE_SHIFT * sizeof(struct
-> > kmem_cache_cpu))?
->
-> Yeah, something like that but I would add some buffer there for
-> alignment and whatnot.
+> Subject: SLUB: Constants need UL
+> 
+> UL suffix is missing in some constants. Conform to how slab.h uses constants.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-Only the percpu allocator would know the waste for alignment and
-"whatnot". What would you like me to add to the above formula to make it
-safe?
-
-> > What is the role of SLOTS?
->
-> It's allocation map.  Each consecutive allocs consume one if alignment
-> doesn't require padding but two if it does.  ie. It limits how many
-> items one can allocate.
->
-> > Each kmem_cache_cpu structure is a separate percpu allocation.
->
-> If it's a single item.  Nothing to worry about.
-
-ok so
-
-BUILD_BUG_ON(SLUB_PAGE_SHIFT * <fuzz-factor> > SLOTS);
-
-I dont know what fuzz factor would be needed.
-
-Maybe its best to have a macro provided by percpu?
-
-VERIFY_EARLY_ALLOCS(<nr-of-allocs>,<total-size-consumed>)
-
-The macro would generate the proper BUILD_BUG_ON?
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
