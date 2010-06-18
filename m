@@ -1,102 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 63D216B01AC
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 14:45:23 -0400 (EDT)
-Subject: Re: [RFC PATCH] mm: let the bdi_writeout fraction respond more
- quickly
-From: Richard Kennedy <richard@rsk.demon.co.uk>
-In-Reply-To: <4C1A09DF.9070809@kernel.dk>
-References: <1276523894.1980.85.camel@castor.rsk>
-	 <1276526681.1980.89.camel@castor.rsk>  <1276714466.1745.625.camel@laptop>
-	 <1276774796.1978.11.camel@castor.rsk>  <4C1A09DF.9070809@kernel.dk>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Jun 2010 19:45:16 +0100
-Message-ID: <1276800316.1978.67.camel@castor.rsk>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2491C6B01AC
+	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 21:09:41 -0400 (EDT)
+Date: Fri, 18 Jun 2010 03:08:40 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][BUGFIX][PATCH 0/2] transhuge-memcg: some fixes (Re:
+ Transparent Hugepage Support #25)
+Message-ID: <20100618010840.GE5787@random.random>
+References: <20100521000539.GA5733@random.random>
+ <20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-06-17 at 13:41 +0200, Jens Axboe wrote:
-> On 2010-06-17 13:39, Richard Kennedy wrote:
-> > On Wed, 2010-06-16 at 20:54 +0200, Peter Zijlstra wrote:
-> >> On Mon, 2010-06-14 at 15:44 +0100, Richard Kennedy wrote:
-> >>>> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> >>>> index 2fdda90..315dd04 100644
-> >>>> --- a/mm/page-writeback.c
-> >>>> +++ b/mm/page-writeback.c
-> >>>> @@ -144,7 +144,7 @@ static int calc_period_shift(void)
-> >>>>       else
-> >>>>               dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
-> >>>>                               100;
-> >>>> -     return 2 + ilog2(dirty_total - 1);
-> >>>> +     return ilog2(dirty_total - 1) - 4;
-> >>>>  } 
-> >>
-> >> IIRC I suggested similar things in the past and all we needed to do was
-> >> find people doing the measurements on different bits of hardware or so..
-> >>
-> >> I don't have any problems with the approach, all we need to make sure is
-> >> that we never return 0 or a negative number (possibly ensure a minimum
-> >> positive shift value).
-> > 
-> > Yep that sounds reasonable. would minimum shift of 4 be ok ?
-> > 
-> > something like
-> > 
-> > 	max ( (ilog2(dirty_total - 1)- 4) , 4);
-> > 
-> > Unfortunately volunteers don't seem to be leaping out of the woodwork,
-> > maybe Andrew could be persuaded to try this in his tree for a while and
-> > see if any one squeaks ?
+On Wed, Jun 02, 2010 at 02:44:38PM +0900, Daisuke Nishimura wrote:
+> These are trial patches to fix the problem(based on THP-25).
 > 
-> I'm pretty sure that most volunteers are curious what to actually test,
-> so they shy away from it. If you added a good explanation of an easy way
-> to test the before and after, then it would be more approachable.
+> [1/2] is a simple bug fix, and can be folded into "memcg compound(commit d16259c1
+> at the http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git)".
+> [2/2] is a main patch.
 > 
-> I'll give it a spin here.
-> 
+> Unfortunately, there seems to be some problems left, so I'm digging it and
+> need more tests.
+> Any comments are welcome.
 
-Ah - sorry. but I thought what it did was obvious ;)
+Both are included in -26, but like you said there are problems
+left... are you willing to fix those too? There's some slight
+difference in the code here and there that makes the fixes not so
+portable across releases (uncharge as param of move_account which
+wasn't there before as an example...).
 
-Finding a test that's going to show a difference isn't going to be that
-easy, It isn't going to have any effect on writing to a single bdi, but
-only workloads writing to 2 (or more) disks.
-
-Calc_period_shift controls the speed that the bdi dirty threshold gets
-updated, which in turn controls how much of the vm_dirty cache a bdi can
-use.
- The first graph shows that currently it is rather slow in reacting to
-change so that when you switch the writes from sda to sdb, the threshold
-doesn't react quickly enough and sdb isn't allowed to use it's fair
-share of the cache and is forced to write to the spinning disk sooner.
-Therefore it's slower overall. But the speed difference is highly
-dependent on the size of the write v. the size of the cache and the
-speed of the disk v. speed of writing to memory.
-
-The tests I run here are writing a large file to one disk then after a
-small delay start a small write to the second disk, but it's not easy to
-get repeatable results from them.
-
-I don't have a simple test, but the patch will improve the fairness of
-the vm_dirty cache sharing. I had in mind the sort of server workloads
-where some disks are dedicated to particular applications and others to
-general use. There may also be some desktop improvements but they are
-difficult to pin down.  
-
-I'm sorry I wasn't clearer before and hope this has explained what I've
-been trying to do.
-
-regards
-Richard
-
-
-
-
- 
-
+Thanks a lot for the help!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
