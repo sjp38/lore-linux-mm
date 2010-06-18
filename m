@@ -1,98 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DC3EA6B01AC
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 23:15:55 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o5I32S64004558
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 23:02:28 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o5I3Fmv1143602
-	for <linux-mm@kvack.org>; Thu, 17 Jun 2010 23:15:48 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o5I3Fln4021001
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 00:15:47 -0300
-Date: Fri, 18 Jun 2010 08:45:43 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH -mm] fix bad call of memcg_oom_recover at cancel
- move.
-Message-ID: <20100618031543.GM4306@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100617172034.00ea8835.kamezawa.hiroyu@jp.fujitsu.com>
- <20100617092442.GJ4306@balbir.in.ibm.com>
- <20100618105741.4e596ea7.nishimura@mxp.nes.nec.co.jp>
- <20100618111735.b3d64d95.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100618111735.b3d64d95.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 98F576B01AC
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 00:45:34 -0400 (EDT)
+Date: Fri, 18 Jun 2010 13:28:17 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][BUGFIX][PATCH 0/2] transhuge-memcg: some fixes (Re:
+ Transparent Hugepage Support #25)
+Message-Id: <20100618132817.657f69b9.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100618010840.GE5787@random.random>
+References: <20100521000539.GA5733@random.random>
+	<20100602144438.dc04ece7.nishimura@mxp.nes.nec.co.jp>
+	<20100618010840.GE5787@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-18 11:17:35]:
-
-> On Fri, 18 Jun 2010 10:57:41 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > > May I recommend the following change instead
-> > > 
-> > > 
-> > > Don't crash on a null memcg being passed, check if memcg
-> > > is NULL and handle the condition gracefully
-> > > 
-> > > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > ---
-> > >  mm/memcontrol.c |    2 +-
-> > >  1 files changed, 1 insertions(+), 1 deletions(-)
-> > > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index c6ece0a..d71c488 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -1370,7 +1370,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
-> > >  
-> > >  static void memcg_oom_recover(struct mem_cgroup *mem)
-> > >  {
-> > > -	if (mem->oom_kill_disable && atomic_read(&mem->oom_lock))
-> > > +	if (mem && mem->oom_kill_disable && atomic_read(&mem->oom_lock))
-> > >  		memcg_wakeup_oom(mem);
-> > >  }
-> > >  
-> > I agree to this fix.
+On Fri, 18 Jun 2010 03:08:40 +0200, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Wed, Jun 02, 2010 at 02:44:38PM +0900, Daisuke Nishimura wrote:
+> > These are trial patches to fix the problem(based on THP-25).
 > > 
-> > Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > [1/2] is a simple bug fix, and can be folded into "memcg compound(commit d16259c1
+> > at the http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git)".
+> > [2/2] is a main patch.
 > > 
+> > Unfortunately, there seems to be some problems left, so I'm digging it and
+> > need more tests.
+> > Any comments are welcome.
 > 
-> I tend to dislike band-aid in callee. but it's not important here.
+> Both are included in -26, but like you said there are problems
+> left... are you willing to fix those too?
+Will do if necessary, but hmm, I heard from KAMEZAWA-san that he has already sent
+some patches to fix the similar problems on RHEL6, and I prefer his fixes to mine.
+Should I(or KAMEZAWA-san?) forward port his patches onto current aa.git ?
+
+> There's some slight
+> difference in the code here and there that makes the fixes not so
+> portable across releases (uncharge as param of move_account which
+> wasn't there before as an example...).
 > 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
+Agreed. And I think you'll see some extra changes of memcg in 2.6.36...
+Any way, I'll do some test in both RHEL6 and aa.git when I have a time,
+and feel free to tell me if you have any troubles in back/forward porting
+memcg's fixes.
 
-The reason is just to make the reading easier
 
-if (cond)
-        func(cond)
-
-if (cond2)
-        func(cond2)
-
-It is easier to read
-
-        func(cond)
-        ...
-        func(cond2)
-
-Provided it is valid for us to test the condition inside func()
-
-This way new callers don't have to worry about using func(). This is
-very much like how the free calls work today, they can tolerate a NULL
-argument and return gracefully.
- 
-
--- 
-	Three Cheers,
-	Balbir
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
