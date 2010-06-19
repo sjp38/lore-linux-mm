@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 416856B01C3
-	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 20:30:55 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 15D256B01C6
+	for <linux-mm@kvack.org>; Fri, 18 Jun 2010 20:30:56 -0400 (EDT)
 From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 1/3] writeback: Creating /sys/kernel/mm/writeback/writeback
-Date: Fri, 18 Jun 2010 17:30:13 -0700
-Message-Id: <1276907415-504-2-git-send-email-mrubin@google.com>
+Subject: [PATCH 3/3] writeback: tracking subsystems causing writeback
+Date: Fri, 18 Jun 2010 17:30:15 -0700
+Message-Id: <1276907415-504-4-git-send-email-mrubin@google.com>
 In-Reply-To: <1276907415-504-1-git-send-email-mrubin@google.com>
 References: <1276907415-504-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,217 +13,455 @@ To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 Cc: jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Adding the /sys/kernel/mm/writeback/writeback file.  It contains data
-to help developers and applications gain visibility into writeback
-behaviour.
+Adding stats to indicate which subsystem is causing writeback.
+Implemented as per cpu counters rather than tracepoints so we can gather
+statistics continuously and cheaply.
 
-    # cat /sys/kernel/mm/writeback/writeback
-    pages_dirtied:    3747
-    pages_cleaned:    3618
-    dirty_threshold:  816673
-    bg_threshold:     408336
+Knowing what is the source of writeback acitivity can help tune and
+debug applications.
 
-The motivation of a sys file as opposed to debugfs is that applications
-that do not have permissions to mount file systems often need this data.
+The data is exported in bdi granularity at /sys/block/<dev>/bdi/writeback_stats.
 
-In order to track the "cleaned" and "dirtied" counts we added two
-vm_stat_items.  Per memory node stats have been added also. So we can
-see per node granularity:
+    # cat /sys/block/sda/bdi/writeback_stats
+    balance dirty pages                       0
+    balance dirty pages waiting               0
+    periodic writeback                    92024
+    periodic writeback exited                 0
+    laptop periodic                           0
+    laptop or bg threshold                    0
+    free more memory                          0
+    try to free pages                       271
+    syc_sync                                  6
+    sync filesystem                           0
 
-    # cat /sys/devices/system/node/node20/writebackstat
-    Node 20 pages_writeback: 0 times
-    Node 20 pages_dirtied: 0 times
+For the entire system you can find them at /sys/kernel/mm/writeback/stats.
+
+    # cat /sys/kernel/mm/writeback/stats
+    balance dirty pages                       0
+    balance dirty pages waiting               0
+    periodic writeback                    92892
+    periodic writeback exited                13
+    laptop periodic                           0
+    laptop or bg threshold                    0
+    free more memory                          0
+    try to free pages                       271
+    syc_sync                                  6
+    sync filesystem                           0
 
 Signed-off-by: Michael Rubin <mrubin@google.com>
 ---
- drivers/base/node.c    |   14 ++++++++++++++
- fs/nilfs2/segment.c    |    4 +++-
- include/linux/mmzone.h |    2 ++
- mm/mm_init.c           |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page-writeback.c    |    6 ++++--
- mm/vmstat.c            |    2 ++
- 6 files changed, 73 insertions(+), 3 deletions(-)
+ fs/buffer.c                 |    2 +-
+ fs/fs-writeback.c           |   15 +++++---
+ fs/sync.c                   |    2 +-
+ include/linux/backing-dev.h |    8 ++++
+ include/linux/writeback.h   |   50 +++++++++++++++++++++++++-
+ mm/backing-dev.c            |   17 +++++++++
+ mm/mm_init.c                |   82 ++++++++++++++++++++++++++++++++++++++++--
+ mm/page-writeback.c         |   12 +++++--
+ mm/vmscan.c                 |    3 +-
+ 9 files changed, 175 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 2bdd8a9..b321d32 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -160,6 +160,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
- }
- static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+diff --git a/fs/buffer.c b/fs/buffer.c
+index d54812b..2a0ebe0 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -288,7 +288,7 @@ static void free_more_memory(void)
+ 	struct zone *zone;
+ 	int nid;
  
-+static ssize_t node_read_writebackstat(struct sys_device *dev,
-+				struct sysdev_attribute *attr, char *buf)
-+{
-+	int nid = dev->id;
-+	return sprintf(buf,
-+		"Node %d pages_writeback: %lu times\n"
-+		"Node %d pages_dirtied: %lu times\n",
-+		nid, node_page_state(nid, NR_PAGES_ENTERED_WRITEBACK),
-+		nid, node_page_state(nid, NR_FILE_PAGES_DIRTIED));
-+}
-+static SYSDEV_ATTR(writebackstat, S_IRUGO, node_read_writebackstat, NULL);
-+
- static ssize_t node_read_distance(struct sys_device * dev,
- 			struct sysdev_attribute *attr, char * buf)
+-	wakeup_flusher_threads(1024);
++	wakeup_flusher_threads(1024, WB_STAT_FREE_MORE_MEM);
+ 	yield();
+ 
+ 	for_each_online_node(nid) {
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 62a899e..56331b0 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -956,6 +956,7 @@ int bdi_writeback_task(struct bdi_writeback *wb)
+ 	long pages_written;
+ 
+ 	while (!kthread_should_stop()) {
++		bdi_writeback_stat_inc(wb->bdi, WB_STAT_PERIODIC);
+ 		pages_written = wb_do_writeback(wb, 0);
+ 
+ 		if (pages_written)
+@@ -969,8 +970,11 @@ int bdi_writeback_task(struct bdi_writeback *wb)
+ 			 * recreated automatically.
+ 			 */
+ 			max_idle = max(5UL * 60 * HZ, wait_jiffies);
+-			if (time_after(jiffies, max_idle + last_active))
++			if (time_after(jiffies, max_idle + last_active)) {
++				bdi_writeback_stat_inc(wb->bdi,
++						      WB_STAT_PERIODIC_EXIT);
+ 				break;
++			}
+ 		}
+ 
+ 		if (dirty_writeback_interval) {
+@@ -994,7 +998,8 @@ int bdi_writeback_task(struct bdi_writeback *wb)
+  * Schedule writeback for all backing devices. This does WB_SYNC_NONE
+  * writeback, for integrity writeback see bdi_sync_writeback().
+  */
+-static void bdi_writeback_all(struct super_block *sb, long nr_pages)
++static void bdi_writeback_all(struct super_block *sb, long nr_pages,
++			      enum wb_stats stat)
  {
-@@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct node *parent)
- 		sysdev_create_file(&node->sysdev, &attr_meminfo);
- 		sysdev_create_file(&node->sysdev, &attr_numastat);
- 		sysdev_create_file(&node->sysdev, &attr_distance);
-+		sysdev_create_file(&node->sysdev, &attr_writebackstat);
+ 	struct wb_writeback_args args = {
+ 		.sb		= sb,
+@@ -1008,7 +1013,7 @@ static void bdi_writeback_all(struct super_block *sb, long nr_pages)
+ 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+ 		if (!bdi_has_dirty_io(bdi))
+ 			continue;
+-
++		bdi_writeback_stat_inc(bdi, stat);
+ 		bdi_alloc_queue_work(bdi, &args);
+ 	}
  
- 		scan_unevictable_register_node(node);
+@@ -1019,12 +1024,12 @@ static void bdi_writeback_all(struct super_block *sb, long nr_pages)
+  * Start writeback of `nr_pages' pages.  If `nr_pages' is zero, write back
+  * the whole world.
+  */
+-void wakeup_flusher_threads(long nr_pages)
++void wakeup_flusher_threads(long nr_pages, enum wb_stats stat)
+ {
+ 	if (nr_pages == 0)
+ 		nr_pages = global_page_state(NR_FILE_DIRTY) +
+ 				global_page_state(NR_UNSTABLE_NFS);
+-	bdi_writeback_all(NULL, nr_pages);
++	bdi_writeback_all(NULL, nr_pages, stat);
+ }
  
-@@ -267,6 +280,7 @@ void unregister_node(struct node *node)
- 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
- 	sysdev_remove_file(&node->sysdev, &attr_numastat);
- 	sysdev_remove_file(&node->sysdev, &attr_distance);
-+	sysdev_remove_file(&node->sysdev, &attr_writebackstat);
+ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
+diff --git a/fs/sync.c b/fs/sync.c
+index 15aa6f0..6059e83 100644
+--- a/fs/sync.c
++++ b/fs/sync.c
+@@ -97,7 +97,7 @@ static void sync_filesystems(int wait)
+  */
+ SYSCALL_DEFINE0(sync)
+ {
+-	wakeup_flusher_threads(0);
++	wakeup_flusher_threads(0, WB_STAT_SYNC);
+ 	sync_filesystems(0);
+ 	sync_filesystems(1);
+ 	if (unlikely(laptop_mode))
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index e1fb11c..dfa7c78 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -72,6 +72,7 @@ struct backing_dev_info {
+ 	char *name;
  
- 	scan_unevictable_unregister_node(node);
- 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index c920164..84b0181 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -1598,8 +1598,10 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
- 	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
- 	kunmap_atomic(kaddr, KM_USER0);
+ 	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
++	struct writeback_stats *wb_stat;
  
--	if (!TestSetPageWriteback(clone_page))
-+	if (!TestSetPageWriteback(clone_page)) {
- 		inc_zone_page_state(clone_page, NR_WRITEBACK);
-+		inc_zone_page_state(clone_page, NR_PAGES_ENTERED_WRITEBACK);
-+	}
- 	unlock_page(clone_page);
+ 	struct prop_local_percpu completions;
+ 	int dirty_exceeded;
+@@ -184,6 +185,13 @@ static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
+ 	return sum;
+ }
  
- 	return 0;
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b4d109e..c0cd2bd 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -112,6 +112,8 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter writeback */
-+	NR_FILE_PAGES_DIRTIED,    /* number of times pages get dirtied */
- 	NR_VM_ZONE_STAT_ITEMS };
++static inline void bdi_writeback_stat_inc(struct backing_dev_info *bdi,
++					 enum wb_stats stat)
++{
++	if (bdi)
++		writeback_stats_inc(bdi->wb_stat, stat);
++}
++
+ extern void bdi_writeout_inc(struct backing_dev_info *bdi);
  
  /*
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index d63ef8f..f874410 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -22,6 +22,54 @@ enum writeback_sync_modes {
+ };
+ 
+ /*
++ * why this writeback was initiated
++ */
++enum wb_stats {
++	WB_STAT_BALANCE_DIRTY,
++	WB_STAT_BALANCE_DIRTY_WAIT,
++	WB_STAT_PERIODIC,
++	WB_STAT_PERIODIC_EXIT,
++	WB_STAT_LAPTOP_TIMER,
++	WB_STAT_LAPTOP_BG,
++	WB_STAT_FREE_MORE_MEM,
++	WB_STAT_TRY_TO_FREE_PAGES,
++	WB_STAT_SYNC,
++	WB_STAT_SYNC_FS,
++	WB_STAT_MAX,
++};
++
++struct writeback_stats {
++	u64 stats[WB_STAT_MAX];
++};
++
++extern struct writeback_stats *writeback_sys_stats;
++
++static inline struct writeback_stats *writeback_stats_alloc(void)
++{
++	return alloc_percpu(struct writeback_stats);
++}
++
++static inline void writeback_stats_free(struct writeback_stats *stats)
++{
++	free_percpu(stats);
++}
++
++static inline void writeback_stats_inc(struct writeback_stats *stats, int stat)
++{
++	BUG_ON(stat >= WB_STAT_MAX);
++	preempt_disable();
++	stats = per_cpu_ptr(stats, smp_processor_id());
++	stats->stats[stat]++;
++	if (likely(writeback_sys_stats)) {
++		stats = per_cpu_ptr(writeback_sys_stats, smp_processor_id());
++		stats->stats[stat]++;
++	}
++	preempt_enable();
++}
++
++size_t writeback_stats_print(struct writeback_stats *, char *buf, size_t);
++
++/*
+  * A control structure which tells the writeback code what to do.  These are
+  * always on the stack, and hence need no locking.  They are always initialised
+  * in a manner such that unspecified fields are set to zero.
+@@ -68,7 +116,7 @@ int writeback_inodes_sb_if_idle(struct super_block *);
+ void sync_inodes_sb(struct super_block *);
+ void writeback_inodes_wbc(struct writeback_control *wbc);
+ long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+-void wakeup_flusher_threads(long nr_pages);
++void wakeup_flusher_threads(long nr_pages, enum wb_stats);
+ 
+ /* writeback.h requires fs.h; it, too, is not included from here. */
+ static inline void wait_on_inode(struct inode *inode)
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 9a89296..83efc39 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -142,6 +142,13 @@ static ssize_t writeback_show(struct device *dev, struct device_attribute *attr,
+ #undef K
+ }
+ 
++static ssize_t writeback_stats_show(struct device *dev,
++				  struct device_attribute *attr, char *buf)
++{
++	struct backing_dev_info *bdi = dev_get_drvdata(dev);
++	return writeback_stats_print(bdi->wb_stat, buf, PAGE_SIZE);
++}
++
+ static ssize_t read_ahead_kb_store(struct device *dev,
+ 				  struct device_attribute *attr,
+ 				  const char *buf, size_t count)
+@@ -213,6 +220,7 @@ BDI_SHOW(max_ratio, bdi->max_ratio)
+ static struct device_attribute bdi_dev_attrs[] = {
+ 	__ATTR_RO(state),
+ 	__ATTR_RO(writeback),
++	__ATTR_RO(writeback_stats),
+ 	__ATTR_RW(read_ahead_kb),
+ 	__ATTR_RW(min_ratio),
+ 	__ATTR_RW(max_ratio),
+@@ -673,11 +681,18 @@ int bdi_init(struct backing_dev_info *bdi)
+ 			goto err;
+ 	}
+ 
++	bdi->wb_stat = writeback_stats_alloc();
++	if (bdi->wb_stat == NULL) {
++		err = -ENOMEM;
++		goto err;
++	}
++
+ 	bdi->dirty_exceeded = 0;
+ 	err = prop_local_init_percpu(&bdi->completions);
+ 
+ 	if (err) {
+ err:
++		writeback_stats_free(bdi->wb_stat);
+ 		while (i--)
+ 			percpu_counter_destroy(&bdi->bdi_stat[i]);
+ 	}
+@@ -709,6 +724,8 @@ void bdi_destroy(struct backing_dev_info *bdi)
+ 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
+ 		percpu_counter_destroy(&bdi->bdi_stat[i]);
+ 
++	writeback_stats_free(bdi->wb_stat);
++
+ 	prop_local_destroy_percpu(&bdi->completions);
+ }
+ EXPORT_SYMBOL(bdi_destroy);
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 4e0e265..8f2ebdb 100644
+index 8f2ebdb..9ca5377 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
-@@ -9,6 +9,7 @@
- #include <linux/init.h>
- #include <linux/kobject.h>
- #include <linux/module.h>
-+#include <linux/writeback.h>
- #include "internal.h"
+@@ -158,8 +158,74 @@ static ssize_t writeback_show(struct kobject *kobj,
  
- #ifdef CONFIG_DEBUG_MEMORY_INIT
-@@ -137,6 +138,52 @@ static __init int set_mminit_loglevel(char *str)
- early_param("mminit_loglevel", set_mminit_loglevel);
- #endif /* CONFIG_DEBUG_MEMORY_INIT */
+ KERNEL_ATTR_RO(writeback);
  
-+#define KERNEL_ATTR_RO(_name) \
-+static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
++struct writeback_stats *writeback_sys_stats;
 +
-+static ssize_t writeback_show(struct kobject *kobj,
-+			      struct kobj_attribute *attr, char *buf)
-+{
-+	unsigned long dirty, background;
-+	get_dirty_limits(&background, &dirty, NULL, NULL);
-+	return sprintf(buf,
-+		       "pages_dirtied:    %lu\n"
-+		       "pages_cleaned:    %lu\n"
-+		       "dirty_threshold:  %lu\n"
-+		       "bg_threshold:     %lu\n",
-+		       global_page_state(NR_FILE_PAGES_DIRTIED),
-+		       global_page_state(NR_PAGES_ENTERED_WRITEBACK),
-+		       dirty, background);
-+}
-+
-+KERNEL_ATTR_RO(writeback);
-+
-+static struct attribute *writeback_attrs[] = {
-+	&writeback_attr.attr,
-+	NULL,
++static const char *wb_stats_labels[WB_STAT_MAX] = {
++	[WB_STAT_BALANCE_DIRTY] = "balance dirty pages",
++	[WB_STAT_BALANCE_DIRTY_WAIT] = "balance dirty pages waiting",
++	[WB_STAT_PERIODIC] = "periodic writeback",
++	[WB_STAT_PERIODIC_EXIT] = "periodic writeback exited",
++	[WB_STAT_LAPTOP_TIMER] = "laptop periodic",
++	[WB_STAT_LAPTOP_BG] = "laptop or bg threshold",
++	[WB_STAT_FREE_MORE_MEM] = "free more memory",
++	[WB_STAT_TRY_TO_FREE_PAGES] = "try to free pages",
++	[WB_STAT_SYNC] = "syc_sync",
++	[WB_STAT_SYNC_FS] = "sync filesystem",
 +};
 +
-+static struct attribute_group writeback_attr_group = {
-+	.attrs = writeback_attrs,
-+};
-+
-+static int mm_sysfs_writeback_init(void)
++static void writeback_stats_collect(struct writeback_stats *src,
++				    struct writeback_stats *target)
 +{
-+	int error;
-+
-+	struct kobject *writeback_kobj =
-+		kobject_create_and_add("writeback", mm_kobj);
-+	if (writeback_kobj == NULL)
-+		return -ENOMEM;
-+
-+	error = sysfs_create_group(writeback_kobj, &writeback_attr_group);
-+	if (error) {
-+		kobject_put(mm_kobj);
-+		return -ENOMEM;
++	int cpu;
++	for_each_online_cpu(cpu) {
++		int stat;
++		struct writeback_stats *stats = per_cpu_ptr(src, cpu);
++		for (stat = 0; stat < WB_STAT_MAX; stat++)
++			target->stats[stat] += stats->stats[stat];
 +	}
-+	return 0;
 +}
 +
- struct kobject *mm_kobj;
- EXPORT_SYMBOL_GPL(mm_kobj);
++static size_t writeback_stats_to_str(struct writeback_stats *stats,
++				     char *buf, size_t len)
++{
++	int bufsize = len - 1;
++	int i, printed = 0;
++	for (i = 0; i < WB_STAT_MAX; i++) {
++		const char *label = wb_stats_labels[i];
++		if (label == NULL)
++			continue;
++		printed += snprintf(buf + printed, bufsize - printed,
++				"%-32s %10llu\n", label, stats->stats[i]);
++		if (printed >= bufsize) {
++			buf[len - 1] = '\n';
++			return len;
++		}
++	}
++
++	buf[printed - 1] = '\n';
++	return printed;
++}
++
++size_t writeback_stats_print(struct writeback_stats *stats,
++			     char *buf, size_t len)
++{
++	struct writeback_stats total;
++	memset(&total, 0, sizeof(total));
++	writeback_stats_collect(stats, &total);
++	return writeback_stats_to_str(&total, buf, len);
++}
++
++static ssize_t stats_show(struct kobject *kobj,
++			  struct kobj_attribute *attr, char *buf)
++{
++	return writeback_stats_print(writeback_sys_stats, buf, PAGE_SIZE);
++}
++
++KERNEL_ATTR_RO(stats);
++
+ static struct attribute *writeback_attrs[] = {
+ 	&writeback_attr.attr,
++	&stats_attr.attr,
+ 	NULL,
+ };
  
-@@ -146,6 +193,7 @@ static int __init mm_sysfs_init(void)
- 	if (!mm_kobj)
+@@ -177,11 +243,19 @@ static int mm_sysfs_writeback_init(void)
  		return -ENOMEM;
  
-+	mm_sysfs_writeback_init();
+ 	error = sysfs_create_group(writeback_kobj, &writeback_attr_group);
+-	if (error) {
+-		kobject_put(mm_kobj);
+-		return -ENOMEM;
+-	}
++	if (error)
++		goto err;
++
++	writeback_sys_stats = alloc_percpu(struct writeback_stats);
++	if (writeback_sys_stats == NULL)
++		goto stats_err;
  	return 0;
++
++stats_err:
++	sysfs_remove_group(writeback_kobj, &writeback_attr_group);
++err:
++	kobject_put(mm_kobj);
++	return -ENOMEM;
  }
  
+ struct kobject *mm_kobj;
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index bbd396a..4cea5c0 100644
+index 4cea5c0..39d7ff2 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -1093,6 +1093,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- {
- 	if (mapping_cap_account_dirty(mapping)) {
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
-+		__inc_zone_page_state(page, NR_FILE_PAGES_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 		task_dirty_inc(current);
- 		task_io_account_write(PAGE_CACHE_SIZE);
-@@ -1333,10 +1334,11 @@ int test_set_page_writeback(struct page *page)
- 	} else {
- 		ret = TestSetPageWriteback(page);
- 	}
--	if (!ret)
-+	if (!ret) {
- 		inc_zone_page_state(page, NR_WRITEBACK);
-+		inc_zone_page_state(page, NR_PAGES_ENTERED_WRITEBACK);
+@@ -537,6 +537,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		 * up.
+ 		 */
+ 		if (bdi_nr_reclaimable > bdi_thresh) {
++			bdi_writeback_stat_inc(bdi, WB_STAT_BALANCE_DIRTY);
+ 			writeback_inodes_wbc(&wbc);
+ 			pages_written += write_chunk - wbc.nr_to_write;
+ 			get_dirty_limits(&background_thresh, &dirty_thresh,
+@@ -567,6 +568,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			break;		/* We've done our duty */
+ 
+ 		__set_current_state(TASK_INTERRUPTIBLE);
++		bdi_writeback_stat_inc(bdi, WB_STAT_BALANCE_DIRTY_WAIT);
+ 		io_schedule_timeout(pause);
+ 
+ 		/*
+@@ -596,8 +598,10 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 	if ((laptop_mode && pages_written) ||
+ 	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
+ 			       + global_page_state(NR_UNSTABLE_NFS))
+-					  > background_thresh)))
++					  > background_thresh))) {
++		bdi_writeback_stat_inc(bdi, WB_STAT_LAPTOP_BG);
+ 		bdi_start_writeback(bdi, NULL, 0);
 +	}
- 	return ret;
--
  }
- EXPORT_SYMBOL(test_set_page_writeback);
  
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7759941..e177a40 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -740,6 +740,8 @@ static const char * const vmstat_text[] = {
- 	"numa_local",
- 	"numa_other",
- #endif
-+	"nr_pages_entered_writeback",
-+	"nr_file_pages_dirtied",
+ void set_page_dirty_balance(struct page *page, int page_mkwrite)
+@@ -700,14 +704,16 @@ void laptop_mode_timer_fn(unsigned long data)
+ 	struct request_queue *q = (struct request_queue *)data;
+ 	int nr_pages = global_page_state(NR_FILE_DIRTY) +
+ 		global_page_state(NR_UNSTABLE_NFS);
+-
+ 	/*
+ 	 * We want to write everything out, not just down to the dirty
+ 	 * threshold
+ 	 */
  
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	"pgpgin",
+-	if (bdi_has_dirty_io(&q->backing_dev_info))
++	if (bdi_has_dirty_io(&q->backing_dev_info)) {
++		writeback_stats_inc(q->backing_dev_info.wb_stat,
++				    WB_STAT_LAPTOP_TIMER);
+ 		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages);
++	}
+ }
+ 
+ /*
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..ba6966e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1838,7 +1838,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		 */
+ 		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
+ 		if (total_scanned > writeback_threshold) {
+-			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned);
++			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
++						WB_STAT_TRY_TO_FREE_PAGES);
+ 			sc->may_writepage = 1;
+ 		}
+ 
 -- 
 1.7.0.1
 
