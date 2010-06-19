@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 72A666B01AF
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 04:23:38 -0400 (EDT)
-Message-ID: <4C1C7E68.8080700@kernel.org>
-Date: Sat, 19 Jun 2010 10:23:04 +0200
-From: Tejun Heo <tj@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] percpu: make @dyn_size always mean min dyn_size in
- first chunk init functions
-References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home> <4C19E19D.2020802@kernel.org> <alpine.DEB.2.00.1006170842410.22997@router.home> <4C1BA59C.6000309@kernel.org> <alpine.DEB.2.00.1006181229310.13915@router.home> <4C1BAF51.8020702@kernel.org> <alpine.DEB.2.00.1006181300320.14715@router.home>
-In-Reply-To: <alpine.DEB.2.00.1006181300320.14715@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id ED74A6B01B2
+	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 06:45:01 -0400 (EDT)
+Date: Sat, 19 Jun 2010 12:44:39 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 1/3] writeback: Creating /sys/kernel/mm/writeback/writeback
+Message-ID: <20100619104439.GA7659@lst.de>
+References: <1276907415-504-1-git-send-email-mrubin@google.com> <1276907415-504-2-git-send-email-mrubin@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1276907415-504-2-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Fri, Jun 18, 2010 at 05:30:13PM -0700, Michael Rubin wrote:
+> Adding the /sys/kernel/mm/writeback/writeback file.  It contains data
+> to help developers and applications gain visibility into writeback
+> behaviour.
+> 
+>     # cat /sys/kernel/mm/writeback/writeback
+>     pages_dirtied:    3747
+>     pages_cleaned:    3618
+>     dirty_threshold:  816673
+>     bg_threshold:     408336
 
-On 06/18/2010 08:03 PM, Christoph Lameter wrote:
->> Yeah, something like that but I would add some buffer there for
->> alignment and whatnot.
-> 
-> Only the percpu allocator would know the waste for alignment and
-> "whatnot". What would you like me to add to the above formula to make it
-> safe?
+I'm fine with exposting this. but the interface is rather awkward.
+These kinds of multiple value per file interface require addition
+parsing and are a pain to extend.  Please do something like
 
-I'm not sure, some sensible slack.  :-)
+/proc/sys/vm/writeback/
 
->>> What is the role of SLOTS?
->>
->> It's allocation map.  Each consecutive allocs consume one if alignment
->> doesn't require padding but two if it does.  ie. It limits how many
->> items one can allocate.
->>
->>> Each kmem_cache_cpu structure is a separate percpu allocation.
->>
->> If it's a single item.  Nothing to worry about.
-> 
-> ok so
-> 
-> BUILD_BUG_ON(SLUB_PAGE_SHIFT * <fuzz-factor> > SLOTS);
-> 
-> I dont know what fuzz factor would be needed.
-> 
-> Maybe its best to have a macro provided by percpu?
-> 
-> VERIFY_EARLY_ALLOCS(<nr-of-allocs>,<total-size-consumed>)
-> 
-> The macro would generate the proper BUILD_BUG_ON?
+			pages_dirtied
+			pages_cleaned
+			dirty_threshold
+			background_threshold
 
-The problem is that alignment of each item and their allocation order
-also matter.  Even the percpu allocator itself can't tell for sure
-before actually allocating it.  As it's gonna be used only by the slab
-allocator at least for now && those preallocated areas aren't wasted
-anyway, just giving it enough should work good enough, I think.  Say,
-multiply everything by two.
+where you can just read the value from the file.
 
-Thanks.
+> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+> index c920164..84b0181 100644
+> --- a/fs/nilfs2/segment.c
+> +++ b/fs/nilfs2/segment.c
+> @@ -1598,8 +1598,10 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
+>  	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
+>  	kunmap_atomic(kaddr, KM_USER0);
+>  
+> -	if (!TestSetPageWriteback(clone_page))
+> +	if (!TestSetPageWriteback(clone_page)) {
+>  		inc_zone_page_state(clone_page, NR_WRITEBACK);
+> +		inc_zone_page_state(clone_page, NR_PAGES_ENTERED_WRITEBACK);
+> +	}
+>  	unlock_page(clone_page);
 
--- 
-tejun
+I'm not very happy about having this opencoded in a filesystem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
