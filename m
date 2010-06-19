@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF956B01CA
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 13:49:59 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o5JHntZ1022605
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 10:49:55 -0700
-Received: from gwj21 (gwj21.prod.google.com [10.200.10.21])
-	by wpaz21.hot.corp.google.com with ESMTP id o5JHnsmq029846
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 10:49:54 -0700
-Received: by gwj21 with SMTP id 21so1326gwj.4
-        for <linux-mm@kvack.org>; Sat, 19 Jun 2010 10:49:54 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8DC6B0071
+	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 15:52:45 -0400 (EDT)
+Date: Sat, 19 Jun 2010 21:52:42 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [31/31] HWPOISON: Add a madvise() injector for soft
+ page offlining
+Message-ID: <20100619195242.GS18946@basil.fritz.box>
+References: <200912081016.198135742@firstfloor.org>
+ <20091208211647.9B032B151F@basil.firstfloor.org>
+ <AANLkTimBhQAYn7BDXd1ykSN90v0ClWybIe2Pe1qv_6vA@mail.gmail.com>
+ <20100619132055.GK18946@basil.fritz.box>
+ <AANLkTin-lj5ZgtcvJhWcNiMuWSCQ39N8mqe_2fm8DDVR@mail.gmail.com>
+ <20100619133000.GL18946@basil.fritz.box>
+ <AANLkTiloIXtCwBeBvP32hLBBvxCWrZMMwWTZwSj475wi@mail.gmail.com>
+ <20100619140933.GM18946@basil.fritz.box>
+ <AANLkTilF6m5YKMiDGaTNuoW6LxiA44oss3HyvkavwrOK@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <878w6bphc2.fsf@basil.nowhere.org>
-References: <1276907415-504-1-git-send-email-mrubin@google.com>
-	<1276907415-504-4-git-send-email-mrubin@google.com> <878w6bphc2.fsf@basil.nowhere.org>
-From: Michael Rubin <mrubin@google.com>
-Date: Sat, 19 Jun 2010 10:49:34 -0700
-Message-ID: <AANLkTimhsQdLV7UeMppz8mwzQPUfDQbvdNdOCiVnxdKM@mail.gmail.com>
-Subject: Re: [PATCH 3/3] writeback: tracking subsystems causing writeback
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTilF6m5YKMiDGaTNuoW6LxiA44oss3HyvkavwrOK@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks for looking at this.
+> .TP
+> .BR MADV_SOFT_OFFLINE " (Since Linux 2.6.33)
+> Soft offline the pages in the range specified by
+> .I addr
+> and
+> .IR length .
+> This memory of each page in the specified range is copied to a new page,
 
-On Sat, Jun 19, 2010 at 1:17 AM, Andi Kleen <andi@firstfloor.org> wrote:
-> Michael Rubin <mrubin@google.com> writes:
->> =A0 =A0 # cat /sys/block/sda/bdi/writeback_stats
->> =A0 =A0 balance dirty pages =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-0
->> =A0 =A0 balance dirty pages waiting =A0 =A0 =A0 =A0 =A0 =A0 =A0 0
->> =A0 =A0 periodic writeback =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A092024
->> =A0 =A0 periodic writeback exited =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 0
->> =A0 =A0 laptop periodic =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 0
->> =A0 =A0 laptop or bg threshold =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A00
->> =A0 =A0 free more memory =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A00
->> =A0 =A0 try to free pages =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 27=
-1
->> =A0 =A0 syc_sync =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A06
->> =A0 =A0 sync filesystem =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 0
->
-> That exports a lot of kernel internals in /sys, presumably read by some
-> applications. What happens with the applications if the kernel internals
-> ever change? =A0Will the application break?
->
-> It would be bad to not be able to change the kernel because of
-> such an interface.
+Actually there are some cases where it's also dropped if it's cached page.
 
-I agree. This would put the kernel in a box a bit. Some of them
-(sys_sync, periodic writeback, free_more_memory) I feel are generic
-enough concepts that with some rewording of the labels they could be
-exposed with no issue. "Balance_dirty_pages" is an example where that
-won't work.
+Perhaps better would be something more fuzzy like
 
-Are there alternatives to this? Maybe tracepoints that are compiled to be o=
-n?
-A CONFIG_WRITEBACK_DEBUG that would expose this file?
+"the contents are preserved"
 
-Having this set of info readily available and collected makes
-debugging a lot easier. But I admit I am not sure the best way to
-expose them.
+> and the original page is offlined
+> (i.e., no longer used, and taken out of normal memory management).
 
-mrubin
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
