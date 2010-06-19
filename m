@@ -1,48 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8DC6B0071
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 15:52:45 -0400 (EDT)
-Date: Sat, 19 Jun 2010 21:52:42 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 152156B0071
+	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 16:23:47 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [31/31] HWPOISON: Add a madvise() injector for soft
- page offlining
-Message-ID: <20100619195242.GS18946@basil.fritz.box>
-References: <200912081016.198135742@firstfloor.org>
- <20091208211647.9B032B151F@basil.firstfloor.org>
- <AANLkTimBhQAYn7BDXd1ykSN90v0ClWybIe2Pe1qv_6vA@mail.gmail.com>
- <20100619132055.GK18946@basil.fritz.box>
- <AANLkTin-lj5ZgtcvJhWcNiMuWSCQ39N8mqe_2fm8DDVR@mail.gmail.com>
- <20100619133000.GL18946@basil.fritz.box>
- <AANLkTiloIXtCwBeBvP32hLBBvxCWrZMMwWTZwSj475wi@mail.gmail.com>
- <20100619140933.GM18946@basil.fritz.box>
- <AANLkTilF6m5YKMiDGaTNuoW6LxiA44oss3HyvkavwrOK@mail.gmail.com>
+Subject: Re: [PATCH 3/3] writeback: tracking subsystems causing writeback
+References: <1276907415-504-1-git-send-email-mrubin@google.com>
+	<1276907415-504-4-git-send-email-mrubin@google.com>
+	<878w6bphc2.fsf@basil.nowhere.org>
+	<AANLkTimhsQdLV7UeMppz8mwzQPUfDQbvdNdOCiVnxdKM@mail.gmail.com>
+Date: Sat, 19 Jun 2010 22:23:48 +0200
+In-Reply-To: <AANLkTimhsQdLV7UeMppz8mwzQPUfDQbvdNdOCiVnxdKM@mail.gmail.com>
+	(Michael Rubin's message of "Sat, 19 Jun 2010 10:49:34 -0700")
+Message-ID: <87eig2ixez.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTilF6m5YKMiDGaTNuoW6LxiA44oss3HyvkavwrOK@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-> .TP
-> .BR MADV_SOFT_OFFLINE " (Since Linux 2.6.33)
-> Soft offline the pages in the range specified by
-> .I addr
-> and
-> .IR length .
-> This memory of each page in the specified range is copied to a new page,
+Michael Rubin <mrubin@google.com> writes:
+>
+> I agree. This would put the kernel in a box a bit. Some of them
+> (sys_sync, periodic writeback, free_more_memory) I feel are generic
+> enough concepts that with some rewording of the labels they could be
+> exposed with no issue. "Balance_dirty_pages" is an example where that
+> won't work.
 
-Actually there are some cases where it's also dropped if it's cached page.
+Yes some rewording would be good.
 
-Perhaps better would be something more fuzzy like
+> Are there alternatives to this? Maybe tracepoints that are compiled to be on?
+> A CONFIG_WRITEBACK_DEBUG that would expose this file?
 
-"the contents are preserved"
+The classic way is to put it into debugfs which has a appropiate
+disclaimer.
 
-> and the original page is offlined
-> (i.e., no longer used, and taken out of normal memory management).
+(although I fear we're weaning apps that depend on debugfs too
+The growing ftrace user space code seems to all depend on debugfs)
+
+> Having this set of info readily available and collected makes
+> debugging a lot easier. But I admit I am not sure the best way to
+> expose them.
+
+Maybe we just need a simpler writeback path that is not as complicated
+to debug. 
 
 -Andi
+
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
