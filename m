@@ -1,61 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id ED74A6B01B2
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 06:45:01 -0400 (EDT)
-Date: Sat, 19 Jun 2010 12:44:39 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 1/3] writeback: Creating /sys/kernel/mm/writeback/writeback
-Message-ID: <20100619104439.GA7659@lst.de>
-References: <1276907415-504-1-git-send-email-mrubin@google.com> <1276907415-504-2-git-send-email-mrubin@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1276907415-504-2-git-send-email-mrubin@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0D5516B01B5
+	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 08:36:31 -0400 (EDT)
+Received: by fxm15 with SMTP id 15so1190255fxm.14
+        for <linux-mm@kvack.org>; Sat, 19 Jun 2010 05:36:28 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20091208211647.9B032B151F@basil.firstfloor.org>
+References: <200912081016.198135742@firstfloor.org>
+	<20091208211647.9B032B151F@basil.firstfloor.org>
+Date: Sat, 19 Jun 2010 14:36:28 +0200
+Message-ID: <AANLkTimBhQAYn7BDXd1ykSN90v0ClWybIe2Pe1qv_6vA@mail.gmail.com>
+Subject: Re: [PATCH] [31/31] HWPOISON: Add a madvise() injector for soft page
+	offlining
+From: Michael Kerrisk <mtk.manpages@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Andi Kleen <andi@firstfloor.org>
+Cc: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 18, 2010 at 05:30:13PM -0700, Michael Rubin wrote:
-> Adding the /sys/kernel/mm/writeback/writeback file.  It contains data
-> to help developers and applications gain visibility into writeback
-> behaviour.
-> 
->     # cat /sys/kernel/mm/writeback/writeback
->     pages_dirtied:    3747
->     pages_cleaned:    3618
->     dirty_threshold:  816673
->     bg_threshold:     408336
+Hi Andi,
 
-I'm fine with exposting this. but the interface is rather awkward.
-These kinds of multiple value per file interface require addition
-parsing and are a pain to extend.  Please do something like
+On Tue, Dec 8, 2009 at 11:16 PM, Andi Kleen <andi@firstfloor.org> wrote:
+>
+> Process based injection is much easier to handle for test programs,
+> who can first bring a page into a specific state and then test.
+> So add a new MADV_SOFT_OFFLINE to soft offline a page, similar
+> to the existing hard offline injector.
 
-/proc/sys/vm/writeback/
+I see that this made its way into 2.6.33. Could you write a short
+piece on it for the madvise.2 man page?
 
-			pages_dirtied
-			pages_cleaned
-			dirty_threshold
-			background_threshold
+Thanks,
 
-where you can just read the value from the file.
+Michael
 
-> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-> index c920164..84b0181 100644
-> --- a/fs/nilfs2/segment.c
-> +++ b/fs/nilfs2/segment.c
-> @@ -1598,8 +1598,10 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
->  	} while (bh = bh->b_this_page, bh2 = bh2->b_this_page, bh != head);
->  	kunmap_atomic(kaddr, KM_USER0);
->  
-> -	if (!TestSetPageWriteback(clone_page))
-> +	if (!TestSetPageWriteback(clone_page)) {
->  		inc_zone_page_state(clone_page, NR_WRITEBACK);
-> +		inc_zone_page_state(clone_page, NR_PAGES_ENTERED_WRITEBACK);
-> +	}
->  	unlock_page(clone_page);
 
-I'm not very happy about having this opencoded in a filesystem.
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+>
+> ---
+> =A0include/asm-generic/mman-common.h | =A0 =A01 +
+> =A0mm/madvise.c =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 15 +++++=
++++++++---
+> =A02 files changed, 13 insertions(+), 3 deletions(-)
+>
+> Index: linux/include/asm-generic/mman-common.h
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linux.orig/include/asm-generic/mman-common.h
+> +++ linux/include/asm-generic/mman-common.h
+> @@ -35,6 +35,7 @@
+> =A0#define MADV_DONTFORK =A010 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* don't inheri=
+t across fork */
+> =A0#define MADV_DOFORK =A0 =A011 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* do inherit=
+ across fork */
+> =A0#define MADV_HWPOISON =A0100 =A0 =A0 =A0 =A0 =A0 =A0 /* poison a page =
+for testing */
+> +#define MADV_SOFT_OFFLINE 101 =A0 =A0 =A0 =A0 =A0/* soft offline page fo=
+r testing */
+>
+> =A0#define MADV_MERGEABLE =A0 12 =A0 =A0 =A0 =A0 =A0 =A0/* KSM may merge =
+identical pages */
+> =A0#define MADV_UNMERGEABLE 13 =A0 =A0 =A0 =A0 =A0 =A0/* KSM may not merg=
+e identical pages */
+> Index: linux/mm/madvise.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linux.orig/mm/madvise.c
+> +++ linux/mm/madvise.c
+> @@ -9,6 +9,7 @@
+> =A0#include <linux/pagemap.h>
+> =A0#include <linux/syscalls.h>
+> =A0#include <linux/mempolicy.h>
+> +#include <linux/page-isolation.h>
+> =A0#include <linux/hugetlb.h>
+> =A0#include <linux/sched.h>
+> =A0#include <linux/ksm.h>
+> @@ -222,7 +223,7 @@ static long madvise_remove(struct vm_are
+> =A0/*
+> =A0* Error injection support for memory error handling.
+> =A0*/
+> -static int madvise_hwpoison(unsigned long start, unsigned long end)
+> +static int madvise_hwpoison(int bhv, unsigned long start, unsigned long =
+end)
+> =A0{
+> =A0 =A0 =A0 =A0int ret =3D 0;
+>
+> @@ -233,6 +234,14 @@ static int madvise_hwpoison(unsigned lon
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0int ret =3D get_user_pages_fast(start, 1, =
+0, &p);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ret !=3D 1)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return ret;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (bhv =3D=3D MADV_SOFT_OFFLINE) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_INFO "Soft offl=
+ining page %lx at %lx\n",
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_to_pfn=
+(p), start);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D soft_offline_page(p=
+, MF_COUNT_INCREASED);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ret)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0printk(KERN_INFO "Injecting memory failure=
+ for page %lx at %lx\n",
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_to_pfn(p), start);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0/* Ignore return value for now */
+> @@ -333,8 +342,8 @@ SYSCALL_DEFINE3(madvise, unsigned long,
+> =A0 =A0 =A0 =A0size_t len;
+>
+> =A0#ifdef CONFIG_MEMORY_FAILURE
+> - =A0 =A0 =A0 if (behavior =3D=3D MADV_HWPOISON)
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return madvise_hwpoison(start, start+len_in=
+);
+> + =A0 =A0 =A0 if (behavior =3D=3D MADV_HWPOISON || behavior =3D=3D MADV_S=
+OFT_OFFLINE)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return madvise_hwpoison(behavior, start, st=
+art+len_in);
+> =A0#endif
+> =A0 =A0 =A0 =A0if (!madvise_behavior_valid(behavior))
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return error;
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+
+--=20
+Michael Kerrisk Linux man-pages maintainer;
+http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface", http://blog.man7.org/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
