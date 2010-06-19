@@ -1,47 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BD16B01AC
-	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 04:17:05 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 3/3] writeback: tracking subsystems causing writeback
-References: <1276907415-504-1-git-send-email-mrubin@google.com>
-	<1276907415-504-4-git-send-email-mrubin@google.com>
-Date: Sat, 19 Jun 2010 10:17:01 +0200
-In-Reply-To: <1276907415-504-4-git-send-email-mrubin@google.com> (Michael
-	Rubin's message of "Fri, 18 Jun 2010 17:30:15 -0700")
-Message-ID: <878w6bphc2.fsf@basil.nowhere.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 72A666B01AF
+	for <linux-mm@kvack.org>; Sat, 19 Jun 2010 04:23:38 -0400 (EDT)
+Message-ID: <4C1C7E68.8080700@kernel.org>
+Date: Sat, 19 Jun 2010 10:23:04 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 1/2] percpu: make @dyn_size always mean min dyn_size in
+ first chunk init functions
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006151409240.10865@router.home> <4C189119.5050801@kernel.org> <alpine.DEB.2.00.1006161131520.4554@router.home> <4C190748.7030400@kernel.org> <alpine.DEB.2.00.1006161231420.6361@router.home> <4C19E19D.2020802@kernel.org> <alpine.DEB.2.00.1006170842410.22997@router.home> <4C1BA59C.6000309@kernel.org> <alpine.DEB.2.00.1006181229310.13915@router.home> <4C1BAF51.8020702@kernel.org> <alpine.DEB.2.00.1006181300320.14715@router.home>
+In-Reply-To: <alpine.DEB.2.00.1006181300320.14715@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Michael Rubin <mrubin@google.com> writes:
->
->     # cat /sys/block/sda/bdi/writeback_stats
->     balance dirty pages                       0
->     balance dirty pages waiting               0
->     periodic writeback                    92024
->     periodic writeback exited                 0
->     laptop periodic                           0
->     laptop or bg threshold                    0
->     free more memory                          0
->     try to free pages                       271
->     syc_sync                                  6
->     sync filesystem                           0
+Hello,
 
-That exports a lot of kernel internals in /sys, presumably read by some
-applications. What happens with the applications if the kernel internals
-ever change?  Will the application break?
+On 06/18/2010 08:03 PM, Christoph Lameter wrote:
+>> Yeah, something like that but I would add some buffer there for
+>> alignment and whatnot.
+> 
+> Only the percpu allocator would know the waste for alignment and
+> "whatnot". What would you like me to add to the above formula to make it
+> safe?
 
-It would be bad to not be able to change the kernel because of
-such an interface.
+I'm not sure, some sensible slack.  :-)
 
--Andi
+>>> What is the role of SLOTS?
+>>
+>> It's allocation map.  Each consecutive allocs consume one if alignment
+>> doesn't require padding but two if it does.  ie. It limits how many
+>> items one can allocate.
+>>
+>>> Each kmem_cache_cpu structure is a separate percpu allocation.
+>>
+>> If it's a single item.  Nothing to worry about.
+> 
+> ok so
+> 
+> BUILD_BUG_ON(SLUB_PAGE_SHIFT * <fuzz-factor> > SLOTS);
+> 
+> I dont know what fuzz factor would be needed.
+> 
+> Maybe its best to have a macro provided by percpu?
+> 
+> VERIFY_EARLY_ALLOCS(<nr-of-allocs>,<total-size-consumed>)
+> 
+> The macro would generate the proper BUILD_BUG_ON?
+
+The problem is that alignment of each item and their allocation order
+also matter.  Even the percpu allocator itself can't tell for sure
+before actually allocating it.  As it's gonna be used only by the slab
+allocator at least for now && those preallocated areas aren't wasted
+anyway, just giving it enough should work good enough, I think.  Say,
+multiply everything by two.
+
+Thanks.
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
