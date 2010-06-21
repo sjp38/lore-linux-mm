@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6BD216B01AD
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:39:42 -0400 (EDT)
-Date: Mon, 21 Jun 2010 16:33:49 -0400
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1D5A86B01B6
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:39:44 -0400 (EDT)
+Date: Mon, 21 Jun 2010 16:39:32 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm 2/6] rmap: always add new vmas at the end
-Message-ID: <20100621163349.7dbd1ef6@annuminas.surriel.com>
+Subject: [PATCH -mm 6/6] add anon_vma bug checks
+Message-ID: <20100621163932.75d26175@annuminas.surriel.com>
 In-Reply-To: <20100621163146.4e4e30cb@annuminas.surriel.com>
 References: <20100621163146.4e4e30cb@annuminas.surriel.com>
 Mime-Version: 1.0
@@ -17,14 +17,10 @@ Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: always add new vmas at the end
+Subject: add anon_vma bug checks
 
-Make sure to always add new VMAs at the end of the list.  This
-is important so rmap_walk does not miss a VMA that was created
-during the rmap_walk.
-
-The old code got this right most of the time due to luck, but
-was buggy when anon_vma_prepare reused a mergeable anon_vma.
+Verify the refcounting doesn't go wrong, and resurrect the check in
+__page_check_anon_rmap as in old anon-vma code.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Rik van Riel <riel@redhat.com>
@@ -33,14 +29,29 @@ Signed-off-by: Rik van Riel <riel@redhat.com>
 diff --git a/mm/rmap.c b/mm/rmap.c
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -149,7 +149,7 @@ int anon_vma_prepare(struct vm_area_stru
- 			avc->anon_vma = anon_vma;
- 			avc->vma = vma;
- 			list_add(&avc->same_vma, &vma->anon_vma_chain);
--			list_add(&avc->same_anon_vma, &anon_vma->head);
-+			list_add_tail(&avc->same_anon_vma, &anon_vma->head);
- 			allocated = NULL;
- 			avc = NULL;
+@@ -815,6 +815,7 @@ static void __page_check_anon_rmap(struc
+ 	 * are initially only visible via the pagetables, and the pte is locked
+ 	 * over the call to page_add_new_anon_rmap.
+ 	 */
++	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
+ 	BUG_ON(page->index != linear_page_index(vma, address));
+ #endif
+ }
+@@ -1405,6 +1406,7 @@ int try_to_munlock(struct page *page)
+  */
+ void drop_anon_vma(struct anon_vma *anon_vma)
+ {
++	BUG_ON(atomic_read(&anon_vma->external_refcount) <= 0);
+ 	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->root->lock)) {
+ 		struct anon_vma *root = anon_vma->root;
+ 		int empty = list_empty(&anon_vma->head);
+@@ -1416,6 +1418,7 @@ void drop_anon_vma(struct anon_vma *anon
+ 		 * the refcount on the root and check if we need to free it.
+ 		 */
+ 		if (empty && anon_vma != root) {
++			BUG_ON(atomic_read(&root->external_refcount) <= 0);
+ 			last_root_user = atomic_dec_and_test(&root->external_refcount);
+ 			root_empty = list_empty(&root->head);
  		}
 
 --
