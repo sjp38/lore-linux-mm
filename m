@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DBFC76B01B7
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 18:14:48 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o5LMEjdu021159
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 15:14:45 -0700
-Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
-	by wpaz21.hot.corp.google.com with ESMTP id o5LMEfDd013247
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 15:14:44 -0700
-Received: by pwi7 with SMTP id 7so1789243pwi.28
-        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 15:14:41 -0700 (PDT)
-Date: Mon, 21 Jun 2010 15:14:32 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: TMPFS permissions bug in 2.6.35-rc3
-In-Reply-To: <AANLkTilE0nMsbnkfaQM1vLrSaPeiv5ONgAftI51dQXHO@mail.gmail.com>
-Message-ID: <alpine.DEB.1.00.1006211457370.14654@tigran.mtv.corp.google.com>
-References: <AANLkTilE0nMsbnkfaQM1vLrSaPeiv5ONgAftI51dQXHO@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A362C6B01B7
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 18:44:09 -0400 (EDT)
+Date: Tue, 22 Jun 2010 00:43:43 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/2] radix-tree: Implement function
+ radix_tree_range_tag_if_tagged
+Message-ID: <20100621224343.GJ3828@quack.suse.cz>
+References: <1276706031-29421-1-git-send-email-jack@suse.cz>
+ <1276706031-29421-2-git-send-email-jack@suse.cz>
+ <20100618151824.397a8a35.akpm@linux-foundation.org>
+ <20100621120934.GB31679@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100621120934.GB31679@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Chuck Fox <cfox04@gmail.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@lst.de>, Jiri Slaby <jslaby@suse.cz>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 Jun 2010, Chuck Fox wrote:
+On Mon 21-06-10 22:09:34, Nick Piggin wrote:
+> On Fri, Jun 18, 2010 at 03:18:24PM -0700, Andrew Morton wrote:
+> > On Wed, 16 Jun 2010 18:33:50 +0200
+> > Jan Kara <jack@suse.cz> wrote:
+> > 
+> > > Implement function for setting one tag if another tag is set
+> > > for each item in given range.
+> > > 
+> > 
+> > These two patches look OK to me.
+> > 
+> > fwiw I have a userspace test harness for radix-tree.c:
+> > http://userweb.kernel.org/~akpm/stuff/rtth.tar.gz.  Nick used it for a
+> > while and updated it somewhat, but it's probably rather bitrotted and
+> > surely needs to be taught how to test the post-2006 additions.
+> > 
 > 
->    I've encountered a bug in 2.6.35-RC3 where my /tmp directory
-> (mounted using tmpfs) returns a "File too large" error when adding
-> execute privileges for the group permission byte:
->        Example:
->            touch /tmp/afile
->            chmod 767 /tmp/afile   # example where chmod works fine
-> setting bits that are not the group execute bit
->            chmod 755 /tmp/afile
->            chmod: changing permissions of `/tmp/afile': File too large  # bug
+> Main thing I did was add RCU support (pretty dumb RCU but it found
+> a couple of bugs), and add some more tests. I'll try to find it...
+  Please send them my way if you can find them. I'll gladly run those tests
+(and extend them to check also my new function).
 
-How very peculiar!  Thank you for reporting it.  I was about to suggest
-some memory corruption must have occurred, but no....
+									Honza
+ 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
-> 
->    There are several gigabytes of free RAM + several more gigabytes of
-> swap space available.
-> 
->    Here's more information:
-> 
-> Linux alpha1 2.6.35-rc3-next-20100614 #5 SMP Sun Jun 20 18:55:35 EDT
-> 2010 x86_64 Intel(R) Core(TM)2 Duo CPU E8400 @ 3.00GHz GenuineIntel
-> GNU/Linux
-> ...
-
-... that's actually one of the linux-next kernels you're running there:
-and I bet you'll find Jiri's patch below fixes your problem!
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
