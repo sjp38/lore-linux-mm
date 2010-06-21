@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B2AE66B01B9
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:47:47 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id o5LKlhDn023454
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:47:44 -0700
-Received: from pwj7 (pwj7.prod.google.com [10.241.219.71])
-	by kpbe20.cbf.corp.google.com with ESMTP id o5LKlYF3030975
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:47:42 -0700
-Received: by pwj7 with SMTP id 7so1357417pwj.32
-        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:47:42 -0700 (PDT)
-Date: Mon, 21 Jun 2010 13:47:35 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A2A526B01CC
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:54:24 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o5LKsJ1H023625
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:54:19 -0700
+Received: from pxi15 (pxi15.prod.google.com [10.243.27.15])
+	by wpaz1.hot.corp.google.com with ESMTP id o5LKsIRb025532
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:54:18 -0700
+Received: by pxi15 with SMTP id 15so452705pxi.16
+        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:54:17 -0700 (PDT)
+Date: Mon, 21 Jun 2010 13:54:14 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 16/18] oom: badness heuristic rewrite
-In-Reply-To: <20100621200549.B53C.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006211344240.31743@chino.kir.corp.google.com>
-References: <20100608160216.bc52112b.akpm@linux-foundation.org> <alpine.DEB.2.00.1006162213130.19549@chino.kir.corp.google.com> <20100621200549.B53C.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 18/18] oom: deprecate oom_adj tunable
+In-Reply-To: <20100621194943.B536.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006211347570.31743@chino.kir.corp.google.com>
+References: <20100613201922.619C.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006162034330.21446@chino.kir.corp.google.com> <20100621194943.B536.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,25 +25,41 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 21 Jun 2010, KOSAKI Motohiro wrote:
 
-> > It was in the changelog (recall that the badness() function represents a 
-> > proportion of available memory used by a task, so subtracting 30 is the 
-> > equivalent of 3% of available memory):
-> > 
-> > Root tasks are given 3% extra memory just like __vm_enough_memory()
-> > provides in LSMs.  In the event of two tasks consuming similar amounts of
-> > memory, it is generally better to save root's task.
+> > Of course it does, it actually has units whereas oom_adj only grows or 
+> > shrinks the badness score exponentially.  oom_score_adj's units are well 
+> > understood: on a machine with 4G of memory, 250 means we're trying to 
+> > prejudice it by 1G of memory so that can be used by other tasks, -250 
+> > means other tasks should be prejudiced by 1G in comparison to this task, 
+> > etc.  It's actually quite powerful.
 > 
-> LSMs have obvious reason to tend to priotize admin's operation than root
-> privilege daemon. otherwise admins can't restore troubles.
-> 
-> But in this case, why do need priotize admin shell than daemons?
+> And, no real user want such power.
 > 
 
-For the same reason.  We want to slightly bias admin shells and their 
-processes from being oom killed because they are typically in the business 
-of administering the machine and resolving issues that may arise.  It 
-would be irresponsible to consider them to have the same killing 
-preference as user tasks in the case of a tie.
+Google does, and I imagine other users will want to be able to normalize 
+each task's memory usage against the others.  It's perfectly legitimate 
+for one task to consume 3G while another consumes 1G and want to select 
+the 1G task to kill.  Setting the 3G task's oom_score_adj value in this 
+case to be -250, for example, depending on the memory capacity of the 
+machine, makes much more sense than influencing it as a bitshift on 
+top of a vastly unpredictable heuristic with oom_adj.  This seems rather 
+trivial to understand.
+
+> When we consider desktop user case, End-users don't use oom_adj by themself.
+> their application are using it.  It mean now oom_adj behave as syscall like
+> system interface, unlike kernel knob. application developers also don't 
+> need oom_score_adj because application developers don't know end-users 
+> machine mem size.
+> 
+
+I agree, oom_score_adj isn't targeted to the desktop nor is it targeted to 
+application developers (unless they are setting it to OOM_SCORE_ADJ_MIN to 
+disable oom killing for that task, for example).  It's targeted at 
+sysadmins and daemons that partition a machine to run a number of 
+concurrent jobs.  It's fine to use memcg, for example, to do such 
+partitioning, but memcg can also cause oom conditions with the cgroup.  We 
+want to be able to tell the kernel, through an interface such as this, 
+that one task shouldn't killed because it's expected to use 3G of memory 
+but should be killed when it's using 8G, for example.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
