@@ -1,46 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E9F4F6B01D7
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 09:43:06 -0400 (EDT)
-Date: Mon, 21 Jun 2010 15:42:39 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100621134238.GE3828@quack.suse.cz>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <1276856497.27822.1699.camel@twins>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 097A16B01D8
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 10:02:03 -0400 (EDT)
+Received: by pxi17 with SMTP id 17so36636pxi.14
+        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 07:00:38 -0700 (PDT)
+Date: Mon, 21 Jun 2010 23:00:32 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 4/9] oom: oom_kill_process() need to check p is
+ unkillable
+Message-ID: <20100621140032.GA2456@barrios-desktop>
+References: <20100617104647.FB89.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1006162118520.14101@chino.kir.corp.google.com>
+ <20100617135224.FBAA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1276856497.27822.1699.camel@twins>
+In-Reply-To: <20100617135224.FBAA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri 18-06-10 12:21:37, Peter Zijlstra wrote:
-> On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
-> > +               if (bdi_stat(bdi, BDI_WRITTEN) >= bdi->wb_written_head)
-> > +                       bdi_wakeup_writers(bdi); 
+On Mon, Jun 21, 2010 at 08:45:45PM +0900, KOSAKI Motohiro wrote:
+> > On Thu, 17 Jun 2010, KOSAKI Motohiro wrote:
+> > 
+> > > When oom_kill_allocating_task is enabled, an argument task of
+> > > oom_kill_process is not selected by select_bad_process(), It's
+> > > just out_of_memory() caller task. It mean the task can be
+> > > unkillable. check it first.
+> > > 
+> > 
+> > This should be unnecessary if oom_kill_process() appropriately returns 
+> > non-zero when it cannot kill a task.  What problem are you addressing with 
+> > this fix?
 > 
-> For the paranoid amongst us you could make wb_written_head s64 and write
-> the above as:
+> oom_kill_process() only check its children are unkillable, not its own.
+> To add check oom_kill_process() also solve the issue. as my previous patch does.
+> but Minchan pointed out it's unnecessary. because when !oom_kill_allocating_task
+> case, we have the same check in select_bad_process(). 
 > 
->   if (bdi_stat(bdi, BDI_WRITTEN) - bdi->wb_written_head > 0)
 > 
-> Which, if you assume both are monotonic and wb_written_head is always
-> within 2^63 of the actual bdi_stat() value, should give the same end
-> result and deal with wrap-around.
 > 
-> For when we manage to create a device that can write 2^64 pages in our
-> uptime :-)
-  OK, the fix is simple enough so I've changed it, although I'm not
-paranoic enough ;) (I actually did the math before writing that test).
 
-								Honza
+If kthread doesn't use other process's mm, oom_kill_process can return non-zero.
+and it might be no problem. 
+but let's consider following case that kthread use use_mm. 
+
+if (oom_kill_allocating_task)
+        oom_kill_process
+                pr_err("kill process.."); <-- false alarm
+                oom_kill_task
+                        find_lock_task_mm if kthread use use_mm
+                        kill kernel thread
+
+Yes. it's a just theory that kthread use use_mm and is selected as victim.
+But although kthread doesn't use use_mm, oom_kill_process emits false alarm.
+As a matter of fact, it doesn't kill itself or sacrifice child.
+
+I think victim process selection should be done before calling 
+oom_kill_process. oom_kill_process and oom_kill_task's role is  
+just to try to kill the process or process's children by best effort 
+as function's name.
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
