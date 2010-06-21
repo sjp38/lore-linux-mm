@@ -1,68 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 71E8F6B01E4
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 10:19:00 -0400 (EDT)
-Date: Mon, 21 Jun 2010 17:18:56 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [Lsf10-pc] Current MM topics for LSF10/MM Summit 8-9 August in
- Boston
-Message-ID: <20100621141855.GN4689@redhat.com>
-References: <1276721459.2847.399.camel@mulgrave.site>
- <20100621120526.GA31679@laptop>
- <20100621131608.GW5787@random.random>
- <20100621132238.GK4689@redhat.com>
- <20100621140939.GY5787@random.random>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 112A46B01E7
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 10:28:50 -0400 (EDT)
+Date: Mon, 21 Jun 2010 09:25:27 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: slub: remove dynamic dma slab allocation
+In-Reply-To: <alpine.DEB.2.00.1006181513060.20110@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006210919400.4513@router.home>
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006181513060.20110@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100621140939.GY5787@random.random>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf10-pc@lists.linuxfoundation.org, linux-scsi@vger.kernel.org, avi@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CCing Avi,
+On Fri, 18 Jun 2010, David Rientjes wrote:
 
-On Mon, Jun 21, 2010 at 04:09:39PM +0200, Andrea Arcangeli wrote:
-> On Mon, Jun 21, 2010 at 04:22:38PM +0300, Gleb Natapov wrote:
-> > On Mon, Jun 21, 2010 at 03:16:08PM +0200, Andrea Arcangeli wrote:
-> > > > KOSAKI Motohiro		get_user_pages vs COW problem
-> > > 
-> > > Just a side note, not sure exactly what is meant to be discussed about
-> > > this bug, considering the fact this is still unsolved isn't technical
-> > > problem as there were plenty of fixes available, and the one that seem
-> > > to had better chance to get included was the worst one in my view, as
-> > > it tried to fix it in a couple of gup caller (but failed, also because
-> > > finding all put_page pin release is kind of a pain as they're spread
-> > > all over the place and not identified as gup_put_page, and in addition
-> > > to the instability and lack of completeness of the fix, it was also
-> > > the most inefficient as it added unnecessary and coarse locking) plus
-> > > all gup callers are affected, not just a few. I normally call it gup
-> > > vs fork race. Luckily not all threaded apps uses O_DIRECT and fork and
-> > > pretend to do the direct-io in different sub-page chunks of the same
-> > > page from different threads (KVM would probably be affected if it
-> > > didn't use MADV_DONTFORK on the O_DIRECT memory, as it might run fork
-> > > to execute some network script when adding an hotplug pci net device
-> > > for example). But surely we can discuss the fix we prefer for this
-> > > bug, or at least we can agree it needs fixing.
-> > > 
-> > KVM is actually affected by the bug. The fix was posted today:
-> > http://www.mail-archive.com/kvm@vger.kernel.org/msg36759.html
-> 
-> Interesting... so this is the page returned by gup that doesn't match
-> anymore the page after an user write into qemu context after
-> fork. Clearly any of the fixes proposed would have prevented this bug
-> in the first place as they would assign a copy to the child, so yes
-> it's likely this same bug. It's quite sad to have this workload that
-> is superfluous if gup would behave as supposed by the caller. Also I'd
-> prefer if you would use MADV_DONTFORK for the fix, as that will at
-> least optimize fork and it would still be ok to keep even after we fix
-> the VM while this workaround of using tmpfs should be backed out.
-Avi did the fix. We discussed using MADV_DONTFORK for that, but calling
-madvise() from kernel deemed to be messy.
+> On Tue, 15 Jun 2010, Christoph Lameter wrote:
+>
+> > Index: linux-2.6/mm/slub.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/slub.c	2010-06-15 12:40:58.000000000 -0500
+> > +++ linux-2.6/mm/slub.c	2010-06-15 12:41:36.000000000 -0500
+> > @@ -2070,7 +2070,7 @@ init_kmem_cache_node(struct kmem_cache_n
+> >
+> >  static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+> >
+> > -static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
+> > +static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+> >  {
+> >  	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+>
+> Looks like it'll conflict with "SLUB: is_kmalloc_cache" in slub/cleanups.
 
---
-			Gleb.
+Yes I thought we dropped those.
+
+> > @@ -2105,7 +2105,7 @@ static void early_kmem_cache_node_alloc(
+> >
+> >  	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
+> >
+> > -	page = new_slab(kmalloc_caches, gfpflags, node);
+> > +	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
+> >
+> >  	BUG_ON(!page);
+> >  	if (page_to_nid(page) != node) {
+>
+> Hmm, not sure of this.  We can't do GFP_KERNEL allocations in
+> kmem_cache_init(), they must be deferred to kmem_cache_init_late().  So
+> this will be allocating the kmem_cache_node cache while slab_state is
+> still DOWN and yet passing GFP_KERNEL via early_kmem_cache_node_alloc().
+>
+> I think this has to be GFP_NOWAIT instead.
+
+Ok we could use GFP_NOWAIT in this case.
+
+> >  		if (slab_state == DOWN) {
+> > -			early_kmem_cache_node_alloc(gfpflags, node);
+> > +			early_kmem_cache_node_alloc(node);
+> >  			continue;
+> >  		}
+> >  		n = kmem_cache_alloc_node(kmalloc_caches,
+> > -						gfpflags, node);
+> > +						GFP_KERNEL, node);
+> >
+> >  		if (!n) {
+> >  			free_kmem_cache_nodes(s);
+>
+> Same here, this can still lead to GFP_KERNEL allocations from
+> kmem_cache_init() because slab_state is PARTIAL or UP.
+
+You cannot do that here because this function is also used later when the
+slab is up. There is more in the percpu allocator which we are also trying
+to use to avoid having static kmem_cache_cpu declarations. GFP_KERNEL
+needs to be usable during early boot otherwise functions will have to add
+special casing for boot situations.
+
+> > +	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
+> > +		struct kmem_cache *s = &kmalloc_caches[i];
+> > +
+> > +		if (s && s->size) {
+> > +			char *name = kasprintf(GFP_KERNEL,
+> > +				 "dma-kmalloc-%d", s->objsize);
+>
+> kasprintf() can return NULL which isn't caught by kmem_cache_open().
+
+Then we will have a nameless cache. We could catch this with a WARN_ON()
+but does this work that early?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
