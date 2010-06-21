@@ -1,89 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D14C6B01DB
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 10:03:05 -0400 (EDT)
-Date: Mon, 21 Jun 2010 16:02:37 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100621140236.GF3828@quack.suse.cz>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <1276856496.27822.1698.camel@twins>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3A6296B01DC
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 10:09:42 -0400 (EDT)
+Date: Mon, 21 Jun 2010 16:09:39 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Lsf10-pc] Current MM topics for LSF10/MM Summit 8-9 August in
+ Boston
+Message-ID: <20100621140939.GY5787@random.random>
+References: <1276721459.2847.399.camel@mulgrave.site>
+ <20100621120526.GA31679@laptop>
+ <20100621131608.GW5787@random.random>
+ <20100621132238.GK4689@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1276856496.27822.1698.camel@twins>
+In-Reply-To: <20100621132238.GK4689@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn
+To: Gleb Natapov <gleb@redhat.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf10-pc@lists.linuxfoundation.org, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 18-06-10 12:21:36, Peter Zijlstra wrote:
-> On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
-> > +/* Wait until write_chunk is written or we get below dirty limits */
-> > +void bdi_wait_written(struct backing_dev_info *bdi, long write_chunk)
-> > +{
-> > +       struct bdi_written_count wc = {
-> > +                                       .list = LIST_HEAD_INIT(wc.list),
-> > +                                       .written = write_chunk,
-> > +                               };
-> > +       DECLARE_WAITQUEUE(wait, current);
-> > +       int pause = 1;
-> > +
-> > +       bdi_add_writer(bdi, &wc, &wait);
-> > +       for (;;) {
-> > +               if (signal_pending_state(TASK_KILLABLE, current))
-> > +                       break;
-> > +
-> > +               /*
-> > +                * Make the task just killable so that tasks cannot circumvent
-> > +                * throttling by sending themselves non-fatal signals...
-> > +                */
-> > +               __set_current_state(TASK_KILLABLE);
-> > +               io_schedule_timeout(pause);
-> > +
-> > +               /*
-> > +                * The following check is save without wb_written_wait.lock
-> > +                * because once bdi_remove_writer removes us from the list
-> > +                * noone will touch us and it's impossible for list_empty check
-> > +                * to trigger as false positive. The barrier is there to avoid
-> > +                * missing the wakeup when we are removed from the list.
-> > +                */
-> > +               smp_rmb();
-> > +               if (list_empty(&wc.list))
-> > +                       break;
-> > +
-> > +               if (!dirty_limits_exceeded(bdi))
-> > +                       break;
-> > +
-> > +               /*
-> > +                * Increase the delay for each loop, up to our previous
-> > +                * default of taking a 100ms nap.
-> > +                */
-> > +               pause <<= 1;
-> > +               if (pause > HZ / 10)
-> > +                       pause = HZ / 10;
-> > +       }
-> > +
-> > +       spin_lock_irq(&bdi->wb_written_wait.lock);
-> > +       __remove_wait_queue(&bdi->wb_written_wait, &wait);
-> > +       if (!list_empty(&wc.list))
-> > +               bdi_remove_writer(bdi, &wc);
-> > +       spin_unlock_irq(&bdi->wb_written_wait.lock);
-> > +} 
-> 
-> OK, so the whole pause thing is simply because we don't get a wakeup
-> when we drop below the limit, right?
-  Yes. I will write a comment about it before the loop. I was also thinking
-about sending a wakeup when we get below limits but then all threads would
-start thundering the device at the same time and likely cause a congestion
-again. This way we might get a smoother start. But I'll have to measure
-whether we aren't too unfair with this approach...
+On Mon, Jun 21, 2010 at 04:22:38PM +0300, Gleb Natapov wrote:
+> On Mon, Jun 21, 2010 at 03:16:08PM +0200, Andrea Arcangeli wrote:
+> > > KOSAKI Motohiro		get_user_pages vs COW problem
+> > 
+> > Just a side note, not sure exactly what is meant to be discussed about
+> > this bug, considering the fact this is still unsolved isn't technical
+> > problem as there were plenty of fixes available, and the one that seem
+> > to had better chance to get included was the worst one in my view, as
+> > it tried to fix it in a couple of gup caller (but failed, also because
+> > finding all put_page pin release is kind of a pain as they're spread
+> > all over the place and not identified as gup_put_page, and in addition
+> > to the instability and lack of completeness of the fix, it was also
+> > the most inefficient as it added unnecessary and coarse locking) plus
+> > all gup callers are affected, not just a few. I normally call it gup
+> > vs fork race. Luckily not all threaded apps uses O_DIRECT and fork and
+> > pretend to do the direct-io in different sub-page chunks of the same
+> > page from different threads (KVM would probably be affected if it
+> > didn't use MADV_DONTFORK on the O_DIRECT memory, as it might run fork
+> > to execute some network script when adding an hotplug pci net device
+> > for example). But surely we can discuss the fix we prefer for this
+> > bug, or at least we can agree it needs fixing.
+> > 
+> KVM is actually affected by the bug. The fix was posted today:
+> http://www.mail-archive.com/kvm@vger.kernel.org/msg36759.html
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Interesting... so this is the page returned by gup that doesn't match
+anymore the page after an user write into qemu context after
+fork. Clearly any of the fixes proposed would have prevented this bug
+in the first place as they would assign a copy to the child, so yes
+it's likely this same bug. It's quite sad to have this workload that
+is superfluous if gup would behave as supposed by the caller. Also I'd
+prefer if you would use MADV_DONTFORK for the fix, as that will at
+least optimize fork and it would still be ok to keep even after we fix
+the VM while this workaround of using tmpfs should be backed out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
