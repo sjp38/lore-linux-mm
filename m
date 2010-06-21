@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1C9C46B01BF
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 621966B01C1
 	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:39:50 -0400 (EDT)
-Date: Mon, 21 Jun 2010 16:35:30 -0400
+Date: Mon, 21 Jun 2010 16:38:00 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm 4/6] always use anon_vma root pointer
-Message-ID: <20100621163530.20c88a7c@annuminas.surriel.com>
+Subject: [PATCH -mm 5/6] resurrect page_address_in_vma anon_vma check
+Message-ID: <20100621163800.0ea44021@annuminas.surriel.com>
 In-Reply-To: <20100621163146.4e4e30cb@annuminas.surriel.com>
 References: <20100621163146.4e4e30cb@annuminas.surriel.com>
 Mime-Version: 1.0
@@ -13,50 +13,36 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: always use anon_vma root pointer
+Subject: resurrect page_address_in_vma anon_vma check
 
-Always use anon_vma->root pointer instead of anon_vma_chain.prev.
-
-Also optimize the map-paths, if a mapping is already established no need to
-overwrite it with root anon-vma list, we can keep the more finegrined anon-vma
-and skip the overwrite: see the PageAnon check in !exclusive case. This is also
-the optimization that hidden the ksm bug as this tends to make
-ksm_might_need_to_copy skip the copy, but only the proper fix to
-ksm_might_need_to_copy guarantees not triggering the ksm bug unless ksm is in
-use. this is an optimization only...
+With root anon-vma it's trivial to keep doing the usual check as in
+old-anon-vma code.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Rik van Riel <riel@redhat.com>
+---
 
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 006f223..2d9504d 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
-@@ -776,15 +776,13 @@ static void __page_set_anon_rmap(struct page *page,
- 	 * If the page isn't exclusively mapped into this vma,
- 	 * we must use the _oldest_ possible anon_vma for the
- 	 * page mapping!
--	 *
--	 * So take the last AVC chain entry in the vma, which is
--	 * the deepest ancestor, and use the anon_vma from that.
- 	 */
- 	if (!exclusive) {
--		struct anon_vma_chain *avc;
--		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
--		anon_vma = avc->anon_vma;
--	}
-+		if (PageAnon(page))
-+			return;
-+		anon_vma = anon_vma->root;
-+	} else
-+		BUG_ON(PageAnon(page));
- 
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
- 	page->mapping = (struct address_space *) anon_vma;
+@@ -362,9 +362,10 @@ vma_address(struct page *page, struct vm
+  */
+ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+ {
+-	if (PageAnon(page))
+-		;
+-	else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
++	if (PageAnon(page)) {
++		if (vma->anon_vma->root != page_anon_vma(page)->root)
++			return -EFAULT;
++	} else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
+ 		if (!vma->vm_file ||
+ 		    vma->vm_file->f_mapping != page->mapping)
+ 			return -EFAULT;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
