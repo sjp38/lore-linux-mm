@@ -1,37 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 401FD6B01B8
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:15:20 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o5LKFGdA017671
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:15:16 -0700
-Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
-	by wpaz5.hot.corp.google.com with ESMTP id o5LKFFTZ015345
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:15:15 -0700
-Received: by pxi1 with SMTP id 1so423973pxi.9
-        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:15:15 -0700 (PDT)
-Date: Mon, 21 Jun 2010 13:15:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/9] oom: make oom_unkillable_task() helper function
-In-Reply-To: <20100617104637.FB86.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006211314370.8367@chino.kir.corp.google.com>
-References: <20100617104311.FB7A.A69D9226@jp.fujitsu.com> <20100617104637.FB86.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CF9C66B01AD
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:36:17 -0400 (EDT)
+Date: Mon, 21 Jun 2010 15:32:40 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: slub: remove dynamic dma slab allocation
+In-Reply-To: <alpine.DEB.2.00.1006211234230.8367@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006211521470.9272@router.home>
+References: <alpine.DEB.2.00.1006151406120.10865@router.home> <alpine.DEB.2.00.1006181513060.20110@chino.kir.corp.google.com> <alpine.DEB.2.00.1006210919400.4513@router.home> <alpine.DEB.2.00.1006211234230.8367@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Jun 2010, KOSAKI Motohiro wrote:
+On Mon, 21 Jun 2010, David Rientjes wrote:
 
-> 
-> Now, we have the same task check in two places. Unify it.
-> 
+> > You cannot do that here because this function is also used later when the
+> > slab is up. There is more in the percpu allocator which we are also trying
+> > to use to avoid having static kmem_cache_cpu declarations. GFP_KERNEL
+> > needs to be usable during early boot otherwise functions will have to add
+> > special casing for boot situations.
+> >
+>
+> The gfp_allowed_mask only changes once irqs are enabled, so either the
+> gfpflags need to be passed into init_kmem_cache_nodes again or we need to
+> do something like
+>
+> 	gfp_t gfpflags = irqs_disabled() ? GFP_NOWAIT : GFP_KERNEL;
+>
+> locally.
 
-We should exclude tasks from select_bad_process() and oom_kill_process() 
-by having badness() return a score of 0, just like it's done for 
-OOM_DISABLE.
+What a mess....
+
+> The cleanest solution would probably be to extend slab_state to be set in
+> kmem_cache_init_late() to determine when we're fully initialized, though.
+
+Not sure what the point would be. Changing slab_state does not change the
+interrupt enabled/disabled state of the processor.
+
+Is gfp_allowed_mask properly updated during boot? Then we could just use
+
+	GFP_KERNEL & gfp_allowed_mask
+
+in these locations? Still bad since we are wasting code on correctness
+checks.
+
+Noone thought about this when designing these checks? The checks cannot be
+fixed up to consider boot time so that we do not have to do artistics in
+the code?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
