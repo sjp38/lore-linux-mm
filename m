@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 90B9E6B01D3
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 09:22:42 -0400 (EDT)
-Date: Mon, 21 Jun 2010 16:22:38 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [Lsf10-pc] Current MM topics for LSF10/MM Summit 8-9 August in
- Boston
-Message-ID: <20100621132238.GK4689@redhat.com>
-References: <1276721459.2847.399.camel@mulgrave.site>
- <20100621120526.GA31679@laptop>
- <20100621131608.GW5787@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0A23C6B01D4
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 09:31:38 -0400 (EDT)
+Date: Mon, 21 Jun 2010 15:31:11 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
+ waiting for flusher thread
+Message-ID: <20100621133110.GD3828@quack.suse.cz>
+References: <1276797878-28893-1-git-send-email-jack@suse.cz>
+ <1276856495.27822.1697.camel@twins>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100621131608.GW5787@random.random>
+In-Reply-To: <1276856495.27822.1697.camel@twins>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf10-pc@lists.linuxfoundation.org, linux-scsi@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org, wfg@mail.ustc.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 21, 2010 at 03:16:08PM +0200, Andrea Arcangeli wrote:
-> > KOSAKI Motohiro		get_user_pages vs COW problem
+On Fri 18-06-10 12:21:35, Peter Zijlstra wrote:
+> On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
+> > +                       /*
+> > +                        * Now we can wakeup the writer which frees wc entry
+> > +                        * The barrier is here so that woken task sees the
+> > +                        * modification of wc.
+> > +                        */
+> > +                       smp_wmb();
+> > +                       __wake_up_locked(&bdi->wb_written_wait, TASK_NORMAL); 
 > 
-> Just a side note, not sure exactly what is meant to be discussed about
-> this bug, considering the fact this is still unsolved isn't technical
-> problem as there were plenty of fixes available, and the one that seem
-> to had better chance to get included was the worst one in my view, as
-> it tried to fix it in a couple of gup caller (but failed, also because
-> finding all put_page pin release is kind of a pain as they're spread
-> all over the place and not identified as gup_put_page, and in addition
-> to the instability and lack of completeness of the fix, it was also
-> the most inefficient as it added unnecessary and coarse locking) plus
-> all gup callers are affected, not just a few. I normally call it gup
-> vs fork race. Luckily not all threaded apps uses O_DIRECT and fork and
-> pretend to do the direct-io in different sub-page chunks of the same
-> page from different threads (KVM would probably be affected if it
-> didn't use MADV_DONTFORK on the O_DIRECT memory, as it might run fork
-> to execute some network script when adding an hotplug pci net device
-> for example). But surely we can discuss the fix we prefer for this
-> bug, or at least we can agree it needs fixing.
-> 
-KVM is actually affected by the bug. The fix was posted today:
-http://www.mail-archive.com/kvm@vger.kernel.org/msg36759.html
+> wakeups imply a wmb.
+  Thanks. Removed smp_wmb and updated comment.
 
---
-			Gleb.
+									Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
