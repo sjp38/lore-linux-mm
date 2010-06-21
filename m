@@ -1,88 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2C1826B01B0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 80A396B01AC
 	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 07:45:51 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5LBjnOo024545
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5LBjnKR003977
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
 	Mon, 21 Jun 2010 20:45:49 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B250C45DE52
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DC4A45DE61
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:49 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EDF1745DD76
 	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:48 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8492245DD71
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:48 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 570951DB801A
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CBDFD1DB8040
 	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:48 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C5DDE1DB8015
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:47 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 781E71DB803C
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 20:45:48 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mempolicy: reduce stack size of migrate_pages()
-In-Reply-To: <20100618143851.0661daa2.akpm@linux-foundation.org>
-References: <20100616130040.3831.A69D9226@jp.fujitsu.com> <20100618143851.0661daa2.akpm@linux-foundation.org>
-Message-Id: <20100621090550.B4F8.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 18/18] oom: deprecate oom_adj tunable
+In-Reply-To: <alpine.DEB.2.00.1006162034330.21446@chino.kir.corp.google.com>
+References: <20100613201922.619C.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006162034330.21446@chino.kir.corp.google.com>
+Message-Id: <20100621194943.B536.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Date: Mon, 21 Jun 2010 20:45:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >  	const struct cred *cred = current_cred(), *tcred;
-> > -	struct mm_struct *mm;
-> > +	struct mm_struct *mm = NULL;
-> >  	struct task_struct *task;
-> > -	nodemask_t old;
-> > -	nodemask_t new;
-> >  	nodemask_t task_nodes;
-> >  	int err;
-> > +	NODEMASK_SCRATCH(scratch);
-> > +	nodemask_t *old = &scratch->mask1;
-> > +	nodemask_t *new = &scratch->mask2;
-> >
-> > +	if (!scratch)
-> > +		return -ENOMEM;
+> On Sun, 13 Jun 2010, KOSAKI Motohiro wrote:
 > 
-> It doesn't matter in practice, but it makes me all queazy to see code
-> which plays with pointers which might be NULL.
-
-I see. thanks.
-Do we need to send you updated patch?
-
-
+> > But oom_score_adj have no benefit form end-uses view. That's problem.
+> > Please consider to make end-user friendly good patch at first.
+> > 
 > 
-> --- a/mm/mempolicy.c~mempolicy-reduce-stack-size-of-migrate_pages-fix
-> +++ a/mm/mempolicy.c
-> @@ -1279,13 +1279,16 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
->  	struct task_struct *task;
->  	nodemask_t task_nodes;
->  	int err;
-> +	nodemask_t *old;
-> +	nodemask_t *new;
->  	NODEMASK_SCRATCH(scratch);
-> -	nodemask_t *old = &scratch->mask1;
-> -	nodemask_t *new = &scratch->mask2;
->  
->  	if (!scratch)
->  		return -ENOMEM;
->  
-> +	old = &scratch->mask1;
-> +	new = &scratch->mask2;
-> +
->  	err = get_nodes(old, old_nodes, maxnode);
->  	if (err)
->  		goto out;
-> _
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Of course it does, it actually has units whereas oom_adj only grows or 
+> shrinks the badness score exponentially.  oom_score_adj's units are well 
+> understood: on a machine with 4G of memory, 250 means we're trying to 
+> prejudice it by 1G of memory so that can be used by other tasks, -250 
+> means other tasks should be prejudiced by 1G in comparison to this task, 
+> etc.  It's actually quite powerful.
+
+And, no real user want such power.
+
+When we consider desktop user case, End-users don't use oom_adj by themself.
+their application are using it.  It mean now oom_adj behave as syscall like
+system interface, unlike kernel knob. application developers also don't 
+need oom_score_adj because application developers don't know end-users 
+machine mem size.
+
+Then, you will get the change's merit but end users will get the demerit.
+That's out of balance.
 
 
 
