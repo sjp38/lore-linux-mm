@@ -1,44 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE6F6B01AD
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:10:00 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o5LK9wBp020631
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:09:58 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by wpaz1.hot.corp.google.com with ESMTP id o5LK9u5F007619
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:09:57 -0700
-Received: by pwj9 with SMTP id 9so1493351pwj.30
-        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 13:09:56 -0700 (PDT)
-Date: Mon, 21 Jun 2010 13:09:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/9] oom: cleanup has_intersects_mems_allowed()
-In-Reply-To: <20100617134601.FBA7.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006211305590.8367@chino.kir.corp.google.com>
-References: <20100617104719.FB8C.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006162119540.14101@chino.kir.corp.google.com> <20100617134601.FBA7.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 274256B01AD
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 16:13:26 -0400 (EDT)
+Subject: Re: Current MM topics for LSF10/MM Summit 8-9 August in Boston
+From: James Bottomley <James.Bottomley@suse.de>
+In-Reply-To: <alpine.DEB.2.00.1006211258340.8367@chino.kir.corp.google.com>
+References: <1276721459.2847.399.camel@mulgrave.site>
+	 <20100621120526.GA31679@laptop>
+	 <alpine.DEB.2.00.1006211258340.8367@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 21 Jun 2010 15:13:14 -0500
+Message-ID: <1277151194.10998.97.camel@mulgrave.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-scsi@vger.kernel.org, linux-fsdevel@vger.kernel.org, lsf10-pc@lists.linuxfoundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Jun 2010, KOSAKI Motohiro wrote:
-
-> > I disagree that the renaming of the variables is necessary, please simply 
-> > change the while (tsk != start) to use while_each_thread(tsk, start);
+On Mon, 2010-06-21 at 13:00 -0700, David Rientjes wrote:
+> On Mon, 21 Jun 2010, Nick Piggin wrote:
 > 
-> This is common naming rule of while_each_thread(). please grep.
+> > - OOM killer work
 > 
+> There's a talk about this during the conference which is geared toward 
+> both developers and sysadmins so it would probably be redundant at the 
+> summit.
 
-I disagree, there's no sense in substituting variable names like "tsk" for 
-`p' and removing a very clear and obvious "start" task: it doesn't improve 
-code readability.
+I really don't think so; the two things should be orthogonal.  The
+Summit is usually about forward looking stuff (and getting good people
+together to discuss it).  Even the best tech talk is usually only
+telling users what's there, how to use it, what the history is and
+possibly what the author is doing to fix any problems.
 
-I'm in favor of changing the while (tsk != start) to 
-while_each_thread(tsk, start) which is very trivial to understand and much 
-more readable than while_each_thread(p, tsk).  With the latter, it's not 
-clear whether `p' or "tsk" is the iterator and which is the constant.
+James
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
