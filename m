@@ -1,62 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 394716B01BF
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 04:24:14 -0400 (EDT)
-Date: Tue, 22 Jun 2010 01:24:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through waiting
- for flusher thread
-Message-Id: <20100622012406.1d9aa8fd.akpm@linux-foundation.org>
-In-Reply-To: <1277192722.1875.526.camel@laptop>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
-	<20100618060901.GA6590@dastard>
-	<20100621233628.GL3828@quack.suse.cz>
-	<20100622054409.GP7869@dastard>
-	<20100621231416.904c50c7.akpm@linux-foundation.org>
-	<1277192722.1875.526.camel@laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1E0CF6B01C3
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 04:47:21 -0400 (EDT)
+Received: by fxm15 with SMTP id 15so2543428fxm.14
+        for <linux-mm@kvack.org>; Tue, 22 Jun 2010 01:47:19 -0700 (PDT)
+From: Sankar P <sankar.curiosity@gmail.com>
+Subject: [PATCH] kmemleak: config-options: Default buffer size for kmemleak
+Date: Tue, 22 Jun 2010 14:16:43 +0530
+Message-Id: <1277196403-20836-1-git-send-email-sankar.curiosity@gmail.com>
+In-Reply-To: <4C20702C.1080405@cs.helsinki.fi>
+References: <AANLkTimb7rP0rS0OU8nan5uNEhHx_kEYL99ImZ3c8o0D@mail.gmail.com> <1277189909-16376-1-git-send-email-sankar.curiosity@gmail.com> <4C20702C.1080405@cs.helsinki.fi>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, wfg@mail.ustc.edu.cn
+To: penberg@cs.helsinki.fi
+Cc: lethal@linux-sh.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org, lrodriguez@atheros.com, catalin.marinas@arm.com, rnagarajan@novell.com, teheo@novell.com, linux-mm@kvack.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, akpm@linux-foundation.org, Sankar P <sankar.curiosity@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Jun 2010 09:45:22 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+If we try to find the memory leaks in kernel that is
+compiled with 'make defconfig', the default buffer size
+of DEBUG_KMEMLEAK_EARLY_LOG_SIZE seem to be inadequate.
 
-> On Mon, 2010-06-21 at 23:14 -0700, Andrew Morton wrote:
-> > +/*
-> > + * Compare counter against given value.
-> > + * Return 1 if greater, 0 if equal and -1 if less
-> > + */
-> > +int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
-> > +{
-> > +       s64     count;
-> > +
-> > +       count = percpu_counter_read(fbc);
-> > +       /* Check to see if rough count will be sufficient for comparison */
-> > +       if (abs(count - rhs) > (percpu_counter_batch*num_online_cpus())) {
-> > +               if (count > rhs)
-> > +                       return 1;
-> > +               else
-> > +                       return -1;
-> > +       }
-> > +       /* Need to use precise count */
-> > +       count = percpu_counter_sum(fbc);
-> > +       if (count > rhs)
-> > +               return 1;
-> > +       else if (count < rhs)
-> > +               return -1;
-> > +       else
-> > +               return 0;
-> > +}
-> > +EXPORT_SYMBOL(percpu_counter_compare); 
-> 
-> That won't quite work as advertised for the bdi stuff since we use a
-> custom batch size.
+Change the buffer size from 400 to 1000,
+which is sufficient for most cases.
 
-Oh come on, of course it will.  It just needs
-__percpu_counter_compare() as I mentioned when merging it.
+Signed-off-by: Sankar P <sankar.curiosity@gmail.com>
+---
+
+Thanks to Pekka Enberg's comments on my previous mail, I am sending a better patch,
+and adding new reviewers as suggested by the get_maintainer script. 
+
+ lib/Kconfig.debug |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index e722e9d..5eb9463 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -382,7 +382,7 @@ config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
+ 	int "Maximum kmemleak early log entries"
+ 	depends on DEBUG_KMEMLEAK
+ 	range 200 40000
+-	default 400
++	default 1000
+ 	help
+ 	  Kmemleak must track all the memory allocations to avoid
+ 	  reporting false positives. Since memory may be allocated or
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
