@@ -1,71 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ED3BB6B01AF
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 00:07:33 -0400 (EDT)
-Date: Tue, 22 Jun 2010 12:07:27 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100622040727.GA14340@localhost>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <1276856497.27822.1699.camel@twins>
- <20100621134238.GE3828@quack.suse.cz>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 40A666B01AD
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 00:29:19 -0400 (EDT)
+Received: by iwn39 with SMTP id 39so2535380iwn.14
+        for <linux-mm@kvack.org>; Mon, 21 Jun 2010 21:29:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100621134238.GE3828@quack.suse.cz>
+In-Reply-To: <20100622114739.B563.A69D9226@jp.fujitsu.com>
+References: <20100622112416.B554.A69D9226@jp.fujitsu.com>
+	<AANLkTilN3EcYq400ajA2-rf3Xs4MhD-sKCg44fjzKlX1@mail.gmail.com>
+	<20100622114739.B563.A69D9226@jp.fujitsu.com>
+Date: Tue, 22 Jun 2010 13:29:17 +0900
+Message-ID: <AANLkTimleJIOdYquPwJvgGK3Dj_JDijoNjCQh4dfXxAY@mail.gmail.com>
+Subject: Re: [Patch] Call cond_resched() at bottom of main look in
+	balance_pgdat()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 21, 2010 at 03:42:39PM +0200, Jan Kara wrote:
-> On Fri 18-06-10 12:21:37, Peter Zijlstra wrote:
-> > On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
-> > > +               if (bdi_stat(bdi, BDI_WRITTEN) >= bdi->wb_written_head)
-> > > +                       bdi_wakeup_writers(bdi); 
-> > 
-> > For the paranoid amongst us you could make wb_written_head s64 and write
-> > the above as:
-> > 
-> >   if (bdi_stat(bdi, BDI_WRITTEN) - bdi->wb_written_head > 0)
-> > 
-> > Which, if you assume both are monotonic and wb_written_head is always
-> > within 2^63 of the actual bdi_stat() value, should give the same end
-> > result and deal with wrap-around.
-> > 
-> > For when we manage to create a device that can write 2^64 pages in our
-> > uptime :-)
->   OK, the fix is simple enough so I've changed it, although I'm not
-> paranoic enough ;) (I actually did the math before writing that test).
+On Tue, Jun 22, 2010 at 12:23 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >> Kosaki's patch's goal is that kswap doesn't yield cpu if the zone doesn't meet its
+>> >> min watermark to avoid failing atomic allocation.
+>> >> But this patch could yield kswapd's time slice at any time.
+>> >> Doesn't the patch break your goal in bb3ab59683?
+>> >
+>> > No. it don't break.
+>> >
+>> > Typically, kswapd periodically call shrink_page_list() and it call
+>> > cond_resched() even if bb3ab59683 case.
+>>
+>> Hmm. If it is, bb3ab59683 is effective really?
+>>
+>> The bb3ab59683's goal is prevent CPU yield in case of free < min_watermark.
+>> But shrink_page_list can yield cpu from kswapd at any time.
+>> So I am not sure what is bb3ab59683's benefit.
+>> Did you have any number about bb3ab59683's effectiveness?
+>> (Of course, I know it's very hard. Just out of curiosity)
+>>
+>> As a matter of fact, when I saw this Larry's patch, I thought it would
+>> be better to revert bb3ab59683. Then congestion_wait could yield CPU
+>> to other process.
+>>
+>> What do you think about?
+>
+> No. The goal is not prevent CPU yield. The goal is avoid unnecessary
+> _long_ sleep (i.e. congestion_wait(BLK_RW_ASYNC, HZ/10)).
 
-a bit more change :)
+I meant it.
 
-type:
+> Anyway we can't refuse CPU yield on UP. it lead to hangup ;)
+>
+> What do you mean the number? If it mean how much reduce congestion_wait(),
+> it was posted a lot of time. If it mean how much reduce page allocation
+> failure bug report, I think it has been observable reduced since half
+> years ago.
 
--       u64 wb_written_head
-+       s64 wb_written_head
+I meant second.
+Hmm. I doubt it's observable since at that time, Mel had posted many
+patches to reduce page allocation fail. bb3ab59683 was just one of
+them.
 
-resetting:
+>
+> If you have specific worried concern, can you please share it?
+>
 
--                       bdi->wb_written_head = ~(u64)0;
-+                       bdi->wb_written_head = 0;
+My concern is that I don't want to add new band-aid on uncertain
+feature to solve
+regression of uncertain feature.(Sorry for calling Larry's patch as band-aid.).
+If we revert bb3ab59683, congestion_wait in balance_pgdat could yield
+cpu from kswapd.
 
-setting:
+If you insist on bb3ab59683's effective and have proved it at past, I
+am not against it.
 
-                bdi->wb_written_head = bdi_stat(bdi, BDI_WRITTEN) + wc->written;
-+               bdi->wb_written_head |= 1;
+And If it's regression of bb3ab59683, Doesn't it make sense following as?
+It could restore old behavior.
 
-testing:
+---
+                 * OK, kswapd is getting into trouble.  Take a nap, then take
+                 * another pass across the zones.
+                 */
+                if (total_scanned && (priority < DEF_PRIORITY - 2)) {
+                        if (has_under_min_watermark_zone) {
+                                count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+                                /* allowing CPU yield to go on
+watchdog or OOMed task */
+                                cond_resched();
+                        }
+                        else
+                                congestion_wait(BLK_RW_ASYNC, HZ/10);
+                }
 
-        if (bdi->wb_written_head &&
-            bdi_stat(bdi, BDI_WRITTEN) - bdi->wb_written_head > 0)
 
-This avoids calling into bdi_wakeup_writers() pointlessly when no one
-is being throttled (which is the normal case).
-
-Thanks,
-Fengguang
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
