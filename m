@@ -1,46 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 71D126B0071
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:26:47 -0400 (EDT)
-Subject: Re: [PATCH V3 3/8] Cleancache: core ops functions and configuration
-From: Dave Hansen <dave@sr71.net>
-In-Reply-To: <20100621231939.GA19505@ca-server1.us.oracle.com>
-References: <20100621231939.GA19505@ca-server1.us.oracle.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Tue, 22 Jun 2010 09:26:28 -0700
-Message-ID: <1277223988.9782.20.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7CC9B6B0071
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:55:13 -0400 (EDT)
+Received: from mail.atheros.com ([10.10.20.105])
+	by sidewinder.atheros.com
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 09:55:12 -0700
+Date: Tue, 22 Jun 2010 09:55:09 -0700
+From: "Luis R. Rodriguez" <lrodriguez@atheros.com>
+Subject: Re: [PATCH] mm: kmemleak: Change kmemleak default buffer size
+Message-ID: <20100622165509.GB11336@tux>
+References: <AANLkTimb7rP0rS0OU8nan5uNEhHx_kEYL99ImZ3c8o0D@mail.gmail.com>
+ <1277189909-16376-1-git-send-email-sankar.curiosity@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1277189909-16376-1-git-send-email-sankar.curiosity@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
+To: Sankar P <sankar.curiosity@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lethal@linux-sh.org" <lethal@linux-sh.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Luis Rodriguez <Luis.Rodriguez@Atheros.com>, "penberg@cs.helsinki.fi" <penberg@cs.helsinki.fi>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "rnagarajan@novell.com" <rnagarajan@novell.com>, "teheo@novell.com" <teheo@novell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-06-21 at 16:19 -0700, Dan Magenheimer wrote:
-> --- linux-2.6.35-rc2/include/linux/cleancache.h 1969-12-31 17:00:00.000000000 -0700
-> +++ linux-2.6.35-rc2-cleancache/include/linux/cleancache.h      2010-06-21 14:45:18.000000000 -0600
-> @@ -0,0 +1,88 @@
-> +#ifndef _LINUX_CLEANCACHE_H
-> +#define _LINUX_CLEANCACHE_H
-> +
-> +#include <linux/fs.h>
-> +#include <linux/mm.h>
-> +
-> +struct cleancache_ops {
-> +       int (*init_fs)(size_t);
-> +       int (*init_shared_fs)(char *uuid, size_t);
-> +       int (*get_page)(int, ino_t, pgoff_t, struct page *);
-> +       void (*put_page)(int, ino_t, pgoff_t, struct page *);
-> +       void (*flush_page)(int, ino_t, pgoff_t);
-> +       void (*flush_inode)(int, ino_t);
-> +       void (*flush_fs)(int);
-> +};
-> + 
+On Mon, Jun 21, 2010 at 11:58:29PM -0700, Sankar P wrote:
+> If we try to find the memory leaks in kernel that is
+> compiled with 'make defconfig', the default buffer size
+> seem to be inadequate. Change the buffer size from
+> 400 to 1000, which is sufficient in most cases.
+> 
+> Signed-off-by: Sankar P <sankar.curiosity@gmail.com>
 
-How would someone go about testing this code?  Is there an example
-cleancache implementation?
+What's your full name? Please read the "Developer's Certificate of Origin 1.1"
+It says:
 
--- Dave
+then you just add a line saying
+
+        Signed-off-by: Random J Developer <random@developer.example.org>
+
+using your real name (sorry, no pseudonyms or anonymous contributions.)
+
+
+Also you may want to post on a new thread instead of using this old thread
+unless the maintainer is reading this and wants to pick it up.
+
+  Luis
+
+> ---
+>  arch/sh/configs/sh7785lcr_32bit_defconfig |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/arch/sh/configs/sh7785lcr_32bit_defconfig b/arch/sh/configs/sh7785lcr_32bit_defconfig
+> index 71f39c7..b02e5ae 100644
+> --- a/arch/sh/configs/sh7785lcr_32bit_defconfig
+> +++ b/arch/sh/configs/sh7785lcr_32bit_defconfig
+> @@ -1710,7 +1710,7 @@ CONFIG_SCHEDSTATS=y
+>  # CONFIG_DEBUG_OBJECTS is not set
+>  # CONFIG_DEBUG_SLAB is not set
+>  CONFIG_DEBUG_KMEMLEAK=y
+> -CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=400
+> +CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=1000
+>  # CONFIG_DEBUG_KMEMLEAK_TEST is not set
+>  CONFIG_DEBUG_PREEMPT=y
+>  # CONFIG_DEBUG_RT_MUTEXES is not set
+> -- 
+> 1.6.4.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
