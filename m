@@ -1,70 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id BF5CB6B01DA
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 09:18:16 -0400 (EDT)
-Date: Tue, 22 Jun 2010 15:17:46 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 317716B01DB
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 09:28:01 -0400 (EDT)
+Date: Tue, 22 Jun 2010 15:27:35 +0200
 From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
  waiting for flusher thread
-Message-ID: <20100622131745.GB3338@quack.suse.cz>
+Message-ID: <20100622132735.GC3338@quack.suse.cz>
 References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <20100618060901.GA6590@dastard>
- <20100621233628.GL3828@quack.suse.cz>
- <20100622054409.GP7869@dastard>
- <20100621231416.904c50c7.akpm@linux-foundation.org>
- <20100622100924.GQ7869@dastard>
+ <1276856497.27822.1699.camel@twins>
+ <20100621134238.GE3828@quack.suse.cz>
+ <20100622040727.GA14340@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100622100924.GQ7869@dastard>
+In-Reply-To: <20100622040727.GA14340@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, peterz@infradead.org, wfg@mail.ustc.edu.cn
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 22-06-10 20:09:24, Dave Chinner wrote:
-> On Mon, Jun 21, 2010 at 11:14:16PM -0700, Andrew Morton wrote:
-> > On Tue, 22 Jun 2010 15:44:09 +1000 Dave Chinner <david@fromorbit.com> wrote:
-> > 
-> > > > > And so on. This isn't necessarily bad - we'll throttle for longer
-> > > > > than we strictly need to - but the cumulative counter resolution
-> > > > > error gets worse as the number of CPUs doing IO completion grows.
-> > > > > Worst case ends up at for (num cpus * 31) + 1 pages of writeback for
-> > > > > just the first waiter. For an arbitrary FIFO queue of depth d, the
-> > > > > worst case is more like d * (num cpus * 31 + 1).
-> > > >   Hmm, I don't see how the error would depend on the FIFO depth.
+On Tue 22-06-10 12:07:27, Wu Fengguang wrote:
+> On Mon, Jun 21, 2010 at 03:42:39PM +0200, Jan Kara wrote:
+> > On Fri 18-06-10 12:21:37, Peter Zijlstra wrote:
+> > > On Thu, 2010-06-17 at 20:04 +0200, Jan Kara wrote:
+> > > > +               if (bdi_stat(bdi, BDI_WRITTEN) >= bdi->wb_written_head)
+> > > > +                       bdi_wakeup_writers(bdi); 
 > > > 
-> > > It's the cumulative error that depends on the FIFO depth, not the
-> > > error seen by a single waiter.
-> > 
-> > Could use the below to basically eliminate the inaccuracies.
-> > 
-> > Obviously things might get a bit expensive in certain threshold cases
-> > but with some hysteresis that should be manageable.
+> > > For the paranoid amongst us you could make wb_written_head s64 and write
+> > > the above as:
+> > > 
+> > >   if (bdi_stat(bdi, BDI_WRITTEN) - bdi->wb_written_head > 0)
+> > > 
+> > > Which, if you assume both are monotonic and wb_written_head is always
+> > > within 2^63 of the actual bdi_stat() value, should give the same end
+> > > result and deal with wrap-around.
+> > > 
+> > > For when we manage to create a device that can write 2^64 pages in our
+> > > uptime :-)
+> >   OK, the fix is simple enough so I've changed it, although I'm not
+> > paranoic enough ;) (I actually did the math before writing that test).
 > 
-> That seems a lot more... unpredictable than modifying the accounting
-> to avoid cumulative errors.
+> a bit more change :)
 > 
-> > +	/* Check to see if rough count will be sufficient for comparison */
-> > +	if (abs(count - rhs) > (percpu_counter_batch*num_online_cpus())) {
+> type:
 > 
-> Also, that's a big margin when we are doing equality matches for
-> every page IO completion. If we a large CPU count machine where
-> per-cpu counters actually improve performance (say 16p) then we're
-> going to be hitting the slow path for the last 512 pages of every
-> waiter. Hence I think the counter sum is compared too often to scale
-> with this method of comparison.
-  On the other hand I think we will have to come up with something
-more clever than what I do now because for some huge machines with
-nr_cpu_ids == 256, the error of the counter is 256*9*8 = 18432 so that's
-already unacceptable given the amounts we want to check (like 1536) -
-already for nr_cpu_ids == 32, the error is the same as the difference we
-want to check.  I think we'll have to come up with some scheme whose error
-is not dependent on the number of cpus or if it is dependent, it's only a
-weak dependency (like a logarithm or so).
-  Or we could rely on the fact that IO completions for a bdi won't happen on
-all CPUs and thus the error would be much more bounded. But I'm not sure
-how much that is true or not.
+> -       u64 wb_written_head
+> +       s64 wb_written_head
+> 
+> resetting:
+> 
+> -                       bdi->wb_written_head = ~(u64)0;
+> +                       bdi->wb_written_head = 0;
+> 
+> setting:
+> 
+>                 bdi->wb_written_head = bdi_stat(bdi, BDI_WRITTEN) + wc->written;
+> +               bdi->wb_written_head |= 1;
+> 
+> testing:
+> 
+>         if (bdi->wb_written_head &&
+>             bdi_stat(bdi, BDI_WRITTEN) - bdi->wb_written_head > 0)
+> 
+> This avoids calling into bdi_wakeup_writers() pointlessly when no one
+> is being throttled (which is the normal case).
+  Actually, I've already changed wb_written_head to s64. I kept setting
+wb_written_head to s64 maximum. That also avoids calling into
+bdi_wakeup_writers() unnecessarily...
 
 								Honza
 -- 
