@@ -1,48 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 011136B0215
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 10:41:05 -0400 (EDT)
-Date: Tue, 22 Jun 2010 22:41:00 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100622144100.GB5477@localhost>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <20100618060901.GA6590@dastard>
- <20100621233628.GL3828@quack.suse.cz>
- <20100622054409.GP7869@dastard>
- <20100621231416.904c50c7.akpm@linux-foundation.org>
- <20100622100924.GQ7869@dastard>
- <20100622131745.GB3338@quack.suse.cz>
- <20100622135234.GA11561@localhost>
- <20100622143124.GA15235@infradead.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E8016B0216
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 10:43:48 -0400 (EDT)
+Date: Tue, 22 Jun 2010 10:43:20 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH V3 3/8] Cleancache: core ops functions and configuration
+Message-ID: <20100622144320.GA13324@infradead.org>
+References: <20100621231939.GA19505@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100622143124.GA15235@infradead.org>
+In-Reply-To: <20100621231939.GA19505@ca-server1.us.oracle.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "peterz@infradead.org" <peterz@infradead.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 22, 2010 at 10:31:24PM +0800, Christoph Hellwig wrote:
-> On Tue, Jun 22, 2010 at 09:52:34PM +0800, Wu Fengguang wrote:
-> > 2) most writeback will be submitted by one per-bdi-flusher, so no worry
-> >    of cache bouncing (this also means the per CPU counter error is
-> >    normally bounded by the batch size)
+On Mon, Jun 21, 2010 at 04:19:39PM -0700, Dan Magenheimer wrote:
+> [PATCH V3 3/8] Cleancache: core ops functions and configuration
 > 
-> What counter are we talking about exactly?  Once balanance_dirty_pages
+> Cleancache core ops functions and configuration
 
-bdi_stat(bdi, BDI_WRITTEN) introduced in this patch.
+NACK for code that just adds random hooks all over VFS and even
+individual FS code, does an EXPORT_SYMBOL but doesn't actually introduce
+any users.
 
-> stops submitting I/O the per-bdi flusher thread will in fact be
-> the only thing submitting writeback, unless you count direct invocations
-> of writeback_single_inode. 
-
-Right. 
-
-Thanks,
-Fengguang
+And even if it had users these would have to be damn good ones given how
+invasive it is.  So what exactly is this going to help us?  Given your
+affiliation probably something Xen related, so some real use case would
+be interesting as well instead of just making Xen suck slightly less.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
