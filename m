@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C510B6B01AF
-	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 23:24:04 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5M3O1GG019134
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A83626B01AF
+	for <linux-mm@kvack.org>; Mon, 21 Jun 2010 23:30:31 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5M3UTqe021859
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 22 Jun 2010 12:24:01 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id F294F45DE80
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:24:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D259045DE7E
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:24:00 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDB391DB803B
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:24:00 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 761A91DB803A
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:24:00 +0900 (JST)
+	Tue, 22 Jun 2010 12:30:29 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE06145DE51
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:30:28 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C5ECF45DE4E
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:30:28 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A19881DB8053
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:30:28 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 580481DB8050
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 12:30:28 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [Patch] Call cond_resched() at bottom of main look in  balance_pgdat()
-In-Reply-To: <AANLkTilN3EcYq400ajA2-rf3Xs4MhD-sKCg44fjzKlX1@mail.gmail.com>
-References: <20100622112416.B554.A69D9226@jp.fujitsu.com> <AANLkTilN3EcYq400ajA2-rf3Xs4MhD-sKCg44fjzKlX1@mail.gmail.com>
-Message-Id: <20100622114739.B563.A69D9226@jp.fujitsu.com>
+Subject: Re: [Lsf10-pc] Current MM topics for LSF10/MM Summit 8-9 August in Boston
+In-Reply-To: <20100621131608.GW5787@random.random>
+References: <20100621120526.GA31679@laptop> <20100621131608.GW5787@random.random>
+Message-Id: <20100622122813.B566.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Tue, 22 Jun 2010 12:23:59 +0900 (JST)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 22 Jun 2010 12:30:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, lsf10-pc@lists.linuxfoundation.org, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> >> Kosaki's patch's goal is that kswap doesn't yield cpu if the zone doesn't meet its
-> >> min watermark to avoid failing atomic allocation.
-> >> But this patch could yield kswapd's time slice at any time.
-> >> Doesn't the patch break your goal in bb3ab59683?
-> >
-> > No. it don't break.
-> >
-> > Typically, kswapd periodically call shrink_page_list() and it call
-> > cond_resched() even if bb3ab59683 case.
+> On Mon, Jun 21, 2010 at 10:05:26PM +1000, Nick Piggin wrote:
+> > Andrea Arcangeli	Transparent hugepages
 > 
-> Hmm. If it is, bb3ab59683 is effective really?
+> Sure fine on my side. I got a proposal accepted for presentation at
+> KVM Forum 2010 about it too the days after the VM summit too.
 > 
-> The bb3ab59683's goal is prevent CPU yield in case of free < min_watermark.
-> But shrink_page_list can yield cpu from kswapd at any time.
-> So I am not sure what is bb3ab59683's benefit.
-> Did you have any number about bb3ab59683's effectiveness?
-> (Of course, I know it's very hard. Just out of curiosity)
+> > KOSAKI Motohiro		get_user_pages vs COW problem
 > 
-> As a matter of fact, when I saw this Larry's patch, I thought it would
-> be better to revert bb3ab59683. Then congestion_wait could yield CPU
-> to other process.
-> 
-> What do you think about?
+> Just a side note, not sure exactly what is meant to be discussed about
+> this bug, considering the fact this is still unsolved isn't technical
+> problem as there were plenty of fixes available, and the one that seem
+> to had better chance to get included was the worst one in my view, as
+> it tried to fix it in a couple of gup caller (but failed, also because
+> finding all put_page pin release is kind of a pain as they're spread
+> all over the place and not identified as gup_put_page, and in addition
+> to the instability and lack of completeness of the fix, it was also
+> the most inefficient as it added unnecessary and coarse locking) plus
+> all gup callers are affected, not just a few. I normally call it gup
+> vs fork race. Luckily not all threaded apps uses O_DIRECT and fork and
+> pretend to do the direct-io in different sub-page chunks of the same
+> page from different threads (KVM would probably be affected if it
+> didn't use MADV_DONTFORK on the O_DIRECT memory, as it might run fork
+> to execute some network script when adding an hotplug pci net device
+> for example). But surely we can discuss the fix we prefer for this
+> bug, or at least we can agree it needs fixing.
 
-No. The goal is not prevent CPU yield. The goal is avoid unnecessary
-_long_ sleep (i.e. congestion_wait(BLK_RW_ASYNC, HZ/10)).
-Anyway we can't refuse CPU yield on UP. it lead to hangup ;)
+If people don't want this. I'm ok to drop this. In my personal concern
+most important topics are following four topics. (again it's only _my_
+concern)
 
-What do you mean the number? If it mean how much reduce congestion_wait(),
-it was posted a lot of time. If it mean how much reduce page allocation 
-failure bug report, I think it has been observable reduced since half 
-years ago. 
 
-If you have specific worried concern, can you please share it?
+Rik van Riel		Memory management under virtualization (with KVM)
+Andrea Arcangeli	Transparent hugepages
+- mmap_sem scalability, again
+- Direct reclaim, direct writeback problems
 
 
 
