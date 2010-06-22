@@ -1,51 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1E0CF6B01C3
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 04:47:21 -0400 (EDT)
-Received: by fxm15 with SMTP id 15so2543428fxm.14
-        for <linux-mm@kvack.org>; Tue, 22 Jun 2010 01:47:19 -0700 (PDT)
-From: Sankar P <sankar.curiosity@gmail.com>
-Subject: [PATCH] kmemleak: config-options: Default buffer size for kmemleak
-Date: Tue, 22 Jun 2010 14:16:43 +0530
-Message-Id: <1277196403-20836-1-git-send-email-sankar.curiosity@gmail.com>
-In-Reply-To: <4C20702C.1080405@cs.helsinki.fi>
-References: <AANLkTimb7rP0rS0OU8nan5uNEhHx_kEYL99ImZ3c8o0D@mail.gmail.com> <1277189909-16376-1-git-send-email-sankar.curiosity@gmail.com> <4C20702C.1080405@cs.helsinki.fi>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE006B01C4
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 04:52:55 -0400 (EDT)
+Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
+ waiting for flusher thread
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100622012406.1d9aa8fd.akpm@linux-foundation.org>
+References: <1276797878-28893-1-git-send-email-jack@suse.cz>
+	 <20100618060901.GA6590@dastard> <20100621233628.GL3828@quack.suse.cz>
+	 <20100622054409.GP7869@dastard>
+	 <20100621231416.904c50c7.akpm@linux-foundation.org>
+	 <1277192722.1875.526.camel@laptop>
+	 <20100622012406.1d9aa8fd.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Tue, 22 Jun 2010 10:52:23 +0200
+Message-ID: <1277196743.1875.622.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: penberg@cs.helsinki.fi
-Cc: lethal@linux-sh.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org, lrodriguez@atheros.com, catalin.marinas@arm.com, rnagarajan@novell.com, teheo@novell.com, linux-mm@kvack.org, paulmck@linux.vnet.ibm.com, mingo@elte.hu, akpm@linux-foundation.org, Sankar P <sankar.curiosity@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, wfg@mail.ustc.edu.cn
 List-ID: <linux-mm.kvack.org>
 
-If we try to find the memory leaks in kernel that is
-compiled with 'make defconfig', the default buffer size
-of DEBUG_KMEMLEAK_EARLY_LOG_SIZE seem to be inadequate.
+On Tue, 2010-06-22 at 01:24 -0700, Andrew Morton wrote:
+>=20
+> Oh come on, of course it will.  It just needs
+> __percpu_counter_compare() as I mentioned when merging it.=20
 
-Change the buffer size from 400 to 1000,
-which is sufficient for most cases.
-
-Signed-off-by: Sankar P <sankar.curiosity@gmail.com>
----
-
-Thanks to Pekka Enberg's comments on my previous mail, I am sending a better patch,
-and adding new reviewers as suggested by the get_maintainer script. 
-
- lib/Kconfig.debug |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index e722e9d..5eb9463 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -382,7 +382,7 @@ config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
- 	int "Maximum kmemleak early log entries"
- 	depends on DEBUG_KMEMLEAK
- 	range 200 40000
--	default 400
-+	default 1000
- 	help
- 	  Kmemleak must track all the memory allocations to avoid
- 	  reporting false positives. Since memory may be allocated or
--- 
-1.6.4.2
+Sure, all I was saying is that something like that needs doing..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
