@@ -1,103 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6801C6B0071
-	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 17:34:06 -0400 (EDT)
-Date: Tue, 22 Jun 2010 23:33:01 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Patch] Call cond_resched() at bottom of main look in balance_pgdat()
-Message-ID: <20100622213301.GA26285@cmpxchg.org>
-References: <20100622112416.B554.A69D9226@jp.fujitsu.com> <AANLkTilN3EcYq400ajA2-rf3Xs4MhD-sKCg44fjzKlX1@mail.gmail.com> <20100622114739.B563.A69D9226@jp.fujitsu.com> <AANLkTimleJIOdYquPwJvgGK3Dj_JDijoNjCQh4dfXxAY@mail.gmail.com>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BD58C6B0071
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2010 18:29:45 -0400 (EDT)
+Date: Wed, 23 Jun 2010 08:29:32 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
+ waiting for flusher thread
+Message-ID: <20100622222932.GR7869@dastard>
+References: <1276797878-28893-1-git-send-email-jack@suse.cz>
+ <20100618060901.GA6590@dastard>
+ <20100621233628.GL3828@quack.suse.cz>
+ <20100622054409.GP7869@dastard>
+ <20100621231416.904c50c7.akpm@linux-foundation.org>
+ <20100622100924.GQ7869@dastard>
+ <20100622131745.GB3338@quack.suse.cz>
+ <20100622135234.GA11561@localhost>
+ <20100622140258.GE3338@quack.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTimleJIOdYquPwJvgGK3Dj_JDijoNjCQh4dfXxAY@mail.gmail.com>
+In-Reply-To: <20100622140258.GE3338@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, peterz@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 22, 2010 at 01:29:17PM +0900, Minchan Kim wrote:
-> On Tue, Jun 22, 2010 at 12:23 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> >> Kosaki's patch's goal is that kswap doesn't yield cpu if the zone doesn't meet its
-> >> >> min watermark to avoid failing atomic allocation.
-> >> >> But this patch could yield kswapd's time slice at any time.
-> >> >> Doesn't the patch break your goal in bb3ab59683?
-> >> >
-> >> > No. it don't break.
-> >> >
-> >> > Typically, kswapd periodically call shrink_page_list() and it call
-> >> > cond_resched() even if bb3ab59683 case.
-> >>
-> >> Hmm. If it is, bb3ab59683 is effective really?
-> >>
-> >> The bb3ab59683's goal is prevent CPU yield in case of free < min_watermark.
-> >> But shrink_page_list can yield cpu from kswapd at any time.
-> >> So I am not sure what is bb3ab59683's benefit.
-> >> Did you have any number about bb3ab59683's effectiveness?
-> >> (Of course, I know it's very hard. Just out of curiosity)
-> >>
-> >> As a matter of fact, when I saw this Larry's patch, I thought it would
-> >> be better to revert bb3ab59683. Then congestion_wait could yield CPU
-> >> to other process.
-> >>
-> >> What do you think about?
-> >
-> > No. The goal is not prevent CPU yield. The goal is avoid unnecessary
-> > _long_ sleep (i.e. congestion_wait(BLK_RW_ASYNC, HZ/10)).
-> 
-> I meant it.
-> 
-> > Anyway we can't refuse CPU yield on UP. it lead to hangup ;)
-> >
-> > What do you mean the number? If it mean how much reduce congestion_wait(),
-> > it was posted a lot of time. If it mean how much reduce page allocation
-> > failure bug report, I think it has been observable reduced since half
-> > years ago.
-> 
-> I meant second.
-> Hmm. I doubt it's observable since at that time, Mel had posted many
-> patches to reduce page allocation fail. bb3ab59683 was just one of
-> them.
-> 
-> >
-> > If you have specific worried concern, can you please share it?
-> >
-> 
-> My concern is that I don't want to add new band-aid on uncertain
-> feature to solve
-> regression of uncertain feature.(Sorry for calling Larry's patch as band-aid.).
-> If we revert bb3ab59683, congestion_wait in balance_pgdat could yield
-> cpu from kswapd.
-> 
-> If you insist on bb3ab59683's effective and have proved it at past, I
-> am not against it.
-> 
-> And If it's regression of bb3ab59683, Doesn't it make sense following as?
-> It could restore old behavior.
-> 
-> ---
->                  * OK, kswapd is getting into trouble.  Take a nap, then take
->                  * another pass across the zones.
->                  */
->                 if (total_scanned && (priority < DEF_PRIORITY - 2)) {
->                         if (has_under_min_watermark_zone) {
->                                 count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
->                                 /* allowing CPU yield to go on
-> watchdog or OOMed task */
->                                 cond_resched();
+On Tue, Jun 22, 2010 at 04:02:59PM +0200, Jan Kara wrote:
+> On Tue 22-06-10 21:52:34, Wu Fengguang wrote:
+> > >   On the other hand I think we will have to come up with something
+> > > more clever than what I do now because for some huge machines with
+> > > nr_cpu_ids == 256, the error of the counter is 256*9*8 = 18432 so that's
+> > > already unacceptable given the amounts we want to check (like 1536) -
+> > > already for nr_cpu_ids == 32, the error is the same as the difference we
+> > > want to check.  I think we'll have to come up with some scheme whose error
+> > > is not dependent on the number of cpus or if it is dependent, it's only a
+> > > weak dependency (like a logarithm or so).
+> > >   Or we could rely on the fact that IO completions for a bdi won't happen on
+> > > all CPUs and thus the error would be much more bounded. But I'm not sure
+> > > how much that is true or not.
+> > 
+> > Yes the per CPU counter seems tricky. How about plain atomic operations? 
+> > 
+> > This test shows that atomic_dec_and_test() is about 4.5 times slower
+> > than plain i-- in a 4-core CPU. Not bad.
 
-We have two things here: one is waiting for some IO to complete, which
-we skip if we are in a hurry.  The other thing is that we have a
-potentially long-running loop with no garuanteed rescheduling point in
-it.  I would rather not mix up those two and let this cond_resched()
-for #2 stand on it's own and be self-explanatory.
+It's not how fast an uncontended operation runs that matter - it's
+what happens when it is contended by lots of CPUs. In my experience,
+atomics in writeback paths scale to medium sized machines (say
+16-32p) but bottleneck on larger configurations due to the increased
+cost of cacheline propagation on larger machines.
 
-So,
+> > Note that
+> > 1) we can avoid the atomic operations when there are no active waiters
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Under heavy IO load there will always be waiters.
 
-to Larry's patch (or KOSAKI-san's version of it for that matter).
+> > 2) most writeback will be submitted by one per-bdi-flusher, so no worry
+> >    of cache bouncing (this also means the per CPU counter error is
+> >    normally bounded by the batch size)
+>   Yes, writeback will be submitted by one flusher thread but the question
+> is rather where the writeback will be completed. And that depends on which
+> CPU that particular irq is handled. As far as my weak knowledge of HW goes,
+> this very much depends on the system configuration (i.e., irq affinity and
+> other things).
+
+And how many paths to the storage you are using, how threaded the
+underlying driver is, whether it is using MSI to direct interrupts to
+multiple CPUs instead of just one, etc.
+
+As we scale up we're more likely to see multiple CPUs doing IO
+completion for the same BDI because the storage configs are more
+complex in high end machines. Hence IMO preventing cacheline
+bouncing between submission and completion is a significant
+scalability concern.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
