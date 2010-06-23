@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 30EDF6B0071
-	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 11:52:47 -0400 (EDT)
-Message-ID: <4C222D91.9030803@zytor.com>
-Date: Wed, 23 Jun 2010 08:51:45 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 854016B0071
+	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 13:47:21 -0400 (EDT)
+Date: Wed, 23 Jun 2010 19:47:18 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH -mm 3/6] ksm: fix ksm swapin time optimization
+Message-ID: <20100623174718.GD16195@random.random>
+References: <20100621163146.4e4e30cb@annuminas.surriel.com>
+ <20100621163439.4e76c2f8@annuminas.surriel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 31/40] trace syscalls: Convert various generic compat
- syscalls
-References: <1277287401-28571-1-git-send-email-imunsie@au1.ibm.com> <1277287401-28571-32-git-send-email-imunsie@au1.ibm.com> <4C21DFBA.2070202@linux.intel.com> <20100623102931.GB5242@nowhere> <4C21E3F8.9000405@linux.intel.com> <20100623113806.GD5242@nowhere>
-In-Reply-To: <20100623113806.GD5242@nowhere>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100621163439.4e76c2f8@annuminas.surriel.com>
 Sender: owner-linux-mm@kvack.org
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Ian Munsie <imunsie@au1.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Jason Baron <jbaron@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <michael@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Jeff Moyer <jmoyer@redhat.com>, David Howells <dhowells@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@suse.de>, Dinakar Guniguntala <dino@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Eric Biederman <ebiederm@xmission.com>, Simon Kagstrom <simon.kagstrom@netinsight.net>, WANG Cong <amwang@redhat.com>, Sam Ravnborg <sam@ravnborg.org>, Roland McGrath <roland@redhat.com>, Mike Frysinger <vapier.adi@gmail.com>, Neil Horman <nhorman@tuxdriver.com>, Eric Dumazet <eric.dumazet@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Johannes Berg <johannes@sipsolutions.net>, Roel Kluin <roel.kluin@gmail.com>, linux-fsdevel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org, netdev@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 06/23/2010 04:38 AM, Frederic Weisbecker wrote:
+On Mon, Jun 21, 2010 at 04:34:39PM -0400, Rik van Riel wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Subject: fix ksm swapin time optimization
 > 
-> I haven't heard any complains about existing syscalls wrappers.
-> 
+> The new anon-vma code, was suboptimal and it lead to erratic invocation of
+> ksm_does_need_to_copy. That leads to host hangs or guest vnc lockup, or weird
+> behavior.  It's unclear why ksm_does_need_to_copy is unstable but the point is
+> that when KSM is not in use, ksm_does_need_to_copy must never run or we bounce
 
-Then you truly haven't been listening.
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+BTW, I'm debugging why ksm_does_need_to_copy breaks things... probably
+I found something already, maybe not. I'll let you know as soon as I
+have a fix. In the meantime the one above is a fix needed to avoid
+calling ksm_does_need_to_copy erratically even when KSM is off (which
+also avoids the bug to trigger).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
