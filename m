@@ -1,50 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2BBEC6B0071
-	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 09:42:54 -0400 (EDT)
-Date: Wed, 23 Jun 2010 15:42:28 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] radix-tree: Implement function
- radix_tree_range_tag_if_tagged
-Message-ID: <20100623134228.GD13649@quack.suse.cz>
-References: <1276706031-29421-1-git-send-email-jack@suse.cz>
- <1276706031-29421-2-git-send-email-jack@suse.cz>
- <20100618151824.397a8a35.akpm@linux-foundation.org>
- <20100621120934.GB31679@laptop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 30EDF6B0071
+	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 11:52:47 -0400 (EDT)
+Message-ID: <4C222D91.9030803@zytor.com>
+Date: Wed, 23 Jun 2010 08:51:45 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100621120934.GB31679@laptop>
+Subject: Re: [PATCH 31/40] trace syscalls: Convert various generic compat
+ syscalls
+References: <1277287401-28571-1-git-send-email-imunsie@au1.ibm.com> <1277287401-28571-32-git-send-email-imunsie@au1.ibm.com> <4C21DFBA.2070202@linux.intel.com> <20100623102931.GB5242@nowhere> <4C21E3F8.9000405@linux.intel.com> <20100623113806.GD5242@nowhere>
+In-Reply-To: <20100623113806.GD5242@nowhere>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Ian Munsie <imunsie@au1.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Jason Baron <jbaron@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <michael@ellerman.id.au>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Jeff Moyer <jmoyer@redhat.com>, David Howells <dhowells@redhat.com>, Oleg Nesterov <oleg@redhat.com>, Arnd Bergmann <arnd@arndb.de>, "David S. Miller" <davem@davemloft.net>, Greg Kroah-Hartman <gregkh@suse.de>, Dinakar Guniguntala <dino@in.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Eric Biederman <ebiederm@xmission.com>, Simon Kagstrom <simon.kagstrom@netinsight.net>, WANG Cong <amwang@redhat.com>, Sam Ravnborg <sam@ravnborg.org>, Roland McGrath <roland@redhat.com>, Mike Frysinger <vapier.adi@gmail.com>, Neil Horman <nhorman@tuxdriver.com>, Eric Dumazet <eric.dumazet@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, David Rientjes <rientjes@google.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Johannes Berg <johannes@sipsolutions.net>, Roel Kluin <roel.kluin@gmail.com>, linux-fsdevel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 21-06-10 22:09:34, Nick Piggin wrote:
-> On Fri, Jun 18, 2010 at 03:18:24PM -0700, Andrew Morton wrote:
-> > On Wed, 16 Jun 2010 18:33:50 +0200
-> > Jan Kara <jack@suse.cz> wrote:
-> > 
-> > > Implement function for setting one tag if another tag is set
-> > > for each item in given range.
-> > > 
-> > 
-> > These two patches look OK to me.
-> > 
-> > fwiw I have a userspace test harness for radix-tree.c:
-> > http://userweb.kernel.org/~akpm/stuff/rtth.tar.gz.  Nick used it for a
-> > while and updated it somewhat, but it's probably rather bitrotted and
-> > surely needs to be taught how to test the post-2006 additions.
-> > 
+On 06/23/2010 04:38 AM, Frederic Weisbecker wrote:
 > 
-> Main thing I did was add RCU support (pretty dumb RCU but it found
-> a couple of bugs), and add some more tests. I'll try to find it...
-  Nick, any luck with finding updated tests?
+> I haven't heard any complains about existing syscalls wrappers.
+> 
 
-								Honza
+Then you truly haven't been listening.
+
+	-hpa
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
