@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4DD9D6B0071
-	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 09:16:24 -0400 (EDT)
-Date: Wed, 23 Jun 2010 15:15:57 +0200
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2BBEC6B0071
+	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 09:42:54 -0400 (EDT)
+Date: Wed, 23 Jun 2010 15:42:28 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100623131557.GB13649@quack.suse.cz>
-References: <1276797878-28893-1-git-send-email-jack@suse.cz>
- <20100618060901.GA6590@dastard>
- <20100621233628.GL3828@quack.suse.cz>
- <20100622054409.GP7869@dastard>
- <20100621231416.904c50c7.akpm@linux-foundation.org>
- <20100622100924.GQ7869@dastard>
- <20100622131745.GB3338@quack.suse.cz>
- <20100622135234.GA11561@localhost>
- <20100622140258.GE3338@quack.suse.cz>
- <20100622222932.GR7869@dastard>
+Subject: Re: [PATCH 1/2] radix-tree: Implement function
+ radix_tree_range_tag_if_tagged
+Message-ID: <20100623134228.GD13649@quack.suse.cz>
+References: <1276706031-29421-1-git-send-email-jack@suse.cz>
+ <1276706031-29421-2-git-send-email-jack@suse.cz>
+ <20100618151824.397a8a35.akpm@linux-foundation.org>
+ <20100621120934.GB31679@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100622222932.GR7869@dastard>
+In-Reply-To: <20100621120934.GB31679@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hch@infradead.org, peterz@infradead.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 23-06-10 08:29:32, Dave Chinner wrote:
-> On Tue, Jun 22, 2010 at 04:02:59PM +0200, Jan Kara wrote:
-> > > 2) most writeback will be submitted by one per-bdi-flusher, so no worry
-> > >    of cache bouncing (this also means the per CPU counter error is
-> > >    normally bounded by the batch size)
-> >   Yes, writeback will be submitted by one flusher thread but the question
-> > is rather where the writeback will be completed. And that depends on which
-> > CPU that particular irq is handled. As far as my weak knowledge of HW goes,
-> > this very much depends on the system configuration (i.e., irq affinity and
-> > other things).
+On Mon 21-06-10 22:09:34, Nick Piggin wrote:
+> On Fri, Jun 18, 2010 at 03:18:24PM -0700, Andrew Morton wrote:
+> > On Wed, 16 Jun 2010 18:33:50 +0200
+> > Jan Kara <jack@suse.cz> wrote:
+> > 
+> > > Implement function for setting one tag if another tag is set
+> > > for each item in given range.
+> > > 
+> > 
+> > These two patches look OK to me.
+> > 
+> > fwiw I have a userspace test harness for radix-tree.c:
+> > http://userweb.kernel.org/~akpm/stuff/rtth.tar.gz.  Nick used it for a
+> > while and updated it somewhat, but it's probably rather bitrotted and
+> > surely needs to be taught how to test the post-2006 additions.
+> > 
 > 
-> And how many paths to the storage you are using, how threaded the
-> underlying driver is, whether it is using MSI to direct interrupts to
-> multiple CPUs instead of just one, etc.
-> 
-> As we scale up we're more likely to see multiple CPUs doing IO
-> completion for the same BDI because the storage configs are more
-> complex in high end machines. Hence IMO preventing cacheline
-> bouncing between submission and completion is a significant
-> scalability concern.
-  Thanks for details. I'm wondering whether we could assume that although
-IO completion can run on several CPUs, it will be still a fairly limited
-number of CPUs. If this is the case, we could then implement a per-cpu
-counter that would additionally track number of CPUs modifying the counter
-(the number of CPUs would get zeroed in ???_counter_sum). This way the
-number of atomic operations won't be much higher (only one atomic inc when
-a CPU updates the counter for the first time) and if only several CPUs
-modify the counter, we would be able to bound the error much better.
+> Main thing I did was add RCU support (pretty dumb RCU but it found
+> a couple of bugs), and add some more tests. I'll try to find it...
+  Nick, any luck with finding updated tests?
 
 								Honza
 -- 
