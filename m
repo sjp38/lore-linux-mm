@@ -1,39 +1,50 @@
-From: <Mark_Ruder@Dell.com>
-Subject: RE: [Lsf10-pc] Suggested topic for August LSF summit event
- (SCSI/FS/MM)
-Date: Fri, 18 Jun 2010 10:21:13 -0500
-Message-ID: <F8ACFB06B9FB33429F1F0A8D62A89BAA085F53A2AF@AUSX7MCPS303.AMER.DELL.COM>
-References: <F8ACFB06B9FB33429F1F0A8D62A89BAA085F53A240@AUSX7MCPS303.AMER.DELL.COM>
- <1276873901.2850.40.camel@mulgrave.site>
+From: Michal Marek <mmarek@suse.cz>
+Subject: Re: [PATCH 31/40] trace syscalls: Convert various generic compat
+ syscalls
+Date: Thu, 24 Jun 2010 14:05:07 +0200
+Message-ID: <4C2349F3.7090207__25301.649401854$1277381425$gmane$org@suse.cz>
+References: <1277287401-28571-1-git-send-email-imunsie@au1.ibm.com> <1277287401-28571-32-git-send-email-imunsie@au1.ibm.com> <4C21DFBA.2070202@linux.intel.com> <20100623102931.GB5242@nowhere> <4C21E3F8.9000405@linux.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <linux-fsdevel-owner@vger.kernel.org>
-In-Reply-To: <1276873901.2850.40.camel@mulgrave.site>
-Content-Language: en-US
-Sender: linux-fsdevel-owner@vger.kernel.org
-To: James.Bottomley@HansenPartnership.com
-Cc: lsf10-pc@lists.linuxfoundation.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1ORlG9-000396-5S
+	for glkm-linux-mm-2@m.gmane.org; Thu, 24 Jun 2010 14:10:21 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 834986B0071
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 08:10:16 -0400 (EDT)
+Received: from list by lo.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1ORlFr-0002zq-4f
+	for linux-mm@kvack.org; Thu, 24 Jun 2010 14:10:03 +0200
+Received: from nat.scz.novell.com ([213.151.88.252])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 24 Jun 2010 14:10:03 +0200
+Received: from mmarek by nat.scz.novell.com with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 24 Jun 2010 14:10:03 +0200
+In-Reply-To: <4C21E3F8.9000405@linux.intel.com>
+Sender: owner-linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, linux-fsdevel@vger.kernel.org, kexec@lists.infradead.org, netdev@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-VGhhbmtzIEphbWVzLiBXaWxsIGRvLg0KDQpNYXJrDQoNCi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0t
-LS0tDQpGcm9tOiBKYW1lcyBCb3R0b21sZXkgW21haWx0bzpKYW1lcy5Cb3R0b21sZXlASGFuc2Vu
-UGFydG5lcnNoaXAuY29tXSANClNlbnQ6IEZyaWRheSwgSnVuZSAxOCwgMjAxMCAxMDoxMiBBTQ0K
-VG86IFJ1ZGVyLCBNYXJrDQpDYzogbHNmMTAtcGNAbGlzdHMubGludXhmb3VuZGF0aW9uLm9yZzsg
-bGludXgtZnNkZXZlbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgt
-c2NzaUB2Z2VyLmtlcm5lbC5vcmcNClN1YmplY3Q6IFJlOiBbTHNmMTAtcGNdIFN1Z2dlc3RlZCB0
-b3BpYyBmb3IgQXVndXN0IExTRiBzdW1taXQgZXZlbnQgKFNDU0kvRlMvTU0pDQoNCk9uIEZyaSwg
-MjAxMC0wNi0xOCBhdCAwOTo1NSAtMDUwMCwgTWFya19SdWRlckBEZWxsLmNvbSB3cm90ZToNCj4g
-SSB3YXMgYXNrZWQgdG8gc2hhcmUgc3VnZ2VzdGVkIHRvcGljcyB0aGF0IHdlIHdvdWxkIGJlIGlu
-dGVyZXN0ZWQgaW4NCj4gYmVpbmcgZGlzY3Vzc2VkIGluIHRoZSB1cGNvbWluZyBMU0YgU3VtbWl0
-IGV2ZW4gaW4gZWFybHkgQXVndXN0Lg0KPiBSYXRoZXIgdGhhdCByZS10eXBpbmcgYWxsIG9mIHRo
-ZW0gaW50byB0aGlzIGVtYWlsLCBJ4oCZdmUgYXR0YWNoZWQgYQ0KPiBzbGlkZSBkZWNrIGRldmVs
-b3BlZCBieSBNYXR0IERvbXNjaCBpbiBEZWxs4oCZcyBDVE8gb2ZmaWNlIGFzIGEgc3RhcnRpbmcN
-Cj4gcG9pbnQuIEl0IGlzIGEgYml0IGRhdGVkLCBidXQgd2UgZmVlbCB0aGF0IHRvcGljcyBhcmUg
-c3RpbGwgcmVsZXZhbnQNCj4gdG8gdXMuDQoNCldlIGdvdCB0aGlzIG9uIHRoZSBQQyBsaXN0cywg
-YnV0IGFsbCBvZiB0aGUgb3RoZXIgbWFpbGluZyBsaXN0cyB3aWxsDQpoYXZlIGRpc2NhcmRlZCBp
-dCBzaWdodCB1bnNlZW4gKGVuZm9yY2luZyBwbGFpbiB0ZXh0IG9ubHkgYW5kIG5vdGhpbmcNCm90
-aGVyIHRoYW4gdGV4dC9wbGFpbiBhdHRhY2htZW50cyBpcyBhIHN0YW5kYXJkIGxpc3Qgc3BhbSBt
-aXRpZ2F0aW9uDQp0ZWNobmlxdWUpLiAgQ291bGQgeW91IHN1bW1hcmlzZSBhcyB0ZXh0ICh5b3Ug
-Y2FuIGp1c3QgZ28gdG8gdGhlIG91dGxpbmUNCnZpZXcgYW5kIHBhc3RlIGV2ZXJ5dGhpbmcgaW50
-byBhIHRleHQgd2luZG93KS4NCg0KSmFtZXMNCg0KDQoNCg==
+On 23.6.2010 12:37, Andi Kleen wrote:
+> It also has maintenance costs, e.g. I doubt ctags and cscope
+> will be able to deal with these kinds of macros, so it has a
+> high cost for everyone using these tools.
+
+FWIW, patch 16/40 of this series teaches 'make tags' to recognize these
+macros: http://permalink.gmane.org/gmane.linux.kernel/1002103
+
+Michal
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
