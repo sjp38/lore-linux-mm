@@ -1,118 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 623D76B0071
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 09:58:30 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF2E6B01AD
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 09:58:31 -0400 (EDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/2 v5] Livelock avoidance for data integrity writes
-Date: Thu, 24 Jun 2010 15:57:45 +0200
-Message-Id: <1277387867-5525-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 1/2] radix-tree: Implement function radix_tree_range_tag_if_tagged
+Date: Thu, 24 Jun 2010 15:57:46 +0200
+Message-Id: <1277387867-5525-2-git-send-email-jack@suse.cz>
+In-Reply-To: <1277387867-5525-1-git-send-email-jack@suse.cz>
+References: <1277387867-5525-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: inux-fsdevel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, david@fromorbit.com
+Cc: inux-fsdevel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, david@fromorbit.com, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
+Implement function for setting one tag if another tag is set
+for each item in given range.
 
-  Hi,
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ include/linux/radix-tree.h |    4 ++
+ lib/radix-tree.c           |   94 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+), 0 deletions(-)
 
-  this is an update of my patches to implement livelock avoidance for data
-integrity writes using page tagging. There are some minor changes against
-the previous versions:
-  * fixed some whitespace problems spotted checkpatch
-  * added WARN_ON_ONCE to catch a problem if radix_tree_range_tag_if_tagged
-    tags more pages than we asked
-  * fixed radix_tree_range_tag_if_tagged to tag at most as many pages as
-    we asked (it could tag one page more).
-
-  The patch now passed also XFSQA for XFS (well, several tests failed - like
-192, 195, 228 ... - but they don't seem to be related - they are atime test,
-ctime test, file alignment test, ...). Also the radix tree code passed through
-10000 iterations of the following test I've implemented in Andrew's rtth:
-
-void copy_tag_check(void)
-{
-        RADIX_TREE(tree, GFP_KERNEL);
-        unsigned long idx[ITEMS];
-        unsigned long start, end, count = 0, tagged, cur, tmp;
-        int i;
-
-//      printf("generating radix tree indices...\n");
-        start = rand();
-        end = rand();
-        if (start > end && (rand() % 10)) {
-                cur = start;
-                start = end;
-                end = cur;
-        }
-        /* Specifically create items around the start and the end of the range
-         * with high probability to check for off by one errors */
-        cur = rand();
-        if (cur & 1) {
-                item_insert(&tree, start);
-                if (cur & 2) {
-                        if (start <= end)
-                                count++;
-                        item_tag_set(&tree, start, 0);
-                }
-        }
-        if (cur & 4) {
-                item_insert(&tree, start-1);
-               if (cur & 8)
-                        item_tag_set(&tree, start-1, 0);
-        }
-        if (cur & 16) {
-                item_insert(&tree, end);
-                if (cur & 32) {
-                        if (start <= end)
-                                count++;
-                        item_tag_set(&tree, end, 0);
-                }
-        }
-        if (cur & 64) {
-                item_insert(&tree, end+1);
-                if (cur & 128)
-                        item_tag_set(&tree, end+1, 0);
-        }
-
-        for (i = 0; i < ITEMS; i++) {
-                do {
-                        idx[i] = rand();
-                } while (item_lookup(&tree, idx[i]));
-
-                item_insert(&tree, idx[i]);
-                if (rand() & 1) {
-                        item_tag_set(&tree, idx[i], 0);
-                        if (idx[i] >= start && idx[i] <= end)
-                                count++;
-                }
-/*              if (i % 1000 == 0)
-                        putchar('.'); */
-        }
-
-//      printf("\ncopying tags...\n");
-        cur = start;
-        tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, ITEMS, 0, 1);
-
-//      printf("checking copied tags\n");
-        assert(tagged == count);
-        check_copied_tags(&tree, start, end, idx, ITEMS, 0, 1);
-
-        /* Copy tags in several rounds */
-//      printf("\ncopying tags...\n");
-        cur = start;
-        do {
-                tmp = rand() % (count/10+2);
-                tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, tmp, 0
-        } while (tmp == tagged);
-
-//      printf("%lu %lu %lu\n", tagged, tmp, count);
-//      printf("checking copied tags\n");
-        check_copied_tags(&tree, start, end, idx, ITEMS, 0, 2);
-        assert(tagged < tmp);
-//      printf("\n");
-        item_kill_tree(&tree);
-}
-
-								Honza
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 55ca73c..a4b00e9 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -192,6 +192,10 @@ unsigned int
+ radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
+ 		unsigned long first_index, unsigned int max_items,
+ 		unsigned int tag);
++unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
++		unsigned long *first_indexp, unsigned long last_index,
++		unsigned long nr_to_tag,
++		unsigned int fromtag, unsigned int totag);
+ int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
+ 
+ static inline void radix_tree_preload_end(void)
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 05da38b..e907858 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -609,6 +609,100 @@ int radix_tree_tag_get(struct radix_tree_root *root,
+ EXPORT_SYMBOL(radix_tree_tag_get);
+ 
+ /**
++ * radix_tree_range_tag_if_tagged - for each item in given range set given
++ *				   tag if item has another tag set
++ * @root:		radix tree root
++ * @first_indexp:	pointer to a starting index of a range to scan
++ * @last_index:		last index of a range to scan
++ * @nr_to_tag:		maximum number items to tag
++ * @iftag:		tag index to test
++ * @settag:		tag index to set if tested tag is set
++ *
++ * This function scans range of radix tree from first_index to last_index
++ * (inclusive).  For each item in the range if iftag is set, the function sets
++ * also settag. The function stops either after tagging nr_to_tag items or
++ * after reaching last_index.
++ *
++ * The function returns number of leaves where the tag was set and sets
++ * *first_indexp to the first unscanned index.
++ */
++unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
++		unsigned long *first_indexp, unsigned long last_index,
++		unsigned long nr_to_tag,
++		unsigned int iftag, unsigned int settag)
++{
++	unsigned int height = root->height, shift;
++	unsigned long tagged = 0, index = *first_indexp;
++	struct radix_tree_node *open_slots[height], *slot;
++
++	last_index = min(last_index, radix_tree_maxindex(height));
++	if (index > last_index)
++		return 0;
++	if (!nr_to_tag)
++		return 0;
++	if (!root_tag_get(root, iftag)) {
++		*first_indexp = last_index + 1;
++		return 0;
++	}
++	if (height == 0) {
++		*first_indexp = last_index + 1;
++		root_tag_set(root, settag);
++		return 1;
++	}
++
++	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
++	slot = radix_tree_indirect_to_ptr(root->rnode);
++
++	for (;;) {
++		int offset;
++
++		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
++		if (!slot->slots[offset])
++			goto next;
++		if (!tag_get(slot, iftag, offset))
++			goto next;
++		tag_set(slot, settag, offset);
++		if (height == 1) {
++			tagged++;
++			goto next;
++		}
++		/* Go down one level */
++		height--;
++		shift -= RADIX_TREE_MAP_SHIFT;
++		open_slots[height] = slot;
++		slot = slot->slots[offset];
++		continue;
++next:
++		/* Go to next item at level determined by 'shift' */
++		index = ((index >> shift) + 1) << shift;
++		if (index > last_index)
++			break;
++		if (tagged >= nr_to_tag)
++			break;
++		while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
++			/*
++			 * We've fully scanned this node. Go up. Because
++			 * last_index is guaranteed to be in the tree, what
++			 * we do below cannot wander astray.
++			 */
++			slot = open_slots[height];
++			height++;
++			shift += RADIX_TREE_MAP_SHIFT;
++		}
++	}
++	/*
++	 * The iftag must have been set somewhere because otherwise
++	 * we would return immediated at the beginning of the function
++	 */
++	root_tag_set(root, settag);
++	*first_indexp = index;
++
++	return tagged;
++}
++EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
++
++
++/**
+  *	radix_tree_next_hole    -    find the next hole (not-present entry)
+  *	@root:		tree root
+  *	@index:		index key
+-- 
+1.6.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
