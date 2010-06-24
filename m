@@ -1,184 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 961A16B01AC
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 09:58:31 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/2] mm: Implement writeback livelock avoidance using page tagging
-Date: Thu, 24 Jun 2010 15:57:47 +0200
-Message-Id: <1277387867-5525-3-git-send-email-jack@suse.cz>
-In-Reply-To: <1277387867-5525-1-git-send-email-jack@suse.cz>
-References: <1277387867-5525-1-git-send-email-jack@suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 980146B0071
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 12:00:59 -0400 (EDT)
+Date: Fri, 25 Jun 2010 02:00:52 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 50/52] mm: implement per-zone shrinker
+Message-ID: <20100624160052.GL10441@laptop>
+References: <20100624030212.676457061@suse.de>
+ <20100624030733.676440935@suse.de>
+ <87aaqkagn9.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87aaqkagn9.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: inux-fsdevel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, david@fromorbit.com, Jan Kara <jack@suse.cz>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <johnstul@us.ibm.com>, Frank Mayhar <fmayhar@google.com>
 List-ID: <linux-mm.kvack.org>
 
-We try to avoid livelocks of writeback when some steadily creates
-dirty pages in a mapping we are writing out. For memory-cleaning
-writeback, using nr_to_write works reasonably well but we cannot
-really use it for data integrity writeback. This patch tries to
-solve the problem.
+On Thu, Jun 24, 2010 at 12:06:50PM +0200, Andi Kleen wrote:
+> npiggin@suse.de writes:
+> 
+> > Allow the shrinker to do per-zone shrinking. This means it is called for
+> > each zone scanned. The shrinker is now completely responsible for calculating
+> > and batching (given helpers), which provides better flexibility.
+> 
+> Beyond the scope of this patch, but at some point this probably needs
+> to be even more fine grained. With large number of cores/threads in 
+> each socket a "zone" is actually shared by quite a large number 
+> of CPUs now and this can cause problems.
 
-The idea is simple: Tag all pages that should be written back
-with a special tag (TOWRITE) in the radix tree. This can be done
-rather quickly and thus livelocks should not happen in practice.
-Then we start doing the hard work of locking pages and sending
-them to disk only for those pages that have TOWRITE tag set.
+Yes, possibly. At least it is a much better step than the big dumb
+global list.
 
-Note: Adding new radix tree tag grows radix tree node from 288 to
-296 bytes for 32-bit archs and from 552 to 560 bytes for 64-bit archs.
-However, the number of slab/slub items per page remains the same
-(13 and 7 respectively).
+ 
+> > +void shrinker_add_scan(unsigned long *dst,
+> > +			unsigned long scanned, unsigned long total,
+> > +			unsigned long objects, unsigned int ratio)
+> > +{
+> > +	unsigned long long delta;
+> > +
+> > +	delta = (unsigned long long)scanned * objects * ratio;
+> > +	do_div(delta, total + 1);
+> > +	delta /= (128ULL / 4ULL);
+> 
+> Again I object to the magic numbers ...
+> 
+> > +		nr += shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
+> > +	if (nr >= 10)
+> > +		goto again;
+> 
+> And here.
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- include/linux/fs.h         |    1 +
- include/linux/radix-tree.h |    2 +-
- mm/page-writeback.c        |   70 +++++++++++++++++++++++++++++++++----------
- 3 files changed, 55 insertions(+), 18 deletions(-)
+I don't like them either -- problem is they were inherited from the
+old code (actually 128 is the fixed point scale, I do have a define
+for it just forgot to use it).
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 471e1ff..664674e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -685,6 +685,7 @@ struct block_device {
-  */
- #define PAGECACHE_TAG_DIRTY	0
- #define PAGECACHE_TAG_WRITEBACK	1
-+#define PAGECACHE_TAG_TOWRITE	2
+I don't know where 4 came from. And 10 is just a random number someone
+picked out of a hat :P
+
  
- int mapping_tagged(struct address_space *mapping, int tag);
- 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index a4b00e9..634b8e6 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -55,7 +55,7 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
- 
- /*** radix-tree API starts here ***/
- 
--#define RADIX_TREE_MAX_TAGS 2
-+#define RADIX_TREE_MAX_TAGS 3
- 
- /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
- struct radix_tree_root {
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index bbd396a..d265ef9 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -807,6 +807,41 @@ void __init page_writeback_init(void)
- }
- 
- /**
-+ * tag_pages_for_writeback - tag pages to be written by write_cache_pages
-+ * @mapping: address space structure to write
-+ * @start: starting page index
-+ * @end: ending page index (inclusive)
-+ *
-+ * This function scans the page range from @start to @end (inclusive) and tags
-+ * all pages that have DIRTY tag set with a special TOWRITE tag. The idea is
-+ * that write_cache_pages (or whoever calls this function) will then use
-+ * TOWRITE tag to identify pages eligible for writeback.  This mechanism is
-+ * used to avoid livelocking of writeback by a process steadily creating new
-+ * dirty pages in the file (thus it is important for this function to be quick
-+ * so that it can tag pages faster than a dirtying process can create them).
-+ */
-+/*
-+ * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce tree_lock latency.
-+ */
-+#define WRITEBACK_TAG_BATCH 4096
-+void tag_pages_for_writeback(struct address_space *mapping,
-+			     pgoff_t start, pgoff_t end)
-+{
-+	unsigned long tagged;
-+
-+	do {
-+		spin_lock_irq(&mapping->tree_lock);
-+		tagged = radix_tree_range_tag_if_tagged(&mapping->page_tree,
-+				&start, end, WRITEBACK_TAG_BATCH,
-+				PAGECACHE_TAG_DIRTY, PAGECACHE_TAG_TOWRITE);
-+		spin_unlock_irq(&mapping->tree_lock);
-+		WARN_ON_ONCE(tagged > WRITEBACK_TAG_BATCH);
-+		cond_resched();
-+	} while (tagged >= WRITEBACK_TAG_BATCH);
-+}
-+EXPORT_SYMBOL(tag_pages_for_writeback);
-+
-+/**
-  * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
-  * @mapping: address space structure to write
-  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
-@@ -820,6 +855,13 @@ void __init page_writeback_init(void)
-  * the call was made get new I/O started against them.  If wbc->sync_mode is
-  * WB_SYNC_ALL then we were called for data integrity and we must wait for
-  * existing IO to complete.
-+ *
-+ * To avoid livelocks (when other process dirties new pages), we first tag
-+ * pages which should be written back with TOWRITE tag and only then start
-+ * writing them. For data-integrity sync we have to be careful so that we do
-+ * not miss some pages (e.g., because some other process has cleared TOWRITE
-+ * tag we set). The rule we follow is that TOWRITE tag can be cleared only
-+ * by the process clearing the DIRTY tag (and submitting the page for IO).
-  */
- int write_cache_pages(struct address_space *mapping,
- 		      struct writeback_control *wbc, writepage_t writepage,
-@@ -835,6 +877,7 @@ int write_cache_pages(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int cycled;
- 	int range_whole = 0;
-+	int tag;
- 
- 	pagevec_init(&pvec, 0);
- 	if (wbc->range_cyclic) {
-@@ -851,29 +894,19 @@ int write_cache_pages(struct address_space *mapping,
- 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
- 			range_whole = 1;
- 		cycled = 1; /* ignore range_cyclic tests */
--
--		/*
--		 * If this is a data integrity sync, cap the writeback to the
--		 * current end of file. Any extension to the file that occurs
--		 * after this is a new write and we don't need to write those
--		 * pages out to fulfil our data integrity requirements. If we
--		 * try to write them out, we can get stuck in this scan until
--		 * the concurrent writer stops adding dirty pages and extending
--		 * EOF.
--		 */
--		if (wbc->sync_mode == WB_SYNC_ALL &&
--		    wbc->range_end == LLONG_MAX) {
--			end = i_size_read(mapping->host) >> PAGE_CACHE_SHIFT;
--		}
- 	}
--
-+	if (wbc->sync_mode == WB_SYNC_ALL)
-+		tag = PAGECACHE_TAG_TOWRITE;
-+	else
-+		tag = PAGECACHE_TAG_DIRTY;
- retry:
-+	if (wbc->sync_mode == WB_SYNC_ALL)
-+		tag_pages_for_writeback(mapping, index, end);
- 	done_index = index;
- 	while (!done && (index <= end)) {
- 		int i;
- 
--		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
--			      PAGECACHE_TAG_DIRTY,
-+		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
- 			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
- 		if (nr_pages == 0)
- 			break;
-@@ -1329,6 +1362,9 @@ int test_set_page_writeback(struct page *page)
- 			radix_tree_tag_clear(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_DIRTY);
-+		radix_tree_tag_clear(&mapping->page_tree,
-+				     page_index(page),
-+				     PAGECACHE_TAG_TOWRITE);
- 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
- 	} else {
- 		ret = TestSetPageWriteback(page);
--- 
-1.6.4.2
+> Overall it seems good, but I have not read all the shrinker callback
+> changes in all subsystems.
+
+Thanks for looking over it Andi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
