@@ -1,91 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7208E6B0071
-	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 19:42:54 -0400 (EDT)
-Date: Thu, 24 Jun 2010 09:42:37 +1000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AE36A6B0071
+	for <linux-mm@kvack.org>; Wed, 23 Jun 2010 20:03:30 -0400 (EDT)
+Date: Thu, 24 Jun 2010 10:02:46 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH RFC] mm: Implement balance_dirty_pages() through
- waiting for flusher thread
-Message-ID: <20100623234237.GA23223@dastard>
-References: <20100622131745.GB3338@quack.suse.cz>
- <20100622135234.GA11561@localhost>
- <20100622143124.GA15235@infradead.org>
- <20100622143856.GG3338@quack.suse.cz>
- <20100622224551.GS7869@dastard>
- <20100623013426.GA6706@localhost>
- <20100623030604.GM6590@dastard>
- <20100623032213.GA13068@localhost>
- <20100623060319.GN6590@dastard>
- <20100623062540.GA25103@localhost>
+Subject: Re: [PATCH 0/3] writeback visibility
+Message-ID: <20100624000246.GQ6590@dastard>
+References: <1276907415-504-1-git-send-email-mrubin@google.com>
+ <20100620231017.GI6590@dastard>
+ <AANLkTikem5aW2MChCwmluUveB-F3zv5B9Tj0TtXPcfxm@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20100623062540.GA25103@localhost>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikem5aW2MChCwmluUveB-F3zv5B9Tj0TtXPcfxm@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "peterz@infradead.org" <peterz@infradead.org>
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 23, 2010 at 02:25:40PM +0800, Wu Fengguang wrote:
-> On Wed, Jun 23, 2010 at 02:03:19PM +0800, Dave Chinner wrote:
-> > On Wed, Jun 23, 2010 at 11:22:13AM +0800, Wu Fengguang wrote:
-> > > On Wed, Jun 23, 2010 at 11:06:04AM +0800, Dave Chinner wrote:
-> > > > On Wed, Jun 23, 2010 at 09:34:26AM +0800, Wu Fengguang wrote:
-> > > > > On Wed, Jun 23, 2010 at 06:45:51AM +0800, Dave Chinner wrote:
-> > > > > > By default we set QUEUE_FLAG_SAME_COMP, which means we hand
-> > > > > > completions back to the submitter CPU during blk_complete_request().
-> > > > > > Completion processing is then handled by a softirq on the CPU
-> > > > > > selected for completion processing.
-> > > > > 
-> > > > > Good to know about that, thanks!
-> > > > > 
-> > > > > > This was done, IIRC, because it provided some OLTP benchmark 1-2%
-> > > > > > better results. It can, however, be turned off via
-> > > > > > /sys/block/<foo>/queue/rq_affinity, and there's no guarantee that
-> > > > > > the completion processing doesn't get handled off to some other CPU
-> > > > > > (e.g. via a workqueue) so we cannot rely on this completion
-> > > > > > behaviour to avoid cacheline bouncing.
-> > > > > 
-> > > > > If rq_affinity does not work reliably somewhere in the IO completion
-> > > > > path, why not trying to fix it?
-> > > > 
-> > > > Because completion on the submitter CPU is not ideal for high
-> > > > bandwidth buffered IO.
-> > > 
-> > > Yes there may be heavy post-processing for read data, however for writes
-> > > it is mainly the pre-processing that costs CPU?
-> > 
-> > Could be either - delayed allocation requires significant pre-processing
-> > for allocation. Avoiding this by using preallocation just
-> > moves the processing load to IO completion which needs to issue
-> > transactions to mark the region written.
+On Mon, Jun 21, 2010 at 10:09:24AM -0700, Michael Rubin wrote:
+> Thanks for looking at this.
 > 
-> Good point, thanks.
+> On Sun, Jun 20, 2010 at 4:10 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >> Michael Rubin (3):
+> >> A  writeback: Creating /sys/kernel/mm/writeback/writeback
+> >> A  writeback: per bdi monitoring
+> >> A  writeback: tracking subsystems causing writeback
+> >
+> > I'm not sure we want to export statistics that represent internal
+> > implementation details into a fixed userspace API. Who, other than
+> > developers, are going to understand and be able to make use of this
+> > information?
 > 
-> > > So perfect rq_affinity
-> > > should always benefit write IO?
-> > 
-> > No, because the flusher thread gets to be CPU bound just writing
-> > pages, allocating blocks and submitting IO. It might take 5-10GB/s
-> > to get there (say a million dirty pages a second being processed by
-> > a single CPU), but that's the sort of storage subsystem XFS is
-> > capable of driving. IO completion time for such a workload is
-> > significant, too, so putting that on the same CPU as the flusher
-> > thread will slow things down by far more than gain from avoiding
-> > cacheline bouncing.
+> I think there are varying degrees of internal exposure on the patches.
 > 
-> So super fast storage is going to demand multiple flushers per bdi.
-> And once we run multiple flushers for one bdi, it will again be
-> beneficial to schedule IO completion to the flusher CPU :)
+> >> A  writeback: Creating /sys/kernel/mm/writeback/writeback
+> This one seems to not expose any new internals. We already expose the
+> concept of "dirty", "writeback" and thresholds in /proc/meminfo.
 
-Yes - that is where we want to get to with XFS. But we don't have
-multiple bdi-flusher thread support yet for any filesystem, so
-I think it will be a while before the we can ignore this issue...
+I don't see any probems with these stats - no matter the
+implementation, they'll still be relevant.
+
+> >>A  writeback: per bdi monitoring
+> 
+> Looking at it again. I think this one is somewhat of a mixed bag.
+> BDIReclaimable, BdiWriteback, and the dirty thresholds seems safe to
+> export.While I agree the rest should stay in debugfs. Would that be
+> amenable?
+
+I'd much prefer all the bdi stats in the one spot. It's hard enough
+to find what you're looking for without splitting them into multiple
+locations.
+
+The other thing to consider is that tracing requires debugfN? to be
+mounted. Hence most kernels are going to have the debug stats
+available, anyway....
+
+> >> writeback: tracking subsystems causing writeback
+> 
+> I definitely agree that this one is too revealing and needs to be
+> redone. But I think we might want to add the details for concepts
+> which we already expose.
+> The idea of a "periodic writeback" is already exposed in /proc/sys/vm/
+> and I don't see that changing in the kernel as a method to deal with
+> buffered IO. Neither will sync.
+
+I don't see much value in exposing this information outside of
+development environments. I think it's much better to add trace
+points for events like this so that we do fine-grained analysis of
+when the events occur during problematic workloads....
+
+> The laptop stuff and the names of
+> "balance_dirty_pages" are bad, but maybe we can come up with something
+> more high level. Like "writeback due to low memory"
+> 
+> > FWIW, I've got to resend the writeback tracing patches to Jens that I
+> > have that give better visibility into the writeback behaviour.
+> > Perhaps those tracing events are a better basis for tracking down
+> > writeback problems - the bugs I found with the tracing could not
+> > have been found with these statistics...
+> 
+> Yeah I have been watching the tracing stuff you have posted and I
+> think it will help. There were some other trace points I wanted to add
+> to this patch but was waiting to learn from your submission on the
+> best way to integrate them.
+
+I've got more work to do on them first.... :/
+
+> > That's really why I'm asking - if the stats are just there to help
+> > development and debugging, then I think that improving the writeback
+> > tracing is a better approach to improving visibility of writeback
+> > behaviour...
+> 
+> Maybe I should not have put all these patches in one series. The first
+> one with the /sys/kernel/vm file is very useful for user space
+> developers. System Administrators who are trying to classify IO
+> problems often need to know if the disk is bad
+
+These stats aren't the place for observing that a disk is bad ;)
+
+> or if the buffered data
+> is not even being written to disk over time..
+
+I think this can be obtained from the existing info in /proc/meminfo.
+I'm not saying the new stats aren't necessary, just that we already
+have the high level information available for this....
+
+> Also at Google we tend
+> to run our jobs with very little unused RAM. Pushing things close to
+> their limits results in many surprises and writeback is often one of
+> them. Knowing the thresholds and rate of dirty and cleaning of pages
+> can help systems do the right thing.
+
+Yes, I hear this all the time from appliance developers that cache
+everything they need in userspace - they just want the kernel to
+stay out of the way and not use the unused RAM for caching stuff that
+doesn't matter to the application. Normally the issue is unbounded
+growth of the inode and dentry caches, but I can see how exceeding
+writeback limits can be just as much of a problem.
 
 Cheers,
 
-Dave.> 
-
+Dave.
 -- 
 Dave Chinner
 david@fromorbit.com
