@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5626B01AD
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 12:32:30 -0400 (EDT)
-Date: Thu, 24 Jun 2010 18:32:26 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AD46E6B01AC
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 12:37:13 -0400 (EDT)
+Date: Thu, 24 Jun 2010 18:37:09 +0200
 From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [patch 50/52] mm: implement per-zone shrinker
-Message-ID: <20100624163225.GT578@basil.fritz.box>
+Message-ID: <20100624163709.GU578@basil.fritz.box>
 References: <20100624030212.676457061@suse.de>
  <20100624030733.676440935@suse.de>
  <87aaqkagn9.fsf@basil.nowhere.org>
@@ -28,10 +28,10 @@ On Thu, Jun 24, 2010 at 06:27:02PM +0200, Andi Kleen wrote:
 > 
 > FWIW i skimmed over most of the patches and nothing stood out that
 > I really disliked. But I have gone over the code in very deep detail.
-
-haven't
+s/have/haven't/
 
 -Andi
+
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
