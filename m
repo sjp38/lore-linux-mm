@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DA0C96B0071
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 06:06:55 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF8D6B0071
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2010 06:12:00 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch 50/52] mm: implement per-zone shrinker
-References: <20100624030212.676457061@suse.de>
-	<20100624030733.676440935@suse.de>
-Date: Thu, 24 Jun 2010 12:06:50 +0200
-In-Reply-To: <20100624030733.676440935@suse.de> (npiggin@suse.de's message of
-	"Thu, 24 Jun 2010 13:03:02 +1000")
-Message-ID: <87aaqkagn9.fsf@basil.nowhere.org>
+Subject: Re: [RFC] mm: iommu: An API to unify IOMMU, CPU and device memory management
+References: <1277355096-15596-1-git-send-email-zpfeffer@codeaurora.org>
+Date: Thu, 24 Jun 2010 12:11:56 +0200
+In-Reply-To: <1277355096-15596-1-git-send-email-zpfeffer@codeaurora.org> (Zach
+	Pfeffer's message of "Wed, 23 Jun 2010 21:51:36 -0700")
+Message-ID: <876318ager.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: npiggin@suse.de
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <johnstul@us.ibm.com>, Frank Mayhar <fmayhar@google.com>
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: mel@csn.ul.ie, dwalker@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-npiggin@suse.de writes:
+Zach Pfeffer <zpfeffer@codeaurora.org> writes:
 
-> Allow the shrinker to do per-zone shrinking. This means it is called for
-> each zone scanned. The shrinker is now completely responsible for calculating
-> and batching (given helpers), which provides better flexibility.
+> This patch contains the documentation for and the main header file of
+> the API, termed the Virtual Contiguous Memory Manager. Its use would
+> allow all of the IOMMU to VM, VM to device and device to IOMMU
+> interoperation code to be refactored into platform independent code.
 
-Beyond the scope of this patch, but at some point this probably needs
-to be even more fine grained. With large number of cores/threads in 
-each socket a "zone" is actually shared by quite a large number 
-of CPUs now and this can cause problems.
+I read all the description and it's still unclear what advantage
+this all has over the current architecture? 
 
-> +void shrinker_add_scan(unsigned long *dst,
-> +			unsigned long scanned, unsigned long total,
-> +			unsigned long objects, unsigned int ratio)
-> +{
-> +	unsigned long long delta;
-> +
-> +	delta = (unsigned long long)scanned * objects * ratio;
-> +	do_div(delta, total + 1);
-> +	delta /= (128ULL / 4ULL);
+At least all the benefits mentioned seem to be rather nebulous.
 
-Again I object to the magic numbers ...
+Can you describe a concrete use case that is improved by this code
+directly?
 
-> +		nr += shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
-> +	if (nr >= 10)
-> +		goto again;
-
-And here.
-
-Overall it seems good, but I have not read all the shrinker callback
-changes in all subsystems.
 -Andi
 
 -- 
