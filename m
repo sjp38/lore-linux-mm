@@ -1,62 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC0E6B01AD
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 16:44:12 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o5PKi8HV031312
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 13:44:08 -0700
-Received: from iwn38 (iwn38.prod.google.com [10.241.68.102])
-	by wpaz13.hot.corp.google.com with ESMTP id o5PKhs3R010050
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 13:44:07 -0700
-Received: by iwn38 with SMTP id 38so2135086iwn.7
-        for <linux-mm@kvack.org>; Fri, 25 Jun 2010 13:44:07 -0700 (PDT)
-MIME-Version: 1.0
-From: Greg Thelen <gthelen@google.com>
-Date: Fri, 25 Jun 2010 13:43:45 -0700
-Message-ID: <AANLkTin2PcB6PwKnuazv3oAy6Arg8yntylVvdCj7Mzz-@mail.gmail.com>
-Subject: [ATTEND][LSF/VM TOPIC] deterministic cgroup charging using file path
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 853DF6B01AD
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:22 -0400 (EDT)
+Message-Id: <20100625212026.810557229@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:26 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
 Sender: owner-linux-mm@kvack.org
-To: lsf10-pc@lists.linuxfoundation.org
-Cc: linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-For the upcoming Linux VM summit, I am interesting in discussing the
-following proposal.
+The following patchset cleans some pieces up and then equips SLUB with
+per cpu queues that work similar to SLABs queues. With that approach
+SLUB wins in hackbench:
 
-Problem: When tasks from multiple cgroups share files the charging can be
-non-deterministic.  This requires that all such cgroups have unnecessarily high
-limits.  It would be nice if the charging was deterministic, using the file's
-path to determine which cgroup to charge.  This would benefit charging of
-commonly used files (eg: libc) as well as large databases shared by only a few
-tasks.
+#!/bin/bash 
+uname -a
+echo "./hackbench 100 process 200000"
+./hackbench 100 process 200000
+echo "./hackbench 100 process 20000"
+./hackbench 100 process 20000
+echo "./hackbench 100 process 20000"
+./hackbench 100 process 20000
+echo "./hackbench 100 process 20000"
+./hackbench 100 process 20000
+echo "./hackbench 10 process 20000"
+./hackbench 10 process 20000
+echo "./hackbench 10 process 20000"
+./hackbench 10 process 20000
+echo "./hackbench 10 process 20000"
+./hackbench 10 process 20000
+echo "./hackbench 1 process 20000"
+./hackbench 1 process 20000
+echo "./hackbench 1 process 20000"
+./hackbench 1 process 20000
+echo "./hackbench 1 process 20000"
+./hackbench 1 process 20000
 
-Example: assume two tasks (T1 and T2), each in a separate cgroup.  Each task
-wants to access a large (1GB) database file.  To catch memory leaks a tight
-memory limit on each task's cgroup is set.  However, the large database file
-presents a problem.  If the file has not been cached, then the first task to
-access the file is charged, thereby requiring that task's cgroup to have a limit
-large enough to include the database file.  If the order of access is unknown
-(due to process restart, etc), then all cgroups accessing the file need to have
-a limit large enough to include the database.  This is wasteful because the
-database won't be charged to both T1 and T2.  It would be useful to introduce
-determinism by declaring that a particular cgroup is charged for a particular
-set of files.
+Procs	NR		SLAB	SLUB	SLUB+Queuing
+----------------------------------------------------
+100	200000		2741.3	2764.7	2231.9
+100	20000		279.3	270.3	219.0
+100	20000		278.0	273.1	219.2
+100	20000		279.0	271.7	218.8
+10 	20000		34.0	35.6	28.8
+10	20000		30.3	35.2	28.4
+10	20000		32.9	34.6	28.4
+1	20000		6.4	6.7	6.5
+1	20000		6.3	6.8	6.5
+1	20000		6.4	6.9	6.4
 
-/dev/cgroup/cg1/cg11  # T1: want memory.limit = 30MB
-/dev/cgroup/cg1/cg12  # T2: want memory.limit = 100MB
-/dev/cgroup/cg1       # want memory.limit = 1GB + 30MB + 100MB
 
-I have implemented a prototype that allows a file system hierarchy be charge a
-particular cgroup using a new bind mount option:
-+ mount -t cgroup none /cgroup -o memory
-+ mount --bind /tmp/db /tmp/db -o cgroup=/dev/cgroup/cg1
+SLUB+Q is a merging of SLUB with some queuing concepts from SLAB and a
+new way of managing objects in the slabs using bitmaps. It uses a percpu
+queue so that free operations can be properly buffered and a bitmap for
+managing the free/allocated state in the slabs. It is slightly more
+inefficient than SLUB (due to the need to place large bitmaps --sized
+a few words--in some slab pages if there are more than BITS_PER_LONG
+objects in a slab) but in general does not increase space use too much.
 
-Any accesses to files within /tmp/db are charged to /dev/cgroup/cg1.  Access to
-other files behave normally - they charge the cgroup of the current task.
-
---
-Greg
+The SLAB scheme of not touching the object during management is adopted.
+SLUB+Q can efficiently free and allocate cache cold objects without
+causing cache misses.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
