@@ -1,81 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0B3836B01CA
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:55 -0400 (EDT)
-Message-Id: <20100625212103.443416439@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:30 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7F9636B01B0
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:27:48 -0400 (EDT)
+Message-Id: <20100625212106.384650677@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:35 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 04/16] slub: Use a constant for a unspecified node.
+Subject: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
 References: <20100625212026.810557229@quilx.com>
-Content-Disposition: inline; filename=slab_node_unspecified
+Content-Disposition: inline; filename=percpu_make_usable_during_early_boot
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_node() and friends can be passed a constant -1 to indicate
-that no choice was made for the node from which the object needs to
-come.
+allocpercpu() may be used during early boot after the page allocator
+has been bootstrapped but when interrupts are still off. Make sure
+that we do not do GFP_KERNEL allocations if this occurs.
 
-Use NUMA_NO_NODE instead of -1.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
+Cc: tj@kernel.org
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- include/linux/slab.h |    2 ++
- mm/slub.c            |   10 +++++-----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ mm/percpu.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-Index: linux-2.6/mm/slub.c
+Index: linux-2.6/mm/percpu.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-06-01 08:51:39.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-06-01 08:58:46.000000000 -0500
-@@ -1073,7 +1073,7 @@ static inline struct page *alloc_slab_pa
+--- linux-2.6.orig/mm/percpu.c	2010-06-23 14:43:54.000000000 -0500
++++ linux-2.6/mm/percpu.c	2010-06-23 14:44:05.000000000 -0500
+@@ -275,7 +275,8 @@ static void __maybe_unused pcpu_next_pop
+  * memory is always zeroed.
+  *
+  * CONTEXT:
+- * Does GFP_KERNEL allocation.
++ * Does GFP_KERNEL allocation (May be called early in boot when
++ * interrupts are still disabled. Will then do GFP_NOWAIT alloc).
+  *
+  * RETURNS:
+  * Pointer to the allocated area on success, NULL on failure.
+@@ -286,7 +287,7 @@ static void *pcpu_mem_alloc(size_t size)
+ 		return NULL;
  
- 	flags |= __GFP_NOTRACK;
- 
--	if (node == -1)
-+	if (node == NUMA_NO_NODE)
- 		return alloc_pages(flags, order);
- 	else
- 		return alloc_pages_exact_node(node, flags, order);
-@@ -1727,7 +1727,7 @@ static __always_inline void *slab_alloc(
- 
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- {
--	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
- 
-@@ -1738,7 +1738,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
- #ifdef CONFIG_TRACING
- void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
- {
--	return slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
- }
- EXPORT_SYMBOL(kmem_cache_alloc_notrace);
- #endif
-@@ -2728,7 +2728,7 @@ void *__kmalloc(size_t size, gfp_t flags
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	ret = slab_alloc(s, flags, -1, _RET_IP_);
-+	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
- 
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
-@@ -3312,7 +3312,7 @@ void *__kmalloc_track_caller(size_t size
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	ret = slab_alloc(s, gfpflags, -1, caller);
-+	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
- 
- 	/* Honor the call site pointer we recieved. */
- 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
+ 	if (size <= PAGE_SIZE)
+-		return kzalloc(size, GFP_KERNEL);
++		return kzalloc(size, GFP_KERNEL & gfp_allowed_mask);
+ 	else {
+ 		void *ptr = vmalloc(size);
+ 		if (ptr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
