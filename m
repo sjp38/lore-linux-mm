@@ -1,34 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A7386B01AD
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 10:10:41 -0400 (EDT)
-Message-ID: <4C24B8DA.3000706@redhat.com>
-Date: Fri, 25 Jun 2010 10:10:34 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 650836B01AD
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 10:15:46 -0400 (EDT)
+Message-ID: <4C24BA05.9070201@redhat.com>
+Date: Fri, 25 Jun 2010 10:15:33 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: zone_reclaim don't call disable_swap_token()
-References: <20100625173002.8052.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100625173002.8052.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH] vmscan: recalculate lru_pages on each priority
+References: <20100625181221.805A.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100625181221.805A.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 06/25/2010 04:31 AM, KOSAKI Motohiro wrote:
-> Swap token don't works when zone reclaim is enabled since it was born.
-> Because __zone_reclaim() always call disable_swap_token()
-> unconditionally.
+On 06/25/2010 05:13 AM, KOSAKI Motohiro wrote:
+> shrink_zones() need relatively long time. and lru_pages can be
+> changed dramatically while shrink_zones().
+> then, lru_pages need recalculate on each priority.
 >
-> This kill swap token feature completely. As far as I know, nobody want
-> to that. Remove it.
->
-> Cc: Rik van Riel<riel@redhat.com>
-> Cc: Christoph Lameter<cl@linux-foundation.org>
 > Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-
-You are absolutely right.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
