@@ -1,68 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 853DF6B01AD
+	by kanga.kvack.org (Postfix) with SMTP id 8FF5E6B01AF
 	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:22 -0400 (EDT)
-Message-Id: <20100625212026.810557229@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:26 -0500
+Message-Id: <20100625212101.622422748@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:27 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
+Subject: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting successful operation
+References: <20100625212026.810557229@quilx.com>
+Content-Disposition: inline; filename=0001-ipc-sem.c-Bugfix-for-semop.patch
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-The following patchset cleans some pieces up and then equips SLUB with
-per cpu queues that work similar to SLABs queues. With that approach
-SLUB wins in hackbench:
+[Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
+fix]
 
-#!/bin/bash 
-uname -a
-echo "./hackbench 100 process 200000"
-./hackbench 100 process 200000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
+The last change to improve the scalability moved the actual wake-up out of
+the section that is protected by spin_lock(sma->sem_perm.lock).
 
-Procs	NR		SLAB	SLUB	SLUB+Queuing
-----------------------------------------------------
-100	200000		2741.3	2764.7	2231.9
-100	20000		279.3	270.3	219.0
-100	20000		278.0	273.1	219.2
-100	20000		279.0	271.7	218.8
-10 	20000		34.0	35.6	28.8
-10	20000		30.3	35.2	28.4
-10	20000		32.9	34.6	28.4
-1	20000		6.4	6.7	6.5
-1	20000		6.3	6.8	6.5
-1	20000		6.4	6.9	6.4
+This means that IN_WAKEUP can be in queue.status even when the spinlock is
+acquired by the current task. Thus the same loop that is performed when
+queue.status is read without the spinlock acquired must be performed when
+the spinlock is acquired.
 
+Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-SLUB+Q is a merging of SLUB with some queuing concepts from SLAB and a
-new way of managing objects in the slabs using bitmaps. It uses a percpu
-queue so that free operations can be properly buffered and a bitmap for
-managing the free/allocated state in the slabs. It is slightly more
-inefficient than SLUB (due to the need to place large bitmaps --sized
-a few words--in some slab pages if there are more than BITS_PER_LONG
-objects in a slab) but in general does not increase space use too much.
+---
+ ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
+ 1 files changed, 30 insertions(+), 6 deletions(-)
 
-The SLAB scheme of not touching the object during management is adopted.
-SLUB+Q can efficiently free and allocate cache cold objects without
-causing cache misses.
+diff --git a/ipc/sem.c b/ipc/sem.c
+index 506c849..523665f 100644
+--- a/ipc/sem.c
++++ b/ipc/sem.c
+@@ -1256,6 +1256,32 @@ out:
+ 	return un;
+ }
+ 
++
++/** get_queue_result - Retrieve the result code from sem_queue
++ * @q: Pointer to queue structure
++ *
++ * The function retrieve the return code from the pending queue. If 
++ * IN_WAKEUP is found in q->status, then we must loop until the value
++ * is replaced with the final value: This may happen if a task is
++ * woken up by an unrelated event (e.g. signal) and in parallel the task
++ * is woken up by another task because it got the requested semaphores.
++ *
++ * The function can be called with or without holding the semaphore spinlock.
++ */
++static int get_queue_result(struct sem_queue *q)
++{
++	int error;
++
++	error = q->status;
++	while(unlikely(error == IN_WAKEUP)) {
++		cpu_relax();
++		error = q->status;
++	}
++
++	return error;
++}
++
++
+ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 		unsigned, nsops, const struct timespec __user *, timeout)
+ {
+@@ -1409,11 +1435,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 	else
+ 		schedule();
+ 
+-	error = queue.status;
+-	while(unlikely(error == IN_WAKEUP)) {
+-		cpu_relax();
+-		error = queue.status;
+-	}
++	error = get_queue_result(&queue);
+ 
+ 	if (error != -EINTR) {
+ 		/* fast path: update_queue already obtained all requested
+@@ -1427,10 +1449,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 		goto out_free;
+ 	}
+ 
++	error = get_queue_result(&queue);
++
+ 	/*
+ 	 * If queue.status != -EINTR we are woken up by another process
+ 	 */
+-	error = queue.status;
++
+ 	if (error != -EINTR) {
+ 		goto out_unlock_free;
+ 	}
+-- 
+1.7.0.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
