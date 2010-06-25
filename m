@@ -1,103 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8FF5E6B01AF
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:22 -0400 (EDT)
-Message-Id: <20100625212101.622422748@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:27 -0500
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 364056B01AF
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:25 -0400 (EDT)
+Message-Id: <20100625212104.644784077@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:32 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting successful operation
+Subject: [S+Q 06/16] slub: Use kmem_cache flags to detect if slab is in debugging mode.
 References: <20100625212026.810557229@quilx.com>
-Content-Disposition: inline; filename=0001-ipc-sem.c-Bugfix-for-semop.patch
+Content-Disposition: inline; filename=slub_debug_on
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-[Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
-fix]
+The cacheline with the flags is reachable from the hot paths after the
+percpu allocator changes went in. So there is no need anymore to put a
+flag into each slab page. Get rid of the SlubDebug flag and use
+the flags in kmem_cache instead.
 
-The last change to improve the scalability moved the actual wake-up out of
-the section that is protected by spin_lock(sma->sem_perm.lock).
-
-This means that IN_WAKEUP can be in queue.status even when the spinlock is
-acquired by the current task. Thus the same loop that is performed when
-queue.status is read without the spinlock acquired must be performed when
-the spinlock is acquired.
-
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
- 1 files changed, 30 insertions(+), 6 deletions(-)
+ include/linux/page-flags.h |    1 -
+ mm/slub.c                  |   33 ++++++++++++---------------------
+ 2 files changed, 12 insertions(+), 22 deletions(-)
 
-diff --git a/ipc/sem.c b/ipc/sem.c
-index 506c849..523665f 100644
---- a/ipc/sem.c
-+++ b/ipc/sem.c
-@@ -1256,6 +1256,32 @@ out:
- 	return un;
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h	2010-05-28 11:37:33.000000000 -0500
++++ linux-2.6/include/linux/page-flags.h	2010-06-01 08:58:50.000000000 -0500
+@@ -215,7 +215,6 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEAR
+ __PAGEFLAG(SlobFree, slob_free)
+ 
+ __PAGEFLAG(SlubFrozen, slub_frozen)
+-__PAGEFLAG(SlubDebug, slub_debug)
+ 
+ /*
+  * Private page markings that may be used by the filesystem that owns the page
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-06-01 08:58:49.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-06-01 08:58:50.000000000 -0500
+@@ -107,11 +107,17 @@
+  * 			the fast path and disables lockless freelists.
+  */
+ 
++#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
++		SLAB_TRACE | SLAB_DEBUG_FREE)
++
++static inline int kmem_cache_debug(struct kmem_cache *s)
++{
+ #ifdef CONFIG_SLUB_DEBUG
+-#define SLABDEBUG 1
++	return unlikely(s->flags & SLAB_DEBUG_FLAGS);
+ #else
+-#define SLABDEBUG 0
++	return 0;
+ #endif
++}
+ 
+ /*
+  * Issues still to be resolved:
+@@ -1157,9 +1163,6 @@ static struct page *new_slab(struct kmem
+ 	inc_slabs_node(s, page_to_nid(page), page->objects);
+ 	page->slab = s;
+ 	page->flags |= 1 << PG_slab;
+-	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
+-			SLAB_STORE_USER | SLAB_TRACE))
+-		__SetPageSlubDebug(page);
+ 
+ 	start = page_address(page);
+ 
+@@ -1186,14 +1189,13 @@ static void __free_slab(struct kmem_cach
+ 	int order = compound_order(page);
+ 	int pages = 1 << order;
+ 
+-	if (unlikely(SLABDEBUG && PageSlubDebug(page))) {
++	if (kmem_cache_debug(s)) {
+ 		void *p;
+ 
+ 		slab_pad_check(s, page);
+ 		for_each_object(p, s, page_address(page),
+ 						page->objects)
+ 			check_object(s, page, p, 0);
+-		__ClearPageSlubDebug(page);
+ 	}
+ 
+ 	kmemcheck_free_shadow(page, compound_order(page));
+@@ -1415,8 +1417,7 @@ static void unfreeze_slab(struct kmem_ca
+ 			stat(s, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
+ 		} else {
+ 			stat(s, DEACTIVATE_FULL);
+-			if (SLABDEBUG && PageSlubDebug(page) &&
+-						(s->flags & SLAB_STORE_USER))
++			if (kmem_cache_debug(s) && (s->flags & SLAB_STORE_USER))
+ 				add_full(n, page);
+ 		}
+ 		slab_unlock(page);
+@@ -1624,7 +1625,7 @@ load_freelist:
+ 	object = c->page->freelist;
+ 	if (unlikely(!object))
+ 		goto another_slab;
+-	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
++	if (kmem_cache_debug(s))
+ 		goto debug;
+ 
+ 	c->freelist = get_freepointer(s, object);
+@@ -1783,7 +1784,7 @@ static void __slab_free(struct kmem_cach
+ 	stat(s, FREE_SLOWPATH);
+ 	slab_lock(page);
+ 
+-	if (unlikely(SLABDEBUG && PageSlubDebug(page)))
++	if (kmem_cache_debug(s))
+ 		goto debug;
+ 
+ checks_ok:
+@@ -3395,16 +3396,6 @@ static void validate_slab_slab(struct km
+ 	} else
+ 		printk(KERN_INFO "SLUB %s: Skipped busy slab 0x%p\n",
+ 			s->name, page);
+-
+-	if (s->flags & DEBUG_DEFAULT_FLAGS) {
+-		if (!PageSlubDebug(page))
+-			printk(KERN_ERR "SLUB %s: SlubDebug not set "
+-				"on slab 0x%p\n", s->name, page);
+-	} else {
+-		if (PageSlubDebug(page))
+-			printk(KERN_ERR "SLUB %s: SlubDebug set on "
+-				"slab 0x%p\n", s->name, page);
+-	}
  }
  
-+
-+/** get_queue_result - Retrieve the result code from sem_queue
-+ * @q: Pointer to queue structure
-+ *
-+ * The function retrieve the return code from the pending queue. If 
-+ * IN_WAKEUP is found in q->status, then we must loop until the value
-+ * is replaced with the final value: This may happen if a task is
-+ * woken up by an unrelated event (e.g. signal) and in parallel the task
-+ * is woken up by another task because it got the requested semaphores.
-+ *
-+ * The function can be called with or without holding the semaphore spinlock.
-+ */
-+static int get_queue_result(struct sem_queue *q)
-+{
-+	int error;
-+
-+	error = q->status;
-+	while(unlikely(error == IN_WAKEUP)) {
-+		cpu_relax();
-+		error = q->status;
-+	}
-+
-+	return error;
-+}
-+
-+
- SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 		unsigned, nsops, const struct timespec __user *, timeout)
- {
-@@ -1409,11 +1435,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 	else
- 		schedule();
- 
--	error = queue.status;
--	while(unlikely(error == IN_WAKEUP)) {
--		cpu_relax();
--		error = queue.status;
--	}
-+	error = get_queue_result(&queue);
- 
- 	if (error != -EINTR) {
- 		/* fast path: update_queue already obtained all requested
-@@ -1427,10 +1449,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 		goto out_free;
- 	}
- 
-+	error = get_queue_result(&queue);
-+
- 	/*
- 	 * If queue.status != -EINTR we are woken up by another process
- 	 */
--	error = queue.status;
-+
- 	if (error != -EINTR) {
- 		goto out_unlock_free;
- 	}
--- 
-1.7.0.1
-
+ static int validate_slab_node(struct kmem_cache *s,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
