@@ -1,41 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5EFBF6B01B4
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CCC7B6B01AF
 	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:25 -0400 (EDT)
-Message-Id: <20100625212104.072820103@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:31 -0500
+Message-Id: <20100625212105.203196516@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:33 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 05/16] SLUB: Constants need UL
+Subject: [S+Q 07/16] slub: discard_slab_unlock
 References: <20100625212026.810557229@quilx.com>
-Content-Disposition: inline; filename=slub_constant_ul
+Content-Disposition: inline; filename=slub_discard_unlock
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-UL suffix is missing in some constants. Conform to how slab.h uses constants.
+The sequence of unlocking a slab and freeing occurs multiple times.
+Put the common into a single function.
 
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/slub.c |   16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-05-24 14:40:33.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-05-24 14:42:46.000000000 -0500
-@@ -162,8 +162,8 @@
- #define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
+--- linux-2.6.orig/mm/slub.c	2010-06-01 08:58:50.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-06-01 08:58:54.000000000 -0500
+@@ -1260,6 +1260,13 @@ static __always_inline int slab_trylock(
+ 	return rc;
+ }
  
- /* Internal SLUB flags */
--#define __OBJECT_POISON		0x80000000 /* Poison object */
--#define __SYSFS_ADD_DEFERRED	0x40000000 /* Not yet visible via sysfs */
-+#define __OBJECT_POISON		0x80000000UL /* Poison object */
-+#define __SYSFS_ADD_DEFERRED	0x40000000UL /* Not yet visible via sysfs */
++static void discard_slab_unlock(struct kmem_cache *s,
++	struct page *page)
++{
++	slab_unlock(page);
++	discard_slab(s, page);
++}
++
+ /*
+  * Management of partially allocated slabs
+  */
+@@ -1437,9 +1444,8 @@ static void unfreeze_slab(struct kmem_ca
+ 			add_partial(n, page, 1);
+ 			slab_unlock(page);
+ 		} else {
+-			slab_unlock(page);
+ 			stat(s, FREE_SLAB);
+-			discard_slab(s, page);
++			discard_slab_unlock(s, page);
+ 		}
+ 	}
+ }
+@@ -1822,9 +1828,8 @@ slab_empty:
+ 		remove_partial(s, page);
+ 		stat(s, FREE_REMOVE_PARTIAL);
+ 	}
+-	slab_unlock(page);
+ 	stat(s, FREE_SLAB);
+-	discard_slab(s, page);
++	discard_slab_unlock(s, page);
+ 	return;
  
- static int kmem_size = sizeof(struct kmem_cache);
- 
+ debug:
+@@ -2893,8 +2898,7 @@ int kmem_cache_shrink(struct kmem_cache 
+ 				 */
+ 				list_del(&page->lru);
+ 				n->nr_partial--;
+-				slab_unlock(page);
+-				discard_slab(s, page);
++				discard_slab_unlock(s, page);
+ 			} else {
+ 				list_move(&page->lru,
+ 				slabs_by_inuse + page->inuse);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
