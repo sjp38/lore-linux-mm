@@ -1,84 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F8E36B01B2
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 03:16:13 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o5P7GANL029393
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 00:16:10 -0700
-Received: from gxk2 (gxk2.prod.google.com [10.202.11.2])
-	by kpbe11.cbf.corp.google.com with ESMTP id o5P7G8kT010198
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 00:16:09 -0700
-Received: by gxk2 with SMTP id 2so1535616gxk.40
-        for <linux-mm@kvack.org>; Fri, 25 Jun 2010 00:16:08 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1EFF16B01B0
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 04:29:46 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5P8ThlO006427
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 25 Jun 2010 17:29:43 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BA6745DE51
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:29:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F12E545DE4F
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:29:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D1ADAE08003
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:29:42 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7456B1DB803B
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:29:42 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 05/12] vmscan: kill prev_priority completely
+In-Reply-To: <20100616163709.1e0f6b56.akpm@linux-foundation.org>
+References: <1276514273-27693-6-git-send-email-mel@csn.ul.ie> <20100616163709.1e0f6b56.akpm@linux-foundation.org>
+Message-Id: <20100624211413.802B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100624000246.GQ6590@dastard>
-References: <1276907415-504-1-git-send-email-mrubin@google.com>
-	<20100620231017.GI6590@dastard> <AANLkTikem5aW2MChCwmluUveB-F3zv5B9Tj0TtXPcfxm@mail.gmail.com>
-	<20100624000246.GQ6590@dastard>
-From: Michael Rubin <mrubin@google.com>
-Date: Fri, 25 Jun 2010 00:15:48 -0700
-Message-ID: <AANLkTilQE03HfE6LbC146QR9m6a1AoSkIUYwZnhiIYjI@mail.gmail.com>
-Subject: Re: [PATCH 0/3] writeback visibility
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 25 Jun 2010 17:29:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, akpm@linux-foundation.org, hch@lst.de, axboe@kernel.dk
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 23, 2010 at 5:02 PM, Dave Chinner <david@fromorbit.com> wrote:
-> I don't see any probems with these stats - no matter the
-> implementation, they'll still be relevant.
 
-Cool. I have a new patch I will send out tomorrow for these. They have
-been moved to /proc/sys/vm too as Christoph recommended. Makes more
-sense too.
+sorry for the long delay.
+(and I'm a bit wonder why I was not CCed this thread ;)
 
-> I'd much prefer all the bdi stats in the one spot. It's hard enough
-> to find what you're looking for without splitting them into multiple
-> locations.
+> On Mon, 14 Jun 2010 12:17:46 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > 
+> > Since 2.6.28 zone->prev_priority is unused. Then it can be removed
+> > safely. It reduce stack usage slightly.
+> > 
+> > Now I have to say that I'm sorry. 2 years ago, I thought prev_priority
+> > can be integrate again, it's useful. but four (or more) times trying
+> > haven't got good performance number. Thus I give up such approach.
+> 
+> This would have been badder in earlier days when we were using the
+> scanning priority to decide when to start unmapping pte-mapped pages -
+> page reclaim would have been recirculating large blobs of mapped pages
+> around the LRU until the priority had built to the level where we
+> started to unmap them.
+> 
+> However that priority-based decision got removed and right now I don't
+> recall what it got replaced with.  Aren't we now unmapping pages way
+> too early and suffering an increased major&minor fault rate?  Worried.
+> 
+> 
+> Things which are still broken after we broke prev_priority:
+> 
+> - If page reclaim is having a lot of trouble, prev_priority would
+>   have permitted do_try_to_free_pages() to call disable_swap_token()
+>   earlier on.  As things presently stand, we'll do a lot of
+>   thrash-detection stuff before (presumably correctly) dropping the
+>   swap token.
+> 
+>   So.  What's up with that?  I don't even remember _why_ we disable
+>   the swap token once the scanning priority gets severe and the code
+>   comments there are risible.  And why do we wait until priority==0
+>   rather than priority==1?
+> 
+> - Busted prev_priority means that lumpy reclaim will act oddly. 
+>   Every time someone goes into do some recalim, they'll start out not
+>   doing lumpy reclaim.  Then, after a while, they'll get a clue and
+>   will start doing the lumpy thing.  Then they return from reclaim and
+>   the next recalim caller will again forget that he should have done
+>   lumpy reclaim.
+> 
+>   I dunno what the effects of this are in the real world, but it
+>   seems dumb.
+> 
+> And one has to wonder: if we're making these incorrect decisions based
+> upon a bogus view of the current scanning difficulty, why are these
+> various priority-based thresholding heuristics even in there?  Are they
+> doing anything useful?
+> 
+> So..  either we have a load of useless-crap-and-cruft in there which
+> should be lopped out, or we don't have a load of useless-crap-and-cruft
+> in there, and we should fix prev_priority.
 
-Yeah I hear ya.
+May I explain my experience? I'd like to explain why prev_priority wouldn't
+works nowadays. 
 
-> The other thing to consider is that tracing requires debugf=D1=95 to be
-> mounted. Hence most kernels are going to have the debug stats
-> available, anyway....
+First of all, Yes, current vmscan still a lot of UP centric code. it 
+expose some weakness on some dozens CPUs machine. I think we need 
+more and more improvement.
 
-This thread has made me reconsider pursuing if there is a way that we
-can access debugfs safely in our environment. It would make things a
-lot easier.
+The problem is, current vmscan mix up per-system-pressure, per-zone-pressure
+and per-task-pressure a bit. example, prev_priority try to boost priority to
+other concurrent priority. but If the another task have mempolicy restriction,
+It's unnecessary, but also makes wrong big latency and exceeding reclaim.
+per-task based priority + prev_priority adjustment make the emulation of
+per-system pressure. but it have two issue 1) too rough and brutal emulation
+2) we need per-zone pressure, not per-system.
 
->> >> writeback: tracking subsystems causing writeback
+another example, currently DEF_PRIORITY is 12. it mean the lru rotate about
+2 cycle (1/4096 + 1/2048 + 1/1024 + .. + 1) before invoking OOM-Killer.
+but if 10,0000 thrreads enter DEF_PRIORITY reclaim at the same time, the
+system have higher memory pressure than priority==0 (1/4096*10,000 > 2).
+prev_priority can't solve such multithreads workload issue.
 
-> I don't see much value in exposing this information outside of
-> development environments. I think it's much better to add trace
-> points for events like this so that we do fine-grained analysis of
-> when the events occur during problematic workloads....
+In other word, prev_priority concept assume the sysmtem don't have lots
+threads.
 
-> These stats aren't the place for observing that a disk is bad ;)
+And, I don't think lumpy reclaim threshold is big matter, because It was
+introduced to case aim7 corner case issue. I don't think such situation
+will occur frequently in the real workload. thus end users can't observe
+such logic.
 
-They do help grant visibility in the whole stack of behaviour.
-Writeback has created a whole lot of confusion and time waste. I do
-agree with you that these should be folded into tracing
-infrastructure.
+For mapped-vs-unmapped thing, I dunnno the exactly reason. That was
+introduced by Rik, unfortunatelly I had not joined its activity at 
+making design time. I can only say, while my testing the current code 
+works good.
 
-> Yes, I hear this all the time from appliance developers that cache
-> everything they need in userspace - they just want the kernel to
-> stay out of the way and not use the unused RAM for caching stuff that
-> doesn't matter to the application. Normally the issue is unbounded
-> growth of the inode and dentry caches, but I can see how exceeding
-> writeback limits can be just as much of a problem.
+That said, my conclusion is opposite. For long term view, we should
+consider to kill reclaim priority completely. Instead, we should
+consider to introduce per-zone pressure statistics.
 
-You hit the nail on the head. There's nothing like writing back logs
-to create latency spikes for direct IO traffic that make folks scratch
-their heads. In low memory environments this can get more confusing
-for a appliance developers trying to find out what happened after the
-fact.
 
-Thanks again. I think (or hope) the next set of patches will be more applic=
-able.
 
-mrubin
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  include/linux/mmzone.h |   15 ------------
+> >  mm/page_alloc.c        |    2 -
+> >  mm/vmscan.c            |   57 ------------------------------------------------
+> >  mm/vmstat.c            |    2 -
+> 
+> The patch forgot to remove mem_cgroup_get_reclaim_priority() and friends.
+
+Sure. thanks.
+Will fix.
+
+
+btw, current zone reclaim have wrong swap token usage.
+
+	static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+	{
+	(snip)
+	        disable_swap_token();
+	        cond_resched();
+
+
+I can't understand the reason why zone reclaim _always_ disable swap token.
+that's mean, if the system is enabled zone reclaim, swap token don't works 
+at all.
+
+Perhaps, original author's intention was following, I guess.
+
+                priority = ZONE_RECLAIM_PRIORITY;
+                do {
+                        if ((zone_reclaim_mode & RECLAIM_SWAP) && !priority)	// here
+			        disable_swap_token();				// here
+
+                        note_zone_scanning_priority(zone, priority);
+                        shrink_zone(priority, zone, &sc);
+                        priority--;
+                } while (priority >= 0 && sc.nr_reclaimed < nr_pages);
+
+
+However, if my understanding is correct, we can remove this 
+disable_swap_token() completely. because zone reclaim failure don't bring 
+to OOM-Killer, instead melery cause normal try_to_free_pages().
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
