@@ -1,69 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AE5E36B01B9
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:31 -0400 (EDT)
-Message-Id: <20100625212109.277669370@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:40 -0500
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0B3836B01CA
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:24:55 -0400 (EDT)
+Message-Id: <20100625212103.443416439@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:30 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 14/16] SLUB: Get rid of useless function count_free()
+Subject: [S+Q 04/16] slub: Use a constant for a unspecified node.
 References: <20100625212026.810557229@quilx.com>
-Content-Disposition: inline; filename=sled_drop_count_free
+Content-Disposition: inline; filename=slab_node_unspecified
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-count_free() == available()
+kmalloc_node() and friends can be passed a constant -1 to indicate
+that no choice was made for the node from which the object needs to
+come.
 
+Use NUMA_NO_NODE instead of -1.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |   11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ include/linux/slab.h |    2 ++
+ mm/slub.c            |   10 +++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-Index: linux-2.6.34/mm/slub.c
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.34.orig/mm/slub.c	2010-06-23 10:24:15.000000000 -0500
-+++ linux-2.6.34/mm/slub.c	2010-06-23 10:24:16.000000000 -0500
-@@ -1617,11 +1617,6 @@ static inline int node_match(struct kmem
- 	return 1;
- }
+--- linux-2.6.orig/mm/slub.c	2010-06-01 08:51:39.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-06-01 08:58:46.000000000 -0500
+@@ -1073,7 +1073,7 @@ static inline struct page *alloc_slab_pa
  
--static int count_free(struct page *page)
--{
--	return available(page);
--}
--
- static unsigned long count_partial(struct kmem_cache_node *n,
- 					int (*get_count)(struct page *))
+ 	flags |= __GFP_NOTRACK;
+ 
+-	if (node == -1)
++	if (node == NUMA_NO_NODE)
+ 		return alloc_pages(flags, order);
+ 	else
+ 		return alloc_pages_exact_node(node, flags, order);
+@@ -1727,7 +1727,7 @@ static __always_inline void *slab_alloc(
+ 
+ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
  {
-@@ -1670,7 +1665,7 @@ slab_out_of_memory(struct kmem_cache *s,
- 		if (!n)
- 			continue;
+-	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
++	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
  
--		nr_free  = count_partial(n, count_free);
-+		nr_free  = count_partial(n, available);
- 		nr_slabs = node_nr_slabs(n);
- 		nr_objs  = node_nr_objs(n);
+ 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
  
-@@ -3805,7 +3800,7 @@ static ssize_t show_slab_objects(struct 
- 			x = atomic_long_read(&n->total_objects);
- 		else if (flags & SO_OBJECTS)
- 			x = atomic_long_read(&n->total_objects) -
--				count_partial(n, count_free);
-+				count_partial(n, available);
+@@ -1738,7 +1738,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
+ #ifdef CONFIG_TRACING
+ void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
+ {
+-	return slab_alloc(s, gfpflags, -1, _RET_IP_);
++	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+ #endif
+@@ -2728,7 +2728,7 @@ void *__kmalloc(size_t size, gfp_t flags
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
  
- 			else
- 				x = atomic_long_read(&n->nr_slabs);
-@@ -4694,7 +4689,7 @@ static int s_show(struct seq_file *m, vo
- 		nr_partials += n->nr_partial;
- 		nr_slabs += atomic_long_read(&n->nr_slabs);
- 		nr_objs += atomic_long_read(&n->total_objects);
--		nr_free += count_partial(n, count_free);
-+		nr_free += count_partial(n, available);
- 	}
+-	ret = slab_alloc(s, flags, -1, _RET_IP_);
++	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
  
- 	nr_inuse = nr_objs - nr_free;
+ 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
+ 
+@@ -3312,7 +3312,7 @@ void *__kmalloc_track_caller(size_t size
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+ 
+-	ret = slab_alloc(s, gfpflags, -1, caller);
++	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
+ 
+ 	/* Honor the call site pointer we recieved. */
+ 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
