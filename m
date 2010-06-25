@@ -1,32 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 650836B01AD
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 10:15:46 -0400 (EDT)
-Message-ID: <4C24BA05.9070201@redhat.com>
-Date: Fri, 25 Jun 2010 10:15:33 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 879416B01AF
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 10:17:35 -0400 (EDT)
+Date: Fri, 25 Jun 2010 09:17:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/2] vmscan: don't subtraction of unsined 
+In-Reply-To: <20100625202126.806A.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006250912380.18900@router.home>
+References: <20100625201915.8067.A69D9226@jp.fujitsu.com> <20100625202126.806A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: recalculate lru_pages on each priority
-References: <20100625181221.805A.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100625181221.805A.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On 06/25/2010 05:13 AM, KOSAKI Motohiro wrote:
-> shrink_zones() need relatively long time. and lru_pages can be
-> changed dramatically while shrink_zones().
-> then, lru_pages need recalculate on each priority.
->
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+On Fri, 25 Jun 2010, KOSAKI Motohiro wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> 'slab_reclaimable' and 'nr_pages' are unsigned. so, subtraction is
+> unsafe.
 
--- 
-All rights reversed
+Why? We are subtracting the current value of NR_SLAB_RECLAIMABLE from the
+earlier one. The result can be negative (maybe concurrent allocations) and
+then the nr_reclaimed gets decremented instead. This is  okay since we
+have not reached our goal then of reducing the number of reclaimable slab
+pages on the zone.
+
+> @@ -2622,17 +2624,21 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		 * Note that shrink_slab will free memory on all zones and may
+>  		 * take a long time.
+>  		 */
+> -		while (shrink_slab(sc.nr_scanned, gfp_mask, lru_pages) &&
+> -			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+> -				slab_reclaimable - nr_pages)
+
+The comparison could be a problem here. So
+
+			zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
+				slab_reclaimable
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
