@@ -1,52 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7F9636B01B0
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:27:48 -0400 (EDT)
-Message-Id: <20100625212106.384650677@quilx.com>
-Date: Fri, 25 Jun 2010 16:20:35 -0500
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A9DA46B01CB
+	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 17:27:51 -0400 (EDT)
+Message-Id: <20100625212106.973996317@quilx.com>
+Date: Fri, 25 Jun 2010 16:20:36 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+Subject: [S+Q 10/16] slub: Remove static kmem_cache_cpu array for boot
 References: <20100625212026.810557229@quilx.com>
-Content-Disposition: inline; filename=percpu_make_usable_during_early_boot
+Content-Disposition: inline; filename=maybe_remove_static
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-allocpercpu() may be used during early boot after the page allocator
-has been bootstrapped but when interrupts are still off. Make sure
-that we do not do GFP_KERNEL allocations if this occurs.
+The percpu allocator can now handle allocations in early boot.
+So drop the static kmem_cache_cpu array.
 
-Cc: tj@kernel.org
+Early memory allocations require the use of GFP_NOWAIT instead of
+GFP_KERNEL. Mask GFP_KERNEL with gfp_allowed_mask to get to GFP_NOWAIT
+in a boot scenario.
+
+Cc: Tejun Heo <tj@kernel.org>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/percpu.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/slub.c |   21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)
 
-Index: linux-2.6/mm/percpu.c
+Index: linux-2.6.34/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/percpu.c	2010-06-23 14:43:54.000000000 -0500
-+++ linux-2.6/mm/percpu.c	2010-06-23 14:44:05.000000000 -0500
-@@ -275,7 +275,8 @@ static void __maybe_unused pcpu_next_pop
-  * memory is always zeroed.
-  *
-  * CONTEXT:
-- * Does GFP_KERNEL allocation.
-+ * Does GFP_KERNEL allocation (May be called early in boot when
-+ * interrupts are still disabled. Will then do GFP_NOWAIT alloc).
-  *
-  * RETURNS:
-  * Pointer to the allocated area on success, NULL on failure.
-@@ -286,7 +287,7 @@ static void *pcpu_mem_alloc(size_t size)
- 		return NULL;
+--- linux-2.6.34.orig/mm/slub.c	2010-06-22 09:50:00.000000000 -0500
++++ linux-2.6.34/mm/slub.c	2010-06-23 09:59:53.000000000 -0500
+@@ -2068,23 +2068,14 @@ init_kmem_cache_node(struct kmem_cache_n
+ #endif
+ }
  
- 	if (size <= PAGE_SIZE)
--		return kzalloc(size, GFP_KERNEL);
-+		return kzalloc(size, GFP_KERNEL & gfp_allowed_mask);
- 	else {
- 		void *ptr = vmalloc(size);
- 		if (ptr)
+-static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+-
+ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+ {
+-	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+-		/*
+-		 * Boot time creation of the kmalloc array. Use static per cpu data
+-		 * since the per cpu allocator is not available yet.
+-		 */
+-		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
+-	else
+-		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
++	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
++			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache));
+ 
+-	if (!s->cpu_slab)
+-		return 0;
++	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
+ 
+-	return 1;
++	return s->cpu_slab != NULL;
+ }
+ 
+ #ifdef CONFIG_NUMA
+@@ -2105,7 +2096,7 @@ static void early_kmem_cache_node_alloc(
+ 
+ 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
+ 
+-	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
++	page = new_slab(kmalloc_caches, GFP_KERNEL & gfp_allowed_mask, node);
+ 
+ 	BUG_ON(!page);
+ 	if (page_to_nid(page) != node) {
+@@ -2161,7 +2152,7 @@ static int init_kmem_cache_nodes(struct 
+ 			continue;
+ 		}
+ 		n = kmem_cache_alloc_node(kmalloc_caches,
+-						GFP_KERNEL, node);
++			GFP_KERNEL & gfp_allowed_mask, node);
+ 
+ 		if (!n) {
+ 			free_kmem_cache_nodes(s);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
