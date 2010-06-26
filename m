@@ -1,95 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EF3666B01B6
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:34:15 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o5QNYEsQ018405
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:34:14 -0700
-Received: from pzk37 (pzk37.prod.google.com [10.243.19.165])
-	by kpbe17.cbf.corp.google.com with ESMTP id o5QNYDqw022647
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:34:13 -0700
-Received: by pzk37 with SMTP id 37so594071pzk.39
-        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:34:13 -0700 (PDT)
-Date: Sat, 26 Jun 2010 16:34:10 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DEA9A6B01B6
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:39:05 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id o5QNd1OJ018220
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:39:01 -0700
+Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
+	by wpaz24.hot.corp.google.com with ESMTP id o5QNd0lg026708
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:39:00 -0700
+Received: by pwi10 with SMTP id 10so685443pwi.6
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:38:59 -0700 (PDT)
+Date: Sat, 26 Jun 2010 16:38:57 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 07/16] slub: discard_slab_unlock
-In-Reply-To: <20100625212105.203196516@quilx.com>
-Message-ID: <alpine.DEB.2.00.1006261632080.27174@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100625212105.203196516@quilx.com>
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+In-Reply-To: <20100625212106.384650677@quilx.com>
+Message-ID: <alpine.DEB.2.00.1006261636000.27174@chino.kir.corp.google.com>
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 25 Jun 2010, Christoph Lameter wrote:
 
-> The sequence of unlocking a slab and freeing occurs multiple times.
-> Put the common into a single function.
+> allocpercpu() may be used during early boot after the page allocator
+> has been bootstrapped but when interrupts are still off. Make sure
+> that we do not do GFP_KERNEL allocations if this occurs.
 > 
 
-Did you want to respond to the comments I made about this patch at 
-http://marc.info/?l=linux-mm&m=127689747432061 ?  Specifically, how it 
-makes seeing if there are unmatched slab_lock() -> slab_unlock() pairs 
-more difficult.
+Why isn't this being handled at a lower level, specifically in the slab 
+allocator to prevent GFP_KERNEL from being used when irqs are disabled?  
+We'll otherwise need to audit all slab allocations from the boot cpu for 
+correctness.
 
+> Cc: tj@kernel.org
 > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 > 
 > ---
->  mm/slub.c |   16 ++++++++++------
->  1 file changed, 10 insertions(+), 6 deletions(-)
+>  mm/percpu.c |    5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
 > 
-> Index: linux-2.6/mm/slub.c
+> Index: linux-2.6/mm/percpu.c
 > ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2010-06-01 08:58:50.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2010-06-01 08:58:54.000000000 -0500
-> @@ -1260,6 +1260,13 @@ static __always_inline int slab_trylock(
->  	return rc;
->  }
+> --- linux-2.6.orig/mm/percpu.c	2010-06-23 14:43:54.000000000 -0500
+> +++ linux-2.6/mm/percpu.c	2010-06-23 14:44:05.000000000 -0500
+> @@ -275,7 +275,8 @@ static void __maybe_unused pcpu_next_pop
+>   * memory is always zeroed.
+>   *
+>   * CONTEXT:
+> - * Does GFP_KERNEL allocation.
+> + * Does GFP_KERNEL allocation (May be called early in boot when
+> + * interrupts are still disabled. Will then do GFP_NOWAIT alloc).
+>   *
+>   * RETURNS:
+>   * Pointer to the allocated area on success, NULL on failure.
+> @@ -286,7 +287,7 @@ static void *pcpu_mem_alloc(size_t size)
+>  		return NULL;
 >  
-> +static void discard_slab_unlock(struct kmem_cache *s,
-> +	struct page *page)
-> +{
-> +	slab_unlock(page);
-> +	discard_slab(s, page);
-> +}
-> +
->  /*
->   * Management of partially allocated slabs
->   */
-> @@ -1437,9 +1444,8 @@ static void unfreeze_slab(struct kmem_ca
->  			add_partial(n, page, 1);
->  			slab_unlock(page);
->  		} else {
-> -			slab_unlock(page);
->  			stat(s, FREE_SLAB);
-> -			discard_slab(s, page);
-> +			discard_slab_unlock(s, page);
->  		}
->  	}
->  }
-> @@ -1822,9 +1828,8 @@ slab_empty:
->  		remove_partial(s, page);
->  		stat(s, FREE_REMOVE_PARTIAL);
->  	}
-> -	slab_unlock(page);
->  	stat(s, FREE_SLAB);
-> -	discard_slab(s, page);
-> +	discard_slab_unlock(s, page);
->  	return;
->  
->  debug:
-> @@ -2893,8 +2898,7 @@ int kmem_cache_shrink(struct kmem_cache 
->  				 */
->  				list_del(&page->lru);
->  				n->nr_partial--;
-> -				slab_unlock(page);
-> -				discard_slab(s, page);
-> +				discard_slab_unlock(s, page);
->  			} else {
->  				list_move(&page->lru,
->  				slabs_by_inuse + page->inuse);
+>  	if (size <= PAGE_SIZE)
+> -		return kzalloc(size, GFP_KERNEL);
+> +		return kzalloc(size, GFP_KERNEL & gfp_allowed_mask);
+>  	else {
+>  		void *ptr = vmalloc(size);
+>  		if (ptr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
