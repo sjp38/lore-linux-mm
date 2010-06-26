@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 361E26B01AF
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:54:00 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id o5QNrvkH025293
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:53:57 -0700
-Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
-	by hpaq13.eem.corp.google.com with ESMTP id o5QNrt2g003366
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:53:56 -0700
-Received: by pxi1 with SMTP id 1so2352142pxi.15
-        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:53:55 -0700 (PDT)
-Date: Sat, 26 Jun 2010 16:53:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
-In-Reply-To: <4C25B610.1050305@kernel.org>
-Message-ID: <alpine.DEB.2.00.1006261652440.27174@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <4C25B610.1050305@kernel.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 399726B01AD
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:56:50 -0400 (EDT)
+Received: by iwn36 with SMTP id 36so329457iwn.14
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:56:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20100625173002.8052.A69D9226@jp.fujitsu.com>
+References: <20100625173002.8052.A69D9226@jp.fujitsu.com>
+Date: Sun, 27 Jun 2010 08:56:48 +0900
+Message-ID: <AANLkTikm9fXmGoE1phY7vgQcMsS9_FVAvPHgtt1hnvTV@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: zone_reclaim don't call disable_swap_token()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 26 Jun 2010, Tejun Heo wrote:
+On Fri, Jun 25, 2010 at 5:31 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Swap token don't works when zone reclaim is enabled since it was born.
+> Because __zone_reclaim() always call disable_swap_token()
+> unconditionally.
+>
+> This kill swap token feature completely. As far as I know, nobody want
+> to that. Remove it.
+>
 
-> On 06/25/2010 11:20 PM, Christoph Lameter wrote:
-> > allocpercpu() may be used during early boot after the page allocator
-> > has been bootstrapped but when interrupts are still off. Make sure
-> > that we do not do GFP_KERNEL allocations if this occurs.
-> > 
-> > Cc: tj@kernel.org
-> > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> Acked-by: Tejun Heo <tj@kernel.org>
-> 
-> Christoph, how do you wanna route these patches?  I already have the
-> other two patches in the percpu tree, I can push this there too, which
-> then you can pull into the allocator tree.
-> 
+In f7b7fd8f3ebbb, Rik added disable_swap_token.
+At that time, sc.priority in zone_reclaim is zero so it does make sense.
+But in a92f71263a, Christoph changed the priority to begin from
+ZONE_RECLAIM_PRIORITY with remained disable_swap_token. It doesn't
+make sense.
 
-I think that's great for patches 2 and 3 in this series, but this patch is 
-only a bandaid for allocations done in early boot whereas the real fix 
-should be within a lower layer such as the slab or page allocator since 
-the irq context on the boot cpu is not specific only to percpu.
+So doesn't we add disable_swap_token following as than removing?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..d8050c7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2590,7 +2590,6 @@ static int __zone_reclaim(struct zone *zone,
+gfp_t gfp_mask, unsigned int order)
+        };
+        unsigned long slab_reclaimable;
+
+-       disable_swap_token();
+        cond_resched();
+        /*
+         * We need to be able to allocate from the reserves for RECLAIM_SWAP
+@@ -2612,6 +2611,8 @@ static int __zone_reclaim(struct zone *zone,
+gfp_t gfp_mask, unsigned int order)
+                        note_zone_scanning_priority(zone, priority);
+                        shrink_zone(priority, zone, &sc);
+                        priority--;
++                       if (!priority)
++                               disable_swap_token();
+                } while (priority >= 0 && sc.nr_reclaimed < nr_pages);
+        }
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
