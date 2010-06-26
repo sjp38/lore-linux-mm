@@ -1,39 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1E16B01B4
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:32:05 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id o5QNW0G1013457
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:32:00 -0700
-Received: from pvg16 (pvg16.prod.google.com [10.241.210.144])
-	by wpaz33.hot.corp.google.com with ESMTP id o5QNVxF4001904
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:31:59 -0700
-Received: by pvg16 with SMTP id 16so2498907pvg.23
-        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:31:59 -0700 (PDT)
-Date: Sat, 26 Jun 2010 16:31:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 06/16] slub: Use kmem_cache flags to detect if slab is in
- debugging mode.
-In-Reply-To: <20100625212104.644784077@quilx.com>
-Message-ID: <alpine.DEB.2.00.1006261631450.27174@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100625212104.644784077@quilx.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8B1FF6B01B6
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:33:36 -0400 (EDT)
+Received: by iwn36 with SMTP id 36so318629iwn.14
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:33:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20100625181221.805A.A69D9226@jp.fujitsu.com>
+References: <20100625181221.805A.A69D9226@jp.fujitsu.com>
+Date: Sun, 27 Jun 2010 08:33:34 +0900
+Message-ID: <AANLkTinXLZD-8QkMU8T5xqnGg2Fl55Nkzd6HzNT1FhPo@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: recalculate lru_pages on each priority
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Jun 2010, Christoph Lameter wrote:
+On Fri, Jun 25, 2010 at 6:13 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> shrink_zones() need relatively long time. and lru_pages can be
+> changed dramatically while shrink_zones().
+> then, lru_pages need recalculate on each priority.
+>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-> The cacheline with the flags is reachable from the hot paths after the
-> percpu allocator changes went in. So there is no need anymore to put a
-> flag into each slab page. Get rid of the SlubDebug flag and use
-> the flags in kmem_cache instead.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+Kosaki's patch seems to be reasonable to me.
 
-Acked-by: David Rientjes <rientjes@google.com>
+I looked into background reclaim. It already has done until now.
+(ie, background : dynamic lru_pages in each priority, direct reclaim :
+static lru_pages in each priority).
+Firstly In 53dce00d, Andrew did it.
+Why does he do it with unbalance?
+I guess it was just a mistake.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
