@@ -1,113 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CEB7F6B01AD
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:30:35 -0400 (EDT)
-Date: Sun, 27 Jun 2010 07:30:29 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] [31/31] HWPOISON: Add a madvise() injector for soft
- page 	offlining
-Message-ID: <20100626233029.GA8820@localhost>
-References: <20100619132055.GK18946@basil.fritz.box>
- <AANLkTin-lj5ZgtcvJhWcNiMuWSCQ39N8mqe_2fm8DDVR@mail.gmail.com>
- <20100619133000.GL18946@basil.fritz.box>
- <AANLkTiloIXtCwBeBvP32hLBBvxCWrZMMwWTZwSj475wi@mail.gmail.com>
- <20100619140933.GM18946@basil.fritz.box>
- <AANLkTilF6m5YKMiDGaTNuoW6LxiA44oss3HyvkavwrOK@mail.gmail.com>
- <20100619195242.GS18946@basil.fritz.box>
- <AANLkTikMZu0GXwzs6IeMyoTuhETrnjZ1m5lI9FTauYBA@mail.gmail.com>
- <20100620071446.GA21743@localhost>
- <AANLkTimv1S4BuyGFyuBld0Wn6ncz7JUnMiPis-HlN3Tb@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id AEA3C6B01B0
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:31:47 -0400 (EDT)
+Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
+	by smtp-out.google.com with ESMTP id o5QNVi9l006191
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:31:44 -0700
+Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
+	by hpaq6.eem.corp.google.com with ESMTP id o5QNVfEZ021852
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:31:42 -0700
+Received: by pvd12 with SMTP id 12so168181pvd.3
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:31:41 -0700 (PDT)
+Date: Sat, 26 Jun 2010 16:31:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q 05/16] SLUB: Constants need UL
+In-Reply-To: <20100625212104.072820103@quilx.com>
+Message-ID: <alpine.DEB.2.00.1006261631250.27174@chino.kir.corp.google.com>
+References: <20100625212026.810557229@quilx.com> <20100625212104.072820103@quilx.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTimv1S4BuyGFyuBld0Wn6ncz7JUnMiPis-HlN3Tb@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 26, 2010 at 09:18:52PM +0800, Michael Kerrisk wrote:
-> Hi Fengguang,
-> 
-> On Sun, Jun 20, 2010 at 9:14 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > On Sun, Jun 20, 2010 at 02:19:35PM +0800, Michael Kerrisk wrote:
-> >> Hi Andi,
-> >> On Sat, Jun 19, 2010 at 9:52 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> >> >> .TP
-> >> >> .BR MADV_SOFT_OFFLINE " (Since Linux 2.6.33)
-> >> >> Soft offline the pages in the range specified by
-> >> >> .I addr
-> >> >> and
-> >> >> .IR length .
-> >> >> This memory of each page in the specified range is copied to a new page,
-> >> >
-> >> > Actually there are some cases where it's also dropped if it's cached page.
-> >> >
-> >> > Perhaps better would be something more fuzzy like
-> >> >
-> >> > "the contents are preserved"
-> >>
-> >> The problem to me is that this gets so fuzzy that it's hard to
-> >> understand the meaning (I imagine many readers will ask: "What does it
-> >> mean that the contents are preserved"?). Would you be able to come up
-> >> with a wording that is a little miore detailed?
-> >
-> > That is, MADV_SOFT_OFFLINE won't lose data.
-> >
-> > If a process writes "1" to some virtual address and then called
-> > madvice(MADV_SOFT_OFFLINE) on that virtual address, it can continue
-> > to read "1" from that virtual address.
-> >
-> > MADV_SOFT_OFFLINE "transparently" replaces the underlying physical page
-> > frame with a new one that contains the same data "1". The original page
-> > frame is offlined, and the new page frame may be installed lazily.
-> 
-> Thanks. That helps me come up with a description that is I think a bit clearer:
-> 
->        MADV_SOFT_OFFLINE (Since Linux 2.6.33)
->               Soft offline the pages in the range specified by
->               addr and length.  The memory of each page in the
->               specified  range  is  preserved (i.e., when next
->               accessed, the same content will be visible,  but
->               in  a new physical page frame), and the original
->               page is offlined  (i.e.,  no  longer  used,  and
->               taken  out  of  normal  memory management).  The
->               effect of  the  MADV_SOFT_OFFLINE  operation  is
->               invisible  to  (i.e., does not change the seman-
->               tics of) the calling process. ...
-> 
-> The actual patch for man-pages-3.26 is below.
+On Fri, 25 Jun 2010, Christoph Lameter wrote:
 
-Thanks. The change looks good to me.
-
-Note that the other perceivable change may be a little access delay.
-The kernel could choose to simply drop the in-memory data when there
-is another copy in disk. When accessed again, the content for the new
-physical page will be populated from disk IO.
-
-Thanks,
-Fengguang
-
+> UL suffix is missing in some constants. Conform to how slab.h uses constants.
 > 
-> --- a/man2/madvise.2
-> +++ b/man2/madvise.2
-> @@ -163,12 +163,14 @@ Soft offline the pages in the range specified by
->  .I addr
->  and
->  .IR length .
-> -The memory of each page in the specified range is copied to a new page,
-> +The memory of each page in the specified range is preserved
-> +(i.e., when next accessed, the same content will be visible,
-> +but in a new physical page frame),
->  and the original page is offlined
->  (i.e., no longer used, and taken out of normal memory management).
->  The effect of the
->  .B MADV_SOFT_OFFLINE
-> -operation is normally invisible to (i.e., does not change the semantics of)
-> +operation is invisible to (i.e., does not change the semantics of)
->  the calling process.
->  This feature is intended for testing of memory error-handling code;
->  it is only available if the kernel was configured with
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
