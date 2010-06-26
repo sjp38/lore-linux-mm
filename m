@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id C89036B01AD
-	for <linux-mm@kvack.org>; Fri, 25 Jun 2010 22:32:06 -0400 (EDT)
-Date: Sat, 26 Jun 2010 12:32:00 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [S+Q 12/16] SLUB: Add SLAB style per cpu queueing
-Message-ID: <20100626023200.GD29809@laptop>
-References: <20100625212026.810557229@quilx.com>
- <20100625212108.124809375@quilx.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7537D6B01AD
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 04:11:27 -0400 (EDT)
+Message-ID: <4C25B610.1050305@kernel.org>
+Date: Sat, 26 Jun 2010 10:10:56 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100625212108.124809375@quilx.com>
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com>
+In-Reply-To: <20100625212106.384650677@quilx.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 25, 2010 at 04:20:38PM -0500, Christoph Lameter wrote:
-> This patch adds SLAB style cpu queueing and uses a new way for
->  managing objects in the slabs using bitmaps. It uses a percpu queue so that
-> free operations can be properly buffered and a bitmap for managing the
-> free/allocated state in the slabs. It uses slightly more memory
-> (due to the need to place large bitmaps --sized a few words--in some
-> slab pages) but in general does compete well in terms of space use.
-> The storage format using bitmaps avoids the SLAB management structure that
-> SLAB needs for each slab page and therefore the metadata is more compact
-> and easily fits into a cacheline.
+On 06/25/2010 11:20 PM, Christoph Lameter wrote:
+> allocpercpu() may be used during early boot after the page allocator
+> has been bootstrapped but when interrupts are still off. Make sure
+> that we do not do GFP_KERNEL allocations if this occurs.
 > 
-> The SLAB scheme of not touching the object during management is adopted.
-> SLUB can now efficiently free and allocate cache cold objects.
+> Cc: tj@kernel.org
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-BTW. this was never the problem with SLUB, because SLQB didn't have
-the big performance regression on tpcc. SLUB IIRC had to touch more
-cachelines per operation.
+Acked-by: Tejun Heo <tj@kernel.org>
 
+Christoph, how do you wanna route these patches?  I already have the
+other two patches in the percpu tree, I can push this there too, which
+then you can pull into the allocator tree.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
