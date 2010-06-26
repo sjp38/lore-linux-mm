@@ -1,39 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7537D6B01AD
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 04:11:27 -0400 (EDT)
-Message-ID: <4C25B610.1050305@kernel.org>
-Date: Sat, 26 Jun 2010 10:10:56 +0200
-From: Tejun Heo <tj@kernel.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2156B01AD
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 04:31:37 -0400 (EDT)
+Date: Sat, 26 Jun 2010 18:31:22 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: vmap area cache
+Message-ID: <20100626083122.GE29809@laptop>
+References: <20100531080757.GE9453@laptop>
+ <20100602144905.aa613dec.akpm@linux-foundation.org>
+ <20100603135533.GO6822@laptop>
+ <1277470817.3158.386.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
-References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com>
-In-Reply-To: <20100625212106.384650677@quilx.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1277470817.3158.386.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/25/2010 11:20 PM, Christoph Lameter wrote:
-> allocpercpu() may be used during early boot after the page allocator
-> has been bootstrapped but when interrupts are still off. Make sure
-> that we do not do GFP_KERNEL allocations if this occurs.
+On Fri, Jun 25, 2010 at 02:00:17PM +0100, Steven Whitehouse wrote:
+> Hi,
 > 
-> Cc: tj@kernel.org
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> Barry Marson has now tested your patch and it seems to work just fine.
+> Sorry for the delay,
+> 
+> Steve.
 
-Acked-by: Tejun Heo <tj@kernel.org>
+Hi Steve,
 
-Christoph, how do you wanna route these patches?  I already have the
-other two patches in the percpu tree, I can push this there too, which
-then you can pull into the allocator tree.
+Thanks for that, do you mean that it has solved thee regression?
 
-Thanks.
-
--- 
-tejun
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
