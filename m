@@ -1,67 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 399726B01AD
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 19:56:50 -0400 (EDT)
-Received: by iwn36 with SMTP id 36so329457iwn.14
-        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 16:56:48 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 817AC6B01AD
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 20:02:55 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o5R02p4N021665
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:51 -0700
+Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
+	by hpaq3.eem.corp.google.com with ESMTP id o5R02nkM023287
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:50 -0700
+Received: by pxi5 with SMTP id 5so478061pxi.11
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:49 -0700 (PDT)
+Date: Sat, 26 Jun 2010 17:02:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q 10/16] slub: Remove static kmem_cache_cpu array for boot
+In-Reply-To: <20100625212106.973996317@quilx.com>
+Message-ID: <alpine.DEB.2.00.1006261657290.27174@chino.kir.corp.google.com>
+References: <20100625212026.810557229@quilx.com> <20100625212106.973996317@quilx.com>
 MIME-Version: 1.0
-In-Reply-To: <20100625173002.8052.A69D9226@jp.fujitsu.com>
-References: <20100625173002.8052.A69D9226@jp.fujitsu.com>
-Date: Sun, 27 Jun 2010 08:56:48 +0900
-Message-ID: <AANLkTikm9fXmGoE1phY7vgQcMsS9_FVAvPHgtt1hnvTV@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: zone_reclaim don't call disable_swap_token()
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 25, 2010 at 5:31 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Swap token don't works when zone reclaim is enabled since it was born.
-> Because __zone_reclaim() always call disable_swap_token()
-> unconditionally.
->
-> This kill swap token feature completely. As far as I know, nobody want
-> to that. Remove it.
->
+On Fri, 25 Jun 2010, Christoph Lameter wrote:
 
-In f7b7fd8f3ebbb, Rik added disable_swap_token.
-At that time, sc.priority in zone_reclaim is zero so it does make sense.
-But in a92f71263a, Christoph changed the priority to begin from
-ZONE_RECLAIM_PRIORITY with remained disable_swap_token. It doesn't
-make sense.
+> The percpu allocator can now handle allocations in early boot.
+> So drop the static kmem_cache_cpu array.
+> 
+> Early memory allocations require the use of GFP_NOWAIT instead of
+> GFP_KERNEL. Mask GFP_KERNEL with gfp_allowed_mask to get to GFP_NOWAIT
+> in a boot scenario.
+> 
+> Cc: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> ---
+>  mm/slub.c |   21 ++++++---------------
+>  1 file changed, 6 insertions(+), 15 deletions(-)
+> 
+> Index: linux-2.6.34/mm/slub.c
+> ===================================================================
+> --- linux-2.6.34.orig/mm/slub.c	2010-06-22 09:50:00.000000000 -0500
+> +++ linux-2.6.34/mm/slub.c	2010-06-23 09:59:53.000000000 -0500
+> @@ -2068,23 +2068,14 @@ init_kmem_cache_node(struct kmem_cache_n
+>  #endif
+>  }
+>  
+> -static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+> -
+>  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+>  {
+> -	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+> -		/*
+> -		 * Boot time creation of the kmalloc array. Use static per cpu data
+> -		 * since the per cpu allocator is not available yet.
+> -		 */
+> -		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
+> -	else
+> -		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
+> +	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
+> +			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache));
+>  
+> -	if (!s->cpu_slab)
+> -		return 0;
+> +	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
+>  
+> -	return 1;
+> +	return s->cpu_slab != NULL;
+>  }
+>  
+>  #ifdef CONFIG_NUMA
+> @@ -2105,7 +2096,7 @@ static void early_kmem_cache_node_alloc(
+>  
+>  	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
+>  
+> -	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
+> +	page = new_slab(kmalloc_caches, GFP_KERNEL & gfp_allowed_mask, node);
+>  
+>  	BUG_ON(!page);
+>  	if (page_to_nid(page) != node) {
 
-So doesn't we add disable_swap_token following as than removing?
+This needs to be merged into the preceding patch since it had broken new 
+slab allocations during early boot while irqs are still disabled; it also 
+seems deserving of a big fat comment about why it's required in this 
+situation.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9c7e57c..d8050c7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2590,7 +2590,6 @@ static int __zone_reclaim(struct zone *zone,
-gfp_t gfp_mask, unsigned int order)
-        };
-        unsigned long slab_reclaimable;
+> @@ -2161,7 +2152,7 @@ static int init_kmem_cache_nodes(struct 
+>  			continue;
+>  		}
+>  		n = kmem_cache_alloc_node(kmalloc_caches,
+> -						GFP_KERNEL, node);
+> +			GFP_KERNEL & gfp_allowed_mask, node);
+>  
+>  		if (!n) {
+>  			free_kmem_cache_nodes(s);
 
--       disable_swap_token();
-        cond_resched();
-        /*
-         * We need to be able to allocate from the reserves for RECLAIM_SWAP
-@@ -2612,6 +2611,8 @@ static int __zone_reclaim(struct zone *zone,
-gfp_t gfp_mask, unsigned int order)
-                        note_zone_scanning_priority(zone, priority);
-                        shrink_zone(priority, zone, &sc);
-                        priority--;
-+                       if (!priority)
-+                               disable_swap_token();
-                } while (priority >= 0 && sc.nr_reclaimed < nr_pages);
-        }
-
-
--- 
-Kind regards,
-Minchan Kim
+Likewise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
