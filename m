@@ -1,38 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B329B6B01AD
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 07:34:33 -0400 (EDT)
-Date: Sun, 27 Jun 2010 13:34:23 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan: recalculate lru_pages on each priority
-Message-ID: <20100627113422.GA14504@cmpxchg.org>
-References: <20100625181221.805A.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD9C6B01B0
+	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 12:57:35 -0400 (EDT)
+Message-ID: <4C2782F9.6030803@suse.de>
+Date: Sun, 27 Jun 2010 18:57:29 +0200
+From: Tejun Heo <teheo@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100625181221.805A.A69D9226@jp.fujitsu.com>
+Subject: [S+Q 02/16] [PATCH 1/2 UPDATED] percpu: make @dyn_size always mean
+ min dyn_size in first chunk init functions
+References: <20100625212026.810557229@quilx.com> <20100625212102.196049458@quilx.com> <alpine.DEB.2.00.1006262155260.12531@chino.kir.corp.google.com> <4C270A09.3070305@kernel.org>
+In-Reply-To: <4C270A09.3070305@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 25, 2010 at 06:13:20PM +0900, KOSAKI Motohiro wrote:
-> shrink_zones() need relatively long time. and lru_pages can be
-> changed dramatically while shrink_zones().
-> then, lru_pages need recalculate on each priority.
+In pcpu_build_alloc_info() and pcpu_embed_first_chunk(), @dyn_size was
+ssize_t, -1 meant auto-size, 0 forced 0 and positive meant minimum
+size.  There's no use case for forcing 0 and the upcoming early alloc
+support always requires non-zero dynamic size.  Make @dyn_size always
+mean minimum dyn_size.
 
-In the direct reclaim path, we bail out of that loop after
-SWAP_CLUSTER_MAX reclaimed pages, so in this case, decreasing priority
-levels actually mean we do _not_ make any progress and the total
-number of lru pages should not change (much).  The possible distortion
-in shrink_slab() is small.
+While at it, make pcpu_build_alloc_info() static which doesn't have
+any external caller as suggested by David Rientjes.
 
-However, for the suspend-to-disk case the reclaim target can be a lot
-higher and we inevitably end up at higher priorities even though we
-make progress, but fail to increase pressure on the shrinkers as well
-without your patch.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+---
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Here's the updated patch.  I've pushed out this and the second patch
+to linux-next.  Please feel free to pull from the following git tree.
+
+ git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git for-next
+
+I'll apply 09 once how it's gonna be handled is determined.
+
+Thanks.
+
+ include/linux/percpu.h |    7 +------
+ mm/percpu.c            |   35 ++++++++++-------------------------
+ 2 files changed, 11 insertions(+), 31 deletions(-)
+
+Index: work/include/linux/percpu.h
+===================================================================
+--- work.orig/include/linux/percpu.h
++++ work/include/linux/percpu.h
+@@ -104,16 +104,11 @@ extern struct pcpu_alloc_info * __init p
+ 							     int nr_units);
+ extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
+
+-extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
+-				size_t atom_size,
+-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+-
+ extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 					 void *base_addr);
+
+ #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+-extern int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++extern int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				pcpu_fc_alloc_fn_t alloc_fn,
+Index: work/mm/percpu.c
+===================================================================
+--- work.orig/mm/percpu.c
++++ work/mm/percpu.c
+@@ -1013,20 +1013,6 @@ phys_addr_t per_cpu_ptr_to_phys(void *ad
+ 		return page_to_phys(pcpu_addr_to_page(addr));
+ }
+
+-static inline size_t pcpu_calc_fc_sizes(size_t static_size,
+-					size_t reserved_size,
+-					ssize_t *dyn_sizep)
+-{
+-	size_t size_sum;
+-
+-	size_sum = PFN_ALIGN(static_size + reserved_size +
+-			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
+-	if (*dyn_sizep != 0)
+-		*dyn_sizep = size_sum - static_size - reserved_size;
+-
+-	return size_sum;
+-}
+-
+ /**
+  * pcpu_alloc_alloc_info - allocate percpu allocation info
+  * @nr_groups: the number of groups
+@@ -1085,7 +1071,7 @@ void __init pcpu_free_alloc_info(struct
+ /**
+  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: minimum free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  *
+@@ -1103,8 +1089,8 @@ void __init pcpu_free_alloc_info(struct
+  * On success, pointer to the new allocation_info is returned.  On
+  * failure, ERR_PTR value is returned.
+  */
+-struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
++static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
++				size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
+ {
+@@ -1123,13 +1109,15 @@ struct pcpu_alloc_info * __init pcpu_bui
+ 	memset(group_map, 0, sizeof(group_map));
+ 	memset(group_cnt, 0, sizeof(group_cnt));
+
++	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
++	dyn_size = size_sum - static_size - reserved_size;
++
+ 	/*
+ 	 * Determine min_unit_size, alloc_size and max_upa such that
+ 	 * alloc_size is multiple of atom_size and is the smallest
+ 	 * which can accomodate 4k aligned segments which are equal to
+ 	 * or larger than min_unit_size.
+ 	 */
+-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
+ 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
+
+ 	alloc_size = roundup(min_unit_size, atom_size);
+@@ -1532,7 +1520,7 @@ early_param("percpu_alloc", percpu_alloc
+ /**
+  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: minimum free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  * @alloc_fn: function to allocate percpu page
+@@ -1553,10 +1541,7 @@ early_param("percpu_alloc", percpu_alloc
+  * vmalloc space is not orders of magnitude larger than distances
+  * between node memory addresses (ie. 32bit NUMA machines).
+  *
+- * When @dyn_size is positive, dynamic area might be larger than
+- * specified to fill page alignment.  When @dyn_size is auto,
+- * @dyn_size is just big enough to fill page alignment after static
+- * and reserved areas.
++ * @dyn_size specifies the minimum dynamic area size.
+  *
+  * If the needed size is smaller than the minimum or specified unit
+  * size, the leftover is returned using @free_fn.
+@@ -1564,7 +1549,7 @@ early_param("percpu_alloc", percpu_alloc
+  * RETURNS:
+  * 0 on success, -errno on failure.
+  */
+-int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				  size_t atom_size,
+ 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				  pcpu_fc_alloc_fn_t alloc_fn,
+@@ -1695,7 +1680,7 @@ int __init pcpu_page_first_chunk(size_t
+
+ 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
+
+-	ai = pcpu_build_alloc_info(reserved_size, -1, PAGE_SIZE, NULL);
++	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
+ 	if (IS_ERR(ai))
+ 		return PTR_ERR(ai);
+ 	BUG_ON(ai->nr_groups != 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
