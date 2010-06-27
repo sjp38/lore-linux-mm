@@ -1,102 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 817AC6B01AD
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 20:02:55 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id o5R02p4N021665
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:51 -0700
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by hpaq3.eem.corp.google.com with ESMTP id o5R02nkM023287
-	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:50 -0700
-Received: by pxi5 with SMTP id 5so478061pxi.11
-        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 17:02:49 -0700 (PDT)
-Date: Sat, 26 Jun 2010 17:02:47 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 10/16] slub: Remove static kmem_cache_cpu array for boot
-In-Reply-To: <20100625212106.973996317@quilx.com>
-Message-ID: <alpine.DEB.2.00.1006261657290.27174@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100625212106.973996317@quilx.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 16BAB6B01AD
+	for <linux-mm@kvack.org>; Sat, 26 Jun 2010 21:03:45 -0400 (EDT)
+Received: by iwn36 with SMTP id 36so360420iwn.14
+        for <linux-mm@kvack.org>; Sat, 26 Jun 2010 18:03:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1006250857040.18900@router.home>
+References: <20100625201915.8067.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1006250857040.18900@router.home>
+Date: Sun, 27 Jun 2010 10:03:44 +0900
+Message-ID: <AANLkTimAF9O3kupOWHv2lLuZefDU7HLgq5ApnD-FE_Ng@mail.gmail.com>
+Subject: Re: [PATCH 1/2] vmscan: shrink_slab() require number of lru_pages,
+	not page order
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Jun 2010, Christoph Lameter wrote:
+On Fri, Jun 25, 2010 at 11:07 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Fri, 25 Jun 2010, KOSAKI Motohiro wrote:
+>
+>> Fix simple argument error. Usually 'order' is very small value than
+>> lru_pages. then it can makes unnecessary icache dropping.
+>
+> This is going to reduce the delta that is added to shrinker->nr
+> significantly thereby increasing the number of times that shrink_slab() is
+> called.
+>
+> What does the "lru_pages" parameter do in shrink_slab()? Looks
+> like its only role is as a divison factor in a complex calculation of
+> pages to be scanned.
 
-> The percpu allocator can now handle allocations in early boot.
-> So drop the static kmem_cache_cpu array.
-> 
-> Early memory allocations require the use of GFP_NOWAIT instead of
-> GFP_KERNEL. Mask GFP_KERNEL with gfp_allowed_mask to get to GFP_NOWAIT
-> in a boot scenario.
-> 
-> Cc: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> ---
->  mm/slub.c |   21 ++++++---------------
->  1 file changed, 6 insertions(+), 15 deletions(-)
-> 
-> Index: linux-2.6.34/mm/slub.c
-> ===================================================================
-> --- linux-2.6.34.orig/mm/slub.c	2010-06-22 09:50:00.000000000 -0500
-> +++ linux-2.6.34/mm/slub.c	2010-06-23 09:59:53.000000000 -0500
-> @@ -2068,23 +2068,14 @@ init_kmem_cache_node(struct kmem_cache_n
->  #endif
->  }
->  
-> -static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
-> -
->  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
->  {
-> -	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
-> -		/*
-> -		 * Boot time creation of the kmalloc array. Use static per cpu data
-> -		 * since the per cpu allocator is not available yet.
-> -		 */
-> -		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
-> -	else
-> -		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
-> +	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
-> +			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache));
->  
-> -	if (!s->cpu_slab)
-> -		return 0;
-> +	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
->  
-> -	return 1;
-> +	return s->cpu_slab != NULL;
->  }
->  
->  #ifdef CONFIG_NUMA
-> @@ -2105,7 +2096,7 @@ static void early_kmem_cache_node_alloc(
->  
->  	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
->  
-> -	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
-> +	page = new_slab(kmalloc_caches, GFP_KERNEL & gfp_allowed_mask, node);
->  
->  	BUG_ON(!page);
->  	if (page_to_nid(page) != node) {
+Yes. But I think it can make others confuse like this.
 
-This needs to be merged into the preceding patch since it had broken new 
-slab allocations during early boot while irqs are still disabled; it also 
-seems deserving of a big fat comment about why it's required in this 
-situation.
+Except zone_reclaim, lru_pages had been used for balancing slab
+reclaim VS page reclaim.
+So lru_page naming is a good.
 
-> @@ -2161,7 +2152,7 @@ static int init_kmem_cache_nodes(struct 
->  			continue;
->  		}
->  		n = kmem_cache_alloc_node(kmalloc_caches,
-> -						GFP_KERNEL, node);
-> +			GFP_KERNEL & gfp_allowed_mask, node);
->  
->  		if (!n) {
->  			free_kmem_cache_nodes(s);
+But in 0ff38490, you observed rather corner case.
+AFAIU with your description, you wanted to shrink slabs until
+unsuccessful or reached the limit.
+So you intentionally passed order instead of the number of lru pages
+for shrinking many slabs as possible as.
 
-Likewise.
+So at least, we need some comment to prevent confusion.
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..5523eae 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2626,6 +2626,9 @@ static int __zone_reclaim(struct zone *zone,
+gfp_t gfp_mask, unsigned int order)
+                 *
+                 * Note that shrink_slab will free memory on all zones and may
+                 * take a long time.
++                *
++                * We pass order instead of lru_pages for shrinking slab
++                * as much as possible.
+                 */
+                while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+                        zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+
+
+>
+> do_try_to_free_pages passes 0 as "lru_pages" to shrink_slab() when trying
+> to do cgroup lru scans. Why is that?
+>
+
+memcg doesn't call shrink_slab.
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
