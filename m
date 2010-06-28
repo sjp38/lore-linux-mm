@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C5CF66B01B2
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 14:55:09 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o5SIt4Ft022827
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:55:05 -0700
-Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
-	by wpaz1.hot.corp.google.com with ESMTP id o5SIt2hU001784
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:55:03 -0700
-Received: by pvg7 with SMTP id 7so619636pvg.10
-        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:55:02 -0700 (PDT)
-Date: Mon, 28 Jun 2010 11:54:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
-In-Reply-To: <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006281152250.25490@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100626022441.GC29809@laptop> <AANLkTinOsPXdFc36mVDva-x0a0--gdFJuvWFQARwvx6y@mail.gmail.com> <alpine.DEB.2.00.1006280510370.8725@router.home> <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531400454-25372211-1277751301=:25490"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DB406B01B0
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 15:11:51 -0400 (EDT)
+Date: Mon, 28 Jun 2010 12:10:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Patch] Call cond_resched() at bottom of main look in
+ balance_pgdat()
+Message-Id: <20100628121056.408cbca2.akpm@linux-foundation.org>
+In-Reply-To: <AANLkTin-dYU245QH3WJWzLAx713o0pJLYozRO6tin3rq@mail.gmail.com>
+References: <20100622112416.B554.A69D9226@jp.fujitsu.com>
+	<AANLkTilN3EcYq400ajA2-rf3Xs4MhD-sKCg44fjzKlX1@mail.gmail.com>
+	<20100622114739.B563.A69D9226@jp.fujitsu.com>
+	<AANLkTimleJIOdYquPwJvgGK3Dj_JDijoNjCQh4dfXxAY@mail.gmail.com>
+	<20100622213301.GA26285@cmpxchg.org>
+	<AANLkTin-dYU245QH3WJWzLAx713o0pJLYozRO6tin3rq@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, 23 Jun 2010 08:07:34 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
---531400454-25372211-1277751301=:25490
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, 28 Jun 2010, Pekka Enberg wrote:
+The patch is a bit sucky, isn't it?
 
-> > Hackbench was frequently cited in performance tests. Which benchmarks
-> > would be of interest?  I am off this week so dont expect a fast response
-> > from me.
-> 
-> I guess "netperf TCP_RR" is the most interesting one because that's a
-> known benchmark where SLUB performs poorly when compared to SLAB.
-> Mel's extensive slab benchmarks are also worth looking at:
-> 
-> http://lkml.indiana.edu/hypermail/linux/kernel/0902.0/00745.html
-> 
+a) the cond_resched() which Larry's patch adds is very special.  It
+   _looks_ like a random preemption point but it's actually critical to
+   the correct functioning of the system.  That's utterly unobvious to
+   anyone who reads the code, so a comment explaining this *must* be
+   included.
 
-In addition to that benchmark, which regresses on systems with larger 
-numbers of cpus, you had posted results for slub vs slab for kernbench, 
-aim9, and sysbench before slub was ever merged.  If you're going to use 
-slab-like queueing in slub, it would be interesting to see if these 
-particular benchmarks regress once again.
---531400454-25372211-1277751301=:25490--
+b) cond_resched() is a really crappy way of solving the problem
+   which Larry described.  It will sit there chewing away CPU time
+   until kswapd's timeslice expires.
+
+I suppose we can live with b) although it _does_ suck and I'd suggest
+that the comment include a big FIXME, so someone might fix it.
+
+Larry, please fix a), gather the acks and reviewed-by's, update the
+changelog to identify the commit which broke it and resend?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
