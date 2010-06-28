@@ -1,101 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9E7FE6B01B5
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 22:08:02 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5S27wri029476
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 73CCF6B01B2
+	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 22:22:04 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5S2M1KY020366
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Jun 2010 11:07:58 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 419F345DE50
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:07:58 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F95845DE4F
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:07:57 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C9C1DE08002
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:07:57 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 859F91DB8013
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:07:57 +0900 (JST)
-Date: Mon, 28 Jun 2010 11:03:27 +0900
+	Mon, 28 Jun 2010 11:22:01 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F268F45DE5F
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:22:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7356145DE54
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:22:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4E311DB8054
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:21:59 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49B471DB805B
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:21:59 +0900 (JST)
+Date: Mon, 28 Jun 2010 11:17:31 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [ATTEND][LSF/VM TOPIC] deterministic cgroup charging using file
- path
-Message-Id: <20100628110327.8cb51c0e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTin2PcB6PwKnuazv3oAy6Arg8yntylVvdCj7Mzz-@mail.gmail.com>
-References: <AANLkTin2PcB6PwKnuazv3oAy6Arg8yntylVvdCj7Mzz-@mail.gmail.com>
+Subject: Re: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting
+ successful operation
+Message-Id: <20100628111731.18f1f858.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100625212101.622422748@quilx.com>
+References: <20100625212026.810557229@quilx.com>
+	<20100625212101.622422748@quilx.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: lsf10-pc@lists.linuxfoundation.org, linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Jun 2010 13:43:45 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On Fri, 25 Jun 2010 16:20:27 -0500
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-> For the upcoming Linux VM summit, I am interesting in discussing the
-> following proposal.
+> [Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
+> fix]
 > 
-> Problem: When tasks from multiple cgroups share files the charging can be
-> non-deterministic.  This requires that all such cgroups have unnecessarily high
-> limits.  It would be nice if the charging was deterministic, using the file's
-> path to determine which cgroup to charge.  This would benefit charging of
-> commonly used files (eg: libc) as well as large databases shared by only a few
-> tasks.
+> The last change to improve the scalability moved the actual wake-up out of
+> the section that is protected by spin_lock(sma->sem_perm.lock).
 > 
-> Example: assume two tasks (T1 and T2), each in a separate cgroup.  Each task
-> wants to access a large (1GB) database file.  To catch memory leaks a tight
-> memory limit on each task's cgroup is set.  However, the large database file
-> presents a problem.  If the file has not been cached, then the first task to
-> access the file is charged, thereby requiring that task's cgroup to have a limit
-> large enough to include the database file.  If the order of access is unknown
-> (due to process restart, etc), then all cgroups accessing the file need to have
-> a limit large enough to include the database.  This is wasteful because the
-> database won't be charged to both T1 and T2.  It would be useful to introduce
-> determinism by declaring that a particular cgroup is charged for a particular
-> set of files.
+> This means that IN_WAKEUP can be in queue.status even when the spinlock is
+> acquired by the current task. Thus the same loop that is performed when
+> queue.status is read without the spinlock acquired must be performed when
+> the spinlock is acquired.
 > 
-> /dev/cgroup/cg1/cg11  # T1: want memory.limit = 30MB
-> /dev/cgroup/cg1/cg12  # T2: want memory.limit = 100MB
-> /dev/cgroup/cg1       # want memory.limit = 1GB + 30MB + 100MB
+> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+
+Hmm, I'm sorry if I don't understand the code...
+
 > 
-> I have implemented a prototype that allows a file system hierarchy be charge a
-> particular cgroup using a new bind mount option:
-> + mount -t cgroup none /cgroup -o memory
-> + mount --bind /tmp/db /tmp/db -o cgroup=/dev/cgroup/cg1
+> ---
+>  ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
+>  1 files changed, 30 insertions(+), 6 deletions(-)
 > 
-> Any accesses to files within /tmp/db are charged to /dev/cgroup/cg1.  Access to
-> other files behave normally - they charge the cgroup of the current task.
-> 
+> diff --git a/ipc/sem.c b/ipc/sem.c
+> index 506c849..523665f 100644
+> --- a/ipc/sem.c
+> +++ b/ipc/sem.c
+> @@ -1256,6 +1256,32 @@ out:
+>  	return un;
+>  }
+>  
+> +
+> +/** get_queue_result - Retrieve the result code from sem_queue
+> + * @q: Pointer to queue structure
+> + *
+> + * The function retrieve the return code from the pending queue. If 
+> + * IN_WAKEUP is found in q->status, then we must loop until the value
+> + * is replaced with the final value: This may happen if a task is
+> + * woken up by an unrelated event (e.g. signal) and in parallel the task
+> + * is woken up by another task because it got the requested semaphores.
+> + *
+> + * The function can be called with or without holding the semaphore spinlock.
+> + */
+> +static int get_queue_result(struct sem_queue *q)
+> +{
+> +	int error;
+> +
+> +	error = q->status;
+> +	while(unlikely(error == IN_WAKEUP)) {
+> +		cpu_relax();
+> +		error = q->status;
+> +	}
+> +
+> +	return error;
+> +}
 
-Interesting, but I want to use madvice() etc..for this kind of jobs, rather than
-deep hooks into the kernel.
-
-madvise(addr, size, MEMORY_RECHAEGE_THIS_PAGES_TO_ME);
-
-Then, you can write a command as:
-
-  file_recharge [path name] [cgroup]
-  - this commands move a file cache to specified cgroup.
-
-A daemon program which uses this command + inotify will give us much
-flexible controls on file cache on memcg. Do you have some requirements
-that this move-charge shouldn't be done in lazy manner ?
-
-Status:
-We have codes for move-charge, inotify but have no code for new madvise.
-
+no memory barrier is required ?
 
 Thanks,
 -Kame
-
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
