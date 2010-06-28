@@ -1,45 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 22BC1600227
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:18:27 -0400 (EDT)
-Received: by bwz9 with SMTP id 9so888249bwz.14
-        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 08:18:24 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A4BE9600227
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 12:44:45 -0400 (EDT)
+Received: by fxm17 with SMTP id 17so1461749fxm.14
+        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 09:44:43 -0700 (PDT)
+Message-ID: <4C28D1A5.9040700@colorfullife.com>
+Date: Mon, 28 Jun 2010 18:45:25 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1006280510370.8725@router.home>
-References: <20100625212026.810557229@quilx.com>
-	<20100626022441.GC29809@laptop>
-	<AANLkTinOsPXdFc36mVDva-x0a0--gdFJuvWFQARwvx6y@mail.gmail.com>
-	<alpine.DEB.2.00.1006280510370.8725@router.home>
-Date: Mon, 28 Jun 2010 18:18:24 +0300
-Message-ID: <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
-Subject: Re: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting
+ successful operation
+References: <20100625212026.810557229@quilx.com> <20100625212101.622422748@quilx.com> <20100628111731.18f1f858.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100628111731.18f1f858.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 2010, Pekka Enberg wrote:
->> > Hackbench I don't think is that interesting. SLQB was beating SLAB
->> > too.
+On 06/28/2010 04:17 AM, KAMEZAWA Hiroyuki wrote:
+> On Fri, 25 Jun 2010 16:20:27 -0500
+> Christoph Lameter<cl@linux-foundation.org>  wrote:
+>
+>    
+>> [Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
+>> fix]
 >>
->> We've seen regressions pop up with hackbench so I think it's
->> interesting. Not the most interesting one, for sure, nor conclusive.
+>> The last change to improve the scalability moved the actual wake-up out of
+>> the section that is protected by spin_lock(sma->sem_perm.lock).
+>>
+>> This means that IN_WAKEUP can be in queue.status even when the spinlock is
+>> acquired by the current task. Thus the same loop that is performed when
+>> queue.status is read without the spinlock acquired must be performed when
+>> the spinlock is acquired.
+>>
+>> Signed-off-by: Manfred Spraul<manfred@colorfullife.com>
+>> Signed-off-by: Christoph Lameter<cl@linux-foundation.org>
+>>      
+>
+> Hmm, I'm sorry if I don't understand the code...
+>
+>    
+>> ---
+>>   ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
+>>   1 files changed, 30 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/ipc/sem.c b/ipc/sem.c
+>> index 506c849..523665f 100644
+>> --- a/ipc/sem.c
+>> +++ b/ipc/sem.c
+>> @@ -1256,6 +1256,32 @@ out:
+>>   	return un;
+>>   }
+>>
+>> +
+>> +/** get_queue_result - Retrieve the result code from sem_queue
+>> + * @q: Pointer to queue structure
+>> + *
+>> + * The function retrieve the return code from the pending queue. If
+>> + * IN_WAKEUP is found in q->status, then we must loop until the value
+>> + * is replaced with the final value: This may happen if a task is
+>> + * woken up by an unrelated event (e.g. signal) and in parallel the task
+>> + * is woken up by another task because it got the requested semaphores.
+>> + *
+>> + * The function can be called with or without holding the semaphore spinlock.
+>> + */
+>> +static int get_queue_result(struct sem_queue *q)
+>> +{
+>> +	int error;
+>> +
+>> +	error = q->status;
+>> +	while(unlikely(error == IN_WAKEUP)) {
+>> +		cpu_relax();
+>> +		error = q->status;
+>> +	}
+>> +
+>> +	return error;
+>> +}
+>>      
+> no memory barrier is required ?
+>
+>    
+No.
+q->status is the only field that is read in the exit path of 
+sys_semtimedop():
+After that, q->status is used as the return value of sys_semtimedop(), 
+without accessing any other field.
+Thus no memory barrier is required: there is just no other read/write 
+operation against which the read of q->status must be serialized.
 
-On Mon, Jun 28, 2010 at 1:12 PM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> Hackbench was frequently cited in performance tests. Which benchmarks
-> would be of interest? =A0I am off this week so dont expect a fast respons=
-e
-> from me.
+There is a smp_wmb() wake_up_sem_queue_do(), to ensure that all writes 
+that are done by the cpu that does the wake-up are completed before 
+q->status is set to the final value.
 
-I guess "netperf TCP_RR" is the most interesting one because that's a
-known benchmark where SLUB performs poorly when compared to SLAB.
-Mel's extensive slab benchmarks are also worth looking at:
-
-http://lkml.indiana.edu/hypermail/linux/kernel/0902.0/00745.html
+--
+     Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
