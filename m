@@ -1,101 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 73CCF6B01B2
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 22:22:04 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5S2M1KY020366
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 28 Jun 2010 11:22:01 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F268F45DE5F
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:22:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7356145DE54
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:22:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4E311DB8054
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:21:59 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49B471DB805B
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:21:59 +0900 (JST)
-Date: Mon, 28 Jun 2010 11:17:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting
- successful operation
-Message-Id: <20100628111731.18f1f858.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100625212101.622422748@quilx.com>
-References: <20100625212026.810557229@quilx.com>
-	<20100625212101.622422748@quilx.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7725C6B01B2
+	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 22:26:54 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5S2Qpve022459
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 28 Jun 2010 11:26:52 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4966545DE57
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:26:51 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B0EB45DE52
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:26:51 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 08471E08003
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:26:51 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B4AD21DB8014
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 11:26:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] vmscan: don't subtraction of unsined 
+In-Reply-To: <alpine.DEB.2.00.1006250912380.18900@router.home>
+References: <20100625202126.806A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006250912380.18900@router.home>
+Message-Id: <20100628101802.386A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon, 28 Jun 2010 11:26:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Jun 2010 16:20:27 -0500
-Christoph Lameter <cl@linux-foundation.org> wrote:
-
-> [Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
-> fix]
+> On Fri, 25 Jun 2010, KOSAKI Motohiro wrote:
 > 
-> The last change to improve the scalability moved the actual wake-up out of
-> the section that is protected by spin_lock(sma->sem_perm.lock).
+> > 'slab_reclaimable' and 'nr_pages' are unsigned. so, subtraction is
+> > unsafe.
 > 
-> This means that IN_WAKEUP can be in queue.status even when the spinlock is
-> acquired by the current task. Thus the same loop that is performed when
-> queue.status is read without the spinlock acquired must be performed when
-> the spinlock is acquired.
+> Why? We are subtracting the current value of NR_SLAB_RECLAIMABLE from the
+> earlier one. The result can be negative (maybe concurrent allocations) and
+> then the nr_reclaimed gets decremented instead. This is  okay since we
+> have not reached our goal then of reducing the number of reclaimable slab
+> pages on the zone.
+
+It's unsigned. negative mean very big value. so
+
+"zone_page_state(zone, NR_SLAB_RECLAIMABLE) > slab_reclaimable - nr_pages)" will
+be evaluated false.
+
+ok, your mysterious 'order' parameter (as pointed [1/2]) almostly prevent this case.
+because passing 'order' makes very heavy slab pressure and it avoid negative occur.
+
+but unnaturall coding style can make confusing to reviewers. ya, it's not
+big issue. but I also don't find no fixing reason.
+
+
 > 
-> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
-
-Hmm, I'm sorry if I don't understand the code...
-
+> > @@ -2622,17 +2624,21 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> >  		 * Note that shrink_slab will free memory on all zones and may
+> >  		 * take a long time.
+> >  		 */
+> > -		while (shrink_slab(sc.nr_scanned, gfp_mask, lru_pages) &&
+> > -			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+> > -				slab_reclaimable - nr_pages)
 > 
-> ---
->  ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
->  1 files changed, 30 insertions(+), 6 deletions(-)
+> The comparison could be a problem here. So
 > 
-> diff --git a/ipc/sem.c b/ipc/sem.c
-> index 506c849..523665f 100644
-> --- a/ipc/sem.c
-> +++ b/ipc/sem.c
-> @@ -1256,6 +1256,32 @@ out:
->  	return un;
->  }
->  
-> +
-> +/** get_queue_result - Retrieve the result code from sem_queue
-> + * @q: Pointer to queue structure
-> + *
-> + * The function retrieve the return code from the pending queue. If 
-> + * IN_WAKEUP is found in q->status, then we must loop until the value
-> + * is replaced with the final value: This may happen if a task is
-> + * woken up by an unrelated event (e.g. signal) and in parallel the task
-> + * is woken up by another task because it got the requested semaphores.
-> + *
-> + * The function can be called with or without holding the semaphore spinlock.
-> + */
-> +static int get_queue_result(struct sem_queue *q)
-> +{
-> +	int error;
-> +
-> +	error = q->status;
-> +	while(unlikely(error == IN_WAKEUP)) {
-> +		cpu_relax();
-> +		error = q->status;
-> +	}
-> +
-> +	return error;
-> +}
+> 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
+> 				slab_reclaimable
+> 
+> ?
 
-no memory barrier is required ?
+My patch take the same thing. but It avoided two line comparision.
+Do you mean you like this style? (personally, I don't). If so, I'll 
+repost this patch.
 
-Thanks,
--Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
