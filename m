@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 03C846B01B2
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 15:25:36 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o5RJPYqb020599
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 12:25:34 -0700
-Received: from pva18 (pva18.prod.google.com [10.241.209.18])
-	by wpaz21.hot.corp.google.com with ESMTP id o5RJPWkO020987
-	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 12:25:33 -0700
-Received: by pva18 with SMTP id 18so2499688pva.11
-        for <linux-mm@kvack.org>; Sun, 27 Jun 2010 12:25:32 -0700 (PDT)
-Date: Sun, 27 Jun 2010 12:25:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q 02/16] [PATCH 1/2 UPDATED] percpu: make @dyn_size always
- mean min dyn_size in first chunk init functions
-In-Reply-To: <4C2782F9.6030803@suse.de>
-Message-ID: <alpine.DEB.2.00.1006271225170.7487@chino.kir.corp.google.com>
-References: <20100625212026.810557229@quilx.com> <20100625212102.196049458@quilx.com> <alpine.DEB.2.00.1006262155260.12531@chino.kir.corp.google.com> <4C270A09.3070305@kernel.org> <4C2782F9.6030803@suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 96FE86B01B2
+	for <linux-mm@kvack.org>; Sun, 27 Jun 2010 21:32:04 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5S1W1Au031006
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 28 Jun 2010 10:32:02 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B186F45DD77
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 10:32:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 921F145DE4D
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 10:32:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CEEC1DB8037
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 10:32:01 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EF721DB803B
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 10:32:01 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] vmscan: shrink_slab() require number of lru_pages, not page order
+In-Reply-To: <alpine.DEB.2.00.1006250857040.18900@router.home>
+References: <20100625201915.8067.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006250857040.18900@router.home>
+Message-Id: <20100628102342.386D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 28 Jun 2010 10:32:00 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <teheo@suse.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 27 Jun 2010, Tejun Heo wrote:
-
-> In pcpu_build_alloc_info() and pcpu_embed_first_chunk(), @dyn_size was
-> ssize_t, -1 meant auto-size, 0 forced 0 and positive meant minimum
-> size.  There's no use case for forcing 0 and the upcoming early alloc
-> support always requires non-zero dynamic size.  Make @dyn_size always
-> mean minimum dyn_size.
+> On Fri, 25 Jun 2010, KOSAKI Motohiro wrote:
 > 
-> While at it, make pcpu_build_alloc_info() static which doesn't have
-> any external caller as suggested by David Rientjes.
+> > Fix simple argument error. Usually 'order' is very small value than
+> > lru_pages. then it can makes unnecessary icache dropping.
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
+> This is going to reduce the delta that is added to shrinker->nr
+> significantly thereby increasing the number of times that shrink_slab() is
+> called.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Yup. But,
+
+Smaller shrink -> only makes retry
+Bigger shrink  -> makes unnecessary icache/dcache drop. it can bring
+                  mysterious low performance.
+
+
+> What does the "lru_pages" parameter do in shrink_slab()? Looks
+> like its only role is as a divison factor in a complex calculation of
+> pages to be scanned.
+
+Yes.
+scanned/lru_pages ratio define basic shrink_slab puressure strength.
+
+So, If you intentionally need bigger slab pressure, bigger scanned parameter
+passing is better rather than mysterious 'order' parameter.
+
+> 
+> do_try_to_free_pages passes 0 as "lru_pages" to shrink_slab() when trying
+> to do cgroup lru scans. Why is that?
+
+?
+When cgroup lru scans, do_try_to_free_pages() don't call shrink_slab().
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
