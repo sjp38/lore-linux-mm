@@ -1,84 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 674366B01B2
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 05:00:44 -0400 (EDT)
-Subject: Re: [patch] mm: vmap area cache
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <20100628084504.GC28364@laptop>
-References: <20100531080757.GE9453@laptop>
-	 <20100602144905.aa613dec.akpm@linux-foundation.org>
-	 <20100603135533.GO6822@laptop>
-	 <1277470817.3158.386.camel@localhost.localdomain>
-	 <20100626083122.GE29809@laptop> <1277714262.2461.2.camel@localhost>
-	 <20100628084504.GC28364@laptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 28 Jun 2010 10:05:48 +0100
-Message-ID: <1277715948.2461.7.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AABBB6B01B2
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 05:03:23 -0400 (EDT)
+Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
+	by smtp-out.google.com with ESMTP id o5S93KWL030677
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 02:03:20 -0700
+Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
+	by hpaq6.eem.corp.google.com with ESMTP id o5S92lPe028682
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 02:03:19 -0700
+Received: by pxi1 with SMTP id 1so2949284pxi.1
+        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 02:03:18 -0700 (PDT)
+Date: Mon, 28 Jun 2010 02:03:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: kmem_cache_destroy() badness with SLUB
+In-Reply-To: <1277688701.4200.159.camel@pasglop>
+Message-ID: <alpine.DEB.2.00.1006280159010.28072@chino.kir.corp.google.com>
+References: <1277688701.4200.159.camel@pasglop>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 28 Jun 2010, Benjamin Herrenschmidt wrote:
 
-On Mon, 2010-06-28 at 18:45 +1000, Nick Piggin wrote:
-> On Mon, Jun 28, 2010 at 09:37:42AM +0100, Steven Whitehouse wrote:
-> > Hi,
-> > 
-> > On Sat, 2010-06-26 at 18:31 +1000, Nick Piggin wrote:
-> > > On Fri, Jun 25, 2010 at 02:00:17PM +0100, Steven Whitehouse wrote:
-> > > > Hi,
-> > > > 
-> > > > Barry Marson has now tested your patch and it seems to work just fine.
-> > > > Sorry for the delay,
-> > > > 
-> > > > Steve.
-> > > 
-> > > Hi Steve,
-> > > 
-> > > Thanks for that, do you mean that it has solved thee regression?
-> > > 
-> > > Thanks,
-> > > Nick
-> > > 
-> > 
-> > Yes, thats what I have heard from Barry. He said that it was pretty
-> > close to the expected performance but did not give any figures. The fact
-> > that his test actually completes shows that most of the problem has been
-> > solved,
+> Hi folks !
 > 
-> Thanks, so I think it's good to go.
+> Internally, I'm hitting a little "nit"...
 > 
-> It is interesting that it is just "close" to expected performance.
-> The lazy vunmap patch is preventing a global IPI and TLB flush on
-> all CPUs for every vfree() (amortizing it down to basically nothing
-> if you are doing just small vmaps).
+> sysfs_slab_add() has this check:
 > 
-> Unless you are testing on a UP machine, I would have expected
-> improved performance if you are doing a lot of vmalloc/vfree activity.
-> It could be that the search is still taking some time, and is
-> outweighing the gains.
+> 	if (slab_state < SYSFS)
+> 		/* Defer until later */
+> 		return 0;
 > 
-I gather that the machine has 8 cores over 4 cpus. On the other hand,
-there is only one vmalloc call per gfs2 readdir and it might be that
-beyond solving the initial regression, the performance of vmalloc is
-masked by something else in the readdir path.
+> But sysfs_slab_remove() doesn't.
+> 
+> So if the slab is created -and- destroyed at, for example, arch_initcall
+> time, then we hit a WARN in the kobject code, trying to dispose of a
+> non-existing kobject.
+> 
 
-> We have a few options for being cleverer, so if you're ever interested
-> to get more detailed results and find a bit more performance here,
-> let me know.
-> 
-> And thanks for all the reporting and testing so far.
-> 
-Ok. We'll see what we can do. The bottleneck here is the particular test
-set up we are using which is in demand from several directions and
-cannot easily be duplicated. If I can get more detailed results I'll let
-you know,
+Indeed, but shouldn't we be appropriately handling the return value of 
+sysfs_slab_add() so that it fails cache creation?  We wouldn't be calling 
+sysfs_slab_remove() on a cache that was never created.
 
-Steve.
+> Now, at first sight, just adding the same test to sysfs_slab_remove()
+> would do the job... but it all seems very racy to me.
+> 
+> I don't understand in fact how this slab_state deals with races at all. 
+> 
 
+All modifiers of slab_state are intended to be run only on the boot cpu so 
+the only concern is the ordering.  We need slab_state to indicate how far 
+slab has been initialized since we can't otherwise enforce how code uses 
+slab in between things like kmem_cache_init(), kmem_cache_init_late(), and 
+initcalls on the boot cpu.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
