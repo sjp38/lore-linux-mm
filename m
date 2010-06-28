@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CE890600227
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 13:03:05 -0400 (EDT)
-Received: by fg-out-1718.google.com with SMTP id l26so300735fgb.8
-        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 10:03:03 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 23B28600227
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 13:35:04 -0400 (EDT)
+Date: Mon, 28 Jun 2010 19:33:06 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: uninterruptible CLONE_VFORK (Was: oom: Make coredump
+	interruptible)
+Message-ID: <20100628173306.GA20039@redhat.com>
+References: <20100604112721.GA12582@redhat.com> <20100609195309.GA6899@redhat.com> <20100613175547.616F.A69D9226@jp.fujitsu.com> <20100613155354.GA8428@redhat.com> <20100613171337.GA12159@redhat.com> <20100614005608.0D006408C1@magilla.sf.frob.com> <20100614163304.GA21313@redhat.com> <20100614191710.18C0E403B2@magilla.sf.frob.com>
 MIME-Version: 1.0
-In-Reply-To: <20100625212106.384650677@quilx.com>
-References: <20100625212026.810557229@quilx.com>
-	<20100625212106.384650677@quilx.com>
-Date: Mon, 28 Jun 2010 20:03:03 +0300
-Message-ID: <AANLkTikSzWZme6kioKJ7DJbS0nhYqeDTPas1D9rb_LY-@mail.gmail.com>
-Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100614191710.18C0E403B2@magilla.sf.frob.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>
+To: Roland McGrath <roland@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 26, 2010 at 12:20 AM, Christoph Lameter
-<cl@linux-foundation.org> wrote:
-> allocpercpu() may be used during early boot after the page allocator
-> has been bootstrapped but when interrupts are still off. Make sure
-> that we do not do GFP_KERNEL allocations if this occurs.
+On 06/14, Roland McGrath wrote:
 >
-> Cc: tj@kernel.org
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> > Hmm. Even without debugger, the parent doesn't react to SIGSTOP.
 >
-> ---
-> =A0mm/percpu.c | =A0 =A05 +++--
-> =A01 file changed, 3 insertions(+), 2 deletions(-)
+> Yes.  It's been a long time since I thought about the vfork stuff much.
+> But I now recall thinking about the SIGSTOP/SIGTSTP issue too.  It does
+> seem bad.  OTOH, it has lurked there for many years now without complaints.
 >
-> Index: linux-2.6/mm/percpu.c
-> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> --- linux-2.6.orig/mm/percpu.c =A02010-06-23 14:43:54.000000000 -0500
-> +++ linux-2.6/mm/percpu.c =A0 =A0 =A0 2010-06-23 14:44:05.000000000 -0500
-> @@ -275,7 +275,8 @@ static void __maybe_unused pcpu_next_pop
-> =A0* memory is always zeroed.
-> =A0*
-> =A0* CONTEXT:
-> - * Does GFP_KERNEL allocation.
-> + * Does GFP_KERNEL allocation (May be called early in boot when
-> + * interrupts are still disabled. Will then do GFP_NOWAIT alloc).
-> =A0*
-> =A0* RETURNS:
-> =A0* Pointer to the allocated area on success, NULL on failure.
-> @@ -286,7 +287,7 @@ static void *pcpu_mem_alloc(size_t size)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0return NULL;
->
-> =A0 =A0 =A0 =A0if (size <=3D PAGE_SIZE)
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_KERNEL);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_KERNEL & gfp_allow=
-ed_mask);
-> =A0 =A0 =A0 =A0else {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *ptr =3D vmalloc(size);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ptr)
+> Note that supporting stop/fatal signals in the normal way means that the
+> call has to return and pass the syscall-exit tracing point first.  This
+> means a change in the order of events seen by a debugger.  It also
+> complicates the subject of PTRACE_EVENT_VFORK_DONE reports, which today
+> happen before syscall-exit or signal stuff is possible.  For proper
+> stopping in the normal way, the vfork-wait would be restarted via
+> sys_restart_syscall or something.
 
-This looks wrong to me. All slab allocators should do gfp_allowed_mask
-magic under the hood. Maybe it's triggering kmalloc_large() path that
-needs the masking too?
+Yes. I was thinking about this too.
+
+The parent can play with real_blocked or saved_sigmask to block all
+signals except STOP and KILL, use TASK_INTERRUPTIBLE for wait, and
+just return ERESTART each time it gets the signal (it should clear
+child->vfork_done if fatal_signal_pending).
+
+We should also check PF_KTHREAD though, there are in kernel users
+of CLONE_VFORK.
+
+> Bu the way that happens ordinarily is
+> to get all the way back to user mode and reenter with a normal syscall.
+> That doesn't touch the user stack itself, but it sure makes one nervous.
+
+me too. Especially because I do not really know how !x86 machines
+implement this all.
+
+We should also verify that the exiting/stopping parent can never write
+to its ->mm. For example, exit_mm() does put_user(tsk->clear_child_tid).
+Fortunately we can rely on PF_SIGNALED flag in this case.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
