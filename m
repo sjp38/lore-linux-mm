@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 97F986B01B2
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 06:46:30 -0400 (EDT)
-Received: by iwn36 with SMTP id 36so1533917iwn.14
-        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 03:46:29 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CB9A56B01B2
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 09:17:04 -0400 (EDT)
+Received: by pvg11 with SMTP id 11so1436786pvg.14
+        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 06:17:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100628103508.3870.A69D9226@jp.fujitsu.com>
-References: <20100625173002.8052.A69D9226@jp.fujitsu.com>
-	<AANLkTikm9fXmGoE1phY7vgQcMsS9_FVAvPHgtt1hnvTV@mail.gmail.com>
-	<20100628103508.3870.A69D9226@jp.fujitsu.com>
-Date: Mon, 28 Jun 2010 19:46:26 +0900
-Message-ID: <AANLkTilpsmxO527634ohmEmxg3rtRC_VwOgdgSy5Q4XN@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: zone_reclaim don't call disable_swap_token()
-From: Minchan Kim <minchan.kim@gmail.com>
+Date: Mon, 28 Jun 2010 21:17:03 +0800
+Message-ID: <AANLkTilJDrpoFGyTSrKg3Hg59u9TvBLbxk4HAVKBvjxQ@mail.gmail.com>
+Subject: [PATCH] avoid return NULL on root rb_node in rb_next/rb_prev in
+	lib/rbtree.c
+From: shenghui <crosslonelyover@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org, Greg KH <greg@kroah.com>, linux-mm@kvack.org, mingo@elte.hu, peterz@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 28, 2010 at 10:37 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Fri, Jun 25, 2010 at 5:31 PM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> > Swap token don't works when zone reclaim is enabled since it was born.
->> > Because __zone_reclaim() always call disable_swap_token()
->> > unconditionally.
->> >
->> > This kill swap token feature completely. As far as I know, nobody want
->> > to that. Remove it.
->> >
->>
->> In f7b7fd8f3ebbb, Rik added disable_swap_token.
->> At that time, sc.priority in zone_reclaim is zero so it does make sense.
->> But in a92f71263a, Christoph changed the priority to begin from
->> ZONE_RECLAIM_PRIORITY with remained disable_swap_token. It doesn't
->> make sense.
->>
->> So doesn't we add disable_swap_token following as than removing?
->
-> f7b7fd8f3ebbb says disable_swap_token was introduced to prevent OOM.
-> but zone reclaim failure don't make OOM. instead, fallback to try_to_free_pages().
+Hi,
 
-Indeed. I missed that.
-Thanks, Kosaki.
+       I'm reading cfs code, and get the following potential bug.
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+In kernel/sched_fair.c, we can get the following call thread:
 
+1778static struct task_struct *pick_next_task_fair(struct rq *rq)
+1779{
+...
+1787        do {
+1788                se = pick_next_entity(cfs_rq);
+1789                set_next_entity(cfs_rq, se);
+1790                cfs_rq = group_cfs_rq(se);
+1791        } while (cfs_rq);
+...
+1797}
 
--- 
-Kind regards,
-Minchan Kim
+ 925static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
+ 926{
+ 927        struct sched_entity *se = __pick_next_entity(cfs_rq);
+...
+ 941        return se;
+ 942}
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ 377static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
+ 378{
+ 379        struct rb_node *left = cfs_rq->rb_leftmost;
+ 380
+ 381        if (!left)
+ 382                return NULL;
+ ...
+ 385}
+
+To manipulate cfs_rq->rb_leftmost, __dequeue_entity does the following:
+
+ 365static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 366{
+ 367        if (cfs_rq->rb_leftmost == &se->run_node) {
+ 368                struct rb_node *next_node;
+ 369
+ 370                next_node = rb_next(&se->run_node);
+ 371                cfs_rq->rb_leftmost = next_node;
+ 372        }
+ 373
+ 374        rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
+ 375}
+
+Here, if se->run_node is the root rb_node, next_node will be set NULL
+by rb_next.
+Then __pick_next_entity may get NULL on some call, and set_next_entity
+may deference
+NULL value.
+
+ 892static void
+ 893set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 894{
+ 895        /* 'current' is not kept within the tree. */
+ 896        if (se->on_rq) {
+...
+ 919        se->prev_sum_exec_runtime = se->sum_exec_runtime;
+ 920}
+
+Following is my patch. Please check it.
