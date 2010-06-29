@@ -1,134 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A38A6B01B5
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 02:42:47 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id o5T6gjrV013615
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 23:42:45 -0700
-Received: from qwg8 (qwg8.prod.google.com [10.241.194.136])
-	by hpaq6.eem.corp.google.com with ESMTP id o5T6ghls005475
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 23:42:44 -0700
-Received: by qwg8 with SMTP id 8so1794286qwg.32
-        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 23:42:43 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 106BB6B01B2
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 04:33:35 -0400 (EDT)
+Received: by wwf26 with SMTP id 26so3930228wwf.14
+        for <linux-mm@kvack.org>; Tue, 29 Jun 2010 01:33:29 -0700 (PDT)
+Date: Tue, 29 Jun 2010 09:33:23 +0100
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: Re: [PATCH] Add munmap events to perf
+Message-ID: <20100629083323.GA6917@us.ibm.com>
+References: <1277748484-23882-1-git-send-email-ebmunson@us.ibm.com>
+ <1277755486.3561.140.camel@laptop>
 MIME-Version: 1.0
-In-Reply-To: <20100628050723.GR4306@balbir.in.ibm.com>
-References: <AANLkTin2PcB6PwKnuazv3oAy6Arg8yntylVvdCj7Mzz-@mail.gmail.com>
-	<20100628110327.8cb51c0e.kamezawa.hiroyu@jp.fujitsu.com> <20100628050723.GR4306@balbir.in.ibm.com>
-From: Greg Thelen <gthelen@google.com>
-Date: Mon, 28 Jun 2010 23:42:18 -0700
-Message-ID: <AANLkTilnkhd8nrUvQ0BRSnO742abMcT0O2gMeEdwQysZ@mail.gmail.com>
-Subject: Re: deterministic cgroup charging using file path
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="envbJBWh7q8WU6mo"
+Content-Disposition: inline
+In-Reply-To: <1277755486.3561.140.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@elte.hu, paulus@samba.org, acme@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 27, 2010 at 10:07 PM, Balbir Singh
-<balbir@linux.vnet.ibm.com> wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-06-28 11:03:27=
-]:
->
->> On Fri, 25 Jun 2010 13:43:45 -0700
->> Greg Thelen <gthelen@google.com> wrote:
->>
->> > For the upcoming Linux VM summit, I am interesting in discussing the
->> > following proposal.
->> >
->> > Problem: When tasks from multiple cgroups share files the charging can=
- be
->> > non-deterministic. =A0This requires that all such cgroups have unneces=
-sarily high
->> > limits. =A0It would be nice if the charging was deterministic, using t=
-he file's
->> > path to determine which cgroup to charge. =A0This would benefit chargi=
-ng of
->> > commonly used files (eg: libc) as well as large databases shared by on=
-ly a few
->> > tasks.
->> >
->> > Example: assume two tasks (T1 and T2), each in a separate cgroup. =A0E=
-ach task
->> > wants to access a large (1GB) database file. =A0To catch memory leaks =
-a tight
->> > memory limit on each task's cgroup is set. =A0However, the large datab=
-ase file
->> > presents a problem. =A0If the file has not been cached, then the first=
- task to
->> > access the file is charged, thereby requiring that task's cgroup to ha=
-ve a limit
->> > large enough to include the database file. =A0If the order of access i=
-s unknown
->> > (due to process restart, etc), then all cgroups accessing the file nee=
-d to have
->> > a limit large enough to include the database. =A0This is wasteful beca=
-use the
->> > database won't be charged to both T1 and T2. =A0It would be useful to =
-introduce
->> > determinism by declaring that a particular cgroup is charged for a par=
-ticular
->> > set of files.
->> >
->> > /dev/cgroup/cg1/cg11 =A0# T1: want memory.limit =3D 30MB
->> > /dev/cgroup/cg1/cg12 =A0# T2: want memory.limit =3D 100MB
->> > /dev/cgroup/cg1 =A0 =A0 =A0 # want memory.limit =3D 1GB + 30MB + 100MB
->> >
->> > I have implemented a prototype that allows a file system hierarchy be =
-charge a
->> > particular cgroup using a new bind mount option:
->> > + mount -t cgroup none /cgroup -o memory
->> > + mount --bind /tmp/db /tmp/db -o cgroup=3D/dev/cgroup/cg1
->> >
->> > Any accesses to files within /tmp/db are charged to /dev/cgroup/cg1. =
-=A0Access to
->> > other files behave normally - they charge the cgroup of the current ta=
-sk.
->> >
->>
->> Interesting, but I want to use madvice() etc..for this kind of jobs, rat=
-her than
->> deep hooks into the kernel.
->>
->> madvise(addr, size, MEMORY_RECHAEGE_THIS_PAGES_TO_ME);
->>
->> Then, you can write a command as:
->>
->> =A0 file_recharge [path name] [cgroup]
->> =A0 - this commands move a file cache to specified cgroup.
->>
->> A daemon program which uses this command + inotify will give us much
->> flexible controls on file cache on memcg. Do you have some requirements
->> that this move-charge shouldn't be done in lazy manner ?
->>
->> Status:
->> We have codes for move-charge, inotify but have no code for new madvise.
->
-> I have not see the approach yet, but ideally one would want to avoid
-> changing the application, otherwise we are going to get very tightly
-> bound in the API issues.
 
-I agree that changing the application is undesirable.  I think the
-madvise suggestion (above) would not involve changing applications -
-it would only be used for a manager daemon in response to a inotify as
-a mechanism change the charge of previously allocated file pages.
+--envbJBWh7q8WU6mo
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> I want to understand why do we need bind mounts?
+On Mon, 28 Jun 2010, Peter Zijlstra wrote:
 
-I'm not certain that bind mounts are needed.  I chose to use bind
-mounts as a way to create a file system namespace that charged to a
-particular cgroup.  There are other mechanisms.  Another approach
-would be to have a way to dentry attribute (d_cgroup) that is
-inherited by child dentrys.  I tend to prefer the bind mount over the
-dentry approach because is reduces the number of cgroup references.
-However, there may be even better ways.
+> On Mon, 2010-06-28 at 19:08 +0100, Eric B Munson wrote:
+> > This patch adds a new software event for munmaps.  It will allows
+> > users to profile changes to address space.  munmaps will be tracked
+> > with mmaps.
+>=20
+> Why?
+>=20
 
-> I think this needs more discussion.
+It is going to be used by a tool that will model memory usage over the
+lifetime of a process.
 
-I agree that more discussion is required.
+--=20
+Eric B Munson
+IBM Linux Technology Center
+ebmunson@us.ibm.com
 
---
-Greg
+
+--envbJBWh7q8WU6mo
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkwpr9MACgkQsnv9E83jkzrsjgCgvnV9nCZZgaVBWFU/vCaYpykw
+bB4An3wpdTeiLG/jeYHggrKHv+WgFCtJ
+=sVbb
+-----END PGP SIGNATURE-----
+
+--envbJBWh7q8WU6mo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
