@@ -1,42 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 900996B01B8
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:30:51 -0400 (EDT)
-Message-ID: <4C2A118C.2030206@kernel.org>
-Date: Tue, 29 Jun 2010 17:30:20 +0200
-From: Tejun Heo <tj@kernel.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 18A426B01B8
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:41:39 -0400 (EDT)
+Date: Tue, 29 Jun 2010 10:31:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q 08/16] slub: remove dynamic dma slab allocation
+In-Reply-To: <alpine.DEB.2.00.1006261643360.27174@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1006291026470.16135@router.home>
+References: <20100625212026.810557229@quilx.com> <20100625212105.765531312@quilx.com> <alpine.DEB.2.00.1006261643360.27174@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
-References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <4C25B610.1050305@kernel.org> <alpine.DEB.2.00.1006291014540.16135@router.home>
-In-Reply-To: <alpine.DEB.2.00.1006291014540.16135@router.home>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On 06/29/2010 05:15 PM, Christoph Lameter wrote:
-> On Sat, 26 Jun 2010, Tejun Heo wrote:
-> 
->> Christoph, how do you wanna route these patches?  I already have the
->> other two patches in the percpu tree, I can push this there too, which
->> then you can pull into the allocator tree.
-> 
-> Please push via your trees. Lets keep stuff subsystem specific if
-> possible.
+On Sat, 26 Jun 2010, David Rientjes wrote:
 
-Sure, please feel free to pull from the following tree.
+> > -	page = new_slab(kmalloc_caches, gfpflags, node);
+> > +	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
+> >
+> >  	BUG_ON(!page);
+> >  	if (page_to_nid(page) != node) {
+>
+> This still passes GFP_KERNEL to the page allocator when not allowed by
+> gfp_allowed_mask for early (non SLAB_CACHE_DMA) users of
+> create_kmalloc_cache().
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git for-next
+Right a later patch changes that. I could fold that hunk in here.
 
-I haven't committed the gfp_allowed_mask patch yet.  I'll commit it
-once it gets resolved.
+> > @@ -2157,11 +2157,11 @@ static int init_kmem_cache_nodes(struct
+> >  		struct kmem_cache_node *n;
+> >
+> >  		if (slab_state == DOWN) {
+> > -			early_kmem_cache_node_alloc(gfpflags, node);
+> > +			early_kmem_cache_node_alloc(node);
+> >  			continue;
+> >  		}
+> >  		n = kmem_cache_alloc_node(kmalloc_caches,
+> > -						gfpflags, node);
+> > +						GFP_KERNEL, node);
+> >
+> >  		if (!n) {
+> >  			free_kmem_cache_nodes(s);
+>
+> slab_state != DOWN is still not an indication that GFP_KERNEL is safe; in
+> fact, all users of GFP_KERNEL from kmem_cache_init() are unsafe.  These
+> need to be GFP_NOWAIT.
 
-Thanks.
+slab_state == DOWN is a sure indicator that kmem_cache_alloc_node is not
+functional. That is what we need to know here.
 
--- 
-tejun
+> > +#ifdef CONFIG_ZONE_DMA
+> > +	int i;
+> > +
+> > +	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
+> > +		struct kmem_cache *s = &kmalloc_caches[i];
+> > +
+> > +		if (s && s->size) {
+> > +			char *name = kasprintf(GFP_KERNEL,
+> > +				 "dma-kmalloc-%d", s->objsize);
+> > +
+>
+> You're still not handling the case where !name, which kasprintf() can
+> return both here and in kmem_cache_init().  Nameless caches aren't allowed
+> for CONFIG_SLUB_DEBUG.
+
+It was not handled before either. I can come up with a patch but frankly
+this is a rare corner case that does not have too high priority to get
+done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
