@@ -1,127 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7077D6B01B2
-	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 20:03:36 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5T03WP3001705
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 29 Jun 2010 09:03:33 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEAEF45DE4D
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 09:03:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B75345DE6F
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 09:03:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2AFE9E38001
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 09:03:31 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C70951DB803A
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 09:03:30 +0900 (JST)
-Date: Tue, 29 Jun 2010 08:58:59 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting
- successful operation
-Message-Id: <20100629085859.2acd95e5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4C28D1A5.9040700@colorfullife.com>
-References: <20100625212026.810557229@quilx.com>
-	<20100625212101.622422748@quilx.com>
-	<20100628111731.18f1f858.kamezawa.hiroyu@jp.fujitsu.com>
-	<4C28D1A5.9040700@colorfullife.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C4D600227
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 01:31:29 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o5T5VQFi003975
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 22:31:26 -0700
+Received: from vws3 (vws3.prod.google.com [10.241.21.131])
+	by hpaq2.eem.corp.google.com with ESMTP id o5T5VN2a016932
+	for <linux-mm@kvack.org>; Mon, 28 Jun 2010 22:31:25 -0700
+Received: by vws3 with SMTP id 3so1431817vws.39
+        for <linux-mm@kvack.org>; Mon, 28 Jun 2010 22:31:23 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100628110327.8cb51c0e.kamezawa.hiroyu@jp.fujitsu.com>
+References: <AANLkTin2PcB6PwKnuazv3oAy6Arg8yntylVvdCj7Mzz-@mail.gmail.com>
+	<20100628110327.8cb51c0e.kamezawa.hiroyu@jp.fujitsu.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Mon, 28 Jun 2010 22:31:03 -0700
+Message-ID: <AANLkTik3l5jZlxqmDkkHdEFle4MJFcKLh1kPVNrK6CyE@mail.gmail.com>
+Subject: Re: [ATTEND][LSF/VM TOPIC] deterministic cgroup charging using file
+	path
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: lsf10-pc@lists.linuxfoundation.org, linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 2010 18:45:25 +0200
-Manfred Spraul <manfred@colorfullife.com> wrote:
+On Sun, Jun 27, 2010 at 7:03 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 25 Jun 2010 13:43:45 -0700
+> Greg Thelen <gthelen@google.com> wrote:
+>
+>> For the upcoming Linux VM summit, I am interesting in discussing the
+>> following proposal.
+>>
+>> Problem: When tasks from multiple cgroups share files the charging can b=
+e
+>> non-deterministic. =A0This requires that all such cgroups have unnecessa=
+rily high
+>> limits. =A0It would be nice if the charging was deterministic, using the=
+ file's
+>> path to determine which cgroup to charge. =A0This would benefit charging=
+ of
+>> commonly used files (eg: libc) as well as large databases shared by only=
+ a few
+>> tasks.
+>>
+>> Example: assume two tasks (T1 and T2), each in a separate cgroup. =A0Eac=
+h task
+>> wants to access a large (1GB) database file. =A0To catch memory leaks a =
+tight
+>> memory limit on each task's cgroup is set. =A0However, the large databas=
+e file
+>> presents a problem. =A0If the file has not been cached, then the first t=
+ask to
+>> access the file is charged, thereby requiring that task's cgroup to have=
+ a limit
+>> large enough to include the database file. =A0If the order of access is =
+unknown
+>> (due to process restart, etc), then all cgroups accessing the file need =
+to have
+>> a limit large enough to include the database. =A0This is wasteful becaus=
+e the
+>> database won't be charged to both T1 and T2. =A0It would be useful to in=
+troduce
+>> determinism by declaring that a particular cgroup is charged for a parti=
+cular
+>> set of files.
+>>
+>> /dev/cgroup/cg1/cg11 =A0# T1: want memory.limit =3D 30MB
+>> /dev/cgroup/cg1/cg12 =A0# T2: want memory.limit =3D 100MB
+>> /dev/cgroup/cg1 =A0 =A0 =A0 # want memory.limit =3D 1GB + 30MB + 100MB
+>>
+>> I have implemented a prototype that allows a file system hierarchy be ch=
+arge a
+>> particular cgroup using a new bind mount option:
+>> + mount -t cgroup none /cgroup -o memory
+>> + mount --bind /tmp/db /tmp/db -o cgroup=3D/dev/cgroup/cg1
+>>
+>> Any accesses to files within /tmp/db are charged to /dev/cgroup/cg1. =A0=
+Access to
+>> other files behave normally - they charge the cgroup of the current task=
+.
+>>
+>
+> Interesting, but I want to use madvice() etc..for this kind of jobs, rath=
+er than
+> deep hooks into the kernel.
+>
+> madvise(addr, size, MEMORY_RECHAEGE_THIS_PAGES_TO_ME);
+>
+> Then, you can write a command as:
+>
+> =A0file_recharge [path name] [cgroup]
+> =A0- this commands move a file cache to specified cgroup.
+>
+> A daemon program which uses this command + inotify will give us much
+> flexible controls on file cache on memcg. Do you have some requirements
+> that this move-charge shouldn't be done in lazy manner ?
+>
+> Status:
+> We have codes for move-charge, inotify but have no code for new madvise.
+>
+>
+> Thanks,
+> -Kame
 
-> On 06/28/2010 04:17 AM, KAMEZAWA Hiroyuki wrote:
-> > On Fri, 25 Jun 2010 16:20:27 -0500
-> > Christoph Lameter<cl@linux-foundation.org>  wrote:
-> >
-> >    
-> >> [Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
-> >> fix]
-> >>
-> >> The last change to improve the scalability moved the actual wake-up out of
-> >> the section that is protected by spin_lock(sma->sem_perm.lock).
-> >>
-> >> This means that IN_WAKEUP can be in queue.status even when the spinlock is
-> >> acquired by the current task. Thus the same loop that is performed when
-> >> queue.status is read without the spinlock acquired must be performed when
-> >> the spinlock is acquired.
-> >>
-> >> Signed-off-by: Manfred Spraul<manfred@colorfullife.com>
-> >> Signed-off-by: Christoph Lameter<cl@linux-foundation.org>
-> >>      
-> >
-> > Hmm, I'm sorry if I don't understand the code...
-> >
-> >    
-> >> ---
-> >>   ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
-> >>   1 files changed, 30 insertions(+), 6 deletions(-)
-> >>
-> >> diff --git a/ipc/sem.c b/ipc/sem.c
-> >> index 506c849..523665f 100644
-> >> --- a/ipc/sem.c
-> >> +++ b/ipc/sem.c
-> >> @@ -1256,6 +1256,32 @@ out:
-> >>   	return un;
-> >>   }
-> >>
-> >> +
-> >> +/** get_queue_result - Retrieve the result code from sem_queue
-> >> + * @q: Pointer to queue structure
-> >> + *
-> >> + * The function retrieve the return code from the pending queue. If
-> >> + * IN_WAKEUP is found in q->status, then we must loop until the value
-> >> + * is replaced with the final value: This may happen if a task is
-> >> + * woken up by an unrelated event (e.g. signal) and in parallel the task
-> >> + * is woken up by another task because it got the requested semaphores.
-> >> + *
-> >> + * The function can be called with or without holding the semaphore spinlock.
-> >> + */
-> >> +static int get_queue_result(struct sem_queue *q)
-> >> +{
-> >> +	int error;
-> >> +
-> >> +	error = q->status;
-> >> +	while(unlikely(error == IN_WAKEUP)) {
-> >> +		cpu_relax();
-> >> +		error = q->status;
-> >> +	}
-> >> +
-> >> +	return error;
-> >> +}
-> >>      
-> > no memory barrier is required ?
-> >
-> >    
-> No.
-> q->status is the only field that is read in the exit path of 
-> sys_semtimedop():
-> After that, q->status is used as the return value of sys_semtimedop(), 
-> without accessing any other field.
-> Thus no memory barrier is required: there is just no other read/write 
-> operation against which the read of q->status must be serialized.
-> 
-> There is a smp_wmb() wake_up_sem_queue_do(), to ensure that all writes 
-> that are done by the cpu that does the wake-up are completed before 
-> q->status is set to the final value.
-> 
+This is an interesting approach.  I like the idea of minimizing kernel
+changes.  I want to make sure I understand the idea using terms from
+my above example.
 
-Thanks. BTW, cpu_relax() always includes asm("":::"memory") for avoiding
-optimization ?
+1. The daemon establishes inotify() watches on /tmp/db and all sub
+directories to catch any accesses.
 
-Thanks,
--Kame
+2. If cg11(T1) is the first process to mmap a portion of a /tmp/db
+file (pages_1) then cg11 will be charged.  T1 will not use madvise()
+because cg11 does not want to be charged.  cg11 will be temporarily
+charged for pages_1.
 
+3. inotify() will inform the proposed daemon that T1 opened /tmp/db,
+so the daemon will use file_recharge, which runs the following within
+the cg1 cgroup:
+- fd =3D open("/tmp/db/.../path_to_file")
+- va =3D mmap(NULL, size=3Dstat(fd).st_size, fd)
+- madvise(fd, va, st_size, MEMORY_RECHARGE_THIS_PAGES_TO_ME).  This
+will move the charge of pages_1 from cg11 to cg1.
 
+Did I state this correctly?
+
+I am concerned that the follow-on step does not move the pages to cg1:
+4. T1 then touches more /tmp/db pages (pages_2) using the same mmap.
+This charges cg11.  I assume that inotify() would not notify the
+daemon for this case because the file is still open.  So the pages
+will not be moved to cg1.  Or are you suggesting that inotify()
+enhanced to advertise charge events?
+
+If the number of directories within /tmp/db is large, then inotify()
+maybe expensive.  I don't think this is a problem.
+
+Another worry I have is that if for some reason the daemon is started
+after the job, or if the daemon crashes and is restarted, then files
+may have been opened and charged to cg11 without the inotify being
+setup.  The daemon would have problems finding the pages that were
+charged to cg11 and need to be moved to cg1.  The daemon could scan
+the open file table of T1, but any files that are no longer opened may
+be charged to cg11 with no way for the daemon to find them.
+
+--
+Greg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
