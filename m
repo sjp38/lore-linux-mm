@@ -1,30 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3596B01B8
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:25:35 -0400 (EDT)
-Date: Tue, 29 Jun 2010 10:21:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
-In-Reply-To: <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006291020240.16135@router.home>
-References: <20100625212026.810557229@quilx.com> <20100626022441.GC29809@laptop> <AANLkTinOsPXdFc36mVDva-x0a0--gdFJuvWFQARwvx6y@mail.gmail.com> <alpine.DEB.2.00.1006280510370.8725@router.home> <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 900996B01B8
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:30:51 -0400 (EDT)
+Message-ID: <4C2A118C.2030206@kernel.org>
+Date: Tue, 29 Jun 2010 17:30:20 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <4C25B610.1050305@kernel.org> <alpine.DEB.2.00.1006291014540.16135@router.home>
+In-Reply-To: <alpine.DEB.2.00.1006291014540.16135@router.home>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 2010, Pekka Enberg wrote:
+On 06/29/2010 05:15 PM, Christoph Lameter wrote:
+> On Sat, 26 Jun 2010, Tejun Heo wrote:
+> 
+>> Christoph, how do you wanna route these patches?  I already have the
+>> other two patches in the percpu tree, I can push this there too, which
+>> then you can pull into the allocator tree.
+> 
+> Please push via your trees. Lets keep stuff subsystem specific if
+> possible.
 
-> I guess "netperf TCP_RR" is the most interesting one because that's a
-> known benchmark where SLUB performs poorly when compared to SLAB.
-> Mel's extensive slab benchmarks are also worth looking at:
+Sure, please feel free to pull from the following tree.
 
-I will look at it when I get time but I am vacation right now and sitting
-in the hospital with my son who managed to get himself there on the first
-day of the "vacation". Guess it will take a week or so at least.
+  git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git for-next
 
+I haven't committed the gfp_allowed_mask patch yet.  I'll commit it
+once it gets resolved.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
