@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4F2600227
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D92F600227
 	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 07:34:55 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 03/14] tracing, vmscan: Add trace events for LRU page isolation
-Date: Tue, 29 Jun 2010 12:34:37 +0100
-Message-Id: <1277811288-5195-4-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 01/14] vmscan: Fix mapping use after free
+Date: Tue, 29 Jun 2010 12:34:35 +0100
+Message-Id: <1277811288-5195-2-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
 References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,113 +13,30 @@ To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds an event for when pages are isolated en-masse from the
-LRU lists. This event augments the information available on LRU traffic
-and can be used to evaluate lumpy reclaim.
+From: Nick Piggin <npiggin@suse.de>
 
+Use lock_page_nosync in handle_write_error as after writepage we have no
+reference to the mapping when taking the page lock.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Larry Woodman <lwoodman@redhat.com>
 ---
- include/trace/events/vmscan.h |   46 +++++++++++++++++++++++++++++++++++++++++
- mm/vmscan.c                   |   14 ++++++++++++
- 2 files changed, 60 insertions(+), 0 deletions(-)
+ mm/vmscan.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index f76521f..a331454 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -109,6 +109,52 @@ TRACE_EVENT(mm_vmscan_direct_reclaim_end,
- 	TP_printk("nr_reclaimed=%lu", __entry->nr_reclaimed)
- );
- 
-+TRACE_EVENT(mm_vmscan_lru_isolate,
-+
-+	TP_PROTO(int order,
-+		unsigned long nr_requested,
-+		unsigned long nr_scanned,
-+		unsigned long nr_taken,
-+		unsigned long nr_lumpy_taken,
-+		unsigned long nr_lumpy_dirty,
-+		unsigned long nr_lumpy_failed,
-+		int isolate_mode),
-+
-+	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode),
-+
-+	TP_STRUCT__entry(
-+		__field(int, order)
-+		__field(unsigned long, nr_requested)
-+		__field(unsigned long, nr_scanned)
-+		__field(unsigned long, nr_taken)
-+		__field(unsigned long, nr_lumpy_taken)
-+		__field(unsigned long, nr_lumpy_dirty)
-+		__field(unsigned long, nr_lumpy_failed)
-+		__field(int, isolate_mode)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->order = order;
-+		__entry->nr_requested = nr_requested;
-+		__entry->nr_scanned = nr_scanned;
-+		__entry->nr_taken = nr_taken;
-+		__entry->nr_lumpy_taken = nr_lumpy_taken;
-+		__entry->nr_lumpy_dirty = nr_lumpy_dirty;
-+		__entry->nr_lumpy_failed = nr_lumpy_failed;
-+		__entry->isolate_mode = isolate_mode;
-+	),
-+
-+	TP_printk("isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu contig_taken=%lu contig_dirty=%lu contig_failed=%lu",
-+		__entry->isolate_mode,
-+		__entry->order,
-+		__entry->nr_requested,
-+		__entry->nr_scanned,
-+		__entry->nr_taken,
-+		__entry->nr_lumpy_taken,
-+		__entry->nr_lumpy_dirty,
-+		__entry->nr_lumpy_failed)
-+);
-+		
- #endif /* _TRACE_VMSCAN_H */
- 
- /* This part must be outside protection */
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d425cef..095c66c 100644
+index 9c7e57c..62a30fe 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -917,6 +917,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		unsigned long *scanned, int order, int mode, int file)
+@@ -296,7 +296,7 @@ static int may_write_to_queue(struct backing_dev_info *bdi)
+ static void handle_write_error(struct address_space *mapping,
+ 				struct page *page, int error)
  {
- 	unsigned long nr_taken = 0;
-+	unsigned long nr_lumpy_taken = 0, nr_lumpy_dirty = 0, nr_lumpy_failed = 0;
- 	unsigned long scan;
- 
- 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-@@ -994,12 +995,25 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 				list_move(&cursor_page->lru, dst);
- 				mem_cgroup_del_lru(cursor_page);
- 				nr_taken++;
-+				nr_lumpy_taken++;
-+				if (PageDirty(cursor_page))
-+					nr_lumpy_dirty++;
- 				scan++;
-+			} else {
-+				if (mode == ISOLATE_BOTH &&
-+						page_count(cursor_page))
-+					nr_lumpy_failed++;
- 			}
- 		}
- 	}
- 
- 	*scanned = scan;
-+
-+	trace_mm_vmscan_lru_isolate(order,
-+			nr_to_scan, scan,
-+			nr_taken,
-+			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
-+			mode);
- 	return nr_taken;
- }
- 
+-	lock_page(page);
++	lock_page_nosync(page);
+ 	if (page_mapping(page) == mapping)
+ 		mapping_set_error(mapping, error);
+ 	unlock_page(page);
 -- 
 1.7.1
 
