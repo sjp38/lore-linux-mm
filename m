@@ -1,45 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CA8B76B01B9
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:20:13 -0400 (EDT)
-Date: Tue, 29 Jun 2010 10:19:37 -0500 (CDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2F3596B01B8
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:25:35 -0400 (EDT)
+Date: Tue, 29 Jun 2010 10:21:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/2] vmscan: shrink_slab() require number of lru_pages,
-  not page order
-In-Reply-To: <AANLkTimAF9O3kupOWHv2lLuZefDU7HLgq5ApnD-FE_Ng@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1006291017480.16135@router.home>
-References: <20100625201915.8067.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006250857040.18900@router.home> <AANLkTimAF9O3kupOWHv2lLuZefDU7HLgq5ApnD-FE_Ng@mail.gmail.com>
+Subject: Re: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
+In-Reply-To: <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1006291020240.16135@router.home>
+References: <20100625212026.810557229@quilx.com> <20100626022441.GC29809@laptop> <AANLkTinOsPXdFc36mVDva-x0a0--gdFJuvWFQARwvx6y@mail.gmail.com> <alpine.DEB.2.00.1006280510370.8725@router.home> <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 27 Jun 2010, Minchan Kim wrote:
+On Mon, 28 Jun 2010, Pekka Enberg wrote:
 
-> > What does the "lru_pages" parameter do in shrink_slab()? Looks
-> > like its only role is as a divison factor in a complex calculation of
-> > pages to be scanned.
->
-> Yes. But I think it can make others confuse like this.
+> I guess "netperf TCP_RR" is the most interesting one because that's a
+> known benchmark where SLUB performs poorly when compared to SLAB.
+> Mel's extensive slab benchmarks are also worth looking at:
 
-Right.
+I will look at it when I get time but I am vacation right now and sitting
+in the hospital with my son who managed to get himself there on the first
+day of the "vacation". Guess it will take a week or so at least.
 
-> Except zone_reclaim, lru_pages had been used for balancing slab
-> reclaim VS page reclaim.
-> So lru_page naming is a good.
-
-It is also good to make zone reclaim more deterministic by using the new
-counters. So I am not all opposed to the initial patch. Just clear things
-up a bit and make sure that this does not cause regressions because of too
-frequent calls to shrink_slab
-
-> So you intentionally passed order instead of the number of lru pages
-> for shrinking many slabs as possible as.
-
-Dont remember doing that. I suspect the parameter was renamed at some
-point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
