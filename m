@@ -1,31 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B5E6B01B0
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 10:46:37 -0400 (EDT)
-Date: Tue, 29 Jun 2010 16:44:43 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 01/14] vmscan: Fix mapping use after free
-Message-ID: <20100629144443.GD10513@cmpxchg.org>
-References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie> <1277811288-5195-2-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1277811288-5195-2-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 41D586B01B8
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:15:12 -0400 (EDT)
+Date: Tue, 29 Jun 2010 10:14:35 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 2/2] vmscan: don't subtraction of unsined 
+In-Reply-To: <20100628101802.386A.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1006280521190.8725@router.home>
+References: <20100625202126.806A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006250912380.18900@router.home> <20100628101802.386A.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 29, 2010 at 12:34:35PM +0100, Mel Gorman wrote:
-> From: Nick Piggin <npiggin@suse.de>
-> 
-> Use lock_page_nosync in handle_write_error as after writepage we have no
-> reference to the mapping when taking the page lock.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+On Mon, 28 Jun 2010, KOSAKI Motohiro wrote:
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> It's unsigned. negative mean very big value. so
+>
+> "zone_page_state(zone, NR_SLAB_RECLAIMABLE) > slab_reclaimable - nr_pages)" will
+> be evaluated false.
+
+There were some suggestions on how to address this later in the patch.
+
+> ok, your mysterious 'order' parameter (as pointed [1/2]) almostly prevent this case.
+> because passing 'order' makes very heavy slab pressure and it avoid negative occur.
+>
+> but unnaturall coding style can make confusing to reviewers. ya, it's not
+> big issue. but I also don't find no fixing reason.
+
+This is not a coding issue but one of logic. The order parameter is
+mysterious to me too. So is the lru_pages logic.
+
+> > The comparison could be a problem here. So
+> >
+> > 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
+> > 				slab_reclaimable
+> >
+> > ?
+>
+> My patch take the same thing. but It avoided two line comparision.
+> Do you mean you like this style? (personally, I don't). If so, I'll
+> repost this patch.
+
+Yes. I also do not like long cryptic names for local variables.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
