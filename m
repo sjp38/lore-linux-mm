@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 157B86007C1
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 07:43:41 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C34B6006F7
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 07:43:42 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 10/14] vmscan: Setup pagevec as late as possible in shrink_page_list()
-Date: Tue, 29 Jun 2010 12:34:44 +0100
-Message-Id: <1277811288-5195-11-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 11/14] vmscan: Update isolated page counters outside of main path in shrink_inactive_list()
+Date: Tue, 29 Jun 2010 12:34:45 +0100
+Message-Id: <1277811288-5195-12-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
 References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,92 +13,141 @@ To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 Cc: Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-shrink_page_list() sets up a pagevec to release pages as according as they
-are free. It uses significant amounts of stack on the pagevec. This
-patch adds pages to be freed via pagevec to a linked list which is then
-freed en-masse at the end. This avoids using stack in the main path that
-potentially calls writepage().
+When shrink_inactive_list() isolates pages, it updates a number of
+counters using temporary variables to gather them. These consume stack
+and it's in the main path that calls ->writepage(). This patch moves the
+accounting updates outside of the main path to reduce stack usage.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/vmscan.c |   36 ++++++++++++++++++++++++++++--------
- 1 files changed, 28 insertions(+), 8 deletions(-)
+ mm/vmscan.c |   63 +++++++++++++++++++++++++++++++++++-----------------------
+ 1 files changed, 38 insertions(+), 25 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8b4ed48..1107830 100644
+index 1107830..efa6ee4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -620,6 +620,24 @@ static enum page_references page_check_references(struct page *page,
- 	return PAGEREF_RECLAIM;
+@@ -1072,7 +1072,8 @@ static unsigned long clear_active_flags(struct list_head *page_list,
+ 			ClearPageActive(page);
+ 			nr_active++;
+ 		}
+-		count[lru]++;
++		if (count)
++			count[lru]++;
+ 	}
+ 
+ 	return nr_active;
+@@ -1152,12 +1153,13 @@ static int too_many_isolated(struct zone *zone, int file,
+  * TODO: Try merging with migrations version of putback_lru_pages
+  */
+ static noinline_for_stack void
+-putback_lru_pages(struct zone *zone, struct zone_reclaim_stat *reclaim_stat,
++putback_lru_pages(struct zone *zone, struct scan_control *sc,
+ 				unsigned long nr_anon, unsigned long nr_file,
+ 				struct list_head *page_list)
+ {
+ 	struct page *page;
+ 	struct pagevec pvec;
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	pagevec_init(&pvec, 1);
+ 
+@@ -1196,6 +1198,37 @@ putback_lru_pages(struct zone *zone, struct zone_reclaim_stat *reclaim_stat,
+ 	pagevec_release(&pvec);
  }
  
-+static noinline_for_stack void free_page_list(struct list_head *free_pages)
++static noinline_for_stack void update_isolated_counts(struct zone *zone,
++					struct scan_control *sc,
++					unsigned long *nr_anon,
++					unsigned long *nr_file,
++					struct list_head *isolated_list)
 +{
-+	struct pagevec freed_pvec;
-+	struct page *page, *tmp;
++	unsigned long nr_active;
++	unsigned int count[NR_LRU_LISTS] = { 0, };
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 +
-+	pagevec_init(&freed_pvec, 1);
++	nr_active = clear_active_flags(isolated_list, count);
++	__count_vm_events(PGDEACTIVATE, nr_active);
 +
-+	list_for_each_entry_safe(page, tmp, free_pages, lru) {
-+		list_del(&page->lru);
-+		if (!pagevec_add(&freed_pvec, page)) {
-+			__pagevec_free(&freed_pvec);
-+			pagevec_reinit(&freed_pvec);
-+		}
-+	}
++	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
++			      -count[LRU_ACTIVE_FILE]);
++	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
++			      -count[LRU_INACTIVE_FILE]);
++	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
++			      -count[LRU_ACTIVE_ANON]);
++	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
++			      -count[LRU_INACTIVE_ANON]);
 +
-+	pagevec_free(&freed_pvec);
++	*nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
++	*nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
++	__mod_zone_page_state(zone, NR_ISOLATED_ANON, *nr_anon);
++	__mod_zone_page_state(zone, NR_ISOLATED_FILE, *nr_file);
++
++	reclaim_stat->recent_scanned[0] += *nr_anon;
++	reclaim_stat->recent_scanned[1] += *nr_file;
 +}
 +
  /*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
-@@ -628,13 +646,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					enum pageout_io sync_writeback)
- {
- 	LIST_HEAD(ret_pages);
--	struct pagevec freed_pvec;
-+	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+@@ -1207,10 +1240,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 	LIST_HEAD(page_list);
+ 	unsigned long nr_scanned;
  	unsigned long nr_reclaimed = 0;
+-	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 	unsigned long nr_taken;
+ 	unsigned long nr_active;
+-	unsigned int count[NR_LRU_LISTS] = { 0, };
+ 	unsigned long nr_anon;
+ 	unsigned long nr_file;
  
- 	cond_resched();
- 
--	pagevec_init(&freed_pvec, 1);
- 	while (!list_empty(page_list)) {
- 		enum page_references references;
- 		struct address_space *mapping;
-@@ -809,10 +826,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		__clear_page_locked(page);
- free_it:
- 		nr_reclaimed++;
--		if (!pagevec_add(&freed_pvec, page)) {
--			__pagevec_free(&freed_pvec);
--			pagevec_reinit(&freed_pvec);
--		}
-+
-+		/*
-+		 * Is there need to periodically free_page_list? It would
-+		 * appear not as the counts should be low
-+		 */
-+		list_add(&page->lru, &free_pages);
- 		continue;
- 
- cull_mlocked:
-@@ -835,9 +854,10 @@ keep:
- 		list_add(&page->lru, &ret_pages);
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+@@ -1255,25 +1286,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 		return 0;
  	}
-+
-+	free_page_list(&free_pages);
-+
- 	list_splice(&ret_pages, page_list);
--	if (pagevec_count(&freed_pvec))
--		__pagevec_free(&freed_pvec);
- 	count_vm_events(PGACTIVATE, pgactivate);
+ 
+-	nr_active = clear_active_flags(&page_list, count);
+-	__count_vm_events(PGDEACTIVATE, nr_active);
+-
+-	__mod_zone_page_state(zone, NR_ACTIVE_FILE,
+-					-count[LRU_ACTIVE_FILE]);
+-	__mod_zone_page_state(zone, NR_INACTIVE_FILE,
+-					-count[LRU_INACTIVE_FILE]);
+-	__mod_zone_page_state(zone, NR_ACTIVE_ANON,
+-					-count[LRU_ACTIVE_ANON]);
+-	__mod_zone_page_state(zone, NR_INACTIVE_ANON,
+-					-count[LRU_INACTIVE_ANON]);
+-
+-	nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+-	nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+-	__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
+-	__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
+-
+-	reclaim_stat->recent_scanned[0] += nr_anon;
+-	reclaim_stat->recent_scanned[1] += nr_file;
++	update_isolated_counts(zone, sc, &nr_anon, &nr_file, &page_list);
+ 
+ 	spin_unlock_irq(&zone->lru_lock);
+ 
+@@ -1292,7 +1305,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 		 * The attempt at page out may have made some
+ 		 * of the pages active, mark them inactive again.
+ 		 */
+-		nr_active = clear_active_flags(&page_list, count);
++		nr_active = clear_active_flags(&page_list, NULL);
+ 		count_vm_events(PGDEACTIVATE, nr_active);
+ 
+ 		nr_reclaimed += shrink_page_list(&page_list, sc, PAGEOUT_IO_SYNC);
+@@ -1303,7 +1316,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+ 	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
+ 
+-	putback_lru_pages(zone, reclaim_stat, nr_anon, nr_file, &page_list);
++	putback_lru_pages(zone, sc, nr_anon, nr_file, &page_list);
  	return nr_reclaimed;
  }
+ 
 -- 
 1.7.1
 
