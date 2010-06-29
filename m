@@ -1,32 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4D5576B01C1
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:42:00 -0400 (EDT)
-Date: Tue, 29 Jun 2010 10:23:01 -0500 (CDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AD8EA6B01B9
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:46:58 -0400 (EDT)
+Date: Tue, 29 Jun 2010 10:47:09 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q 00/16] SLUB with Queueing beats SLAB in hackbench
-In-Reply-To: <alpine.DEB.2.00.1006281152250.25490@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1006291022090.16135@router.home>
-References: <20100625212026.810557229@quilx.com> <20100626022441.GC29809@laptop> <AANLkTinOsPXdFc36mVDva-x0a0--gdFJuvWFQARwvx6y@mail.gmail.com> <alpine.DEB.2.00.1006280510370.8725@router.home> <AANLkTimQr0iNLr4uwZwx8F9jasIsi1yoyIR8r6etMtW8@mail.gmail.com>
- <alpine.DEB.2.00.1006281152250.25490@chino.kir.corp.google.com>
+Subject: Re: kmem_cache_destroy() badness with SLUB
+In-Reply-To: <1277688701.4200.159.camel@pasglop>
+Message-ID: <alpine.DEB.2.00.1006291046230.16135@router.home>
+References: <1277688701.4200.159.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.00.1006291022092.16135@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>, Mel Gorman <mel@csn.ul.ie>, travis@sgi.com
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 2010, David Rientjes wrote:
+On Mon, 28 Jun 2010, Benjamin Herrenschmidt wrote:
 
-> In addition to that benchmark, which regresses on systems with larger
-> numbers of cpus, you had posted results for slub vs slab for kernbench,
-> aim9, and sysbench before slub was ever merged.  If you're going to use
-> slab-like queueing in slub, it would be interesting to see if these
-> particular benchmarks regress once again.
+> So if the slab is created -and- destroyed at, for example, arch_initcall
+> time, then we hit a WARN in the kobject code, trying to dispose of a
+> non-existing kobject.
 
-I do not have access to Itanium systems anymore. I hope Mike can run some
-benchmarks?
+Yes dont do that.
+
+> Now, at first sight, just adding the same test to sysfs_slab_remove()
+> would do the job... but it all seems very racy to me.
+
+Yes lets leave as is. Dont remove slabs during boot.
+
+> Shouldn't we have a mutex around those guys ?
+
+At boot time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
