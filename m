@@ -1,50 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 41D586B01B8
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:15:12 -0400 (EDT)
-Date: Tue, 29 Jun 2010 10:14:35 -0500 (CDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2A9166B01B8
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 11:19:07 -0400 (EDT)
+Date: Tue, 29 Jun 2010 10:15:44 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/2] vmscan: don't subtraction of unsined 
-In-Reply-To: <20100628101802.386A.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1006280521190.8725@router.home>
-References: <20100625202126.806A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1006250912380.18900@router.home> <20100628101802.386A.A69D9226@jp.fujitsu.com>
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+In-Reply-To: <4C25B610.1050305@kernel.org>
+Message-ID: <alpine.DEB.2.00.1006291014540.16135@router.home>
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <4C25B610.1050305@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 2010, KOSAKI Motohiro wrote:
+On Sat, 26 Jun 2010, Tejun Heo wrote:
 
-> It's unsigned. negative mean very big value. so
->
-> "zone_page_state(zone, NR_SLAB_RECLAIMABLE) > slab_reclaimable - nr_pages)" will
-> be evaluated false.
+> Christoph, how do you wanna route these patches?  I already have the
+> other two patches in the percpu tree, I can push this there too, which
+> then you can pull into the allocator tree.
 
-There were some suggestions on how to address this later in the patch.
-
-> ok, your mysterious 'order' parameter (as pointed [1/2]) almostly prevent this case.
-> because passing 'order' makes very heavy slab pressure and it avoid negative occur.
->
-> but unnaturall coding style can make confusing to reviewers. ya, it's not
-> big issue. but I also don't find no fixing reason.
-
-This is not a coding issue but one of logic. The order parameter is
-mysterious to me too. So is the lru_pages logic.
-
-> > The comparison could be a problem here. So
-> >
-> > 			zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
-> > 				slab_reclaimable
-> >
-> > ?
->
-> My patch take the same thing. but It avoided two line comparision.
-> Do you mean you like this style? (personally, I don't). If so, I'll
-> repost this patch.
-
-Yes. I also do not like long cryptic names for local variables.
+Please push via your trees. Lets keep stuff subsystem specific if
+possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
