@@ -1,80 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2226B01AC
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 15:51:34 -0400 (EDT)
-Date: Wed, 30 Jun 2010 12:51:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [S+Q 01/16] [PATCH] ipc/sem.c: Bugfix for semop() not reporting
- successful operation
-Message-Id: <20100630125121.6b076f1b.akpm@linux-foundation.org>
-In-Reply-To: <4C2B9D43.4070504@colorfullife.com>
-References: <20100625212026.810557229@quilx.com>
-	<20100625212101.622422748@quilx.com>
-	<AANLkTinmvRtH24uflD9e7MknaW6tgMSnN75vVgaj0IM6@mail.gmail.com>
-	<alpine.DEB.2.00.1006291042100.16135@router.home>
-	<20100629120857.00f4b42d.akpm@linux-foundation.org>
-	<4C2B9D43.4070504@colorfullife.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6F56B01AF
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 16:07:22 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id o5UK7Ie4021528
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 13:07:18 -0700
+Received: from pva18 (pva18.prod.google.com [10.241.209.18])
+	by hpaq14.eem.corp.google.com with ESMTP id o5UK7Grw000441
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 13:07:17 -0700
+Received: by pva18 with SMTP id 18so491050pva.32
+        for <linux-mm@kvack.org>; Wed, 30 Jun 2010 13:07:16 -0700 (PDT)
+Date: Wed, 30 Jun 2010 13:07:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH V2] slab: fix caller tracking on !CONFIG_DEBUG_SLAB &&
+ CONFIG_TRACING
+In-Reply-To: <1277891842-18898-1-git-send-email-dfeng@redhat.com>
+Message-ID: <alpine.DEB.2.00.1006301307001.27676@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com> <1277891842-18898-1-git-send-email-dfeng@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>
+To: Xiaotian Feng <dfeng@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Monakhov <dmonakhov@openvz.org>, Catalin Marinas <catalin.marinas@arm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Jun 2010 21:38:43 +0200
-Manfred Spraul <manfred@colorfullife.com> wrote:
+On Wed, 30 Jun 2010, Xiaotian Feng wrote:
 
-> Hi Andrew,
+> In slab, all __xxx_track_caller is defined on CONFIG_DEBUG_SLAB || CONFIG_TRACING,
+> thus caller tracking function should be worked for CONFIG_TRACING. But if
+> CONFIG_DEBUG_SLAB is not set, include/linux/slab.h will define xxx_track_caller to
+> __xxx() without consideration of CONFIG_TRACING. This will break the caller tracking
+> behaviour then.
 > 
-> On 06/29/2010 09:08 PM, Andrew Morton wrote:
-> > On Tue, 29 Jun 2010 10:42:42 -0500 (CDT)
-> > Christoph Lameter<cl@linux-foundation.org>  wrote:
-> >
-> >    
-> >> This is a patch from Manfred. Required to make 2.6.35-rc3 work.
-> >>
-> >>      
-> > My current version of the patch is below.
-> >
-> > I believe that Luca has still seen problems with this patch applied so
-> > its current status is "stuck, awaiting developments".
-> >
-> > Is that a correct determination?
-> >    
-> 
-> I would propose that you forward a patch to Linus - either the one you 
-> have in your tree or the v2 that I've just posted.
+> Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Cc: Vegard Nossum <vegard.nossum@gmail.com>
+> Cc: Dmitry Monakhov <dmonakhov@openvz.org>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: David Rientjes <rientjes@google.com>
 
-OK, I added the incremental change:
-
---- a/ipc/sem.c~ipc-semc-bugfix-for-semop-not-reporting-successful-operation-update
-+++ a/ipc/sem.c
-@@ -1440,7 +1440,14 @@ SYSCALL_DEFINE4(semtimedop, int, semid, 
- 
- 	if (error != -EINTR) {
- 		/* fast path: update_queue already obtained all requested
--		 * resources */
-+		 * resources.
-+		 * Perform a smp_mb(): User space could assume that semop()
-+		 * is a memory barrier: Without the mb(), the cpu could
-+		 * speculatively read in user space stale data that was
-+		 * overwritten by the previous owner of the semaphore.
-+		 */
-+		smp_mb();
-+
- 		goto out_free;
- 	}
- 
-_
-
-> With stock 2.6.35-rc3, my semtimedop() stress tests produces an oops or 
-> an invalid return value (i.e.:semtimedop() returns with "1") within a 
-> fraction of a second.
-> 
-> With either of the patches applied, my test apps show the expected behavior.
-
-OK, I'll queue it up.
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
