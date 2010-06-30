@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BB18D6B01AC
-	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 20:31:10 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5U0V5qU001506
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 30 Jun 2010 09:31:06 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9295645DE6E
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 09:31:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C5D545DE60
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 09:31:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FD961DB803E
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 09:31:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 080031DB803B
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 09:31:05 +0900 (JST)
-Date: Wed, 30 Jun 2010 09:26:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [S+Q 08/16] slub: remove dynamic dma slab allocation
-Message-Id: <20100630092633.a5184e16.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1006291039260.16135@router.home>
-References: <20100625212026.810557229@quilx.com>
-	<20100625212105.765531312@quilx.com>
-	<20100628113308.a9b6e834.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1006291039260.16135@router.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 318F76B01AC
+	for <linux-mm@kvack.org>; Tue, 29 Jun 2010 20:37:19 -0400 (EDT)
+Message-ID: <4C2A9197.5000504@redhat.com>
+Date: Tue, 29 Jun 2010 20:36:39 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [ATTEND][LSF/VM TOPIC] Stale Page Tracking
+References: <AANLkTinneFEyqkWVW_Q_paAACco_huGBNtf_5fiYckCv@mail.gmail.com>
+In-Reply-To: <AANLkTinneFEyqkWVW_Q_paAACco_huGBNtf_5fiYckCv@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, lsf10-pc@lists.linuxfoundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jun 2010 10:41:59 -0500 (CDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
+On 06/29/2010 08:25 PM, Ying Han wrote:
+> apologies if you got this email twice, the first emails seems not
+> getting through :(
+>
+> This is the discussion we would like to have on the upcoming Linux VM
+> summit.
+>
+> Problem:
+> Google runs large scale of machines and each machine runs Linux. We try
+> to achieve higher utilization by better bin-packing of jobs on existing
+> systems and for this we depend on having accurate resource usage
+> estimation. Linux VM subsystem is designed in a way that it tries to
+> allocate every single page available by filling up page cache pages.
+> Some of the pages might be touched once and never touched again. Pageout
+> deamon(kswapd) only evicts pages under memory pressure, so pages which
+> are actually stale will end up taking memory space. It would be nice to
+> have a way to measure the portion of working set for each process
+> periodically. A user-land resource management program can trigger
+> reclaim of the stale pages making room for packing more jobs any time.
 
-> On Mon, 28 Jun 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > Uh...I think just using GFP_KERNEL drops too much
-> > requests-from-user-via-gfp_mask.
-> 
-> Sorry I do not understand what the issue is? The dma slabs are allocated
-> while user space is not active yet.
-> 
-Sorry, I misunderstood the patch. It seems ok, now.
+Something like this functionality could also be useful for
+virtualization, kicking off garbage collection in JVMs and
+other runtimes, as well as resizing other workloads that
+cache data...
 
-> Please do not quote diff hunks that you do not comment on. I am on a slow
-> link (vacation) and its awkward to check for comments...
+I would like to discuss this topic so we can figure out
+the kind of functionality needed to achieve what everybody
+wants.
 
-Sure.
-
-Thanks,
--Kame
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
