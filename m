@@ -1,165 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8AEB56B01D8
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 05:35:12 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o5U9ZAlH018902
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 30 Jun 2010 18:35:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 19D4145DE57
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 18:35:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D5A6F45DE4F
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 18:35:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AB3871DB8038
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 18:35:09 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 48A601DB803B
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 18:35:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 10/11] oom: give the dying task a higher priority
-In-Reply-To: <20100630183243.AA65.A69D9226@jp.fujitsu.com>
-References: <20100630172430.AA42.A69D9226@jp.fujitsu.com> <20100630183243.AA65.A69D9226@jp.fujitsu.com>
-Message-Id: <20100630183421.AA6B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 30 Jun 2010 18:35:08 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 501C36B01D9
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 05:57:55 -0400 (EDT)
+From: Xiaotian Feng <dfeng@redhat.com>
+Subject: [PATCH V2] slab: fix caller tracking on !CONFIG_DEBUG_SLAB && CONFIG_TRACING
+Date: Wed, 30 Jun 2010 17:57:22 +0800
+Message-Id: <1277891842-18898-1-git-send-email-dfeng@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Xiaotian Feng <dfeng@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Monakhov <dmonakhov@openvz.org>, Catalin Marinas <catalin.marinas@arm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
+In slab, all __xxx_track_caller is defined on CONFIG_DEBUG_SLAB || CONFIG_TRACING,
+thus caller tracking function should be worked for CONFIG_TRACING. But if
+CONFIG_DEBUG_SLAB is not set, include/linux/slab.h will define xxx_track_caller to
+__xxx() without consideration of CONFIG_TRACING. This will break the caller tracking
+behaviour then.
 
-Sorry, I forgot to cc Luis. resend.
+Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Dmitry Monakhov <dmonakhov@openvz.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ include/linux/slab.h |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
 
-
-(intentional full quote)
-
-> From: Luis Claudio R. Goncalves <lclaudio@uudg.org>
-> 
-> In a system under heavy load it was observed that even after the
-> oom-killer selects a task to die, the task may take a long time to die.
-> 
-> Right after sending a SIGKILL to the task selected by the oom-killer
-> this task has it's priority increased so that it can exit() exit soon,
-> freeing memory. That is accomplished by:
-> 
->         /*
->          * We give our sacrificial lamb high priority and access to
->          * all the memory it needs. That way it should be able to
->          * exit() and clear out its resources quickly...
->          */
->  	p->rt.time_slice = HZ;
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> 
-> It sounds plausible giving the dying task an even higher priority to be
-> sure it will be scheduled sooner and free the desired memory. It was
-> suggested on LKML using SCHED_FIFO:1, the lowest RT priority so that
-> this task won't interfere with any running RT task.
-> 
-> If the dying task is already an RT task, leave it untouched.
-> Another good suggestion, implemented here, was to avoid boosting the
-> dying task priority in case of mem_cgroup OOM.
-> 
-> Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/oom_kill.c |   34 +++++++++++++++++++++++++++++++---
->  1 files changed, 31 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index b5678bf..0858b18 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -82,6 +82,24 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
->  #endif /* CONFIG_NUMA */
->  
->  /*
-> + * If this is a system OOM (not a memcg OOM) and the task selected to be
-> + * killed is not already running at high (RT) priorities, speed up the
-> + * recovery by boosting the dying task to the lowest FIFO priority.
-> + * That helps with the recovery and avoids interfering with RT tasks.
-> + */
-> +static void boost_dying_task_prio(struct task_struct *p,
-> +				  struct mem_cgroup *mem)
-> +{
-> +	struct sched_param param = { .sched_priority = 1 };
-> +
-> +	if (mem)
-> +		return;
-> +
-> +	if (!rt_task(p))
-> +		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
-> +}
-> +
-> +/*
->   * The process p may have detached its own ->mm while exiting or through
->   * use_mm(), but one or more of its subthreads may still have a valid
->   * pointer.  Return p, or any of its subthreads with a valid ->mm, with
-> @@ -421,7 +439,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
->  }
->  
->  #define K(x) ((x) << (PAGE_SHIFT-10))
-> -static int oom_kill_task(struct task_struct *p)
-> +static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
->  {
->  	p = find_lock_task_mm(p);
->  	if (!p) {
-> @@ -434,9 +452,17 @@ static int oom_kill_task(struct task_struct *p)
->  		K(get_mm_counter(p->mm, MM_FILEPAGES)));
->  	task_unlock(p);
->  
-> -	p->rt.time_slice = HZ;
-> +
->  	set_tsk_thread_flag(p, TIF_MEMDIE);
->  	force_sig(SIGKILL, p);
-> +
-> +	/*
-> +	 * We give our sacrificial lamb high priority and access to
-> +	 * all the memory it needs. That way it should be able to
-> +	 * exit() and clear out its resources quickly...
-> +	 */
-> +	boost_dying_task_prio(p, mem);
-> +
->  	return 0;
->  }
->  #undef K
-> @@ -460,6 +486,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  	 */
->  	if (p->flags & PF_EXITING) {
->  		set_tsk_thread_flag(p, TIF_MEMDIE);
-> +		boost_dying_task_prio(p, mem);
->  		return 0;
->  	}
->  
-> @@ -489,7 +516,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  		}
->  	} while_each_thread(p, t);
->  
-> -	return oom_kill_task(victim);
-> +	return oom_kill_task(victim, mem);
->  }
->  
->  /*
-> @@ -670,6 +697,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->  	 */
->  	if (fatal_signal_pending(current)) {
->  		set_thread_flag(TIF_MEMDIE);
-> +		boost_dying_task_prio(current, NULL);
->  		return;
->  	}
->  
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-
-
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 49d1247..59260e2 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -268,7 +268,8 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
+  * allocator where we care about the real place the memory allocation
+  * request comes from.
+  */
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
++#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
++	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+ #define kmalloc_track_caller(size, flags) \
+ 	__kmalloc_track_caller(size, flags, _RET_IP_)
+@@ -286,7 +287,8 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+  * standard allocator where we care about the real place the memory
+  * allocation request comes from.
+  */
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
++#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
++	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+ #define kmalloc_node_track_caller(size, flags, node) \
+ 	__kmalloc_node_track_caller(size, flags, node, \
+-- 
+1.7.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
