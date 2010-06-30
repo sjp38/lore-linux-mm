@@ -1,298 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6E71C600227
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 10:33:19 -0400 (EDT)
-Date: Wed, 30 Jun 2010 22:03:53 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 50/52] mm: implement per-zone shrinker
-Message-ID: <20100630120353.GA21358@laptop>
-References: <20100624030212.676457061@suse.de>
- <20100624030733.676440935@suse.de>
- <20100630062858.GE24712@dastard>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EDC22600227
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 10:40:23 -0400 (EDT)
+Received: by pwi9 with SMTP id 9so323950pwi.14
+        for <linux-mm@kvack.org>; Wed, 30 Jun 2010 07:40:21 -0700 (PDT)
+Date: Wed, 30 Jun 2010 23:40:14 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 10/11] oom: give the dying task a higher priority
+Message-ID: <20100630144014.GH15644@barrios-desktop>
+References: <20100630172430.AA42.A69D9226@jp.fujitsu.com>
+ <20100630183243.AA65.A69D9226@jp.fujitsu.com>
+ <20100630183421.AA6B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100630062858.GE24712@dastard>
+In-Reply-To: <20100630183421.AA6B.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <johnstul@us.ibm.com>, Frank Mayhar <fmayhar@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "Luis Claudio R. Goncalves" <lclaudio@uudg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Wow, some reviewing! Thanks Dave.
-
-On Wed, Jun 30, 2010 at 04:28:58PM +1000, Dave Chinner wrote:
-> On Thu, Jun 24, 2010 at 01:03:02PM +1000, npiggin@suse.de wrote:
-> >  9 files changed, 47 insertions(+), 106 deletions(-)
+On Wed, Jun 30, 2010 at 06:35:08PM +0900, KOSAKI Motohiro wrote:
 > 
-> The diffstat doesn't match the patch ;)
-
-Bah, sorry.
-
-
-> > Index: linux-2.6/include/linux/mm.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/linux/mm.h
-> > +++ linux-2.6/include/linux/mm.h
-> > @@ -999,16 +999,19 @@ static inline void sync_mm_rss(struct ta
-> >   * querying the cache size, so a fastpath for that case is appropriate.
-> >   */
-> >  struct shrinker {
-> > -	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
-> > -	int seeks;	/* seeks to recreate an obj */
-> > -
-> > +	int (*shrink)(struct zone *zone, unsigned long scanned, unsigned long total,
-> > +					unsigned long global, gfp_t gfp_mask);
+> Sorry, I forgot to cc Luis. resend.
 > 
-> Can we add the shrinker structure to taht callback, too, so that we
-> can get away from needing global context for the shrinker?
-
-I was planning to merge this on top of your shrinker change (which I
-like how the locking / refcounting worked out). So I was just going to
-leave that part for you :)
-
-
-> > +unsigned long shrinker_do_scan(unsigned long *dst, unsigned long batch)
-> > +{
-> > +	unsigned long nr = ACCESS_ONCE(*dst);
 > 
-> What's the point of ACCESS_ONCE() here?
+> (intentional full quote)
 > 
-> /me gets most of the way into the patch
-> 
-> Oh, it's because you are using static variables for nr_to_scan and
-> hence when concurrent shrinkers are running they are all
-> incrementing and decrementing the same variable. That doesn't sound
-> like a good idea to me - concurrent shrinkers are much more likely
-> with per-zone shrinker callouts. It seems to me that a reclaim
-> thread could be kept in a shrinker long after it has run it's
-> scan count if new shrinker calls from a different reclaim context
-> occur before the first has finished....
+> > From: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+> > 
+> > In a system under heavy load it was observed that even after the
+> > oom-killer selects a task to die, the task may take a long time to die.
+> > 
+> > Right after sending a SIGKILL to the task selected by the oom-killer
+> > this task has it's priority increased so that it can exit() exit soon,
+> > freeing memory. That is accomplished by:
+> > 
+> >         /*
+> >          * We give our sacrificial lamb high priority and access to
+> >          * all the memory it needs. That way it should be able to
+> >          * exit() and clear out its resources quickly...
+> >          */
+> >  	p->rt.time_slice = HZ;
+> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> > 
+> > It sounds plausible giving the dying task an even higher priority to be
+> > sure it will be scheduled sooner and free the desired memory. It was
+> > suggested on LKML using SCHED_FIFO:1, the lowest RT priority so that
+> > this task won't interfere with any running RT task.
+> > 
+> > If the dying task is already an RT task, leave it untouched.
+> > Another good suggestion, implemented here, was to avoid boosting the
+> > dying task priority in case of mem_cgroup OOM.
+> > 
+> > Signed-off-by: Luis Claudio R. Goncalves <lclaudio@uudg.org>
+> > Cc: Minchan Kim <minchan.kim@gmail.com>
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I don't think parallelism will be much changed. The existing shrinker
-didn't provide any serialisation. It likewise did not serialise any
-updates to shrinker->nr accumulator (reclaim is a crappy heuristic
-anyway so it apparently doesn't matter too much that it is racy). So
-a lot of your criticism of racy access to the accumulators isn't really
-inherent to this patch
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-(where it's easy, I did put them under locks, but I didn't go out of my
-way -- a subsequent patch could do that if we really wanted)
+It seems code itself doesn't have a problem.
+So I give reviewed-by.
+But this patch might break fairness of normal process at corner case.
+If system working is more important than fairness of processes,
+It does make sense. But scheduler guys might have a different opinion.
 
- 
-> As a further question - why do some shrinkerN? get converted to a
-> single global nr_to_scan, and others get converted to a private
-> nr_to_scan? Shouldn't they all use the same method? The static
-> variable method looks to me to be full of races - concurrent callers
-> to shrinker_add_scan() does not look at all thread safe to me.
+So at least, we need ACKs of scheduler guys.
+Cced Ingo, Peter, Thomas. 
 
-Hmm, they should all have their own nr_to_scan.
-
- 
-> > +	if (nr < batch)
-> > +		return 0;
-> 
-> Why wouldn't we return nr here to drain the remaining objects?
-
-I was thinking, because it's not worth taking locks for a small
-number of objects.
-
-> Doesn't this mean we can't shrink caches that have a scan count of
-> less than SHRINK_BATCH?
-
-No, they just accumulate slowly until hitting the batch size.
-
- 
-> > -			count_vm_events(SLABS_SCANNED, this_scan);
-> > -			total_scan -= this_scan;
-> > -
-> > -			cond_resched();
-> 
-> Removing this means we need cond_resched() in all shrinker loops now
-> to maintain the same latencies as we currently have. I note that
-> you've done this for most of the shrinkers, but the documentation
-> needs to be updated to mention this...
-
-That's true, yes.
-
-
-> > -		}
-> > -
-> > -		shrinker->nr += total_scan;
-> 
-> And dropping this means we do not carry over the remainder of the
-> previous scan into the next scan. This means we could be scanning a
-> lot less with this new code.
-
-We do because they accumulate to static variables. It's effectively
-the same as accumulating to shrinker->nr, but it allows the per-zone
-patches to change to accumulate to per-zone counters.
-
-
-> > +again:
-> > +	nr = 0;
-> > +	for_each_zone(zone)
-> > +		nr += shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
-> > +	if (nr >= 10)
-> > +		goto again;
-> 
-> 	do {
-> 		nr = 0;
-> 		for_each_zone(zone)
-> 			nr += shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
-> 	} while (nr >= 10);
-
-OK.
-
-
-> > @@ -1705,6 +1708,23 @@ static void shrink_zone(int priority, st
-> >  	if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
-> >  		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+> > ---
+> >  mm/oom_kill.c |   34 +++++++++++++++++++++++++++++++---
+> >  1 files changed, 31 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index b5678bf..0858b18 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -82,6 +82,24 @@ static bool has_intersects_mems_allowed(struct task_struct *tsk,
+> >  #endif /* CONFIG_NUMA */
 > >  
-> > +	/*
-> > +	 * Don't shrink slabs when reclaiming memory from
-> > +	 * over limit cgroups
-> > +	 */
-> > +	if (scanning_global_lru(sc)) {
-> > +		struct reclaim_state *reclaim_state = current->reclaim_state;
+> >  /*
+> > + * If this is a system OOM (not a memcg OOM) and the task selected to be
+> > + * killed is not already running at high (RT) priorities, speed up the
+> > + * recovery by boosting the dying task to the lowest FIFO priority.
+> > + * That helps with the recovery and avoids interfering with RT tasks.
+> > + */
+> > +static void boost_dying_task_prio(struct task_struct *p,
+> > +				  struct mem_cgroup *mem)
+> > +{
+> > +	struct sched_param param = { .sched_priority = 1 };
 > > +
-> > +		shrink_slab(zone, sc->nr_scanned - nr_scanned,
-> > +			lru_pages, global_lru_pages, sc->gfp_mask);
-> > +		if (reclaim_state) {
-> > +			nr_reclaimed += reclaim_state->reclaimed_slab;
-> > +			reclaim_state->reclaimed_slab = 0;
-> > +		}
-> > +	}
-> 
-> So effectively we are going to be calling shrink_slab() once per
-> zone instead of once per priority loop, right? That means we are
-
-Yes.
-
-
-> going to be doing a lot more concurrent shrink_slab() calls that the
-> current code. Combine that with the removal of residual aggregation,
-> I think this will alter the reclaim balance somewhat. Have you tried
-> to quantify this?
-
-It will alter reclaim a bit. I don't think it will change the
-concurrency too much (per-prio which gets chopped into batch
-size calls into shrinker versus per-zone call which the shrinker
-chops up itself).
-
-Basically, the number of items to scan should be about the same,
-and chopped into the same number of batches. It just depends on
-exactly when it gets done.
-
-
-> > -static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
-> > +static int shrink_dcache_memory(struct zone *zone, unsigned long scanned,
-> > +		unsigned long total, unsigned long global, gfp_t gfp_mask)
-> >  {
-> > -	if (nr) {
-> > -		if (!(gfp_mask & __GFP_FS))
-> > -			return -1;
-> > -		prune_dcache(nr);
-> > -	}
-> > -	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
-> > +	prune_dcache(zone, scanned, global, gfp_mask);
-> > +	return 0;
+> > +	if (mem)
+> > +		return;
+> > +
+> > +	if (!rt_task(p))
+> > +		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
+> > +}
+> > +
+> > +/*
+> >   * The process p may have detached its own ->mm while exiting or through
+> >   * use_mm(), but one or more of its subthreads may still have a valid
+> >   * pointer.  Return p, or any of its subthreads with a valid ->mm, with
+> > @@ -421,7 +439,7 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 > >  }
-> 
-> I would have thought that putting the shrinker_add_scan/
-> shrinker_do_scan loop in shrink_dcache_memory() and leaving
-> prune_dcache untouched would have been a better separation.
-> I note that this is what you did with prune_icache(), so consistency
-> between the two would be good ;)
-
-You're probably right, I'll go back and take a look.
-
- 
-> Also, this patch drops the __GFP_FS check from the dcache shrinker -
-> not intentional, right?
-
-Right, thanks.
-
- 
-> > +again:
-> > +	nr = shrinker_do_scan(&nr_to_scan, SHRINK_BATCH);
-> > +	if (!nr) {
-> >  		spin_unlock(&mb_cache_spinlock);
-> > -		goto out;
-> > +		return 0;
-> >  	}
-> > -	while (nr_to_scan-- && !list_empty(&mb_cache_lru_list)) {
-> > +	while (!list_empty(&mb_cache_lru_list)) {
-> >  		struct mb_cache_entry *ce =
-> >  			list_entry(mb_cache_lru_list.next,
-> >  				   struct mb_cache_entry, e_lru_list);
-> >  		list_move_tail(&ce->e_lru_list, &free_list);
-> >  		__mb_cache_entry_unhash(ce);
-> > +		cond_resched_lock(&mb_cache_spinlock);
-> > +		if (!--nr)
-> > +			break;
-> >  	}
-> >  	spin_unlock(&mb_cache_spinlock);
-> >  	list_for_each_safe(l, ltmp, &free_list) {
-> >  		__mb_cache_entry_forget(list_entry(l, struct mb_cache_entry,
-> >  						   e_lru_list), gfp_mask);
-> >  	}
-> > -out:
-> > -	return (count / 100) * sysctl_vfs_cache_pressure;
-> > +	if (!nr) {
-> > +		spin_lock(&mb_cache_spinlock);
-> > +		goto again;
-> > +	}
-> 
-> Another candidate for a do-while loop.
-
-Maybe. I prefer not to indent so much (then one would argue to put the
-body in a seperate function :), but meh)
-
-
-> > +	nr = ACCESS_ONCE(nr_to_scan);
-> > +	nr_to_scan = 0;
-> 
-> That's not safe for concurrent callers. Both could get nr =
-> nr_to_scan rather than nr(1) = nr_to_scan and nr(2) = 0 which I
-> think is the intent....
-
-...
-
-> I note that this use of a static scan count is thread safe because
-> all the calculations are done under the kvm_lock. THat's three
-> different ways the shrinkers implement the same functionality
-> now....
-
-...
-
-> That's not thread safe - it's under a read lock. This code really
-> needs a shrinker context....
-
-So as I said above, lost updates are not cared about.
-
-
-> > +	if (!(gfp_mask & __GFP_FS)) {
-> > +		up_read(&xfs_mount_list_lock);
-> > +		return 0;
-> > +	}
+> >  
+> >  #define K(x) ((x) << (PAGE_SHIFT-10))
+> > -static int oom_kill_task(struct task_struct *p)
+> > +static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
+> >  {
+> >  	p = find_lock_task_mm(p);
+> >  	if (!p) {
+> > @@ -434,9 +452,17 @@ static int oom_kill_task(struct task_struct *p)
+> >  		K(get_mm_counter(p->mm, MM_FILEPAGES)));
+> >  	task_unlock(p);
+> >  
+> > -	p->rt.time_slice = HZ;
 > > +
-> > +done:
-> > +	nr = shrinker_do_scan(&nr_to_scan, SHRINK_BATCH);
-> > +	if (!nr) {
-> > +		up_read(&xfs_mount_list_lock);
-> > +		return 0;
-> > +	}
-> > +	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
-> > +		xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
-> > +				XFS_ICI_RECLAIM_TAG, 1, &nr);
-> > +		if (nr <= 0)
-> > +			goto done;
-> > +	}
+> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
+> >  	force_sig(SIGKILL, p);
+> > +
+> > +	/*
+> > +	 * We give our sacrificial lamb high priority and access to
+> > +	 * all the memory it needs. That way it should be able to
+> > +	 * exit() and clear out its resources quickly...
+> > +	 */
+> > +	boost_dying_task_prio(p, mem);
+> > +
+> >  	return 0;
+> >  }
+> >  #undef K
+> > @@ -460,6 +486,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  	 */
+> >  	if (p->flags & PF_EXITING) {
+> >  		set_tsk_thread_flag(p, TIF_MEMDIE);
+> > +		boost_dying_task_prio(p, mem);
+> >  		return 0;
+> >  	}
+> >  
+> > @@ -489,7 +516,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+> >  		}
+> >  	} while_each_thread(p, t);
+> >  
+> > -	return oom_kill_task(victim);
+> > +	return oom_kill_task(victim, mem);
+> >  }
+> >  
+> >  /*
+> > @@ -670,6 +697,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >  	 */
+> >  	if (fatal_signal_pending(current)) {
+> >  		set_thread_flag(TIF_MEMDIE);
+> > +		boost_dying_task_prio(current, NULL);
+> >  		return;
+> >  	}
+> >  
+> > -- 
+> > 1.6.5.2
+> > 
+> > 
+> > 
 > 
-> That's missing conditional reschedules....
+> 
+> 
 
-Thanks
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
