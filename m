@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 501C36B01D9
-	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 05:57:55 -0400 (EDT)
-From: Xiaotian Feng <dfeng@redhat.com>
-Subject: [PATCH V2] slab: fix caller tracking on !CONFIG_DEBUG_SLAB && CONFIG_TRACING
-Date: Wed, 30 Jun 2010 17:57:22 +0800
-Message-Id: <1277891842-18898-1-git-send-email-dfeng@redhat.com>
-In-Reply-To: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id F1C9C6B01DD
+	for <linux-mm@kvack.org>; Wed, 30 Jun 2010 07:01:12 -0400 (EDT)
+Received: by wyb39 with SMTP id 39so815166wyb.14
+        for <linux-mm@kvack.org>; Wed, 30 Jun 2010 04:01:10 -0700 (PDT)
+Date: Wed, 30 Jun 2010 12:01:03 +0100
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: Re: [PATCH] Add munmap events to perf
+Message-ID: <20100630110103.GA8216@us.ibm.com>
+References: <1277748484-23882-1-git-send-email-ebmunson@us.ibm.com>
+ <1277755486.3561.140.camel@laptop>
+ <20100629083323.GA6917@us.ibm.com>
+ <1277810866.1868.32.camel@laptop>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="nFreZHaLTZJo0R7j"
+Content-Disposition: inline
+In-Reply-To: <1277810866.1868.32.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Xiaotian Feng <dfeng@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Monakhov <dmonakhov@openvz.org>, Catalin Marinas <catalin.marinas@arm.com>, David Rientjes <rientjes@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@elte.hu, paulus@samba.org, acme@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Blanchard <anton@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-In slab, all __xxx_track_caller is defined on CONFIG_DEBUG_SLAB || CONFIG_TRACING,
-thus caller tracking function should be worked for CONFIG_TRACING. But if
-CONFIG_DEBUG_SLAB is not set, include/linux/slab.h will define xxx_track_caller to
-__xxx() without consideration of CONFIG_TRACING. This will break the caller tracking
-behaviour then.
 
-Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: Dmitry Monakhov <dmonakhov@openvz.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: David Rientjes <rientjes@google.com>
----
- include/linux/slab.h |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+--nFreZHaLTZJo0R7j
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 49d1247..59260e2 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -268,7 +268,8 @@ static inline void *kmem_cache_alloc_node(struct kmem_cache *cachep,
-  * allocator where we care about the real place the memory allocation
-  * request comes from.
-  */
--#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
-+	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
- extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
- #define kmalloc_track_caller(size, flags) \
- 	__kmalloc_track_caller(size, flags, _RET_IP_)
-@@ -286,7 +287,8 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
-  * standard allocator where we care about the real place the memory
-  * allocation request comes from.
-  */
--#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB)
-+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
-+	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING))
- extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
- #define kmalloc_node_track_caller(size, flags, node) \
- 	__kmalloc_node_track_caller(size, flags, node, \
--- 
-1.7.0.1
+On Tue, 29 Jun 2010, Peter Zijlstra wrote:
+
+> On Tue, 2010-06-29 at 09:33 +0100, Eric B Munson wrote:
+> > On Mon, 28 Jun 2010, Peter Zijlstra wrote:
+> >=20
+> > > On Mon, 2010-06-28 at 19:08 +0100, Eric B Munson wrote:
+> > > > This patch adds a new software event for munmaps.  It will allows
+> > > > users to profile changes to address space.  munmaps will be tracked
+> > > > with mmaps.
+> > >=20
+> > > Why?
+> > >=20
+> >=20
+> > It is going to be used by a tool that will model memory usage over the
+> > lifetime of a process.
+>=20
+> Wouldn't it be better to use some tracepoints for that instead? I want
+> to keep the sideband data to a minimum required to interpret the sample
+> data, and you don't need unmap events for that.
+>=20
+>=20
+
+Sure, I will get it moved to a tracepoint event instead.
+
+--=20
+Eric B Munson
+IBM Linux Technology Center
+ebmunson@us.ibm.com
+
+
+--nFreZHaLTZJo0R7j
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iEYEARECAAYFAkwrI+8ACgkQsnv9E83jkzr4WgCfQqLAuPW3/56uAF8bxSYeN6OG
+5YYAnRTBBaJmmS6ubEGCs9ZuLbOpAtBN
+=EmkR
+-----END PGP SIGNATURE-----
+
+--nFreZHaLTZJo0R7j--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
