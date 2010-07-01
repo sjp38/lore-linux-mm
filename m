@@ -1,66 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id AB3066B01AC
-	for <linux-mm@kvack.org>; Thu,  1 Jul 2010 03:16:23 -0400 (EDT)
-Message-ID: <4C2C40C2.50106@codeaurora.org>
-Date: Thu, 01 Jul 2010 00:16:18 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2E3E06B01AC
+	for <linux-mm@kvack.org>; Thu,  1 Jul 2010 03:50:12 -0400 (EDT)
+Date: Thu, 1 Jul 2010 17:50:06 +1000
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: vmap area cache
+Message-ID: <20100701075006.GB22976@laptop>
+References: <20100531080757.GE9453@laptop>
+ <20100602144905.aa613dec.akpm@linux-foundation.org>
+ <20100603135533.GO6822@laptop>
+ <1277470817.3158.386.camel@localhost.localdomain>
+ <20100626083122.GE29809@laptop>
+ <20100630162602.874ebd2a.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/3] mm: iommu: An API to unify IOMMU, CPU and device memory
- management
-References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org> <20100630164058.aa6aa3a2.randy.dunlap@oracle.com>
-In-Reply-To: <20100630164058.aa6aa3a2.randy.dunlap@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100630162602.874ebd2a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <randy.dunlap@Oracle.COM>
-Cc: mel@csn.ul.ie, andi@firstfloor.org, dwalker@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Steven Whitehouse <swhiteho@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Avi Kivity <avi@redhat.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you for the corrections. I'm correcting them now. Some responses:
-
-Randy Dunlap wrote:
->> +    struct vcm *vcm_create(size_t start_addr, size_t len);
+On Wed, Jun 30, 2010 at 04:26:02PM -0700, Andrew Morton wrote:
+> On Sat, 26 Jun 2010 18:31:22 +1000
+> Nick Piggin <npiggin@suse.de> wrote:
 > 
-> Seems odd to use size_t for start_addr.
-
-I used size_t because I wanted to allow the start_addr the same range
-as len. Is there a better type to use? I see 'unsigned long' used
-throughout the mm code. Perhaps that's better for both the start_addr
-and len.
-
-
->> +A Reservation is created and destroyed with:
->> +
->> +    struct res *vcm_reserve(struct vcm *vcm, size_t len, uint32_t attr);
+> > On Fri, Jun 25, 2010 at 02:00:17PM +0100, Steven Whitehouse wrote:
+> > > Hi,
+> > > 
+> > > Barry Marson has now tested your patch and it seems to work just fine.
+> > > Sorry for the delay,
+> > > 
+> > > Steve.
+> > 
+> > Hi Steve,
+> > 
+> > Thanks for that, do you mean that it has solved thee regression?
 > 
-> s/uint32_t/u32/ ?
-
-Sure.
-
-
->> +    Associate and activate all three to their respective devices:
->> +
->> +        avcm_iommu = vcm_assoc(vcm_iommu, dev_iommu, attr0);
->> +        avcm_onetoone = vcm_assoc(vcm_onetoone, dev_onetoone, attr1);
->> +        avcm_vmm = vcm_assoc(vcm_vmm, dev_cpu, attr2);
+> Nick, can we please have an updated changelog for this patch?  I didn't
+> even know it fixed a regression (what regression?).  Barry's tested-by:
+> would be nice too, along with any quantitative results from that.
 > 
-> error handling on vcm_assoc() failures?
+> Thanks.
 
-I'll add the deassociate call to the example.
+Sure. It is a performance regression caused by the lazy vunmap patches
+which went in a while back. So it's appropriate for 2.6.36, and then
+probably distros will want to backport it, if not -stable.
 
+How's this?
+--
 
->> +        res_iommu = vcm_reserve(vcm_iommu, SZ_2MB + SZ_4K, attr);
->> +        res_onetoone = vcm_reserve(vcm_onetoone, SZ_2MB + SZ_4K, attr);
->> +        res_vmm = vcm_reserve(vcm_vmm, SZ_2MB + SZ_4K, attr);
-> 
-> error handling?
+mm: vmalloc add a free area cache for vmaps
 
-I'll add it here too.
+Provide a free area cache for the vmalloc virtual address allocator,
+based on the algorithm used by the user virtual memory allocator.
 
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+This reduces the number of rbtree operations and linear traversals over
+the vmap extents in order to find a free area, by starting off at the
+last point that a free area was found.
+
+The free area cache is reset if areas are freed behind it, or if we are
+searching for a smaller area or alignment than last time. So allocation
+patterns are not changed (verified by corner-case and random test cases
+in userspace testing).
+
+This solves a regression caused by lazy vunmap TLB purging introduced
+in db64fe02 (mm: rewrite vmap layer). That patch will leave extents in
+the vmap allocator after they are vunmapped, and until a significant
+number accumulate that can be flushed in a single batch. So in a
+workload that vmalloc/vfree frequently, a chain of extents will build
+up from VMALLOC_START address, which have to be iterated over each
+time (giving an O(n) type of behaviour).
+
+After this patch, the search will start from where it left off, giving
+closer to an amortized O(1).
+
+This is verified to solve regressions reported Steven in GFS2, and Avi
+in KVM.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reported-and-tested-by: Steven Whitehouse <swhiteho@redhat.com>
+Reported-and-tested-by: Avi Kivity <avi@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
