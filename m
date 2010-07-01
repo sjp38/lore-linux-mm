@@ -1,85 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 566836B01B2
-	for <linux-mm@kvack.org>; Thu,  1 Jul 2010 05:02:16 -0400 (EDT)
-Date: Thu, 1 Jul 2010 19:02:11 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: vmap area cache
-Message-ID: <20100701090211.GI22976@laptop>
-References: <20100531080757.GE9453@laptop>
- <20100602144905.aa613dec.akpm@linux-foundation.org>
- <20100603135533.GO6822@laptop>
- <1277470817.3158.386.camel@localhost.localdomain>
- <20100626083122.GE29809@laptop>
- <20100630162602.874ebd2a.akpm@linux-foundation.org>
- <1277974154.2477.3.camel@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3562D6B01B4
+	for <linux-mm@kvack.org>; Thu,  1 Jul 2010 05:53:38 -0400 (EDT)
+Date: Thu, 1 Jul 2010 10:53:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 01/14] vmscan: Fix mapping use after free
+Message-ID: <20100701095318.GE31741@csn.ul.ie>
+References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie> <1277811288-5195-2-git-send-email-mel@csn.ul.ie> <AANLkTilwzGf2rikXYAe4Evl41lqjk8voVSG4ICfAgUI1@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1277974154.2477.3.camel@localhost>
+In-Reply-To: <AANLkTilwzGf2rikXYAe4Evl41lqjk8voVSG4ICfAgUI1@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Steven Whitehouse <swhiteho@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, "Barry J. Marson" <bmarson@redhat.com>, avi@redhat.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 01, 2010 at 09:49:14AM +0100, Steven Whitehouse wrote:
-> Hi,
+On Tue, Jun 29, 2010 at 11:27:05PM +0900, Minchan Kim wrote:
+> On Tue, Jun 29, 2010 at 8:34 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > From: Nick Piggin <npiggin@suse.de>
+> >
+> > Use lock_page_nosync in handle_write_error as after writepage we have no
+> > reference to the mapping when taking the page lock.
+> >
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > 
-> On Wed, 2010-06-30 at 16:26 -0700, Andrew Morton wrote:
-> > On Sat, 26 Jun 2010 18:31:22 +1000
-> > Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > On Fri, Jun 25, 2010 at 02:00:17PM +0100, Steven Whitehouse wrote:
-> > > > Hi,
-> > > > 
-> > > > Barry Marson has now tested your patch and it seems to work just fine.
-> > > > Sorry for the delay,
-> > > > 
-> > > > Steve.
-> > > 
-> > > Hi Steve,
-> > > 
-> > > Thanks for that, do you mean that it has solved thee regression?
-> > 
-> > Nick, can we please have an updated changelog for this patch?  I didn't
-> > even know it fixed a regression (what regression?).  Barry's tested-by:
-> > would be nice too, along with any quantitative results from that.
-> > 
-> > Thanks.
+> Trivial.
+> Please modify description of the function if you have a next turn.
+> "run sleeping lock_page()" -> "run sleeping lock_page_nosync"
 > 
-> Barry is running a benchmark test against GFS2 which simulates NFS
-> activity on the filesystem. Without this patch, the GFS2 ->readdir()
-> function (the only part of GFS2 which uses vmalloc) runs so slowly that
-> the test does not complete. With the patch, the test runs the same speed
-> as it did on earlier kernels.
 
-It would have been due to the commit I referenced.
+Fixed, thanks.
 
- 
-> I don't have an exact pointer to when the regression was introduced, but
-> it was after RHEL5 branched.
-
-OK the patch should be pretty fine to go into RHEL5, I'd think.
-
-Interesting that it slowed down so much for you. I would say this is due
-to a few differences between your testing and mine.
-
-Firstly, I was using a 64 CPU machine, and hammering vmap flushing on
-all CPUs. TLB broadcasting and flushing cost is going to be much much
-higher because there is an O(n^2) effect (N CPUs worth of work, each
-unit of work requires TLB flush to N CPUs). Interconnect cost would be
-much higher too compared to your 2s8c machine. So the cost of searching
-vmaps would be more hidden by the gains from avoiding flushing.
-
-Secondly, you were testing with probably 4K vmallocs. Wheras I was using
-64K vmallocs on a 16KB page size machine with XFS. So in your testing
-there would be significantly more vmaps build up, by a factor of 10.
-
-Your workload is similar to Avi's as well.
-
-So in summary, I should have paid attention to the search complexity
-aspect and designed cases specifically to test that aspect. Oh well...
-thanks for the reporting and testing :)
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
