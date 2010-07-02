@@ -1,55 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 29B946B01B6
-	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 03:33:53 -0400 (EDT)
-Message-ID: <4C2D965F.5000206@codeaurora.org>
-Date: Fri, 02 Jul 2010 00:33:51 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D96B76B01B5
+	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 04:22:30 -0400 (EDT)
+Date: Fri, 2 Jul 2010 10:22:25 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
-References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org>  <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org>  <20100701101746.3810cc3b.randy.dunlap@oracle.com>  <20100701180241.GA3594@basil.fritz.box>  <1278012503.7738.17.camel@c-dwalke-linux.q <1278021944.7738.43.camel@c-dwalke-linux.qualcomm.com>
-In-Reply-To: <1278021944.7738.43.camel@c-dwalke-linux.qualcomm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <20100702082225.GA12221@basil.fritz.box>
+References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org>
+ <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org>
+ <20100701101746.3810cc3b.randy.dunlap@oracle.com>
+ <20100701180241.GA3594@basil.fritz.box>
+ <1278012503.7738.17.camel@c-dwalke-linux.qualcomm.com>
+ <20100701193850.GB3594@basil.fritz.box>
+ <4C2D0FF1.6010206@codeaurora.org>
+ <20100701230056.GD3594@basil.fritz.box>
+ <4C2D847E.5080602@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C2D847E.5080602@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Walker <dwalker@codeaurora.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Daniel Walker <dwalker@codeaurora.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel Walker wrote:
-> On Thu, 2010-07-01 at 15:00 -0700, Zach Pfeffer wrote:
+On Thu, Jul 01, 2010 at 11:17:34PM -0700, Zach Pfeffer wrote:
+> Andi Kleen wrote:
+> >> The VCMM provides a more abstract, global view with finer-grained
+> >> control of each mapping a user wants to create. For instance, the
+> >> semantics of iommu_map preclude its use in setting up just the IOMMU
+> >> side of a mapping. With a one-sided map, two IOMMU devices can be
+> > 
+> > Hmm? dma_map_* does not change any CPU mappings. It only sets up
+> > DMA mapping(s).
 > 
+> Sure, but I was saying that iommu_map() doesn't just set up the IOMMU
+> mappings, its sets up both the iommu and kernel buffer mappings.
+
+Normally the data is already in the kernel or mappings, so why
+would you need another CPU mapping too? Sometimes the CPU
+code has to scatter-gather, but that is considered acceptable
+(and if it really cannot be rewritten to support sg it's better
+to have an explicit vmap operation) 
+
+In general on larger systems with many CPUs changing CPU mappings
+also gets expensive (because you have to communicate with all cores), 
+and is not a good idea on frequent IO paths.
+
 > 
->> Additionally, the current IOMMU interface does not allow users to
->> associate one page table with multiple IOMMUs unless the user explicitly
->> wrote a muxed device underneith the IOMMU interface. This also could be
->> done, but would have to be done for every such use case. Since the
->> particular topology is run-time configurable all of these use-cases and
->> more can be expressed without pushing the topology into the low-level
->> IOMMU driver.
->>
->> The VCMM takes the long view. Its designed for a future in which the
->> number of IOMMUs will go up and the ways in which these IOMMUs are
->> composed will vary from system to system, and may vary at
->> runtime. Already, there are ~20 different IOMMU map implementations in
->> the kernel. Had the Linux kernel had the VCMM, many of those
->> implementations could have leveraged the mapping and topology management
->> of a VCMM, while focusing on a few key hardware specific functions (map
->> this physical address, program the page table base register).
+> > 
+> >> Additionally, the current IOMMU interface does not allow users to
+> >> associate one page table with multiple IOMMUs unless the user explicitly
+> > 
+> > That assumes that all the IOMMUs on the system support the same page table
+> > format, right?
 > 
-> So if we include this code which "map implementations" could you
-> collapse into this implementations ? Generally , what currently existing
-> code can VCMM help to eliminate?
+> Actually no. Since the VCMM abstracts a page-table as a Virtual
+> Contiguous Region (VCM) a VCM can be associated with any device,
+> regardless of their individual page table format.
 
-In theory, it can eliminate all code the interoperates between IOMMU,
-CPU and non-IOMMU based devices and all the mapping code, alignment,
-mapping attribute and special block size support that's been
-implemented.
+But then there is no real page table sharing, isn't it? 
+The real information should be in the page tables, nowhere else.
 
+> > The standard Linux approach to such a problem is to write
+> > a library that drivers can use for common functionality, not put a middle 
+> > layer in between. Libraries are much more flexible than layers.
+> 
+> That's true up to the, "is this middle layer so useful that its worth
+> it" point. The VM is a middle layer, you could make the same argument
+> about it, "the mapping code isn't too hard, just map in the memory
+> that you need and be done with it". But the VM middle layer provides a
+> clean separation between page frames and pages which turns out to be
 
+Actually we use both PFNs and struct page *s in many layers up
+and down, there's not really any layering in that.
+
+-Andi
 -- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
