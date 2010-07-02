@@ -1,53 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A196B01AC
-	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 15:52:35 -0400 (EDT)
-Date: Fri, 2 Jul 2010 12:51:55 -0700
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB9C6B01AC
+	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 17:50:11 -0400 (EDT)
+Date: Fri, 2 Jul 2010 14:49:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
-Message-Id: <20100702125155.69c02f85.akpm@linux-foundation.org>
-In-Reply-To: <1277811288-5195-13-git-send-email-mel@csn.ul.ie>
-References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
-	<1277811288-5195-13-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 10/11] oom: give the dying task a higher priority
+Message-Id: <20100702144941.8fa101c3.akpm@linux-foundation.org>
+In-Reply-To: <20100630183243.AA65.A69D9226@jp.fujitsu.com>
+References: <20100630172430.AA42.A69D9226@jp.fujitsu.com>
+	<20100630183243.AA65.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jun 2010 12:34:46 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, 30 Jun 2010 18:33:23 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> When memory is under enough pressure, a process may enter direct
-> reclaim to free pages in the same manner kswapd does. If a dirty page is
-> encountered during the scan, this page is written to backing storage using
-> mapping->writepage. This can result in very deep call stacks, particularly
-> if the target storage or filesystem are complex. It has already been observed
-> on XFS that the stack overflows but the problem is not XFS-specific.
-> 
-> This patch prevents direct reclaim writing back pages by not setting
-> may_writepage in scan_control. Instead, dirty pages are placed back on the
-> LRU lists for either background writing by the BDI threads or kswapd. If
-> in direct lumpy reclaim and dirty pages are encountered, the process will
-> stall for the background flusher before trying to reclaim the pages again.
-> 
-> Memory control groups do not have a kswapd-like thread nor do pages get
-> direct reclaimed from the page allocator. Instead, memory control group
-> pages are reclaimed when the quota is being exceeded or the group is being
-> shrunk. As it is not expected that the entry points into page reclaim are
-> deep call chains memcg is still allowed to writeback dirty pages.
+> +static void boost_dying_task_prio(struct task_struct *p,
+> +				  struct mem_cgroup *mem)
+> +{
+> +	struct sched_param param = { .sched_priority = 1 };
+> +
+> +	if (mem)
+> +		return;
+> +
+> +	if (!rt_task(p))
+> +		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
+> +}
 
-I already had "[PATCH 01/14] vmscan: Fix mapping use after free" and
-I'll send that in for 2.6.35.
+We can actually make `param' static here.  That saves a teeny bit of
+code and a little bit of stack.  The oom-killer can be called when
+we're using a lot of stack.
 
-I grabbed [02/14] up to [11/14].  Including "[PATCH 06/14] vmscan: kill
-prev_priority completely", grumpyouallsuck.
+But if we make that change we really should make the param arg to
+sched_setscheduler_nocheck() be const.  I did that (and was able to
+convert lots of callers to use a static `param') but to complete the
+job we'd need to chase through all the security goop, fixing up
+security_task_setscheduler() and callees, and I got bored.
 
-I wimped out at this, "Do not writeback pages in direct reclaim".  It
-really is a profound change and needs a bit more thought, discussion
-and if possible testing which is designed to explore possible pathologies.
+
+ include/linux/sched.h |    2 +-
+ kernel/kthread.c      |    2 +-
+ kernel/sched.c        |    4 ++--
+ kernel/softirq.c      |    4 +++-
+ kernel/stop_machine.c |    2 +-
+ kernel/workqueue.c    |    2 +-
+ 6 files changed, 9 insertions(+), 7 deletions(-)
+
+diff -puN kernel/kthread.c~a kernel/kthread.c
+--- a/kernel/kthread.c~a
++++ a/kernel/kthread.c
+@@ -131,7 +131,7 @@ struct task_struct *kthread_create(int (
+ 	wait_for_completion(&create.done);
+ 
+ 	if (!IS_ERR(create.result)) {
+-		struct sched_param param = { .sched_priority = 0 };
++		static struct sched_param param = { .sched_priority = 0 };
+ 		va_list args;
+ 
+ 		va_start(args, namefmt);
+diff -puN kernel/workqueue.c~a kernel/workqueue.c
+--- a/kernel/workqueue.c~a
++++ a/kernel/workqueue.c
+@@ -962,7 +962,7 @@ init_cpu_workqueue(struct workqueue_stru
+ 
+ static int create_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
+ {
+-	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
++	static struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+ 	struct workqueue_struct *wq = cwq->wq;
+ 	const char *fmt = is_wq_single_threaded(wq) ? "%s" : "%s/%d";
+ 	struct task_struct *p;
+diff -puN kernel/stop_machine.c~a kernel/stop_machine.c
+--- a/kernel/stop_machine.c~a
++++ a/kernel/stop_machine.c
+@@ -291,7 +291,7 @@ repeat:
+ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
+ 					   unsigned long action, void *hcpu)
+ {
+-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
++	static struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+ 	unsigned int cpu = (unsigned long)hcpu;
+ 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
+ 	struct task_struct *p;
+diff -puN kernel/sched.c~a kernel/sched.c
+--- a/kernel/sched.c~a
++++ a/kernel/sched.c
+@@ -4570,7 +4570,7 @@ static bool check_same_owner(struct task
+ }
+ 
+ static int __sched_setscheduler(struct task_struct *p, int policy,
+-				struct sched_param *param, bool user)
++				const struct sched_param *param, bool user)
+ {
+ 	int retval, oldprio, oldpolicy = -1, on_rq, running;
+ 	unsigned long flags;
+@@ -4734,7 +4734,7 @@ EXPORT_SYMBOL_GPL(sched_setscheduler);
+  * but our caller might not have that capability.
+  */
+ int sched_setscheduler_nocheck(struct task_struct *p, int policy,
+-			       struct sched_param *param)
++			       const struct sched_param *param)
+ {
+ 	return __sched_setscheduler(p, policy, param, false);
+ }
+diff -puN kernel/softirq.c~a kernel/softirq.c
+--- a/kernel/softirq.c~a
++++ a/kernel/softirq.c
+@@ -827,7 +827,9 @@ static int __cpuinit cpu_callback(struct
+ 			     cpumask_any(cpu_online_mask));
+ 	case CPU_DEAD:
+ 	case CPU_DEAD_FROZEN: {
+-		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
++		static struct sched_param param = {
++				.sched_priority = MAX_RT_PRIO-1,
++			};
+ 
+ 		p = per_cpu(ksoftirqd, hotcpu);
+ 		per_cpu(ksoftirqd, hotcpu) = NULL;
+diff -puN include/linux/sched.h~a include/linux/sched.h
+--- a/include/linux/sched.h~a
++++ a/include/linux/sched.h
+@@ -1924,7 +1924,7 @@ extern int task_curr(const struct task_s
+ extern int idle_cpu(int cpu);
+ extern int sched_setscheduler(struct task_struct *, int, struct sched_param *);
+ extern int sched_setscheduler_nocheck(struct task_struct *, int,
+-				      struct sched_param *);
++				      const struct sched_param *);
+ extern struct task_struct *idle_task(int cpu);
+ extern struct task_struct *curr_task(int cpu);
+ extern void set_curr_task(int cpu, struct task_struct *p);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
