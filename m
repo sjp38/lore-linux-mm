@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BA5F66B01DF
-	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 01:49:43 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DEB6B6B01E2
+	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 01:49:56 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 2/7] hugetlb, HWPOISON: move PG_HWPoison bit check
-Date: Fri,  2 Jul 2010 14:47:21 +0900
-Message-Id: <1278049646-29769-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 3/7] hugetlb: add allocate function for hugepage migration
+Date: Fri,  2 Jul 2010 14:47:22 +0900
+Message-Id: <1278049646-29769-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,82 +13,158 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-In order to handle metadatum correctly, we should check whether the hugepage
-we are going to access is HWPOISONed *before* incrementing mapcount,
-adding the hugepage into pagecache or constructing anon_vma.
-This patch also adds retry code when there is a race between
-alloc_huge_page() and memory failure.
+We can't use existing hugepage allocation functions to allocate hugepage
+for page migration, because page migration can happen asynchronously with
+the running processes and page migration users should call the allocation
+function with physical addresses (not virtual addresses) as arguments.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- mm/hugetlb.c |   34 +++++++++++++++++++++-------------
- 1 files changed, 21 insertions(+), 13 deletions(-)
+ include/linux/hugetlb.h |    3 ++
+ mm/hugetlb.c            |   83 +++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 69 insertions(+), 17 deletions(-)
 
+diff --git v2.6.35-rc3-hwpoison/include/linux/hugetlb.h v2.6.35-rc3-hwpoison/include/linux/hugetlb.h
+index f479700..0b73c53 100644
+--- v2.6.35-rc3-hwpoison/include/linux/hugetlb.h
++++ v2.6.35-rc3-hwpoison/include/linux/hugetlb.h
+@@ -228,6 +228,8 @@ struct huge_bootmem_page {
+ 	struct hstate *hstate;
+ };
+ 
++struct page *alloc_huge_page_node(struct hstate *h, int nid);
++
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
+ 
+@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
+ 
+ #else
+ struct hstate {};
++#define alloc_huge_page_node(h, nid) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
 diff --git v2.6.35-rc3-hwpoison/mm/hugetlb.c v2.6.35-rc3-hwpoison/mm/hugetlb.c
-index a26c24a..5c77a73 100644
+index 5c77a73..d7c462b 100644
 --- v2.6.35-rc3-hwpoison/mm/hugetlb.c
 +++ v2.6.35-rc3-hwpoison/mm/hugetlb.c
-@@ -2490,8 +2490,15 @@ retry:
- 			int err;
- 			struct inode *inode = mapping->host;
+@@ -466,6 +466,18 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
+ 	h->free_huge_pages_node[nid]++;
+ }
  
--			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-+			lock_page(page);
-+			if (unlikely(PageHWPoison(page))) {
-+				unlock_page(page);
-+				goto retry;
++static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++	if (list_empty(&h->hugepage_freelists[nid]))
++		return NULL;
++	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
++	list_del(&page->lru);
++	h->free_huge_pages--;
++	h->free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+@@ -497,18 +509,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						MAX_NR_ZONES - 1, nodemask) {
+ 		nid = zone_to_nid(zone);
+-		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
+-		    !list_empty(&h->hugepage_freelists[nid])) {
+-			page = list_entry(h->hugepage_freelists[nid].next,
+-					  struct page, lru);
+-			list_del(&page->lru);
+-			h->free_huge_pages--;
+-			h->free_huge_pages_node[nid]--;
+-
+-			if (!avoid_reserve)
+-				decrement_hugepage_resv_vma(h, vma);
+-
+-			break;
++		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
++			page = dequeue_huge_page_node(h, nid);
++			if (page) {
++				if (!avoid_reserve)
++					decrement_hugepage_resv_vma(h, vma);
++				break;
 +			}
-+			err = add_to_page_cache_locked(page, mapping,
-+						       idx, GFP_KERNEL);
- 			if (err) {
-+				unlock_page(page);
- 				put_page(page);
- 				if (err == -EEXIST)
- 					goto retry;
-@@ -2504,6 +2511,10 @@ retry:
- 			page_dup_rmap(page);
- 		} else {
- 			lock_page(page);
-+			if (unlikely(PageHWPoison(page))) {
-+				unlock_page(page);
-+				goto retry;
-+			}
- 			if (unlikely(anon_vma_prepare(vma))) {
- 				ret = VM_FAULT_OOM;
- 				goto backout_unlocked;
-@@ -2511,22 +2522,19 @@ retry:
- 			hugepage_add_new_anon_rmap(page, vma, address);
  		}
- 	} else {
-+		/*
-+		 * If memory error occurs between mmap() and fault, some process
-+		 * don't have hwpoisoned swap entry for errored virtual address.
-+		 * So we need to block hugepage fault by PG_hwpoison bit check.
-+		 */
-+		if (unlikely(PageHWPoison(page))) {
-+			ret = VM_FAULT_HWPOISON;
-+			goto backout_unlocked;
-+		}
- 		page_dup_rmap(page);
+ 	}
+ err:
+@@ -616,7 +623,7 @@ int PageHuge(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(PageHuge);
+ 
+-static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
++static struct page *__alloc_huge_page_node(struct hstate *h, int nid)
+ {
+ 	struct page *page;
+ 
+@@ -627,14 +634,56 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+ 		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
+ 						__GFP_REPEAT|__GFP_NOWARN,
+ 		huge_page_order(h));
++	if (page && arch_prepare_hugepage(page)) {
++		__free_pages(page, huge_page_order(h));
++		return NULL;
++	}
++
++	return page;
++}
++
++static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page = __alloc_huge_page_node(h, nid);
++	if (page)
++		prep_new_huge_page(h, page, nid);
++	return page;
++}
++
++static struct page *alloc_buddy_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page = __alloc_huge_page_node(h, nid);
+ 	if (page) {
+-		if (arch_prepare_hugepage(page)) {
+-			__free_pages(page, huge_page_order(h));
++		set_compound_page_dtor(page, free_huge_page);
++		spin_lock(&hugetlb_lock);
++		h->nr_huge_pages++;
++		h->nr_huge_pages_node[nid]++;
++		spin_unlock(&hugetlb_lock);
++		put_page_testzero(page);
++	}
++	return page;
++}
++
++struct page *alloc_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	spin_lock(&hugetlb_lock);
++	get_mems_allowed();
++	page = dequeue_huge_page_node(h, nid);
++	put_mems_allowed();
++	spin_unlock(&hugetlb_lock);
++
++	if (!page) {
++		page = alloc_buddy_huge_page_node(h, nid);
++		if (!page) {
++			__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 			return NULL;
+-		}
+-		prep_new_huge_page(h, page, nid);
++		} else
++			__count_vm_event(HTLB_BUDDY_PGALLOC);
  	}
  
- 	/*
--	 * Since memory error handler replaces pte into hwpoison swap entry
--	 * at the time of error handling, a process which reserved but not have
--	 * the mapping to the error hugepage does not have hwpoison swap entry.
--	 * So we need to block accesses from such a process by checking
--	 * PG_hwpoison bit here.
--	 */
--	if (unlikely(PageHWPoison(page))) {
--		ret = VM_FAULT_HWPOISON;
--		goto backout_unlocked;
--	}
--
--	/*
- 	 * If we are going to COW a private mapping later, we examine the
- 	 * pending reservations for this page now. This will ensure that
- 	 * any allocations necessary to record that reservation occur outside
++	set_page_refcounted(page);
+ 	return page;
+ }
+ 
 -- 
 1.7.1
 
