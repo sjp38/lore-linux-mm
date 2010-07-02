@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 25AF56B01DB
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5F66B01DF
 	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 01:49:43 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 5/7] hugetlb: pin oldpage in page migration
-Date: Fri,  2 Jul 2010 14:47:24 +0900
-Message-Id: <1278049646-29769-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/7] hugetlb, HWPOISON: move PG_HWPoison bit check
+Date: Fri,  2 Jul 2010 14:47:21 +0900
+Message-Id: <1278049646-29769-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,81 +13,82 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces pinning the old page during page migration
-to avoid freeing it before we complete copying.
-This race condition can happen for privately mapped or anonymous hugepage.
+In order to handle metadatum correctly, we should check whether the hugepage
+we are going to access is HWPOISONed *before* incrementing mapcount,
+adding the hugepage into pagecache or constructing anon_vma.
+This patch also adds retry code when there is a race between
+alloc_huge_page() and memory failure.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- mm/migrate.c |   26 +++++++++++++++++++++++---
- 1 files changed, 23 insertions(+), 3 deletions(-)
+ mm/hugetlb.c |   34 +++++++++++++++++++++-------------
+ 1 files changed, 21 insertions(+), 13 deletions(-)
 
-diff --git v2.6.35-rc3-hwpoison/mm/migrate.c v2.6.35-rc3-hwpoison/mm/migrate.c
-index 4205b1d..e4a381c 100644
---- v2.6.35-rc3-hwpoison/mm/migrate.c
-+++ v2.6.35-rc3-hwpoison/mm/migrate.c
-@@ -214,7 +214,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+diff --git v2.6.35-rc3-hwpoison/mm/hugetlb.c v2.6.35-rc3-hwpoison/mm/hugetlb.c
+index a26c24a..5c77a73 100644
+--- v2.6.35-rc3-hwpoison/mm/hugetlb.c
++++ v2.6.35-rc3-hwpoison/mm/hugetlb.c
+@@ -2490,8 +2490,15 @@ retry:
+ 			int err;
+ 			struct inode *inode = mapping->host;
  
- 	if (!mapping) {
- 		/* Anonymous page without mapping */
--		if (page_count(page) != 1)
-+		if (page_count(page) != 2 - PageHuge(page))
- 			return -EAGAIN;
- 		return 0;
- 	}
-@@ -224,7 +224,11 @@ static int migrate_page_move_mapping(struct address_space *mapping,
- 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-  					page_index(page));
- 
--	expected_count = 2 + page_has_private(page);
-+	/*
-+	 * Hugepages are expected to have only one remained reference
-+	 * from pagecache, because hugepages are not linked to LRU list.
-+	 */
-+	expected_count = 3 + page_has_private(page) - PageHuge(page);
- 	if (page_count(page) != expected_count ||
- 			(struct page *)radix_tree_deref_slot(pslot) != page) {
- 		spin_unlock_irq(&mapping->tree_lock);
-@@ -561,7 +565,11 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
- 	if (!newpage)
- 		return -ENOMEM;
- 
--	if (page_count(page) == 1) {
-+	/*
-+	 * For anonymous hugepages, reference count is equal to mapcount,
-+	 * so don't consider migration is done for anonymou hugepage.
-+	 */
-+	if (page_count(page) == 1 && !(PageHuge(page) && PageAnon(page))) {
- 		/* page was freed from under us. So we are done. */
- 		goto move_newpage;
- 	}
-@@ -644,6 +652,16 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
++			lock_page(page);
++			if (unlikely(PageHWPoison(page))) {
++				unlock_page(page);
++				goto retry;
++			}
++			err = add_to_page_cache_locked(page, mapping,
++						       idx, GFP_KERNEL);
+ 			if (err) {
++				unlock_page(page);
+ 				put_page(page);
+ 				if (err == -EEXIST)
+ 					goto retry;
+@@ -2504,6 +2511,10 @@ retry:
+ 			page_dup_rmap(page);
+ 		} else {
+ 			lock_page(page);
++			if (unlikely(PageHWPoison(page))) {
++				unlock_page(page);
++				goto retry;
++			}
+ 			if (unlikely(anon_vma_prepare(vma))) {
+ 				ret = VM_FAULT_OOM;
+ 				goto backout_unlocked;
+@@ -2511,22 +2522,19 @@ retry:
+ 			hugepage_add_new_anon_rmap(page, vma, address);
+ 		}
+ 	} else {
++		/*
++		 * If memory error occurs between mmap() and fault, some process
++		 * don't have hwpoisoned swap entry for errored virtual address.
++		 * So we need to block hugepage fault by PG_hwpoison bit check.
++		 */
++		if (unlikely(PageHWPoison(page))) {
++			ret = VM_FAULT_HWPOISON;
++			goto backout_unlocked;
++		}
+ 		page_dup_rmap(page);
  	}
  
  	/*
-+	 * It's reasonable to pin the old page until unmapping and copying
-+	 * complete, because when the original page is an anonymous hugepage,
-+	 * it will be freed in try_to_unmap() due to the fact that
-+	 * all references of anonymous hugepage come from mapcount.
-+	 * Although in the other cases no problem comes out without pinning,
-+	 * it looks logically correct to do it.
-+	 */
-+	get_page(page);
-+
-+	/*
- 	 * Corner case handling:
- 	 * 1. When a new swap-cache page is read into, it is added to the LRU
- 	 * and treated as swapcache but it has no rmap yet.
-@@ -697,6 +715,8 @@ uncharge:
- unlock:
- 	unlock_page(page);
- 
-+	put_page(page);
-+
- 	if (rc != -EAGAIN) {
-  		/*
-  		 * A page that has been migrated has all references
+-	 * Since memory error handler replaces pte into hwpoison swap entry
+-	 * at the time of error handling, a process which reserved but not have
+-	 * the mapping to the error hugepage does not have hwpoison swap entry.
+-	 * So we need to block accesses from such a process by checking
+-	 * PG_hwpoison bit here.
+-	 */
+-	if (unlikely(PageHWPoison(page))) {
+-		ret = VM_FAULT_HWPOISON;
+-		goto backout_unlocked;
+-	}
+-
+-	/*
+ 	 * If we are going to COW a private mapping later, we examine the
+ 	 * pending reservations for this page now. This will ensure that
+ 	 * any allocations necessary to record that reservation occur outside
 -- 
 1.7.1
 
