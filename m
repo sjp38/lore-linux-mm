@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7BC6B01AC
-	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 18:35:18 -0400 (EDT)
-Date: Fri, 2 Jul 2010 15:35:08 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 843D26B01AC
+	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 19:05:08 -0400 (EDT)
+Date: Fri, 2 Jul 2010 16:05:01 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 07/18] oom: filter tasks not sharing the same cpuset
-Message-Id: <20100702153508.fda82eb9.akpm@linux-foundation.org>
-In-Reply-To: <20100613201257.6199.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1006081149320.18848@chino.kir.corp.google.com>
-	<20100608122740.8f045c78.akpm@linux-foundation.org>
-	<20100613201257.6199.A69D9226@jp.fujitsu.com>
+Subject: Re: [Bugme-new] [Bug 16321] New: os unresponsive during buffered
+ I/O
+Message-Id: <20100702160501.45861821.akpm@linux-foundation.org>
+In-Reply-To: <bug-16321-10286@https.bugzilla.kernel.org/>
+References: <bug-16321-10286@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 13 Jun 2010 20:24:55 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Thu, 1 Jul 2010 11:57:37 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
 
-> Sorry for the delay.
+> https://bugzilla.kernel.org/show_bug.cgi?id=16321
 > 
-> > On Tue, 8 Jun 2010 11:51:32 -0700 (PDT)
-> > David Rientjes <rientjes@google.com> wrote:
-> > 
-> > > Andrew, are you the maintainer for these fixes or is KOSAKI?
-> > 
-> > I am, thanks.  Kosaki-san, you're making this harder than it should be.
-> > Please either ack David's patches or promptly work with him on
-> > finalising them.
+>            Summary: os unresponsive during buffered I/O
+>            Product: IO/Storage
+>            Version: 2.5
+>     Kernel Version: 2.6.34
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Block Layer
+>         AssignedTo: axboe@kernel.dk
+>         ReportedBy: rrs@researchut.com
+>         Regression: No
 > 
-> Thanks, Andrew, David. I agree with you. I don't find any end users harm
-> and regressions in latest David's patch series. So, I'm glad to join his work.
+> 
+> I have been running these tests on my laptop running the 2.6.34 Debian kernel.
+> When doing buffered I/O, the OS completely stalls to any interactivity. I
+> cannot switch console tabs in my Desktop Environment and the mouse pointer does
+> not move.
+> 
+> Eventually, I/O completes and every thing resumes to normal. There is no OOM
+> seen during the I/O operation.
+> If doing direct I/O, interactivity does not get penalized.
+> 
 
-whew ;)
+1...
 
-> Unfortunatelly, I don't have enough time now. then, I expect my next review
-> is not quite soon. but I'll promise I'll do.
+2...
 
-So where do we go from here?  I have about 12,000 oom-killer related
-emails saved up in my todo folder, ready for me to read next time I
-have an oom-killer session.
+3...
 
-What would happen if I just deleted them all?
+FUCK!!!
+
+We've been trying to fix this stuff for ten years.  Apparently, without
+success.  Do we suck, or what?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
