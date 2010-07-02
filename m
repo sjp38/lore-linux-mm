@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AB0016B01B0
-	for <linux-mm@kvack.org>; Thu,  1 Jul 2010 19:01:00 -0400 (EDT)
-Date: Fri, 2 Jul 2010 01:00:56 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
-Message-ID: <20100701230056.GD3594@basil.fritz.box>
-References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org>
- <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org>
- <20100701101746.3810cc3b.randy.dunlap@oracle.com>
- <20100701180241.GA3594@basil.fritz.box>
- <1278012503.7738.17.camel@c-dwalke-linux.qualcomm.com>
- <20100701193850.GB3594@basil.fritz.box>
- <4C2D0FF1.6010206@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4C2D0FF1.6010206@codeaurora.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7894D6B01D9
+	for <linux-mm@kvack.org>; Fri,  2 Jul 2010 01:49:35 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 4/7] hugetlb: add hugepage check in mem_cgroup_{register,end}_migration()
+Date: Fri,  2 Jul 2010 14:47:23 +0900
+Message-Id: <1278049646-29769-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Zach Pfeffer <zpfeffer@codeaurora.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Daniel Walker <dwalker@codeaurora.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> The VCMM provides a more abstract, global view with finer-grained
-> control of each mapping a user wants to create. For instance, the
-> symantics of iommu_map preclude its use in setting up just the IOMMU
-> side of a mapping. With a one-sided map, two IOMMU devices can be
+Currently memory cgroup doesn't charge hugepage,
+so avoid calling these functions in hugepage migration context.
 
-Hmm? dma_map_* does not change any CPU mappings. It only sets up
-DMA mapping(s).
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+---
+ mm/memcontrol.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-> Additionally, the current IOMMU interface does not allow users to
-> associate one page table with multiple IOMMUs unless the user explicitly
-
-That assumes that all the IOMMUs on the system support the same page table
-format, right?
-
-As I understand your approach would help if you have different
-IOMMus with an different low level interface, which just 
-happen to have the same pte format. Is that very likely?
-
-I would assume if you have lots of copies of the same IOMMU
-in the system then you could just use a single driver with multiple
-instances that share some state for all of them.  That model
-would fit in the current interfaces. There's no reason multiple
-instances couldn't share the same allocation data structure.
-
-And if you have lots of truly different IOMMUs then they likely
-won't be able to share PTEs at the hardware level anyways, because
-the formats are too different.
-
-> The VCMM takes the long view. Its designed for a future in which the
-> number of IOMMUs will go up and the ways in which these IOMMUs are
-> composed will vary from system to system, and may vary at
-> runtime. Already, there are ~20 different IOMMU map implementations in
-> the kernel. Had the Linux kernel had the VCMM, many of those
-> implementations could have leveraged the mapping and topology management
-> of a VCMM, while focusing on a few key hardware specific functions (map
-> this physical address, program the page table base register).
-
-The standard Linux approach to such a problem is to write
-a library that drivers can use for common functionality, not put a middle 
-layer inbetween. Libraries are much more flexible than layers.
-
-That said I'm not sure there's all that much duplicated code anyways.
-A lot of the code is always IOMMU specific. The only piece
-which might be shareable is the mapping allocation, but I don't
-think that's very much of a typical driver
-
-In my old pci-gart driver the allocation was all only a few lines of code, 
-although given it was somewhat dumb in this regard because it only managed a 
-small remapping window.
-
--Andi 
+diff --git v2.6.35-rc3-hwpoison/mm/memcontrol.c v2.6.35-rc3-hwpoison/mm/memcontrol.c
+index c6ece0a..fed32de 100644
+--- v2.6.35-rc3-hwpoison/mm/memcontrol.c
++++ v2.6.35-rc3-hwpoison/mm/memcontrol.c
+@@ -2504,6 +2504,8 @@ int mem_cgroup_prepare_migration(struct page *page,
+ 
+ 	if (mem_cgroup_disabled())
+ 		return 0;
++	if (PageHuge(page))
++		return 0;
+ 
+ 	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+@@ -2591,6 +2593,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ 
+ 	if (!mem)
+ 		return;
++	if (PageHuge(oldpage))
++		return;
++
+ 	/* blocks rmdir() */
+ 	cgroup_exclude_rmdir(&mem->css);
+ 	/* at migration success, oldpage->mapping is NULL. */
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
