@@ -1,56 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC596B01AF
-	for <linux-mm@kvack.org>; Sun,  4 Jul 2010 06:18:01 -0400 (EDT)
-Date: Sun, 4 Jul 2010 12:16:40 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] slob:Use _safe funtion to iterate partially free list.
-Message-ID: <20100704101640.GA1634@cmpxchg.org>
-References: <1278235353-9638-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1278235353-9638-1-git-send-email-lliubbo@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C3DFA6B01AC
+	for <linux-mm@kvack.org>; Sun,  4 Jul 2010 12:51:03 -0400 (EDT)
+Message-ID: <4C30BBF0.1030801@cs.helsinki.fi>
+Date: Sun, 04 Jul 2010 19:50:56 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH V2] slab: fix caller tracking on !CONFIG_DEBUG_SLAB &&
+ CONFIG_TRACING
+References: <alpine.DEB.2.00.1004090947030.10992@chino.kir.corp.google.com> <1277891842-18898-1-git-send-email-dfeng@redhat.com> <alpine.DEB.2.00.1006301307001.27676@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1006301307001.27676@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mpm@selenic.com
+To: David Rientjes <rientjes@google.com>
+Cc: Xiaotian Feng <dfeng@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Vegard Nossum <vegard.nossum@gmail.com>, Dmitry Monakhov <dmonakhov@openvz.org>, Catalin Marinas <catalin.marinas@arm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 04, 2010 at 05:22:33PM +0800, Bob Liu wrote:
-> Since a list entry may be removed, so use list_for_each_entry_safe
-> instead of list_for_each_entry.
+David Rientjes wrote:
+> On Wed, 30 Jun 2010, Xiaotian Feng wrote:
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/slob.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+>> In slab, all __xxx_track_caller is defined on CONFIG_DEBUG_SLAB || CONFIG_TRACING,
+>> thus caller tracking function should be worked for CONFIG_TRACING. But if
+>> CONFIG_DEBUG_SLAB is not set, include/linux/slab.h will define xxx_track_caller to
+>> __xxx() without consideration of CONFIG_TRACING. This will break the caller tracking
+>> behaviour then.
+>>
+>> Signed-off-by: Xiaotian Feng <dfeng@redhat.com>
+>> Cc: Christoph Lameter <cl@linux-foundation.org>
+>> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+>> Cc: Matt Mackall <mpm@selenic.com>
+>> Cc: Vegard Nossum <vegard.nossum@gmail.com>
+>> Cc: Dmitry Monakhov <dmonakhov@openvz.org>
+>> Cc: Catalin Marinas <catalin.marinas@arm.com>
+>> Cc: David Rientjes <rientjes@google.com>
 > 
-> diff --git a/mm/slob.c b/mm/slob.c
-> index 3f19a34..e2af18b 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -320,7 +320,7 @@ static void *slob_page_alloc(struct slob_page *sp, size_t size, int align)
->   */
->  static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
->  {
-> -	struct slob_page *sp;
-> +	struct slob_page *sp, *tmp;
->  	struct list_head *prev;
->  	struct list_head *slob_list;
->  	slob_t *b = NULL;
-> @@ -335,7 +335,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
->  
->  	spin_lock_irqsave(&slob_lock, flags);
->  	/* Iterate through each partially free page, try to find room */
-> -	list_for_each_entry(sp, slob_list, list) {
-> +	list_for_each_entry_safe(sp, tmp, slob_list, list) {    
->  #ifdef CONFIG_NUMA
+> Acked-by: David Rientjes <rientjes@google.com>
 
-sp's list head is only modified if an allocation was successful, but
-then the iteration stops as well.  So I see no reason for your patch.
-Did I overlook something?
-
-	Hannes
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
