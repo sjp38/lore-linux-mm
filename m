@@ -1,35 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 73B186B01AC
-	for <linux-mm@kvack.org>; Sat,  3 Jul 2010 15:56:12 -0400 (EDT)
-Message-ID: <4C2F95CF.4000308@redhat.com>
-Date: Sat, 03 Jul 2010 22:55:59 +0300
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [Bugme-new] [Bug 16321] New: os unresponsive during buffered
- I/O
-References: <bug-16321-10286@https.bugzilla.kernel.org/>	<20100702160501.45861821.akpm@linux-foundation.org>	<4C2F255D.6000908@kernel.dk> <20100703081613.36e1cba8.akpm@linux-foundation.org>
-In-Reply-To: <20100703081613.36e1cba8.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 8F94B6B01AC
+	for <linux-mm@kvack.org>; Sun,  4 Jul 2010 05:22:44 -0400 (EDT)
+Received: by pva4 with SMTP id 4so122398pva.14
+        for <linux-mm@kvack.org>; Sun, 04 Jul 2010 02:22:43 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] slob:Use _safe funtion to iterate partially free list.
+Date: Sun,  4 Jul 2010 17:22:33 +0800
+Message-Id: <1278235353-9638-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mpm@selenic.com, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 07/03/2010 06:16 PM, Andrew Morton wrote:
->
-> My laptop goes absolutely utterly mouse-wont-move comatose for tens of
-> minutes when it fetchmails 100 emails and 100 spamassassins go berzerk.
-> It could be either a CPU scheduler thing, or an IO thing, or an evil
-> combination of both.
->    
+Since a list entry may be removed, so use list_for_each_entry_safe
+instead of list_for_each_entry.
 
-Try putting your spamassasins in a cgroup and see.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/slob.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/mm/slob.c b/mm/slob.c
+index 3f19a34..e2af18b 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -320,7 +320,7 @@ static void *slob_page_alloc(struct slob_page *sp, size_t size, int align)
+  */
+ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ {
+-	struct slob_page *sp;
++	struct slob_page *sp, *tmp;
+ 	struct list_head *prev;
+ 	struct list_head *slob_list;
+ 	slob_t *b = NULL;
+@@ -335,7 +335,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 
+ 	spin_lock_irqsave(&slob_lock, flags);
+ 	/* Iterate through each partially free page, try to find room */
+-	list_for_each_entry(sp, slob_list, list) {
++	list_for_each_entry_safe(sp, tmp, slob_list, list) {    
+ #ifdef CONFIG_NUMA
+ 		/*
+ 		 * If there's a node specification, search for a partial
 -- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
