@@ -1,81 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 82E246B01AC
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 08:50:56 -0400 (EDT)
-Received: by qwk4 with SMTP id 4so2160518qwk.14
-        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 05:50:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100704101640.GA1634@cmpxchg.org>
-References: <1278235353-9638-1-git-send-email-lliubbo@gmail.com>
-	<20100704101640.GA1634@cmpxchg.org>
-Date: Mon, 5 Jul 2010 20:50:54 +0800
-Message-ID: <AANLkTilqVwfYZ1pYcSnCXGnQqQqVvcPi34QVWCJ7AciF@mail.gmail.com>
-Subject: Re: [PATCH] slob:Use _safe funtion to iterate partially free list.
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0B6766B01AC
+	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 08:51:52 -0400 (EDT)
+Received: by pva4 with SMTP id 4so501716pva.14
+        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 05:51:50 -0700 (PDT)
 From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH] slob: Get lock before getting slob_list
+Date: Mon,  5 Jul 2010 20:51:37 +0800
+Message-Id: <1278334297-6952-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mpm@selenic.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mpm@selenic.com, hannes@cmpxchg.org, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 4, 2010 at 6:16 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Sun, Jul 04, 2010 at 05:22:33PM +0800, Bob Liu wrote:
->> Since a list entry may be removed, so use list_for_each_entry_safe
->> instead of list_for_each_entry.
->>
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->> =C2=A0mm/slob.c | =C2=A0 =C2=A04 ++--
->> =C2=A01 files changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/slob.c b/mm/slob.c
->> index 3f19a34..e2af18b 100644
->> --- a/mm/slob.c
->> +++ b/mm/slob.c
->> @@ -320,7 +320,7 @@ static void *slob_page_alloc(struct slob_page *sp, s=
-ize_t size, int align)
->> =C2=A0 */
->> =C2=A0static void *slob_alloc(size_t size, gfp_t gfp, int align, int nod=
-e)
->> =C2=A0{
->> - =C2=A0 =C2=A0 struct slob_page *sp;
->> + =C2=A0 =C2=A0 struct slob_page *sp, *tmp;
->> =C2=A0 =C2=A0 =C2=A0 struct list_head *prev;
->> =C2=A0 =C2=A0 =C2=A0 struct list_head *slob_list;
->> =C2=A0 =C2=A0 =C2=A0 slob_t *b =3D NULL;
->> @@ -335,7 +335,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int =
-align, int node)
->>
->> =C2=A0 =C2=A0 =C2=A0 spin_lock_irqsave(&slob_lock, flags);
->> =C2=A0 =C2=A0 =C2=A0 /* Iterate through each partially free page, try to=
- find room */
->> - =C2=A0 =C2=A0 list_for_each_entry(sp, slob_list, list) {
->> + =C2=A0 =C2=A0 list_for_each_entry_safe(sp, tmp, slob_list, list) {
->> =C2=A0#ifdef CONFIG_NUMA
->
-> sp's list head is only modified if an allocation was successful, but
-> then the iteration stops as well. =C2=A0So I see no reason for your patch=
-.
-> Did I overlook something?
->
+If get lock after getting slob_list, the partially free page list maybe
+changed before list_for_each_entry().
 
-Sorry, I am wrong. Please ignore this patch.
-Thanks for your comment.
+And maybe trigger a NULL pointer access Bug like this:
+==========
+bio: create slab <bio-0> at 0
+NULL pointer access
+Kernel OOPS in progress
+Deferred Exception context
+CURRENT PROCESS:
+COMM=swapper PID=1  CPU=0
+invalid mm
+return address: [0x0004442a]; contents of:
+0x00044400:  0034  61f8  0040  9162  324a  6f41  a188  0854
+0x00044410:  186c  0c41  1856  3228  640d  c682  8ffd  67fd
+0x00044420:  6006  6f45  200b  3255  6cc2 [a1a8] 0854  1826
+0x00044430:  0c45  1847  324d  3228  6f45  a908  09b8  1ff4
 
-But It seems that the slob_list maybe have some member's next pointer NULL.
-Because I triggered a NULL pointer access error.
+ADSP-BF527-0.0 525(MHz CCLK) 131(MHz SCLK) (mpu off)
+Linux version 2.6.34-ADI-2010R1-pre-svn8955 (root@adam-desktop) (gcc
+version 4.3.5 (ADI-trunk/svn-4637) ) #68 Mon Jul 5 11:53:28 CST 2010
 
-And after I changed spin_lock_irqsave(&slob_lock, flags) before set slob_li=
-st.
-This bug seems disappeared.
+SEQUENCER STATUS:               Not tainted
+SEQSTAT: 00000027  IPEND: 8008  IMASK: 003f  SYSCFG: 0006
+Peripheral interrupts masked off
+Kernel interrupts masked off
+EXCAUSE   : 0x27
+physical IVG3 asserted : <0xffa00794> { _trap + 0x0 }
+physical IVG15 asserted : <0xffa00fdc> { _evt_system_call + 0x0 }
+logical irq   6 mapped  : <0xffa00390> { _bfin_coretmr_interrupt + 0x0
+}
+RETE: <0x00000000> /* Maybe null pointer? */
+RETN: <0x0200bebc> /* kernel dynamic memory (maybe user-space) */
+RETX: <0x00000480> /* Maybe fixed code section */
+RETS: <0x00044450> { _slob_alloc + 0x6c }
+PC  : <0x0004442a> { _slob_alloc + 0x46 }
+DCPLB_FAULT_ADDR: <0x00000000> /* Maybe null pointer? */
+ICPLB_FAULT_ADDR: <0x0004442a> { _slob_alloc + 0x46 }
+PROCESSOR STATE:
+ R0 : 00000000    R1 : 00081000    R2 : 0000e800    R3 : ffffe800
+ R4 : 0000ffff    R5 : 00000048    R6 : 00000000    R7 : 00000024
+ P0 : 0008181f    P1 : 00084000    P2 : 00000000    P3 : ffffffff
+ P4 : 001efda8    P5 : ffffffe8    FP : 0200bec8    SP : 0200bde0
+ LB0: ffa0165c    LT0: ffa01656    LC0: 00000000
+ LB1: 000536b6    LT1: 000536a6    LC1: 00000000
+ B0 : 00000000    L0 : 00000000    M0 : 00000000    I0 : 00000fff
+ B1 : 00000000    L1 : 00000000    M1 : 00000000    I1 : 00000001
+ B2 : 00000000    L2 : 00000000    M2 : 00000000    I2 : 00000001
+ B3 : 00000000    L3 : 00000000    M3 : 00000000    I3 : ffffffe0
+A0.w: 00000000   A0.x: 00000000   A1.w: 00000000   A1.x: 00000000
+USP : 00000000  ASTAT: 00003025
 
-I will resend a patch, Please review.
-Thanks!
+Hardware Trace:
+  0 Target : <0x00003e84> { _trap_c + 0x0 }
+    Source : <0xffa00728> { _exception_to_level5 + 0xb0 } CALL pcrel
+  1 Target : <0xffa00678> { _exception_to_level5 + 0x0 }
+    Source : <0xffa00520> { _bfin_return_from_exception + 0x18 } RTX
+  2 Target : <0xffa00508> { _bfin_return_from_exception + 0x0 }
+    Source : <0xffa005c4> { _ex_trap_c + 0x74 } JUMP.S
+  3 Target : <0xffa00550> { _ex_trap_c + 0x0 }
+    Source : <0xffa007ee> { _trap + 0x5a } JUMP (P4)
+  4 Target : <0xffa00794> { _trap + 0x0 }
+     FAULT : <0x0004442a> { _slob_alloc + 0x46 } P0 = W[P5 + 6]
+    Source : <0x00044428> { _slob_alloc + 0x44 } 0x6cc2
+  5 Target : <0x00044426> { _slob_alloc + 0x42 }
+    Source : <0x00044454> { _slob_alloc + 0x70 } IF CC JUMP pcrel (BP)
+  6 Target : <0x00044450> { _slob_alloc + 0x6c }
+    Source : <0x00044368> { _slob_page_alloc + 0x174 } RTS
+  7 Target : <0x00044360> { _slob_page_alloc + 0x16c }
+    Source : <0x0004423a> { _slob_page_alloc + 0x46 } IF CC JUMP pcrel
+  8 Target : <0x0004422a> { _slob_page_alloc + 0x36 }
+    Source : <0x0004428a> { _slob_page_alloc + 0x96 } JUMP.S
+  9 Target : <0x00044226> { _slob_page_alloc + 0x32 }
+    Source : <0x00044286> { _slob_page_alloc + 0x92 } IF !CC JUMP pcrel
+(BP)
+ 10 Target : <0x00044248> { _slob_page_alloc + 0x54 }
+    Source : <0x0004428e> { _slob_page_alloc + 0x9a } JUMP.S
+ 11 Target : <0x0004428c> { _slob_page_alloc + 0x98 }
+    Source : <0x0004423e> { _slob_page_alloc + 0x4a } IF CC JUMP pcrel
+ 12 Target : <0x0004422a> { _slob_page_alloc + 0x36 }
+    Source : <0x0004428a> { _slob_page_alloc + 0x96 } JUMP.S
+ 13 Target : <0x00044252> { _slob_page_alloc + 0x5e }
+    Source : <0x00044224> { _slob_page_alloc + 0x30 } JUMP.S
+ 14 Target : <0x000441f4> { _slob_page_alloc + 0x0 }
+    Source : <0x0004444c> { _slob_alloc + 0x68 } JUMP.L
+ 15 Target : <0x00044426> { _slob_alloc + 0x42 }
+    Source : <0x00044454> { _slob_alloc + 0x70 } IF CC JUMP pcrel (BP)
+==========
 
---=20
-Regards,
---Bob
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/slob.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/slob.c b/mm/slob.c
+index 3f19a34..c391f55 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -326,6 +326,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 	slob_t *b = NULL;
+ 	unsigned long flags;
+ 
++	spin_lock_irqsave(&slob_lock, flags);
++
+ 	if (size < SLOB_BREAK1)
+ 		slob_list = &free_slob_small;
+ 	else if (size < SLOB_BREAK2)
+@@ -333,7 +335,6 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 	else
+ 		slob_list = &free_slob_large;
+ 
+-	spin_lock_irqsave(&slob_lock, flags);
+ 	/* Iterate through each partially free page, try to find room */
+ 	list_for_each_entry(sp, slob_list, list) {
+ #ifdef CONFIG_NUMA
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
