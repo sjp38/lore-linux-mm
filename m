@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4C5346B01AF
-	for <linux-mm@kvack.org>; Sun,  4 Jul 2010 21:40:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o651dwm8011096
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 5 Jul 2010 10:39:58 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7538645DE6F
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 10:39:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 57F8B45DE6E
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 10:39:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 426AD1DB803A
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 10:39:58 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B22E81DB8041
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 10:39:54 +0900 (JST)
-Date: Mon, 5 Jul 2010 10:35:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/14] Avoid overflowing of stack during page reclaim V3
-Message-Id: <20100705103506.8fbd1509.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100702123315.667c6eac.akpm@linux-foundation.org>
-References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
-	<20100702123315.667c6eac.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A782E6B01AC
+	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 04:47:45 -0400 (EDT)
+Date: Mon, 5 Jul 2010 17:46:29 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/7] hugetlb: add allocate function for hugepage migration
+Message-ID: <20100705084629.GC29648@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1278049646-29769-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100702090854.GD12221@basil.fritz.box>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100702090854.GD12221@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2 Jul 2010 12:33:15 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Tue, 29 Jun 2010 12:34:34 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, Jul 02, 2010 at 11:08:54AM +0200, Andi Kleen wrote:
+> On Fri, Jul 02, 2010 at 02:47:22PM +0900, Naoya Horiguchi wrote:
+> > We can't use existing hugepage allocation functions to allocate hugepage
+> > for page migration, because page migration can happen asynchronously with
+> > the running processes and page migration users should call the allocation
+> > function with physical addresses (not virtual addresses) as arguments.
 > 
-> > Here is V3 that depends again on flusher threads to do writeback in
-> > direct reclaim rather than stack switching which is not something I'm
-> > likely to get done before xfs/btrfs are ignoring writeback in mainline
-> > (phd sucking up time).
-> 
-> IMO, implemetning stack switching for this is not a good idea.  We
-> _already_ have a way of doing stack-switching.  It's called
-> "schedule()".
-> 
-Sure. 
+> I looked through this patch and didn't see anything bad. Some more
+> eyes familiar with hugepages would be good though.
 
-> The only reason I can see for implementing an in-place stack switch
-> would be if schedule() is too expensive.  And if we were to see
-> excessive context-switch overheads in this code path (and we won't)
-> then we should get in there and try to reduce the contect switch rate
-> first.
-> 
+Yes.
 
-Maybe a concern of in-place stack exchange lovers is that it's difficult
-to guarantee when the pageout() will be issued.
+> Since there are now so many different allocation functions some
+> comments on when they should be used may be useful too
 
-I'd like to try to add a call as
+OK. How about this?
 
- - pageout_request(page) .... request to pageout a page to a daemon(kswapd).
- - pageout_barrier(zone? node?) .... wait until all writebacks ends.
++/*
++ * This allocation function is useful in the context where vma is irrelevant.
++ * E.g. soft-offlining uses this function because it only cares physical
++ * address of error page.
++ */
++struct page *alloc_huge_page_node(struct hstate *h, int nid)
++{
 
-Implementation dilemmna:
+BTW, I don't like this function name very much.
+Since the most significant difference of this function to alloc_huge_page()
+is lack of vma argument, so I'm going to change the name to
+alloc_huge_page_no_vma_node() in the next version if it is no problem.
 
-Because page->lru is very useful link to implement calls like above, but
-there is a concern that using it will hide pages from vmscan unnecessarily.
-Avoding to use of page->lru means to use another structure like pagevec,
-but it means page_count()+1 and pins pages unnecessarily. I'm now considering
-how to implement safe&scalable way to pageout-in-another-stack(thread)...
-I wonder it will require some throttling method for pageout, anyway.
-
-And my own problem is that I should add per-memcg threads or using some
-thread-pool ;( But it will be an another topic.
+Or, since the postfix like "_no_vma" is verbose, I think it might be
+a good idea to rename present alloc_huge_page() to alloc_huge_page_vma().
+Is this worthwhile?
 
 Thanks,
--Kame
-
-
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
