@@ -1,135 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0B6766B01AC
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 08:51:52 -0400 (EDT)
-Received: by pva4 with SMTP id 4so501716pva.14
-        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 05:51:50 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] slob: Get lock before getting slob_list
-Date: Mon,  5 Jul 2010 20:51:37 +0800
-Message-Id: <1278334297-6952-1-git-send-email-lliubbo@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id F21726B01AC
+	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 09:50:09 -0400 (EDT)
+Date: Mon, 5 Jul 2010 14:49:49 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+Message-ID: <20100705134949.GC13780@csn.ul.ie>
+References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie> <1277811288-5195-13-git-send-email-mel@csn.ul.ie> <20100702125155.69c02f85.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100702125155.69c02f85.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, mpm@selenic.com, hannes@cmpxchg.org, Bob Liu <lliubbo@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-If get lock after getting slob_list, the partially free page list maybe
-changed before list_for_each_entry().
+On Fri, Jul 02, 2010 at 12:51:55PM -0700, Andrew Morton wrote:
+> On Tue, 29 Jun 2010 12:34:46 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > When memory is under enough pressure, a process may enter direct
+> > reclaim to free pages in the same manner kswapd does. If a dirty page is
+> > encountered during the scan, this page is written to backing storage using
+> > mapping->writepage. This can result in very deep call stacks, particularly
+> > if the target storage or filesystem are complex. It has already been observed
+> > on XFS that the stack overflows but the problem is not XFS-specific.
+> > 
+> > This patch prevents direct reclaim writing back pages by not setting
+> > may_writepage in scan_control. Instead, dirty pages are placed back on the
+> > LRU lists for either background writing by the BDI threads or kswapd. If
+> > in direct lumpy reclaim and dirty pages are encountered, the process will
+> > stall for the background flusher before trying to reclaim the pages again.
+> > 
+> > Memory control groups do not have a kswapd-like thread nor do pages get
+> > direct reclaimed from the page allocator. Instead, memory control group
+> > pages are reclaimed when the quota is being exceeded or the group is being
+> > shrunk. As it is not expected that the entry points into page reclaim are
+> > deep call chains memcg is still allowed to writeback dirty pages.
+> 
+> I already had "[PATCH 01/14] vmscan: Fix mapping use after free" and
+> I'll send that in for 2.6.35.
+> 
 
-And maybe trigger a NULL pointer access Bug like this:
-==========
-bio: create slab <bio-0> at 0
-NULL pointer access
-Kernel OOPS in progress
-Deferred Exception context
-CURRENT PROCESS:
-COMM=swapper PID=1  CPU=0
-invalid mm
-return address: [0x0004442a]; contents of:
-0x00044400:  0034  61f8  0040  9162  324a  6f41  a188  0854
-0x00044410:  186c  0c41  1856  3228  640d  c682  8ffd  67fd
-0x00044420:  6006  6f45  200b  3255  6cc2 [a1a8] 0854  1826
-0x00044430:  0c45  1847  324d  3228  6f45  a908  09b8  1ff4
+Perfect, thanks.
 
-ADSP-BF527-0.0 525(MHz CCLK) 131(MHz SCLK) (mpu off)
-Linux version 2.6.34-ADI-2010R1-pre-svn8955 (root@adam-desktop) (gcc
-version 4.3.5 (ADI-trunk/svn-4637) ) #68 Mon Jul 5 11:53:28 CST 2010
+> I grabbed [02/14] up to [11/14].  Including "[PATCH 06/14] vmscan: kill
+> prev_priority completely", grumpyouallsuck.
+> 
+> I wimped out at this, "Do not writeback pages in direct reclaim".  It
+> really is a profound change and needs a bit more thought, discussion
+> and if possible testing which is designed to explore possible pathologies.
+> 
 
-SEQUENCER STATUS:               Not tainted
-SEQSTAT: 00000027  IPEND: 8008  IMASK: 003f  SYSCFG: 0006
-Peripheral interrupts masked off
-Kernel interrupts masked off
-EXCAUSE   : 0x27
-physical IVG3 asserted : <0xffa00794> { _trap + 0x0 }
-physical IVG15 asserted : <0xffa00fdc> { _evt_system_call + 0x0 }
-logical irq   6 mapped  : <0xffa00390> { _bfin_coretmr_interrupt + 0x0
-}
-RETE: <0x00000000> /* Maybe null pointer? */
-RETN: <0x0200bebc> /* kernel dynamic memory (maybe user-space) */
-RETX: <0x00000480> /* Maybe fixed code section */
-RETS: <0x00044450> { _slob_alloc + 0x6c }
-PC  : <0x0004442a> { _slob_alloc + 0x46 }
-DCPLB_FAULT_ADDR: <0x00000000> /* Maybe null pointer? */
-ICPLB_FAULT_ADDR: <0x0004442a> { _slob_alloc + 0x46 }
-PROCESSOR STATE:
- R0 : 00000000    R1 : 00081000    R2 : 0000e800    R3 : ffffe800
- R4 : 0000ffff    R5 : 00000048    R6 : 00000000    R7 : 00000024
- P0 : 0008181f    P1 : 00084000    P2 : 00000000    P3 : ffffffff
- P4 : 001efda8    P5 : ffffffe8    FP : 0200bec8    SP : 0200bde0
- LB0: ffa0165c    LT0: ffa01656    LC0: 00000000
- LB1: 000536b6    LT1: 000536a6    LC1: 00000000
- B0 : 00000000    L0 : 00000000    M0 : 00000000    I0 : 00000fff
- B1 : 00000000    L1 : 00000000    M1 : 00000000    I1 : 00000001
- B2 : 00000000    L2 : 00000000    M2 : 00000000    I2 : 00000001
- B3 : 00000000    L3 : 00000000    M3 : 00000000    I3 : ffffffe0
-A0.w: 00000000   A0.x: 00000000   A1.w: 00000000   A1.x: 00000000
-USP : 00000000  ASTAT: 00003025
+Ok, that's reasonable as I'm still working on that patch. For example, the
+patch disabled anonymous page writeback which is unnecessary as the stack
+usage for anon writeback is less than file writeback. Second, using systemtap,
+I was able to see that file-backed dirty pages have a tendency to be near the
+end of the LRU even though they are a small percentage of the overall pages
+in the LRU. I'm hoping to figure out why this is as it would make avoiding
+writeback a lot less controversial.
 
-Hardware Trace:
-  0 Target : <0x00003e84> { _trap_c + 0x0 }
-    Source : <0xffa00728> { _exception_to_level5 + 0xb0 } CALL pcrel
-  1 Target : <0xffa00678> { _exception_to_level5 + 0x0 }
-    Source : <0xffa00520> { _bfin_return_from_exception + 0x18 } RTX
-  2 Target : <0xffa00508> { _bfin_return_from_exception + 0x0 }
-    Source : <0xffa005c4> { _ex_trap_c + 0x74 } JUMP.S
-  3 Target : <0xffa00550> { _ex_trap_c + 0x0 }
-    Source : <0xffa007ee> { _trap + 0x5a } JUMP (P4)
-  4 Target : <0xffa00794> { _trap + 0x0 }
-     FAULT : <0x0004442a> { _slob_alloc + 0x46 } P0 = W[P5 + 6]
-    Source : <0x00044428> { _slob_alloc + 0x44 } 0x6cc2
-  5 Target : <0x00044426> { _slob_alloc + 0x42 }
-    Source : <0x00044454> { _slob_alloc + 0x70 } IF CC JUMP pcrel (BP)
-  6 Target : <0x00044450> { _slob_alloc + 0x6c }
-    Source : <0x00044368> { _slob_page_alloc + 0x174 } RTS
-  7 Target : <0x00044360> { _slob_page_alloc + 0x16c }
-    Source : <0x0004423a> { _slob_page_alloc + 0x46 } IF CC JUMP pcrel
-  8 Target : <0x0004422a> { _slob_page_alloc + 0x36 }
-    Source : <0x0004428a> { _slob_page_alloc + 0x96 } JUMP.S
-  9 Target : <0x00044226> { _slob_page_alloc + 0x32 }
-    Source : <0x00044286> { _slob_page_alloc + 0x92 } IF !CC JUMP pcrel
-(BP)
- 10 Target : <0x00044248> { _slob_page_alloc + 0x54 }
-    Source : <0x0004428e> { _slob_page_alloc + 0x9a } JUMP.S
- 11 Target : <0x0004428c> { _slob_page_alloc + 0x98 }
-    Source : <0x0004423e> { _slob_page_alloc + 0x4a } IF CC JUMP pcrel
- 12 Target : <0x0004422a> { _slob_page_alloc + 0x36 }
-    Source : <0x0004428a> { _slob_page_alloc + 0x96 } JUMP.S
- 13 Target : <0x00044252> { _slob_page_alloc + 0x5e }
-    Source : <0x00044224> { _slob_page_alloc + 0x30 } JUMP.S
- 14 Target : <0x000441f4> { _slob_page_alloc + 0x0 }
-    Source : <0x0004444c> { _slob_alloc + 0x68 } JUMP.L
- 15 Target : <0x00044426> { _slob_alloc + 0x42 }
-    Source : <0x00044454> { _slob_alloc + 0x70 } IF CC JUMP pcrel (BP)
-==========
-
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/slob.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/slob.c b/mm/slob.c
-index 3f19a34..c391f55 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -326,6 +326,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 	slob_t *b = NULL;
- 	unsigned long flags;
- 
-+	spin_lock_irqsave(&slob_lock, flags);
-+
- 	if (size < SLOB_BREAK1)
- 		slob_list = &free_slob_small;
- 	else if (size < SLOB_BREAK2)
-@@ -333,7 +335,6 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
- 	else
- 		slob_list = &free_slob_large;
- 
--	spin_lock_irqsave(&slob_lock, flags);
- 	/* Iterate through each partially free page, try to find room */
- 	list_for_each_entry(sp, slob_list, list) {
- #ifdef CONFIG_NUMA
 -- 
-1.5.6.3
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
