@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D2E0C6B01B2
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 04:49:40 -0400 (EDT)
-Date: Mon, 5 Jul 2010 17:44:15 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 001896B01B5
+	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 04:49:52 -0400 (EDT)
+Date: Mon, 5 Jul 2010 17:44:37 +0900
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 0/7] hugepage migration
-Message-ID: <20100705084415.GA29648@spritzera.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 1/7] hugetlb: add missing unlock in avoidcopy path in
+ hugetlb_cow()
+Message-ID: <20100705084437.GB29648@spritzera.linux.bs1.fc.nec.co.jp>
 References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20100702083026.GB12221@basil.fritz.box>
+ <1278049646-29769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100702083143.GC12221@basil.fritz.box>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Disposition: inline
-In-Reply-To: <20100702083026.GB12221@basil.fritz.box>
+In-Reply-To: <20100702083143.GC12221@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 02, 2010 at 10:30:26AM +0200, Andi Kleen wrote:
-> On Fri, Jul 02, 2010 at 02:47:19PM +0900, Naoya Horiguchi wrote:
-> > This is a patchset for hugepage migration.
-> 
-> Thanks for working on this.
+On Fri, Jul 02, 2010 at 10:31:43AM +0200, Andi Kleen wrote:
+> On Fri, Jul 02, 2010 at 02:47:20PM +0900, Naoya Horiguchi wrote:
+> > This patch fixes possible deadlock in hugepage lock_page()
+> > by adding missing unlock_page().
 > > 
-> > There are many users of page migration such as soft offlining,
-> > memory hotplug, memory policy and memory compaction,
-> > but this patchset adds hugepage support only for soft offlining
-> > as the first step.
+> > libhugetlbfs test will hit this bug when the next patch in this
+> > patchset ("hugetlb, HWPOISON: move PG_HWPoison bit check") is applied.
 > 
-> Is that simply because the callers are not hooked up yet 
-> for the other cases, or more fundamental issues?
-
-Yes, it's just underway.
-I hope we have no critical problems to implement other cases at the time.
-
+> This looks like a general bug fix that should be merged ASAP? 
 > 
-> > I tested this patchset with 'make func' in libhugetlbfs and
-> > have gotten the same result as one from 2.6.35-rc3.
-> 
-> Is there a tester for the functionality too? (e.g. mce-test test cases)
+> Or do you think this cannot be hit at all without the other patches?
 
-Yes.
-I'll send patches on mce-test suite later.
+This bug was introduced by patch "hugetlb, rmap: add reverse mapping for
+hugepage" in previous patchset (currently in linux-next) and it's not
+merged in mainline yet.
+So it's OK if this patch goes into linux-next by its merge to mainline.
 
 Thanks,
 Naoya Horiguchi
