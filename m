@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9A5566B024D
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 11:55:17 -0400 (EDT)
-Date: Tue, 6 Jul 2010 10:54:38 -0500 (CDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 10F206B024F
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:00:59 -0400 (EDT)
+Date: Tue, 6 Jul 2010 11:00:27 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 5/7] hugetlb: pin oldpage in page migration
-In-Reply-To: <1278049646-29769-6-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.00.1007061050320.4938@router.home>
-References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1278049646-29769-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 6/7] hugetlb: hugepage migration core
+In-Reply-To: <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.00.1007061057230.4938@router.home>
+References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,35 +17,81 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 2 Jul 2010, Naoya Horiguchi wrote:
 
-> This patch introduces pinning the old page during page migration
-> to avoid freeing it before we complete copying.
+> --- v2.6.35-rc3-hwpoison/mm/migrate.c
+> +++ v2.6.35-rc3-hwpoison/mm/migrate.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/security.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/syscalls.h>
+> +#include <linux/hugetlb.h>
+>  #include <linux/gfp.h>
+>
+>  #include "internal.h"
+> @@ -74,6 +75,8 @@ void putback_lru_pages(struct list_head *l)
+>  	struct page *page2;
+>
+>  	list_for_each_entry_safe(page, page2, l, lru) {
+> +		if (PageHuge(page))
+> +			break;
+>  		list_del(&page->lru);
 
-The old page is already pinned due to the reference count that is taken
-when the page is put onto the list of pages to be migrated. See
-do_move_pages() f.e.
+Argh. Hugepages in putpack_lru_pages()? Huge pages are not on the lru.
+Come up with something cleaner here.
 
-Huge pages use a different scheme?
+> @@ -267,7 +284,14 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+>  	 * Note that anonymous pages are accounted for
+>  	 * via NR_FILE_PAGES and NR_ANON_PAGES if they
+>  	 * are mapped to swap space.
+> +	 *
+> +	 * Not account hugepage here for now because hugepage has
+> +	 * separate accounting rule.
+>  	 */
+> +	if (PageHuge(newpage)) {
+> +		spin_unlock_irq(&mapping->tree_lock);
+> +		return 0;
+> +	}
+>  	__dec_zone_page_state(page, NR_FILE_PAGES);
+>  	__inc_zone_page_state(newpage, NR_FILE_PAGES);
+>  	if (PageSwapBacked(page)) {
 
-> This race condition can happen for privately mapped or anonymous hugepage.
+This looks wrong here. Too many special casing added to basic migration
+functionality.
 
-It cannot happen unless you come up with your own scheme of managing pages
-to be migrated and bypass migrate_pages(). There you should take the
-refcount.
+> @@ -284,7 +308,17 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+>   */
+>  static void migrate_page_copy(struct page *newpage, struct page *page)
+>  {
+> -	copy_highpage(newpage, page);
+> +	int i;
+> +	struct hstate *h;
+> +	if (!PageHuge(newpage))
+> +		copy_highpage(newpage, page);
+> +	else {
+> +		h = page_hstate(newpage);
+> +		for (i = 0; i < pages_per_huge_page(h); i++) {
+> +			cond_resched();
+> +			copy_highpage(newpage + i, page + i);
+> +		}
+> +	}
+>
+>  	if (PageError(page))
+>  		SetPageError(newpage);
 
->  	/*
-> +	 * It's reasonable to pin the old page until unmapping and copying
-> +	 * complete, because when the original page is an anonymous hugepage,
-> +	 * it will be freed in try_to_unmap() due to the fact that
-> +	 * all references of anonymous hugepage come from mapcount.
-> +	 * Although in the other cases no problem comes out without pinning,
-> +	 * it looks logically correct to do it.
-> +	 */
-> +	get_page(page);
+Could you generalize this for migrating an order N page?
+
+> @@ -718,6 +752,11 @@ unlock:
+>  	put_page(page);
+>
+>  	if (rc != -EAGAIN) {
+> +		if (PageHuge(newpage)) {
+> +			put_page(newpage);
+> +			goto out;
+> +		}
 > +
-> +	/*
 
-Its already pinned. Dont do this. migrate_pages() relies on the caller
-having pinned the page already.
+I dont like this kind of inconsistency with the refcounting. Page
+migration is complicated enough already.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
