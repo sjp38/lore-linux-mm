@@ -1,622 +1,551 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 922C36B0246
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 11:42:43 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BA86A6B0249
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 11:42:44 -0400 (EDT)
 From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device memory management
-Date: Tue,  6 Jul 2010 08:42:34 -0700
-Message-Id: <1278430956-2260-1-git-send-email-zpfeffer@codeaurora.org>
+Subject: [RFC 2/3] mm: iommu: A physical allocator for the VCMM
+Date: Tue,  6 Jul 2010 08:42:35 -0700
+Message-Id: <1278430956-2260-2-git-send-email-zpfeffer@codeaurora.org>
+In-Reply-To: <1278430956-2260-1-git-send-email-zpfeffer@codeaurora.org>
+References: <1278430956-2260-1-git-send-email-zpfeffer@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 To: mel@csn.ul.ie
 Cc: linux-arch@vger.kernel.org, dwalker@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, Zach Pfeffer <zpfeffer@codeaurora.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch contains the documentation for the API, termed the Virtual
-Contiguous Memory Manager. Its use would allow all of the IOMMU to VM,
-VM to device and device to IOMMU interoperation code to be refactored
-into platform independent code.
+The Virtual Contiguous Memory Manager (VCMM) needs a physical pool to
+allocate from. It breaks up the pool into sub-pools of same-sized
+chunks. In particular, it breaks the pool it manages into sub-pools of
+1 MB, 64 KB and 4 KB chunks.
 
-Comments, suggestions and criticisms are welcome and wanted.
+When a user makes a request, this allocator satisfies that request
+from the sub-pools using a "maximum-munch" strategy. This strategy
+attempts to satisfy a request using the largest chunk-size without
+over-allocating, then moving on to the next smallest size without
+over-allocating and finally completing the request with the smallest
+sized chunk, over-allocating if necessary.
+
+The maximum-munch strategy allows physical page allocation for small
+TLBs that need to map a given range using the minimum number of mappings.
+
+Although the allocator has been configured for 1 MB, 64 KB and 4 KB
+chunks, it can be easily extended to other chunk sizes.
 
 Signed-off-by: Zach Pfeffer <zpfeffer@codeaurora.org>
 ---
- Documentation/vcm.txt |  587 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 587 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/vcm.txt
+ arch/arm/mm/vcm_alloc.c   |  425 +++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/vcm_alloc.h |   70 ++++++++
+ 2 files changed, 495 insertions(+), 0 deletions(-)
+ create mode 100644 arch/arm/mm/vcm_alloc.c
+ create mode 100644 include/linux/vcm_alloc.h
 
-diff --git a/Documentation/vcm.txt b/Documentation/vcm.txt
+diff --git a/arch/arm/mm/vcm_alloc.c b/arch/arm/mm/vcm_alloc.c
 new file mode 100644
-index 0000000..1c6a8be
+index 0000000..e592e71
 --- /dev/null
-+++ b/Documentation/vcm.txt
-@@ -0,0 +1,587 @@
-+What is this document about?
-+============================
-+
-+This document covers how to use the Virtual Contiguous Memory Manager
-+(VCMM), how the first implementation works with a specific low-level
-+Input/Output Memory Management Unit (IOMMU) and the way the VCMM is used
-+from user-space. It also contains a section that describes why something
-+like the VCMM is needed in the kernel.
-+
-+If anything in this document is wrong, please send patches to the
-+maintainer of this file, listed at the bottom of the document.
-+
-+
-+The Virtual Contiguous Memory Manager
-+=====================================
-+
-+The VCMM was built to solve the system-wide memory mapping issues that
-+occur when many bus-masters have IOMMUs.
-+
-+An IOMMU maps device addresses to physical addresses. It also insulates
-+the system from spurious or malicious device bus transactions and allows
-+fine-grained mapping attribute control. The Linux kernel core does not
-+contain a generic API to handle IOMMU mapped memory; device driver writers
-+must implement device specific code to interoperate with the Linux kernel
-+core. As the number of IOMMUs increases, coordinating the many address
-+spaces mapped by all discrete IOMMUs becomes difficult without in-kernel
-+support.
-+
-+The VCMM API enables device independent IOMMU control, virtual memory
-+manager (VMM) interoperation and non-IOMMU enabled device interoperation
-+by treating devices with or without IOMMUs and all CPUs with or without
-+MMUs, their mapping contexts and their mappings using common
-+abstractions. Physical hardware is given a generic device type and mapping
-+contexts are abstracted into Virtual Contiguous Memory (VCM)
-+regions. Users "reserve" memory from VCMs and "back" their reservations
-+with physical memory.
-+
-+Why the VCMM is Needed
-+----------------------
-+
-+Driver writers who control devices with IOMMUs must contend with device
-+control and memory management. Driver writers have a large device driver
-+API that they can leverage to control their devices, but they are lacking
-+a unified API to help them program mappings into IOMMUs and share those
-+mappings with other devices and CPUs in the system.
-+
-+Sharing is complicated by Linux's CPU-centric VMM. The CPU-centric model
-+generally makes sense because average hardware only contains a MMU for the
-+CPU and possibly a graphics MMU. If every device in the system has one or
-+more MMUs the CPU-centric memory management (MM) programming model breaks
-+down.
-+
-+Abstracting IOMMU device programming into a common API has already begun
-+in the Linux kernel. It was built to abstract the difference between AMD
-+and Intel IOMMUs to support x86 virtualization on both platforms. The
-+interface is listed in include/linux/iommu.h. It contains
-+interfaces for mapping and unmapping as well as domain management. This
-+interface has not gained widespread use outside the x86; PA-RISC, Alpha
-+and SPARC architectures and ARM and PowerPC platforms all use their own
-+mapping modules to control their IOMMUs. The VCMM contains an IOMMU
-+programming layer, but since its abstraction supports map management
-+independent of device control, the layer is not used directly. This
-+higher-level view enables a new kernel service, not just an IOMMU
-+interoperation layer.
-+
-+The General Idea: Map Management using Graphs
-+---------------------------------------------
-+
-+Looking at mapping from a system-wide perspective reveals a general graph
-+problem. The VCMM's API is built to manage the general mapping graph. Each
-+node that talks to memory, either through an MMU or directly (physically
-+mapped) can be thought of as the device-end of a mapping edge. The other
-+edge is the physical memory (or intermediate virtual space) that is
-+mapped.
-+
-+In the direct-mapped case the device is assigned a one-to-one MMU. This
-+scheme allows direct mapped devices to participate in general graph
-+management.
-+
-+The CPU nodes can also be brought under the same mapping abstraction with
-+the use of a light overlay on the existing VMM. This light overlay allows
-+VMM-managed mappings to interoperate with the common API. The light
-+overlay enables this without substantial modifications to the existing
-+VMM.
-+
-+In addition to CPU nodes that are running Linux (and the VMM), remote CPU
-+nodes that may be running other operating systems can be brought into the
-+general abstraction. Routing all memory management requests from a remote
-+node through the central memory management framework enables new features
-+like system-wide memory migration. This feature may only be feasible for
-+large buffers that are managed outside of the fast-path, but having remote
-+allocation in a system enables features that are impossible to build
-+without it.
-+
-+The fundamental objects that support graph-based map management are:
-+
-+1) Virtual Contiguous Memory Regions
-+
-+2) Reservations
-+
-+3) Associated Virtual Contiguous Memory Regions
-+
-+4) Memory Targets
-+
-+5) Physical Memory Allocations
-+
-+Usage Overview
-+--------------
-+
-+In a nutshell, users allocate Virtual Contiguous Memory Regions and
-+associate those regions with one or more devices by creating an Associated
-+Virtual Contiguous Memory Region. Users then create Reservations from the
-+Virtual Contiguous Memory Region. At this point no physical memory has
-+been committed to the reservation. To associate physical memory with a
-+reservation a Physical Memory Allocation is created and the Reservation is
-+backed with this allocation.
-+
-+include/linux/vcm.h includes comments documenting each API.
-+
-+Virtual Contiguous Memory Regions
-+---------------------------------
-+
-+A Virtual Contiguous Memory Region (VCM) abstracts the memory space a
-+device sees. The addresses of the region are only used by the devices
-+which are associated with the region. This address space would normally be
-+implemented as a device page table.
-+
-+A VCM is created and destroyed with three functions:
-+
-+    struct vcm *vcm_create(unsigned long start_addr, unsigned long len);
-+
-+    struct vcm *vcm_create_from_prebuilt(size_t ext_vcm_id);
-+
-+    int vcm_free(struct vcm *vcm);
-+
-+start_addr is an offset into the address space where allocations will
-+start from. len is the length from start_addr of the VCM. Both functions
-+generate an instance of a VCM.
-+
-+ext_vcm_id is used to pass a request to the VMM to generate a VCM
-+instance. In the current implementation the call simply makes a note that
-+the VCM instance is a VMM VCM instance for other interfaces usage. This
-+muxing is seen throughout the implementation.
-+
-+vcm_create() and vcm_create_from_prebuilt() produce VCM instances for
-+virtually mapped devices (IOMMUs and CPUs). To create a one-to-one mapped
-+VCM, users pass the start_addr and len of the physical region. The VCMM
-+matches this and records that the VCM instance is a one-to-one VCM.
-+
-+The newly created VCM instance can be passed to any function that needs to
-+operate on or with a virtual contiguous memory region. Its main attributes
-+are a start_addr and a len as well as an internal setting that allows the
-+implementation to mux between true virtual spaces, one-to-one mapped
-+spaces and VMM managed spaces.
-+
-+The current implementation uses the genalloc library to manage the VCM for
-+IOMMU devices. Return values and more in-depth per-function documentation
-+for these and the ones listed below are in include/linux/vcm.h.
-+
-+Reservations
-+------------
-+
-+A Reservation is a contiguous region allocated from a VCM. There is no
-+physical memory associated with it.
-+
-+A Reservation is created and destroyed with:
-+
-+    struct res *vcm_reserve(struct vcm *vcm, size_t len, u32 attr);
-+
-+    int vcm_unreserve(struct res *res);
-+
-+A vcm is a VCM created above. len is the length of the request. It can be
-+up to the length of the VCM region the reservation is being created
-+from. attr are mapping attributes: read, write, execute, user, supervisor,
-+secure, not-cached, write-back/write-allocate, write-back/no
-+write-allocate, write-through. These attrs are appropriate for ARM but can
-+be changed to match to any architecture.
-+
-+The implementation calls gen_pool_alloc() for IOMMU devices,
-+alloc_vm_area() for VMM areas and is a pass-through for one-to-one mapped
-+areas.
-+
-+Associated Virtual Contiguous Memory Regions and Activation
-+-----------------------------------------------------------
-+
-+An Associated Virtual Contiguous Memory Region (AVCM) is a mapping of a
-+VCM to a device. The mapping can be active or inactive.
-+
-+An AVCM is managed with:
-+
-+    struct avcm *vcm_assoc(struct vcm *vcm, struct device *dev, u32 attr);
-+
-+    int vcm_deassoc(struct avcm *avcm);
-+
-+    int vcm_activate(struct avcm *avcm);
-+
-+    int vcm_deactivate(struct avcm *avcm);
-+
-+A VCM instance is a VCM created above. A dev is an opaque device handle
-+thats passed down to the device driver the VCMM muxes in to handle a
-+request. attr are association attributes: split, use-high or
-+use-low. split controls which transactions hit a high-address page-table
-+and which transactions hit a low-address page-table. For instance, all
-+transactions whose most significant address bit is one would use the
-+high-address page-table, any other transaction would use the low address
-+page-table. This scheme is ARM-specific and could be changed in other
-+architectures. One VCM instance can be associated with many devices and
-+many VCM instances can be associated with one device.
-+
-+An AVCM is only a link. To program and deprogram a device with a VCM the
-+user calls vcm_activate() and vcm_deactivate(). For IOMMU devices,
-+activating a mapping programs the base address of a page table into an
-+IOMMU. For VMM and one-to-one based devices, mappings are active
-+immediately but the API does require an activation call for them for
-+internal reference counting.
-+
-+Memory Targets
-+--------------
-+
-+A Memory Target is a platform independent way of specifying a physical
-+pool; it abstracts a pool of physical memory. The physical memory pool may
-+be physically discontiguous, need to be allocated from in a unique way or
-+have other user-defined attributes.
-+
-+Physical Memory Allocation and Reservation Backing
-+--------------------------------------------------
-+
-+Physical memory is allocated as a separate step from reserving
-+memory. This allows multiple reservations to back the same physical
-+memory.
-+
-+A Physical Memory Allocation is managed using the following functions:
-+
-+    struct physmem *vcm_phys_alloc(enum memtype_t memtype,
-+                                   size_t len, u32 attr);
-+
-+    int vcm_phys_free(struct physmem *physmem);
-+
-+    int vcm_back(struct res *res, struct physmem *physmem);
-+
-+    int vcm_unback(struct res *res);
-+
-+attr can include an alignment request, a specification to map memory using
-+various block sizes and/or to use physically contiguous memory. memtype is
-+one of the memory types listed in Memory Targets.
-+
-+The current implementation manages two pools of memory. One pool is a
-+contiguous block of memory and the other is a set of contiguous block
-+pools. In the current implementation the block pools contain 4K, 64K and
-+1M blocks. The physical allocator does not try to split blocks from the
-+contiguous block pools to satisfy requests.
-+
-+The use of 4K, 64K and 1M blocks solves a problem with some IOMMU
-+hardware. IOMMUs are placed in front of multimedia engines to provide a
-+contiguous address space to the device. Multimedia devices need large
-+buffers and large buffers may map to a large number of physical
-+blocks. IOMMUs tend to have small translation lookaside buffers
-+(TLBs). Since the TLB is small the number of physical blocks that map a
-+given range needs to be small or else the IOMMU will continually fetch new
-+translations during a typical streamed multimedia flow. By using a 1 MB
-+mapping (or 64K mapping) instead of a 4K mapping the number of misses can
-+be minimized, allowing the multimedia block to meet its performance goals.
-+
-+Low Level Control
-+-----------------
-+
-+It is necessary in some instances to access attributes and provide
-+higher-level control of the low-level hardware abstraction. The API
-+contains many members and functions for this task but the two that are
-+typically used are:
-+
-+    res->dev_addr;
-+
-+    int vcm_hook(struct device *dev, vcm_handler handler, void *data);
-+
-+res->dev_addr is the device address given a reservation. This device
-+address is a virtual IOMMU address for reservations on IOMMU VCMs, a
-+virtual VMM address for reservations on VMM VCMs and a virtual (really
-+physical since its one-to-one mapped) address for one-to-one devices.
-+
-+The function, vcm_hook, allows a caller in the kernel to register a
-+user_handler. The handler is passed the data member passed to vcm_hook
-+during a fault. The user can return 1 to indicate that the underlying
-+driver should handle the fault and retry the transaction or they can
-+return 0 to halt the transaction. If the user doesn't register a
-+handler the low-level driver will print a warning and terminate the
-+transaction.
-+
-+A Detailed Walk Through
-+-----------------------
-+
-+The following call sequence walks through a typical allocation
-+sequence. In the first stage the memory for a device is reserved and
-+backed. This occurs without mapping the memory into a VMM VCM region. The
-+second stage maps the first VCM region into a VMM VCM region so the kernel
-+can read or write it. The second stage is not necessary if the VMM does
-+not need to read or modify the contents of the original mapping.
-+
-+    Stage 1: Map and Allocate Memory for a Device
-+
-+    The call sequence starts by creating a VCM region:
-+
-+        vcm = vcm_create(start_addr, len);
-+
-+    The next call associates a VCM region with a device:
-+
-+        avcm = vcm_assoc(vcm, dev, attr);
-+
-+    To activate the association, users call vcm_activate() on the avcm from
-+    the associate call. This programs the underlining device with the
-+    mappings.
-+
-+        ret = vcm_activate(avcm);
-+
-+    Once a VCM region is created and associated it can be reserved from
-+    with:
-+
-+        res = vcm_reserve(vcm, res_len, res_attr);
-+
-+    A user then allocates physical memory with:
-+
-+        physmem = vcm_phys_alloc(memtype, len, phys_attr);
-+
-+    To back the reservation with the physical memory allocation the user
-+    calls:
-+
-+        vcm_back(res, physmem);
-+
-+
-+    Stage 2: Map the Device's Memory into the VMM's VCM region
-+
-+    If the VMM needs to read and/or write the region that was just created,
-+    the following calls are made.
-+
-+    The first call creates a prebuilt VCM with:
-+
-+        vcm_vmm = vcm_from_prebuilt(ext_vcm_id);
-+
-+    The prebuilt VCM is associated with the CPU device and activated with:
-+
-+        avcm_vmm = vcm_assoc(vcm_vmm, dev_cpu, attr);
-+        vcm_activate(avcm_vmm);
-+
-+    A reservation is made on the VMM VCM with:
-+
-+        res_vmm = vcm_reserve(vcm_vmm, res_len, attr);
-+
-+    Finally, once the topology has been set up a vcm_back() allows the VMM
-+    to read the memory using the physmem generated in stage 1:
-+
-+        vcm_back(res_vmm, physmem);
-+
-+Mapping IOMMU, one-to-one and VMM Reservations
-+----------------------------------------------
-+
-+The following example demonstrates mapping IOMMU, one-to-one and VMM
-+reservations to the same physical memory. It shows the use of phys_addr
-+and phys_size to create a contiguous VCM for one-to-one mapped devices.
-+
-+    The user allocates physical memory:
-+
-+        physmem = vcm_phys_alloc(memtype, SZ_2MB + SZ_4K, CONTIGUOUS);
-+
-+    Creates an IOMMU VCM:
-+
-+        vcm_iommu = vcm_create(SZ_1K, SZ_16M);
-+
-+    Creates a one-to-one VCM:
-+
-+        vcm_onetoone = vcm_create(phys_addr, phys_size);
-+
-+    Creates a Prebuit VCM:
-+
-+        vcm_vmm = vcm_from_prebuit(ext_vcm_id);
-+
-+    Associate and activate all three to their respective devices:
-+
-+        avcm_iommu = vcm_assoc(vcm_iommu, dev_iommu, attr0);
-+        avcm_onetoone = vcm_assoc(vcm_onetoone, dev_onetoone, attr1);
-+        avcm_vmm = vcm_assoc(vcm_vmm, dev_cpu, attr2);
-+        vcm_activate(avcm_iommu);
-+        vcm_activate(avcm_onetoone);
-+        vcm_activate(avcm_vmm);
-+
-+    Associations that fail return 0.
-+
-+    And finally, creates and backs reservations on all 3 such that they
-+    all point to the same memory:
-+
-+        res_iommu = vcm_reserve(vcm_iommu, SZ_2MB + SZ_4K, attr);
-+        res_onetoone = vcm_reserve(vcm_onetoone, SZ_2MB + SZ_4K, attr);
-+        res_vmm = vcm_reserve(vcm_vmm, SZ_2MB + SZ_4K, attr);
-+        vcm_back(res_iommu, physmem);
-+        vcm_back(res_onetoone, physmem);
-+        vcm_back(res_vmm, physmem);
-+
-+    Like associations, reservations that fail return 0.
-+
-+VCM Summary
-+-----------
-+
-+The VCMM is an attempt to abstract attributes of three distinct classes of
-+mappings into one API. The VCMM allows users to reason about mappings as
-+first class objects. It also allows memory mappings to flow from the
-+traditional 4K mappings prevalent on systems today to more efficient block
-+sizes. Finally, it allows users to manage mapping interoperation without
-+becoming VMM experts. These features will allow future systems with many
-+MMU mapped devices to interoperate simply and therefore correctly.
-+
-+
-+IOMMU Hardware Control
-+======================
-+
-+The VCM currently supports a single type of IOMMU, a Qualcomm System MMU
-+(SMMU). The SMMU interface contains functions to map and unmap virtual
-+addresses, perform address translations and initialize hardware. A
-+Qualcomm SMMU can contain multiple MMU contexts. Each context can
-+translate in parallel. All contexts in a SMMU share one global translation
-+look-aside buffer (TLB).
-+
-+To support context muxing the SMMU module creates and manages device
-+independent virtual contexts. These context abstractions are bound to
-+actual contexts at run-time. Once bound, a context can be activated. This
-+activation programs the underlying context with the virtual context
-+affecting a context switch.
-+
-+The following functions are all documented in:
-+
-+    arch/arm/mach-msm/include/mach/smmu_driver.h.
-+
-+Mapping
-+-------
-+
-+To map and unmap a virtual page into physical space the VCM calls:
-+
-+    int smmu_map(struct smmu_dev *dev, unsigned long pa,
-+                 unsigned long va, unsigned long len, unsigned int attr);
-+
-+    int smmu_unmap(struct smmu_dev *dev, unsigned long va,
-+                   unsigned long len);
-+
-+    int smmu_update_start(struct smmu_dev *dev);
-+
-+    int smmu_update_done(struct smmu_dev *dev);
-+
-+The size given to map must be 4K, 64K, 1M or 16M and the VA and PA must be
-+aligned to the given size. smmu_update_start() and smmu_update_done()
-+should be called before and after each map or unmap.
-+
-+Translation
-+-----------
-+
-+To request a hardware VA to PA translation on a single address the VCM
-+calls:
-+
-+    unsigned long smmu_translate(struct smmu_dev *dev,
-+                                 unsigned long va);
-+
-+Fault Handling
-+--------------
-+
-+To register an interrupt handler for a context the VCM calls:
-+
-+    int smmu_hook_interrupt(struct smmu_dev *dev, vcm_handler handler,
-+                            void *data);
-+
-+The registered interrupt handler should return 1 if it wants the SMMU
-+driver to retry the transaction again and 0 if it wants the SMMU driver to
-+terminate the transaction.
-+
-+Managing SMMU Initialization and Contexts
-+-----------------------------------------
-+
-+SMMU hardware initialization and management happens in 2 steps. The first
-+step initializes global SMMU devices and abstract device contexts. The
-+second step binds contexts and devices.
-+
-+An SMMU hardware instance is built with:
-+
-+    int smmu_drvdata_init(struct smmu_driver *drv, unsigned long base,
-+                          int irq);
-+
-+An SMMU context is initialized and deinitialized with:
-+
-+    struct smmu_dev *smmu_ctx_init(int ctx);
-+    int smmu_ctx_deinit(struct smmu_dev *dev);
-+
-+An abstract SMMU context is bound to a particular SMMU with:
-+
-+    int smmu_ctx_bind(struct smmu_dev *ctx, struct smmu_driver *drv);
-+
-+Activation
-+----------
-+
-+Activation affects a context switch.
-+
-+Activation, deactivation and activation state testing are done with:
-+
-+    int smmu_activate(struct smmu_dev *dev);
-+    int smmu_deactivate(struct smmu_dev *dev);
-+    int smmu_is_active(struct smmu_dev *dev);
-+
-+
-+Userspace Access to Devices with IOMMUs
-+=======================================
-+
-+A device that issues transactions through an IOMMU must work with two
-+APIs. The first API is the VCM. The VCM API is device independent. Users
-+pass the VCM a dev_id and the VCM makes calls on the hardware device it
-+has been configured with using this dev_id. The second API is whatever
-+device topology has been created to organize the particular IOMMUs in a
-+system. The only constraint on this second API is that it must give the
-+user a single dev_id that it can pass through the VCM.
-+
-+For the Qualcomm SMMUs the second API consists of a tree of platform
-+devices and two platform drivers as well as a context lookup function that
-+traverses the device tree and returns a dev_id given a context name.
-+
-+Qualcomm SMMU Device Tree
-+-------------------------
-+
-+The current tree organizes the devices into a tree that looks like the
-+following:
-+
-+smmu/
-+               smmu0/
-+                                ctx0
-+                                ctx1
-+                                ctx2
-+               smmu1/
-+                                ctx3
-+
-+
-+Each context, ctx[n] and each smmu, smmu[n] is given a name. Since users
-+are interested in contexts not smmus, the context name is passed to a
-+function to find the dev_id associated with that name. The functions to
-+find, free and get the base address (since the device probe function calls
-+ioremap to map the SMMUs configuration registers into the kernel) are
-+listed here:
-+
-+    struct smmu_dev *smmu_get_ctx_instance(char *ctx_name);
-+    int smmu_free_ctx_instance(struct smmu_dev *dev);
-+    unsigned long smmu_get_base_addr(struct smmu_dev *dev);
-+
-+Documentation for these functions is in:
-+
-+    arch/arm/mach-msm/include/mach/smmu_device.h
-+
-+Each context is given a dev node named after the context. For example:
-+
-+    /dev/vcodec_a_mm1
-+    /dev/vcodec_b_mm2
-+    /dev/vcodec_stream
-+    etc...
-+
-+Users open, close and mmap these nodes to access VCM buffers from
-+userspace in the same way that they used to open, close and mmap /dev
-+nodes that represented large physically contiguous buffers (called PMEM
-+buffers on Android).
-+
-+Example
-+-------
-+
-+An abbreviated example is shown here:
-+
-+Users get the dev_id associated with their target context, create a VCM
-+topology appropriate for their device and finally associate the VCMs of
-+the topology with the contexts that will take the VCMs:
-+
-+    dev_id = smmu_get_ctx_instance(vcodec_a_stream);
-+
-+create vcm and needed topology
-+
-+    avcm = vcm_assoc(vcm, dev_id, attr);
-+
-+Tying it all Together
-+---------------------
-+
-+VCMs, IOMMUs and the device tree all work to support system-wide memory
-+mappings. The use of each API in this system allows users to concentrate
-+on the relevant details without needing to worry about low-level
-+details. The API's clear separation of memory spaces and the devices that
-+support those memory spaces continues the Linux tradition of abstracting the
-+what from the how.
-+
-+
-+Maintainer: Zach Pfeffer <zpfeffer@codeaurora.org>
++++ b/arch/arm/mm/vcm_alloc.c
+@@ -0,0 +1,425 @@
++/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301, USA.
++ */
++
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include <linux/module.h>
++#include <linux/vcm_alloc.h>
++#include <linux/string.h>
++#include <asm/sizes.h>
++
++/* Amount of memory managed by VCM */
++#define TOTAL_MEM_SIZE SZ_32M
++
++static unsigned int base_pa = 0x80000000;
++int basicalloc_init;
++
++int chunk_sizes[NUM_CHUNK_SIZES] = {SZ_1M, SZ_64K, SZ_4K};
++int init_num_chunks[] = {
++	(TOTAL_MEM_SIZE/2) / SZ_1M,
++	(TOTAL_MEM_SIZE/4) / SZ_64K,
++	(TOTAL_MEM_SIZE/4) / SZ_4K
++};
++#define LAST_SZ() (ARRAY_SIZE(chunk_sizes) - 1)
++
++#define vcm_alloc_err(a, ...)						\
++	pr_err("ERROR %s %i " a, __func__, __LINE__, ##__VA_ARGS__)
++
++struct phys_chunk_head {
++	struct list_head head;
++	int num;
++};
++
++struct phys_mem {
++	struct phys_chunk_head heads[ARRAY_SIZE(chunk_sizes)];
++} phys_mem;
++
++static int is_allocated(struct list_head *allocated)
++{
++	/* This should not happen under normal conditions */
++	if (!allocated) {
++		vcm_alloc_err("no allocated\n");
++		return 0;
++	}
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return 0;
++	}
++	return !list_empty(allocated);
++}
++
++static int count_allocated_size(enum chunk_size_idx idx)
++{
++	int cnt = 0;
++	struct phys_chunk *chunk, *tmp;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return 0;
++	}
++
++	list_for_each_entry_safe(chunk, tmp,
++				 &phys_mem.heads[idx].head, list) {
++		if (is_allocated(&chunk->allocated))
++			cnt++;
++	}
++
++	return cnt;
++}
++
++
++int vcm_alloc_get_mem_size(void)
++{
++	return TOTAL_MEM_SIZE;
++}
++EXPORT_SYMBOL(vcm_alloc_get_mem_size);
++
++
++int vcm_alloc_blocks_avail(enum chunk_size_idx idx)
++{
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return 0;
++	}
++
++	return phys_mem.heads[idx].num;
++}
++EXPORT_SYMBOL(vcm_alloc_blocks_avail);
++
++
++int vcm_alloc_get_num_chunks(void)
++{
++	return ARRAY_SIZE(chunk_sizes);
++}
++EXPORT_SYMBOL(vcm_alloc_get_num_chunks);
++
++
++int vcm_alloc_all_blocks_avail(void)
++{
++	int i;
++	int cnt = 0;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return 0;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i)
++		cnt += vcm_alloc_blocks_avail(i);
++	return cnt;
++}
++EXPORT_SYMBOL(vcm_alloc_all_blocks_avail);
++
++
++int vcm_alloc_count_allocated(void)
++{
++	int i;
++	int cnt = 0;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return 0;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i)
++		cnt += count_allocated_size(i);
++	return cnt;
++}
++EXPORT_SYMBOL(vcm_alloc_count_allocated);
++
++
++void vcm_alloc_print_list(int just_allocated)
++{
++	int i;
++	struct phys_chunk *chunk, *tmp;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i) {
++		if (list_empty(&phys_mem.heads[i].head))
++			continue;
++		list_for_each_entry_safe(chunk, tmp,
++					 &phys_mem.heads[i].head, list) {
++			if (just_allocated && !is_allocated(&chunk->allocated))
++				continue;
++
++			printk(KERN_INFO "pa = %#x, size = %#x\n",
++			       chunk->pa, chunk_sizes[chunk->size_idx]);
++		}
++	}
++}
++EXPORT_SYMBOL(vcm_alloc_print_list);
++
++
++int vcm_alloc_idx_to_size(int idx)
++{
++	return chunk_sizes[idx];
++}
++EXPORT_SYMBOL(vcm_alloc_idx_to_size);
++
++
++int vcm_alloc_destroy(void)
++{
++	int i;
++	struct phys_chunk *chunk, *tmp;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		return -1;
++	}
++
++	/* can't destroy a space that has allocations */
++	if (vcm_alloc_count_allocated()) {
++		vcm_alloc_err("allocations still present\n");
++		return -1;
++	}
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i) {
++
++		if (list_empty(&phys_mem.heads[i].head))
++			continue;
++		list_for_each_entry_safe(chunk, tmp,
++					 &phys_mem.heads[i].head, list) {
++			list_del(&chunk->list);
++			memset(chunk, 0, sizeof(*chunk));
++			kfree(chunk);
++		}
++	}
++
++	basicalloc_init = 0;
++
++	return 0;
++}
++EXPORT_SYMBOL(vcm_alloc_destroy);
++
++
++int vcm_alloc_init(unsigned int set_base_pa)
++{
++	int i = 0, j = 0;
++	struct phys_chunk *chunk;
++	int pa;
++
++	if (set_base_pa)
++		base_pa = set_base_pa;
++
++	pa = base_pa;
++
++	/* no double inits */
++	if (basicalloc_init) {
++		vcm_alloc_err("double basicalloc_init\n");
++		BUG();
++		return -1;
++	}
++
++	/* separate out to ensure good cleanup */
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i) {
++		INIT_LIST_HEAD(&phys_mem.heads[i].head);
++		phys_mem.heads[i].num = 0;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i) {
++		for (j = 0; j < init_num_chunks[i]; ++j) {
++			chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
++			if (!chunk) {
++				vcm_alloc_err("null chunk\n");
++				goto fail;
++			}
++			chunk->pa = pa; pa += chunk_sizes[i];
++			chunk->size_idx = i;
++			INIT_LIST_HEAD(&chunk->allocated);
++			list_add_tail(&chunk->list, &phys_mem.heads[i].head);
++			phys_mem.heads[i].num++;
++		}
++	}
++
++	basicalloc_init = 1;
++	return 0;
++fail:
++	vcm_alloc_destroy();
++	return -1;
++}
++EXPORT_SYMBOL(vcm_alloc_init);
++
++
++int vcm_alloc_free_blocks(struct phys_chunk *alloc_head)
++{
++	struct phys_chunk *chunk, *tmp;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		goto fail;
++	}
++
++	if (!alloc_head) {
++		vcm_alloc_err("no alloc_head\n");
++		goto fail;
++	}
++
++	list_for_each_entry_safe(chunk, tmp, &alloc_head->allocated,
++				 allocated) {
++		list_del_init(&chunk->allocated);
++		phys_mem.heads[chunk->size_idx].num++;
++	}
++
++	return 0;
++fail:
++	return -1;
++}
++EXPORT_SYMBOL(vcm_alloc_free_blocks);
++
++
++int vcm_alloc_num_blocks(int num,
++			 enum chunk_size_idx idx, /* chunk size */
++			 struct phys_chunk *alloc_head)
++{
++	struct phys_chunk *chunk;
++	int num_allocated = 0;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("no basicalloc_init\n");
++		goto fail;
++	}
++
++	if (!alloc_head) {
++		vcm_alloc_err("no alloc_head\n");
++		goto fail;
++	}
++
++	if (list_empty(&phys_mem.heads[idx].head)) {
++		vcm_alloc_err("list is empty\n");
++		goto fail;
++	}
++
++	if (vcm_alloc_blocks_avail(idx) < num) {
++		vcm_alloc_err("not enough blocks? num=%d\n", num);
++		goto fail;
++	}
++
++	list_for_each_entry(chunk, &phys_mem.heads[idx].head, list) {
++		if (num_allocated == num)
++			break;
++		if (is_allocated(&chunk->allocated))
++			continue;
++
++		list_add_tail(&chunk->allocated, &alloc_head->allocated);
++		phys_mem.heads[idx].num--;
++		num_allocated++;
++	}
++	return num_allocated;
++fail:
++	return 0;
++}
++EXPORT_SYMBOL(vcm_alloc_num_blocks);
++
++
++int vcm_alloc_max_munch(int len,
++			struct phys_chunk *alloc_head)
++{
++	int i;
++
++	int blocks_req = 0;
++	int block_residual = 0;
++	int blocks_allocated = 0;
++
++	int ba = 0;
++
++	if (!basicalloc_init) {
++		vcm_alloc_err("basicalloc_init is 0\n");
++		goto fail;
++	}
++
++	if (!alloc_head) {
++		vcm_alloc_err("alloc_head is NULL\n");
++		goto fail;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(chunk_sizes); ++i) {
++		blocks_req = len / chunk_sizes[i];
++		block_residual = len % chunk_sizes[i];
++
++		len = block_residual; /* len left */
++		if (blocks_req) {
++			int blocks_available = 0;
++			int blocks_diff = 0;
++			int bytes_diff = 0;
++
++			blocks_available = vcm_alloc_blocks_avail(i);
++			if (blocks_available < blocks_req) {
++				blocks_diff =
++					(blocks_req - blocks_available);
++				bytes_diff =
++					blocks_diff * chunk_sizes[i];
++
++				/* add back in the rest */
++				len += bytes_diff;
++			} else {
++				/* got all the blocks I need */
++				blocks_available =
++					(blocks_available > blocks_req)
++					? blocks_req : blocks_available;
++			}
++
++			ba = vcm_alloc_num_blocks(blocks_available, i,
++						  alloc_head);
++
++			if (ba != blocks_available) {
++				vcm_alloc_err("blocks allocated (%i) !="
++					      " blocks_available (%i):"
++					      " chunk size = %#x,"
++					      " alloc_head = %p\n",
++					      ba, blocks_available,
++					      i, (void *) alloc_head);
++				goto fail;
++			}
++			blocks_allocated += blocks_available;
++		}
++	}
++
++	if (len) {
++		int blocks_available = 0;
++
++		blocks_available = vcm_alloc_blocks_avail(LAST_SZ());
++
++		if (blocks_available > 1) {
++			ba = vcm_alloc_num_blocks(1, LAST_SZ(), alloc_head);
++			if (ba != 1) {
++				vcm_alloc_err("blocks allocated (%i) !="
++					      " blocks_available (%i):"
++					      " chunk size = %#x,"
++					      " alloc_head = %p\n",
++					      ba, 1,
++					      LAST_SZ(),
++					      (void *) alloc_head);
++				goto fail;
++			}
++			blocks_allocated += 1;
++		} else {
++			vcm_alloc_err("blocks_available (%#x) <= 1\n",
++				      blocks_available);
++			goto fail;
++		}
++	}
++
++	return blocks_allocated;
++fail:
++	vcm_alloc_free_blocks(alloc_head);
++	return 0;
++}
++EXPORT_SYMBOL(vcm_alloc_max_munch);
+diff --git a/include/linux/vcm_alloc.h b/include/linux/vcm_alloc.h
+new file mode 100644
+index 0000000..e3e3b31
+--- /dev/null
++++ b/include/linux/vcm_alloc.h
+@@ -0,0 +1,70 @@
++/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ *     * Redistributions of source code must retain the above copyright
++ *       notice, this list of conditions and the following disclaimer.
++ *     * Redistributions in binary form must reproduce the above
++ *       copyright notice, this list of conditions and the following
++ *       disclaimer in the documentation and/or other materials provided
++ *       with the distribution.
++ *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
++ *       contributors may be used to endorse or promote products derived
++ *       from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ *
++ */
++
++#ifndef VCM_ALLOC_H
++#define VCM_ALLOC_H
++
++#include <linux/list.h>
++
++#define NUM_CHUNK_SIZES 3
++
++enum chunk_size_idx {
++	IDX_1M = 0,
++	IDX_64K,
++	IDX_4K
++};
++
++struct phys_chunk {
++	struct list_head list;
++	struct list_head allocated; /* used to record is allocated */
++
++	struct list_head refers_to;
++
++	/* TODO: change to unsigned long */
++	int pa;
++	int size_idx;
++};
++
++int vcm_alloc_get_mem_size(void);
++int vcm_alloc_blocks_avail(enum chunk_size_idx idx);
++int vcm_alloc_get_num_chunks(void);
++int vcm_alloc_all_blocks_avail(void);
++int vcm_alloc_count_allocated(void);
++void vcm_alloc_print_list(int just_allocated);
++int vcm_alloc_idx_to_size(int idx);
++int vcm_alloc_destroy(void);
++int vcm_alloc_init(unsigned int set_base_pa);
++int vcm_alloc_free_blocks(struct phys_chunk *alloc_head);
++int vcm_alloc_num_blocks(int num,
++			 enum chunk_size_idx idx, /* chunk size */
++			 struct phys_chunk *alloc_head);
++int vcm_alloc_max_munch(int len,
++			struct phys_chunk *alloc_head);
++
++#endif /* VCM_ALLOC_H */
 -- 
 1.7.0.2
 
