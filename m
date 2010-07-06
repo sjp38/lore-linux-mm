@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1AD976B024D
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:15 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 31CCE6B0250
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:16 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v4 10/12] Handle async PF in non preemptable context
-Date: Tue,  6 Jul 2010 19:24:58 +0300
-Message-Id: <1278433500-29884-11-git-send-email-gleb@redhat.com>
+Subject: [PATCH v4 01/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
+Date: Tue,  6 Jul 2010 19:24:49 +0300
+Message-Id: <1278433500-29884-2-git-send-email-gleb@redhat.com>
 In-Reply-To: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,106 +13,92 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-If async page fault is received by idle task or when preemp_count is
-not zero guest cannot reschedule, so do sti; hlt and wait for page to be
-ready. vcpu can still process interrupts while it waits for the page to
-be ready.
+Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
+into generic code.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/kernel/kvm.c |   36 ++++++++++++++++++++++++++++++++----
- 1 files changed, 32 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/kvm_para.h |    1 +
+ arch/x86/kernel/kvm.c           |   11 +++++++++++
+ arch/x86/kernel/kvmclock.c      |   13 +------------
+ 3 files changed, 13 insertions(+), 12 deletions(-)
 
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index 05eba5e..42298ab 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -65,6 +65,7 @@ struct kvm_mmu_op_release_pt {
+ #include <asm/processor.h>
+ 
+ extern void kvmclock_init(void);
++extern int kvm_register_clock(char *txt);
+ 
+ 
+ /* This instruction is vmcall.  On non-VT architectures, it will generate a
 diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index fa9f520..f4d87b3 100644
+index 63b0ec8..e6db179 100644
 --- a/arch/x86/kernel/kvm.c
 +++ b/arch/x86/kernel/kvm.c
-@@ -37,6 +37,7 @@
- #include <asm/cpu.h>
- #include <asm/traps.h>
- #include <asm/desc.h>
-+#include <asm/tlbflush.h>
+@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
+ #endif
+ }
  
- #define MMU_QUEUE_SIZE 1024
++#ifdef CONFIG_SMP
++static void __init kvm_smp_prepare_boot_cpu(void)
++{
++	WARN_ON(kvm_register_clock("primary cpu clock"));
++	native_smp_prepare_boot_cpu();
++}
++#endif
++
+ void __init kvm_guest_init(void)
+ {
+ 	if (!kvm_para_available())
+ 		return;
  
-@@ -68,6 +69,8 @@ struct kvm_task_sleep_node {
- 	wait_queue_head_t wq;
- 	u32 token;
- 	int cpu;
-+	bool halted;
-+	struct mm_struct *mm;
+ 	paravirt_ops_setup();
++#ifdef CONFIG_SMP
++	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#endif
+ }
+diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
+index eb9b76c..67a5f46 100644
+--- a/arch/x86/kernel/kvmclock.c
++++ b/arch/x86/kernel/kvmclock.c
+@@ -125,7 +125,7 @@ static struct clocksource kvm_clock = {
+ 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
  };
  
- static struct kvm_task_sleep_head {
-@@ -96,6 +99,11 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
- 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
- 	struct kvm_task_sleep_node n, *e;
- 	DEFINE_WAIT(wait);
-+	int cpu, idle;
-+
-+	cpu = get_cpu();
-+	idle = idle_cpu(cpu);
-+	put_cpu();
- 
- 	spin_lock(&b->lock);
- 	e = _find_apf_task(b, token);
-@@ -109,17 +117,31 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
- 
- 	n.token = token;
- 	n.cpu = smp_processor_id();
-+	n.mm = percpu_read(cpu_tlbstate.active_mm);
-+	n.halted = idle || preempt_count() > 1;
-+	atomic_inc(&n.mm->mm_count);
- 	init_waitqueue_head(&n.wq);
- 	hlist_add_head(&n.link, &b->list);
- 	spin_unlock(&b->lock);
- 
- 	for (;;) {
--		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
-+		if (!n.halted)
-+			prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
- 		if (hlist_unhashed(&n.link))
- 			break;
--		schedule();
-+
-+		if (!n.halted) {
-+			schedule();
-+		} else {
-+			/*
-+			 * We cannot reschedule. So halt.
-+			 */
-+			native_safe_halt();
-+			local_irq_disable();
-+		}
- 	}
--	finish_wait(&n.wq, &wait);
-+	if (!n.halted)
-+		finish_wait(&n.wq, &wait);
- 
- 	return;
- }
-@@ -127,7 +149,12 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
- static void apf_task_wake_one(struct kvm_task_sleep_node *n)
+-static int kvm_register_clock(char *txt)
++int kvm_register_clock(char *txt)
  {
- 	hlist_del_init(&n->link);
--	if (waitqueue_active(&n->wq))
-+	if (!n->mm)
-+		return;
-+	mmdrop(n->mm);
-+	if (n->halted)
-+		smp_send_reschedule(n->cpu);
-+	else if (waitqueue_active(&n->wq))
- 		wake_up(&n->wq);
+ 	int cpu = smp_processor_id();
+ 	int low, high;
+@@ -150,14 +150,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
  }
+ #endif
  
-@@ -157,6 +184,7 @@ again:
- 		}
- 		n->token = token;
- 		n->cpu = smp_processor_id();
-+		n->mm = NULL;
- 		init_waitqueue_head(&n->wq);
- 		hlist_add_head(&n->link, &b->list);
- 	} else
+-#ifdef CONFIG_SMP
+-static void __init kvm_smp_prepare_boot_cpu(void)
+-{
+-	WARN_ON(kvm_register_clock("primary cpu clock"));
+-	native_smp_prepare_boot_cpu();
+-}
+-#endif
+-
+ /*
+  * After the clock is registered, the host will keep writing to the
+  * registered memory location. If the guest happens to shutdown, this memory
+@@ -204,9 +196,6 @@ void __init kvmclock_init(void)
+ 	x86_cpuinit.setup_percpu_clockev =
+ 		kvm_setup_secondary_clock;
+ #endif
+-#ifdef CONFIG_SMP
+-	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
+-#endif
+ 	machine_ops.shutdown  = kvm_shutdown;
+ #ifdef CONFIG_KEXEC
+ 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
 -- 
 1.7.1
 
