@@ -1,124 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 989916B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 06:48:17 -0400 (EDT)
-Received: by vws1 with SMTP id 1so8378866vws.14
-        for <linux-mm@kvack.org>; Tue, 06 Jul 2010 03:48:15 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 209A26B01AF
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 07:13:44 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o66BDfwt023850
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 6 Jul 2010 20:13:41 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BE7145DE60
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 20:13:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1875345DE4D
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 20:13:41 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 021F91DB8037
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 20:13:41 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B5711DB8040
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 20:13:37 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+In-Reply-To: <20100706101235.GE13780@csn.ul.ie>
+References: <20100706093529.CCD1.A69D9226@jp.fujitsu.com> <20100706101235.GE13780@csn.ul.ie>
+Message-Id: <20100706200310.CD06.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTik9TlLYbG4GE6TV1wF7SOXz7v7gQ1BR531HGyNx@mail.gmail.com>
-References: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
-	<AANLkTik9TlLYbG4GE6TV1wF7SOXz7v7gQ1BR531HGyNx@mail.gmail.com>
-Date: Tue, 6 Jul 2010 16:18:15 +0530
-Message-ID: <AANLkTin8JIdtSFR-E1J8FwVR2WTivShmZrEoeJWjCd1j@mail.gmail.com>
-Subject: Re: Need some help in understanding sparsemem.
-From: naren.mehra@gmail.com
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  6 Jul 2010 20:13:36 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Thanks Kame for your elaborate response, I got a lot of pointers on
-where to look for in the code.
-Kim, thanks for pointing out memmap_init_zone.
-So basically those sections which contains holes in them, the mem_map
-in those sections skip the entry for the invalid pages (holes).
-This happens in memmap_init_zone().
-1) So it means that all the sections get the initial allocation of
-mem_map and in memmap_init_zone we decide whether or not it requires
-any mem_map entry. Correct ??
-
-2) Both of you mentioned that
-> "If a section contains both of valid pages and
-> holes, the section itself is marked as SECTION_MARKED_PRESENT."
-> "It just mark _bank_ which has memory with SECTION_MARKED_PRESENT.
-> Otherwise, Hole."
-
-which happens in memory_present(). In memory_present() code, I am not
-able to find anything where we are doing this classification of valid
-section/bank ? To me it looks that memory_present marks, all the
-sections as present and doesnt verify whether any section contains any
-valid pages or not. Correct ??
-
-void __init memory_present(int nid, unsigned long start, unsigned long end)
-{
-        unsigned long pfn;
-
-        start &=3D PAGE_SECTION_MASK;
-        mminit_validate_memmodel_limits(&start, &end);
-        for (pfn =3D start; pfn < end; pfn +=3D PAGES_PER_SECTION) {
-                unsigned long section =3D pfn_to_section_nr(pfn);
-          <--- find out the section no. of the given pfn
-                struct mem_section *ms;
-
-                sparse_index_init(section, nid);
-                     <---- allocate a new section pointer to the
-mem_section array
-                set_section_nid(section, nid);
-                      <---- store the node id for the particular page.
-
-                ms =3D __nr_to_section(section);
-                     <---- get the pointer to the mem_section
-                if (!ms->section_mem_map)
-                     <--- mark present, if not already marked.
-                        ms->section_mem_map =3D sparse_encode_early_nid(nid=
-) |
-                                                        SECTION_MARKED_PRES=
-ENT;
-        }
-}
-
-I know, I am missing something very simple... pls point it out. if possible=
-.
-
-Regards,
-Naren
-
-On Tue, Jul 6, 2010 at 1:06 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Tue, Jul 6, 2010 at 2:11 PM, =A0<naren.mehra@gmail.com> wrote:
->> Hi,
->>
->> I am trying to understand the sparsemem implementation in linux for
->> NUMA/multiple node systems.
->>
->> From the available documentation and the sparsemem patches, I am able
->> to make out that sparsemem divides memory into different sections and
->> if the whole section contains a hole then its marked as invalid
->> section and if some pages in a section form a hole then those pages
->> are marked reserved. My issue is that this classification, I am not
->> able to map it to the code.
->>
->> e.g. from arch specific code, we call memory_present() =A0to prepare a
->> list of sections in a particular node. but unable to find where
->> exactly some sections are marked invalid because they contain a hole.
->
-> On ARM's sparsememory,
->
-> static void arm_memory_present(struct meminfo *mi)
+> On Tue, Jul 06, 2010 at 09:36:41AM +0900, KOSAKI Motohiro wrote:
+> > Hello,
+> > 
+> > > Ok, that's reasonable as I'm still working on that patch. For example, the
+> > > patch disabled anonymous page writeback which is unnecessary as the stack
+> > > usage for anon writeback is less than file writeback. 
+> > 
+> > How do we examine swap-on-file?
+> > 
+> 
+> Anything in particular wrong with the following?
+> 
+> /*
+>  * For now, only kswapd can writeback filesystem pages as otherwise
+>  * there is a stack overflow risk
+>  */
+> static inline bool reclaim_can_writeback(struct scan_control *sc,
+>                                         struct page *page)
 > {
-> =A0 =A0 =A0 =A0int i;
-> =A0 =A0 =A0 =A0for_each_bank(i, mi) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct membank *bank =3D &mi->bank[i];
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0memory_present(0, bank_pfn_start(bank), ba=
-nk_pfn_end(bank));
-> =A0 =A0 =A0 =A0}
+>         return !page_is_file_cache(page) || current_is_kswapd();
 > }
->
-> It just mark _bank_ which has memory with SECTION_MARKED_PRESENT.
-> Otherwise, Hole.
->
->>
->> Can somebody tell me where in the code are we identifying sections as
->> invalid and where we are marking pages as reserved.
->
-> Do you mean memmap_init_zone?
->
->
-> --
-> Kind regards,
-> Minchan Kim
->
+> 
+> Even if it is a swapfile, I didn't spot a case where the filesystems
+> writepage would be called. Did I miss something?
+
+Hmm...
+
+Now, I doubt I don't understand your mention. Do you mean you intend to swtich task
+stack when every writepage? It seems a bit costly. but otherwise write-page for anon
+makes filesystem IO and stack-overflow.
+
+Can you please elaborate your plan?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
