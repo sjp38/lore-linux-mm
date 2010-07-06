@@ -1,65 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A951C6B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 03:36:38 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so5474941iwn.14
-        for <linux-mm@kvack.org>; Tue, 06 Jul 2010 00:36:37 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DF436B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 06:12:55 -0400 (EDT)
+Date: Tue, 6 Jul 2010 11:12:35 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+Message-ID: <20100706101235.GE13780@csn.ul.ie>
+References: <20100702125155.69c02f85.akpm@linux-foundation.org> <20100705134949.GC13780@csn.ul.ie> <20100706093529.CCD1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
-References: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
-Date: Tue, 6 Jul 2010 16:36:37 +0900
-Message-ID: <AANLkTik9TlLYbG4GE6TV1wF7SOXz7v7gQ1BR531HGyNx@mail.gmail.com>
-Subject: Re: Need some help in understanding sparsemem.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100706093529.CCD1.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: naren.mehra@gmail.com
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 6, 2010 at 2:11 PM,  <naren.mehra@gmail.com> wrote:
-> Hi,
->
-> I am trying to understand the sparsemem implementation in linux for
-> NUMA/multiple node systems.
->
-> From the available documentation and the sparsemem patches, I am able
-> to make out that sparsemem divides memory into different sections and
-> if the whole section contains a hole then its marked as invalid
-> section and if some pages in a section form a hole then those pages
-> are marked reserved. My issue is that this classification, I am not
-> able to map it to the code.
->
-> e.g. from arch specific code, we call memory_present() =C2=A0to prepare a
-> list of sections in a particular node. but unable to find where
-> exactly some sections are marked invalid because they contain a hole.
+On Tue, Jul 06, 2010 at 09:36:41AM +0900, KOSAKI Motohiro wrote:
+> Hello,
+> 
+> > Ok, that's reasonable as I'm still working on that patch. For example, the
+> > patch disabled anonymous page writeback which is unnecessary as the stack
+> > usage for anon writeback is less than file writeback. 
+> 
+> How do we examine swap-on-file?
+> 
 
-On ARM's sparsememory,
+Anything in particular wrong with the following?
 
-static void arm_memory_present(struct meminfo *mi)
+/*
+ * For now, only kswapd can writeback filesystem pages as otherwise
+ * there is a stack overflow risk
+ */
+static inline bool reclaim_can_writeback(struct scan_control *sc,
+                                        struct page *page)
 {
-        int i;
-        for_each_bank(i, mi) {
-                struct membank *bank =3D &mi->bank[i];
-                memory_present(0, bank_pfn_start(bank), bank_pfn_end(bank))=
-;
-        }
+        return !page_is_file_cache(page) || current_is_kswapd();
 }
 
-It just mark _bank_ which has memory with SECTION_MARKED_PRESENT.
-Otherwise, Hole.
+Even if it is a swapfile, I didn't spot a case where the filesystems
+writepage would be called. Did I miss something?
 
->
-> Can somebody tell me where in the code are we identifying sections as
-> invalid and where we are marking pages as reserved.
-
-Do you mean memmap_init_zone?
-
-
---=20
-Kind regards,
-Minchan Kim
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
