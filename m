@@ -1,57 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 645B16B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 02:38:15 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so5425725iwn.14
-        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 23:38:13 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7AF196B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 03:06:17 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so5448389iwn.14
+        for <linux-mm@kvack.org>; Tue, 06 Jul 2010 00:06:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100706150030.CCFA.A69D9226@jp.fujitsu.com>
-References: <20100706093529.CCD1.A69D9226@jp.fujitsu.com>
-	<AANLkTimk6SwmljTWpIgp_OI_eLP6w8BCWKf-VRUFQ65H@mail.gmail.com>
-	<20100706150030.CCFA.A69D9226@jp.fujitsu.com>
-Date: Tue, 6 Jul 2010 15:38:09 +0900
-Message-ID: <AANLkTimXqmTi9nM8Z10IwU68XTJmrbrie-oxzke8BD40@mail.gmail.com>
-Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+In-Reply-To: <20100706150746.bc3daa86.kamezawa.hiroyu@jp.fujitsu.com>
+References: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
+	<20100706150746.bc3daa86.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 6 Jul 2010 16:06:12 +0900
+Message-ID: <AANLkTimNWwuy1M72rgbm77a2R65bss1hFhLB9JLAMt4C@mail.gmail.com>
+Subject: Re: Need some help in understanding sparsemem.
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: naren.mehra@gmail.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 6, 2010 at 3:02 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Tue, Jul 6, 2010 at 9:36 AM, KOSAKI Motohiro
->> <kosaki.motohiro@jp.fujitsu.com> wrote:
->> > Hello,
->> >
->> >> Ok, that's reasonable as I'm still working on that patch. For example=
-, the
->> >> patch disabled anonymous page writeback which is unnecessary as the s=
-tack
->> >> usage for anon writeback is less than file writeback.
->> >
->> > How do we examine swap-on-file?
+On Tue, Jul 6, 2010 at 3:07 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 6 Jul 2010 10:41:06 +0530
+> naren.mehra@gmail.com wrote:
+>
+>> Hi,
 >>
->> bool is_swap_on_file(struct page *page)
->> {
->> =C2=A0 =C2=A0 struct swap_info_struct *p;
->> =C2=A0 =C2=A0 swp_entry_entry entry;
->> =C2=A0 =C2=A0 entry.val =3D page_private(page);
->> =C2=A0 =C2=A0 p =3D swap_info_get(entry);
->> =C2=A0 =C2=A0 return !(p->flags & SWP_BLKDEV)
->> }
+>> I am trying to understand the sparsemem implementation in linux for
+>> NUMA/multiple node systems.
+>>
+>> From the available documentation and the sparsemem patches, I am able
+>> to make out that sparsemem divides memory into different sections and
+>> if the whole section contains a hole then its marked as invalid
+>> section and if some pages in a section form a hole then those pages
+>> are marked reserved. My issue is that this classification, I am not
+>> able to map it to the code.
+>>
+>> e.g. from arch specific code, we call memory_present() =C2=A0to prepare =
+a
+>> list of sections in a particular node. but unable to find where
+>> exactly some sections are marked invalid because they contain a hole.
+>>
+>> Can somebody tell me where in the code are we identifying sections as
+>> invalid and where we are marking pages as reserved.
+>>
 >
-> Well, do you suggested we traverse all pages in lru _before_
-> starting vmscan?
+> As you wrote, memory_present() is just for setting flags
+> "SECTION_MARKED_PRESENT". If a section contains both of valid pages and
+> holes, the section itself is marked as SECTION_MARKED_PRESENT.
 >
+> This memory_present() is called in very early stage. The function which a=
+llocates
+> mem_map(array of struct page) is sparse_init(). It's called somewhere aft=
+er
+> memory_present().
+> (In x86, it's called by paging_init(), in ARM, it's called by bootmem_ini=
+t()).
+>
+> After sparse_init(), mem_maps are allocated. (depends on config..plz see =
+codes.)
+> But, here, mem_map is not initialized.
+> This is because initialization logic of memmap doesn't depend on
+> FLATMEM/DISCONTIGMEM/SPARSEMEM.
+>
+> After sprase_init(), mem_map is allocated. It's not encouraged to detect =
+a section
+> is valid or invalid but you can use pfn_valid() to check there are memmap=
+ or not.
+> (*) pfn_valid(pfn) is not for detecting there is memory but for detecting
+> =C2=A0 =C2=A0there is memmap.
+>
+> Initializing mem_map is done by free_area_init_node(). This function init=
+ializes
+> memory range regitered by add_active_range() (see mm/page_alloc.c)
+> (*)There are architecutures which doesn't use add_active_range(), but thi=
+s function
+> =C2=A0 is for generic use.
+>
+> After free_area_init_node(), all mem_map are initialized as PG_reserved a=
+nd
+> NODE_DATA(nid)->star_pfn, etc..are available.
+>
+> When PG_reserved is cleared is at free_all_bootmem(). If you want to keep=
+ pages
+> as Reserved (because of holes), OR, don't register memory hole as bootmem=
+.
+> Then, pages will be kept as Reserved.
+>
+> clarification:
+> =C2=A0memory_present().... prepare for section[] and mark up PRESENT.
+> =C2=A0sparse_init() =C2=A0 .... allocates mem_map. but just allocates it.
+> =C2=A0free_area_init_node() .... initizalize mem_map at el.
+> =C2=A0free_all_bootmem() .... make pages available and put into buddy all=
+ocator.
+>
+> =C2=A0pfn_valid() ... useful for checking there are mem_map.
 
-No. I don't suggest anything.
-What I say is just we can do it.
-If we have to implement it, Couldn't we do it in write_reclaim_page?
+Kame explained greatly.
+I want to elaborate on pfn_valid but it's off-topic. ;)
 
+The pfn_valid isn't enough on ARM if you walk whole memmap.
+That's because ARM frees memmap on hole to save the memory by
+free_unused_memmap_node.
 
+In such case, you have to use memmap_valid_within.
 
 --=20
 Kind regards,
