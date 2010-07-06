@@ -1,72 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9F6686B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 07:24:58 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so5660712iwn.14
-        for <linux-mm@kvack.org>; Tue, 06 Jul 2010 04:24:57 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2F7CF6B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 10:35:56 -0400 (EDT)
+Date: Tue, 6 Jul 2010 09:32:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+In-Reply-To: <AANLkTiklCoCe8k3CaYHNK0P86t76RLb2rMUYg2xiE1Rm@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1007060926220.3627@router.home>
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <AANLkTikSzWZme6kioKJ7DJbS0nhYqeDTPas1D9rb_LY-@mail.gmail.com> <alpine.DEB.2.00.1006291043070.16135@router.home>
+ <AANLkTiklCoCe8k3CaYHNK0P86t76RLb2rMUYg2xiE1Rm@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20100706101235.GE13780@csn.ul.ie>
-References: <20100702125155.69c02f85.akpm@linux-foundation.org>
-	<20100705134949.GC13780@csn.ul.ie>
-	<20100706093529.CCD1.A69D9226@jp.fujitsu.com>
-	<20100706101235.GE13780@csn.ul.ie>
-Date: Tue, 6 Jul 2010 20:24:57 +0900
-Message-ID: <AANLkTin8FotAC1GvjuoYU9XA2eiSr6FWWh6bwypTdhq3@mail.gmail.com>
-Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-2125968088-1278426744=:3627"
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Mel.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-On Tue, Jul 6, 2010 at 7:12 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Tue, Jul 06, 2010 at 09:36:41AM +0900, KOSAKI Motohiro wrote:
->> Hello,
->>
->> > Ok, that's reasonable as I'm still working on that patch. For example,=
- the
->> > patch disabled anonymous page writeback which is unnecessary as the st=
-ack
->> > usage for anon writeback is less than file writeback.
->>
->> How do we examine swap-on-file?
->>
+---1463811839-2125968088-1278426744=:3627
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+
+On Thu, 1 Jul 2010, Pekka Enberg wrote:
+
+> > On Mon, 28 Jun 2010, Pekka Enberg wrote:
+> >> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_KERNEL & gfp_=
+allowed_mask);
+> >> > =A0 =A0 =A0 =A0else {
+> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *ptr =3D vmalloc(size);
+> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ptr)
+> >>
+> >> This looks wrong to me. All slab allocators should do gfp_allowed_mask
+> >> magic under the hood. Maybe it's triggering kmalloc_large() path that
+> >> needs the masking too?
 >
-> Anything in particular wrong with the following?
+> On Tue, Jun 29, 2010 at 6:45 PM, Christoph Lameter
+> <cl@linux-foundation.org> wrote:
+> > They do gfp_allowed_mask magic. But the checks at function entry of the
+> > slabs do not mask the masks so we get false positives without this. All=
+ my
+> > protest against the checks doing it this IMHO broken way were ignored.
 >
-> /*
-> =C2=A0* For now, only kswapd can writeback filesystem pages as otherwise
-> =C2=A0* there is a stack overflow risk
-> =C2=A0*/
-> static inline bool reclaim_can_writeback(struct scan_control *sc,
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct pa=
-ge *page)
-> {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0return !page_is_file_cache(page) || current_is=
-_kswapd();
-> }
->
-> Even if it is a swapfile, I didn't spot a case where the filesystems
-> writepage would be called. Did I miss something?
+> Which checks are those? Are they in SLUB proper or are they introduced
+> in one of the SLEB patches? We definitely don't want to expose
+> gfp_allowed_mask here.
 
+Argh. The reason for the trouble here is because I moved the
+masking of the gfp flags out of the hot path.
 
-As I understand Kosaki's opinion, He said that if we make swapout in
-pageout, it isn't a problem in case of swap device since swapout of
-block device is light but it is still problem in case of swap file.
-That's because swapout on swapfile cause file system writepage which
-makes kernel stack overflow.
+The masking of the bits adds to the cache footprint of the hotpaths now in
+all slab allocators. Gosh. Why is there constant contamination of the hot
+paths with the stuff?
 
-Do I misunderstand kosaki's point?
+We only need this masking in the hot path if the debugging hooks need it.
+Otherwise its fine to defer this to the slow paths.
 
+So how do I get that in there? Add "& gfp_allowed_mask" to the gfp mask
+passed to the debugging hooks?
 
---=20
-Kind regards,
-Minchan Kim
+Or add a debug_hooks_alloc() function and make it empty if no debugging
+functions are enabled?
+
+---1463811839-2125968088-1278426744=:3627--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
