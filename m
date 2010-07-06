@@ -1,87 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B28E6B0248
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 19:13:27 -0400 (EDT)
-Date: Tue, 6 Jul 2010 16:12:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2FFE66B0248
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 19:49:51 -0400 (EDT)
 Subject: Re: [PATCH 2/2] sched: make sched_param arugment static variables
  in some sched_setscheduler() caller
-Message-Id: <20100706161253.79bfb761.akpm@linux-foundation.org>
-In-Reply-To: <1278454438.1537.54.camel@gandalf.stny.rr.com>
+From: Steven Rostedt <rostedt@goodmis.org>
+Reply-To: rostedt@goodmis.org
+In-Reply-To: <20100706161253.79bfb761.akpm@linux-foundation.org>
 References: <20100702144941.8fa101c3.akpm@linux-foundation.org>
-	<20100706091607.CCCC.A69D9226@jp.fujitsu.com>
-	<20100706095013.CCD9.A69D9226@jp.fujitsu.com>
-	<1278454438.1537.54.camel@gandalf.stny.rr.com>
+	 <20100706091607.CCCC.A69D9226@jp.fujitsu.com>
+	 <20100706095013.CCD9.A69D9226@jp.fujitsu.com>
+	 <1278454438.1537.54.camel@gandalf.stny.rr.com>
+	 <20100706161253.79bfb761.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Tue, 06 Jul 2010 19:49:47 -0400
+Message-ID: <1278460187.1537.107.camel@gandalf.stny.rr.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: rostedt@goodmis.org
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, James Morris <jmorris@namei.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 06 Jul 2010 18:13:58 -0400 Steven Rostedt <rostedt@goodmis.org> wrote:
+On Tue, 2010-07-06 at 16:12 -0700, Andrew Morton wrote:
 
-> On Tue, 2010-07-06 at 09:51 +0900, KOSAKI Motohiro wrote:
-> > Andrew Morton pointed out almost sched_setscheduler() caller are
-> > using fixed parameter and it can be converted static. it reduce
-> > runtume memory waste a bit.
+> Well if we're so worried about resource wastage then how about making
+> all boot-time-only text and data reside in __init and __initdata
+> sections rather than hanging around uselessly in memory for ever?
+
+That would be a patch I would like :-)
+
+I could probably do that when I get some time.
+
 > 
-> We are replacing runtime waste with permanent waste?
+> Only that's going to be hard because we went and added pointers into
+> .init.text from .data due to `struct tracer.selftest', which will cause
+> a storm of section mismatch warnings.  Doh, should have invoked the
+> selftests from initcalls.  That might open the opportunity of running
+> the selftests by modprobing the selftest module, too.
 
-Confused.  kernel/trace/ appears to waste resources by design, so what's
-the issue?
+They are called by initcalls. The initcalls register the tracers and
+that is the time we call the selftest. No other time.
 
-I don't think this change will cause more waste.  It'll consume 4 bytes
-of .data and will save a little more .text.
+Is there a way that we set up a function pointer to let the section
+checks know that it is only called at bootup?
 
-> > 
-> > Reported-by: Andrew Morton <akpm@linux-foundation.org>
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> 
-> 
-> > --- a/kernel/trace/trace_selftest.c
-> > +++ b/kernel/trace/trace_selftest.c
-> > @@ -560,7 +560,7 @@ trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
-> >  static int trace_wakeup_test_thread(void *data)
-> >  {
-> >  	/* Make this a RT thread, doesn't need to be too high */
-> > -	struct sched_param param = { .sched_priority = 5 };
-> > +	static struct sched_param param = { .sched_priority = 5 };
-> >  	struct completion *x = data;
-> >  
-> 
-> This is a thread that runs on boot up to test the sched_wakeup tracer.
-> Then it is deleted and all memory is reclaimed.
-> 
-> Thus, this patch just took memory that was usable at run time and
-> removed it permanently.
-> 
-> Please Cc me on all tracing changes.
+> And I _do_ wish the selftest module was modprobeable, rather than this
+> monstrosity:
 
-Well if we're so worried about resource wastage then how about making
-all boot-time-only text and data reside in __init and __initdata
-sections rather than hanging around uselessly in memory for ever?
+The selftests are done by individual tracers at boot up. It would be
+hard to modprobe them at that time.
 
-Only that's going to be hard because we went and added pointers into
-.init.text from .data due to `struct tracer.selftest', which will cause
-a storm of section mismatch warnings.  Doh, should have invoked the
-selftests from initcalls.  That might open the opportunity of running
-the selftests by modprobing the selftest module, too.
 
-And I _do_ wish the selftest module was modprobeable, rather than this
-monstrosity:
+> #ifdef CONFIG_FTRACE_SELFTEST
+> /* Let selftest have access to static functions in this file */
+> #include "trace_selftest.c"
+> #endif
+> 
+> Really?  Who had a tastebudectomy over there?  At least call it
+> trace_selftest.inc or something, so poor schmucks don't go scrabbling
+> around wondering "how the hell does this thing get built oh no they
+> didn't really go and #include it did they?"
 
-#ifdef CONFIG_FTRACE_SELFTEST
-/* Let selftest have access to static functions in this file */
-#include "trace_selftest.c"
-#endif
 
-Really?  Who had a tastebudectomy over there?  At least call it
-trace_selftest.inc or something, so poor schmucks don't go scrabbling
-around wondering "how the hell does this thing get built oh no they
-didn't really go and #include it did they?"
+Well this is also the way sched.c adds all its extra code. Making it
+trace_selftest.inc would make it hard to know what the hell it was. And
+also hard for editors to know what type of file it is, or things can be
+missed with a 'find . -name "*.[ch]" | xargs grep blahblah'
+
+Yes, the self tests are ugly and can probably go with an overhaul. Since
+we are trying to get away from the tracer plugins anyway, they will
+start disappearing when the plugins do.
+
+We should have some main selftests anyway. Those are for the TRACE_EVENT
+tests (which are not even in the trace_selftest.c file, and the function
+testing which currently are, as well as the latency testers.
+
+The trace_selftest.c should eventually be replaced with more compact
+tests for the specific types of tracing.
+
+-- Steve
 
 
 --
