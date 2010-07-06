@@ -1,69 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 2F7CF6B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 10:35:56 -0400 (EDT)
-Date: Tue, 6 Jul 2010 09:32:23 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
-In-Reply-To: <AANLkTiklCoCe8k3CaYHNK0P86t76RLb2rMUYg2xiE1Rm@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1007060926220.3627@router.home>
-References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <AANLkTikSzWZme6kioKJ7DJbS0nhYqeDTPas1D9rb_LY-@mail.gmail.com> <alpine.DEB.2.00.1006291043070.16135@router.home>
- <AANLkTiklCoCe8k3CaYHNK0P86t76RLb2rMUYg2xiE1Rm@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4739C6B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 11:26:11 -0400 (EDT)
+Date: Tue, 6 Jul 2010 16:25:39 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+Message-ID: <20100706152539.GG13780@csn.ul.ie>
+References: <20100702125155.69c02f85.akpm@linux-foundation.org> <20100705134949.GC13780@csn.ul.ie> <20100706093529.CCD1.A69D9226@jp.fujitsu.com> <20100706101235.GE13780@csn.ul.ie> <AANLkTin8FotAC1GvjuoYU9XA2eiSr6FWWh6bwypTdhq3@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-2125968088-1278426744=:3627"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTin8FotAC1GvjuoYU9XA2eiSr6FWWh6bwypTdhq3@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
----1463811839-2125968088-1278426744=:3627
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: QUOTED-PRINTABLE
-
-On Thu, 1 Jul 2010, Pekka Enberg wrote:
-
-> > On Mon, 28 Jun 2010, Pekka Enberg wrote:
-> >> > + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return kzalloc(size, GFP_KERNEL & gfp_=
-allowed_mask);
-> >> > =A0 =A0 =A0 =A0else {
-> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *ptr =3D vmalloc(size);
-> >> > =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0if (ptr)
+On Tue, Jul 06, 2010 at 08:24:57PM +0900, Minchan Kim wrote:
+> Hi, Mel.
+> 
+> On Tue, Jul 6, 2010 at 7:12 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > On Tue, Jul 06, 2010 at 09:36:41AM +0900, KOSAKI Motohiro wrote:
+> >> Hello,
 > >>
-> >> This looks wrong to me. All slab allocators should do gfp_allowed_mask
-> >> magic under the hood. Maybe it's triggering kmalloc_large() path that
-> >> needs the masking too?
->
-> On Tue, Jun 29, 2010 at 6:45 PM, Christoph Lameter
-> <cl@linux-foundation.org> wrote:
-> > They do gfp_allowed_mask magic. But the checks at function entry of the
-> > slabs do not mask the masks so we get false positives without this. All=
- my
-> > protest against the checks doing it this IMHO broken way were ignored.
->
-> Which checks are those? Are they in SLUB proper or are they introduced
-> in one of the SLEB patches? We definitely don't want to expose
-> gfp_allowed_mask here.
+> >> > Ok, that's reasonable as I'm still working on that patch. For example, the
+> >> > patch disabled anonymous page writeback which is unnecessary as the stack
+> >> > usage for anon writeback is less than file writeback.
+> >>
+> >> How do we examine swap-on-file?
+> >>
+> >
+> > Anything in particular wrong with the following?
+> >
+> > /*
+> >  * For now, only kswapd can writeback filesystem pages as otherwise
+> >  * there is a stack overflow risk
+> >  */
+> > static inline bool reclaim_can_writeback(struct scan_control *sc,
+> >                                        struct page *page)
+> > {
+> >        return !page_is_file_cache(page) || current_is_kswapd();
+> > }
+> >
+> > Even if it is a swapfile, I didn't spot a case where the filesystems
+> > writepage would be called. Did I miss something?
+> 
+> 
+> As I understand Kosaki's opinion, He said that if we make swapout in
+> pageout, it isn't a problem in case of swap device since swapout of
+> block device is light
 
-Argh. The reason for the trouble here is because I moved the
-masking of the gfp flags out of the hot path.
+Sure
 
-The masking of the bits adds to the cache footprint of the hotpaths now in
-all slab allocators. Gosh. Why is there constant contamination of the hot
-paths with the stuff?
+> but it is still problem in case of swap file.
+> That's because swapout on swapfile cause file system writepage which
+> makes kernel stack overflow.
+> 
 
-We only need this masking in the hot path if the debugging hooks need it.
-Otherwise its fine to defer this to the slow paths.
+I don't *think* this is a problem unless I missed where writing out to
+swap enters teh filesystem code. I'll double check.
 
-So how do I get that in there? Add "& gfp_allowed_mask" to the gfp mask
-passed to the debugging hooks?
-
-Or add a debug_hooks_alloc() function and make it empty if no debugging
-functions are enabled?
-
----1463811839-2125968088-1278426744=:3627--
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
