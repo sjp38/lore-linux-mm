@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 778C76B024C
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 16:59:05 -0400 (EDT)
-Date: Tue, 6 Jul 2010 16:58:20 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH V3 0/8] Cleancache: overview
-Message-ID: <20100706205820.GB32627@phenom.dumpdata.com>
-References: <20100621231809.GA11111@ca-server1.us.oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100621231809.GA11111@ca-server1.us.oracle.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 395336B0249
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 18:14:03 -0400 (EDT)
+Subject: Re: [PATCH 2/2] sched: make sched_param arugment static variables
+ in some sched_setscheduler() caller
+From: Steven Rostedt <rostedt@goodmis.org>
+Reply-To: rostedt@goodmis.org
+In-Reply-To: <20100706095013.CCD9.A69D9226@jp.fujitsu.com>
+References: <20100702144941.8fa101c3.akpm@linux-foundation.org>
+	 <20100706091607.CCCC.A69D9226@jp.fujitsu.com>
+	 <20100706095013.CCD9.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Tue, 06 Jul 2010 18:13:58 -0400
+Message-ID: <1278454438.1537.54.camel@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, James Morris <jmorris@namei.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 21, 2010 at 04:18:09PM -0700, Dan Magenheimer wrote:
-> [PATCH V3 0/8] Cleancache: overview
+On Tue, 2010-07-06 at 09:51 +0900, KOSAKI Motohiro wrote:
+> Andrew Morton pointed out almost sched_setscheduler() caller are
+> using fixed parameter and it can be converted static. it reduce
+> runtume memory waste a bit.
 
-Dan,
+We are replacing runtime waste with permanent waste?
 
-Two comments:
- - Mention where one can get the implementor of the cleancache API.
-   Either a link to where the patches reside or a git branch.
-   If you need pointers on branch names:
-   http://lkml.org/lkml/2010/6/7/269
+> 
+> Reported-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
--  Point out the presentation you did on this. It has an excellent
-   overview of how this API works, and most importantly: a) images
-   and b). performance numbers.
 
-Otherwise, please consider all of these patches to have
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-tag.
+> --- a/kernel/trace/trace_selftest.c
+> +++ b/kernel/trace/trace_selftest.c
+> @@ -560,7 +560,7 @@ trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
+>  static int trace_wakeup_test_thread(void *data)
+>  {
+>  	/* Make this a RT thread, doesn't need to be too high */
+> -	struct sched_param param = { .sched_priority = 5 };
+> +	static struct sched_param param = { .sched_priority = 5 };
+>  	struct completion *x = data;
+>  
+
+This is a thread that runs on boot up to test the sched_wakeup tracer.
+Then it is deleted and all memory is reclaimed.
+
+Thus, this patch just took memory that was usable at run time and
+removed it permanently.
+
+Please Cc me on all tracing changes.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
