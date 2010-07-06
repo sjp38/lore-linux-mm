@@ -1,30 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DA0DF6B0251
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:02:31 -0400 (EDT)
-Date: Tue, 6 Jul 2010 11:02:04 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 6/7] hugetlb: hugepage migration core
-In-Reply-To: <20100706033342.GA10626@spritzera.linux.bs1.fc.nec.co.jp>
-Message-ID: <alpine.DEB.2.00.1007061100530.4938@router.home>
-References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com> <20100705095927.GC8510@basil.fritz.box> <20100706033342.GA10626@spritzera.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6693B6B024D
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:14 -0400 (EDT)
+From: Gleb Natapov <gleb@redhat.com>
+Subject: [PATCH v4 12/12] Send async PF when guest is not in userspace too.
+Date: Tue,  6 Jul 2010 19:25:00 +0300
+Message-Id: <1278433500-29884-13-git-send-email-gleb@redhat.com>
+In-Reply-To: <1278433500-29884-1-git-send-email-gleb@redhat.com>
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Jul 2010, Naoya Horiguchi wrote:
 
-> Hmm, this chunk need to be fixed because I had too specific assumption.
-> The list passed to migrate_pages() has only one page or one hugepage in
-> page migration kicked by soft offline, but it's not the case in general case.
-> Since hugepage is not linked to LRU list, we had better simply skip
-> putback_lru_pages().
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ arch/x86/kvm/mmu.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
-Maybe write a migrate_huge_page() function instead? The functionality is
-materially different since we are not juggling things with the lru.
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 95a0a8b..297f399 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2280,7 +2280,13 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+ 	if (!vcpu->arch.apf_data || kvm_event_needs_reinjection(vcpu))
+ 		return false;
+ 
+-	return !!kvm_x86_ops->get_cpl(vcpu);
++	if (vcpu->arch.apf_send_user_only)
++		return !!kvm_x86_ops->get_cpl(vcpu);
++
++	if (!kvm_x86_ops->interrupt_allowed(vcpu))
++		return false;
++
++	return true;
+ }
+ 
+ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
