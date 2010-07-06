@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 31CCE6B0250
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EBE7B6B0255
 	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:16 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v4 01/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
-Date: Tue,  6 Jul 2010 19:24:49 +0300
-Message-Id: <1278433500-29884-2-git-send-email-gleb@redhat.com>
+Subject: [PATCH v4 03/12] Add async PF initialization to PV guest.
+Date: Tue,  6 Jul 2010 19:24:51 +0300
+Message-Id: <1278433500-29884-4-git-send-email-gleb@redhat.com>
 In-Reply-To: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,92 +13,154 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
-into generic code.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_para.h |    1 +
- arch/x86/kernel/kvm.c           |   11 +++++++++++
- arch/x86/kernel/kvmclock.c      |   13 +------------
- 3 files changed, 13 insertions(+), 12 deletions(-)
+ arch/x86/include/asm/kvm_para.h |    5 ++++
+ arch/x86/kernel/kvm.c           |   49 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/smpboot.c       |    3 ++
+ include/linux/kvm_para.h        |    2 +
+ 4 files changed, 59 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 05eba5e..42298ab 100644
+index 5b05e9f..f1662d7 100644
 --- a/arch/x86/include/asm/kvm_para.h
 +++ b/arch/x86/include/asm/kvm_para.h
-@@ -65,6 +65,7 @@ struct kvm_mmu_op_release_pt {
+@@ -65,6 +65,11 @@ struct kvm_mmu_op_release_pt {
+ 	__u64 pt_phys;
+ };
+ 
++struct kvm_vcpu_pv_apf_data {
++	__u32 reason;
++	__u32 enabled;
++};
++
+ #ifdef __KERNEL__
  #include <asm/processor.h>
  
- extern void kvmclock_init(void);
-+extern int kvm_register_clock(char *txt);
- 
- 
- /* This instruction is vmcall.  On non-VT architectures, it will generate a
 diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index 63b0ec8..e6db179 100644
+index e6db179..be1966a 100644
 --- a/arch/x86/kernel/kvm.c
 +++ b/arch/x86/kernel/kvm.c
-@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
+@@ -27,7 +27,10 @@
+ #include <linux/mm.h>
+ #include <linux/highmem.h>
+ #include <linux/hardirq.h>
++#include <linux/notifier.h>
++#include <linux/reboot.h>
+ #include <asm/timer.h>
++#include <asm/cpu.h>
+ 
+ #define MMU_QUEUE_SIZE 1024
+ 
+@@ -37,6 +40,7 @@ struct kvm_para_state {
+ };
+ 
+ static DEFINE_PER_CPU(struct kvm_para_state, para_state);
++static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
+ 
+ static struct kvm_para_state *kvm_para_state(void)
+ {
+@@ -231,10 +235,35 @@ static void __init paravirt_ops_setup(void)
  #endif
  }
  
-+#ifdef CONFIG_SMP
-+static void __init kvm_smp_prepare_boot_cpu(void)
++static void kvm_pv_disable_apf(void *unused)
 +{
-+	WARN_ON(kvm_register_clock("primary cpu clock"));
-+	native_smp_prepare_boot_cpu();
-+}
-+#endif
++	if (!__get_cpu_var(apf_reason).enabled)
++		return;
 +
- void __init kvm_guest_init(void)
++	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
++	__get_cpu_var(apf_reason).enabled = 0;
++
++	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
++	       smp_processor_id());
++}
++
++static int kvm_pv_reboot_notify(struct notifier_block *nb,
++				unsigned long code, void *unused)
++{
++	if (code == SYS_RESTART)
++		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
++	return NOTIFY_DONE;
++}
++
++static struct notifier_block kvm_pv_reboot_nb = {
++	.notifier_call = kvm_pv_reboot_notify,
++};
++
+ #ifdef CONFIG_SMP
+ static void __init kvm_smp_prepare_boot_cpu(void)
  {
- 	if (!kvm_para_available())
+ 	WARN_ON(kvm_register_clock("primary cpu clock"));
++	kvm_guest_cpu_init();
+ 	native_smp_prepare_boot_cpu();
+ }
+ #endif
+@@ -245,7 +274,27 @@ void __init kvm_guest_init(void)
  		return;
  
  	paravirt_ops_setup();
-+#ifdef CONFIG_SMP
-+	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-+#endif
++	register_reboot_notifier(&kvm_pv_reboot_nb);
+ #ifdef CONFIG_SMP
+ 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#else
++	kvm_guest_cpu_init();
+ #endif
  }
-diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
-index eb9b76c..67a5f46 100644
---- a/arch/x86/kernel/kvmclock.c
-+++ b/arch/x86/kernel/kvmclock.c
-@@ -125,7 +125,7 @@ static struct clocksource kvm_clock = {
- 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
- };
++
++void __cpuinit kvm_guest_cpu_init(void)
++{
++	if (!kvm_para_available())
++		return;
++
++	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)) {
++		u64 pa = __pa(&__get_cpu_var(apf_reason));
++
++		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
++					  pa | KVM_ASYNC_PF_ENABLED, pa >> 32))
++			return;
++		__get_cpu_var(apf_reason).enabled = 1;
++		printk(KERN_INFO"Setup pv shared memory for cpu %d\n",
++		       smp_processor_id());
++	}
++}
+diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
+index c4f33b2..b70e872 100644
+--- a/arch/x86/kernel/smpboot.c
++++ b/arch/x86/kernel/smpboot.c
+@@ -67,6 +67,7 @@
+ #include <asm/setup.h>
+ #include <asm/uv/uv.h>
+ #include <linux/mc146818rtc.h>
++#include <linux/kvm_para.h>
  
--static int kvm_register_clock(char *txt)
-+int kvm_register_clock(char *txt)
- {
- 	int cpu = smp_processor_id();
- 	int low, high;
-@@ -150,14 +150,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
- }
+ #include <asm/smpboot_hooks.h>
+ #include <asm/i8259.h>
+@@ -329,6 +330,8 @@ notrace static void __cpuinit start_secondary(void *unused)
+ 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+ 	x86_platform.nmi_init();
+ 
++	kvm_guest_cpu_init();
++
+ 	/* enable local interrupts */
+ 	local_irq_enable();
+ 
+diff --git a/include/linux/kvm_para.h b/include/linux/kvm_para.h
+index d731092..4c8a2e6 100644
+--- a/include/linux/kvm_para.h
++++ b/include/linux/kvm_para.h
+@@ -26,8 +26,10 @@
+ #ifdef __KERNEL__
+ #ifdef CONFIG_KVM_GUEST
+ void __init kvm_guest_init(void);
++void __cpuinit kvm_guest_cpu_init(void);
+ #else
+ #define kvm_guest_init() do { } while (0)
++#define kvm_guest_cpu_init() do { } while (0)
  #endif
  
--#ifdef CONFIG_SMP
--static void __init kvm_smp_prepare_boot_cpu(void)
--{
--	WARN_ON(kvm_register_clock("primary cpu clock"));
--	native_smp_prepare_boot_cpu();
--}
--#endif
--
- /*
-  * After the clock is registered, the host will keep writing to the
-  * registered memory location. If the guest happens to shutdown, this memory
-@@ -204,9 +196,6 @@ void __init kvmclock_init(void)
- 	x86_cpuinit.setup_percpu_clockev =
- 		kvm_setup_secondary_clock;
- #endif
--#ifdef CONFIG_SMP
--	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
--#endif
- 	machine_ops.shutdown  = kvm_shutdown;
- #ifdef CONFIG_KEXEC
- 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
+ static inline int kvm_para_has_feature(unsigned int feature)
 -- 
 1.7.1
 
