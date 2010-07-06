@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DED076B0254
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:19 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 984806B0256
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:22 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v4 05/12] Export __get_user_pages_fast.
-Date: Tue,  6 Jul 2010 19:24:53 +0300
-Message-Id: <1278433500-29884-6-git-send-email-gleb@redhat.com>
+Subject: [PATCH v4 11/12] Let host know whether the guest can handle async PF in non-userspace context.
+Date: Tue,  6 Jul 2010 19:24:59 +0300
+Message-Id: <1278433500-29884-12-git-send-email-gleb@redhat.com>
 In-Reply-To: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,34 +13,79 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-KVM will use it to try and find a page without falling back to slow
-gup. That is why get_user_pages_fast() is not enough.
+If guest can detect that it runs in non-preemptable context it can
+handle async PFs at any time, so let host know that it can send async
+PF even if guest cpu is not in userspace.
 
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/mm/gup.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/kvm_host.h |    1 +
+ arch/x86/include/asm/kvm_para.h |    1 +
+ arch/x86/kernel/kvm.c           |    3 +++
+ arch/x86/kvm/x86.c              |    5 +++--
+ 4 files changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 738e659..a4ce19f 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -8,6 +8,7 @@
- #include <linux/mm.h>
- #include <linux/vmstat.h>
- #include <linux/highmem.h>
-+#include <linux/module.h>
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 45e6c12..c675d5d 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -367,6 +367,7 @@ struct kvm_vcpu_arch {
+ 	cpumask_var_t wbinvd_dirty_mask;
  
- #include <asm/pgtable.h>
+ 	u32 __user *apf_data;
++	bool apf_send_user_only;
+ 	u32 apf_memslot_ver;
+ 	u64 apf_msr_val;
+ 	u32 async_pf_id;
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index edf07cf..a33372c 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -38,6 +38,7 @@
+ #define KVM_MAX_MMU_OP_BATCH           32
  
-@@ -274,6 +275,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ #define KVM_ASYNC_PF_ENABLED			(1 << 0)
++#define KVM_ASYNC_PF_SEND_ALWAYS		(1 << 1)
  
- 	return nr;
+ /* Operations for KVM_HC_MMU_OP */
+ #define KVM_MMU_OP_WRITE_PTE            1
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index f4d87b3..f2063c2 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -488,6 +488,9 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)) {
+ 		u64 pa = __pa(&__get_cpu_var(apf_reason));
+ 
++#ifdef CONFIG_PREEMPT
++		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
++#endif
+ 		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
+ 					  pa | KVM_ASYNC_PF_ENABLED, pa >> 32))
+ 			return;
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index ae7164e..8f2ff7b 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -1220,8 +1220,8 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+ 	int offset = offset_in_page(gpa);
+ 	unsigned long addr;
+ 
+-	/* Bits 1:5 are resrved, Should be zero */
+-	if (data & 0x3e)
++	/* Bits 2:5 are resrved, Should be zero */
++	if (data & 0x3c)
+ 		return 1;
+ 
+ 	vcpu->arch.apf_msr_val = data;
+@@ -1244,6 +1244,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+ 		return 1;
+ 	}
+ 	vcpu->arch.apf_memslot_ver = vcpu->kvm->memslot_version;
++	vcpu->arch.apf_send_user_only = !(data & KVM_ASYNC_PF_SEND_ALWAYS);
+ 	kvm_async_pf_wakeup_all(vcpu);
+ 	return 0;
  }
-+EXPORT_SYMBOL_GPL(__get_user_pages_fast);
- 
- /**
-  * get_user_pages_fast() - pin user pages in memory
 -- 
 1.7.1
 
