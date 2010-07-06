@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 185E36B01AC
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 01:11:07 -0400 (EDT)
-Received: by qyk32 with SMTP id 32so2343998qyk.14
-        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 22:11:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id CB2716B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 01:46:38 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so5383764iwn.14
+        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 22:46:37 -0700 (PDT)
 MIME-Version: 1.0
-Date: Tue, 6 Jul 2010 10:41:06 +0530
-Message-ID: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
-Subject: Need some help in understanding sparsemem.
-From: naren.mehra@gmail.com
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20100706093529.CCD1.A69D9226@jp.fujitsu.com>
+References: <20100702125155.69c02f85.akpm@linux-foundation.org>
+	<20100705134949.GC13780@csn.ul.ie>
+	<20100706093529.CCD1.A69D9226@jp.fujitsu.com>
+Date: Tue, 6 Jul 2010 14:46:37 +0900
+Message-ID: <AANLkTimk6SwmljTWpIgp_OI_eLP6w8BCWKf-VRUFQ65H@mail.gmail.com>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, Jul 6, 2010 at 9:36 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hello,
+>
+>> Ok, that's reasonable as I'm still working on that patch. For example, the
+>> patch disabled anonymous page writeback which is unnecessary as the stack
+>> usage for anon writeback is less than file writeback.
+>
+> How do we examine swap-on-file?
 
-I am trying to understand the sparsemem implementation in linux for
-NUMA/multiple node systems.
+bool is_swap_on_file(struct page *page)
+{
+    struct swap_info_struct *p;
+    swp_entry_entry entry;
+    entry.val = page_private(page);
+    p = swap_info_get(entry);
+    return !(p->flags & SWP_BLKDEV)
+}
 
->From the available documentation and the sparsemem patches, I am able
-to make out that sparsemem divides memory into different sections and
-if the whole section contains a hole then its marked as invalid
-section and if some pages in a section form a hole then those pages
-are marked reserved. My issue is that this classification, I am not
-able to map it to the code.
-
-e.g. from arch specific code, we call memory_present()  to prepare a
-list of sections in a particular node. but unable to find where
-exactly some sections are marked invalid because they contain a hole.
-
-Can somebody tell me where in the code are we identifying sections as
-invalid and where we are marking pages as reserved.
-
-Pls correct me, if I am wrong in my understanding.
-Also, If theres any article or writeup on sparsemem, pls point me to that.
-
-I apologize, if I have posted this mail on the wrong mailing list, in
-that case, pls let me know the correct forum to ask this question.
-
-Regards,
-Naren
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
