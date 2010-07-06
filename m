@@ -1,274 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 05B856B025C
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:25 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 921A76B0260
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 12:25:26 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v4 00/12] KVM: Add host swap event notifications for PV guest
-Date: Tue,  6 Jul 2010 19:24:48 +0300
-Message-Id: <1278433500-29884-1-git-send-email-gleb@redhat.com>
+Subject: [PATCH v4 06/12] Add get_user_pages() variant that fails if major fault is required.
+Date: Tue,  6 Jul 2010 19:24:54 +0300
+Message-Id: <1278433500-29884-7-git-send-email-gleb@redhat.com>
+In-Reply-To: <1278433500-29884-1-git-send-email-gleb@redhat.com>
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-KVM virtualizes guest memory by means of shadow pages or HW assistance
-like NPT/EPT. Not all memory used by a guest is mapped into the guest
-address space or even present in a host memory at any given time.
-When vcpu tries to access memory page that is not mapped into the guest
-address space KVM is notified about it. KVM maps the page into the guest
-address space and resumes vcpu execution. If the page is swapped out
-from host memory vcpu execution is suspended till the page is not swapped
-into the memory again. This is inefficient since vcpu can do other work
-(run other task or serve interrupts) while page gets swapped in.
+This patch add get_user_pages() variant that only succeeds if getting
+a reference to a page doesn't require major fault.
 
-To overcome this inefficiency this patch series implements "asynchronous
-page fault" for paravirtualized KVM guests. If a page that vcpu is
-trying to access is swapped out KVM sends an async PF to the vcpu
-and continues vcpu execution. Requested page is swapped in by another
-thread in parallel.  When vcpu gets async PF it puts faulted task to
-sleep until "wake up" interrupt is delivered. When the page is brought
-to the host memory KVM sends "wake up" interrupt and the guest's task
-resumes execution.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ fs/ncpfs/mmap.c    |    2 ++
+ include/linux/mm.h |    5 +++++
+ mm/filemap.c       |    3 +++
+ mm/memory.c        |   31 ++++++++++++++++++++++++++++---
+ mm/shmem.c         |    8 +++++++-
+ 5 files changed, 45 insertions(+), 4 deletions(-)
 
-To measure performance benefits I use a simple benchmark program (below)
-that starts number of threads. Some of them do work (increment counter),
-others access huge array in random location trying to generate host page
-faults. The size of the array is smaller then guest memory bug bigger
-then host memory so we are guarantied that host will swap out part of
-the array.
-
-Running the benchmark inside guest with 4 cpus 2G memory running in 512M
-container in the host using the command line "./bm -f 4 -w 4 -t 60" (run 4
-faulting threads and 4 working threads for a minute) I get this result:
-
-With async pf:
-start
-worker 0: 63972141051
-worker 1: 65149033299
-worker 2: 66301967246
-worker 3: 63423000989
-total: 258846142585
-
-
-Without async pf:
-start
-worker 0: 30619912622
-worker 1: 33951339266
-worker 2: 31577780093
-worker 3: 33603607972
-total: 129752639953
-
-The gain is 50% as expected.
-
-Perf data look like this:
-With async pf:
-    97.93%       bm  bm                    [.] work_thread
-     1.74%       bm  [kernel.kallsyms]     [k] retint_careful
-     0.10%       bm  [kernel.kallsyms]     [k] _raw_spin_unlock_irq
-     0.08%       bm  bm                    [.] fault_thread
-     0.05%       bm  [kernel.kallsyms]     [k] _raw_spin_unlock_irqrestore
-     0.02%       bm  [kernel.kallsyms]     [k] __do_softirq
-     0.02%       bm  [kernel.kallsyms]     [k] rcu_process_gp_end
-
-Without async pf:
-    63.42%       bm  bm                    [.] work_thread
-    13.64%       bm  [kernel.kallsyms]     [k] __do_softirq
-     8.95%       bm  bm                    [.] fault_thread
-     5.27%       bm  [kernel.kallsyms]     [k] _raw_spin_unlock_irq
-     2.79%       bm  [kernel.kallsyms]     [k] hrtimer_run_pending
-     2.35%       bm  [kernel.kallsyms]     [k] run_timer_softirq
-     1.28%       bm  [kernel.kallsyms]     [k] _raw_spin_lock_irq
-     1.16%       bm  [kernel.kallsyms]     [k] debug_smp_processor_id
-     0.23%       bm  libc-2.10.2.so        [.] random_r
-     0.18%       bm  [kernel.kallsyms]     [k] rcu_bh_qs
-     0.18%       bm  [kernel.kallsyms]     [k] find_busiest_group
-     0.14%       bm  [kernel.kallsyms]     [k] retint_careful
-     0.14%       bm  libc-2.10.2.so        [.] random
-
-Changes:
- v1->v2
-   Use MSR instead of hypercall.
-   Move most of the code into arch independent place.
-   halt inside a guest instead of doing "wait for page" hypercall if
-    preemption is disabled.
- v2->v3
-   Use MSR from range 0x4b564dxx.
-   Add slot version tracking.
-   Support migration by restarting all guest processes after migration.
-   Drop patch that tract preemptability for non-preemptable kernels
-    due to performance concerns. Send async PF to non-preemptable
-    guests only when vcpu is executing userspace code.
- v3->v4
-  Provide alternative page fault handler in PV guest instead of adding hook to
-   standard page fault handler and patch it out on non-PV guests.
-  Allow only limited number of outstanding async page fault per vcpu.
-  Unify  gfn_to_pfn and gfn_to_pfn_async code.
-  Cancel outstanding slow work on reset.
+diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+index 56f5b3a..b9c4f36 100644
+--- a/fs/ncpfs/mmap.c
++++ b/fs/ncpfs/mmap.c
+@@ -39,6 +39,8 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
+ 	int bufsize;
+ 	int pos; /* XXX: loff_t ? */
  
-Gleb Natapov (12):
-  Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
-  Add PV MSR to enable asynchronous page faults delivery.
-  Add async PF initialization to PV guest.
-  Provide special async page fault handler when async PF capability is
-    detected
-  Export __get_user_pages_fast.
-  Add get_user_pages() variant that fails if major fault is required.
-  Maintain memslot version number
-  Inject asynchronous page fault into a guest if page is swapped out.
-  Retry fault before vmentry
-  Handle async PF in non preemptable context
-  Let host know whether the guest can handle async PF in non-userspace
-    context.
-  Send async PF when guest is not in userspace too.
-
- arch/x86/include/asm/kvm_host.h |   27 ++++-
- arch/x86/include/asm/kvm_para.h |   14 ++
- arch/x86/include/asm/traps.h    |    1 +
- arch/x86/kernel/entry_32.S      |   10 ++
- arch/x86/kernel/entry_64.S      |    3 +
- arch/x86/kernel/kvm.c           |  261 ++++++++++++++++++++++++++++++++++++++
- arch/x86/kernel/kvmclock.c      |   13 +--
- arch/x86/kernel/smpboot.c       |    3 +
- arch/x86/kvm/Kconfig            |    2 +
- arch/x86/kvm/mmu.c              |   62 +++++++++-
- arch/x86/kvm/paging_tmpl.h      |   50 +++++++-
- arch/x86/kvm/x86.c              |  122 +++++++++++++++++-
- arch/x86/mm/gup.c               |    2 +
- fs/ncpfs/mmap.c                 |    2 +
- include/linux/kvm.h             |    1 +
- include/linux/kvm_host.h        |   32 +++++
- include/linux/kvm_para.h        |    2 +
- include/linux/mm.h              |    5 +
- include/trace/events/kvm.h      |   60 +++++++++
- mm/filemap.c                    |    3 +
- mm/memory.c                     |   31 ++++-
- mm/shmem.c                      |    8 +-
- virt/kvm/Kconfig                |    3 +
- virt/kvm/kvm_main.c             |  266 ++++++++++++++++++++++++++++++++++++++-
- 24 files changed, 949 insertions(+), 34 deletions(-)
-
-=== benchmark.c ===
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#define FAULTING_THREADS 1
-#define WORKING_THREADS 1
-#define TIMEOUT 5
-#define MEMORY 1024*1024*1024
-
-pthread_barrier_t barrier;
-volatile int stop;
-size_t pages;
-
-void *fault_thread(void* p)
-{
-	char *mem = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		mem[(random() % pages) << 12] = 10;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-void *work_thread(void* p)
-{
-	unsigned long *i = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		(*i)++;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-int main(int argc, char **argv)
-{
-	int ft = FAULTING_THREADS, wt = WORKING_THREADS;
-	unsigned int timeout = TIMEOUT;
-	size_t mem = MEMORY;
-	void *buf;
-	int i, opt, verbose = 0;
-	pthread_t t;
-	pthread_attr_t pattr;
-	unsigned long *res, sum = 0;
-
-	while((opt = getopt(argc, argv, "f:w:m:t:v")) != -1) {
-		switch (opt) {
-		case 'f':
-			ft = atoi(optarg);
-			break;
-		case 'w':
-			wt = atoi(optarg);
-			break;
-		case 'm':
-			mem = atoi(optarg);
-			break;
-		case 't':
-			timeout = atoi(optarg);
-			break;
-		case 'v':
-			verbose++;
-			break;
-		default:
-			fprintf(stderr, "Usage %s [-f num] [-w num] [-m byte] [-t secs]\n", argv[0]);
-			exit(1);
-		}
-	}
-
-	if (verbose)
-		printf("fault=%d work=%d mem=%lu timeout=%d\n", ft, wt, mem, timeout);
-
-	pages = mem >> 12;
-	posix_memalign(&buf, 4096, pages << 12);
-	res = malloc(sizeof (unsigned long) * wt);
-	memset(res, 0, sizeof (unsigned long) * wt);
-
-	pthread_attr_init(&pattr);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	for (i = 0; i < ft; i++) {
-		pthread_create(&t, &pattr, fault_thread, buf);
-		pthread_detach(t);
-	}
-
-	for (i = 0; i < wt; i++) {
-		pthread_create(&t, &pattr, work_thread, &res[i]);
-		pthread_detach(t);
-	}
-
-	/* prefault memory */
-	memset(buf, 0, pages << 12);
-	printf("start\n");
-
-	pthread_barrier_wait(&barrier);
-
-	pthread_barrier_destroy(&barrier);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	sleep(timeout);
-	stop = 1;
-
-	pthread_barrier_wait(&barrier);
-
-	for (i = 0; i < wt; i++) {
-		sum += res[i];
-		printf("worker %d: %lu\n", i, res[i]);
-	}
-	printf("total: %lu\n", sum);
-
-	return 0;
-}
++	if (vmf->flags & FAULT_FLAG_MINOR)
++		return VM_FAULT_MAJOR | VM_FAULT_ERROR;
+ 	/*
+ 	 * ncpfs has nothing against high pages as long
+ 	 * as recvmsg and memset works on it
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 4238a9c..2bfc85a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -140,6 +140,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+ #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
++#define FAULT_FLAG_MINOR	0x08	/* Do only minor fault */
+ 
+ /*
+  * This interface is used by x86 PAT code to identify a pfn mapping that is
+@@ -843,6 +844,9 @@ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			unsigned long start, int nr_pages, int write, int force,
+ 			struct page **pages, struct vm_area_struct **vmas);
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long start, int nr_pages, int write, int force,
++			struct page **pages, struct vm_area_struct **vmas);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
+ struct page *get_dump_page(unsigned long addr);
+@@ -1373,6 +1377,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_GET	0x04	/* do get_page on page */
+ #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
+ #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
++#define FOLL_MINOR	0x20	/* do only minor page faults */
+ 
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 20e5642..1186338 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1548,6 +1548,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 			goto no_cached_page;
+ 		}
+ 	} else {
++		if (vmf->flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
++
+ 		/* No page in the page cache at all */
+ 		do_sync_mmap_readahead(vma, ra, file, offset);
+ 		count_vm_event(PGMAJFAULT);
+diff --git a/mm/memory.c b/mm/memory.c
+index 119b7cc..7dfaba2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1433,10 +1433,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
+ 				int ret;
++				unsigned int fault_fl =
++					((foll_flags & FOLL_WRITE) ?
++					FAULT_FLAG_WRITE : 0) |
++					((foll_flags & FOLL_MINOR) ?
++					FAULT_FLAG_MINOR : 0);
+ 
+-				ret = handle_mm_fault(mm, vma, start,
+-					(foll_flags & FOLL_WRITE) ?
+-					FAULT_FLAG_WRITE : 0);
++				ret = handle_mm_fault(mm, vma, start, fault_fl);
+ 
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+@@ -1444,6 +1447,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 					if (ret &
+ 					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+ 						return i ? i : -EFAULT;
++					else if (ret & VM_FAULT_MAJOR)
++						return i ? i : -EFAULT;
+ 					BUG();
+ 				}
+ 				if (ret & VM_FAULT_MAJOR)
+@@ -1554,6 +1559,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ }
+ EXPORT_SYMBOL(get_user_pages);
+ 
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, int nr_pages, int write, int force,
++		struct page **pages, struct vm_area_struct **vmas)
++{
++	int flags = FOLL_TOUCH | FOLL_MINOR;
++
++	if (pages)
++		flags |= FOLL_GET;
++	if (write)
++		flags |= FOLL_WRITE;
++	if (force)
++		flags |= FOLL_FORCE;
++
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
++}
++EXPORT_SYMBOL(get_user_pages_noio);
++
+ /**
+  * get_dump_page() - pin user page in memory while writing it to core dump
+  * @addr: user address
+@@ -2640,6 +2662,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
++		if (flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
++
+ 		grab_swap_token(mm); /* Contend for token _before_ read-in */
+ 		page = swapin_readahead(entry,
+ 					GFP_HIGHUSER_MOVABLE, vma, address);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index f65f840..acc8958 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1227,6 +1227,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
+ 	swp_entry_t swap;
+ 	gfp_t gfp;
+ 	int error;
++	int flags = type ? *type : 0;
+ 
+ 	if (idx >= SHMEM_MAX_INDEX)
+ 		return -EFBIG;
+@@ -1275,6 +1276,11 @@ repeat:
+ 		swappage = lookup_swap_cache(swap);
+ 		if (!swappage) {
+ 			shmem_swp_unmap(entry);
++			if (flags & FAULT_FLAG_MINOR) {
++				spin_unlock(&info->lock);
++				*type = VM_FAULT_MAJOR | VM_FAULT_ERROR;
++				goto failed;
++			}
+ 			/* here we actually do the io */
+ 			if (type && !(*type & VM_FAULT_MAJOR)) {
+ 				__count_vm_event(PGMAJFAULT);
+@@ -1483,7 +1489,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	int error;
+-	int ret;
++	int ret = (int)vmf->flags;
+ 
+ 	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+ 		return VM_FAULT_SIGBUS;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
