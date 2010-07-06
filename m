@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B28756B01AF
-	for <linux-mm@kvack.org>; Mon,  5 Jul 2010 23:58:31 -0400 (EDT)
-From: Roland Dreier <rdreier@cisco.com>
-Subject: Re: kmem_cache_destroy() badness with SLUB
-References: <1277688701.4200.159.camel@pasglop>
-Date: Mon, 05 Jul 2010 20:58:27 -0700
-In-Reply-To: <1277688701.4200.159.camel@pasglop> (Benjamin Herrenschmidt's
-	message of "Mon, 28 Jun 2010 11:31:41 +1000")
-Message-ID: <aday6dpmfbw.fsf@roland-alpha.cisco.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 185E36B01AC
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 01:11:07 -0400 (EDT)
+Received: by qyk32 with SMTP id 32so2343998qyk.14
+        for <linux-mm@kvack.org>; Mon, 05 Jul 2010 22:11:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 6 Jul 2010 10:41:06 +0530
+Message-ID: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
+Subject: Need some help in understanding sparsemem.
+From: naren.mehra@gmail.com
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-Hi folks !
-Internally, I'm hitting a little "nit"...
+I am trying to understand the sparsemem implementation in linux for
+NUMA/multiple node systems.
 
-sysfs_slab_add() has this check:
+>From the available documentation and the sparsemem patches, I am able
+to make out that sparsemem divides memory into different sections and
+if the whole section contains a hole then its marked as invalid
+section and if some pages in a section form a hole then those pages
+are marked reserved. My issue is that this classification, I am not
+able to map it to the code.
 
-	if (slab_state < SYSFS)
-		/* Defer until later */
-		return 0;
+e.g. from arch specific code, we call memory_present()  to prepare a
+list of sections in a particular node. but unable to find where
+exactly some sections are marked invalid because they contain a hole.
 
-But sysfs_slab_remove() doesn't.
+Can somebody tell me where in the code are we identifying sections as
+invalid and where we are marking pages as reserved.
 
-So if the slab is created -and- destroyed at, for example, arch_initcall
-time, then we hit a WARN in the kobject code, trying to dispose of a
-non-existing kobject.
+Pls correct me, if I am wrong in my understanding.
+Also, If theres any article or writeup on sparsemem, pls point me to that.
 
-Now, at first sight, just adding the same test to sysfs_slab_remove()
-would do the job... but it all seems very racy to me.
+I apologize, if I have posted this mail on the wrong mailing list, in
+that case, pls let me know the correct forum to ask this question.
 
-I don't understand in fact how this slab_state deals with races at all. 
-
-What prevents us from hitting slab_sysfs_init() at the same time as
-another CPU deos sysfs_slab_add() ? How do that deal with collisions
-trying to register the same kobject twice ? Similar race with remove...
-
-Shouldn't we have a mutex around those guys ?
-
-Cheers,
-Ben.
-
-
---
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-Please read the FAQ at  http://www.tux.org/lkml/
-
-
--- 
-Roland Dreier <rolandd@cisco.com> || For corporate legal information go to:
-http://www.cisco.com/web/about/doing_business/legal/cri/index.html
+Regards,
+Naren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
