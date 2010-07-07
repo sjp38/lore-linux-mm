@@ -1,31 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1CD376B024A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:46:08 -0400 (EDT)
-Message-ID: <4C350398.5070504@redhat.com>
-Date: Wed, 07 Jul 2010 18:45:44 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B74E46B024A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:54:12 -0400 (EDT)
+Date: Thu, 8 Jul 2010 00:17:17 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 1/7] hugetlb: add missing unlock in avoidcopy path in
+ hugetlb_cow()
+Message-ID: <20100707221717.GD3900@basil.fritz.box>
+References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1278049646-29769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 05/12] Export __get_user_pages_fast.
-References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-6-git-send-email-gleb@redhat.com>
-In-Reply-To: <1278433500-29884-6-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1278049646-29769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07/06/2010 12:24 PM, Gleb Natapov wrote:
-> KVM will use it to try and find a page without falling back to slow
-> gup. That is why get_user_pages_fast() is not enough.
->
-> Signed-off-by: Gleb Natapov<gleb@redhat.com>
+On Fri, Jul 02, 2010 at 02:47:20PM +0900, Naoya Horiguchi wrote:
+> This patch fixes possible deadlock in hugepage lock_page()
+> by adding missing unlock_page().
+> 
+> libhugetlbfs test will hit this bug when the next patch in this
+> patchset ("hugetlb, HWPOISON: move PG_HWPoison bit check") is applied.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I merged this patch into the hwpoison tree now.
+
+For the other patches in the series waiting until the open issues
+are fixed.
+
+-Andi
 
 -- 
-All rights reversed
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
