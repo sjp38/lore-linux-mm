@@ -1,39 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B74E46B024A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:54:12 -0400 (EDT)
-Date: Thu, 8 Jul 2010 00:17:17 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/7] hugetlb: add missing unlock in avoidcopy path in
- hugetlb_cow()
-Message-ID: <20100707221717.GD3900@basil.fritz.box>
-References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1278049646-29769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3683A6B024A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 19:08:23 -0400 (EDT)
+Date: Thu, 8 Jul 2010 00:07:10 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+	memory management
+Message-ID: <20100707230710.GA31792@n2100.arm.linux.org.uk>
+References: <1278135507-20294-1-git-send-email-zpfeffer@codeaurora.org> <m14oggpepx.fsf@fess.ebiederm.org> <4C35034B.6040906@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1278049646-29769-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <4C35034B.6040906@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 02, 2010 at 02:47:20PM +0900, Naoya Horiguchi wrote:
-> This patch fixes possible deadlock in hugepage lock_page()
-> by adding missing unlock_page().
-> 
-> libhugetlbfs test will hit this bug when the next patch in this
-> patchset ("hugetlb, HWPOISON: move PG_HWPoison bit check") is applied.
+On Wed, Jul 07, 2010 at 03:44:27PM -0700, Zach Pfeffer wrote:
+> The DMA API handles the allocation and use of DMA channels. It can
+> configure physical transfer settings, manage scatter-gather lists,
+> etc. 
 
-I merged this patch into the hwpoison tree now.
+You're confused about what the DMA API is.  You're talking about
+the DMA engine subsystem (drivers/dma) not the DMA API (see
+Documentation/DMA-API.txt, include/linux/dma-mapping.h, and
+arch/arm/include/asm/dma-mapping.h)
 
-For the other patches in the series waiting until the open issues
-are fixed.
+> The VCM allows all device buffers to be passed between all devices in
+> the system without passing those buffers through each domain's
+> API. This means that instead of writing code to interoperate between
+> DMA engines, IOMMU mapped spaces, CPUs and physically addressed
+> devices the user can simply target a device with a buffer using the
+> same API regardless of how that device maps or otherwise accesses the
+> buffer.
 
--Andi
+With the DMA API, if we have a SG list which refers to the physical
+pages (as a struct page, offset, length tuple), the DMA API takes
+care of dealing with CPU caches and IOMMUs to make the data in the
+buffer visible to the target device.  It provides you with a set of
+cookies referring to the SG lists, which may be coalesced if the
+IOMMU can do so.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+If you have a kernel virtual address, the DMA API has single buffer
+mapping/unmapping functions to do the same thing, and provide you
+with a cookie to pass to the device to refer to that buffer.
+
+These cookies are whatever the device needs to be able to access
+the buffer - for instance, if system SDRAM is located at 0xc0000000
+virtual, 0x80000000 physical and 0x40000000 as far as the DMA device
+is concerned, then the cookie for a buffer at 0xc0000000 virtual will
+be 0x40000000 and not 0x80000000.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
