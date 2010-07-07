@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0586B006A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 05:27:24 -0400 (EDT)
-Date: Wed, 7 Jul 2010 11:27:19 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 6/7] hugetlb: hugepage migration core
-Message-ID: <20100707092719.GA3900@basil.fritz.box>
-References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20100705095927.GC8510@basil.fritz.box>
- <20100706033342.GA10626@spritzera.linux.bs1.fc.nec.co.jp>
- <20100706071337.GA20403@basil.fritz.box>
- <20100707060513.GA20221@spritzera.linux.bs1.fc.nec.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AAB86B006A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 05:43:31 -0400 (EDT)
+Date: Wed, 7 Jul 2010 10:43:11 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
+Message-ID: <20100707094310.GJ13780@csn.ul.ie>
+References: <20100702125155.69c02f85.akpm@linux-foundation.org> <20100705134949.GC13780@csn.ul.ie> <20100706093529.CCD1.A69D9226@jp.fujitsu.com> <20100706101235.GE13780@csn.ul.ie> <AANLkTin8FotAC1GvjuoYU9XA2eiSr6FWWh6bwypTdhq3@mail.gmail.com> <20100706152539.GG13780@csn.ul.ie> <20100706202758.GC18210@cmpxchg.org> <AANLkTimOkI95ZkJecE3jxRDDGbHvP9tRUluIoJuhqqMz@mail.gmail.com> <20100707002458.GI13780@csn.ul.ie> <20100707011533.GB3630@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100707060513.GA20221@spritzera.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20100707011533.GB3630@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> I see.  I understood we should work on locking problem in now.
-> I digged and learned hugepage IO can happen in direct IO from/to
-> hugepage or coredump of hugepage user.
+On Tue, Jul 06, 2010 at 09:15:33PM -0400, Christoph Hellwig wrote:
+> On Wed, Jul 07, 2010 at 01:24:58AM +0100, Mel Gorman wrote:
+> > What I have now is direct writeback for anon files. For files be it from
+> > kswapd or direct reclaim, I kick writeback pre-emptively by an amount based
+> > on the dirty pages encountered because monitoring from systemtap indicated
+> > that we were getting a large percentage of the dirty file pages at the end
+> > of the LRU lists (bad). Initial tests show that page reclaim writeback is
+> > reduced from kswapd by 97% with this sort of pre-emptive kicking of flusher
+> > threads based on these figures from sysbench.
 > 
-> We can resolve race between memory failure and IO by checking
-> page lock and writeback flag, right?
-
-Yes, but we have to make sure it's in the same page.
-
-As I understand the IO locking does not use the head page, that
-means migration may need to lock all the sub pages.
-
-Or fix IO locking to use head pages? 
-
+> That sounds like yet another bad aid to me.  Instead it would be much
+> better to not have so many file pages at the end of LRU by tuning the
+> flusher threads and VM better.
 > 
-> BTW I surveyed direct IO code, but page lock seems not to be taken.
-> Am I missing something?
 
-That's expected I believe because applications are supposed to coordinate
-for direct IO (but then direct IO also drops page cache). 
+Do you mean "so many dirty file pages"? I'm going to assume you do.
 
-But page lock is used to coordinate in the page cache for buffered IO.
+How do you suggest tuning this? The modification I tried was "if N dirty
+pages are found during a SWAP_CLUSTER_MAX scan of pages, assume an average
+dirtying density of at least that during the time those pages were inserted on
+the LRU. In response, ask the flushers to flush 1.5X". This roughly responds
+to the conditions it finds as they are encountered and is based on scanning
+rates instead of time. It seemed like a reasonable option.
 
+Based on what I've seen, we are generally below the dirty_ratio and the
+flushers are behaving as expected so there is little tuning available there. As
+new dirty pages are added to the inactive list, they are allowed to reach the
+bottom of the LRU before the periodic sync kicks in. From what I can tell,
+it's already the case that flusher threads are cleaning the oldest inodes
+first and I'd expect there to be a rough correlation between oldest inode
+and oldest pages.
 
--Andi
+We could reduce the dirty_ratio but people already complain about workloads
+that do not allow enough pages to be dirtied. We could decrease the sync
+time for flusher threads but then it might be starting IO sooner than it
+should and it might be unnecessary if the system is under no memory pressure.
+
+Alternatives?
+
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
