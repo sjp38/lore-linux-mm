@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1FF066B006A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 01:03:46 -0400 (EDT)
-Date: Wed, 7 Jul 2010 13:03:38 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
-Message-ID: <20100707050338.GA5039@localhost>
-References: <1277811288-5195-1-git-send-email-mel@csn.ul.ie>
- <1277811288-5195-13-git-send-email-mel@csn.ul.ie>
- <20100702125155.69c02f85.akpm@linux-foundation.org>
- <20100705134949.GC13780@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5016B006A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 02:06:54 -0400 (EDT)
+Date: Wed, 7 Jul 2010 15:05:13 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 6/7] hugetlb: hugepage migration core
+Message-ID: <20100707060513.GA20221@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100705095927.GC8510@basil.fritz.box>
+ <20100706033342.GA10626@spritzera.linux.bs1.fc.nec.co.jp>
+ <20100706071337.GA20403@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-2022-jp
 Content-Disposition: inline
-In-Reply-To: <20100705134949.GC13780@csn.ul.ie>
+In-Reply-To: <20100706071337.GA20403@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Jan Kara <jack@suse.cz>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Tue, Jul 06, 2010 at 09:13:37AM +0200, Andi Kleen wrote:
+> On Tue, Jul 06, 2010 at 12:33:42PM +0900, Naoya Horiguchi wrote:
+> > > There's more code that handles LRU in this file. Do they all handle huge pages
+> > > correctly?
+> > > 
+> > > I also noticed we do not always lock all sub pages in the huge page. Now if
+> > > IO happens it will lock on subpages, not the head page. But this code
+> > > handles all subpages as a unit. Could this cause locking problems?
+> > > Perhaps it would be safer to lock all sub pages always? Or would 
+> > > need  to audit other page users to make sure they always lock on the head
+> > > and do the same here.
+> > > 
+> > > Hmm page reference counts may have the same issue?
+> > 
+> > If we try to implement paging out of hugepage in the future, we need to
+> > solve all these problems straightforwardly. But at least for now we can
+> > skirt them by not touching LRU code for hugepage extension.
+> 
+> We need the page lock to avoid migrating pages that are currently
+> under IO. This can happen even without swapping when the process 
+> manually starts IO. 
 
-> Second, using systemtap, I was able to see that file-backed dirty
-> pages have a tendency to be near the end of the LRU even though they
-> are a small percentage of the overall pages in the LRU. I'm hoping
-> to figure out why this is as it would make avoiding writeback a lot
-> less controversial.
+I see.  I understood we should work on locking problem in now.
+I digged and learned hugepage IO can happen in direct IO from/to
+hugepage or coredump of hugepage user.
 
-Your intuitions are correct -- the current background writeback logic
-fails to write elder inodes first. Under heavy loads the background
-writeback job may run for ever, totally ignoring the time order of
-inode->dirtied_when. This is probably why you see lots of dirty pages
-near the end of LRU.
+We can resolve race between memory failure and IO by checking
+page lock and writeback flag, right?
 
-Here is an old patch for fixing this. Sorry for being late. I'll
-pick up and refresh the patch series ASAP.  (I made a mistake last
-year to post too many patches at one time. I'll break them up into
-more manageable pieces.)
-
-[PATCH 31/45] writeback: sync old inodes first in background writeback
-<https://kerneltrap.org/mailarchive/linux-fsdevel/2009/10/7/6476313>
+BTW I surveyed direct IO code, but page lock seems not to be taken.
+Am I missing something?
+(Before determining whether we lock all subpages or only headpage,
+I want to clarify how current code for non-hugepage resolves this problem.)
 
 Thanks,
-Fengguang
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
