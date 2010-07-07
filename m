@@ -1,36 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id F34536B0246
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:43:49 -0400 (EDT)
-Message-ID: <4C3501ED.7040805@redhat.com>
-Date: Wed, 07 Jul 2010 18:38:37 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A65AB6B0248
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:44:30 -0400 (EDT)
+Message-ID: <4C35034B.6040906@codeaurora.org>
+Date: Wed, 07 Jul 2010 15:44:27 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 04/12] Provide special async page fault handler when
- async PF capability is detected
-References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-5-git-send-email-gleb@redhat.com>
-In-Reply-To: <1278433500-29884-5-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+ memory management
+References: <1278135507-20294-1-git-send-email-zpfeffer@codeaurora.org> <m14oggpepx.fsf@fess.ebiederm.org>
+In-Reply-To: <m14oggpepx.fsf@fess.ebiederm.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: mel@csn.ul.ie, andi@firstfloor.org, dwalker@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/06/2010 12:24 PM, Gleb Natapov wrote:
-> When async PF capability is detected hook up special page fault handler
-> that will handle async page fault events and bypass other page faults to
-> regular page fault handler.
->
-> Signed-off-by: Gleb Natapov<gleb@redhat.com>
+Eric W. Biederman wrote:
+> Zach Pfeffer <zpfeffer@codeaurora.org> writes:
+> 
+>> This patch contains the documentation for the API, termed the Virtual
+>> Contiguous Memory Manager. Its use would allow all of the IOMMU to VM,
+>> VM to device and device to IOMMU interoperation code to be refactored
+>> into platform independent code.
+>>
+>> Comments, suggestions and criticisms are welcome and wanted.
+> 
+> How does this differ from the dma api?
 
-I had some concerns with this patch, but it looks like patch
-10/12 addresses all of those, so ...
+The DMA API handles the allocation and use of DMA channels. It can
+configure physical transfer settings, manage scatter-gather lists,
+etc. 
 
-Acked-by: Rik van Riel <riel@redhat.com>
+The VCM is a different thing. The VCM allows a Virtual Contiguous
+Memory region to be created and associated with a device that
+addresses the bus virtually or physically. If the bus is addressed
+physically the Virtual Contiguous Memory is one-to-one mapped. If the
+bus is virtually mapped than a contiguous virtual reservation may be
+backed by a discontiguous list of physical blocks. This discontiguous
+list could be a SG list of just a list of physical blocks that would
+back the entire virtual reservation.
 
--- 
-All rights reversed
+The VCM allows all device buffers to be passed between all devices in
+the system without passing those buffers through each domain's
+API. This means that instead of writing code to interoperate between
+DMA engines, IOMMU mapped spaces, CPUs and physically addressed
+devices the user can simply target a device with a buffer using the
+same API regardless of how that device maps or otherwise accesses the
+buffer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
