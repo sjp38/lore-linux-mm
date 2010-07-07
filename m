@@ -1,36 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 600846B006A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 15:44:06 -0400 (EDT)
-Subject: Re: [PATCH 2/2] sched: make sched_param arugment static variables
- in some sched_setscheduler() caller
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100706170220.f3219001.akpm@linux-foundation.org>
-References: <20100702144941.8fa101c3.akpm@linux-foundation.org>
-	 <20100706091607.CCCC.A69D9226@jp.fujitsu.com>
-	 <20100706095013.CCD9.A69D9226@jp.fujitsu.com>
-	 <1278454438.1537.54.camel@gandalf.stny.rr.com>
-	 <20100706161253.79bfb761.akpm@linux-foundation.org>
-	 <1278460187.1537.107.camel@gandalf.stny.rr.com>
-	 <20100706170220.f3219001.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 07 Jul 2010 21:43:46 +0200
-Message-ID: <1278531826.1946.117.camel@laptop>
-Mime-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 761816B006A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 18:34:55 -0400 (EDT)
+Date: Wed, 7 Jul 2010 23:34:18 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [patch 071/149] ARM: 6166/1: Proper prefetch abort handling on
+	pre-ARMv6
+Message-ID: <20100707223417.GA22673@n2100.arm.linux.org.uk>
+References: <20100701173212.785441106@clark.site> <20100701221420.GA10481@shutemov.name> <20100701221728.GA12187@suse.de> <20100701222541.GB10481@shutemov.name> <20100701224837.GA27389@flint.arm.linux.org.uk> <20100701225911.GC10481@shutemov.name> <20100701231207.GB27389@flint.arm.linux.org.uk> <20100706130618.GA14177@shutemov.name> <20100706225815.GA21834@flint.arm.linux.org.uk> <20100707085601.GA18732@shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100707085601.GA18732@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: rostedt@goodmis.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Minchan Kim <minchan.kim@gmail.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, James Morris <jmorris@namei.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, Anfei Zhou <anfei.zhou@gmail.com>, Alexander Shishkin <virtuoso@slind.org>, Siarhei Siamashka <siarhei.siamashka@nokia.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-07-06 at 17:02 -0700, Andrew Morton wrote:
-> > Well this is also the way sched.c adds all its extra code.
->=20
-> The sched.c hack sucks too.=20
+On Wed, Jul 07, 2010 at 11:56:01AM +0300, Kirill A. Shutemov wrote:
+> But it seems that the problem is more global. Potentially, any of
+> pmd_none() check may produce false results. I don't see an easy way to fix
+> it.
 
-Agreed, moving things to kernel/sched/ and adding some internal.h thing
-could cure that, but I simply haven't gotten around to cleaning that
-up..
+It isn't.  We normally guarantee that we always fill on both L1 entries.
+The only exception is for the mappings specified via create_mapping()
+which is used for the static platform mappings.
+
+> Does Linux VM still expect one PTE table per page?
+
+Yes, and as far as I can see probably always will.  Hence why we need
+to put two L1 entries in one page and lie to the kernel about the sizes
+of the hardware entries.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
