@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5016B006A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 02:06:54 -0400 (EDT)
-Date: Wed, 7 Jul 2010 15:05:13 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 305816B006A
+	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 02:46:32 -0400 (EDT)
+Date: Wed, 7 Jul 2010 15:40:56 +0900
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 6/7] hugetlb: hugepage migration core
-Message-ID: <20100707060513.GA20221@spritzera.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 5/7] hugetlb: pin oldpage in page migration
+Message-ID: <20100707064056.GA21962@spritzera.linux.bs1.fc.nec.co.jp>
 References: <1278049646-29769-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1278049646-29769-7-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20100705095927.GC8510@basil.fritz.box>
- <20100706033342.GA10626@spritzera.linux.bs1.fc.nec.co.jp>
- <20100706071337.GA20403@basil.fritz.box>
+ <1278049646-29769-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.00.1007061050320.4938@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Disposition: inline
-In-Reply-To: <20100706071337.GA20403@basil.fritz.box>
+In-Reply-To: <alpine.DEB.2.00.1007061050320.4938@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 06, 2010 at 09:13:37AM +0200, Andi Kleen wrote:
-> On Tue, Jul 06, 2010 at 12:33:42PM +0900, Naoya Horiguchi wrote:
-> > > There's more code that handles LRU in this file. Do they all handle huge pages
-> > > correctly?
-> > > 
-> > > I also noticed we do not always lock all sub pages in the huge page. Now if
-> > > IO happens it will lock on subpages, not the head page. But this code
-> > > handles all subpages as a unit. Could this cause locking problems?
-> > > Perhaps it would be safer to lock all sub pages always? Or would 
-> > > need  to audit other page users to make sure they always lock on the head
-> > > and do the same here.
-> > > 
-> > > Hmm page reference counts may have the same issue?
-> > 
-> > If we try to implement paging out of hugepage in the future, we need to
-> > solve all these problems straightforwardly. But at least for now we can
-> > skirt them by not touching LRU code for hugepage extension.
+Hi,
+
+Thank you for your reviewing.
+
+On Tue, Jul 06, 2010 at 10:54:38AM -0500, Christoph Lameter wrote:
+> On Fri, 2 Jul 2010, Naoya Horiguchi wrote:
 > 
-> We need the page lock to avoid migrating pages that are currently
-> under IO. This can happen even without swapping when the process 
-> manually starts IO. 
+> > This patch introduces pinning the old page during page migration
+> > to avoid freeing it before we complete copying.
+> 
+> The old page is already pinned due to the reference count that is taken
+> when the page is put onto the list of pages to be migrated. See
+> do_move_pages() f.e.
 
-I see.  I understood we should work on locking problem in now.
-I digged and learned hugepage IO can happen in direct IO from/to
-hugepage or coredump of hugepage user.
+OK.
 
-We can resolve race between memory failure and IO by checking
-page lock and writeback flag, right?
+> Huge pages use a different scheme?
 
-BTW I surveyed direct IO code, but page lock seems not to be taken.
-Am I missing something?
-(Before determining whether we lock all subpages or only headpage,
-I want to clarify how current code for non-hugepage resolves this problem.)
+Different scheme is in soft offline, where the target page is not pinned
+before migration.  So I should have pinned in soft offline side.
+I'll fix it.
+
+> > This race condition can happen for privately mapped or anonymous hugepage.
+> 
+> It cannot happen unless you come up with your own scheme of managing pages
+> to be migrated and bypass migrate_pages(). There you should take the
+> refcount.
+
+Yes.
+
+> >  	/*
+> > +	 * It's reasonable to pin the old page until unmapping and copying
+> > +	 * complete, because when the original page is an anonymous hugepage,
+> > +	 * it will be freed in try_to_unmap() due to the fact that
+> > +	 * all references of anonymous hugepage come from mapcount.
+> > +	 * Although in the other cases no problem comes out without pinning,
+> > +	 * it looks logically correct to do it.
+> > +	 */
+> > +	get_page(page);
+> > +
+> > +	/*
+> 
+> Its already pinned. Dont do this. migrate_pages() relies on the caller
+> having pinned the page already.
+
+I agree.
 
 Thanks,
 Naoya Horiguchi
