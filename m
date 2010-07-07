@@ -1,98 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC2B6B0246
-	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 20:25:17 -0400 (EDT)
-Date: Wed, 7 Jul 2010 01:24:58 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 12/14] vmscan: Do not writeback pages in direct reclaim
-Message-ID: <20100707002458.GI13780@csn.ul.ie>
-References: <20100702125155.69c02f85.akpm@linux-foundation.org> <20100705134949.GC13780@csn.ul.ie> <20100706093529.CCD1.A69D9226@jp.fujitsu.com> <20100706101235.GE13780@csn.ul.ie> <AANLkTin8FotAC1GvjuoYU9XA2eiSr6FWWh6bwypTdhq3@mail.gmail.com> <20100706152539.GG13780@csn.ul.ie> <20100706202758.GC18210@cmpxchg.org> <AANLkTimOkI95ZkJecE3jxRDDGbHvP9tRUluIoJuhqqMz@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8FE156B0246
+	for <linux-mm@kvack.org>; Tue,  6 Jul 2010 21:02:38 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so656994pvc.14
+        for <linux-mm@kvack.org>; Tue, 06 Jul 2010 18:02:35 -0700 (PDT)
+Message-ID: <4C33D240.80102@vflare.org>
+Date: Wed, 07 Jul 2010 06:32:56 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimOkI95ZkJecE3jxRDDGbHvP9tRUluIoJuhqqMz@mail.gmail.com>
+Subject: Re: [PATCH V3 3/8] Cleancache: core ops functions and configuration
+References: <20100621231939.GA19505@ca-server1.us.oracle.com> <1277223988.9782.20.camel@nimitz> <20100706205121.GA32627@phenom.dumpdata.com>
+In-Reply-To: <20100706205121.GA32627@phenom.dumpdata.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Dave Hansen <dave@sr71.net>, Dan Magenheimer <dan.magenheimer@oracle.com>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 07, 2010 at 07:28:14AM +0900, Minchan Kim wrote:
-> On Wed, Jul 7, 2010 at 5:27 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Jul 06, 2010 at 04:25:39PM +0100, Mel Gorman wrote:
-> >> On Tue, Jul 06, 2010 at 08:24:57PM +0900, Minchan Kim wrote:
-> >> > but it is still problem in case of swap file.
-> >> > That's because swapout on swapfile cause file system writepage which
-> >> > makes kernel stack overflow.
-> >>
-> >> I don't *think* this is a problem unless I missed where writing out to
-> >> swap enters teh filesystem code. I'll double check.
-> >
-> > It bypasses the fs.  On swapon, the blocks are resolved
-> > (mm/swapfile.c::setup_swap_extents) and then the writeout path uses
-> > bios directly (mm/page_io.c::swap_writepage).
-> >
-> > (GFP_NOFS still includes __GFP_IO, so allows swapping)
-> >
-> >        Hannes
+On 07/07/2010 02:21 AM, Konrad Rzeszutek Wilk wrote:
+> On Tue, Jun 22, 2010 at 09:26:28AM -0700, Dave Hansen wrote:
+>> On Mon, 2010-06-21 at 16:19 -0700, Dan Magenheimer wrote:
+>>> --- linux-2.6.35-rc2/include/linux/cleancache.h 1969-12-31 17:00:00.000000000 -0700
+>>> +++ linux-2.6.35-rc2-cleancache/include/linux/cleancache.h      2010-06-21 14:45:18.000000000 -0600
+>>> @@ -0,0 +1,88 @@
+>>> +#ifndef _LINUX_CLEANCACHE_H
+>>> +#define _LINUX_CLEANCACHE_H
+>>> +
+>>> +#include <linux/fs.h>
+>>> +#include <linux/mm.h>
+>>> +
+>>> +struct cleancache_ops {
+>>> +       int (*init_fs)(size_t);
+>>> +       int (*init_shared_fs)(char *uuid, size_t);
+>>> +       int (*get_page)(int, ino_t, pgoff_t, struct page *);
+>>> +       void (*put_page)(int, ino_t, pgoff_t, struct page *);
+>>> +       void (*flush_page)(int, ino_t, pgoff_t);
+>>> +       void (*flush_inode)(int, ino_t);
+>>> +       void (*flush_fs)(int);
+>>> +};
+>>> + 
+>>
+>> How would someone go about testing this code?  Is there an example
+>> cleancache implementation?
 > 
-> Thanks, Hannes. You're right.
-> Extents would be resolved by setup_swap_extents.
-> Sorry for confusing, Mel.
+> Dan,
 > 
+> Can you reference with a link or a git branch the patches that utilize
+> this?
+> 
+> And also mention that in the 0/X patch so that folks can reference your
+> cleancache implementation?
+> 
+>
 
-No confusion. I was 99.99999% certain this was the case and had tested with
-a few bug_on's just in case but confirmation is helpful. Thanks both.
+FYI.
 
-What I have now is direct writeback for anon files. For files be it from
-kswapd or direct reclaim, I kick writeback pre-emptively by an amount based
-on the dirty pages encountered because monitoring from systemtap indicated
-that we were getting a large percentage of the dirty file pages at the end
-of the LRU lists (bad). Initial tests show that page reclaim writeback is
-reduced from kswapd by 97% with this sort of pre-emptive kicking of flusher
-threads based on these figures from sysbench.
+I am working on 'zcache' which uses cleancache_ops to provide page cache
+compression support. I will be posting it to LKML before end of next week.
 
-                traceonly-v4r1  stackreduce-v4r1    flushforward-v4r4
-Direct reclaims                                621        710         30928 
-Direct reclaim pages scanned                141316     141184       1912093 
-Direct reclaim write file async I/O          23904      28714             0 
-Direct reclaim write anon async I/O            716        918            88 
-Direct reclaim write file sync I/O               0          0             0 
-Direct reclaim write anon sync I/O               0          0             0 
-Wake kswapd requests                        713250     735588       5626413 
-Kswapd wakeups                                1805       1498           641 
-Kswapd pages scanned                      17065538   15605327       9524623 
-Kswapd reclaim write file async I/O         715768     617225         23938  <-- Wooo
-Kswapd reclaim write anon async I/O         218003     214051        198746 
-Kswapd reclaim write file sync I/O               0          0             0 
-Kswapd reclaim write anon sync I/O               0          0             0 
-Time stalled direct reclaim (ms)              9.87      11.63        315.30 
-Time kswapd awake (ms)                     1884.91    2088.23       3542.92 
-
-This is "good" IMO because file IO from page reclaim is frowned upon because
-of poor IO patterns. There isn't a launder process I can kick for anon pages
-to get overall reclaim IO down but it's not clear it's worth it at this
-juncture because AFAIK, IO to swap blows anyway. The biggest plus is that
-direct reclaim still not call into the filesystem with my current series so
-stack overflows are less of a heartache. As the number of pages encountered
-for filesystem writeback are reduced, it's also less of a problem for memcg.
-
-The direct reclaim stall latency increases because of congestion_wait
-throttling but the overall tests completes 602 seconds faster or by 8% (figures
-not included). Scanning rates go up but with reduced-time-to-completion,
-on balance I think it works out.
-
-Andrew has picked up some of the series but I have another modification
-to the tracepoints to differenciate between anon and file IO which I now
-think is a very important distinction as flushers work on one but not the
-other. I also must rebase upon a mmotm based on 2.6.35-rc4 before re-posting
-the series but broadly speaking, I think we are going the right direction
-without needing stack-switching tricks.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
