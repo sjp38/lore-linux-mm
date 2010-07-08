@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 16B7C6B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 17:30:24 -0400 (EDT)
-Date: Thu, 8 Jul 2010 14:28:47 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 16348] New: kswapd continuously active when
- doing IO
-Message-Id: <20100708142847.375e505e.akpm@linux-foundation.org>
-In-Reply-To: <bug-16348-10286@https.bugzilla.kernel.org/>
-References: <bug-16348-10286@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D5BB86B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:00:24 -0400 (EDT)
+Message-ID: <4C366678.60605@codeaurora.org>
+Date: Thu, 08 Jul 2010 16:59:52 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
+MIME-Version: 1.0
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+ memory management
+References: <1278135507-20294-1-git-send-email-zpfeffer@codeaurora.org> <m14oggpepx.fsf@fess.ebiederm.org> <4C35034B.6040906@codeaurora.org> <20100707230710.GA31792@n2100.arm.linux.org.uk>
+In-Reply-To: <20100707230710.GA31792@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: tolzmann@molgen.mpg.de, linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
+Russell King - ARM Linux wrote:
+> On Wed, Jul 07, 2010 at 03:44:27PM -0700, Zach Pfeffer wrote:
+>> The DMA API handles the allocation and use of DMA channels. It can
+>> configure physical transfer settings, manage scatter-gather lists,
+>> etc. 
+> 
+> You're confused about what the DMA API is.  You're talking about
+> the DMA engine subsystem (drivers/dma) not the DMA API (see
+> Documentation/DMA-API.txt, include/linux/dma-mapping.h, and
+> arch/arm/include/asm/dma-mapping.h)
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Thanks for the clarification. 
 
-On Wed, 7 Jul 2010 10:58:50 GMT
-bugzilla-daemon@bugzilla.kernel.org wrote:
+> 
+>> The VCM allows all device buffers to be passed between all devices in
+>> the system without passing those buffers through each domain's
+>> API. This means that instead of writing code to interoperate between
+>> DMA engines, IOMMU mapped spaces, CPUs and physically addressed
+>> devices the user can simply target a device with a buffer using the
+>> same API regardless of how that device maps or otherwise accesses the
+>> buffer.
+> 
+> With the DMA API, if we have a SG list which refers to the physical
+> pages (as a struct page, offset, length tuple), the DMA API takes
+> care of dealing with CPU caches and IOMMUs to make the data in the
+> buffer visible to the target device.  It provides you with a set of
+> cookies referring to the SG lists, which may be coalesced if the
+> IOMMU can do so.
+> 
+> If you have a kernel virtual address, the DMA API has single buffer
+> mapping/unmapping functions to do the same thing, and provide you
+> with a cookie to pass to the device to refer to that buffer.
+> 
+> These cookies are whatever the device needs to be able to access
+> the buffer - for instance, if system SDRAM is located at 0xc0000000
+> virtual, 0x80000000 physical and 0x40000000 as far as the DMA device
+> is concerned, then the cookie for a buffer at 0xc0000000 virtual will
+> be 0x40000000 and not 0x80000000.
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=16348
-> 
->            Summary: kswapd continuously active when doing IO
->            Product: IO/Storage
->            Version: 2.5
->     Kernel Version: 2.6.34
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Other
->         AssignedTo: io_other@kernel-bugs.osdl.org
->         ReportedBy: tolzmann@molgen.mpg.de
->         Regression: Yes
-> 
-> 
-> Hi..
-> 
-> this bug may be related to #15193 where i attached the issue as a comment.
-> since bug #15193 has status RESOLVED PATCH_ALREADY_AVAILABLE and not CLOSED
-> CODE_FIX i file the situation as a new bug since the problem still exists for
-> us.
-> 
-> THE ISSUE:
-> we are currently having trouble with continuously running kswapds consuming up
-> to 100% CPU time when the system is busy doing (heavy) I/O.
-> 
-> to reproduce (on our machines):  dd if=/dev/zero of=somefile  will activate all
-> kswapds when the file reaches the size of the installed memory (our systems
-> have 8G up to 256G). (same effect on local reiserfs and local xfs)
-> 
-> In kernel 2.6.34 (and 2.6.35-rc3) this issue causes the system to become very
-> very slow and unresponsive.
-> 
-> we switched back to 2.6.34-rc6 which seems to have no issues with the same IO.
-> 
-> what information can i provide to help fixing this issue.
-> 
+It sounds like I've got some work to do. I appreciate the feedback.
 
-That's odd - there are no changes in mm/vmscan.c between 2.6.34-rc6 and
-2.6.34.  Are you sure about those kernel versions?
+The problem I'm trying to solve boils down to this: map a set of
+contiguous physical buffers to an aligned IOMMU address. I need to
+allocate the set of physical buffers in a particular way: use 1 MB
+contiguous physical memory, then 64 KB, then 4 KB, etc. and I need to
+align the IOMMU address in a particular way. I also need to swap out the
+IOMMU address spaces and map the buffers into the kernel.
 
+I have this all solved, but it sounds like I'll need to migrate to the DMA
+API to upstream it.
+
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
