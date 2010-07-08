@@ -1,50 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 05D206B006A
-	for <linux-mm@kvack.org>; Wed,  7 Jul 2010 21:11:13 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o681BBIb007620
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 8 Jul 2010 10:11:12 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9849E45DE56
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 10:11:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7777145DE52
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 10:11:11 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DA661DB8061
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 10:11:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 035151DB805E
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 10:11:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: FYI: mmap_sem OOM patch
-In-Reply-To: <20100708084005.CD0F.A69D9226@jp.fujitsu.com>
-References: <20100707231134.GA26555@google.com> <20100708084005.CD0F.A69D9226@jp.fujitsu.com>
-Message-Id: <20100708100836.CD1A.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 58E7D6B006A
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 00:09:32 -0400 (EDT)
+Message-ID: <4C354F67.3090404@redhat.com>
+Date: Thu, 08 Jul 2010 00:09:11 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH v4 08/12] Inject asynchronous page fault into a guest
+ if page is swapped out.
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-9-git-send-email-gleb@redhat.com>
+In-Reply-To: <1278433500-29884-9-git-send-email-gleb@redhat.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Thu,  8 Jul 2010 10:11:10 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> Yup.
-> If admins want to kill memory hogging process manually when the system
-> is under heavy swap thrashing, we will face the same problem, need 
-> unfairness and fast exit. So, unfair exiting design looks very good.
-> 
-> If you will updated the description, I'm glad :)
+On 07/06/2010 12:24 PM, Gleb Natapov wrote:
+> If guest access swapped out memory do not swap it in from vcpu thread
+> context. Setup slow work to do swapping and send async page fault to
+> a guest.
+>
+> Allow async page fault injection only when guest is in user mode since
+> otherwise guest may be in non-sleepable context and will not be able to
+> reschedule.
+>
+> Signed-off-by: Gleb Natapov<gleb@redhat.com>
 
-I have one more topic. can we check fatal_signal_pending() instead TIF_MEMDIE?
-As I said, if the process received SIGKILL, do the fork/exec/brk/mmap 
-starvations have any problem?
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Thanks.
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
