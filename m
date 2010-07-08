@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id AE57C6B006A
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 00:21:54 -0400 (EDT)
-Message-ID: <4C35524E.70104@redhat.com>
-Date: Thu, 08 Jul 2010 00:21:34 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5A7716B0246
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 00:23:16 -0400 (EDT)
+Message-ID: <4C35529F.4060204@redhat.com>
+Date: Thu, 08 Jul 2010 00:22:55 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 09/12] Retry fault before vmentry
-References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-10-git-send-email-gleb@redhat.com>
-In-Reply-To: <1278433500-29884-10-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH v4 10/12] Handle async PF in non preemptable context
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-11-git-send-email-gleb@redhat.com>
+In-Reply-To: <1278433500-29884-11-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +17,10 @@ Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@r
 List-ID: <linux-mm.kvack.org>
 
 On 07/06/2010 12:24 PM, Gleb Natapov wrote:
-> When page is swapped in it is mapped into guest memory only after guest
-> tries to access it again and generate another fault. To save this fault
-> we can map it immediately since we know that guest is going to access
-> the page.
+> If async page fault is received by idle task or when preemp_count is
+> not zero guest cannot reschedule, so do sti; hlt and wait for page to be
+> ready. vcpu can still process interrupts while it waits for the page to
+> be ready.
 >
 > Signed-off-by: Gleb Natapov<gleb@redhat.com>
 
