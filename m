@@ -1,25 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EBA2D6006F5
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 08:43:52 -0400 (EDT)
-Subject: Re: FYI: mmap_sem OOM patch
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <AANLkTimArLPHrxHNEejiXKNYk9To6qsjglbgzyypXP-c@mail.gmail.com>
-References: <AANLkTimLSnNot2byTWYuIHE8rhGLXbl1zKsQQhmci1Do@mail.gmail.com>
-	 <1278586173.1900.50.camel@laptop>
-	 <20100708195421.CD48.A69D9226@jp.fujitsu.com>
-	 <AANLkTimArLPHrxHNEejiXKNYk9To6qsjglbgzyypXP-c@mail.gmail.com>
-Content-Type: text/plain
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2A4EE6006F5
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 09:23:40 -0400 (EDT)
+Message-ID: <4C35D139.90006@redhat.com>
+Date: Thu, 08 Jul 2010 09:23:05 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of lru_pages,
+ not page order
+References: <20100708163401.CD34.A69D9226@jp.fujitsu.com> <20100708163934.CD37.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100708163934.CD37.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Thu, 08 Jul 2010 14:43:01 +0200
-Message-ID: <1278592981.1900.101.camel@laptop>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>, Ingo Molnar <mingo@elte.hu>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-Could you please educate your mailer to not send HTML garbage?
+On 07/08/2010 03:40 AM, KOSAKI Motohiro wrote:
+> Fix simple argument error. Usually 'order' is very small value than
+> lru_pages. then it can makes unnecessary icache dropping.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
