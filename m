@@ -1,130 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6C3376B006A
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 05:20:22 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o689KJe2024186
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 520936B006A
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 05:24:26 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o689ONO3018639
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 8 Jul 2010 18:20:19 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E287D45DE3E
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:20:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B774645DE4E
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:20:18 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E9771DB804E
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:20:18 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 254711DB804C
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:20:15 +0900 (JST)
+	Thu, 8 Jul 2010 18:24:23 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 45AAA45DE55
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:24:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2717245DE51
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:24:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAC7D1DB803A
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:24:22 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62291E18001
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 18:24:22 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] reduce stack usage of node_read_meminfo()
-Message-Id: <20100708181629.CD3C.A69D9226@jp.fujitsu.com>
+Subject: Re: FYI: mmap_sem OOM patch
+In-Reply-To: <1278579768.1900.14.camel@laptop>
+References: <20100707231134.GA26555@google.com> <1278579768.1900.14.camel@laptop>
+Message-Id: <20100708182134.CD3F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  8 Jul 2010 18:20:14 +0900 (JST)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu,  8 Jul 2010 18:24:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>
 List-ID: <linux-mm.kvack.org>
 
+> On Wed, 2010-07-07 at 16:11 -0700, Michel Lespinasse wrote:
+> 
+> > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+> > index f627779..4b3a1c7 100644
+> > --- a/arch/x86/mm/fault.c
+> > +++ b/arch/x86/mm/fault.c
+> > @@ -1062,7 +1062,10 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+> >  			bad_area_nosemaphore(regs, error_code, address);
+> >  			return;
+> >  		}
+> > -		down_read(&mm->mmap_sem);
+> > +		if (test_thread_flag(TIF_MEMDIE))
+> > +			down_read_unfair(&mm->mmap_sem);
+> > +		else
+> > +			down_read(&mm->mmap_sem);
+> >  	} else {
+> >  		/*
+> >  		 * The above down_read_trylock() might have succeeded in
+> 
+> I still think adding that _unfair interface is asking for trouble.
 
-Now, cmpilation node_read_meminfo() output following warning. Because
-it has very large sprintf() argument.
-
-	drivers/base/node.c: In function 'node_read_meminfo':
-	drivers/base/node.c:139: warning: the frame size of 848 bytes is
-	larger than 512 bytes
-
-This patch fixes it by splitting sprintf() in three parts.
-It doesn't have functional change.
+Can you please explain trouble that you worry? Why do we need to keep
+thread fairness when OOM case?
 
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- drivers/base/node.c |   46 +++++++++++++++++++++++-----------------------
- 1 files changed, 23 insertions(+), 23 deletions(-)
-
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 2bdd8a9..a0fb2ef 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -66,8 +66,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
- 	struct sysinfo i;
- 
- 	si_meminfo_node(&i, nid);
--
--	n = sprintf(buf, "\n"
-+	n = sprintf(buf,
- 		       "Node %d MemTotal:       %8lu kB\n"
- 		       "Node %d MemFree:        %8lu kB\n"
- 		       "Node %d MemUsed:        %8lu kB\n"
-@@ -78,13 +77,33 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
- 		       "Node %d Active(file):   %8lu kB\n"
- 		       "Node %d Inactive(file): %8lu kB\n"
- 		       "Node %d Unevictable:    %8lu kB\n"
--		       "Node %d Mlocked:        %8lu kB\n"
-+		       "Node %d Mlocked:        %8lu kB\n",
-+		       nid, K(i.totalram),
-+		       nid, K(i.freeram),
-+		       nid, K(i.totalram - i.freeram),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
-+				node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
-+				node_page_state(nid, NR_INACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
-+		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
-+		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
-+		       nid, K(node_page_state(nid, NR_MLOCK)));
-+
- #ifdef CONFIG_HIGHMEM
-+	n += sprintf(buf,
- 		       "Node %d HighTotal:      %8lu kB\n"
- 		       "Node %d HighFree:       %8lu kB\n"
- 		       "Node %d LowTotal:       %8lu kB\n"
--		       "Node %d LowFree:        %8lu kB\n"
-+		       "Node %d LowFree:        %8lu kB\n",
-+		       nid, K(i.totalhigh),
-+		       nid, K(i.freehigh),
-+		       nid, K(i.totalram - i.totalhigh),
-+		       nid, K(i.freeram - i.freehigh));
- #endif
-+	n += sprintf(buf,
- 		       "Node %d Dirty:          %8lu kB\n"
- 		       "Node %d Writeback:      %8lu kB\n"
- 		       "Node %d FilePages:      %8lu kB\n"
-@@ -99,25 +118,6 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
- 		       "Node %d Slab:           %8lu kB\n"
- 		       "Node %d SReclaimable:   %8lu kB\n"
- 		       "Node %d SUnreclaim:     %8lu kB\n",
--		       nid, K(i.totalram),
--		       nid, K(i.freeram),
--		       nid, K(i.totalram - i.freeram),
--		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
--				node_page_state(nid, NR_ACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
--				node_page_state(nid, NR_INACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
--		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
--		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
--		       nid, K(node_page_state(nid, NR_MLOCK)),
--#ifdef CONFIG_HIGHMEM
--		       nid, K(i.totalhigh),
--		       nid, K(i.freehigh),
--		       nid, K(i.totalram - i.totalhigh),
--		       nid, K(i.freeram - i.freehigh),
--#endif
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
- 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
--- 
-1.6.5.2
+btw, I also dislike unfair + /proc combination.
 
 
 
