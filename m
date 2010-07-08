@@ -1,32 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2A4EE6006F5
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 09:23:40 -0400 (EDT)
-Message-ID: <4C35D139.90006@redhat.com>
-Date: Thu, 08 Jul 2010 09:23:05 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D3AC46006F5
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 09:24:59 -0400 (EDT)
+Date: Thu, 8 Jul 2010 16:24:43 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v4 03/12] Add async PF initialization to PV guest.
+Message-ID: <20100708132443.GW4689@redhat.com>
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
+ <1278433500-29884-4-git-send-email-gleb@redhat.com>
+ <1278517261.1946.8.camel@laptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of lru_pages,
- not page order
-References: <20100708163401.CD34.A69D9226@jp.fujitsu.com> <20100708163934.CD37.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100708163934.CD37.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1278517261.1946.8.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On 07/08/2010 03:40 AM, KOSAKI Motohiro wrote:
-> Fix simple argument error. Usually 'order' is very small value than
-> lru_pages. then it can makes unnecessary icache dropping.
->
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+On Wed, Jul 07, 2010 at 05:41:01PM +0200, Peter Zijlstra wrote:
+> On Tue, 2010-07-06 at 19:24 +0300, Gleb Natapov wrote:
+> > @@ -329,6 +330,8 @@ notrace static void __cpuinit start_secondary(void *unused)
+> >         per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+> >         x86_platform.nmi_init();
+> >  
+> > +       kvm_guest_cpu_init();
+> > +
+> >         /* enable local interrupts */
+> >         local_irq_enable(); 
+> 
+> CPU_STARTING hotplug notifier is too early?
+> 
+Actually no. I will move this call into cpu notifier.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> called from:
+>    start_secondary()
+>      smp_callin()
+>        notify_cpu_starting() 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-All rights reversed
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
