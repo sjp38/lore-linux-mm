@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA1C6006F5
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 13:35:35 -0400 (EDT)
-Date: Thu, 8 Jul 2010 13:35:15 -0400
-From: Christoph Hellwig <hch@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 32A3A6006F5
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 13:48:20 -0400 (EDT)
 Subject: Re: [PATCH] Add trace event for munmap
-Message-ID: <20100708173515.GA11652@infradead.org>
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100708173515.GA11652@infradead.org>
 References: <1278597931-26855-1-git-send-email-emunson@mgebm.net>
- <1278598955.1900.152.camel@laptop>
- <20100708144407.GA8141@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100708144407.GA8141@us.ibm.com>
+	 <1278598955.1900.152.camel@laptop> <20100708144407.GA8141@us.ibm.com>
+	 <20100708173515.GA11652@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 08 Jul 2010 19:48:08 +0200
+Message-ID: <1278611288.1900.164.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <ebmunson@us.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Eric B Munson <emunson@mgebm.net>, akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, anton@samba.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Eric B Munson <ebmunson@us.ibm.com>, Eric B Munson <emunson@mgebm.net>, akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, anton@samba.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 08, 2010 at 03:44:07PM +0100, Eric B Munson wrote:
-> On Thu, 08 Jul 2010, Peter Zijlstra wrote:
-> 
-> > On Thu, 2010-07-08 at 15:05 +0100, Eric B Munson wrote:
-> > > This patch adds a trace event for munmap which will record the starting
-> > > address of the unmapped area and the length of the umapped area.  This
-> > > event will be used for modeling memory usage.
-> > 
-> > Does it make sense to couple this with a mmap()/mremap()/brk()
-> > tracepoint?
-> > 
-> 
-> We were using the mmap information collected by perf, but I think
-> those might also be useful so I will send a followup patch to add
-> them.
+On Thu, 2010-07-08 at 13:35 -0400, Christoph Hellwig wrote:
 
-What kind of infrastructure is perf using for recording
-mmap()/mremap()/brk() information?
+> What kind of infrastructure is perf using for recording
+> mmap()/mremap()/brk() information?
+
+A direct hook into mmap_region(), see perf_event_mmap().
+
+We used to only track VM_EXEC regions, but these days we can also track
+data regions (although it wouldn't track mremap and brk I think).
+
+We need the VM_EXEC maps to make sense of the instruction pointer
+samples.
+
+Eric recently added support for !VM_EXEC mmap() in order to interpret
+linear addresses provided by things like the software pagefault events
+and certain powerpc hardware events.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
