@@ -1,128 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BCB86B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 16:32:54 -0400 (EDT)
-Date: Thu, 8 Jul 2010 13:31:52 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6266B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 16:58:11 -0400 (EDT)
+Date: Thu, 8 Jul 2010 13:58:05 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of
- lru_pages, not page order
-Message-Id: <20100708133152.5e556508.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1007080901460.9707@router.home>
-References: <20100708163401.CD34.A69D9226@jp.fujitsu.com>
-	<20100708163934.CD37.A69D9226@jp.fujitsu.com>
-	<alpine.DEB.2.00.1007080901460.9707@router.home>
+Subject: Re: [PATCH] reduce stack usage of node_read_meminfo()
+Message-Id: <20100708135805.b4411965.akpm@linux-foundation.org>
+In-Reply-To: <20100708181629.CD3C.A69D9226@jp.fujitsu.com>
+References: <20100708181629.CD3C.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Jul 2010 09:04:18 -0500 (CDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
+On Thu,  8 Jul 2010 18:20:14 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> On Thu, 8 Jul 2010, KOSAKI Motohiro wrote:
 > 
-> > Fix simple argument error. Usually 'order' is very small value than
-> > lru_pages. then it can makes unnecessary icache dropping.
+> Now, cmpilation node_read_meminfo() output following warning. Because
+> it has very large sprintf() argument.
 > 
-> AFAICT this is not argument error but someone changed the naming of the
-> parameter.
+> 	drivers/base/node.c: In function 'node_read_meminfo':
+> 	drivers/base/node.c:139: warning: the frame size of 848 bytes is
+> 	larger than 512 bytes
 
-It's been there since day zero:
+hm, I'm surprised it's that much.
 
-: commit 2a16e3f4b0c408b9e50297d2ec27e295d490267a
-: Author:     Christoph Lameter <clameter@engr.sgi.com>
-: AuthorDate: Wed Feb 1 03:05:35 2006 -0800
-: Commit:     Linus Torvalds <torvalds@g5.osdl.org>
-: CommitDate: Wed Feb 1 08:53:16 2006 -0800
-: 
-:     [PATCH] Reclaim slab during zone reclaim
-:     
-:     If large amounts of zone memory are used by empty slabs then zone_reclaim
-:     becomes uneffective.  This patch shakes the slab a bit.
-:     
-:     The problem with this patch is that the slab reclaim is not containable to a
-:     zone.  Thus slab reclaim may affect the whole system and be extremely slow.
-:     This also means that we cannot determine how many pages were freed in this
-:     zone.  Thus we need to go off node for at least one allocation.
-:     
-:     The functionality is disabled by default.
-:     
-:     We could modify the shrinkers to take a zone parameter but that would be quite
-:     invasive.  Better ideas are welcome.
-:     
-:     Signed-off-by: Christoph Lameter <clameter@sgi.com>
-:     Signed-off-by: Andrew Morton <akpm@osdl.org>
-:     Signed-off-by: Linus Torvalds <torvalds@osdl.org>
-: 
-: diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-: index 4bca2a3..a46c10f 100644
-: --- a/Documentation/sysctl/vm.txt
-: +++ b/Documentation/sysctl/vm.txt
-: @@ -137,6 +137,7 @@ This is value ORed together of
-:  1	= Zone reclaim on
-:  2	= Zone reclaim writes dirty pages out
-:  4	= Zone reclaim swaps pages
-: +8	= Also do a global slab reclaim pass
-:  
-:  zone_reclaim_mode is set during bootup to 1 if it is determined that pages
-:  from remote zones will cause a measurable performance reduction. The
-: @@ -160,6 +161,11 @@ Allowing regular swap effectively restricts allocations to the local
-:  node unless explicitly overridden by memory policies or cpuset
-:  configurations.
-:  
-: +It may be advisable to allow slab reclaim if the system makes heavy
-: +use of files and builds up large slab caches. However, the slab
-: +shrink operation is global, may take a long time and free slabs
-: +in all nodes of the system.
-: +
-:  ================================================================
-:  
-:  zone_reclaim_interval:
-: diff --git a/mm/vmscan.c b/mm/vmscan.c
-: index 9e2ef36..aa4b80d 100644
-: --- a/mm/vmscan.c
-: +++ b/mm/vmscan.c
-: @@ -1596,6 +1596,7 @@ int zone_reclaim_mode __read_mostly;
-:  #define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
-:  #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
-:  #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
-: +#define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
-:  
-:  /*
-:   * Mininum time between zone reclaim scans
-: @@ -1666,6 +1667,19 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-:  
-:  	} while (sc.nr_reclaimed < nr_pages && sc.priority > 0);
-:  
-: +	if (sc.nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
-: +		/*
-: +		 * shrink_slab does not currently allow us to determine
-: +		 * how many pages were freed in the zone. So we just
-: +		 * shake the slab and then go offnode for a single allocation.
-: +		 *
-: +		 * shrink_slab will free memory on all zones and may take
-: +		 * a long time.
-: +		 */
-: +		shrink_slab(sc.nr_scanned, gfp_mask, order);
-: +		sc.nr_reclaimed = 1;    /* Avoid getting the off node timeout */
-: +	}
-: +
-:  	p->reclaim_state = NULL;
-:  	current->flags &= ~PF_MEMALLOC;
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -66,8 +66,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
+>  	struct sysinfo i;
+>  
+>  	si_meminfo_node(&i, nid);
+> -
+> -	n = sprintf(buf, "\n"
+> +	n = sprintf(buf,
+>  		       "Node %d MemTotal:       %8lu kB\n"
+>  		       "Node %d MemFree:        %8lu kB\n"
+>  		       "Node %d MemUsed:        %8lu kB\n"
+> @@ -78,13 +77,33 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
+>  		       "Node %d Active(file):   %8lu kB\n"
+>  		       "Node %d Inactive(file): %8lu kB\n"
+>  		       "Node %d Unevictable:    %8lu kB\n"
+> -		       "Node %d Mlocked:        %8lu kB\n"
+> +		       "Node %d Mlocked:        %8lu kB\n",
+> +		       nid, K(i.totalram),
+> +		       nid, K(i.freeram),
+> +		       nid, K(i.totalram - i.freeram),
+> +		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
+> +				node_page_state(nid, NR_ACTIVE_FILE)),
 
-> The "lru_pages" parameter is really a division factor affecting
-> the number of pages scanned. This patch increases this division factor
-> significantly and therefore reduces the number of items scanned during
-> zone_reclaim.
-> 
+Why the heck did we decide to print the same node-id 10000 times?
 
-And for that reason I won't apply the patch.  I'd be crazy to do so. 
-It tosses away four years testing, replacing it with something which
-could have a large effect on reclaim behaviour, with no indication
-whether that effect is good or bad.
+> +	n += sprintf(buf,
+
+You just got caught sending untested patches.
+
+--- a/drivers/base/node.c~drivers-base-nodec-reduce-stack-usage-of-node_read_meminfo-fix
++++ a/drivers/base/node.c
+@@ -93,7 +93,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(node_page_state(nid, NR_MLOCK)));
+ 
+ #ifdef CONFIG_HIGHMEM
+-	n += sprintf(buf,
++	n += sprintf(buf + n,
+ 		       "Node %d HighTotal:      %8lu kB\n"
+ 		       "Node %d HighFree:       %8lu kB\n"
+ 		       "Node %d LowTotal:       %8lu kB\n"
+@@ -103,7 +103,7 @@ static ssize_t node_read_meminfo(struct 
+ 		       nid, K(i.totalram - i.totalhigh),
+ 		       nid, K(i.freeram - i.freehigh));
+ #endif
+-	n += sprintf(buf,
++	n += sprintf(buf + n,
+ 		       "Node %d Dirty:          %8lu kB\n"
+ 		       "Node %d Writeback:      %8lu kB\n"
+ 		       "Node %d FilePages:      %8lu kB\n"
+_
+
+
+Please, run the code and check that we didn't muck up the output.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
