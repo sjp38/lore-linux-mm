@@ -1,32 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A03616B024A
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 00:29:27 -0400 (EDT)
-Message-ID: <4C355417.3020503@redhat.com>
-Date: Thu, 08 Jul 2010 00:29:11 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3F4FF6B006A
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 00:59:17 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so600116iwn.14
+        for <linux-mm@kvack.org>; Wed, 07 Jul 2010 21:59:15 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 12/12] Send async PF when guest is not in userspace
- too.
-References: <1278433500-29884-1-git-send-email-gleb@redhat.com> <1278433500-29884-13-git-send-email-gleb@redhat.com>
-In-Reply-To: <1278433500-29884-13-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 8 Jul 2010 10:29:15 +0530
+Message-ID: <AANLkTikYX5U8eoMx5CDh00EVfVXDfO5eslYZ7DSB9zIe@mail.gmail.com>
+Subject: Ramzswap :swap-device write failure under low memory
+From: Uma shankar <shankar.vk@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/06/2010 12:25 PM, Gleb Natapov wrote:
-> Signed-off-by: Gleb Natapov<gleb@redhat.com>
+Hi,
 
-This patch needs a commit message on the next submission.
-Other than that:
+ When using ramzswap,  the internal allocator (xvMalloc)  will  try to
+grow the pool,
+when the compressed block will not fit in any of the existing free chunk.
+This memory allocation can fail  under low memory.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+This will be informed to the kernel as  a "device write" failure. The
+page which was being written will
+not be reclaimed, but the kernel will  continue to  try swap out of
+other pages ( as kernel
+thinks that swap has free space. )
 
--- 
-All rights reversed
+Wont this lead  to the reclaim code ( kswapd  or the direct reclaim
+path )  hogging  the processor for some time
+before  OOM is finally announced ?
+
+Has  any one  analysed this scenario ?
+
+                    thanks
+                     shankar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
