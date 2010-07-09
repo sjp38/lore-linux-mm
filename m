@@ -1,25 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5D2196B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:55:42 -0400 (EDT)
-Date: Fri, 9 Jul 2010 08:54:58 -0500 (CDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6CE1F6B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:03:03 -0400 (EDT)
+Date: Fri, 9 Jul 2010 09:02:31 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of lru_pages,
-  not page order
-In-Reply-To: <AANLkTinwZfaQiTJhP8RcGhlSS-ynEXtbpzorrIZrNyIH@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1007090854420.30663@router.home>
-References: <20100708163401.CD34.A69D9226@jp.fujitsu.com> <20100708163934.CD37.A69D9226@jp.fujitsu.com> <AANLkTinwZfaQiTJhP8RcGhlSS-ynEXtbpzorrIZrNyIH@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: stop meaningless loop iteration when no reclaimable
+ slab
+In-Reply-To: <20100709191308.FA25.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1007090859560.30663@router.home>
+References: <20100708133152.5e556508.akpm@linux-foundation.org> <20100709171850.FA22.A69D9226@jp.fujitsu.com> <20100709191308.FA25.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 9 Jul 2010, KOSAKI Motohiro wrote:
 
-Ok. I am convinced.
+> If number of reclaimable slabs are zero, shrink_icache_memory() and
+> shrink_dcache_memory() return 0. but strangely shrink_slab() ignore
+> it and continue meaningless loop iteration.
 
-Acked-by: Christoph Lameter <cl@linux-foundation.org>
+There is also a per zone/node/global counter SLAB_RECLAIM_ACCOUNT that
+could be used to determine if its worth looking at things at all. I saw
+some effort going into making the shrinkers zone aware. If so then we may
+be able to avoid scanning slabs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
