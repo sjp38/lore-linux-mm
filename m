@@ -1,103 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 061D76B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:12:14 -0400 (EDT)
-Message-Id: <20100709190850.289011972@quilx.com>
-Date: Fri, 09 Jul 2010 14:07:07 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BBADE6B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:12:16 -0400 (EDT)
+Message-Id: <20100709190854.930694716@quilx.com>
+Date: Fri, 09 Jul 2010 14:07:15 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q2 01/19] Bugfix for semop() not reporting successful operation
+Subject: [S+Q2 09/19] slub: discard_slab_unlock
 References: <20100709190706.938177313@quilx.com>
-Content-Disposition: inline; filename=0001-ipc-sem.c-Bugfix-for-semop.patch
+Content-Disposition: inline; filename=slub_discard_unlock
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-[Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
-fix]
+The sequence of unlocking a slab and freeing occurs multiple times.
+Put the common into a single function. There is no intend here
+to use this to enforce a sequencing of events leading up
+to the discarding of a slab page.
 
-The last change to improve the scalability moved the actual wake-up out of
-the section that is protected by spin_lock(sma->sem_perm.lock).
-
-This means that IN_WAKEUP can be in queue.status even when the spinlock is
-acquired by the current task. Thus the same loop that is performed when
-queue.status is read without the spinlock acquired must be performed when
-the spinlock is acquired.
-
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
- 1 files changed, 30 insertions(+), 6 deletions(-)
+ mm/slub.c |   16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
-diff --git a/ipc/sem.c b/ipc/sem.c
-index 506c849..523665f 100644
---- a/ipc/sem.c
-+++ b/ipc/sem.c
-@@ -1256,6 +1256,32 @@ out:
- 	return un;
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-06-01 08:58:50.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-06-01 08:58:54.000000000 -0500
+@@ -1260,6 +1260,13 @@ static __always_inline int slab_trylock(
+ 	return rc;
  }
  
-+
-+/** get_queue_result - Retrieve the result code from sem_queue
-+ * @q: Pointer to queue structure
-+ *
-+ * The function retrieve the return code from the pending queue. If 
-+ * IN_WAKEUP is found in q->status, then we must loop until the value
-+ * is replaced with the final value: This may happen if a task is
-+ * woken up by an unrelated event (e.g. signal) and in parallel the task
-+ * is woken up by another task because it got the requested semaphores.
-+ *
-+ * The function can be called with or without holding the semaphore spinlock.
-+ */
-+static int get_queue_result(struct sem_queue *q)
++static void discard_slab_unlock(struct kmem_cache *s,
++	struct page *page)
 +{
-+	int error;
-+
-+	error = q->status;
-+	while(unlikely(error == IN_WAKEUP)) {
-+		cpu_relax();
-+		error = q->status;
-+	}
-+
-+	return error;
++	slab_unlock(page);
++	discard_slab(s, page);
 +}
 +
-+
- SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 		unsigned, nsops, const struct timespec __user *, timeout)
- {
-@@ -1409,11 +1435,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 	else
- 		schedule();
- 
--	error = queue.status;
--	while(unlikely(error == IN_WAKEUP)) {
--		cpu_relax();
--		error = queue.status;
--	}
-+	error = get_queue_result(&queue);
- 
- 	if (error != -EINTR) {
- 		/* fast path: update_queue already obtained all requested
-@@ -1427,10 +1449,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
- 		goto out_free;
+ /*
+  * Management of partially allocated slabs
+  */
+@@ -1437,9 +1444,8 @@ static void unfreeze_slab(struct kmem_ca
+ 			add_partial(n, page, 1);
+ 			slab_unlock(page);
+ 		} else {
+-			slab_unlock(page);
+ 			stat(s, FREE_SLAB);
+-			discard_slab(s, page);
++			discard_slab_unlock(s, page);
+ 		}
  	}
- 
-+	error = get_queue_result(&queue);
-+
- 	/*
- 	 * If queue.status != -EINTR we are woken up by another process
- 	 */
--	error = queue.status;
-+
- 	if (error != -EINTR) {
- 		goto out_unlock_free;
+ }
+@@ -1822,9 +1828,8 @@ slab_empty:
+ 		remove_partial(s, page);
+ 		stat(s, FREE_REMOVE_PARTIAL);
  	}
--- 
-1.7.0.1
-
+-	slab_unlock(page);
+ 	stat(s, FREE_SLAB);
+-	discard_slab(s, page);
++	discard_slab_unlock(s, page);
+ 	return;
+ 
+ debug:
+@@ -2893,8 +2898,7 @@ int kmem_cache_shrink(struct kmem_cache 
+ 				 */
+ 				list_del(&page->lru);
+ 				n->nr_partial--;
+-				slab_unlock(page);
+-				discard_slab(s, page);
++				discard_slab_unlock(s, page);
+ 			} else {
+ 				list_move(&page->lru,
+ 				slabs_by_inuse + page->inuse);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
