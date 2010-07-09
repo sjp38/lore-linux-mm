@@ -1,76 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D5BB86B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:00:24 -0400 (EDT)
-Message-ID: <4C366678.60605@codeaurora.org>
-Date: Thu, 08 Jul 2010 16:59:52 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2C5226B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:14:36 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o690EXCi004265
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 9 Jul 2010 09:14:33 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E1A3845DE4E
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AEABE45DE52
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 116741DB805E
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A2D8F1DB805B
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:31 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] reduce stack usage of node_read_meminfo()
+In-Reply-To: <20100708135805.b4411965.akpm@linux-foundation.org>
+References: <20100708181629.CD3C.A69D9226@jp.fujitsu.com> <20100708135805.b4411965.akpm@linux-foundation.org>
+Message-Id: <20100709091138.CD57.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-References: <1278135507-20294-1-git-send-email-zpfeffer@codeaurora.org> <m14oggpepx.fsf@fess.ebiederm.org> <4C35034B.6040906@codeaurora.org> <20100707230710.GA31792@n2100.arm.linux.org.uk>
-In-Reply-To: <20100707230710.GA31792@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri,  9 Jul 2010 09:14:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Russell King - ARM Linux wrote:
-> On Wed, Jul 07, 2010 at 03:44:27PM -0700, Zach Pfeffer wrote:
->> The DMA API handles the allocation and use of DMA channels. It can
->> configure physical transfer settings, manage scatter-gather lists,
->> etc. 
+> On Thu,  8 Jul 2010 18:20:14 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> You're confused about what the DMA API is.  You're talking about
-> the DMA engine subsystem (drivers/dma) not the DMA API (see
-> Documentation/DMA-API.txt, include/linux/dma-mapping.h, and
-> arch/arm/include/asm/dma-mapping.h)
+> > 
+> > Now, cmpilation node_read_meminfo() output following warning. Because
+> > it has very large sprintf() argument.
+> > 
+> > 	drivers/base/node.c: In function 'node_read_meminfo':
+> > 	drivers/base/node.c:139: warning: the frame size of 848 bytes is
+> > 	larger than 512 bytes
+> 
+> hm, I'm surprised it's that much.
 
-Thanks for the clarification. 
+me too.
 
 > 
->> The VCM allows all device buffers to be passed between all devices in
->> the system without passing those buffers through each domain's
->> API. This means that instead of writing code to interoperate between
->> DMA engines, IOMMU mapped spaces, CPUs and physically addressed
->> devices the user can simply target a device with a buffer using the
->> same API regardless of how that device maps or otherwise accesses the
->> buffer.
+> > --- a/drivers/base/node.c
+> > +++ b/drivers/base/node.c
+> > @@ -66,8 +66,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
+> >  	struct sysinfo i;
+> >  
+> >  	si_meminfo_node(&i, nid);
+> > -
+> > -	n = sprintf(buf, "\n"
+> > +	n = sprintf(buf,
+> >  		       "Node %d MemTotal:       %8lu kB\n"
+> >  		       "Node %d MemFree:        %8lu kB\n"
+> >  		       "Node %d MemUsed:        %8lu kB\n"
+> > @@ -78,13 +77,33 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
+> >  		       "Node %d Active(file):   %8lu kB\n"
+> >  		       "Node %d Inactive(file): %8lu kB\n"
+> >  		       "Node %d Unevictable:    %8lu kB\n"
+> > -		       "Node %d Mlocked:        %8lu kB\n"
+> > +		       "Node %d Mlocked:        %8lu kB\n",
+> > +		       nid, K(i.totalram),
+> > +		       nid, K(i.freeram),
+> > +		       nid, K(i.totalram - i.freeram),
+> > +		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
+> > +				node_page_state(nid, NR_ACTIVE_FILE)),
 > 
-> With the DMA API, if we have a SG list which refers to the physical
-> pages (as a struct page, offset, length tuple), the DMA API takes
-> care of dealing with CPU caches and IOMMUs to make the data in the
-> buffer visible to the target device.  It provides you with a set of
-> cookies referring to the SG lists, which may be coalesced if the
-> IOMMU can do so.
+> Why the heck did we decide to print the same node-id 10000 times?
+
+dunno. but I don't want to make behavior change for only stack reducing.
+
+
 > 
-> If you have a kernel virtual address, the DMA API has single buffer
-> mapping/unmapping functions to do the same thing, and provide you
-> with a cookie to pass to the device to refer to that buffer.
+> > +	n += sprintf(buf,
 > 
-> These cookies are whatever the device needs to be able to access
-> the buffer - for instance, if system SDRAM is located at 0xc0000000
-> virtual, 0x80000000 physical and 0x40000000 as far as the DMA device
-> is concerned, then the cookie for a buffer at 0xc0000000 virtual will
-> be 0x40000000 and not 0x80000000.
+> You just got caught sending untested patches.
+> 
+> --- a/drivers/base/node.c~drivers-base-nodec-reduce-stack-usage-of-node_read_meminfo-fix
+> +++ a/drivers/base/node.c
+> @@ -93,7 +93,7 @@ static ssize_t node_read_meminfo(struct 
+>  		       nid, K(node_page_state(nid, NR_MLOCK)));
+>  
+>  #ifdef CONFIG_HIGHMEM
+> -	n += sprintf(buf,
+> +	n += sprintf(buf + n,
+>  		       "Node %d HighTotal:      %8lu kB\n"
+>  		       "Node %d HighFree:       %8lu kB\n"
+>  		       "Node %d LowTotal:       %8lu kB\n"
+> @@ -103,7 +103,7 @@ static ssize_t node_read_meminfo(struct 
+>  		       nid, K(i.totalram - i.totalhigh),
+>  		       nid, K(i.freeram - i.freehigh));
+>  #endif
+> -	n += sprintf(buf,
+> +	n += sprintf(buf + n,
+>  		       "Node %d Dirty:          %8lu kB\n"
+>  		       "Node %d Writeback:      %8lu kB\n"
+>  		       "Node %d FilePages:      %8lu kB\n"
+> _
+> 
+> 
+> Please, run the code and check that we didn't muck up the output.
 
-It sounds like I've got some work to do. I appreciate the feedback.
+100% my fault. I ran it, but I forgot to merge two patches ;)
 
-The problem I'm trying to solve boils down to this: map a set of
-contiguous physical buffers to an aligned IOMMU address. I need to
-allocate the set of physical buffers in a particular way: use 1 MB
-contiguous physical memory, then 64 KB, then 4 KB, etc. and I need to
-align the IOMMU address in a particular way. I also need to swap out the
-IOMMU address spaces and map the buffers into the kernel.
 
-I have this all solved, but it sounds like I'll need to migrate to the DMA
-API to upstream it.
 
--- 
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
