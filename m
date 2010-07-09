@@ -1,99 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0D9CC6B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 03:05:18 -0400 (EDT)
-Received: by qyk12 with SMTP id 12so4024314qyk.14
-        for <linux-mm@kvack.org>; Fri, 09 Jul 2010 00:05:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTim9d3x8oMLxRLyb2EeKCAxFgsOgw2ip87LUOn7z@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id AF6226B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 03:54:12 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o697s9Wk020207
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 9 Jul 2010 16:54:10 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B37A245DE50
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 16:54:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 929A845DE4E
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 16:54:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7963B1DB803E
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 16:54:09 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 21E3A1DB803B
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 16:54:09 +0900 (JST)
+Date: Fri, 9 Jul 2010 16:49:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Need some help in understanding sparsemem.
+Message-Id: <20100709164932.5e5fd045.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTil7X11whzqzsTudHQNCuFJKprTsStHVQNRgbYZD@mail.gmail.com>
 References: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
 	<AANLkTik9TlLYbG4GE6TV1wF7SOXz7v7gQ1BR531HGyNx@mail.gmail.com>
 	<AANLkTin8JIdtSFR-E1J8FwVR2WTivShmZrEoeJWjCd1j@mail.gmail.com>
 	<AANLkTim9d3x8oMLxRLyb2EeKCAxFgsOgw2ip87LUOn7z@mail.gmail.com>
-Date: Fri, 9 Jul 2010 12:35:17 +0530
-Message-ID: <AANLkTil7X11whzqzsTudHQNCuFJKprTsStHVQNRgbYZD@mail.gmail.com>
-Subject: Re: Need some help in understanding sparsemem.
-From: naren.mehra@gmail.com
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	<AANLkTil7X11whzqzsTudHQNCuFJKprTsStHVQNRgbYZD@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: naren.mehra@gmail.com
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks to you guys, I am now getting a grip on the sparsemem code.
-While going through the code, I came across several instances of the follow=
-ing:
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-.
-<some code>
-.
-#endif
+On Fri, 9 Jul 2010 12:35:17 +0530
+naren.mehra@gmail.com wrote:
 
-Now, it seems like this configuration option is used in case there are
-multiple nodes in a system.
-But its linked/depends on NUMA/discontigmem.
+> Thanks to you guys, I am now getting a grip on the sparsemem code.
+> While going through the code, I came across several instances of the following:
+> #ifndef CONFIG_NEED_MULTIPLE_NODES
+> .
+> <some code>
+> .
+> #endif
+> 
+> Now, it seems like this configuration option is used in case there are
+> multiple nodes in a system.
+> But its linked/depends on NUMA/discontigmem.
+> 
+> It could be possible that we have multiple nodes in a UMA system.
+> How can sparsemem handle such cases ??
+> 
 
-It could be possible that we have multiple nodes in a UMA system.
-How can sparsemem handle such cases ??
+sparsemem can be used both in UMA/NUMA case. IOW, sparsemem is for handling
+memmap(array of struct page) for flexible memory layout, and not for NUMA.
+Then, NUMA/MULTIPLENODE and SPARSEMEM has no relationship, basically.
+"nid" is recorded just for detecting the nearest node for allocating mem_map.
+(And some 32bit arch recoreds some information of 'nid'.)
 
+So, you shouldn't be suffer from an illusion of sparsemem when you think about
+NUMA/MULTIPLENODE. please visit free_area_init_nodes(), and add_active_range(),
+remove_actitve_range(). They are for MULTIPLENODES.
 
-Regards,
-Naren
-
-
-On Wed, Jul 7, 2010 at 9:19 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Tue, Jul 6, 2010 at 7:48 PM, =A0<naren.mehra@gmail.com> wrote:
->> Thanks Kame for your elaborate response, I got a lot of pointers on
->> where to look for in the code.
->> Kim, thanks for pointing out memmap_init_zone.
->> So basically those sections which contains holes in them, the mem_map
->> in those sections skip the entry for the invalid pages (holes).
->> This happens in memmap_init_zone().
->> 1) So it means that all the sections get the initial allocation of
->> mem_map and in memmap_init_zone we decide whether or not it requires
->
-> Yes. kernel allocates memmap for non-empty sections.
-> Even kernel allocates memmap for section which has mixed with valid
-> and invalid(ex, hole) pages. For example, bank supports 64M but system
-> have 16M. Let's assume section size is 64M. In this case, section has
-> hole of 48M.
->
->> any mem_map entry. Correct ??
->
-> No. memmap_init_zone doesn't care about it.
-> Regardless of hole, it initializes page descriptors(include struct
-> page which on hole).
-> But page descriptors on holes are _Reserved_ then doesn't go to the
-> buddy allocator as free page. For it, free_bootmem_node marks 0x0 on
-> bitmap about only _valid_ pages by bank. Afterwards,
-> free_all_bootmem_core doesn't insert pages on hole into buddy by using
-> bitmap. Even memmap on hole would be free on ARM by
-> free_unused_memmap_node.
->
->>
->> 2) Both of you mentioned that
->>> "If a section contains both of valid pages and
->>> holes, the section itself is marked as SECTION_MARKED_PRESENT."
->>> "It just mark _bank_ which has memory with SECTION_MARKED_PRESENT.
->>> Otherwise, Hole."
->>
->> which happens in memory_present(). In memory_present() code, I am not
->> able to find anything where we are doing this classification of valid
->> section/bank ? To me it looks that memory_present marks, all the
->> sections as present and doesnt verify whether any section contains any
->> valid pages or not. Correct ??
->
-> memory_present is just called on banks.
-> So some sections which consists of hole don't marked "SECTION_MARKED_PRES=
-ENT".
->
-> I hope this help you.
->
-> --
-> Kind regards,
-> Minchan Kim
->
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
