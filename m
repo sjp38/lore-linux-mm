@@ -1,89 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 28C4F6B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:04:14 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so641748pvc.14
-        for <linux-mm@kvack.org>; Thu, 08 Jul 2010 18:04:11 -0700 (PDT)
-Message-ID: <4C3675B5.5090903@gmail.com>
-Date: Thu, 08 Jul 2010 18:04:53 -0700
-From: "Justin P. Mattock" <justinmattock@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB0D6B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:14:11 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id o691E7bm008246
+	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:14:07 -0700
+Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
+	by kpbe20.cbf.corp.google.com with ESMTP id o691DKbt005400
+	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:14:05 -0700
+Received: by pxi19 with SMTP id 19so702330pxi.12
+        for <linux-mm@kvack.org>; Thu, 08 Jul 2010 18:14:05 -0700 (PDT)
+Date: Thu, 8 Jul 2010 18:13:55 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH]shmem: reduce one time of locking in pagefault
+In-Reply-To: <1278465346.11107.8.camel@sli10-desk.sh.intel.com>
+Message-ID: <alpine.DEB.1.00.1007081741290.1132@tigran.mtv.corp.google.com>
+References: <1278465346.11107.8.camel@sli10-desk.sh.intel.com>
 MIME-Version: 1.0
-Subject: Re: [Bug 16337] general protection fault: 0000 [#1] SMP
-References: <201007082338.o68NcT0C019156@demeter.kernel.org> <20100708171855.872d7910.akpm@linux-foundation.org> <20100709094849.CD62.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100709094849.CD62.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On 07/08/2010 05:53 PM, KOSAKI Motohiro wrote:
->>
->> (switched to email.  Please respond via emailed reply-to-all, not via the
->> bugzilla web interface).
->>
->> On Thu, 8 Jul 2010 23:38:29 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
->>
->>> https://bugzilla.kernel.org/show_bug.cgi?id=16337
->>
->> [10384.818511] general protection fault: 0000 [#1] SMP
->> : [10384.818517] last sysfs file: /sys/devices/platform/applesmc.768/light
->> : [10384.818520] CPU 1
->> : [10384.818522] Modules linked in: radeon ttm drm_kms_helper drm sco xcbc bnep rmd160 sha512_generic xt_tcpudp ipt_LOG iptable_nat nf_nat xt_state nf_conntrack_ftp nf_conntrack_ipv4 nf_conntrack nf_defrag_ipv4 iptable_filter ip_tables x_tables ath9k ath9k_common firewire_ohci firewire_core battery ath9k_hw ac video evdev ohci1394 sky2 ath joydev button thermal i2c_i801 hid_magicmouse aes_x86_64 lzo lzo_compress zlib ipcomp xfrm_ipcomp crypto_null sha256_generic cbc des_generic cast5 blowfish serpent camellia twofish twofish_common ctr ah4 esp4 authenc raw1394 ieee1394 uhci_hcd ehci_hcd hci_uart rfcomm btusb hidp l2cap bluetooth coretemp acpi_cpufreq processor mperf appletouch applesmc uvcvideo
->> : [10384.818594]
->> : [10384.818598] Pid: 409, comm: kswapd0 Not tainted 2.6.35-rc3-00398-g5a847c7-dirty #13 Mac-F42187C8/MacBookPro2,2
->> : [10384.818601] RIP: 0010:[<ffffffff810b7487>]  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
->> : [10384.818611] RSP: 0018:ffff88003e011b40  EFLAGS: 00010293
->> : [10384.818614] RAX: ffff88000008f000 RBX: ffff88003e011bf0 RCX: 0000000000000003
->> : [10384.818617] RDX: ffff88003e011c08 RSI: 0000000000000001 RDI: 8ed88ec88ce88b66
->> : [10384.818620] RBP: ffff88003e011b90 R08: 8ed88ec88ce88b6e R09: 0000000000000002
->> : [10384.818623] R10: ffff88000008f050 R11: ffff88000008f050 R12: ffffffffffffffff
->> : [10384.818626] R13: 000000000000000e R14: 0000000000000000 R15: 0000000000000003
->> : [10384.818629] FS:  0000000000000000(0000) GS:ffff880001b00000(0000) knlGS:0000000000000000
->> : [10384.818632] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->> : [10384.818635] CR2: 00007f1a8989b000 CR3: 000000000166d000 CR4: 00000000000006e0
->> : [10384.818638] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->> : [10384.818641] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->> : [10384.818644] Process kswapd0 (pid: 409, threadinfo ffff88003e010000, task ffff88003eded490)
->> : [10384.818646] Stack:
->> : [10384.818648]  ffff88003e011b70 ffffffff810c0e85 ffff880018a2afe0 0000000e0001fad8
->> : [10384.818652]<0>  ffff880018a30c68 ffff88003e011be0 0000000000000000 ffff88003e011be0
->> : [10384.818657]<0>  ffffffffffffffff ffff880018a2afd8 ffff88003e011bb0 ffffffff810bed06
->> : [10384.818663] Call Trace:
->> : [10384.818669]  [<ffffffff810c0e85>] ? __remove_mapping+0xa5/0xbe
->> : [10384.818674]  [<ffffffff810bed06>] pagevec_lookup+0x1d/0x26
->> : [10384.818678]  [<ffffffff810bfb78>] invalidate_mapping_pages+0xe7/0x10b
->> : [10384.818683]  [<ffffffff810fdc4a>] shrink_icache_memory+0x10a/0x227
->> : [10384.818687]  [<ffffffff810c21fc>] shrink_slab+0xd6/0x147
->> : [10384.818691]  [<ffffffff810c25d2>] balance_pgdat+0x365/0x5b4
->> : [10384.818695]  [<ffffffff810c29c7>] kswapd+0x1a6/0x1bc
->> : [10384.818700]  [<ffffffff81070d75>] ? autoremove_wake_function+0x0/0x34
->> : [10384.818704]  [<ffffffff810c2821>] ? kswapd+0x0/0x1bc
->> : [10384.818707]  [<ffffffff81070953>] kthread+0x7a/0x82
->> : [10384.818712]  [<ffffffff81027264>] kernel_thread_helper+0x4/0x10
->> : [10384.818716]  [<ffffffff810708d9>] ? kthread+0x0/0x82
->> : [10384.818719]  [<ffffffff81027260>] ? kernel_thread_helper+0x0/0x10
->> : [10384.818721] Code: f5 d0 11 00 48 89 da 89 45 cc 31 c9 eb 64 48 8b 02 48 8b 38 40 f6 c7 01 49 0f 45 fc 48 85 ff 74 4b 48 83 ff ff 74 c8 4c 8d 47 08<8b>  77 08 85 f6 74 dc 44 8d 4e 01 89 f0 f0 45 0f b1 08 39 f0 74
->> : [10384.818762] RIP  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
->> : [10384.818767]  RSP<ffff88003e011b40>
->> : [10384.818770] ---[ end trace 594fde37483e4533 ]---
->> :
->>
->> Gad.  Did we do anything recently which could have caused that?
->
-> I can't find doubious commit in this area ;-)
->
->
->
->
+On Wed, 7 Jul 2010, Shaohua Li wrote:
 
+> I'm running a shmem pagefault test case (see attached file) under a 64 CPU
+> system. Profile shows shmem_inode_info->lock is heavily contented and 100%
+> CPUs time are trying to get the lock. In the pagefault (no swap) case,
+> shmem_getpage gets the lock twice, the last one is avoidable if we prealloc a
+> page so we could reduce one time of locking. This is what below patch does.
 
-when this hit.. I had only reverted this commit 6a4f3b52. As for seeing 
-this again nothing.. only this one time so far..(tried numerous times to 
-reproduce so I can bisect, but nothing, just the one time).
+Right.  As usual, I'm rather unenthusiastic about a patch which has to
+duplicate code paths to satisfy an artificial testcase; but I can see
+the appeal.
 
-Justin P. Mattock
+We can ignore that you're making the swap path slower, that will be lost
+in its noise.  I did like the way the old code checked the max_blocks
+limit before it let you allocate the page: whereas you might have many
+threads simultaneously over-allocating before reaching that check; but
+I guess we can live with that.
+
+> 
+> The result of the test case:
+> 2.6.35-rc3: ~20s
+> 2.6.35-rc3 + patch: ~12s
+> so this is 40% improvement.
+
+Was that with or without Tim's shmem_sb_info max_blocks scalability
+changes (that I've still not studied)?  Or max_blocks 0 (unlimited)?
+
+I notice your test case lets each thread fault in from its own
+disjoint part of the whole area.  Please also test with each thread
+touching each page in the whole area at the same time: which I think
+is just as likely a case, but not obvious to me how well it would
+work with your changes - what numbers does it show?
+
+> 
+> One might argue if we could have better locking for shmem. But even shmem is lockless,
+> the pagefault will soon have pagecache lock heavily contented because shmem must add
+> new page to pagecache. So before we have better locking for pagecache, improving shmem
+> locking doesn't have too much improvement. I did a similar pagefault test against
+> a ramfs file, the test result is ~10.5s.
+> 
+> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index f65f840..c5f2939 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+...
+> @@ -1258,7 +1258,19 @@ repeat:
+>  		if (error)
+>  			goto failed;
+>  		radix_tree_preload_end();
+> +		if (sgp != SGP_READ) {
+
+Don't you need to check that prealloc_page is not already set there?
+There are several places in the swap path where it has to goto repeat.
+
+> +			/* don't care if this successes */
+> +			prealloc_page = shmem_alloc_page(gfp, info, idx);
+> +			if (prealloc_page) {
+> +				if (mem_cgroup_cache_charge(prealloc_page,
+> +				    current->mm, GFP_KERNEL)) {
+> +					page_cache_release(prealloc_page);
+> +					prealloc_page = NULL;
+> +				}
+> +			}
+> +		}
+>  	}
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
