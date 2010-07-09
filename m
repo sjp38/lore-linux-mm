@@ -1,55 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B73A6B02A4
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:28:26 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o691SOfk031570
-	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:28:24 -0700
-Received: from pwi1 (pwi1.prod.google.com [10.241.219.1])
-	by wpaz1.hot.corp.google.com with ESMTP id o691SNrk010731
-	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:28:23 -0700
-Received: by pwi1 with SMTP id 1so630155pwi.1
-        for <linux-mm@kvack.org>; Thu, 08 Jul 2010 18:28:22 -0700 (PDT)
-Date: Thu, 8 Jul 2010 18:28:20 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH]shmem: reduce one time of locking in pagefault
-In-Reply-To: <20100707013919.GA22097@sli10-desk.sh.intel.com>
-Message-ID: <alpine.DEB.1.00.1007081814420.1132@tigran.mtv.corp.google.com>
-References: <1278465346.11107.8.camel@sli10-desk.sh.intel.com> <20100706183254.cf67e29e.akpm@linux-foundation.org> <20100707013919.GA22097@sli10-desk.sh.intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 965446B02A4
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:31:25 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o691VM2I019235
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 9 Jul 2010 10:31:23 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADFA545DE54
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:31:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E54945DE63
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:31:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D0DC1DB803F
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:31:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 395111DB805A
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:31:22 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: FYI: mmap_sem OOM patch
+In-Reply-To: <1278588200.1900.89.camel@laptop>
+References: <20100708200324.CD4B.A69D9226@jp.fujitsu.com> <1278588200.1900.89.camel@laptop>
+Message-Id: <20100709102430.CD65.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Fri,  9 Jul 2010 10:31:21 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jul 2010, Shaohua Li wrote:
-> On Wed, Jul 07, 2010 at 09:32:54AM +0800, Andrew Morton wrote:
+> On Thu, 2010-07-08 at 20:06 +0900, KOSAKI Motohiro wrote:
+> > > [ small note on that we really should kill __GFP_NOFAIL, its utter
+> > > deadlock potential ]
 > > 
-> > The patch doesn't make shmem_getpage() any clearer :(
+> > I disagree. __GFP_NOFAIL mean this allocation failure can makes really
+> > dangerous result. Instead, OOM-Killer should try to kill next process.
+> > I think. 
+> 
+> Say _what_?! you think NOFAIL is a sane thing? 
 
-:)
+insane obviously ;)
+but as far as my experience, some embedded system prefer to use NOFAIL.
+So, I don't like to make big hammer crash. NOFAIL killing need long year
+rather than you expected, I guess.
 
-> > 
-> > shmem_inode_info.lock appears to be held too much.  Surely
-> > lookup_swap_cache() didn't need it (for example).
-> > 
-> > What data does shmem_inode_info.lock actually protect?
-> As far as my understanding, it protects shmem swp_entry, which is most used
-> to support swap. It also protects some accounting. If no swap, the lock almost
-> can be removed like tiny-shmem.
 
-That's right: shmem_info_info.lock protects what's in shmem_inode_info,
-plus what hangs off it (the shmem_swp blocks).
+> Pretty much everybody has
+> been agreeing for years that the thing should die.
 
-We want that lock across the lookup_swap_cache() to be sure that what we
-find is still what we want (otherwise another thread might bring it out
-of swap and that swap be reused for something else) - the page lock is
-good once you have a page to lock, but until then....  I guess could be
-done by dropping the lock then retaking and rechecking after, but that
-would go right against the grain of this patch.
+I'm not against this at all. but until it die, it should works correctly.
 
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
