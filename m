@@ -1,74 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 557096B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:20:31 -0400 (EDT)
-Date: Thu, 8 Jul 2010 17:18:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 16337] general protection fault: 0000 [#1] SMP
-Message-Id: <20100708171855.872d7910.akpm@linux-foundation.org>
-In-Reply-To: <201007082338.o68NcT0C019156@demeter.kernel.org>
-References: <bug-16337-27@https.bugzilla.kernel.org/>
-	<201007082338.o68NcT0C019156@demeter.kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B57606B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:23:28 -0400 (EDT)
+Date: Fri, 9 Jul 2010 02:23:22 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] fix swapin race condition
+Message-ID: <20100709002322.GO6197@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, justinmattock@gmail.com
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi Hugh,
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+can you review this patch? This is only theoretical so far.
 
-On Thu, 8 Jul 2010 23:38:29 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
+Basically a thread can get stuck in ksm_does_need_to_copy after the
+unlock_page (with orig_pte pointing to swap entry A). In the meantime
+another thread can do the ksm swapin copy too, the copy can be swapped
+out to swap entry B, then a new swapin can create a new copy that can
+return to swap entry A if reused by things like try_to_free_swap (to
+me it seems the page pin is useless to prevent the swapcache to go
+away, it only helps in page reclaim but swapcache is removed by other
+things too). So then the first thread can finish the ksm-copy find the
+pte_same pointing to swap entry A again (despite it passed through
+swap entry B) and break.
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=16337
+I also don't seem to see a guarantee that lookup_swap_cache returns
+swapcache until we take the lock on the page.
 
-[10384.818511] general protection fault: 0000 [#1] SMP 
-: [10384.818517] last sysfs file: /sys/devices/platform/applesmc.768/light
-: [10384.818520] CPU 1 
-: [10384.818522] Modules linked in: radeon ttm drm_kms_helper drm sco xcbc bnep rmd160 sha512_generic xt_tcpudp ipt_LOG iptable_nat nf_nat xt_state nf_conntrack_ftp nf_conntrack_ipv4 nf_conntrack nf_defrag_ipv4 iptable_filter ip_tables x_tables ath9k ath9k_common firewire_ohci firewire_core battery ath9k_hw ac video evdev ohci1394 sky2 ath joydev button thermal i2c_i801 hid_magicmouse aes_x86_64 lzo lzo_compress zlib ipcomp xfrm_ipcomp crypto_null sha256_generic cbc des_generic cast5 blowfish serpent camellia twofish twofish_common ctr ah4 esp4 authenc raw1394 ieee1394 uhci_hcd ehci_hcd hci_uart rfcomm btusb hidp l2cap bluetooth coretemp acpi_cpufreq processor mperf appletouch applesmc uvcvideo
-: [10384.818594] 
-: [10384.818598] Pid: 409, comm: kswapd0 Not tainted 2.6.35-rc3-00398-g5a847c7-dirty #13 Mac-F42187C8/MacBookPro2,2
-: [10384.818601] RIP: 0010:[<ffffffff810b7487>]  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
-: [10384.818611] RSP: 0018:ffff88003e011b40  EFLAGS: 00010293
-: [10384.818614] RAX: ffff88000008f000 RBX: ffff88003e011bf0 RCX: 0000000000000003
-: [10384.818617] RDX: ffff88003e011c08 RSI: 0000000000000001 RDI: 8ed88ec88ce88b66
-: [10384.818620] RBP: ffff88003e011b90 R08: 8ed88ec88ce88b6e R09: 0000000000000002
-: [10384.818623] R10: ffff88000008f050 R11: ffff88000008f050 R12: ffffffffffffffff
-: [10384.818626] R13: 000000000000000e R14: 0000000000000000 R15: 0000000000000003
-: [10384.818629] FS:  0000000000000000(0000) GS:ffff880001b00000(0000) knlGS:0000000000000000
-: [10384.818632] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-: [10384.818635] CR2: 00007f1a8989b000 CR3: 000000000166d000 CR4: 00000000000006e0
-: [10384.818638] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-: [10384.818641] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-: [10384.818644] Process kswapd0 (pid: 409, threadinfo ffff88003e010000, task ffff88003eded490)
-: [10384.818646] Stack:
-: [10384.818648]  ffff88003e011b70 ffffffff810c0e85 ffff880018a2afe0 0000000e0001fad8
-: [10384.818652] <0> ffff880018a30c68 ffff88003e011be0 0000000000000000 ffff88003e011be0
-: [10384.818657] <0> ffffffffffffffff ffff880018a2afd8 ffff88003e011bb0 ffffffff810bed06
-: [10384.818663] Call Trace:
-: [10384.818669]  [<ffffffff810c0e85>] ? __remove_mapping+0xa5/0xbe
-: [10384.818674]  [<ffffffff810bed06>] pagevec_lookup+0x1d/0x26
-: [10384.818678]  [<ffffffff810bfb78>] invalidate_mapping_pages+0xe7/0x10b
-: [10384.818683]  [<ffffffff810fdc4a>] shrink_icache_memory+0x10a/0x227
-: [10384.818687]  [<ffffffff810c21fc>] shrink_slab+0xd6/0x147
-: [10384.818691]  [<ffffffff810c25d2>] balance_pgdat+0x365/0x5b4
-: [10384.818695]  [<ffffffff810c29c7>] kswapd+0x1a6/0x1bc
-: [10384.818700]  [<ffffffff81070d75>] ? autoremove_wake_function+0x0/0x34
-: [10384.818704]  [<ffffffff810c2821>] ? kswapd+0x0/0x1bc
-: [10384.818707]  [<ffffffff81070953>] kthread+0x7a/0x82
-: [10384.818712]  [<ffffffff81027264>] kernel_thread_helper+0x4/0x10
-: [10384.818716]  [<ffffffff810708d9>] ? kthread+0x0/0x82
-: [10384.818719]  [<ffffffff81027260>] ? kernel_thread_helper+0x0/0x10
-: [10384.818721] Code: f5 d0 11 00 48 89 da 89 45 cc 31 c9 eb 64 48 8b 02 48 8b 38 40 f6 c7 01 49 0f 45 fc 48 85 ff 74 4b 48 83 ff ff 74 c8 4c 8d 47 08 <8b> 77 08 85 f6 74 dc 44 8d 4e 01 89 f0 f0 45 0f b1 08 39 f0 74 
-: [10384.818762] RIP  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
-: [10384.818767]  RSP <ffff88003e011b40>
-: [10384.818770] ---[ end trace 594fde37483e4533 ]---
-: 
+I exclude this can cause regressions, but I'd like to know if it
+really can happen or if I'm missing something and it cannot happen. I
+surely looks weird that lookup_swap_cache might return a page that
+gets removed from swapcache before we take the page lock but I don't
+see anything preventing it. Surely it's not going to happen until >50%
+swap is full.
 
-Gad.  Did we do anything recently which could have caused that?
+It's also possible to fix it by forcing do_wp_page to run but for a
+little while it won't be possible to rmap the the instantiated page so
+I didn't change that even if it probably would make life easier to
+memcg swapin handlers (maybe, dunno).
+
+Thanks,
+Andrea
+
+======
+Subject: fix swapin race condition
+
+From: Andrea Arcangeli <aarcange@redhat.com>
+
+The pte_same check is reliable only if the swap entry remains pinned
+(by the page lock on swapcache). We've also to ensure the swapcache
+isn't removed before we take the lock as try_to_free_swap won't care
+about the page pin.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+--- a/include/linux/ksm.h
++++ b/include/linux/ksm.h
+@@ -16,6 +16,9 @@
+ struct stable_node;
+ struct mem_cgroup;
+ 
++struct page *ksm_does_need_to_copy(struct page *page,
++			struct vm_area_struct *vma, unsigned long address);
++
+ #ifdef CONFIG_KSM
+ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+ 		unsigned long end, int advice, unsigned long *vm_flags);
+@@ -70,19 +73,14 @@ static inline void set_page_stable_node(
+  * We'd like to make this conditional on vma->vm_flags & VM_MERGEABLE,
+  * but what if the vma was unmerged while the page was swapped out?
+  */
+-struct page *ksm_does_need_to_copy(struct page *page,
+-			struct vm_area_struct *vma, unsigned long address);
+-static inline struct page *ksm_might_need_to_copy(struct page *page,
++static inline int ksm_might_need_to_copy(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
+ 	struct anon_vma *anon_vma = page_anon_vma(page);
+ 
+-	if (!anon_vma ||
+-	    (anon_vma->root == vma->anon_vma->root &&
+-	     page->index == linear_page_index(vma, address)))
+-		return page;
+-
+-	return ksm_does_need_to_copy(page, vma, address);
++	return anon_vma &&
++		(anon_vma->root != vma->anon_vma->root ||
++		 page->index != linear_page_index(vma, address));
+ }
+ 
+ int page_referenced_ksm(struct page *page,
+@@ -115,10 +113,10 @@ static inline int ksm_madvise(struct vm_
+ 	return 0;
+ }
+ 
+-static inline struct page *ksm_might_need_to_copy(struct page *page,
++static inline int ksm_might_need_to_copy(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
+-	return page;
++	return 0;
+ }
+ 
+ static inline int page_referenced_ksm(struct page *page,
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1518,8 +1518,6 @@ struct page *ksm_does_need_to_copy(struc
+ {
+ 	struct page *new_page;
+ 
+-	unlock_page(page);	/* any racers will COW it, not modify it */
+-
+ 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+ 	if (new_page) {
+ 		copy_user_highpage(new_page, page, address, vma);
+@@ -1535,7 +1533,6 @@ struct page *ksm_does_need_to_copy(struc
+ 			add_page_to_unevictable_list(new_page);
+ 	}
+ 
+-	page_cache_release(page);
+ 	return new_page;
+ }
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2616,7 +2616,7 @@ static int do_swap_page(struct mm_struct
+ 		unsigned int flags, pte_t orig_pte)
+ {
+ 	spinlock_t *ptl;
+-	struct page *page;
++	struct page *page, *swapcache = NULL;
+ 	swp_entry_t entry;
+ 	pte_t pte;
+ 	struct mem_cgroup *ptr = NULL;
+@@ -2671,10 +2671,23 @@ static int do_swap_page(struct mm_struct
+ 	lock_page(page);
+ 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 
+-	page = ksm_might_need_to_copy(page, vma, address);
+-	if (!page) {
+-		ret = VM_FAULT_OOM;
+-		goto out;
++	/*
++	 * Make sure try_to_free_swap didn't release the swapcache
++	 * from under us. The page pin isn't enough to prevent that.
++	 */
++	if (unlikely(!PageSwapCache(page)))
++		goto out_page;
++
++	if (ksm_might_need_to_copy(page, vma, address)) {
++		swapcache = page;
++		page = ksm_does_need_to_copy(page, vma, address);
++
++		if (unlikely(!page)) {
++			ret = VM_FAULT_OOM;
++			page = swapcache;
++			swapcache = NULL;
++			goto out_page;
++		}
+ 	}
+ 
+ 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
+@@ -2725,6 +2738,18 @@ static int do_swap_page(struct mm_struct
+ 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+ 		try_to_free_swap(page);
+ 	unlock_page(page);
++	if (swapcache) {
++		/*
++		 * Hold the lock to avoid the swap entry to be reused
++		 * until we take the PT lock for the pte_same() check
++		 * (to avoid false positives from pte_same). For
++		 * further safety release the lock after the swap_free
++		 * so that the swap count won't change under a
++		 * parallel locked swapcache.
++		 */
++		unlock_page(swapcache);
++		page_cache_release(swapcache);
++	}
+ 
+ 	if (flags & FAULT_FLAG_WRITE) {
+ 		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
+@@ -2746,6 +2771,10 @@ out_page:
+ 	unlock_page(page);
+ out_release:
+ 	page_cache_release(page);
++	if (swapcache) {
++		unlock_page(swapcache);
++		page_cache_release(swapcache);
++	}
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
