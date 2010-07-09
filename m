@@ -1,45 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EFB99600922
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 18:02:28 -0400 (EDT)
-Message-ID: <4C379C5A.8070202@redhat.com>
-Date: Fri, 09 Jul 2010 18:02:02 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] fix swapin race condition
-References: <20100709002322.GO6197@random.random> <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
-In-Reply-To: <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 250A46B024D
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 18:29:29 -0400 (EDT)
+Date: Fri, 9 Jul 2010 15:28:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/2] vmscan: don't subtraction of unsined
+Message-Id: <20100709152851.330bf2b2.akpm@linux-foundation.org>
+In-Reply-To: <20100709090956.CD51.A69D9226@jp.fujitsu.com>
+References: <20100708163401.CD34.A69D9226@jp.fujitsu.com>
+	<20100708130048.fccfcdad.akpm@linux-foundation.org>
+	<20100709090956.CD51.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07/09/2010 04:32 PM, Hugh Dickins wrote:
+On Fri,  9 Jul 2010 10:16:33 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
->>   	struct anon_vma *anon_vma = page_anon_vma(page);
->>
->> -	if (!anon_vma ||
->> -	    (anon_vma->root == vma->anon_vma->root&&
->> -	     page->index == linear_page_index(vma, address)))
->> -		return page;
->> -
->> -	return ksm_does_need_to_copy(page, vma, address);
->> +	return anon_vma&&
->> +		(anon_vma->root != vma->anon_vma->root ||
->> +		 page->index != linear_page_index(vma, address));
->>   }
->
-> Hiding in here is a bigger question than your concern:
-> are these tests right since Rik refactored the anon_vmas?
-> I just don't know, but hope you and Rik can answer.
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2588,7 +2588,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		.swappiness = vm_swappiness,
+>  		.order = order,
+>  	};
+> -	unsigned long slab_reclaimable;
+> +	unsigned long nr_slab_pages0, nr_slab_pages1;
+>  
+>  	disable_swap_token();
+>  	cond_resched();
+> @@ -2615,8 +2615,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		} while (priority >= 0 && sc.nr_reclaimed < nr_pages);
+>  	}
+>  
+> -	slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> -	if (slab_reclaimable > zone->min_slab_pages) {
+> +	nr_slab_pages0 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> +	if (nr_slab_pages0 > zone->min_slab_pages) {
+>  		/*
+>  		 * shrink_slab() does not currently allow us to determine how
+>  		 * many pages were freed in this zone.
 
-Yes, this bit is correct.  Andrea and I have gone over
-this in detail a few weeks ago :)
+Well no, but it could do so, with some minor changes to struct
+reclaim_state and its handling.  Put a zone* and a counter in
+reclaim_state, handle them in sl?b.c.
 
--- 
-All rights reversed
+> So we take the current
+> @@ -2628,16 +2628,17 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		 * take a long time.
+>  		 */
+>  		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+> -			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+> -				slab_reclaimable - nr_pages)
+> +		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
+> +				nr_slab_pages0))
+>  			;
+>  
+>  		/*
+>  		 * Update nr_reclaimed by the number of slab pages we
+>  		 * reclaimed from this zone.
+>  		 */
+> -		sc.nr_reclaimed += slab_reclaimable -
+> -			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> +		nr_slab_pages1 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> +		if (nr_slab_pages1 < nr_slab_pages0)
+> +			sc.nr_reclaimed += nr_slab_pages0 - nr_slab_pages1;
+
+My, that's horrible.  The whole expression says "this number is
+basically a pile of random junk.  Let's add it in anyway".
+
+
+>  	}
+>  
+>  	p->reclaim_state = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
