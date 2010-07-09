@@ -1,127 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A046C6B024D
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 061D76B02A3
 	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:12:14 -0400 (EDT)
-Message-Id: <20100709190706.938177313@quilx.com>
-Date: Fri, 09 Jul 2010 14:07:06 -0500
+Message-Id: <20100709190850.289011972@quilx.com>
+Date: Fri, 09 Jul 2010 14:07:07 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+Subject: [S+Q2 01/19] Bugfix for semop() not reporting successful operation
+References: <20100709190706.938177313@quilx.com>
+Content-Disposition: inline; filename=0001-ipc-sem.c-Bugfix-for-semop.patch
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-The following patchset cleans some pieces up and then equips SLUB with
-per cpu queues that work similar to SLABs queues. With that approach
-SLUB wins significantly in hackbench and improves also on tcp_rr.
+[Necessary to make 2.6.35-rc3 not deadlock. Not sure if this is the "right"(tm)
+fix]
 
-Hackbench test script: 
+The last change to improve the scalability moved the actual wake-up out of
+the section that is protected by spin_lock(sma->sem_perm.lock).
 
-#!/bin/bash 
-uname -a
-echo "./hackbench 100 process 200000"
-./hackbench 100 process 200000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 100 process 20000"
-./hackbench 100 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 10 process 20000"
-./hackbench 10 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
-echo "./hackbench 1 process 20000"
-./hackbench 1 process 20000
+This means that IN_WAKEUP can be in queue.status even when the spinlock is
+acquired by the current task. Thus the same loop that is performed when
+queue.status is read without the spinlock acquired must be performed when
+the spinlock is acquired.
 
-Dell Dual Quad Penryn on Linux 2.6.35-rc3
-Time measurements: Smaller is better:
+Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-Procs	NR		SLAB	SLUB	SLUB+Queuing     %
--------------------------------------------------------------
-100	200000		2741.3	2764.7	2231.9		-18
-100	20000		279.3	270.3	219.0		-27
-100	20000		278.0	273.1	219.2		-26
-100	20000		279.0	271.7	218.8		-27
-10 	20000		34.0	35.6	28.8		-18
-10	20000		30.3	35.2	28.4		-6
-10	20000		32.9	34.6	28.4		-15
-1	20000		6.4	6.7	6.5		+1
-1	20000		6.3	6.8	6.5		+3
-1	20000		6.4	6.9	6.4		0
+---
+ ipc/sem.c |   36 ++++++++++++++++++++++++++++++------
+ 1 files changed, 30 insertions(+), 6 deletions(-)
 
-
-SLUB+Q also wins against SLAB in netperf:
-
-Script:
-
-#!/bin/bash
-
-TIME=60  # seconds
-HOSTNAME=localhost       # netserver
-
-NR_CPUS=$(grep ^processor /proc/cpuinfo | wc -l)
-echo NR_CPUS=$NR_CPUS
-
-run_netperf() {
-for i in $(seq 1 $1); do
-netperf -H $HOSTNAME -t TCP_RR -l $TIME &
-done
-}
-
-ITERATIONS=0
-while [ $ITERATIONS -lt 12 ]; do
-RATE=0
-ITERATIONS=$[$ITERATIONS + 1]   
-THREADS=$[$NR_CPUS * $ITERATIONS]
-RESULTS=$(run_netperf $THREADS | grep -v '[a-zA-Z]' | awk '{ print $6 }')
-
-for j in $RESULTS; do
-RATE=$[$RATE + ${j/.*}]
-done
-echo threads=$THREADS rate=$RATE
-done
-
-
-Dell Dual Quad Penryn on Linux 2.6.35-rc4
-
-Loop counts: Larger is better.
-
-Threads		SLAB		SLUB+Q		%
- 8		690869		714788		+ 3.4
-16		680295		711771		+ 4.6
-24		672677		703014		+ 4.5
-32		676780		703914		+ 4.0
-40		668458		699806		+ 4.6
-48		667017		698908		+ 4.7
-56		671227		696034		+ 3.6
-64		667956		696913		+ 4.3
-72		668332		694931		+ 3.9
-80		667073		695658		+ 4.2
-88		682866		697077		+ 2.0
-96		668089		694719		+ 3.9
-
-
-SLUB+Q is a merging of SLUB with some queuing concepts from SLAB and a
-new way of managing objects in the slabs using bitmaps. It uses a percpu
-queue so that free operations can be properly buffered and a bitmap for
-managing the free/allocated state in the slabs. It is slightly more
-inefficient than SLUB (due to the need to place large bitmaps --sized
-a few words--in some slab pages if there are more than BITS_PER_LONG
-objects in a slab) but in general does not increase space use too much.
-
-The SLAB scheme of not touching the object during management is adopted.
-SLUB+Q can efficiently free and allocate cache cold objects without
-causing cache misses.
-
-The queueing patches are likely still be a bit rough around corner cases
-and special features and need to see some more widespread testing.
+diff --git a/ipc/sem.c b/ipc/sem.c
+index 506c849..523665f 100644
+--- a/ipc/sem.c
++++ b/ipc/sem.c
+@@ -1256,6 +1256,32 @@ out:
+ 	return un;
+ }
+ 
++
++/** get_queue_result - Retrieve the result code from sem_queue
++ * @q: Pointer to queue structure
++ *
++ * The function retrieve the return code from the pending queue. If 
++ * IN_WAKEUP is found in q->status, then we must loop until the value
++ * is replaced with the final value: This may happen if a task is
++ * woken up by an unrelated event (e.g. signal) and in parallel the task
++ * is woken up by another task because it got the requested semaphores.
++ *
++ * The function can be called with or without holding the semaphore spinlock.
++ */
++static int get_queue_result(struct sem_queue *q)
++{
++	int error;
++
++	error = q->status;
++	while(unlikely(error == IN_WAKEUP)) {
++		cpu_relax();
++		error = q->status;
++	}
++
++	return error;
++}
++
++
+ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 		unsigned, nsops, const struct timespec __user *, timeout)
+ {
+@@ -1409,11 +1435,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 	else
+ 		schedule();
+ 
+-	error = queue.status;
+-	while(unlikely(error == IN_WAKEUP)) {
+-		cpu_relax();
+-		error = queue.status;
+-	}
++	error = get_queue_result(&queue);
+ 
+ 	if (error != -EINTR) {
+ 		/* fast path: update_queue already obtained all requested
+@@ -1427,10 +1449,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+ 		goto out_free;
+ 	}
+ 
++	error = get_queue_result(&queue);
++
+ 	/*
+ 	 * If queue.status != -EINTR we are woken up by another process
+ 	 */
+-	error = queue.status;
++
+ 	if (error != -EINTR) {
+ 		goto out_unlock_free;
+ 	}
+-- 
+1.7.0.1
 
 
 --
