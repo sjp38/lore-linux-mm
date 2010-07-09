@@ -1,125 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AE50A6B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 02:52:56 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o696qrWW013862
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 9 Jul 2010 15:52:54 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9275845DE4D
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:52:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 55C4345DE50
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:52:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A4451DB803F
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:52:53 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9316A1DB803E
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:52:52 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] vmscan: protect to read reclaim_stat by lru_lock
-Message-Id: <20100709155108.3D2A.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0D9CC6B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 03:05:18 -0400 (EDT)
+Received: by qyk12 with SMTP id 12so4024314qyk.14
+        for <linux-mm@kvack.org>; Fri, 09 Jul 2010 00:05:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  9 Jul 2010 15:52:50 +0900 (JST)
+In-Reply-To: <AANLkTim9d3x8oMLxRLyb2EeKCAxFgsOgw2ip87LUOn7z@mail.gmail.com>
+References: <AANLkTil6go0otCsBkG_detjptXX_i_mNkkCMawLVIz82@mail.gmail.com>
+	<AANLkTik9TlLYbG4GE6TV1wF7SOXz7v7gQ1BR531HGyNx@mail.gmail.com>
+	<AANLkTin8JIdtSFR-E1J8FwVR2WTivShmZrEoeJWjCd1j@mail.gmail.com>
+	<AANLkTim9d3x8oMLxRLyb2EeKCAxFgsOgw2ip87LUOn7z@mail.gmail.com>
+Date: Fri, 9 Jul 2010 12:35:17 +0530
+Message-ID: <AANLkTil7X11whzqzsTudHQNCuFJKprTsStHVQNRgbYZD@mail.gmail.com>
+Subject: Re: Need some help in understanding sparsemem.
+From: naren.mehra@gmail.com
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel pointed out reading reclaim_stat should be protected
-lru_lock, otherwise vmscan might sweep 2x much pages.
+Thanks to you guys, I am now getting a grip on the sparsemem code.
+While going through the code, I came across several instances of the follow=
+ing:
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+.
+<some code>
+.
+#endif
 
-This fault was introduced by followint commit.
+Now, it seems like this configuration option is used in case there are
+multiple nodes in a system.
+But its linked/depends on NUMA/discontigmem.
 
-  commit 4f98a2fee8acdb4ac84545df98cccecfd130f8db
-  Author: Rik van Riel <riel@redhat.com>
-  Date:   Sat Oct 18 20:26:32 2008 -0700
-
-    vmscan: split LRU lists into anon & file sets
-
-    Split the LRU lists in two, one set for pages that are backed by real file
-    systems ("file") and one for pages that are backed by memory and swap
-    ("anon").  The latter includes tmpfs.
-
-    The advantage of doing this is that the VM will not have to scan over lots
-    of anonymous pages (which we generally do not want to swap out), just to
-    find the page cache pages that it should evict.
-
-    This patch has the infrastructure and a basic policy to balance how much
-    we scan the anon lists and how much we scan the file lists.  The big
-    policy changes are in separate patches.
-
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |   20 +++++++++-----------
- 1 files changed, 9 insertions(+), 11 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0f9f624..5a377e6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1581,6 +1581,13 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	}
- 
- 	/*
-+	 * With swappiness at 100, anonymous and file have the same priority.
-+	 * This scanning priority is essentially the inverse of IO cost.
-+	 */
-+	anon_prio = sc->swappiness;
-+	file_prio = 200 - sc->swappiness;
-+
-+	/*
- 	 * OK, so we have swap space and a fair amount of page cache
- 	 * pages.  We use the recently rotated / recently scanned
- 	 * ratios to determine how valuable each cache is.
-@@ -1591,28 +1598,18 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 	 *
- 	 * anon in [0], file in [1]
- 	 */
-+	spin_lock_irq(&zone->lru_lock);
- 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
--		spin_lock_irq(&zone->lru_lock);
- 		reclaim_stat->recent_scanned[0] /= 2;
- 		reclaim_stat->recent_rotated[0] /= 2;
--		spin_unlock_irq(&zone->lru_lock);
- 	}
- 
- 	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
--		spin_lock_irq(&zone->lru_lock);
- 		reclaim_stat->recent_scanned[1] /= 2;
- 		reclaim_stat->recent_rotated[1] /= 2;
--		spin_unlock_irq(&zone->lru_lock);
- 	}
- 
- 	/*
--	 * With swappiness at 100, anonymous and file have the same priority.
--	 * This scanning priority is essentially the inverse of IO cost.
--	 */
--	anon_prio = sc->swappiness;
--	file_prio = 200 - sc->swappiness;
--
--	/*
- 	 * The amount of pressure on anon vs file pages is inversely
- 	 * proportional to the fraction of recently scanned pages on
- 	 * each list that were recently referenced and in active use.
-@@ -1622,6 +1619,7 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
- 
- 	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
- 	fp /= reclaim_stat->recent_rotated[1] + 1;
-+	spin_unlock_irq(&zone->lru_lock);
- 
- 	fraction[0] = ap;
- 	fraction[1] = fp;
--- 
-1.6.5.2
+It could be possible that we have multiple nodes in a UMA system.
+How can sparsemem handle such cases ??
 
 
+Regards,
+Naren
+
+
+On Wed, Jul 7, 2010 at 9:19 AM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Tue, Jul 6, 2010 at 7:48 PM, =A0<naren.mehra@gmail.com> wrote:
+>> Thanks Kame for your elaborate response, I got a lot of pointers on
+>> where to look for in the code.
+>> Kim, thanks for pointing out memmap_init_zone.
+>> So basically those sections which contains holes in them, the mem_map
+>> in those sections skip the entry for the invalid pages (holes).
+>> This happens in memmap_init_zone().
+>> 1) So it means that all the sections get the initial allocation of
+>> mem_map and in memmap_init_zone we decide whether or not it requires
+>
+> Yes. kernel allocates memmap for non-empty sections.
+> Even kernel allocates memmap for section which has mixed with valid
+> and invalid(ex, hole) pages. For example, bank supports 64M but system
+> have 16M. Let's assume section size is 64M. In this case, section has
+> hole of 48M.
+>
+>> any mem_map entry. Correct ??
+>
+> No. memmap_init_zone doesn't care about it.
+> Regardless of hole, it initializes page descriptors(include struct
+> page which on hole).
+> But page descriptors on holes are _Reserved_ then doesn't go to the
+> buddy allocator as free page. For it, free_bootmem_node marks 0x0 on
+> bitmap about only _valid_ pages by bank. Afterwards,
+> free_all_bootmem_core doesn't insert pages on hole into buddy by using
+> bitmap. Even memmap on hole would be free on ARM by
+> free_unused_memmap_node.
+>
+>>
+>> 2) Both of you mentioned that
+>>> "If a section contains both of valid pages and
+>>> holes, the section itself is marked as SECTION_MARKED_PRESENT."
+>>> "It just mark _bank_ which has memory with SECTION_MARKED_PRESENT.
+>>> Otherwise, Hole."
+>>
+>> which happens in memory_present(). In memory_present() code, I am not
+>> able to find anything where we are doing this classification of valid
+>> section/bank ? To me it looks that memory_present marks, all the
+>> sections as present and doesnt verify whether any section contains any
+>> valid pages or not. Correct ??
+>
+> memory_present is just called on banks.
+> So some sections which consists of hole don't marked "SECTION_MARKED_PRES=
+ENT".
+>
+> I hope this help you.
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
