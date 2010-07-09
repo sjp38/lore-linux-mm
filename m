@@ -1,48 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 103F36B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 11:51:09 -0400 (EDT)
-Date: Fri, 9 Jul 2010 18:50:47 +0300
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v4 08/12] Inject asynchronous page fault into a guest
- if page is swapped out.
-Message-ID: <20100709155047.GC11885@redhat.com>
-References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
- <1278433500-29884-9-git-send-email-gleb@redhat.com>
- <20100708155920.GA13855@amt.cnet>
- <20100708180525.GA11885@redhat.com>
- <1278612561.1900.170.camel@laptop>
- <1278612631.1900.171.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1278612631.1900.171.camel@laptop>
+	by kanga.kvack.org (Postfix) with SMTP id 99DD86B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 11:54:00 -0400 (EDT)
+Received: by wyj26 with SMTP id 26so1846761wyj.14
+        for <linux-mm@kvack.org>; Fri, 09 Jul 2010 08:53:57 -0700 (PDT)
+From: Eric B Munson <emunson@mgebm.net>
+Subject: [PATCH 1/2] Add trace events to mmap and brk
+Date: Fri,  9 Jul 2010 16:53:49 +0100
+Message-Id: <1278690830-22145-1-git-send-email-emunson@mgebm.net>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: akpm@linux-foundation.org
+Cc: mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Eric B Munson <emunson@mgebm.net>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 08, 2010 at 08:10:31PM +0200, Peter Zijlstra wrote:
-> On Thu, 2010-07-08 at 20:09 +0200, Peter Zijlstra wrote:
-> > On Thu, 2010-07-08 at 21:05 +0300, Gleb Natapov wrote:
-> > > > > +   /* do alloc atomic since if we are going to sleep anyway we
-> > > > > +      may as well sleep faulting in page */
-> > > > > +   work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
-> > > > > +   if (!work)
-> > > > > +           return 0;
-> > > > 
-> > > > GFP_KERNEL is fine for this context.
-> > > But it can sleep, no? The comment explains why I don't want to sleep
-> > > here. 
-> > 
-> > In that case, use 0, no use wasting __GFP_HIGH on something that doesn't
-> > actually need it.
-> 
-> Ah, I just saw we have GFP_NOWAIT for that.
-Indeed. Will use GFP_NOWAIT.
+As requested by Peter Zijlstra, this patch builds on my earlier patch
+and adds the corresponding trace points to mmap and brk.
 
---
-			Gleb.
+Signed-off-by: Eric B Munson <emunson@mgebm.net>
+---
+ include/trace/events/mm.h |   38 ++++++++++++++++++++++++++++++++++++++
+ mm/mmap.c                 |   10 +++++++++-
+ 2 files changed, 47 insertions(+), 1 deletions(-)
+
+diff --git a/include/trace/events/mm.h b/include/trace/events/mm.h
+index c3a3857..1563988 100644
+--- a/include/trace/events/mm.h
++++ b/include/trace/events/mm.h
+@@ -24,6 +24,44 @@ TRACE_EVENT(munmap,
+ 	TP_printk("unmapping %u bytes at %lu\n", __entry->len, __entry->start)
+ );
+ 
++TRACE_EVENT(brk,
++	TP_PROTO(unsigned long addr, unsigned long len),
++
++	TP_ARGS(addr, len),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, addr)
++		__field(unsigned long, len)
++	),
++
++	TP_fast_assign(
++		__entry->addr = addr;
++		__entry->len = len;
++	),
++
++	TP_printk("brk mmapping %lu bytes at %lu\n", __entry->len,
++		   __entry->addr)
++);
++
++TRACE_EVENT(mmap,
++	TP_PROTO(unsigned long addr, unsigned long len),
++
++	TP_ARGS(addr, len),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, addr)
++		__field(unsigned long, len)
++	),
++
++	TP_fast_assign(
++		__entry->addr = addr;
++		__entry->len = len;
++	),
++
++	TP_printk("mmapping %lu bytes at %lu\n", __entry->len,
++		   __entry->addr)
++);
++
+ #endif /* _TRACE_MM_H_ */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0775a30..252e3e0 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -952,6 +952,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned int vm_flags;
+ 	int error;
+ 	unsigned long reqprot = prot;
++	unsigned long ret;
+ 
+ 	/*
+ 	 * Does the application expect PROT_READ to imply PROT_EXEC?
+@@ -1077,7 +1078,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	if (error)
+ 		return error;
+ 
+-	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
++	ret =  mmap_region(file, addr, len, flags, vm_flags, pgoff);
++
++	if (!(ret & ~PAGE_MASK))
++		trace_mmap(addr, len);
++
++	return ret;
+ }
+ EXPORT_SYMBOL(do_mmap_pgoff);
+ 
+@@ -2218,6 +2224,8 @@ out:
+ 		if (!mlock_vma_pages_range(vma, addr, addr + len))
+ 			mm->locked_vm += (len >> PAGE_SHIFT);
+ 	}
++
++	trace_brk(addr, len);
+ 	return addr;
+ }
+ 
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
