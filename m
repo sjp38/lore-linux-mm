@@ -1,47 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6C7806B02A7
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 97A256B02A8
 	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:12:23 -0400 (EDT)
-Message-Id: <20100709190853.770833931@quilx.com>
-Date: Fri, 09 Jul 2010 14:07:13 -0500
+Message-Id: <20100709190859.677969075@quilx.com>
+Date: Fri, 09 Jul 2010 14:07:23 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q2 07/19] slub: Allow removal of slab caches during boot
+Subject: [S+Q2 17/19] SLUB: Get rid of useless function count_free()
 References: <20100709190706.938177313@quilx.com>
-Content-Disposition: inline; filename=slub_sysfs_remove_during_boot
+Content-Disposition: inline; filename=sled_drop_count_free
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-If a slab cache is removed before we have setup sysfs then simply skip over
-the sysfs handling.
+count_free() == available()
 
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Roland Dreier <rdreier@cisco.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ mm/slub.c |   11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-07-06 15:13:48.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-07-06 15:15:27.000000000 -0500
-@@ -4507,6 +4507,13 @@ static int sysfs_slab_add(struct kmem_ca
+--- linux-2.6.orig/mm/slub.c	2010-07-07 10:54:29.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-07-07 10:54:33.000000000 -0500
+@@ -1652,11 +1652,6 @@ static inline int node_match(struct kmem
+ 	return 1;
+ }
  
- static void sysfs_slab_remove(struct kmem_cache *s)
+-static int count_free(struct page *page)
+-{
+-	return available(page);
+-}
+-
+ static unsigned long count_partial(struct kmem_cache_node *n,
+ 					int (*get_count)(struct page *))
  {
-+	if (slab_state < SYSFS)
-+		/*
-+		 * Sysfs has not been setup yet so no need to remove the
-+		 * cache from sysfs.
-+		 */
-+		return;
-+
- 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
- 	kobject_del(&s->kobj);
- 	kobject_put(&s->kobj);
+@@ -1705,7 +1700,7 @@ slab_out_of_memory(struct kmem_cache *s,
+ 		if (!n)
+ 			continue;
+ 
+-		nr_free  = count_partial(n, count_free);
++		nr_free  = count_partial(n, available);
+ 		nr_slabs = node_nr_slabs(n);
+ 		nr_objs  = node_nr_objs(n);
+ 
+@@ -3835,7 +3830,7 @@ static ssize_t show_slab_objects(struct 
+ 			x = atomic_long_read(&n->total_objects);
+ 		else if (flags & SO_OBJECTS)
+ 			x = atomic_long_read(&n->total_objects) -
+-				count_partial(n, count_free);
++				count_partial(n, available);
+ 
+ 			else
+ 				x = atomic_long_read(&n->nr_slabs);
+@@ -4717,7 +4712,7 @@ static int s_show(struct seq_file *m, vo
+ 		nr_partials += n->nr_partial;
+ 		nr_slabs += atomic_long_read(&n->nr_slabs);
+ 		nr_objs += atomic_long_read(&n->total_objects);
+-		nr_free += count_partial(n, count_free);
++		nr_free += count_partial(n, available);
+ 	}
+ 
+ 	nr_inuse = nr_objs - nr_free;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
