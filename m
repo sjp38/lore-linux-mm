@@ -1,45 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8CD600922
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 17:19:15 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id o69LJEPR007851
-	for <linux-mm@kvack.org>; Fri, 9 Jul 2010 14:19:14 -0700
-Received: from vws10 (vws10.prod.google.com [10.241.21.138])
-	by hpaq6.eem.corp.google.com with ESMTP id o69LJCkW027160
-	for <linux-mm@kvack.org>; Fri, 9 Jul 2010 14:19:13 -0700
-Received: by vws10 with SMTP id 10so3507826vws.21
-        for <linux-mm@kvack.org>; Fri, 09 Jul 2010 14:19:12 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EFB99600922
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 18:02:28 -0400 (EDT)
+Message-ID: <4C379C5A.8070202@redhat.com>
+Date: Fri, 09 Jul 2010 18:02:02 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
-References: <20100709002322.GO6197@random.random>
-	<alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
-Date: Fri, 9 Jul 2010 14:19:12 -0700
-Message-ID: <AANLkTilUUDMp1U46M3GbGLtaMIkGaTtx0hBrnmRfSkJ4@mail.gmail.com>
 Subject: Re: [PATCH] fix swapin race condition
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+References: <20100709002322.GO6197@random.random> <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
+In-Reply-To: <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 9, 2010 at 1:32 PM, Hugh Dickins <hughd@google.com> wrote:
+On 07/09/2010 04:32 PM, Hugh Dickins wrote:
+
+>>   	struct anon_vma *anon_vma = page_anon_vma(page);
+>>
+>> -	if (!anon_vma ||
+>> -	    (anon_vma->root == vma->anon_vma->root&&
+>> -	     page->index == linear_page_index(vma, address)))
+>> -		return page;
+>> -
+>> -	return ksm_does_need_to_copy(page, vma, address);
+>> +	return anon_vma&&
+>> +		(anon_vma->root != vma->anon_vma->root ||
+>> +		 page->index != linear_page_index(vma, address));
+>>   }
 >
-> There's a related bug of mine lurking here, only realized in looking
-> through this, which you might want to fix at the same time: I should
-> have moved the PageUptodate check from after the pte_same check to
-> before the ksm_might_need_to_copy, shouldn't I? =C2=A0As it stands, we
-> might copy junk from an invalid !Uptodate page into a clean new page.
+> Hiding in here is a bigger question than your concern:
+> are these tests right since Rik refactored the anon_vmas?
+> I just don't know, but hope you and Rik can answer.
 
-Actually, not so, forget it: though it does look worrying, if the swap
-page read had failed, leaving the page !Uptodate, then it would not
-have been inserted into any address space in the first place,
-page->mapping would remain unset, and ksm_might_need_to_copy() would
-have no reason to copy it.
+Yes, this bit is correct.  Andrea and I have gone over
+this in detail a few weeks ago :)
 
-Hugh
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
