@@ -1,207 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B0C38600922
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:44:38 -0400 (EDT)
-Message-Id: <20100709190851.439702605@quilx.com>
-Date: Fri, 09 Jul 2010 14:07:09 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q2 03/19] percpu: allow limited allocation before slab is online
-References: <20100709190706.938177313@quilx.com>
-Content-Disposition: inline; filename=percpu_early_2
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C831D600922
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 16:33:03 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o69KWxXt022809
+	for <linux-mm@kvack.org>; Fri, 9 Jul 2010 13:32:59 -0700
+Received: from pzk5 (pzk5.prod.google.com [10.243.19.133])
+	by wpaz5.hot.corp.google.com with ESMTP id o69KWuCv018607
+	for <linux-mm@kvack.org>; Fri, 9 Jul 2010 13:32:58 -0700
+Received: by pzk5 with SMTP id 5so515921pzk.10
+        for <linux-mm@kvack.org>; Fri, 09 Jul 2010 13:32:56 -0700 (PDT)
+Date: Fri, 9 Jul 2010 13:32:45 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] fix swapin race condition
+In-Reply-To: <20100709002322.GO6197@random.random>
+Message-ID: <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
+References: <20100709002322.GO6197@random.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch updates percpu allocator such that it can serve limited
-amount of allocation before slab comes online.  This is primarily to
-allow slab to depend on working percpu allocator.
+On Fri, 9 Jul 2010, Andrea Arcangeli wrote:
 
-Two parameters, PERCPU_DYNAMIC_EARLY_SIZE and SLOTS, determine how
-much memory space and allocation map slots are reserved.  If this
-reserved area is exhausted, WARN_ON_ONCE() will trigger and allocation
-will fail till slab comes online.
+> Hi Hugh,
+> 
+> can you review this patch? This is only theoretical so far.
+> 
+> Basically a thread can get stuck in ksm_does_need_to_copy after the
+> unlock_page (with orig_pte pointing to swap entry A). In the meantime
+> another thread can do the ksm swapin copy too, the copy can be swapped
+> out to swap entry B, then a new swapin can create a new copy that can
+> return to swap entry A if reused by things like try_to_free_swap (to
+> me it seems the page pin is useless to prevent the swapcache to go
+> away, it only helps in page reclaim but swapcache is removed by other
+> things too). So then the first thread can finish the ksm-copy find the
+> pte_same pointing to swap entry A again (despite it passed through
+> swap entry B) and break.
 
-The following changes are made to implement early alloc.
+Yes, nice find, you're absolutely right: not likely, but possible.
+Swap is slippery stuff, and that pte_same does depend on keeping the
+original page locked (or else an additional swap_duplicate+swap_free).
 
-* pcpu_mem_alloc() now checks slab_is_available()
+> 
+> I also don't seem to see a guarantee that lookup_swap_cache returns
+> swapcache until we take the lock on the page.
+> 
+> I exclude this can cause regressions, but I'd like to know if it
+> really can happen or if I'm missing something and it cannot happen. I
+> surely looks weird that lookup_swap_cache might return a page that
+> gets removed from swapcache before we take the page lock but I don't
+> see anything preventing it. Surely it's not going to happen until >50%
+> swap is full.
 
-* Chunks are allocated using pcpu_mem_alloc()
+It is well established that by the time lookup_swap_cache() returns,
+the page it returns may already have been removed from swapcache:
+yes, you have to get page lock to be sure.  Long ago I put a comment 
+on that into lookup_swap_cache(), but it fell out of the 2.6 version
+when we briefly changed how that one worked.
 
-* Init paths make sure ai->dyn_size is at least as large as
-  PERCPU_DYNAMIC_EARLY_SIZE.
+It can even happen when swap is near empty: through swapoff,
+or through reuse_swap_page(), at least.
 
-* Initial alloc maps are allocated in __initdata and copied to
-  kmalloc'd areas once slab is online.
+I'm not aware of any bug we have from that, but sure, it comes as a
+surprise when you realize it.
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
----
- include/linux/percpu.h |   13 ++++++++++++
- init/main.c            |    1
- include/linux/percpu.h |   13 ++++++++++++
- init/main.c            |    1 
- mm/percpu.c            |   52 +++++++++++++++++++++++++++++++++++++------------
- 3 files changed, 54 insertions(+), 12 deletions(-)
+> 
+> It's also possible to fix it by forcing do_wp_page to run but for a
+> little while it won't be possible to rmap the the instantiated page so
+> I didn't change that even if it probably would make life easier to
+> memcg swapin handlers (maybe, dunno).
 
-Index: linux-2.6/mm/percpu.c
-===================================================================
---- linux-2.6.orig/mm/percpu.c	2010-07-07 08:47:18.000000000 -0500
-+++ linux-2.6/mm/percpu.c	2010-07-07 08:47:19.000000000 -0500
-@@ -282,6 +282,9 @@ static void __maybe_unused pcpu_next_pop
-  */
- static void *pcpu_mem_alloc(size_t size)
- {
-+	if (WARN_ON_ONCE(!slab_is_available()))
-+		return NULL;
-+
- 	if (size <= PAGE_SIZE)
- 		return kzalloc(size, GFP_KERNEL);
- 	else {
-@@ -392,13 +395,6 @@ static int pcpu_extend_area_map(struct p
- 	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
- 	memcpy(new, chunk->map, old_size);
- 
--	/*
--	 * map_alloc < PCPU_DFL_MAP_ALLOC indicates that the chunk is
--	 * one of the first chunks and still using static map.
--	 */
--	if (chunk->map_alloc >= PCPU_DFL_MAP_ALLOC)
--		old = chunk->map;
--
- 	chunk->map_alloc = new_alloc;
- 	chunk->map = new;
- 	new = NULL;
-@@ -604,7 +600,7 @@ static struct pcpu_chunk *pcpu_alloc_chu
- {
- 	struct pcpu_chunk *chunk;
- 
--	chunk = kzalloc(pcpu_chunk_struct_size, GFP_KERNEL);
-+	chunk = pcpu_mem_alloc(pcpu_chunk_struct_size);
- 	if (!chunk)
- 		return NULL;
- 
-@@ -1109,7 +1105,9 @@ static struct pcpu_alloc_info * __init p
- 	memset(group_map, 0, sizeof(group_map));
- 	memset(group_cnt, 0, sizeof(group_cnt));
- 
--	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
-+	/* calculate size_sum and ensure dyn_size is enough for early alloc */
-+	size_sum = PFN_ALIGN(static_size + reserved_size +
-+			    max_t(size_t, dyn_size, PERCPU_DYNAMIC_EARLY_SIZE));
- 	dyn_size = size_sum - static_size - reserved_size;
- 
- 	/*
-@@ -1338,7 +1336,8 @@ int __init pcpu_setup_first_chunk(const 
- 				  void *base_addr)
- {
- 	static char cpus_buf[4096] __initdata;
--	static int smap[2], dmap[2];
-+	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
-+	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
- 	size_t dyn_size = ai->dyn_size;
- 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
- 	struct pcpu_chunk *schunk, *dchunk = NULL;
-@@ -1361,14 +1360,13 @@ int __init pcpu_setup_first_chunk(const 
- } while (0)
- 
- 	/* sanity checks */
--	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
--		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
- 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
- 	PCPU_SETUP_BUG_ON(!ai->static_size);
- 	PCPU_SETUP_BUG_ON(!base_addr);
- 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
- 	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
- 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
-+	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
- 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
- 
- 	/* process group information and build config tables accordingly */
-@@ -1806,3 +1804,33 @@ void __init setup_per_cpu_areas(void)
- 		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
- }
- #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
-+
-+/*
-+ * First and reserved chunks are initialized with temporary allocation
-+ * map in initdata so that they can be used before slab is online.
-+ * This function is called after slab is brought up and replaces those
-+ * with properly allocated maps.
-+ */
-+void __init percpu_init_late(void)
-+{
-+	struct pcpu_chunk *target_chunks[] =
-+		{ pcpu_first_chunk, pcpu_reserved_chunk, NULL };
-+	struct pcpu_chunk *chunk;
-+	unsigned long flags;
-+	int i;
-+
-+	for (i = 0; (chunk = target_chunks[i]); i++) {
-+		int *map;
-+		const size_t size = PERCPU_DYNAMIC_EARLY_SLOTS * sizeof(map[0]);
-+
-+		BUILD_BUG_ON(size > PAGE_SIZE);
-+
-+		map = pcpu_mem_alloc(size);
-+		BUG_ON(!map);
-+
-+		spin_lock_irqsave(&pcpu_lock, flags);
-+		memcpy(map, chunk->map, size);
-+		chunk->map = map;
-+		spin_unlock_irqrestore(&pcpu_lock, flags);
-+	}
-+}
-Index: linux-2.6/init/main.c
-===================================================================
---- linux-2.6.orig/init/main.c	2010-07-07 08:45:22.000000000 -0500
-+++ linux-2.6/init/main.c	2010-07-07 08:47:19.000000000 -0500
-@@ -532,6 +532,7 @@ static void __init mm_init(void)
- 	page_cgroup_init_flatmem();
- 	mem_init();
- 	kmem_cache_init();
-+	percpu_init_late();
- 	pgtable_cache_init();
- 	vmalloc_init();
- }
-Index: linux-2.6/include/linux/percpu.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu.h	2010-07-07 08:47:18.000000000 -0500
-+++ linux-2.6/include/linux/percpu.h	2010-07-07 08:47:19.000000000 -0500
-@@ -45,6 +45,16 @@
- #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
- 
- /*
-+ * Percpu allocator can serve percpu allocations before slab is
-+ * initialized which allows slab to depend on the percpu allocator.
-+ * The following two parameters decide how much resource to
-+ * preallocate for this.  Keep PERCPU_DYNAMIC_RESERVE equal to or
-+ * larger than PERCPU_DYNAMIC_EARLY_SIZE.
-+ */
-+#define PERCPU_DYNAMIC_EARLY_SLOTS	128
-+#define PERCPU_DYNAMIC_EARLY_SIZE	(12 << 10)
-+
-+/*
-  * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
-  * back on the first chunk for dynamic percpu allocation if arch is
-  * manually allocating and mapping it for faster access (as a part of
-@@ -135,6 +145,7 @@ extern bool is_kernel_percpu_address(uns
- #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
- extern void __init setup_per_cpu_areas(void);
- #endif
-+extern void __init percpu_init_late(void);
- 
- #else /* CONFIG_SMP */
- 
-@@ -148,6 +159,8 @@ static inline bool is_kernel_percpu_addr
- 
- static inline void __init setup_per_cpu_areas(void) { }
- 
-+static inline void __init percpu_init_late(void) { }
-+
- static inline void *pcpu_lpage_remapped(void *kaddr)
- {
- 	return NULL;
+That's an interesting idea.  I'm not clear what you have in mind there,
+but if we could get rid of ksm_does_need_to_copy(), letting do_wp_page()
+do the copy instead, that would be very satisfying.  However, I suspect
+it would rather involve tricking do_wp_page() into doing it, involve a
+number of hard-to-maintain hacks, appealing to me but to nobody else!
+
+> 
+> Thanks,
+> Andrea
+> 
+> ======
+> Subject: fix swapin race condition
+> 
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> The pte_same check is reliable only if the swap entry remains pinned
+> (by the page lock on swapcache). We've also to ensure the swapcache
+> isn't removed before we take the lock as try_to_free_swap won't care
+> about the page pin.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+> 
+> diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+> --- a/include/linux/ksm.h
+> +++ b/include/linux/ksm.h
+> @@ -16,6 +16,9 @@
+>  struct stable_node;
+>  struct mem_cgroup;
+>  
+> +struct page *ksm_does_need_to_copy(struct page *page,
+> +			struct vm_area_struct *vma, unsigned long address);
+> +
+
+Hmm, I guess that works, but depends on the optimizer to remove the
+reference to it when !CONFIG_KSM.  I think it would be better back
+in its original place, with a dummy inline added for !CONFIG_KSM.
+
+>  #ifdef CONFIG_KSM
+>  int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+>  		unsigned long end, int advice, unsigned long *vm_flags);
+> @@ -70,19 +73,14 @@ static inline void set_page_stable_node(
+>   * We'd like to make this conditional on vma->vm_flags & VM_MERGEABLE,
+>   * but what if the vma was unmerged while the page was swapped out?
+>   */
+> -struct page *ksm_does_need_to_copy(struct page *page,
+> -			struct vm_area_struct *vma, unsigned long address);
+> -static inline struct page *ksm_might_need_to_copy(struct page *page,
+> +static inline int ksm_might_need_to_copy(struct page *page,
+>  			struct vm_area_struct *vma, unsigned long address)
+>  {
+>  	struct anon_vma *anon_vma = page_anon_vma(page);
+>  
+> -	if (!anon_vma ||
+> -	    (anon_vma->root == vma->anon_vma->root &&
+> -	     page->index == linear_page_index(vma, address)))
+> -		return page;
+> -
+> -	return ksm_does_need_to_copy(page, vma, address);
+> +	return anon_vma &&
+> +		(anon_vma->root != vma->anon_vma->root ||
+> +		 page->index != linear_page_index(vma, address));
+>  }
+
+Hiding in here is a bigger question than your concern:
+are these tests right since Rik refactored the anon_vmas?
+I just don't know, but hope you and Rik can answer.
+
+I put in this ksm_might_need_to_copy() stuff with the old anon_vma:
+it was necessary to avoid the BUG_ON(page->mapping != vma->anon_vma)
+in the old __page_check_anon_rmap().  Not just to avoid the BUG_ON -
+it was correct to be checking that the page would be rmap-findable.
+Nowadays that check is gone, and I wonder if ksm_does_need_to_copy()
+is getting called in cases when we do not need to copy at all?
+
+(We need to copy on bringing back from swap when KSM collapsed pages
+unrelated by fork into one single page which was then swapped out.)
+
+>  
+>  int page_referenced_ksm(struct page *page,
+> @@ -115,10 +113,10 @@ static inline int ksm_madvise(struct vm_
+>  	return 0;
+>  }
+>  
+> -static inline struct page *ksm_might_need_to_copy(struct page *page,
+> +static inline int ksm_might_need_to_copy(struct page *page,
+>  			struct vm_area_struct *vma, unsigned long address)
+>  {
+> -	return page;
+> +	return 0;
+>  }
+>  
+>  static inline int page_referenced_ksm(struct page *page,
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1518,8 +1518,6 @@ struct page *ksm_does_need_to_copy(struc
+>  {
+>  	struct page *new_page;
+>  
+> -	unlock_page(page);	/* any racers will COW it, not modify it */
+> -
+>  	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+>  	if (new_page) {
+>  		copy_user_highpage(new_page, page, address, vma);
+> @@ -1535,7 +1533,6 @@ struct page *ksm_does_need_to_copy(struc
+>  			add_page_to_unevictable_list(new_page);
+>  	}
+>  
+> -	page_cache_release(page);
+>  	return new_page;
+>  }
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2616,7 +2616,7 @@ static int do_swap_page(struct mm_struct
+>  		unsigned int flags, pte_t orig_pte)
+>  {
+>  	spinlock_t *ptl;
+> -	struct page *page;
+> +	struct page *page, *swapcache = NULL;
+
+If we're honest (and ksm_might_need_to_copy really is giving the
+right answers it should), we'd name that ksm_swapcache, and notice
+how KSM has intruded here rather more than we wanted.
+
+>  	swp_entry_t entry;
+>  	pte_t pte;
+>  	struct mem_cgroup *ptr = NULL;
+> @@ -2671,10 +2671,23 @@ static int do_swap_page(struct mm_struct
+>  	lock_page(page);
+>  	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+>  
+> -	page = ksm_might_need_to_copy(page, vma, address);
+> -	if (!page) {
+> -		ret = VM_FAULT_OOM;
+> -		goto out;
+> +	/*
+> +	 * Make sure try_to_free_swap didn't release the swapcache
+> +	 * from under us. The page pin isn't enough to prevent that.
+> +	 */
+> +	if (unlikely(!PageSwapCache(page)))
+> +		goto out_page;
+
+Do you actually need to add that check there? (And do we actually
+need the same check in mem_cgroup_try_charge_swapin?  Now I think not.)
+You would if you were to proceed by holding the swap entry with an
+additional swap_duplicate+swap_free (which conceptually I'd prefer,
+but you're more efficient to use the page lock we already have).
+
+If you really want to add it, just to make things easier to think
+about, that's fair enough; but I don't see that it's necessary.
+
+> +
+> +	if (ksm_might_need_to_copy(page, vma, address)) {
+> +		swapcache = page;
+> +		page = ksm_does_need_to_copy(page, vma, address);
+> +
+> +		if (unlikely(!page)) {
+> +			ret = VM_FAULT_OOM;
+> +			page = swapcache;
+> +			swapcache = NULL;
+> +			goto out_page;
+> +		}
+>  	}
+>  
+>  	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
+
+There's a related bug of mine lurking here, only realized in looking
+through this, which you might want to fix at the same time: I should
+have moved the PageUptodate check from after the pte_same check to
+before the ksm_might_need_to_copy, shouldn't I?  As it stands, we
+might copy junk from an invalid !Uptodate page into a clean new page.
+
+> @@ -2725,6 +2738,18 @@ static int do_swap_page(struct mm_struct
+>  	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+>  		try_to_free_swap(page);
+>  	unlock_page(page);
+> +	if (swapcache) {
+> +		/*
+> +		 * Hold the lock to avoid the swap entry to be reused
+> +		 * until we take the PT lock for the pte_same() check
+> +		 * (to avoid false positives from pte_same). For
+> +		 * further safety release the lock after the swap_free
+> +		 * so that the swap count won't change under a
+> +		 * parallel locked swapcache.
+> +		 */
+> +		unlock_page(swapcache);
+> +		page_cache_release(swapcache);
+> +	}
+>  
+>  	if (flags & FAULT_FLAG_WRITE) {
+>  		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
+> @@ -2746,6 +2771,10 @@ out_page:
+>  	unlock_page(page);
+>  out_release:
+>  	page_cache_release(page);
+> +	if (swapcache) {
+> +		unlock_page(swapcache);
+> +		page_cache_release(swapcache);
+> +	}
+
+Minor point, but couldn't that added block go just after the unlock_page
+above, before the out_release label?  Doesn't matter, just pairs up more
+naturally.
+
+>  	return ret;
+>  }
+
+Yes, I don't like the way KSM is intruding further on do_swap_page(),
+but I haven't thought of a nicer way of handling the case.
+
+Thanks for finding this - probably years before any user hits it!
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
