@@ -1,31 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6CE1F6B02A3
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:03:03 -0400 (EDT)
-Date: Fri, 9 Jul 2010 09:02:31 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: stop meaningless loop iteration when no reclaimable
- slab
-In-Reply-To: <20100709191308.FA25.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1007090859560.30663@router.home>
-References: <20100708133152.5e556508.akpm@linux-foundation.org> <20100709171850.FA22.A69D9226@jp.fujitsu.com> <20100709191308.FA25.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 103F36B02A3
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 11:51:09 -0400 (EDT)
+Date: Fri, 9 Jul 2010 18:50:47 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v4 08/12] Inject asynchronous page fault into a guest
+ if page is swapped out.
+Message-ID: <20100709155047.GC11885@redhat.com>
+References: <1278433500-29884-1-git-send-email-gleb@redhat.com>
+ <1278433500-29884-9-git-send-email-gleb@redhat.com>
+ <20100708155920.GA13855@amt.cnet>
+ <20100708180525.GA11885@redhat.com>
+ <1278612561.1900.170.camel@laptop>
+ <1278612631.1900.171.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1278612631.1900.171.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Jul 2010, KOSAKI Motohiro wrote:
+On Thu, Jul 08, 2010 at 08:10:31PM +0200, Peter Zijlstra wrote:
+> On Thu, 2010-07-08 at 20:09 +0200, Peter Zijlstra wrote:
+> > On Thu, 2010-07-08 at 21:05 +0300, Gleb Natapov wrote:
+> > > > > +   /* do alloc atomic since if we are going to sleep anyway we
+> > > > > +      may as well sleep faulting in page */
+> > > > > +   work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
+> > > > > +   if (!work)
+> > > > > +           return 0;
+> > > > 
+> > > > GFP_KERNEL is fine for this context.
+> > > But it can sleep, no? The comment explains why I don't want to sleep
+> > > here. 
+> > 
+> > In that case, use 0, no use wasting __GFP_HIGH on something that doesn't
+> > actually need it.
+> 
+> Ah, I just saw we have GFP_NOWAIT for that.
+Indeed. Will use GFP_NOWAIT.
 
-> If number of reclaimable slabs are zero, shrink_icache_memory() and
-> shrink_dcache_memory() return 0. but strangely shrink_slab() ignore
-> it and continue meaningless loop iteration.
-
-There is also a per zone/node/global counter SLAB_RECLAIM_ACCOUNT that
-could be used to determine if its worth looking at things at all. I saw
-some effort going into making the shrinkers zone aware. If so then we may
-be able to avoid scanning slabs.
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
