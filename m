@@ -1,99 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B47B56B02A7
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F13686B02A8
 	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 15:12:20 -0400 (EDT)
-Message-Id: <20100709190852.011302195@quilx.com>
-Date: Fri, 09 Jul 2010 14:07:10 -0500
+Message-Id: <20100709190857.912752982@quilx.com>
+Date: Fri, 09 Jul 2010 14:07:20 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q2 04/19] slub: Use a constant for a unspecified node.
+Subject: [S+Q2 14/19] slub: Move gfpflag masking out of the hotpath
 References: <20100709190706.938177313@quilx.com>
-Content-Disposition: inline; filename=slab_node_unspecified
+Content-Disposition: inline; filename=slub_move_gfpflags
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_node() and friends can be passed a constant -1 to indicate
-that no choice was made for the node from which the object needs to
-come.
+Move the gfpflags masking into the hooks for checkers and into the slowpaths.
+gfpflag masking requires access to a global variable and thus adds an
+additional cacheline reference to the hotpaths.
 
-Use NUMA_NO_NODE instead of -1.
+If no hooks are active then the gfpflag masking will result in
+code that the compiler can toss out.
 
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ mm/slub.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-07-08 14:55:30.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-07-09 13:48:43.000000000 -0500
-@@ -1073,7 +1073,7 @@ static inline struct page *alloc_slab_pa
- 
- 	flags |= __GFP_NOTRACK;
- 
--	if (node == -1)
-+	if (node == NUMA_NO_NODE)
- 		return alloc_pages(flags, order);
- 	else
- 		return alloc_pages_exact_node(node, flags, order);
-@@ -1387,7 +1387,7 @@ static struct page *get_any_partial(stru
- static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
+--- linux-2.6.orig/mm/slub.c	2010-07-07 10:38:17.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-07-07 10:38:22.000000000 -0500
+@@ -798,6 +798,7 @@ static void trace(struct kmem_cache *s, 
+  */
+ static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
  {
- 	struct page *page;
--	int searchnode = (node == -1) ? numa_node_id() : node;
-+	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
++	flags &= gfp_allowed_mask;
+ 	lockdep_trace_alloc(flags);
+ 	might_sleep_if(flags & __GFP_WAIT);
  
- 	page = get_partial_node(get_node(s, searchnode));
- 	if (page || (flags & __GFP_THISNODE))
-@@ -1515,7 +1515,7 @@ static void flush_all(struct kmem_cache 
- static inline int node_match(struct kmem_cache_cpu *c, int node)
+@@ -806,6 +807,7 @@ static inline int slab_pre_alloc_hook(st
+ 
+ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
  {
- #ifdef CONFIG_NUMA
--	if (node != -1 && c->node != node)
-+	if (node != NUMA_NO_NODE && c->node != node)
- 		return 0;
- #endif
- 	return 1;
-@@ -1727,7 +1727,7 @@ static __always_inline void *slab_alloc(
- 
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- {
--	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
- 
- 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
- 
-@@ -1738,7 +1738,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
- #ifdef CONFIG_TRACING
- void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
- {
--	return slab_alloc(s, gfpflags, -1, _RET_IP_);
-+	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
++	flags &= gfp_allowed_mask;
+ 	kmemcheck_slab_alloc(s, flags, object, s->objsize);
+ 	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
  }
- EXPORT_SYMBOL(kmem_cache_alloc_notrace);
- #endif
-@@ -2728,7 +2728,7 @@ void *__kmalloc(size_t size, gfp_t flags
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
+@@ -1648,6 +1650,7 @@ static void *__slab_alloc(struct kmem_ca
  
--	ret = slab_alloc(s, flags, -1, _RET_IP_);
-+	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
+ 	/* We handle __GFP_ZERO in the caller */
+ 	gfpflags &= ~__GFP_ZERO;
++	gfpflags &= gfp_allowed_mask;
  
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
+ 	if (!c->page)
+ 		goto new_slab;
+@@ -1733,8 +1736,6 @@ static __always_inline void *slab_alloc(
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long flags;
  
-@@ -3312,7 +3312,7 @@ void *__kmalloc_track_caller(size_t size
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
+-	gfpflags &= gfp_allowed_mask;
+-
+ 	if (!slab_pre_alloc_hook(s, gfpflags))
+ 		return NULL;
  
--	ret = slab_alloc(s, gfpflags, -1, caller);
-+	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
- 
- 	/* Honor the call site pointer we recieved. */
- 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
