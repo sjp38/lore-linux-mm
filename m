@@ -1,97 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AB0D6B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:14:11 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id o691E7bm008246
-	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:14:07 -0700
-Received: from pxi19 (pxi19.prod.google.com [10.243.27.19])
-	by kpbe20.cbf.corp.google.com with ESMTP id o691DKbt005400
-	for <linux-mm@kvack.org>; Thu, 8 Jul 2010 18:14:05 -0700
-Received: by pxi19 with SMTP id 19so702330pxi.12
-        for <linux-mm@kvack.org>; Thu, 08 Jul 2010 18:14:05 -0700 (PDT)
-Date: Thu, 8 Jul 2010 18:13:55 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH]shmem: reduce one time of locking in pagefault
-In-Reply-To: <1278465346.11107.8.camel@sli10-desk.sh.intel.com>
-Message-ID: <alpine.DEB.1.00.1007081741290.1132@tigran.mtv.corp.google.com>
-References: <1278465346.11107.8.camel@sli10-desk.sh.intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 890216B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 21:16:37 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o691GYAM003373
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 9 Jul 2010 10:16:35 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B9BF45DE57
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:16:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 62D0545DE51
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:16:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 447881DB803F
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:16:34 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E6FE11DB803C
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 10:16:33 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2 1/2] vmscan: don't subtraction of unsined
+In-Reply-To: <20100708130048.fccfcdad.akpm@linux-foundation.org>
+References: <20100708163401.CD34.A69D9226@jp.fujitsu.com> <20100708130048.fccfcdad.akpm@linux-foundation.org>
+Message-Id: <20100709090956.CD51.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri,  9 Jul 2010 10:16:33 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jul 2010, Shaohua Li wrote:
 
-> I'm running a shmem pagefault test case (see attached file) under a 64 CPU
-> system. Profile shows shmem_inode_info->lock is heavily contented and 100%
-> CPUs time are trying to get the lock. In the pagefault (no swap) case,
-> shmem_getpage gets the lock twice, the last one is avoidable if we prealloc a
-> page so we could reduce one time of locking. This is what below patch does.
+> > @@ -2628,16 +2628,16 @@ static int __zone_reclaim(struct zone *zone, gf=
+p_t gfp_mask, unsigned int order)
+> >  		 * take a long time.
+> >  		 */
+> >  		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+> > -			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+> > -				slab_reclaimable - nr_pages)
+> > +		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages > n))
+> >  			;
+> > =20
+> >  		/*
+> >  		 * Update nr_reclaimed by the number of slab pages we
+> >  		 * reclaimed from this zone.
+> >  		 */
+> > -		sc.nr_reclaimed +=3D slab_reclaimable -
+> > -			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> > +		m =3D zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+> > +		if (m < n)
+> > +			sc.nr_reclaimed +=3D n - m;
+>=20
+> And it's not a completly trivial objection.  Your patch made the above
+> code snippet quite a lot harder to read (and hence harder to maintain).
 
-Right.  As usual, I'm rather unenthusiastic about a patch which has to
-duplicate code paths to satisfy an artificial testcase; but I can see
-the appeal.
+Initially, I proposed following patch to Christoph. but he prefer n and m.
+To be honest, I don't think this naming is big matter. so you prefer follow=
+ing
+I'll submit it.
 
-We can ignore that you're making the swap path slower, that will be lost
-in its noise.  I did like the way the old code checked the max_blocks
-limit before it let you allocate the page: whereas you might have many
-threads simultaneously over-allocating before reaching that check; but
-I guess we can live with that.
 
-> 
-> The result of the test case:
-> 2.6.35-rc3: ~20s
-> 2.6.35-rc3 + patch: ~12s
-> so this is 40% improvement.
 
-Was that with or without Tim's shmem_sb_info max_blocks scalability
-changes (that I've still not studied)?  Or max_blocks 0 (unlimited)?
 
-I notice your test case lets each thread fault in from its own
-disjoint part of the whole area.  Please also test with each thread
-touching each page in the whole area at the same time: which I think
-is just as likely a case, but not obvious to me how well it would
-work with your changes - what numbers does it show?
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+=46rom 397199d69860061eaa5e1aaadac45c46c76b0522 Mon Sep 17 00:00:00 2001
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 30 Jun 2010 13:35:16 +0900
+Subject: [PATCH] vmscan: don't subtraction of unsined
 
-> 
-> One might argue if we could have better locking for shmem. But even shmem is lockless,
-> the pagefault will soon have pagecache lock heavily contented because shmem must add
-> new page to pagecache. So before we have better locking for pagecache, improving shmem
-> locking doesn't have too much improvement. I did a similar pagefault test against
-> a ramfs file, the test result is ~10.5s.
-> 
-> Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index f65f840..c5f2939 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-...
-> @@ -1258,7 +1258,19 @@ repeat:
->  		if (error)
->  			goto failed;
->  		radix_tree_preload_end();
-> +		if (sgp != SGP_READ) {
+'slab_reclaimable' and 'nr_pages' are unsigned. so, subtraction is
+unsafe.
 
-Don't you need to check that prealloc_page is not already set there?
-There are several places in the swap path where it has to goto repeat.
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |   15 ++++++++-------
+ 1 files changed, 8 insertions(+), 7 deletions(-)
 
-> +			/* don't care if this successes */
-> +			prealloc_page = shmem_alloc_page(gfp, info, idx);
-> +			if (prealloc_page) {
-> +				if (mem_cgroup_cache_charge(prealloc_page,
-> +				    current->mm, GFP_KERNEL)) {
-> +					page_cache_release(prealloc_page);
-> +					prealloc_page = NULL;
-> +				}
-> +			}
-> +		}
->  	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..79ff877 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2588,7 +2588,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gf=
+p_mask, unsigned int order)
+ 		.swappiness =3D vm_swappiness,
+ 		.order =3D order,
+ 	};
+-	unsigned long slab_reclaimable;
++	unsigned long nr_slab_pages0, nr_slab_pages1;
+=20
+ 	disable_swap_token();
+ 	cond_resched();
+@@ -2615,8 +2615,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gf=
+p_mask, unsigned int order)
+ 		} while (priority >=3D 0 && sc.nr_reclaimed < nr_pages);
+ 	}
+=20
+-	slab_reclaimable =3D zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+-	if (slab_reclaimable > zone->min_slab_pages) {
++	nr_slab_pages0 =3D zone_page_state(zone, NR_SLAB_RECLAIMABLE);
++	if (nr_slab_pages0 > zone->min_slab_pages) {
+ 		/*
+ 		 * shrink_slab() does not currently allow us to determine how
+ 		 * many pages were freed in this zone. So we take the current
+@@ -2628,16 +2628,17 @@ static int __zone_reclaim(struct zone *zone, gfp_t =
+gfp_mask, unsigned int order)
+ 		 * take a long time.
+ 		 */
+ 		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+-			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+-				slab_reclaimable - nr_pages)
++		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
++				nr_slab_pages0))
+ 			;
+=20
+ 		/*
+ 		 * Update nr_reclaimed by the number of slab pages we
+ 		 * reclaimed from this zone.
+ 		 */
+-		sc.nr_reclaimed +=3D slab_reclaimable -
+-			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
++		nr_slab_pages1 =3D zone_page_state(zone, NR_SLAB_RECLAIMABLE);
++		if (nr_slab_pages1 < nr_slab_pages0)
++			sc.nr_reclaimed +=3D nr_slab_pages0 - nr_slab_pages1;
+ 	}
+=20
+ 	p->reclaim_state =3D NULL;
+--=20
+1.6.5.2
 
-Hugh
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
