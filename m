@@ -1,116 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2C5226B02A3
-	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:14:36 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o690EXCi004265
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 9 Jul 2010 09:14:33 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E1A3845DE4E
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AEABE45DE52
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 116741DB805E
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:32 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A2D8F1DB805B
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 09:14:31 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] reduce stack usage of node_read_meminfo()
-In-Reply-To: <20100708135805.b4411965.akpm@linux-foundation.org>
-References: <20100708181629.CD3C.A69D9226@jp.fujitsu.com> <20100708135805.b4411965.akpm@linux-foundation.org>
-Message-Id: <20100709091138.CD57.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by kanga.kvack.org (Postfix) with ESMTP id 557096B02A3
+	for <linux-mm@kvack.org>; Thu,  8 Jul 2010 20:20:31 -0400 (EDT)
+Date: Thu, 8 Jul 2010 17:18:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 16337] general protection fault: 0000 [#1] SMP
+Message-Id: <20100708171855.872d7910.akpm@linux-foundation.org>
+In-Reply-To: <201007082338.o68NcT0C019156@demeter.kernel.org>
+References: <bug-16337-27@https.bugzilla.kernel.org/>
+	<201007082338.o68NcT0C019156@demeter.kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Fri,  9 Jul 2010 09:14:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, justinmattock@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-> On Thu,  8 Jul 2010 18:20:14 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > 
-> > Now, cmpilation node_read_meminfo() output following warning. Because
-> > it has very large sprintf() argument.
-> > 
-> > 	drivers/base/node.c: In function 'node_read_meminfo':
-> > 	drivers/base/node.c:139: warning: the frame size of 848 bytes is
-> > 	larger than 512 bytes
-> 
-> hm, I'm surprised it's that much.
 
-me too.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-> 
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -66,8 +66,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
-> >  	struct sysinfo i;
-> >  
-> >  	si_meminfo_node(&i, nid);
-> > -
-> > -	n = sprintf(buf, "\n"
-> > +	n = sprintf(buf,
-> >  		       "Node %d MemTotal:       %8lu kB\n"
-> >  		       "Node %d MemFree:        %8lu kB\n"
-> >  		       "Node %d MemUsed:        %8lu kB\n"
-> > @@ -78,13 +77,33 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
-> >  		       "Node %d Active(file):   %8lu kB\n"
-> >  		       "Node %d Inactive(file): %8lu kB\n"
-> >  		       "Node %d Unevictable:    %8lu kB\n"
-> > -		       "Node %d Mlocked:        %8lu kB\n"
-> > +		       "Node %d Mlocked:        %8lu kB\n",
-> > +		       nid, K(i.totalram),
-> > +		       nid, K(i.freeram),
-> > +		       nid, K(i.totalram - i.freeram),
-> > +		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
-> > +				node_page_state(nid, NR_ACTIVE_FILE)),
-> 
-> Why the heck did we decide to print the same node-id 10000 times?
+On Thu, 8 Jul 2010 23:38:29 GMT bugzilla-daemon@bugzilla.kernel.org wrote:
 
-dunno. but I don't want to make behavior change for only stack reducing.
+> https://bugzilla.kernel.org/show_bug.cgi?id=16337
 
+[10384.818511] general protection fault: 0000 [#1] SMP 
+: [10384.818517] last sysfs file: /sys/devices/platform/applesmc.768/light
+: [10384.818520] CPU 1 
+: [10384.818522] Modules linked in: radeon ttm drm_kms_helper drm sco xcbc bnep rmd160 sha512_generic xt_tcpudp ipt_LOG iptable_nat nf_nat xt_state nf_conntrack_ftp nf_conntrack_ipv4 nf_conntrack nf_defrag_ipv4 iptable_filter ip_tables x_tables ath9k ath9k_common firewire_ohci firewire_core battery ath9k_hw ac video evdev ohci1394 sky2 ath joydev button thermal i2c_i801 hid_magicmouse aes_x86_64 lzo lzo_compress zlib ipcomp xfrm_ipcomp crypto_null sha256_generic cbc des_generic cast5 blowfish serpent camellia twofish twofish_common ctr ah4 esp4 authenc raw1394 ieee1394 uhci_hcd ehci_hcd hci_uart rfcomm btusb hidp l2cap bluetooth coretemp acpi_cpufreq processor mperf appletouch applesmc uvcvideo
+: [10384.818594] 
+: [10384.818598] Pid: 409, comm: kswapd0 Not tainted 2.6.35-rc3-00398-g5a847c7-dirty #13 Mac-F42187C8/MacBookPro2,2
+: [10384.818601] RIP: 0010:[<ffffffff810b7487>]  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
+: [10384.818611] RSP: 0018:ffff88003e011b40  EFLAGS: 00010293
+: [10384.818614] RAX: ffff88000008f000 RBX: ffff88003e011bf0 RCX: 0000000000000003
+: [10384.818617] RDX: ffff88003e011c08 RSI: 0000000000000001 RDI: 8ed88ec88ce88b66
+: [10384.818620] RBP: ffff88003e011b90 R08: 8ed88ec88ce88b6e R09: 0000000000000002
+: [10384.818623] R10: ffff88000008f050 R11: ffff88000008f050 R12: ffffffffffffffff
+: [10384.818626] R13: 000000000000000e R14: 0000000000000000 R15: 0000000000000003
+: [10384.818629] FS:  0000000000000000(0000) GS:ffff880001b00000(0000) knlGS:0000000000000000
+: [10384.818632] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+: [10384.818635] CR2: 00007f1a8989b000 CR3: 000000000166d000 CR4: 00000000000006e0
+: [10384.818638] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+: [10384.818641] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+: [10384.818644] Process kswapd0 (pid: 409, threadinfo ffff88003e010000, task ffff88003eded490)
+: [10384.818646] Stack:
+: [10384.818648]  ffff88003e011b70 ffffffff810c0e85 ffff880018a2afe0 0000000e0001fad8
+: [10384.818652] <0> ffff880018a30c68 ffff88003e011be0 0000000000000000 ffff88003e011be0
+: [10384.818657] <0> ffffffffffffffff ffff880018a2afd8 ffff88003e011bb0 ffffffff810bed06
+: [10384.818663] Call Trace:
+: [10384.818669]  [<ffffffff810c0e85>] ? __remove_mapping+0xa5/0xbe
+: [10384.818674]  [<ffffffff810bed06>] pagevec_lookup+0x1d/0x26
+: [10384.818678]  [<ffffffff810bfb78>] invalidate_mapping_pages+0xe7/0x10b
+: [10384.818683]  [<ffffffff810fdc4a>] shrink_icache_memory+0x10a/0x227
+: [10384.818687]  [<ffffffff810c21fc>] shrink_slab+0xd6/0x147
+: [10384.818691]  [<ffffffff810c25d2>] balance_pgdat+0x365/0x5b4
+: [10384.818695]  [<ffffffff810c29c7>] kswapd+0x1a6/0x1bc
+: [10384.818700]  [<ffffffff81070d75>] ? autoremove_wake_function+0x0/0x34
+: [10384.818704]  [<ffffffff810c2821>] ? kswapd+0x0/0x1bc
+: [10384.818707]  [<ffffffff81070953>] kthread+0x7a/0x82
+: [10384.818712]  [<ffffffff81027264>] kernel_thread_helper+0x4/0x10
+: [10384.818716]  [<ffffffff810708d9>] ? kthread+0x0/0x82
+: [10384.818719]  [<ffffffff81027260>] ? kernel_thread_helper+0x0/0x10
+: [10384.818721] Code: f5 d0 11 00 48 89 da 89 45 cc 31 c9 eb 64 48 8b 02 48 8b 38 40 f6 c7 01 49 0f 45 fc 48 85 ff 74 4b 48 83 ff ff 74 c8 4c 8d 47 08 <8b> 77 08 85 f6 74 dc 44 8d 4e 01 89 f0 f0 45 0f b1 08 39 f0 74 
+: [10384.818762] RIP  [<ffffffff810b7487>] find_get_pages+0x62/0xc0
+: [10384.818767]  RSP <ffff88003e011b40>
+: [10384.818770] ---[ end trace 594fde37483e4533 ]---
+: 
 
-> 
-> > +	n += sprintf(buf,
-> 
-> You just got caught sending untested patches.
-> 
-> --- a/drivers/base/node.c~drivers-base-nodec-reduce-stack-usage-of-node_read_meminfo-fix
-> +++ a/drivers/base/node.c
-> @@ -93,7 +93,7 @@ static ssize_t node_read_meminfo(struct 
->  		       nid, K(node_page_state(nid, NR_MLOCK)));
->  
->  #ifdef CONFIG_HIGHMEM
-> -	n += sprintf(buf,
-> +	n += sprintf(buf + n,
->  		       "Node %d HighTotal:      %8lu kB\n"
->  		       "Node %d HighFree:       %8lu kB\n"
->  		       "Node %d LowTotal:       %8lu kB\n"
-> @@ -103,7 +103,7 @@ static ssize_t node_read_meminfo(struct 
->  		       nid, K(i.totalram - i.totalhigh),
->  		       nid, K(i.freeram - i.freehigh));
->  #endif
-> -	n += sprintf(buf,
-> +	n += sprintf(buf + n,
->  		       "Node %d Dirty:          %8lu kB\n"
->  		       "Node %d Writeback:      %8lu kB\n"
->  		       "Node %d FilePages:      %8lu kB\n"
-> _
-> 
-> 
-> Please, run the code and check that we didn't muck up the output.
-
-100% my fault. I ran it, but I forgot to merge two patches ;)
-
-
-
+Gad.  Did we do anything recently which could have caused that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
