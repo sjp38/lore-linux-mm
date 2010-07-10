@@ -1,81 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 250A46B024D
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 18:29:29 -0400 (EDT)
-Date: Fri, 9 Jul 2010 15:28:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/2] vmscan: don't subtraction of unsined
-Message-Id: <20100709152851.330bf2b2.akpm@linux-foundation.org>
-In-Reply-To: <20100709090956.CD51.A69D9226@jp.fujitsu.com>
-References: <20100708163401.CD34.A69D9226@jp.fujitsu.com>
-	<20100708130048.fccfcdad.akpm@linux-foundation.org>
-	<20100709090956.CD51.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 8276B600922
+	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 21:17:14 -0400 (EDT)
+Subject: Re: [PATCH 1/2] Add trace events to mmap and brk
+From: Steven Rostedt <rostedt@goodmis.org>
+Reply-To: rostedt@goodmis.org
+In-Reply-To: <1278690830-22145-1-git-send-email-emunson@mgebm.net>
+References: <1278690830-22145-1-git-send-email-emunson@mgebm.net>
+Content-Type: text/plain; charset="ISO-8859-15"
+Date: Fri, 09 Jul 2010 21:17:11 -0400
+Message-ID: <1278724631.1537.176.camel@gandalf.stny.rr.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Eric B Munson <emunson@mgebm.net>
+Cc: akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  9 Jul 2010 10:16:33 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2588,7 +2588,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  		.swappiness = vm_swappiness,
->  		.order = order,
->  	};
-> -	unsigned long slab_reclaimable;
-> +	unsigned long nr_slab_pages0, nr_slab_pages1;
+On Fri, 2010-07-09 at 16:53 +0100, Eric B Munson wrote:
+> As requested by Peter Zijlstra, this patch builds on my earlier patch
+> and adds the corresponding trace points to mmap and brk.
+> 
+> Signed-off-by: Eric B Munson <emunson@mgebm.net>
+> ---
+>  include/trace/events/mm.h |   38 ++++++++++++++++++++++++++++++++++++++
+>  mm/mmap.c                 |   10 +++++++++-
+>  2 files changed, 47 insertions(+), 1 deletions(-)
+> 
+> diff --git a/include/trace/events/mm.h b/include/trace/events/mm.h
+> index c3a3857..1563988 100644
+> --- a/include/trace/events/mm.h
+> +++ b/include/trace/events/mm.h
+> @@ -24,6 +24,44 @@ TRACE_EVENT(munmap,
+>  	TP_printk("unmapping %u bytes at %lu\n", __entry->len, __entry->start)
+>  );
 >  
->  	disable_swap_token();
->  	cond_resched();
-> @@ -2615,8 +2615,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  		} while (priority >= 0 && sc.nr_reclaimed < nr_pages);
+> +TRACE_EVENT(brk,
+> +	TP_PROTO(unsigned long addr, unsigned long len),
+> +
+> +	TP_ARGS(addr, len),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned long, addr)
+> +		__field(unsigned long, len)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->addr = addr;
+> +		__entry->len = len;
+> +	),
+> +
+> +	TP_printk("brk mmapping %lu bytes at %lu\n", __entry->len,
+> +		   __entry->addr)
+> +);
+> +
+> +TRACE_EVENT(mmap,
+> +	TP_PROTO(unsigned long addr, unsigned long len),
+> +
+> +	TP_ARGS(addr, len),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned long, addr)
+> +		__field(unsigned long, len)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->addr = addr;
+> +		__entry->len = len;
+> +	),
+> +
+> +	TP_printk("mmapping %lu bytes at %lu\n", __entry->len,
+> +		   __entry->addr)
+> +);
+> +
+
+Please convert the above two into DECLARE_EVENT_CLASS() and
+DEFINE_EVENT(). You don't need the "mapping" and "brk mapping" in the
+TP_printk() format since the event name will be displayed as well to
+differentiate the two.
+
+Thanks,
+
+-- Steve
+
+>  #endif /* _TRACE_MM_H_ */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 0775a30..252e3e0 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -952,6 +952,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>  	unsigned int vm_flags;
+>  	int error;
+>  	unsigned long reqprot = prot;
+> +	unsigned long ret;
+>  
+>  	/*
+>  	 * Does the application expect PROT_READ to imply PROT_EXEC?
+> @@ -1077,7 +1078,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+>  	if (error)
+>  		return error;
+>  
+> -	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
+> +	ret =  mmap_region(file, addr, len, flags, vm_flags, pgoff);
+> +
+> +	if (!(ret & ~PAGE_MASK))
+> +		trace_mmap(addr, len);
+> +
+> +	return ret;
+>  }
+>  EXPORT_SYMBOL(do_mmap_pgoff);
+>  
+> @@ -2218,6 +2224,8 @@ out:
+>  		if (!mlock_vma_pages_range(vma, addr, addr + len))
+>  			mm->locked_vm += (len >> PAGE_SHIFT);
 >  	}
+> +
+> +	trace_brk(addr, len);
+>  	return addr;
+>  }
 >  
-> -	slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> -	if (slab_reclaimable > zone->min_slab_pages) {
-> +	nr_slab_pages0 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> +	if (nr_slab_pages0 > zone->min_slab_pages) {
->  		/*
->  		 * shrink_slab() does not currently allow us to determine how
->  		 * many pages were freed in this zone.
 
-Well no, but it could do so, with some minor changes to struct
-reclaim_state and its handling.  Put a zone* and a counter in
-reclaim_state, handle them in sl?b.c.
-
-> So we take the current
-> @@ -2628,16 +2628,17 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  		 * take a long time.
->  		 */
->  		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-> -			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
-> -				slab_reclaimable - nr_pages)
-> +		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
-> +				nr_slab_pages0))
->  			;
->  
->  		/*
->  		 * Update nr_reclaimed by the number of slab pages we
->  		 * reclaimed from this zone.
->  		 */
-> -		sc.nr_reclaimed += slab_reclaimable -
-> -			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> +		nr_slab_pages1 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
-> +		if (nr_slab_pages1 < nr_slab_pages0)
-> +			sc.nr_reclaimed += nr_slab_pages0 - nr_slab_pages1;
-
-My, that's horrible.  The whole expression says "this number is
-basically a pile of random junk.  Let's add it in anyway".
-
-
->  	}
->  
->  	p->reclaim_state = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
