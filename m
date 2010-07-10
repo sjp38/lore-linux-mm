@@ -1,127 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8276B600922
-	for <linux-mm@kvack.org>; Fri,  9 Jul 2010 21:17:14 -0400 (EDT)
-Subject: Re: [PATCH 1/2] Add trace events to mmap and brk
-From: Steven Rostedt <rostedt@goodmis.org>
-Reply-To: rostedt@goodmis.org
-In-Reply-To: <1278690830-22145-1-git-send-email-emunson@mgebm.net>
-References: <1278690830-22145-1-git-send-email-emunson@mgebm.net>
-Content-Type: text/plain; charset="ISO-8859-15"
-Date: Fri, 09 Jul 2010 21:17:11 -0400
-Message-ID: <1278724631.1537.176.camel@gandalf.stny.rr.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3C8B26B024D
+	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 06:05:50 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so1379043pvc.14
+        for <linux-mm@kvack.org>; Sat, 10 Jul 2010 03:05:47 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] slob_free:free objects to their own list
+Date: Sat, 10 Jul 2010 18:05:33 +0800
+Message-Id: <1278756333-6850-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mpm@selenic.com, hannes@cmpxchg.org, Bob Liu <lliubbo@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-07-09 at 16:53 +0100, Eric B Munson wrote:
-> As requested by Peter Zijlstra, this patch builds on my earlier patch
-> and adds the corresponding trace points to mmap and brk.
-> 
-> Signed-off-by: Eric B Munson <emunson@mgebm.net>
-> ---
->  include/trace/events/mm.h |   38 ++++++++++++++++++++++++++++++++++++++
->  mm/mmap.c                 |   10 +++++++++-
->  2 files changed, 47 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/trace/events/mm.h b/include/trace/events/mm.h
-> index c3a3857..1563988 100644
-> --- a/include/trace/events/mm.h
-> +++ b/include/trace/events/mm.h
-> @@ -24,6 +24,44 @@ TRACE_EVENT(munmap,
->  	TP_printk("unmapping %u bytes at %lu\n", __entry->len, __entry->start)
->  );
->  
-> +TRACE_EVENT(brk,
-> +	TP_PROTO(unsigned long addr, unsigned long len),
-> +
-> +	TP_ARGS(addr, len),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, addr)
-> +		__field(unsigned long, len)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->addr = addr;
-> +		__entry->len = len;
-> +	),
-> +
-> +	TP_printk("brk mmapping %lu bytes at %lu\n", __entry->len,
-> +		   __entry->addr)
-> +);
-> +
-> +TRACE_EVENT(mmap,
-> +	TP_PROTO(unsigned long addr, unsigned long len),
-> +
-> +	TP_ARGS(addr, len),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, addr)
-> +		__field(unsigned long, len)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->addr = addr;
-> +		__entry->len = len;
-> +	),
-> +
-> +	TP_printk("mmapping %lu bytes at %lu\n", __entry->len,
-> +		   __entry->addr)
-> +);
-> +
+slob has alloced smaller objects from their own list in reduce
+overall external fragmentation and increase repeatability,
+free to their own list also.
 
-Please convert the above two into DECLARE_EVENT_CLASS() and
-DEFINE_EVENT(). You don't need the "mapping" and "brk mapping" in the
-TP_printk() format since the event name will be displayed as well to
-differentiate the two.
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/slob.c |    9 ++++++++-
+ 1 files changed, 8 insertions(+), 1 deletions(-)
 
-Thanks,
-
--- Steve
-
->  #endif /* _TRACE_MM_H_ */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 0775a30..252e3e0 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -952,6 +952,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  	unsigned int vm_flags;
->  	int error;
->  	unsigned long reqprot = prot;
-> +	unsigned long ret;
->  
->  	/*
->  	 * Does the application expect PROT_READ to imply PROT_EXEC?
-> @@ -1077,7 +1078,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  	if (error)
->  		return error;
->  
-> -	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
-> +	ret =  mmap_region(file, addr, len, flags, vm_flags, pgoff);
-> +
-> +	if (!(ret & ~PAGE_MASK))
-> +		trace_mmap(addr, len);
-> +
-> +	return ret;
->  }
->  EXPORT_SYMBOL(do_mmap_pgoff);
->  
-> @@ -2218,6 +2224,8 @@ out:
->  		if (!mlock_vma_pages_range(vma, addr, addr + len))
->  			mm->locked_vm += (len >> PAGE_SHIFT);
->  	}
-> +
-> +	trace_brk(addr, len);
->  	return addr;
->  }
->  
-
+diff --git a/mm/slob.c b/mm/slob.c
+index 3f19a34..d582171 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -396,6 +396,7 @@ static void slob_free(void *block, int size)
+ 	slob_t *prev, *next, *b = (slob_t *)block;
+ 	slobidx_t units;
+ 	unsigned long flags;
++	struct list_head *slob_list;
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(block)))
+ 		return;
+@@ -424,7 +425,13 @@ static void slob_free(void *block, int size)
+ 		set_slob(b, units,
+ 			(void *)((unsigned long)(b +
+ 					SLOB_UNITS(PAGE_SIZE)) & PAGE_MASK));
+-		set_slob_page_free(sp, &free_slob_small);
++		if (size < SLOB_BREAK1)
++			slob_list = &free_slob_small;
++		else if (size < SLOB_BREAK2)
++			slob_list = &free_slob_medium;
++		else
++			slob_list = &free_slob_large;
++		set_slob_page_free(sp, slob_list);
+ 		goto out;
+ 	}
+ 
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
