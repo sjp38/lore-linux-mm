@@ -1,55 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5876B024D
-	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 06:57:09 -0400 (EDT)
-Date: Sat, 10 Jul 2010 12:57:00 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] slob: remove unused funtion
-Message-ID: <20100710105700.GD25806@cmpxchg.org>
-References: <1278756353-6884-1-git-send-email-lliubbo@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 658A86B024D
+	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 09:26:55 -0400 (EDT)
+Received: by qwk4 with SMTP id 4so941517qwk.14
+        for <linux-mm@kvack.org>; Sat, 10 Jul 2010 06:26:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1278756353-6884-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <20100710105700.GD25806@cmpxchg.org>
+References: <1278756353-6884-1-git-send-email-lliubbo@gmail.com>
+	<20100710105700.GD25806@cmpxchg.org>
+Date: Sat, 10 Jul 2010 21:26:53 +0800
+Message-ID: <AANLkTimSde6WsI0ySznpmeKqShJfLpimikjrHN9RTpx8@mail.gmail.com>
+Subject: Re: [PATCH] slob: remove unused funtion
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Bob Liu <lliubbo@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mpm@selenic.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 10, 2010 at 06:05:53PM +0800, Bob Liu wrote:
-> funtion struct_slob_page_wrong_size() is not used anymore, remove it
-> 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/slob.c |    2 --
->  1 files changed, 0 insertions(+), 2 deletions(-)
-> 
+On Sat, Jul 10, 2010 at 6:57 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> On Sat, Jul 10, 2010 at 06:05:53PM +0800, Bob Liu wrote:
+>> funtion struct_slob_page_wrong_size() is not used anymore, remove it
+>>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+>> ---
+>> =C2=A0mm/slob.c | =C2=A0 =C2=A02 --
+>> =C2=A01 files changed, 0 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/slob.c b/mm/slob.c
+>> index d582171..832d2b5 100644
+>> --- a/mm/slob.c
+>> +++ b/mm/slob.c
+>> @@ -109,8 +109,6 @@ struct slob_page {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page page;
+>> =C2=A0 =C2=A0 =C2=A0 };
+>> =C2=A0};
+>> -static inline void struct_slob_page_wrong_size(void)
+>> -{ BUILD_BUG_ON(sizeof(struct slob_page) !=3D sizeof(struct page)); }
+>
+> It is not unused! =C2=A0Try `make mm/slob.o' with the following patch
+> applied:
+>
+
+Why ?
+And I can compile it successfully after remove this funtion.
+Thanks.
+
 > diff --git a/mm/slob.c b/mm/slob.c
-> index d582171..832d2b5 100644
+> index 23631e2..d50ff8e 100644
 > --- a/mm/slob.c
 > +++ b/mm/slob.c
-> @@ -109,8 +109,6 @@ struct slob_page {
->  		struct page page;
->  	};
->  };
-> -static inline void struct_slob_page_wrong_size(void)
-> -{ BUILD_BUG_ON(sizeof(struct slob_page) != sizeof(struct page)); }
+> @@ -106,6 +106,7 @@ struct slob_page {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0};
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page page;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0};
+> + =C2=A0 =C2=A0 =C2=A0 unsigned long foo;
+> =C2=A0};
+> =C2=A0static inline void struct_slob_page_wrong_size(void)
+> =C2=A0{ BUILD_BUG_ON(sizeof(struct slob_page) !=3D sizeof(struct page)); =
+}
+>
 
-It is not unused!  Try `make mm/slob.o' with the following patch
-applied:
 
-diff --git a/mm/slob.c b/mm/slob.c
-index 23631e2..d50ff8e 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -106,6 +106,7 @@ struct slob_page {
- 		};
- 		struct page page;
- 	};
-+	unsigned long foo;
- };
- static inline void struct_slob_page_wrong_size(void)
- { BUILD_BUG_ON(sizeof(struct slob_page) != sizeof(struct page)); }
+
+--=20
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
