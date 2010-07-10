@@ -1,73 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 658A86B024D
-	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 09:26:55 -0400 (EDT)
-Received: by qwk4 with SMTP id 4so941517qwk.14
-        for <linux-mm@kvack.org>; Sat, 10 Jul 2010 06:26:53 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 6CBAF6B024D
+	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 10:36:43 -0400 (EDT)
+Date: Sat, 10 Jul 2010 16:36:35 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
+Message-ID: <20100710143635.GA10080@8bytes.org>
+References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org> <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org> <20100701101746.3810cc3b.randy.dunlap@oracle.com> <20100701180241.GA3594@basil.fritz.box> <AANLkTinABCSdN6hnXVOvVZ12f1QBMR_UAi62qW8GmlkL@mail.gmail.com> <4C2D908E.9030309@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <20100710105700.GD25806@cmpxchg.org>
-References: <1278756353-6884-1-git-send-email-lliubbo@gmail.com>
-	<20100710105700.GD25806@cmpxchg.org>
-Date: Sat, 10 Jul 2010 21:26:53 +0800
-Message-ID: <AANLkTimSde6WsI0ySznpmeKqShJfLpimikjrHN9RTpx8@mail.gmail.com>
-Subject: Re: [PATCH] slob: remove unused funtion
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C2D908E.9030309@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mpm@selenic.com
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: Hari Kanigeri <hari.kanigeri@gmail.com>, Daniel Walker <dwalker@codeaurora.org>, Andi Kleen <andi@firstfloor.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 10, 2010 at 6:57 PM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> On Sat, Jul 10, 2010 at 06:05:53PM +0800, Bob Liu wrote:
->> funtion struct_slob_page_wrong_size() is not used anymore, remove it
->>
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->> =C2=A0mm/slob.c | =C2=A0 =C2=A02 --
->> =C2=A01 files changed, 0 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/slob.c b/mm/slob.c
->> index d582171..832d2b5 100644
->> --- a/mm/slob.c
->> +++ b/mm/slob.c
->> @@ -109,8 +109,6 @@ struct slob_page {
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct page page;
->> =C2=A0 =C2=A0 =C2=A0 };
->> =C2=A0};
->> -static inline void struct_slob_page_wrong_size(void)
->> -{ BUILD_BUG_ON(sizeof(struct slob_page) !=3D sizeof(struct page)); }
->
-> It is not unused! =C2=A0Try `make mm/slob.o' with the following patch
-> applied:
->
+On Fri, Jul 02, 2010 at 12:09:02AM -0700, Zach Pfeffer wrote:
+> Hari Kanigeri wrote:
+> >> He demonstrated the usage of his code in one of the emails he sent out
+> >> initially. Did you go over that, and what (or how many) step would you
+> >> use with the current code to do the same thing?
+> > 
+> > -- So is this patch set adding layers and abstractions to help the User ?
+> > 
+> > If the idea is to share some memory across multiple devices, I guess
+> > you can achieve the same by calling the map function provided by iommu
+> > module and sharing the mapped address to the 10's or 100's of devices
+> > to access the buffers. You would only need a dedicated virtual pool
+> > per IOMMU device to manage its virtual memory allocations.
+> 
+> Yeah, you can do that. My idea is to get away from explicit addressing
+> and encapsulate the "device address to physical address" link into a
+> mapping.
 
-Why ?
-And I can compile it successfully after remove this funtion.
-Thanks.
+The DMA-API already does this with the help of IOMMUs if they are
+present. What is the benefit of your approach over that?
 
-> diff --git a/mm/slob.c b/mm/slob.c
-> index 23631e2..d50ff8e 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -106,6 +106,7 @@ struct slob_page {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0};
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct page page;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0};
-> + =C2=A0 =C2=A0 =C2=A0 unsigned long foo;
-> =C2=A0};
-> =C2=A0static inline void struct_slob_page_wrong_size(void)
-> =C2=A0{ BUILD_BUG_ON(sizeof(struct slob_page) !=3D sizeof(struct page)); =
-}
->
-
-
-
---=20
-Regards,
---Bob
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
