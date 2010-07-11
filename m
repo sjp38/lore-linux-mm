@@ -1,67 +1,60 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 4/6] writeback: dont redirty tail an inode with dirty pages
-Date: Sun, 11 Jul 2010 10:07:00 +0800
-Message-ID: <20100711021749.021449821@intel.com>
+Subject: [PATCH 5/6] writeback: fix queue_io() ordering
+Date: Sun, 11 Jul 2010 10:07:01 +0800
+Message-ID: <20100711021749.163345723@intel.com>
 References: <20100711020656.340075560@intel.com>
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=writeback-xfs-fast-redirty.patch
-Sender: linux-kernel-owner@vger.kernel.org
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1OXmR2-0002KP-Dh
+	for glkm-linux-mm-2@m.gmane.org; Sun, 11 Jul 2010 04:38:28 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C8C4C6B024D
+	for <linux-mm@kvack.org>; Sat, 10 Jul 2010 22:38:12 -0400 (EDT)
+Content-Disposition: inline; filename=queue_io-fix.patch
+Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-This avoids delaying writeback for an expired (XFS) inode with lots of
-dirty pages, but no active dirtier at the moment. Previously we only do
-that for the kupdate case.
+This was not a bug, since b_io is empty for kupdate writeback.
+The next patch will do requeue_io() for non-kupdate writeback,
+so let's fix it.
 
 CC: Dave Chinner <david@fromorbit.com>
-CC: Christoph Hellwig <hch@infradead.org>
-Acked-by: Jan Kara <jack@suse.cz>
+Cc: Martin Bligh <mbligh@google.com>
+Cc: Michael Rubin <mrubin@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Fengguang Wu <wfg@mail.ustc.edu.cn>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c |   20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ fs/fs-writeback.c |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
---- linux-next.orig/fs/fs-writeback.c	2010-07-11 08:53:44.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-07-11 08:57:35.000000000 +0800
-@@ -367,18 +367,7 @@ writeback_single_inode(struct inode *ino
- 	spin_lock(&inode_lock);
- 	inode->i_state &= ~I_SYNC;
- 	if (!(inode->i_state & I_FREEING)) {
--		if ((inode->i_state & I_DIRTY_PAGES) && wbc->for_kupdate) {
--			/*
--			 * More pages get dirtied by a fast dirtier.
--			 */
--			goto select_queue;
--		} else if (inode->i_state & I_DIRTY) {
--			/*
--			 * At least XFS will redirty the inode during the
--			 * writeback (delalloc) and on io completion (isize).
--			 */
--			redirty_tail(inode);
--		} else if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
-+		if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
- 			/*
- 			 * We didn't write back all the pages.  nfs_writepages()
- 			 * sometimes bales out without doing anything. Redirty
-@@ -400,7 +389,6 @@ writeback_single_inode(struct inode *ino
- 				 * soon as the queue becomes uncongested.
- 				 */
- 				inode->i_state |= I_DIRTY_PAGES;
--select_queue:
- 				if (wbc->nr_to_write <= 0) {
- 					/*
- 					 * slice used up: queue for next turn
-@@ -423,6 +411,12 @@ select_queue:
- 				inode->i_state |= I_DIRTY_PAGES;
- 				redirty_tail(inode);
- 			}
-+		} else if (inode->i_state & I_DIRTY) {
-+			/*
-+			 * At least XFS will redirty the inode during the
-+			 * writeback (delalloc) and on io completion (isize).
-+			 */
-+			redirty_tail(inode);
- 		} else if (atomic_read(&inode->i_count)) {
- 			/*
- 			 * The inode is clean, inuse
+--- linux-next.orig/fs/fs-writeback.c	2010-07-11 09:13:31.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-07-11 09:13:32.000000000 +0800
+@@ -252,11 +252,14 @@ static void move_expired_inodes(struct l
+ }
+ 
+ /*
+- * Queue all expired dirty inodes for io, eldest first.
++ * Queue all expired dirty inodes for io, eldest first:
++ * (newly dirtied) => b_dirty inodes
++ *                 => b_more_io inodes
++ *                 => remaining inodes in b_io => (dequeue for sync)
+  */
+ static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
+ {
+-	list_splice_init(&wb->b_more_io, wb->b_io.prev);
++	list_splice_init(&wb->b_more_io, &wb->b_io);
+ 	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
+ }
+ 
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
