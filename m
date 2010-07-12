@@ -1,62 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D78086B024D
-	for <linux-mm@kvack.org>; Sun, 11 Jul 2010 21:58:06 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6C1w39T003543
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 12 Jul 2010 10:58:03 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AC5645DE7C
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 10:58:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E83AC45DE79
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 10:58:02 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDDB01DB8037
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 10:58:02 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 477A71DB8043
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 10:58:02 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Add trace events to mmap and brk
-In-Reply-To: <20100709160342.GB3281@infradead.org>
-References: <1278690830-22145-1-git-send-email-emunson@mgebm.net> <20100709160342.GB3281@infradead.org>
-Message-Id: <20100712104602.EA1A.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8D1896B024D
+	for <linux-mm@kvack.org>; Sun, 11 Jul 2010 22:01:30 -0400 (EDT)
+Date: Mon, 12 Jul 2010 12:01:09 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 4/6] writeback: dont redirty tail an inode with dirty
+ pages
+Message-ID: <20100712020109.GB25335@dastard>
+References: <20100711020656.340075560@intel.com>
+ <20100711021749.021449821@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 12 Jul 2010 10:58:01 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100711021749.021449821@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Eric B Munson <emunson@mgebm.net>, akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Hmm, thinking about it a bit more, what do you trace events give us that
-> the event based syscall tracer doesn't?
+On Sun, Jul 11, 2010 at 10:07:00AM +0800, Wu Fengguang wrote:
+> This avoids delaying writeback for an expired (XFS) inode with lots of
+> dirty pages, but no active dirtier at the moment. Previously we only do
+> that for the kupdate case.
+> 
+> CC: Dave Chinner <david@fromorbit.com>
+> CC: Christoph Hellwig <hch@infradead.org>
+> Acked-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   20 +++++++-------------
+>  1 file changed, 7 insertions(+), 13 deletions(-)
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-11 08:53:44.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-11 08:57:35.000000000 +0800
+> @@ -367,18 +367,7 @@ writeback_single_inode(struct inode *ino
+>  	spin_lock(&inode_lock);
+>  	inode->i_state &= ~I_SYNC;
+>  	if (!(inode->i_state & I_FREEING)) {
+> -		if ((inode->i_state & I_DIRTY_PAGES) && wbc->for_kupdate) {
+> -			/*
+> -			 * More pages get dirtied by a fast dirtier.
+> -			 */
+> -			goto select_queue;
+> -		} else if (inode->i_state & I_DIRTY) {
+> -			/*
+> -			 * At least XFS will redirty the inode during the
+> -			 * writeback (delalloc) and on io completion (isize).
+> -			 */
+> -			redirty_tail(inode);
+> -		} else if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+> +		if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+>  			/*
+>  			 * We didn't write back all the pages.  nfs_writepages()
+>  			 * sometimes bales out without doing anything. Redirty
+> @@ -400,7 +389,6 @@ writeback_single_inode(struct inode *ino
+>  				 * soon as the queue becomes uncongested.
+>  				 */
+>  				inode->i_state |= I_DIRTY_PAGES;
+> -select_queue:
+>  				if (wbc->nr_to_write <= 0) {
+>  					/*
+>  					 * slice used up: queue for next turn
+> @@ -423,6 +411,12 @@ select_queue:
+>  				inode->i_state |= I_DIRTY_PAGES;
+>  				redirty_tail(inode);
+>  			}
+> +		} else if (inode->i_state & I_DIRTY) {
+> +			/*
+> +			 * At least XFS will redirty the inode during the
+> +			 * writeback (delalloc) and on io completion (isize).
+> +			 */
+> +			redirty_tail(inode);
 
-Yup. I think we need two tracepoint.
+I'd drop the mention of XFS here - any filesystem that does delayed
+allocation or unwritten extent conversion after Io completion will
+cause this. Perhaps make the comment:
 
- 1) need to know userland argument.
-    -> syscall tracer
- 2) need to know actual vma change.
-    -> need to trace more low layer
+	/*
+	 * Filesystems can dirty the inode during writeback
+	 * operations, such as delayed allocation during submission
+	 * or metadata updates after data IO completion.
+	 */
 
+Cheers,
 
-As I said, if userland app have following code,
-
-	mmap(0x10000, PROT_READ|PROT_WRITE)
-	mmap(0x10000, PROT_NONE)
-
-second mmap implicitly unmap firt mmap region and map another region.
-so if we want to track munmap activity, syscall exiting point is not
-so good place. we need to trace per-vma activity.
-
-btw, perf_event_mmap() already take vma argument.
-
-
-
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
