@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 415E66B024D
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 11:06:55 -0400 (EDT)
-Date: Mon, 12 Jul 2010 11:05:22 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH] Cleancache: shim to Xen Transcendent Memory
-Message-ID: <20100712150522.GD5358@phenom.dumpdata.com>
-References: <20100708164208.GA11763@ca-server1.us.oracle.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id ED7996B02A5
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 11:15:29 -0400 (EDT)
+Date: Mon, 12 Jul 2010 10:11:50 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+In-Reply-To: <20100710195621.GA13720@fancy-poultry.org>
+Message-ID: <alpine.DEB.2.00.1007121010420.14328@router.home>
+References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100708164208.GA11763@ca-server1.us.oracle.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463811839-1120396131-1278947511=:14328"
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com
+To: Heinz Diehl <htd@fancy-poultry.org>
+Cc: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 08, 2010 at 09:42:08AM -0700, Dan Magenheimer wrote:
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-One nitpick:
-..
-> +
-> +int tmem_enabled;
-> +
-> +static int __init enable_tmem(char *s)
-> +{
-> +	tmem_enabled = 1;
-> +	return 1;
-> +}
-> +
-> +__setup("tmem", enable_tmem);
+---1463811839-1120396131-1278947511=:14328
+Content-Type: TEXT/PLAIN; charset=utf-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-Perhaps 'tmem_setup' is more appropiate as it might be that this
-function in the future would be only used to disable tmem, not actually
-enable it?
+On Sat, 10 Jul 2010, Heinz Diehl wrote:
 
-Otherwise, it has been reviewed by me.
+> On 10.07.2010, Christoph Lameter wrote:
+>
+> > The following patchset cleans some pieces up and then equips SLUB with
+> > per cpu queues that work similar to SLABs queues. With that approach
+> > SLUB wins significantly in hackbench and improves also on tcp_rr.
+>
+> The patchset applies cleanly, however compilation fails with
+>
+> [....]
+> mm/slub.c: In function =E2=80=98alloc_kmem_cache_cpus=E2=80=99:
+> mm/slub.c:2093: error: negative width in bit-field =E2=80=98<anonymous>=
+=E2=80=99
+> make[1]: *** [mm/slub.o] Error 1
+> make: *** [mm] Error 2
+> make: *** Waiting for unfinished jobs....
+> [....]
+
+You need a sufficient PERCPU_DYNAMIC_EARLY_SIZE to be configured. What
+platform is this? Tejon: You suggested the BUILD_BUG_ON(). How can he
+increase the early size?
+
+
+---1463811839-1120396131-1278947511=:14328--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
