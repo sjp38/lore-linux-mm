@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5C0406B02A3
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 12:39:56 -0400 (EDT)
-Date: Mon, 12 Jul 2010 18:39:00 +0200
-From: Heinz Diehl <htd@fancy-poultry.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E763B6B02A3
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 13:04:25 -0400 (EDT)
+Date: Mon, 12 Jul 2010 12:00:26 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
 Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
-Message-ID: <20100712163900.GA8513@fancy-poultry.org>
-Reply-To: linux-kernel@vger.kernel.org
-References: <20100709190706.938177313@quilx.com>
- <20100710195621.GA13720@fancy-poultry.org>
- <alpine.DEB.2.00.1007121010420.14328@router.home>
+In-Reply-To: <20100712163900.GA8513@fancy-poultry.org>
+Message-ID: <alpine.DEB.2.00.1007121156160.18621@router.home>
+References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home> <20100712163900.GA8513@fancy-poultry.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="xHFwDpU9dbj6ez1V"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1007121010420.14328@router.home>
+Content-Type: MULTIPART/MIXED; BOUNDARY=xHFwDpU9dbj6ez1V
+Content-ID: <alpine.DEB.2.00.1007121156161.18621@router.home>
+Content-Disposition: INLINE
 Sender: owner-linux-mm@kvack.org
-To: cl@linux-foundation.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
 --xHFwDpU9dbj6ez1V
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.00.1007121156162.18621@router.home>
+Content-Disposition: INLINE
 
-On 12.07.2010, Christoph Lameter wrote: 
+On Mon, 12 Jul 2010, Heinz Diehl wrote:
 
-> You need a sufficient PERCPU_DYNAMIC_EARLY_SIZE to be configured. What
-> platform is this?
+> On 12.07.2010, Christoph Lameter wrote:
+>
+> > You need a sufficient PERCPU_DYNAMIC_EARLY_SIZE to be configured. What
+> > platform is this?
+>
+> This is an AMD Phenom II X4-905e with 8GB RAM and an (heavily modified)
+> opensuse 11.1 64-bit with kernel 2.6.35-rc4-git4 (vanilla from kernel.org, no
+> distribution kernel). Dmesg is attached.
 
-This is an AMD Phenom II X4-905e with 8GB RAM and an (heavily modified)
-opensuse 11.1 64-bit with kernel 2.6.35-rc4-git4 (vanilla from kernel.org, no
-distribution kernel). Dmesg is attached.
+Can you get us the config file. What is the value of
+PERCPU_DYMAMIC_EARLY_SIZE?
 
-Thanks,
-Heinz.
+I have run this on x86 for a long time. Why does the percpu subsystem
+have a lower PERCPU_DYNAMIC_EARLY_SIZE on Heinzes system?
 
 --xHFwDpU9dbj6ez1V
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename="dmesg.txt.bz2"
-Content-Transfer-Encoding: base64
+Content-Type: APPLICATION/OCTET-STREAM; CHARSET=US-ASCII
+Content-Transfer-Encoding: BASE64
+Content-ID: <alpine.DEB.2.00.1007121156163.18621@router.home>
+Content-Description: 
+Content-Disposition: ATTACHMENT; FILENAME=dmesg.txt.bz2
 
 QlpoOTFBWSZTWXMCrZYAJlDfgH/8WP////////6////wYDWe8W48PbPO8+27Dl332AefZl9e
 t9goFChT6Pud549jO+7z7y0nrvM0PL7mngZ3tJXbHuwcffZ3bIObb3d73Xe3t0517vtdm2m5
