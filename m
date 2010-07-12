@@ -1,37 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 64BF66B02A3
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 17:48:05 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id o6CLm1SY002403
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 14:48:02 -0700
-Received: from pzk30 (pzk30.prod.google.com [10.243.19.158])
-	by kpbe12.cbf.corp.google.com with ESMTP id o6CLlx2D020005
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 14:48:00 -0700
-Received: by pzk30 with SMTP id 30so1220354pzk.1
-        for <linux-mm@kvack.org>; Mon, 12 Jul 2010 14:47:59 -0700 (PDT)
-Date: Mon, 12 Jul 2010 14:47:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: FYI: mmap_sem OOM patch
-In-Reply-To: <20100708200324.CD4B.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1007121446500.8468@chino.kir.corp.google.com>
-References: <20100708195421.CD48.A69D9226@jp.fujitsu.com> <1278586921.1900.67.camel@laptop> <20100708200324.CD4B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 116FD6B02A3
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 17:53:08 -0400 (EDT)
+Date: Mon, 12 Jul 2010 14:52:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/6] writeback: take account of NR_WRITEBACK_TEMP in
+ balance_dirty_pages()
+Message-Id: <20100712145206.9808b411.akpm@linux-foundation.org>
+In-Reply-To: <20100711021748.594522648@intel.com>
+References: <20100711020656.340075560@intel.com>
+	<20100711021748.594522648@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>, Ingo Molnar <mingo@elte.hu>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Richard Kennedy <richard@rsk.demon.co.uk>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Miklos Szeredi <miklos@szeredi.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Jul 2010, KOSAKI Motohiro wrote:
+On Sun, 11 Jul 2010 10:06:57 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> I disagree. __GFP_NOFAIL mean this allocation failure can makes really
-> dangerous result. Instead, OOM-Killer should try to kill next process.
-> I think.
+> 
+> Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |    7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-07-11 08:41:37.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-07-11 08:42:14.000000000 +0800
+> @@ -503,11 +503,12 @@ static void balance_dirty_pages(struct a
+>  		};
+>  
+>  		get_dirty_limits(&background_thresh, &dirty_thresh,
+> -				&bdi_thresh, bdi);
+> +				 &bdi_thresh, bdi);
+>  
+>  		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+> -					global_page_state(NR_UNSTABLE_NFS);
+> -		nr_writeback = global_page_state(NR_WRITEBACK);
+> +				 global_page_state(NR_UNSTABLE_NFS);
+> +		nr_writeback = global_page_state(NR_WRITEBACK) +
+> +			       global_page_state(NR_WRITEBACK_TEMP);
+>  
+>  		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+>  		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
 > 
 
-That's not what happens, __alloc_pages_high_priority() will loop forever 
-for __GFP_NOFAIL, the oom killer is never recalled.
+hm, OK.
+
+I wonder whether we could/should have unified NR_WRITEBACK_TEMP and
+NR_UNSTABLE_NFS.  Their "meanings" aren't quite the same, but perhaps
+some "treat page as dirty because the fs is futzing with it" thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
