@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C526B6B02A3
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 18:16:19 -0400 (EDT)
-Date: Mon, 12 Jul 2010 15:15:18 -0700
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E12416B02A3
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 18:23:46 -0400 (EDT)
+Date: Mon, 12 Jul 2010 15:22:54 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/6] writeback: fix queue_io() ordering
-Message-Id: <20100712151518.d4cdfebc.akpm@linux-foundation.org>
-In-Reply-To: <20100711021749.163345723@intel.com>
+Subject: Re: [PATCH 6/6] writeback: merge for_kupdate and !for_kupdate cases
+Message-Id: <20100712152254.2071ba5f.akpm@linux-foundation.org>
+In-Reply-To: <20100712155239.GC30222@localhost>
 References: <20100711020656.340075560@intel.com>
-	<20100711021749.163345723@intel.com>
+	<20100711021749.303817848@intel.com>
+	<20100712020842.GC25335@dastard>
+	<20100712155239.GC30222@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 11 Jul 2010 10:07:01 +0800
+On Mon, 12 Jul 2010 23:52:39 +0800
 Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> This was not a bug, since b_io is empty for kupdate writeback.
-> The next patch will do requeue_io() for non-kupdate writeback,
-> so let's fix it.
-> 
-> CC: Dave Chinner <david@fromorbit.com>
-> Cc: Martin Bligh <mbligh@google.com>
-> Cc: Michael Rubin <mrubin@google.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Signed-off-by: Fengguang Wu <wfg@mail.ustc.edu.cn>
+> > Also, I'd prefer that the
+> > comments remain somewhat more descriptive of the circumstances that
+> > we are operating under. Comments like "retry later to avoid blocking
+> > writeback of other inodes" is far, far better than "retry later"
+> > because it has "why" component that explains the reason for the
+> > logic. You may remember why, but I sure won't in a few months time....
 
-I assumed you didn't mean to sign this twice so I removed this signoff.
+me2 (of course).  This code is waaaay too complex to be scrimping on comments.
 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c |    7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
+> Ah yes the comment is too simple. However the redirty_tail() is not to
+> avoid blocking writeback of other inodes, but to avoid eating 100% CPU
+> on busy retrying a dirty inode/page that cannot perform writeback for
+> a while. (In theory redirty_tail() can still busy retry though, when
+> there is only one single dirty inode.) So how about
 > 
-> --- linux-next.orig/fs/fs-writeback.c	2010-07-11 09:13:31.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-07-11 09:13:32.000000000 +0800
-> @@ -252,11 +252,14 @@ static void move_expired_inodes(struct l
->  }
->  
->  /*
-> - * Queue all expired dirty inodes for io, eldest first.
-> + * Queue all expired dirty inodes for io, eldest first:
-> + * (newly dirtied) => b_dirty inodes
-> + *                 => b_more_io inodes
-> + *                 => remaining inodes in b_io => (dequeue for sync)
->   */
->  static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
->  {
-> -	list_splice_init(&wb->b_more_io, wb->b_io.prev);
-> +	list_splice_init(&wb->b_more_io, &wb->b_io);
->  	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
->  }
+>         /*
+>          * somehow blocked: avoid busy retrying
+>          */
+
+That's much too short.  Expand on the "somehow" - provide an example,
+describe the common/expected cause.  Fully explain what the "busy"
+retry _is_ and how it can come about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
