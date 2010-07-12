@@ -1,31 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CDC0F6B02A4
-	for <linux-mm@kvack.org>; Sun, 11 Jul 2010 22:52:50 -0400 (EDT)
-Date: Sun, 11 Jul 2010 22:52:47 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 0/5] Per superblock shrinkers V2
-Message-ID: <20100712025247.GA16784@infradead.org>
-References: <1274777588-21494-1-git-send-email-david@fromorbit.com>
- <20100702121304.GA10075@infradead.org>
- <20100712024104.GD25335@dastard>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 415E66B024D
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 11:06:55 -0400 (EDT)
+Date: Mon, 12 Jul 2010 11:05:22 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] Cleancache: shim to Xen Transcendent Memory
+Message-ID: <20100712150522.GD5358@phenom.dumpdata.com>
+References: <20100708164208.GA11763@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100712024104.GD25335@dastard>
+In-Reply-To: <20100708164208.GA11763@ca-server1.us.oracle.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 12, 2010 at 12:41:04PM +1000, Dave Chinner wrote:
-> At this point in the cycle, I'd much prefer just to go with adding a
-> context to the shrinker API to fix the XFS locking issues (i.e.  the
-> original patches I sent) and spend a bit more time working out which
-> combination of Nick's and my bits that improves reclaim speed whilst
-> retaining the stability of the courrent code....
+On Thu, Jul 08, 2010 at 09:42:08AM -0700, Dan Magenheimer wrote:
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-That approach sounds good to me.
+One nitpick:
+..
+> +
+> +int tmem_enabled;
+> +
+> +static int __init enable_tmem(char *s)
+> +{
+> +	tmem_enabled = 1;
+> +	return 1;
+> +}
+> +
+> +__setup("tmem", enable_tmem);
+
+Perhaps 'tmem_setup' is more appropiate as it might be that this
+function in the future would be only used to disable tmem, not actually
+enable it?
+
+Otherwise, it has been reviewed by me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
