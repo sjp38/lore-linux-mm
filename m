@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E2926B02A8
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 04:46:21 -0400 (EDT)
-Date: Tue, 13 Jul 2010 17:45:39 +0900
-Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20100713094244.7eb84f1b@lxorguk.ukuu.org.uk>
-References: <20100713092012.7c1fe53e@lxorguk.ukuu.org.uk>
-	<20100713173028M.fujita.tomonori@lab.ntt.co.jp>
-	<20100713094244.7eb84f1b@lxorguk.ukuu.org.uk>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100713174519D.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C79F06B02A8
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 04:59:26 -0400 (EDT)
+In-reply-to: <20100712145206.9808b411.akpm@linux-foundation.org> (message from
+	Andrew Morton on Mon, 12 Jul 2010 14:52:06 -0700)
+Subject: Re: [PATCH 1/6] writeback: take account of NR_WRITEBACK_TEMP in
+ balance_dirty_pages()
+References: <20100711020656.340075560@intel.com>
+	<20100711021748.594522648@intel.com> <20100712145206.9808b411.akpm@linux-foundation.org>
+Message-Id: <E1OYbKB-0008UF-2J@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 13 Jul 2010 10:58:47 +0200
 Sender: owner-linux-mm@kvack.org
-To: alan@lxorguk.ukuu.org.uk
-Cc: fujita.tomonori@lab.ntt.co.jp, zpfeffer@codeaurora.org, joro@8bytes.org, dwalker@codeaurora.org, andi@firstfloor.org, randy.dunlap@oracle.com, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: fengguang.wu@intel.com, hch@infradead.org, richard@rsk.demon.co.uk, david@fromorbit.com, jack@suse.cz, a.p.zijlstra@chello.nl, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miklos@szeredi.hu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jul 2010 09:42:44 +0100
-Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-
-> On Tue, 13 Jul 2010 17:30:43 +0900
-> FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp> wrote:
+On Mon, 12 Jul 2010, Andrew Morton wrote:
+> On Sun, 11 Jul 2010 10:06:57 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> > On Tue, 13 Jul 2010 09:20:12 +0100
-> > Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
 > > 
-> > > > Why video4linux can't use the DMA API? Doing DMA with vmalloc'ed
-> > > > buffers is a thing that we should avoid (there are some exceptions
-> > > > like xfs though).
-> > > 
-> > > Vmalloc is about the only API for creating virtually linear memory areas.
-> > > The video stuff really needs that to avoid lots of horrible special cases
-> > > when doing buffer processing and the like.
-> > > 
-> > > Pretty much each driver using it has a pair of functions 'rvmalloc' and
-> > > 'rvfree' so given a proper "vmalloc_for_dma()" type interface can easily
-> > > be switched
+> > Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  mm/page-writeback.c |    7 ++++---
+> >  1 file changed, 4 insertions(+), 3 deletions(-)
 > > 
-> > We already have helper functions for DMA with vmap pages,
-> > flush_kernel_vmap_range and invalidate_kernel_vmap_range.
+> > --- linux-next.orig/mm/page-writeback.c	2010-07-11 08:41:37.000000000 +0800
+> > +++ linux-next/mm/page-writeback.c	2010-07-11 08:42:14.000000000 +0800
+> > @@ -503,11 +503,12 @@ static void balance_dirty_pages(struct a
+> >  		};
+> >  
+> >  		get_dirty_limits(&background_thresh, &dirty_thresh,
+> > -				&bdi_thresh, bdi);
+> > +				 &bdi_thresh, bdi);
+> >  
+> >  		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+> > -					global_page_state(NR_UNSTABLE_NFS);
+> > -		nr_writeback = global_page_state(NR_WRITEBACK);
+> > +				 global_page_state(NR_UNSTABLE_NFS);
+> > +		nr_writeback = global_page_state(NR_WRITEBACK) +
+> > +			       global_page_state(NR_WRITEBACK_TEMP);
+> >  
+> >  		bdi_nr_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+> >  		bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
+> > 
 > 
-> I'm not sure they help at all because the DMA user for these pages isn't
-> the video driver - it's the USB layer, and the USB layer isn't
-> specifically aware it is being passed vmap pages.
+> hm, OK.
 
-Drivers can tell the USB layer that these are vmapped buffers? Adding
-something to struct urb? I might be totally wrong since I don't know
-anything about the USB layer.
+Hm, hm.  I'm not sure this is right.  The VM has absolutely no control
+over NR_WRITEBACK_TEMP pages, they may clear quickly or may not make
+any progress.  So it's usually wrong to make a decision based on
+NR_WRITEBACK_TEMP for an unrelated device.
+
+Using it in throttle_vm_writeout() would actually be deadlocky, since
+the userspace filesystem will probably depend on memory allocations to
+complete the writeout.
+
+The only place where we should be taking NR_WRITEBACK_TEMP into
+account is calculating the remaining memory that can be devided
+between dirtyers, and that's (clip_bdi_dirty_limit) where it is
+already used.
+
+> I wonder whether we could/should have unified NR_WRITEBACK_TEMP and
+> NR_UNSTABLE_NFS.  Their "meanings" aren't quite the same, but perhaps
+> some "treat page as dirty because the fs is futzing with it" thing.
+
+AFAICS NR_UNSTABLE_NFS is something akin to NR_DIRTY, only on the
+server side.  So nfs can very much do something about making
+NR_UNSTABLE_NFS go away, while there's nothing that can be done about
+NR_WRITEBACK_TEMP.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
