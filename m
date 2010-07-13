@@ -1,62 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FBA6B02A4
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 16:47:09 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e9.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6DKUx6i024453
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 16:30:59 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6DKl1x2138518
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 16:47:01 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6DKl0Ma030111
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 17:47:01 -0300
-Subject: Re: [RFC] Tight check of pfn_valid on sparsemem
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20100713183932.GB31162@n2100.arm.linux.org.uk>
-References: <20100712155348.GA2815@barrios-desktop>
-	 <20100713121947.612bd656.kamezawa.hiroyu@jp.fujitsu.com>
-	 <AANLkTiny7dz8ssDknI7y4JFcVP9SV1aNM7f0YMUxafv7@mail.gmail.com>
-	 <20100713132312.a7dfb100.kamezawa.hiroyu@jp.fujitsu.com>
-	 <AANLkTinVwmo5pemz86nXaQT3V_ujaPLOsyNeQIFhL0Vu@mail.gmail.com>
-	 <20100713072009.GA19839@n2100.arm.linux.org.uk>
-	 <20100713163417.17895202.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100713165808.e340e6dc.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100713170222.9369e649.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20100713183932.GB31162@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Tue, 13 Jul 2010 13:46:59 -0700
-Message-ID: <1279054019.10995.18.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 78B406B02A4
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 17:08:37 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o6DL8YYq016312
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 14:08:34 -0700
+Received: from pvh11 (pvh11.prod.google.com [10.241.210.203])
+	by wpaz29.hot.corp.google.com with ESMTP id o6DL8WJH009455
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 14:08:32 -0700
+Received: by pvh11 with SMTP id 11so2990481pvh.38
+        for <linux-mm@kvack.org>; Tue, 13 Jul 2010 14:08:32 -0700 (PDT)
+Date: Tue, 13 Jul 2010 14:08:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: FYI: mmap_sem OOM patch
+In-Reply-To: <20100713091333.EA3E.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1007131349250.1821@chino.kir.corp.google.com>
+References: <20100708200324.CD4B.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1007121446500.8468@chino.kir.corp.google.com> <20100713091333.EA3E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, Yakui Zhao <yakui.zhao@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arm-kernel@lists.infradead.org, kgene.kim@samsung.com, Mel Gorman <mel@csn.ul.ie>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Divyesh Shah <dpshah@google.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-07-13 at 19:39 +0100, Russell King - ARM Linux wrote:
-> On Tue, Jul 13, 2010 at 05:02:22PM +0900, KAMEZAWA Hiroyuki wrote:
-> > How about stop using SPARSEMEM ? What's the benefit ? It just eats up
-> > memory for mem_section[].
+On Tue, 13 Jul 2010, KOSAKI Motohiro wrote:
+
+> > > I disagree. __GFP_NOFAIL mean this allocation failure can makes really
+> > > dangerous result. Instead, OOM-Killer should try to kill next process.
+> > > I think.
+> > > 
+> > 
+> > That's not what happens, __alloc_pages_high_priority() will loop forever 
+> > for __GFP_NOFAIL, the oom killer is never recalled.
 > 
-> The problem with that approach is that sometimes the mem_map array
-> doesn't fit into any memory banks.
+> Yup, please reread the discusstion.
 > 
-> We've gone around the loop of using flatmem with holes punched in it,
-> to using discontigmem, and now to using sparsemem.  It seems none of
-> these solutions does what we need for ARM.  I guess that's the price
-> we pay for not having memory architected to be at any particular place
-> in the physical memory map.
 
-What's the ARM hardware's maximum addressable memory these days? 4GB?
+There's nothing in the discussion that addresses the fact that 
+__alloc_pages_high_priority() loops infinitely for __GFP_NOFAIL without 
+again calling the oom killer.  You may be proposing a change to that when 
+you said "OOM-Killer should try to kill next process. I think," but I 
+can't speculate on that.  If you are, please propose a patch.
 
-A 4GB system would have 256 sections, which means 256*2*sizeof(unsigned
-long) for the mem_section[].  That's a pretty small amount of RAM.
+The success of whether we can allocate without watermarks is dependent on 
+where we set them and what types of exclusions we allow.  This isn't local 
+only to the page allocator but rather to the entire kernel since 
+GFP_ATOMIC allocations, for example, can deplete the min watermark by 
+~60%.  The remaining memory is what we allow access to for 
+ALLOC_NO_WATERMARKS: those allocations in the direct reclaim patch and 
+those that have been oom killed.
 
-What sizes are the holes that are being punched these days?  Smaller
-than 16MB?
+Thus, it's important that oom killed tasks do not completely deplete 
+memory reserves, otherwise __GFP_NOFAIL allocations will loop forever 
+without killing additional tasks, as you say.  That's sane since oom 
+killing additional tasks wouldn't allow them access to any additional 
+memory, anyway, so the allocation would still fail (we only call the oom 
+killer for those allocations that are retried) and the victim could not 
+exit.
 
--- Dave
+With that said, I'm not exactly sure what change you're proposing when you 
+say the oom killer should try to kill another process because it won't 
+lead to any future memory freeing unless the victim can exit without 
+allocating memory.  If that's not possible, you've proliferated a ton of 
+innocent kills that were triggered because of one __GFP_NOFAIL attempt.
+
+I agree with Peter that it would be ideal to remove __GFP_NOFAIL, but I 
+think we require changes in the retry logic first before that is possible.  
+Right now, we insist on retrying all blockable !__GFP_NORETRY allocations 
+under PAGE_ALLOC_COSTLY_ORDER indefinitely.  That, in a sense, is already 
+__GFP_NOFAIL behavior that is implicit: that's why we typically see 
+__GFP_NOFAIL with GFP_NOFS instead.  With GFP_NOFS, we never kill the oom 
+killer in the first place, so memory allocation is only more successful on 
+a subsequent attempt by either direct reclaim or memory compaction.
+
+There's nothing preventing users from doing
+
+	do {
+		page = alloc_page(GFP_KERNEL);
+	} while (!page);
+
+if the retry logic were reworked to start failing allocations or we 
+removed __GFP_NOFAIL.  Thus, I think __GFP_NOFAIL should be substituted 
+with a different gfp flag that acts similar but failable: use compaction, 
+reclaim, and the oom killer where possible and in that order if there is 
+no success and then retry to a high watermark one final time.  If the 
+allocation is still unsuccessful, return NULL.  This allows users to do 
+what getblk() does, for instance, by implementing their own memory freeing 
+functions.  It also allows them to use all of the page allocator's powers 
+(compaction, reclaim, oom killer) without infinitely looping by either 
+using an order under PAGE_ALLOC_COSTLY_ORDER or insisting on __GFP_NOFAIL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
