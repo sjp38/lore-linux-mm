@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C986B02A8
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 05:03:32 -0400 (EDT)
-Date: Tue, 13 Jul 2010 10:02:23 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
-Message-ID: <20100713090223.GB20590@n2100.arm.linux.org.uk>
-References: <20100713092012.7c1fe53e@lxorguk.ukuu.org.uk> <20100713173028M.fujita.tomonori@lab.ntt.co.jp> <20100713094244.7eb84f1b@lxorguk.ukuu.org.uk> <20100713174519D.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A01E66B02A5
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 05:30:45 -0400 (EDT)
+Date: Tue, 13 Jul 2010 11:30:06 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC] Tight check of pfn_valid on sparsemem
+Message-ID: <20100713093006.GB14504@cmpxchg.org>
+References: <20100712155348.GA2815@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100713174519D.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100712155348.GA2815@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: alan@lxorguk.ukuu.org.uk, randy.dunlap@oracle.com, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, joro@8bytes.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, zpfeffer@codeaurora.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux@arm.linux.org.uk, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, Yakui Zhao <yakui.zhao@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arm-kernel@lists.infradead.org, kgene.kim@samsung.com, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 13, 2010 at 05:45:39PM +0900, FUJITA Tomonori wrote:
-> Drivers can tell the USB layer that these are vmapped buffers? Adding
-> something to struct urb? I might be totally wrong since I don't know
-> anything about the USB layer.
+On Tue, Jul 13, 2010 at 12:53:48AM +0900, Minchan Kim wrote:
+> Kukjin, Could you test below patch?
+> I don't have any sparsemem system. Sorry. 
+> 
+> -- CUT DOWN HERE --
+> 
+> Kukjin reported oops happen while he change min_free_kbytes
+> http://www.spinics.net/lists/arm-kernel/msg92894.html
+> It happen by memory map on sparsemem. 
+> 
+> The system has a memory map following as. 
+>      section 0             section 1              section 2
+> 0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
+> SECTION_SIZE_BITS 28(256M)
+> 
+> It means section 0 is an incompletely filled section.
+> Nontheless, current pfn_valid of sparsemem checks pfn loosely. 
+> 
+> It checks only mem_section's validation.
+> So in above case, pfn on 0x25000000 can pass pfn_valid's validation check.
+> It's not what we want.
+> 
+> The Following patch adds check valid pfn range check on pfn_valid of sparsemem.
 
-With non-DMA coherent aliasing caches, you need to know where the page
-is mapped into the virtual address space, so you can deal with aliases.
+Look at the declaration of struct mem_section for a second.  It is
+meant to partition address space uniformly into backed and unbacked
+areas.
 
-You'd need to tell the USB layer about the other mappings of the page
-which you'd like to be coherent (such as the vmalloc area - and there's
-also the possible userspace mapping to think about too, but that's
-a separate issue.)
+It comes with implicit size and offset information by means of
+SECTION_SIZE_BITS and the section's index in the section array.
 
-I wonder if we should have had:
+Now you are not okay with the _granularity_ but propose to change _the
+model_ by introducing a subsection within each section and at the same
+time make the concept of a section completely meaningless: its size
+becomes arbitrary and its associated mem_map and flags will apply to
+the subsection only.
 
-	vmalloc_prepare_dma(void *, size_t, enum dma_direction)
-	vmalloc_finish_dma(void *, size_t, enum dma_direction)
+My question is: if the sections are not fine-grained enough, why not
+just make them?
 
-rather than flush_kernel_vmap_range and invalidate_kernel_vmap_range,
-which'd make their use entirely obvious.
-
-However, this brings up a question - how does the driver (eg, v4l, xfs)
-which is preparing the buffer for another driver (eg, usb host, block
-dev) know that DMA will be performed on the buffer rather than PIO?
-
-That's a very relevant question, because for speculatively prefetching
-CPUs, we need to invalidate caches after a DMA-from-device operation -
-but if PIO-from-device happened, this would destroy data read from the
-device.
-
-That problem goes away if we decide that PIO drivers must have the same
-apparant semantics as DMA drivers - in that data must end up beyond the
-point of DMA coherency (eg, physical page) - but that's been proven to
-be very hard to achieve, especially with block device drivers.
+The biggest possible section size to describe the memory population on
+this machine accurately is 16M.  Why not set SECTION_SIZE_BITS to 24?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
