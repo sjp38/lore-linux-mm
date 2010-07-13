@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E4D306B02A3
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 00:59:16 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6D4xDp1021944
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 13 Jul 2010 13:59:13 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41C2345DE58
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 13:59:13 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19B6545DE4E
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 13:59:13 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E45FF1DB8054
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 13:59:12 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DD2C1DB8057
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 13:59:12 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: stop meaningless loop iteration when no reclaimable slab
-In-Reply-To: <alpine.DEB.2.00.1007090859560.30663@router.home>
-References: <20100709191308.FA25.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1007090859560.30663@router.home>
-Message-Id: <20100713135817.EA4F.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C585B6B02A3
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 01:21:07 -0400 (EDT)
+Message-ID: <4C3BF7C1.9040904@codeaurora.org>
+Date: Mon, 12 Jul 2010 22:21:05 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
+References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org> <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org> <20100701101746.3810cc3b.randy.dunlap@oracle.com> <20100701180241.GA3594@basil.fritz.box> <AANLkTinABCSdN6hnXVOvVZ12f1QBMR_UAi62qW8GmlkL@mail.gmail.com> <4C2D908E.9030309@codeaurora.org> <20100710143635.GA10080@8bytes.org>
+In-Reply-To: <20100710143635.GA10080@8bytes.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Tue, 13 Jul 2010 13:59:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Hari Kanigeri <hari.kanigeri@gmail.com>, Daniel Walker <dwalker@codeaurora.org>, Andi Kleen <andi@firstfloor.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 9 Jul 2010, KOSAKI Motohiro wrote:
+Joerg Roedel wrote:
+> On Fri, Jul 02, 2010 at 12:09:02AM -0700, Zach Pfeffer wrote:
+>> Hari Kanigeri wrote:
+>>>> He demonstrated the usage of his code in one of the emails he sent out
+>>>> initially. Did you go over that, and what (or how many) step would you
+>>>> use with the current code to do the same thing?
+>>> -- So is this patch set adding layers and abstractions to help the User ?
+>>>
+>>> If the idea is to share some memory across multiple devices, I guess
+>>> you can achieve the same by calling the map function provided by iommu
+>>> module and sharing the mapped address to the 10's or 100's of devices
+>>> to access the buffers. You would only need a dedicated virtual pool
+>>> per IOMMU device to manage its virtual memory allocations.
+>> Yeah, you can do that. My idea is to get away from explicit addressing
+>> and encapsulate the "device address to physical address" link into a
+>> mapping.
 > 
-> > If number of reclaimable slabs are zero, shrink_icache_memory() and
-> > shrink_dcache_memory() return 0. but strangely shrink_slab() ignore
-> > it and continue meaningless loop iteration.
-> 
-> There is also a per zone/node/global counter SLAB_RECLAIM_ACCOUNT that
-> could be used to determine if its worth looking at things at all. I saw
-> some effort going into making the shrinkers zone aware. If so then we may
-> be able to avoid scanning slabs.
+> The DMA-API already does this with the help of IOMMUs if they are
+> present. What is the benefit of your approach over that?
 
-Yup.
-After to merge nick's effort, we can makes more imrovement. I bet :)
+The grist to the DMA-API mill is the opaque scatterlist. Each
+scatterlist element brings together a physical address and a bus
+address that may be different. The set of scatterlist elements
+constitute both the set of physical buffers and the mappings to those
+buffers. My approach separates these two things into a struct physmem
+which contains the set of physical buffers and a struct reservation
+which contains the set of bus addresses (or device addresses). Each
+element in the struct physmem may be of various lengths (without
+resorting to chaining). A map call maps the one set to the other. 
 
-
-
+-- 
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
