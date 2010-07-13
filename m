@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DB86201FE
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 08:14:25 -0400 (EDT)
-Date: Tue, 13 Jul 2010 05:14:21 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-Message-ID: <20100713121420.GB4263@codeaurora.org>
-References: <4C366678.60605@codeaurora.org>
- <20100712102435B.fujita.tomonori@lab.ntt.co.jp>
- <4C3C0032.5020702@codeaurora.org>
- <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 275706B02B1
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 08:53:46 -0400 (EDT)
+Received: by gwb1 with SMTP id 1so3742338gwb.14
+        for <linux-mm@kvack.org>; Tue, 13 Jul 2010 05:53:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100713101650.2835.15245.sendpatchset@danny.redhat>
+References: <20100713101650.2835.15245.sendpatchset@danny.redhat>
+Date: Tue, 13 Jul 2010 20:53:43 +0800
+Message-ID: <AANLkTil9hGHoomM9LlhURipKO7_sTON09JHP3zDwOLgI@mail.gmail.com>
+Subject: Re: [PATCH -mmotm 00/30] [RFC] swap over nfs -v21
+From: =?UTF-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Xiaotian Feng <dfeng@redhat.com>
+Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, netdev@vger.kernel.org, riel@redhat.com, cl@linux-foundation.org, a.p.zijlstra@chello.nl, linux-kernel@vger.kernel.org, lwang@redhat.com, penberg@cs.helsinki.fi, akpm@linux-foundation.org, davem@davemloft.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 13, 2010 at 03:03:25PM +0900, FUJITA Tomonori wrote:
-> On Mon, 12 Jul 2010 22:57:06 -0700
-> Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> 
-> > FUJITA Tomonori wrote:
-> > > On Thu, 08 Jul 2010 16:59:52 -0700
-> > > Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> > > 
-> > >> The problem I'm trying to solve boils down to this: map a set of
-> > >> contiguous physical buffers to an aligned IOMMU address. I need to
-> > >> allocate the set of physical buffers in a particular way: use 1 MB
-> > >> contiguous physical memory, then 64 KB, then 4 KB, etc. and I need to
-> > >> align the IOMMU address in a particular way.
-> > > 
-> > > Sounds like the DMA API already supports what you want.
-> > > 
-> > > You can set segment_boundary_mask in struct device_dma_parameters if
-> > > you want to align the IOMMU address. See IOMMU implementations that
-> > > support dma_get_seg_boundary() properly.
-> > 
-> > That function takes the wrong argument in a VCM world:
-> > 
-> > unsigned long dma_get_seg_boundary(struct device *dev);
-> > 
-> > The boundary should be an attribute of the device side mapping,
-> > independent of the device. This would allow better code reuse.
-> 
-> You mean that you want to specify this alignment attribute every time
-> you create an IOMMU mapping? Then you can set segment_boundary_mask
-> every time you create an IOMMU mapping. It's odd but it should work.
+On Tue, Jul 13, 2010 at 6:16 PM, Xiaotian Feng <dfeng@redhat.com> wrote:
+> Hi,
+>
+> Here's the latest version of swap over NFS series since -v20 last October=
+. We decide to push
+> this feature as it is useful for NAS or virt environment.
+>
+> The patches are against the mmotm-2010-07-01. We can split the patchset i=
+nto following parts:
+>
+> Patch 1 - 12: provides a generic reserve framework. This framework
+> could also be used to get rid of some of the __GFP_NOFAIL users.
+>
+> Patch 13 - 15: Provide some generic network infrastructure needed later o=
+n.
+>
+> Patch 16 - 21: reserve a little pool to act as a receive buffer, this all=
+ows us to
+> inspect packets before tossing them.
+>
+> Patch 22 - 23: Generic vm infrastructure to handle swapping to a filesyst=
+em instead of a block
+> device.
+>
+> Patch 24 - 27: convert NFS to make use of the new network and vm infrastr=
+ucture to
+> provide swap over NFS.
+>
+> Patch 28 - 30: minor bug fixing with latest -mmotm.
+>
+> [some history]
+> v19: http://lwn.net/Articles/301915/
+> v20: http://lwn.net/Articles/355350/
+>
+> Changes since v20:
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0- rebased to mmotm-2010-07-01
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0- dropped the null pointer deref patch for the=
+ root cause is wrong SWP_FILE enum
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0- some minor build fixes
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0- fix a null pointer deref with mmotm-2010-07-=
+01
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0- fix a bug when swap with multi files on the =
+same nfs server
 
-Kinda. I want to forget about IOMMUs, devices and CPUs. I just want to
-create a mapping that has the alignment I specify, regardless of the
-mapper. The mapping is created on a VCM and the VCM is associated with
-a mapper: a CPU, an IOMMU'd device or a direct mapped device.
+Please use the "From:" line correctly, as stated in
+Documentation/SubmittingPatches:
 
-> 
-> Another possible solution is extending struct dma_attrs. We could add
-> the alignment attribute to it.
+The "from" line must be the very first line in the message body,
+and has the form:
 
-That may be useful, but in the current DMA-API may be seen as
-redundant info.
+        From: Original Author <author@example.com>
 
---
-Sent by an employee of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+The "from" line specifies who will be credited as the author of the
+patch in the permanent changelog.  If the "from" line is missing,
+then the "From:" line from the email header will be used to determine
+the patch author in the changelog.
+
+
+I think you are using git format-patch to generate those patches, please su=
+pply
+--author=3D<author> to git commit when you commit them to your local
+tree. (or git am
+if the patches you received already had the correct From: line.)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
