@@ -1,56 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBEB6B02A4
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 02:04:16 -0400 (EDT)
-Date: Tue, 13 Jul 2010 15:03:25 +0900
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <4C3C0032.5020702@codeaurora.org>
-References: <4C366678.60605@codeaurora.org>
-	<20100712102435B.fujita.tomonori@lab.ntt.co.jp>
-	<4C3C0032.5020702@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EA8BD6B02A3
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 02:33:58 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so6462798iwn.14
+        for <linux-mm@kvack.org>; Mon, 12 Jul 2010 23:33:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100712101237.EA0E.A69D9226@jp.fujitsu.com>
+References: <20100709195625.FA28.A69D9226@jp.fujitsu.com>
+	<AANLkTilA2rzWVVLqDQjhivHmnt0ZfaQBGEDh2TU6OfcJ@mail.gmail.com>
+	<20100712101237.EA0E.A69D9226@jp.fujitsu.com>
+Date: Tue, 13 Jul 2010 15:33:57 +0900
+Message-ID: <AANLkTil3zWyAh-gZHJXAiAfvy524ukf9P7l9JBLSOPs5@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: stop meaningless loop iteration when no
+	reclaimable slab
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: zpfeffer@codeaurora.org
-Cc: fujita.tomonori@lab.ntt.co.jp, linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Jul 2010 22:57:06 -0700
-Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+On Tue, Jul 13, 2010 at 1:48 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> Hi
+>
+>>
+>> old shrink_slab
+>>
+>> shrinker->nr +=3D delta; /* Add delta to previous shrinker's remained co=
+unt */
+>> total_scan =3D shrinker->nr;
+>>
+>> while(total_scan >=3D SHRINK_BATCH) {
+>> =A0 =A0 =A0 nr_before =3D shrink(xxx);
+>> =A0 =A0 =A0 total_scan =3D- this_scan;
+>> }
+>>
+>> shrinker->nr +=3D total_scan;
+>>
+>> The total_scan can always be the number < SHRINK_BATCH.
+>> So, when next shrinker calcuates loop count, the number can affect.
+>
+> Correct.
+>
+>
+>>
+>> new shrink_slab
+>>
+>> shrinker->nr +=3D delta; /* nr is always zero by your patch */
+>
+> no.
+> my patch don't change delta calculation at all.
+>
+>
+>> total_scan =3D shrinker->nr;
+>>
+>> while(total_scan >=3D SHRINK_BATCH) {
+>> =A0 =A0 =A0 nr_before =3D shrink(xxx);
+>> =A0 =A0 =A0 if (nr_before =3D=3D 0) {
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 total_scan =3D 0;
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> =A0 =A0 =A0 }
+>> }
+>>
+>> shrinker->nr +=3D 0;
+>>
+>> But after your patch, total_scan is always zero. It never affect
+>> next shrinker's loop count.
+>
+> No. after my patch this loop has two exiting way
+> =A01) total_scan are less than SHRINK_BATCH.
+> =A0 =A0 =A0-> no behavior change. =A0we still pass shrinker->nr +=3D tota=
+l_scan code.
+> =A02) (*shrinker->shrink)(0, gfp_mask) return 0
+> =A0 =A0 =A0don't increase shrinker->nr. =A0because two reason,
+> =A0 =A0 =A0a) if total_scan are 10000, =A0we shouldn't carry over such bi=
+g number.
+> =A0 =A0 =A0b) now, we have zero slab objects, then we have been freed for=
+m the guilty of keeping
+> =A0 =A0 =A0 =A0 =A0balance page and slab reclaim. shrinker->nr +=3D 0; ha=
+ve zero side effect.
 
-> FUJITA Tomonori wrote:
-> > On Thu, 08 Jul 2010 16:59:52 -0700
-> > Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> > 
-> >> The problem I'm trying to solve boils down to this: map a set of
-> >> contiguous physical buffers to an aligned IOMMU address. I need to
-> >> allocate the set of physical buffers in a particular way: use 1 MB
-> >> contiguous physical memory, then 64 KB, then 4 KB, etc. and I need to
-> >> align the IOMMU address in a particular way.
-> > 
-> > Sounds like the DMA API already supports what you want.
-> > 
-> > You can set segment_boundary_mask in struct device_dma_parameters if
-> > you want to align the IOMMU address. See IOMMU implementations that
-> > support dma_get_seg_boundary() properly.
-> 
-> That function takes the wrong argument in a VCM world:
-> 
-> unsigned long dma_get_seg_boundary(struct device *dev);
-> 
-> The boundary should be an attribute of the device side mapping,
-> independent of the device. This would allow better code reuse.
+Totally, I agree with you.
+Thanks for good explanation, Kosaki.
 
-You mean that you want to specify this alignment attribute every time
-you create an IOMMU mapping? Then you can set segment_boundary_mask
-every time you create an IOMMU mapping. It's odd but it should work.
+Reviewed-by: Minchan kim <minchan.kim@gmail.com>
 
-Another possible solution is extending struct dma_attrs. We could add
-the alignment attribute to it.
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
