@@ -1,121 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 46DA16B02A3
-	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 21:08:12 -0400 (EDT)
-Date: Tue, 13 Jul 2010 03:08:04 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] fix swapin race condition
-Message-ID: <20100713010804.GB31974@random.random>
-References: <20100709002322.GO6197@random.random>
- <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.00.1007091242430.8201@tigran.mtv.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6C1A66B02A3
+	for <linux-mm@kvack.org>; Mon, 12 Jul 2010 23:24:38 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6D3OZKw023043
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 13 Jul 2010 12:24:35 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0590245DE6E
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 12:24:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D5E4745DE4D
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 12:24:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF3BB1DB8037
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 12:24:34 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 67D1E1DB803B
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 12:24:31 +0900 (JST)
+Date: Tue, 13 Jul 2010 12:19:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] Tight check of pfn_valid on sparsemem
+Message-Id: <20100713121947.612bd656.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100712155348.GA2815@barrios-desktop>
+References: <20100712155348.GA2815@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux@arm.linux.org.uk, Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, Yakui Zhao <yakui.zhao@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arm-kernel@lists.infradead.org, kgene.kim@samsung.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh,
+On Tue, 13 Jul 2010 00:53:48 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-thanks a lot for the review!
-
-On Fri, Jul 09, 2010 at 01:32:45PM -0700, Hugh Dickins wrote:
-> Yes, nice find, you're absolutely right: not likely, but possible.
-> Swap is slippery stuff, and that pte_same does depend on keeping the
-> original page locked (or else an additional swap_duplicate+swap_free).
-
-Agreed. Now this race of swap entry reused during the ksm-copy leading
-to pte_same false positive, seems so unlikely that I doubt anybody
-could have ever triggered it so far, but possible nevertheless. When
-things gets into a cluster getting one in a thousand systems that hits
-swap heavy leading to this isn't nice as it's next to impossible to
-track the corruption because it'd be not easily reproducible, so it's
-better to be safe than sorry ;).
-
-> It is well established that by the time lookup_swap_cache() returns,
-> the page it returns may already have been removed from swapcache:
-> yes, you have to get page lock to be sure.  Long ago I put a comment 
-> on that into lookup_swap_cache(), but it fell out of the 2.6 version
-> when we briefly changed how that one worked.
-
-I found it by code review only, so it was unexpected to me. I assume
-it was unexpected to do_swap_cache as well if you agree this is a bug
-too and it could trigger in theory.
-
-In the old days I'm quite sure lookup_swap_cache wouldn't return a
-page evicted by swapcache I think, but this looks good so we can run
-try_to_free_swap and release swap space, without care of the page pins
-and we decouple the actual pinning of the page from keeping the swap
-entry pinned too. Just unexpected to me when reading do_swap_page,
-while being used to the "secular" semantics of lookup_swap_cache ;).
-
-I also thought maybe lookup_swap_cache could return the page locked or
-return NULL, but then there's the same problem in the regular swapin
-that is async and the lock will go away when I/O completes, so there's
-still a window for the same race, so I thought it's not worth locking
-anything in lookup_swap_cache.
-
->
-> It can even happen when swap is near empty: through swapoff,
-> or through reuse_swap_page(), at least.
-
-Agreed, it can also happen with threads swapping in a not shared anon
-page.
-
-> I'm not aware of any bug we have from that, but sure, it comes as a
-> surprise when you realize it.
-
-:)
-
-> > It's also possible to fix it by forcing do_wp_page to run but for a
-> > little while it won't be possible to rmap the the instantiated page so
-> > I didn't change that even if it probably would make life easier to
-> > memcg swapin handlers (maybe, dunno).
+> Kukjin, Could you test below patch?
+> I don't have any sparsemem system. Sorry. 
 > 
-> That's an interesting idea.  I'm not clear what you have in mind there,
-> but if we could get rid of ksm_does_need_to_copy(), letting do_wp_page()
-> do the copy instead, that would be very satisfying.  However, I suspect
-> it would rather involve tricking do_wp_page() into doing it, involve a
-> number of hard-to-maintain hacks, appealing to me but to nobody else!
+> -- CUT DOWN HERE --
+> 
+> Kukjin reported oops happen while he change min_free_kbytes
+> http://www.spinics.net/lists/arm-kernel/msg92894.html
+> It happen by memory map on sparsemem. 
+> 
+> The system has a memory map following as. 
+>      section 0             section 1              section 2
+> 0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
+> SECTION_SIZE_BITS 28(256M)
+> 
+> It means section 0 is an incompletely filled section.
+> Nontheless, current pfn_valid of sparsemem checks pfn loosely. 
+> 
+> It checks only mem_section's validation.
+> So in above case, pfn on 0x25000000 can pass pfn_valid's validation check.
+> It's not what we want. 
+> 
+> The Following patch adds check valid pfn range check on pfn_valid of sparsemem.
+> 
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> Reported-by: Kukjin Kim <kgene.kim@samsung.com>
+> 
+> P.S) 
+> It is just RFC. If we agree with this, I will make the patch on mmotm.
+> 
+> --
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index b4d109e..6c2147a 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -979,6 +979,8 @@ struct mem_section {
+>         struct page_cgroup *page_cgroup;
+>         unsigned long pad;
+>  #endif
+> +       unsigned long start_pfn;
+> +       unsigned long end_pfn;
+>  };
+>  
 
-It's actually next to trivial to make that change and it eliminates a
-dozen lines of code. I didn't to just make a strict fix that doesn't
-alter any logic of the code. But it's just enough to do:
+I have 2 concerns.
+ 1. This makes mem_section twice. Wasting too much memory and not good for cache.
+    But yes, you can put this under some CONFIG which has small number of mem_section[].
 
-if (ksm_might_need_to_copy())
-   flags |= FAULT_FLAG_WRITE;
+ 2. This can't be help for a case where a section has multiple small holes.
 
-Then the whole ksm_does_need_to_copy and swapcache variable and the
-rest of the code I added goes away (only the pageswapcache check after
-page_lock remains for the bug discussed at the top). pte_same in
-do_wp_page and do_swap_page then become both reliable because
-do_swap_page locks the swapcache before changing the pte to point to
-the page, and do_wp_page pins the old page before doing pte_same. So
-there's no risk of swap entry reuse that way and it eliminates some
-code.
 
-Only downside of ksm_does_need_to_copy removal: rmappability of the
-swapcache for a ksm-swapin that isn't linear becomes impossible for a
-little window of time, but only split_huge_page requires rmappability
-always (only transparent hugepages are required to be precisely
-rmapped at all times if they are ever established in any
-pmd_trans_huge pmd), and migrate only requires what is remappable to
-remain remappable or remove_migration_pte will then crash (but it's ok
-if stuff isn't remappable before it's established as the page count
-won't match and migrate will temporarily abort). So there is no real
-problem if some swapcache (not transparent hugepage) established in a
-_new_ pte temporarily isn't remappable. OTOH reducing the window for
-lack of rmap is nice too considering it's not going to make any
-difference to do_swap_page.
+Then, my proposal for HOLES_IN_MEMMAP sparsemem is below.
+==
+Some architectures unmap memmap[] for memory holes even with SPARSEMEM.
+To handle that, pfn_valid() should check there are really memmap or not.
+For that purpose, __get_user() can be used.
+This idea is from ia64_pfn_valid().
 
-The only one that really may benefit from ksm_does_need_to_copy that I
-can imagine memcg, I've no clue how memcg will feel when
-mem_cgroup_commit_charge_swapin aren't getting a swapcache. There are
-some checks for pageswapcache and it probably doesn't choke but I
-can't tell if some stat will go off by one or similar, or if it
-already works fine as is.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/mmzone.h |   12 ++++++++++++
+ mm/sparse.c            |   17 +++++++++++++++++
+ 2 files changed, 29 insertions(+)
+
+Index: mmotm-2.6.35-0701/include/linux/mmzone.h
+===================================================================
+--- mmotm-2.6.35-0701.orig/include/linux/mmzone.h
++++ mmotm-2.6.35-0701/include/linux/mmzone.h
+@@ -1047,12 +1047,24 @@ static inline struct mem_section *__pfn_
+ 	return __nr_to_section(pfn_to_section_nr(pfn));
+ }
+ 
++#ifndef CONFIG_ARCH_HAS_HOLES_IN_MEMMAP
+ static inline int pfn_valid(unsigned long pfn)
+ {
+ 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+ 		return 0;
+ 	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+ }
++#else
++extern int pfn_valid_mapped(unsigned long pfn);
++static inline int pfn_valid(unsigned long pfn)
++{
++	if (pfn_to_seciton_nr(pfn) >= NR_MEM_SECTIONS)
++		return 0;
++	if (!valid_section(__nr_to_section(pfn_to_section_nr(pfn))))
++		return 0;
++	return pfn_valid_mapped(pfn);
++}
++#endif
+ 
+ static inline int pfn_present(unsigned long pfn)
+ {
+Index: mmotm-2.6.35-0701/mm/sparse.c
+===================================================================
+--- mmotm-2.6.35-0701.orig/mm/sparse.c
++++ mmotm-2.6.35-0701/mm/sparse.c
+@@ -799,3 +799,20 @@ void sparse_remove_one_section(struct zo
+ 	free_section_usemap(memmap, usemap);
+ }
+ #endif
++
++#ifdef CONFIG_ARCH_HAS_HOLES_IN_MEMMAP
++int pfn_valid_mapped(unsigned long pfn)
++{
++	struct page *page = pfn_to_page(pfn);
++	char *lastbyte = (char *)(page+1)-1;
++	char byte;
++
++	if(__get_user(byte, page) != 0)
++		return 0;
++
++	if ((((unsigned long)page) & PAGE_MASK) ==
++	    (((unsigned long)lastbyte) & PAGE_MASK))
++		return 1;
++	return (__get_user(byte,lastbyte) == 0);
++}
++#endif
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
