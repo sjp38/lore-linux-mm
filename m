@@ -1,50 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7E6816B02A3
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 05:07:47 -0400 (EDT)
-Received: by bwz9 with SMTP id 9so4726461bwz.14
-        for <linux-mm@kvack.org>; Wed, 14 Jul 2010 02:07:44 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 234E76B02A3
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 07:46:58 -0400 (EDT)
+Message-ID: <4C3DA38A.7010003@kernel.org>
+Date: Wed, 14 Jul 2010 13:46:18 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1279058027.936.236.camel@calx>
-References: <1278756333-6850-1-git-send-email-lliubbo@gmail.com>
-	<AANLkTikMcPcldBh_uVKxrH7rEIUju3Y_3X2jLi9jw2Vs@mail.gmail.com>
-	<1279058027.936.236.camel@calx>
-Date: Wed, 14 Jul 2010 12:07:44 +0300
-Message-ID: <AANLkTil-sv82zjR7yJr_3nZ0QBO_8Jwj_FO0iFubwe2s@mail.gmail.com>
-Subject: Re: [PATCH] slob_free:free objects to their own list
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home>
+In-Reply-To: <alpine.DEB.2.00.1007121010420.14328@router.home>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Bob Liu <lliubbo@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Heinz Diehl <htd@fancy-poultry.org>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 14, 2010 at 12:53 AM, Matt Mackall <mpm@selenic.com> wrote:
-> On Tue, 2010-07-13 at 20:52 +0300, Pekka Enberg wrote:
->> Hi Bob,
->>
->> [ Please CC me on SLOB patches. You can use the 'scripts/get_maintainer.=
-pl'
->> =A0 script to figure out automatically who to CC on your patches. ]
->>
->> On Sat, Jul 10, 2010 at 1:05 PM, Bob Liu <lliubbo@gmail.com> wrote:
->> > slob has alloced smaller objects from their own list in reduce
->> > overall external fragmentation and increase repeatability,
->> > free to their own list also.
->> >
->> > Signed-off-by: Bob Liu <lliubbo@gmail.com>
->>
->> The patch looks sane to me. Matt, does it look OK to you as well?
->
-> Yep, this should be a marginal improvement.
->
-> Acked-by: Matt Mackall <mpm@selenic.com>
+Hello,
 
-Great! Bob, if you could provide the /proc/meminfo numbers for the
-patch description, I'd be more than happy to merge this.
+On 07/12/2010 05:11 PM, Christoph Lameter wrote:
+> You need a sufficient PERCPU_DYNAMIC_EARLY_SIZE to be configured. What
+> platform is this? Tejon: You suggested the BUILD_BUG_ON(). How can he
+> increase the early size?
 
-                        Pekka
+The size is determined by PERCPU_DYNAMIC_EARLY_SIZE, so bumping it up
+should do it but it would probably be wiser to bump
+PERCPU_DYNAMIC_RESERVE too.  PERCPU_DYNAMIC_EARLY_SIZE is currently
+12k.  How high should it be?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
