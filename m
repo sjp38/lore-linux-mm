@@ -1,76 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0256B02A3
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:11:56 -0400 (EDT)
-Date: Wed, 14 Jul 2010 13:11:49 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-Message-ID: <20100714201149.GA14008@codeaurora.org>
-References: <4C3C0032.5020702@codeaurora.org>
- <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
- <20100713121420.GB4263@codeaurora.org>
- <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C3F6B02A3
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:22:25 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o6EKMNNt005457
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:23 -0700
+Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
+	by hpaq2.eem.corp.google.com with ESMTP id o6EKMLnR007190
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:22 -0700
+Received: by pwi10 with SMTP id 10so8055pwi.6
+        for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:21 -0700 (PDT)
+Date: Wed, 14 Jul 2010 13:22:15 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+In-Reply-To: <alpine.DEB.2.00.1007132055470.14067@router.home>
+Message-ID: <alpine.DEB.2.00.1007141316530.26119@chino.kir.corp.google.com>
+References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home> <20100712163900.GA8513@fancy-poultry.org> <alpine.DEB.2.00.1007121156160.18621@router.home> <20100713135650.GA6444@fancy-poultry.org>
+ <alpine.DEB.2.00.1007132055470.14067@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Heinz Diehl <htd@fancy-poultry.org>, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 14, 2010 at 10:59:38AM +0900, FUJITA Tomonori wrote:
-> On Tue, 13 Jul 2010 05:14:21 -0700
-> Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+On Tue, 13 Jul 2010, Christoph Lameter wrote:
+
+> > > Can you get us the config file. What is the value of
+> > > PERCPU_DYMAMIC_EARLY_SIZE?
+> >
+> > My .config file is attached. I don't know how to find out what value
+> > PERCPU_DYNAMIC_EARLY_SIZE is actually on, how could I do that? There's
+> > no such thing in my .config.
 > 
-> > > You mean that you want to specify this alignment attribute every time
-> > > you create an IOMMU mapping? Then you can set segment_boundary_mask
-> > > every time you create an IOMMU mapping. It's odd but it should work.
-> > 
-> > Kinda. I want to forget about IOMMUs, devices and CPUs. I just want to
-> > create a mapping that has the alignment I specify, regardless of the
-> > mapper. The mapping is created on a VCM and the VCM is associated with
-> > a mapper: a CPU, an IOMMU'd device or a direct mapped device.
-> 
-> Sounds like you can do the above with the combination of the current
-> APIs, create a virtual address and then an I/O address.
+> I dont see anything in there at first glance that would cause slub to
+> increase its percpu usage. This is straight upstream?
 > 
 
-Yes, and that's what the implementation does - and all the other
-implementations that need to do this same thing. Why not solve the
-problem once?
-
-> The above can't be a reason to add a new infrastructure includes more
-> than 3,000 lines.
-
-Right now its 3000 lines because I haven't converted to a function
-pointer based implementation. Once I do that the size of the
-implementation will shrink and the code will act as a lib. Users pass
-buffer mappers and the lib will ease the management of of those
-buffers.
-
->  
-> 
-> > > Another possible solution is extending struct dma_attrs. We could add
-> > > the alignment attribute to it.
-> > 
-> > That may be useful, but in the current DMA-API may be seen as
-> > redundant info.
-> 
-> If there is real requirement, we can extend the DMA-API.
-
-If the DMA-API contained functions to allocate virtual space separate
-from physical space and reworked how chained buffers functioned it
-would probably work - but then things start to look like the VCM API
-which does graph based map management.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+The problem is that he has CONFIG_NODES_SHIFT=10 and struct kmem_cache has 
+an array of struct kmem_cache_node pointers with MAX_NUMNODES entries 
+which blows its size up to over 8K.  That's probably overkill for his 
+quad-core 8GB AMD, so I'd recommend lowering CONFIG_NODES_SHIFT to 6.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
