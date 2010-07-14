@@ -1,57 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F94F6B02A3
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 19:08:46 -0400 (EDT)
-Date: Thu, 15 Jul 2010 08:07:28 +0900
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20100714201149.GA14008@codeaurora.org>
-References: <20100713121420.GB4263@codeaurora.org>
-	<20100714104353B.fujita.tomonori@lab.ntt.co.jp>
-	<20100714201149.GA14008@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100715080710T.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B8B76B02A3
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 19:49:08 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o6ENn5FV002655
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:49:05 -0700
+Received: from pvd12 (pvd12.prod.google.com [10.241.209.204])
+	by wpaz29.hot.corp.google.com with ESMTP id o6ENn4eY024601
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:49:04 -0700
+Received: by pvd12 with SMTP id 12so87210pvd.31
+        for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:49:04 -0700 (PDT)
+Date: Wed, 14 Jul 2010 16:48:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q2 07/19] slub: Allow removal of slab caches during boot
+In-Reply-To: <20100709190853.770833931@quilx.com>
+Message-ID: <alpine.DEB.2.00.1007141647340.29110@chino.kir.corp.google.com>
+References: <20100709190706.938177313@quilx.com> <20100709190853.770833931@quilx.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: zpfeffer@codeaurora.org
-Cc: fujita.tomonori@lab.ntt.co.jp, linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Roland Dreier <rdreier@cisco.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jul 2010 13:11:49 -0700
-Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+On Fri, 9 Jul 2010, Christoph Lameter wrote:
 
-> On Wed, Jul 14, 2010 at 10:59:38AM +0900, FUJITA Tomonori wrote:
-> > On Tue, 13 Jul 2010 05:14:21 -0700
-> > Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> > 
-> > > > You mean that you want to specify this alignment attribute every time
-> > > > you create an IOMMU mapping? Then you can set segment_boundary_mask
-> > > > every time you create an IOMMU mapping. It's odd but it should work.
-> > > 
-> > > Kinda. I want to forget about IOMMUs, devices and CPUs. I just want to
-> > > create a mapping that has the alignment I specify, regardless of the
-> > > mapper. The mapping is created on a VCM and the VCM is associated with
-> > > a mapper: a CPU, an IOMMU'd device or a direct mapped device.
-> > 
-> > Sounds like you can do the above with the combination of the current
-> > APIs, create a virtual address and then an I/O address.
-> > 
+> If a slab cache is removed before we have setup sysfs then simply skip over
+> the sysfs handling.
 > 
-> Yes, and that's what the implementation does - and all the other
-> implementations that need to do this same thing. Why not solve the
-> problem once?
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Roland Dreier <rdreier@cisco.com>
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-Why we we need a new abstraction layer to solve the problem that the
-current API can handle?
+Acked-by: David Rientjes <rientjes@google.com>
 
-The above two operations don't sound too complicated. The combination
-of the current API sounds much simpler than your new abstraction.
-
-Please show how the combination of the current APIs doesn't
-work. Otherwise, we can't see what's the benefit of your new
-abstraction.
+I missed this case earlier because I didn't consider slab caches being 
+created and destroyed prior to slab_state == SYSFS, sorry!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
