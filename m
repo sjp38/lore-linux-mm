@@ -1,50 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 99055620200
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 22:00:48 -0400 (EDT)
-Date: Wed, 14 Jul 2010 10:59:38 +0900
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20100713121420.GB4263@codeaurora.org>
-References: <4C3C0032.5020702@codeaurora.org>
-	<20100713150311B.fujita.tomonori@lab.ntt.co.jp>
-	<20100713121420.GB4263@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 075526201FE
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 22:04:45 -0400 (EDT)
+Date: Tue, 13 Jul 2010 21:01:19 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+In-Reply-To: <20100713135650.GA6444@fancy-poultry.org>
+Message-ID: <alpine.DEB.2.00.1007132055470.14067@router.home>
+References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home> <20100712163900.GA8513@fancy-poultry.org> <alpine.DEB.2.00.1007121156160.18621@router.home>
+ <20100713135650.GA6444@fancy-poultry.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.00.1007132055472.14067@router.home>
+Content-Disposition: INLINE
 Sender: owner-linux-mm@kvack.org
-To: zpfeffer@codeaurora.org
-Cc: fujita.tomonori@lab.ntt.co.jp, linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Heinz Diehl <htd@fancy-poultry.org>
+Cc: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jul 2010 05:14:21 -0700
-Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+On Tue, 13 Jul 2010, Heinz Diehl wrote:
 
-> > You mean that you want to specify this alignment attribute every time
-> > you create an IOMMU mapping? Then you can set segment_boundary_mask
-> > every time you create an IOMMU mapping. It's odd but it should work.
-> 
-> Kinda. I want to forget about IOMMUs, devices and CPUs. I just want to
-> create a mapping that has the alignment I specify, regardless of the
-> mapper. The mapping is created on a VCM and the VCM is associated with
-> a mapper: a CPU, an IOMMU'd device or a direct mapped device.
+> On 13.07.2010, Christoph Lameter wrote:
+>
+> > Can you get us the config file. What is the value of
+> > PERCPU_DYMAMIC_EARLY_SIZE?
+>
+> My .config file is attached. I don't know how to find out what value
+> PERCPU_DYNAMIC_EARLY_SIZE is actually on, how could I do that? There's
+> no such thing in my .config.
 
-Sounds like you can do the above with the combination of the current
-APIs, create a virtual address and then an I/O address.
+I dont see anything in there at first glance that would cause slub to
+increase its percpu usage. This is straight upstream?
 
-The above can't be a reason to add a new infrastructure includes more
-than 3,000 lines.
- 
+Try to just comment out the BUILD_BUG_ON. I had it misfire before and
+fixed the formulae to no longer give false positives. Maybe that is
+another case. Tejun wanted that but never was able to give me an exact
+formular to check for.
 
-> > Another possible solution is extending struct dma_attrs. We could add
-> > the alignment attribute to it.
-> 
-> That may be useful, but in the current DMA-API may be seen as
-> redundant info.
+At the Ottawa Linux Symposium right now so responses may be delayed.
+Hotels Internet connection keeps getting clogged for some reason.
 
-If there is real requirement, we can extend the DMA-API.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
