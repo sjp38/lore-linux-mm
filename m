@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DE7096B02A3
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 10:26:03 -0400 (EDT)
-Date: Wed, 14 Jul 2010 16:25:21 +0200
-From: Heinz Diehl <htd@fancy-poultry.org>
-Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
-Message-ID: <20100714142521.GA19289@fancy-poultry.org>
-References: <20100709190706.938177313@quilx.com>
- <20100710195621.GA13720@fancy-poultry.org>
- <alpine.DEB.2.00.1007121010420.14328@router.home>
- <20100712163900.GA8513@fancy-poultry.org>
- <alpine.DEB.2.00.1007121156160.18621@router.home>
- <20100713135650.GA6444@fancy-poultry.org>
- <alpine.DEB.2.00.1007132055470.14067@router.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 30BD66B02A3
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 15:34:03 -0400 (EDT)
+Date: Wed, 14 Jul 2010 21:34:03 +0200
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
+Message-ID: <20100714193403.GC23755@8bytes.org>
+References: <1277877350-2147-1-git-send-email-zpfeffer@codeaurora.org> <1277877350-2147-3-git-send-email-zpfeffer@codeaurora.org> <20100701101746.3810cc3b.randy.dunlap@oracle.com> <20100701180241.GA3594@basil.fritz.box> <AANLkTinABCSdN6hnXVOvVZ12f1QBMR_UAi62qW8GmlkL@mail.gmail.com> <4C2D908E.9030309@codeaurora.org> <20100710143635.GA10080@8bytes.org> <4C3BF7C1.9040904@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1007132055470.14067@router.home>
+In-Reply-To: <4C3BF7C1.9040904@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: Hari Kanigeri <hari.kanigeri@gmail.com>, Daniel Walker <dwalker@codeaurora.org>, Andi Kleen <andi@firstfloor.org>, Randy Dunlap <randy.dunlap@oracle.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.07.2010, Christoph Lameter wrote: 
+On Mon, Jul 12, 2010 at 10:21:05PM -0700, Zach Pfeffer wrote:
+> Joerg Roedel wrote:
 
-> I dont see anything in there at first glance that would cause slub to
-> increase its percpu usage. This is straight upstream?
+> > The DMA-API already does this with the help of IOMMUs if they are
+> > present. What is the benefit of your approach over that?
+> 
+> The grist to the DMA-API mill is the opaque scatterlist. Each
+> scatterlist element brings together a physical address and a bus
+> address that may be different. The set of scatterlist elements
+> constitute both the set of physical buffers and the mappings to those
+> buffers. My approach separates these two things into a struct physmem
+> which contains the set of physical buffers and a struct reservation
+> which contains the set of bus addresses (or device addresses). Each
+> element in the struct physmem may be of various lengths (without
+> resorting to chaining). A map call maps the one set to the other.
 
-Yes ,it's plain vanilla 2.6.35-rc4/-rc5 from kernel.org.
+Okay, thats a different concept, where is the benefit?
 
-> Try to just comment out the BUILD_BUG_ON.
-
-I first bumped it up to 24k, but that was obviously not enough, so I
-commented out the BUILD_BUG_ON which triggers the build error. Now It builds
-fine, and I'll do some testing.
-
-Thanks,
-Heinz.
+	Joerg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
