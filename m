@@ -1,44 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 075526201FE
-	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 22:04:45 -0400 (EDT)
-Date: Tue, 13 Jul 2010 21:01:19 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
-In-Reply-To: <20100713135650.GA6444@fancy-poultry.org>
-Message-ID: <alpine.DEB.2.00.1007132055470.14067@router.home>
-References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home> <20100712163900.GA8513@fancy-poultry.org> <alpine.DEB.2.00.1007121156160.18621@router.home>
- <20100713135650.GA6444@fancy-poultry.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5F7B96201FE
+	for <linux-mm@kvack.org>; Tue, 13 Jul 2010 22:15:34 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6E2FVaP008465
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 14 Jul 2010 11:15:31 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F49945DE52
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 11:15:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DED9545DE4F
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 11:15:30 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B27FD1DB8049
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 11:15:30 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 62C641DB8057
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 11:15:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2 1/2] vmscan: don't subtraction of unsined
+In-Reply-To: <alpine.DEB.2.00.1007132047001.14067@router.home>
+References: <20100713182918.EA67.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1007132047001.14067@router.home>
+Message-Id: <20100714110614.EA7B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.00.1007132055472.14067@router.home>
-Content-Disposition: INLINE
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 14 Jul 2010 11:15:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Heinz Diehl <htd@fancy-poultry.org>
-Cc: Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jul 2010, Heinz Diehl wrote:
+> On Tue, 13 Jul 2010, KOSAKI Motohiro wrote:
+> 
+> > Christoph, Can we hear your opinion about to add new branch in slab-free path?
+> > I think this is ok, because reclaim makes a lot of cache miss then branch
+> > mistaken is relatively minor penalty. thought?
+> 
+> Its on the slow path so I would think that should be okay. But is this
+> really necessary? Working with the per zone slab reclaim counters is not
+> enough? We are adding counter after counter that have similar purposes and
+> the handling gets more complex.
+> 
+> Maybe we can get rid of the code in the slabs instead by just relying on
+> the difference of the zone counters?
 
-> On 13.07.2010, Christoph Lameter wrote:
->
-> > Can you get us the config file. What is the value of
-> > PERCPU_DYMAMIC_EARLY_SIZE?
->
-> My .config file is attached. I don't know how to find out what value
-> PERCPU_DYNAMIC_EARLY_SIZE is actually on, how could I do that? There's
-> no such thing in my .config.
+Okey, I agree. I'm pending this work at once. and I'll (probably) resume it
+after Nick's work merged.
 
-I dont see anything in there at first glance that would cause slub to
-increase its percpu usage. This is straight upstream?
+Thanks.
 
-Try to just comment out the BUILD_BUG_ON. I had it misfire before and
-fixed the formulae to no longer give false positives. Maybe that is
-another case. Tejun wanted that but never was able to give me an exact
-formular to check for.
 
-At the Ottawa Linux Symposium right now so responses may be delayed.
-Hotels Internet connection keeps getting clogged for some reason.
 
 
 --
