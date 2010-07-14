@@ -1,46 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C3F6B02A3
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 16:22:25 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o6EKMNNt005457
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:23 -0700
-Received: from pwi10 (pwi10.prod.google.com [10.241.219.10])
-	by hpaq2.eem.corp.google.com with ESMTP id o6EKMLnR007190
-	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:22 -0700
-Received: by pwi10 with SMTP id 10so8055pwi.6
-        for <linux-mm@kvack.org>; Wed, 14 Jul 2010 13:22:21 -0700 (PDT)
-Date: Wed, 14 Jul 2010 13:22:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
-In-Reply-To: <alpine.DEB.2.00.1007132055470.14067@router.home>
-Message-ID: <alpine.DEB.2.00.1007141316530.26119@chino.kir.corp.google.com>
-References: <20100709190706.938177313@quilx.com> <20100710195621.GA13720@fancy-poultry.org> <alpine.DEB.2.00.1007121010420.14328@router.home> <20100712163900.GA8513@fancy-poultry.org> <alpine.DEB.2.00.1007121156160.18621@router.home> <20100713135650.GA6444@fancy-poultry.org>
- <alpine.DEB.2.00.1007132055470.14067@router.home>
+	by kanga.kvack.org (Postfix) with ESMTP id 466666B02A3
+	for <linux-mm@kvack.org>; Wed, 14 Jul 2010 18:07:08 -0400 (EDT)
+Date: Wed, 14 Jul 2010 23:05:36 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+	memory management
+Message-ID: <20100714220536.GE18138@n2100.arm.linux.org.uk>
+References: <4C3C0032.5020702@codeaurora.org> <20100713150311B.fujita.tomonori@lab.ntt.co.jp> <20100713121420.GB4263@codeaurora.org> <20100714104353B.fujita.tomonori@lab.ntt.co.jp> <20100714201149.GA14008@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100714201149.GA14008@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Heinz Diehl <htd@fancy-poultry.org>, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org
+To: Zach Pfeffer <zpfeffer@codeaurora.org>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jul 2010, Christoph Lameter wrote:
+On Wed, Jul 14, 2010 at 01:11:49PM -0700, Zach Pfeffer wrote:
+> If the DMA-API contained functions to allocate virtual space separate
+> from physical space and reworked how chained buffers functioned it
+> would probably work - but then things start to look like the VCM API
+> which does graph based map management.
 
-> > > Can you get us the config file. What is the value of
-> > > PERCPU_DYMAMIC_EARLY_SIZE?
-> >
-> > My .config file is attached. I don't know how to find out what value
-> > PERCPU_DYNAMIC_EARLY_SIZE is actually on, how could I do that? There's
-> > no such thing in my .config.
-> 
-> I dont see anything in there at first glance that would cause slub to
-> increase its percpu usage. This is straight upstream?
-> 
+Every additional virtual mapping of a physical buffer results in
+additional cache aliases on aliasing caches, and more workload for
+developers to sort out the cache aliasing issues.
 
-The problem is that he has CONFIG_NODES_SHIFT=10 and struct kmem_cache has 
-an array of struct kmem_cache_node pointers with MAX_NUMNODES entries 
-which blows its size up to over 8K.  That's probably overkill for his 
-quad-core 8GB AMD, so I'd recommend lowering CONFIG_NODES_SHIFT to 6.
+What does VCM to do mitigate that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
