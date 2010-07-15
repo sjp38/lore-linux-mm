@@ -1,94 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BEC9D6B02A7
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 10:55:18 -0400 (EDT)
-Date: Thu, 15 Jul 2010 22:55:09 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2DFE86201FE
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 11:35:38 -0400 (EDT)
+Date: Thu, 15 Jul 2010 23:35:30 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/6] writeback: avoid unnecessary calculation of bdi
- dirty thresholds
-Message-ID: <20100715145509.GB6511@localhost>
+Subject: Re: [PATCH 4/6] writeback: dont redirty tail an inode with dirty
+ pages
+Message-ID: <20100715153530.GC6511@localhost>
 References: <20100711020656.340075560@intel.com>
- <20100711021748.879183413@intel.com>
- <20100712145643.a944c495.akpm@linux-foundation.org>
+ <20100711021749.021449821@intel.com>
+ <20100712020109.GB25335@dastard>
+ <20100712153127.GB30222@localhost>
+ <20100712151317.bd9d656c.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100712145643.a944c495.akpm@linux-foundation.org>
+In-Reply-To: <20100712151317.bd9d656c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 13, 2010 at 05:56:43AM +0800, Andrew Morton wrote:
-> On Sun, 11 Jul 2010 10:06:59 +0800
+On Tue, Jul 13, 2010 at 06:13:17AM +0800, Andrew Morton wrote:
+> On Mon, 12 Jul 2010 23:31:27 +0800
 > Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> > +void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
-> >
-> > ...
-> >
-> > +unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-> > +			       unsigned long dirty)
+> > > > +		} else if (inode->i_state & I_DIRTY) {
+> > > > +			/*
+> > > > +			 * At least XFS will redirty the inode during the
+> > > > +			 * writeback (delalloc) and on io completion (isize).
+> > > > +			 */
+> > > > +			redirty_tail(inode);
+> > > 
+> > > I'd drop the mention of XFS here - any filesystem that does delayed
+> > > allocation or unwritten extent conversion after Io completion will
+> > > cause this. Perhaps make the comment:
+> > > 
+> > > 	/*
+> > > 	 * Filesystems can dirty the inode during writeback
+> > > 	 * operations, such as delayed allocation during submission
+> > > 	 * or metadata updates after data IO completion.
+> > > 	 */
+> > 
+> > Thanks, comments updated accordingly.
+> > 
+> > ---
+> > writeback: don't redirty tail an inode with dirty pages
+> > 
+> > This avoids delaying writeback for an expired (XFS) inode with lots of
+> > dirty pages, but no active dirtier at the moment. Previously we only do
+> > that for the kupdate case.
+> > 
 > 
-> It'd be nice to have some documentation for these things.  They're
-> non-static, non-obvious and are stuffed to the gills with secret magic
-> numbers.
+> You didn't actually explain the _reason_ for making this change. 
+> Please always do that.
 
-Good suggestion, here is an attempt to document the functions.
+OK. It's actually extending commit b3af9468ae from the kupdate-only case to
+both kupdate and !kupdate cases.
+
+The commit documented the reason:
+
+    Debug traces show that in per-bdi writeback, the inode under writeback
+    almost always get redirtied by a busy dirtier.  We used to call
+    redirty_tail() in this case, which could delay inode for up to 30s.
+    
+    This is unacceptable because it now happens so frequently for plain cp/dd,
+    that the accumulated delays could make writeback of big files very slow.
+
+    So let's distinguish between data redirty and metadata only redirty.
+    The first one is caused by a busy dirtier, while the latter one could
+    happen in XFS, NFS, etc. when they are doing delalloc or updating isize.
+
+Commit b3af9468ae only does that for kupdate case because requeue_io() was
+only called in the kupdate case. Now we are merging the kupdate and !kupdate
+cases in patch 6/6 (why not?), so is this patch.
+
+> The patch is...  surprisingly complicated, although the end result
+> looks OK.  This is not aided by the partial duplication between
+> mapping_tagged(PAGECACHE_TAG_DIRTY) and I_DIRTY_PAGES.  I don't think
+> we can easily remove I_DIRTY_PAGES because it's used for the
+> did-someone-just-dirty-a-page test here.
+
+I double checked I_DIRTY_PAGES. The main difference to PAGECACHE_TAG_DIRTY is:
+I_DIRTY_PAGES (at the line removed by this patch) means there are _new_ pages
+get dirtied during writeback, while PAGECACHE_TAG_DIRTY means there are dirty
+pages. In this sense, if the I_DIRTY_PAGES handling is the same as
+PAGECACHE_TAG_DIRTY, the code can be merged into PAGECACHE_TAG_DIRTY, as this
+patch does.
+
+The other minor differences are
+
+- in *_set_page_dirty*(), PAGECACHE_TAG_DIRTY is set racelessly, while
+  I_DIRTY_PAGES might be set on the inode for a page just truncated.
+  The difference has no real impact on this patch (it's actually
+  slightly better now).
+
+- afs_fsync() always set I_DIRTY_PAGES after calling afs_writepages().
+  The call was there in the first day (introduce by David Howells).
+  What was the intention, hmm..?
+
+> This code is way too complex and fragile and I fear that anything we do
+> to it will break something :(
+
+Agreed. Let's try to simplify it :)
 
 Thanks,
 Fengguang
----
-Subject: add comment to the dirty limit functions
-From: Wu Fengguang <fengguang.wu@intel.com>
-Date: Thu Jul 15 09:54:25 CST 2010
-
-Document global_dirty_limits() and bdi_dirty_limit().
-
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |   23 +++++++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
-
---- linux-next.orig/mm/page-writeback.c	2010-07-15 08:20:32.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-07-15 10:39:41.000000000 +0800
-@@ -390,6 +390,15 @@ unsigned long determine_dirtyable_memory
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
-+/**
-+ * global_dirty_limits - background writeback and dirty throttling thresholds
-+ *
-+ * Calculate the dirty thresholds based on sysctl parameters
-+ * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
-+ * - vm.dirty_ratio             or  vm.dirty_bytes
-+ * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
-+ * runtime tasks.
-+ */
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
- 	unsigned long background;
-@@ -424,8 +433,18 @@ void global_dirty_limits(unsigned long *
- 	*pdirty = dirty;
- }
- 
--unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
--			       unsigned long dirty)
-+/**
-+ * bdi_dirty_limit - current task's share of dirty throttling threshold on @bdi
-+ *
-+ * Once the global dirty limit is _exceeded_, all dirtiers will be throttled.
-+ * To avoid starving fast devices (which can sync dirty pages in short time) or
-+ * throttling light dirtiers, we start throttling individual tasks on a per-bdi
-+ * basis when _approaching_ the global dirty limit. Relative high limits will
-+ * be allocated to fast devices and/or light dirtiers. The bdi's dirty share is
-+ * evaluated adapting to its throughput and bounded if the bdi->min_ratio
-+ * and/or bdi->max_ratio parameters are set.
-+ */
-+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
- {
- 	u64 bdi_dirty;
- 	long numerator, denominator;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
