@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CA8E6B02A4
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 14:12:32 -0400 (EDT)
-Date: Thu, 15 Jul 2010 14:12:28 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 3/3] xfs: track AGs with reclaimable inodes in per-ag
- radix tree
-Message-ID: <20100715181228.GC14554@infradead.org>
-References: <1279194418-16119-1-git-send-email-david@fromorbit.com>
- <1279194418-16119-4-git-send-email-david@fromorbit.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BE8C56B02A4
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 14:31:00 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6FIRONE023217
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:27:24 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6FIUkND060246
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:30:46 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6FIUgxF028954
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:30:42 -0600
+Message-ID: <4C3F53D1.3090001@austin.ibm.com>
+Date: Thu, 15 Jul 2010 13:30:41 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1279194418-16119-4-git-send-email-david@fromorbit.com>
+Subject: [PATCH 0/5] v2 De-couple sysfs memory directories from memory section
+ size
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> + */
-> +static struct xfs_perag *
-> +xfs_inode_ag_iter_next_pag(
-> +	struct xfs_mount	*mp,
-> +	xfs_agnumber_t		*first,
-> +	int			tag)
-> +{
-> +	struct xfs_perag	*pag = NULL;
-> +
-> +	if (tag == XFS_ICI_RECLAIM_TAG) {
-> +		int found;
-> +		int ref;
-> +
-> +		spin_lock(&mp->m_perag_lock);
-> +		found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-> +				(void **)&pag, *first, 1, tag);
-> +		if (found <= 0) {
-> +			spin_unlock(&mp->m_perag_lock);
-> +			return NULL;
-> +		}
-> +		*first = pag->pag_agno + 1;
-> +		/* open coded pag reference increment */
-> +		ref = atomic_inc_return(&pag->pag_ref);
-> +		spin_unlock(&mp->m_perag_lock);
-> +		trace_xfs_perag_get_reclaim(mp, pag->pag_agno, ref, _RET_IP_);
-> +	} else {
-> +		pag = xfs_perag_get(mp, *first);
-> +		(*first)++;
-> +	}
+This set of patches de-couples the idea that there is a single
+directory in sysfs for each memory section.  The intent of the
+patches is to reduce the number of sysfs directories created to
+resolve a boot-time performance issue.  On very large systems
+boot time are getting very long (as seen on powerpc hardware)
+due to the enormous number of sysfs directories being created.
+On a system with 1 TB of memory we create ~63,000 directories.
+For even larger systems boot times are being measured in hours.
 
-I wonder if we should just split the AG iterator for inode reclaim vs
-the rest.  We now have this difference in addition to taking the per-AG
-lock exclusive instead of shared.
+This set of patches allows for each directory created in sysfs
+to cover more than one memory section.  The default behavior for
+sysfs directory creation is the same, in that each directory
+represents a single memory section.  A new file 'end_phys_index'
+in each directory contains the physical_id of the last memory
+section covered by the directory so that users can easily
+determine the memory section range of a directory.
 
-Anyway, the patch looks good for now,
+For version 2 of this patchset the capability to split a
+directory has been removed.
 
+Thanks,
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+Nathan Fontenot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
