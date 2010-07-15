@@ -1,102 +1,344 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0A52E600227
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 07:47:28 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C6618600227
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 07:47:38 -0400 (EDT)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 0/3] shrinker fixes for XFS for 2.6.35
-Date: Thu, 15 Jul 2010 21:46:55 +1000
-Message-Id: <1279194418-16119-1-git-send-email-david@fromorbit.com>
+Subject: [PATCH 1/3] mm: add context argument to shrinker callback
+Date: Thu, 15 Jul 2010 21:46:56 +1000
+Message-Id: <1279194418-16119-2-git-send-email-david@fromorbit.com>
+In-Reply-To: <1279194418-16119-1-git-send-email-david@fromorbit.com>
+References: <1279194418-16119-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 To: xfs@oss.sgi.com
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Per-superblock shrinkers are not baked well enough for 2.6.36. However, we
-still need fixes for the XFS shrinker lockdep problems caused by the global
-mount list lock and other problems before 2.6.35 releases. The lockdep issues
-look like:
+From: Dave Chinner <dchinner@redhat.com>
 
-=======================================================
-[ INFO: possible circular locking dependency detected ]
-2.6.35-rc5-dgc+ #34
--------------------------------------------------------
-kswapd0/471 is trying to acquire lock:
- (&(&ip->i_lock)->mr_lock){++++-.}, at: [<ffffffff81316feb>] xfs_ilock+0x10b/0x190
+The current shrinker implementation requires the registered callback
+to have global state to work from. This makes it difficult to shrink
+caches that are not global (e.g. per-filesystem caches). Pass the shrinker
+structure to the callback so that users can embed the shrinker structure
+in the context the shrinker needs to operate on and get back to it in the
+callback via container_of().
 
-but task is already holding lock:
- (&xfs_mount_list_lock){++++.-}, at: [<ffffffff81350fd6>] xfs_reclaim_inode_shrink+0xd6/0x150
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ arch/x86/kvm/mmu.c              |    2 +-
+ drivers/gpu/drm/i915/i915_gem.c |    2 +-
+ fs/dcache.c                     |    2 +-
+ fs/gfs2/glock.c                 |    2 +-
+ fs/gfs2/quota.c                 |    2 +-
+ fs/gfs2/quota.h                 |    2 +-
+ fs/inode.c                      |    2 +-
+ fs/mbcache.c                    |    5 +++--
+ fs/nfs/dir.c                    |    2 +-
+ fs/nfs/internal.h               |    3 ++-
+ fs/quota/dquot.c                |    2 +-
+ fs/ubifs/shrinker.c             |    2 +-
+ fs/ubifs/ubifs.h                |    2 +-
+ fs/xfs/linux-2.6/xfs_buf.c      |    5 +++--
+ fs/xfs/linux-2.6/xfs_sync.c     |    1 +
+ fs/xfs/quota/xfs_qm.c           |    7 +++++--
+ include/linux/mm.h              |    2 +-
+ mm/vmscan.c                     |    8 +++++---
+ 18 files changed, 31 insertions(+), 22 deletions(-)
 
-which lock already depends on the new lock.
-
-
-the existing dependency chain (in reverse order) is:
-
--> #1 (&xfs_mount_list_lock){++++.-}:
-       [<ffffffff810b4ad6>] lock_acquire+0xa6/0x160
-       [<ffffffff817a4dd5>] _raw_spin_lock_irqsave+0x55/0xa0
-       [<ffffffff8106db62>] __wake_up+0x32/0x70
-       [<ffffffff811196db>] wakeup_kswapd+0xab/0xb0
-       [<ffffffff811132cd>] __alloc_pages_nodemask+0x27d/0x760
-       [<ffffffff81145c72>] kmem_getpages+0x62/0x160
-       [<ffffffff81146cdf>] fallback_alloc+0x18f/0x260
-       [<ffffffff81146a6b>] ____cache_alloc_node+0x9b/0x180
-       [<ffffffff811473bb>] kmem_cache_alloc+0x16b/0x1e0
-       [<ffffffff81340d54>] kmem_zone_alloc+0x94/0xe0
-       [<ffffffff813173a9>] xfs_inode_alloc+0x29/0x1b0
-       [<ffffffff8131781c>] xfs_iget+0x2ec/0x7a0
-       [<ffffffff8133a697>] xfs_trans_iget+0x27/0x60
-       [<ffffffff8131a60a>] xfs_ialloc+0xca/0x790
-       [<ffffffff8133b37f>] xfs_dir_ialloc+0xaf/0x340
-       [<ffffffff8133c38c>] xfs_create+0x3dc/0x710
-       [<ffffffff8134d277>] xfs_vn_mknod+0xa7/0x1c0
-       [<ffffffff8134d3c0>] xfs_vn_create+0x10/0x20
-       [<ffffffff8115ab2c>] vfs_create+0xac/0xd0
-       [<ffffffff8115b6bc>] do_last+0x51c/0x620
-       [<ffffffff8115dbd4>] do_filp_open+0x224/0x640
-       [<ffffffff8114d969>] do_sys_open+0x69/0x140
-       [<ffffffff8114da80>] sys_open+0x20/0x30
-       [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
-
--> #0 (&(&ip->i_lock)->mr_lock){++++-.}:
-       [<ffffffff810b47a3>] __lock_acquire+0x11c3/0x1450
-       [<ffffffff810b4ad6>] lock_acquire+0xa6/0x160
-       [<ffffffff810a2035>] down_write_nested+0x65/0xb0
-       [<ffffffff81316feb>] xfs_ilock+0x10b/0x190
-       [<ffffffff8135023d>] xfs_reclaim_inode+0x9d/0x250
-       [<ffffffff81350d4b>] xfs_inode_ag_walk+0x8b/0x150
-       [<ffffffff81350e9b>] xfs_inode_ag_iterator+0x8b/0xf0
-       [<ffffffff8135100c>] xfs_reclaim_inode_shrink+0x10c/0x150
-       [<ffffffff81119be5>] shrink_slab+0x135/0x1a0
-       [<ffffffff8111bac1>] balance_pgdat+0x421/0x6a0
-       [<ffffffff8111be5d>] kswapd+0x11d/0x320
-       [<ffffffff8109cdb6>] kthread+0x96/0xa0
-       [<ffffffff81035de4>] kernel_thread_helper+0x4/0x10
-
-other info that might help us debug this:
-
-2 locks held by kswapd0/471:
- #0:  (shrinker_rwsem){++++..}, at: [<ffffffff81119aed>] shrink_slab+0x3d/0x1a0
- #1:  (&xfs_mount_list_lock){++++.-}, at: [<ffffffff81350fd6>] xfs_reclaim_inode_shrink+0xd6/0x150
-
-There are also a few variations as these paths are traversed
-from different locations in different workloads.
-
-There are also scanning overhead problems caused by the global shrinker as seen
-in https://bugzilla.kernel.org/show_bug.cgi?id=16348. This is not helped by
-every shrinker call potentially traversing multiple filesystems to find one
-with reclaimable inodes.
-
-The context based shrinker solution is very simple and doesn't have any effect
-outside XFS. For XFS, it allows us to avoid locking needed by a global list, as
-well as remove the repeated scanning of clean filesystems on every shrinker
-call. In combination with the tagging of the per-AG index to track AGs with
-reclaimable inodes, all the unnecessary AG scanning is removed and the overhead
-is minimised. Hence kswapd CPU usage and reclaim progress is not hindered
-anymore.
-
-The patch set is also available at:
-
-	git://git.kernel.org/pub/scm/git/linux/dgc/xfsdev shrinker
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 3699613..b1ed0a1 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2926,7 +2926,7 @@ static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm)
+ 	return kvm_mmu_zap_page(kvm, page) + 1;
+ }
+ 
+-static int mmu_shrink(int nr_to_scan, gfp_t gfp_mask)
++static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	struct kvm *kvm;
+ 	struct kvm *kvm_freed = NULL;
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index 0743858..3b0b0b1 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -4977,7 +4977,7 @@ i915_gpu_is_active(struct drm_device *dev)
+ }
+ 
+ static int
+-i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
++i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	drm_i915_private_t *dev_priv, *next_dev;
+ 	struct drm_i915_gem_object *obj_priv, *next_obj;
+diff --git a/fs/dcache.c b/fs/dcache.c
+index c8c78ba..86d4db1 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -896,7 +896,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
+  *
+  * In this case we return -1 to tell the caller that we baled.
+  */
+-static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
++static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		if (!(gfp_mask & __GFP_FS))
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index ddcdbf4..04b540c 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1348,7 +1348,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
+ }
+ 
+ 
+-static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
++static int gfs2_shrink_glock_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	struct gfs2_glock *gl;
+ 	int may_demote;
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index 49667d6..4ea548f 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -77,7 +77,7 @@ static LIST_HEAD(qd_lru_list);
+ static atomic_t qd_lru_count = ATOMIC_INIT(0);
+ static DEFINE_SPINLOCK(qd_lru_lock);
+ 
+-int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
++int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	struct gfs2_quota_data *qd;
+ 	struct gfs2_sbd *sdp;
+diff --git a/fs/gfs2/quota.h b/fs/gfs2/quota.h
+index 195f60c..e7d236c 100644
+--- a/fs/gfs2/quota.h
++++ b/fs/gfs2/quota.h
+@@ -51,7 +51,7 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
+ 	return ret;
+ }
+ 
+-extern int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask);
++extern int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask);
+ extern const struct quotactl_ops gfs2_quotactl_ops;
+ 
+ #endif /* __QUOTA_DOT_H__ */
+diff --git a/fs/inode.c b/fs/inode.c
+index 2bee20a..722860b 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -512,7 +512,7 @@ static void prune_icache(int nr_to_scan)
+  * This function is passed the number of inodes to scan, and it returns the
+  * total number of remaining possibly-reclaimable inodes.
+  */
+-static int shrink_icache_memory(int nr, gfp_t gfp_mask)
++static int shrink_icache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		/*
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index ec88ff3..e28f21b 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -115,7 +115,7 @@ mb_cache_indexes(struct mb_cache *cache)
+  * What the mbcache registers as to get shrunk dynamically.
+  */
+ 
+-static int mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask);
++static int mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+ 
+ static struct shrinker mb_cache_shrinker = {
+ 	.shrink = mb_cache_shrink_fn,
+@@ -191,13 +191,14 @@ forget:
+  * This function is called by the kernel memory management when memory
+  * gets low.
+  *
++ * @shrink: (ignored)
+  * @nr_to_scan: Number of objects to scan
+  * @gfp_mask: (ignored)
+  *
+  * Returns the number of objects which are present in the cache.
+  */
+ static int
+-mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
++mb_cache_shrink_fn(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	LIST_HEAD(free_list);
+ 	struct list_head *l, *ltmp;
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index 782b431..e60416d 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1710,7 +1710,7 @@ static void nfs_access_free_list(struct list_head *head)
+ 	}
+ }
+ 
+-int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
++int nfs_access_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	LIST_HEAD(head);
+ 	struct nfs_inode *nfsi;
+diff --git a/fs/nfs/internal.h b/fs/nfs/internal.h
+index d8bd619..e70f44b 100644
+--- a/fs/nfs/internal.h
++++ b/fs/nfs/internal.h
+@@ -205,7 +205,8 @@ extern struct rpc_procinfo nfs4_procedures[];
+ void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+ 
+ /* dir.c */
+-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
++extern int nfs_access_cache_shrinker(struct shrinker *shrink,
++					int nr_to_scan, gfp_t gfp_mask);
+ 
+ /* inode.c */
+ extern struct workqueue_struct *nfsiod_workqueue;
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 12c233d..437d2ca 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -676,7 +676,7 @@ static void prune_dqcache(int count)
+  * This is called from kswapd when we think we need some
+  * more memory
+  */
+-static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
++static int shrink_dqcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	if (nr) {
+ 		spin_lock(&dq_list_lock);
+diff --git a/fs/ubifs/shrinker.c b/fs/ubifs/shrinker.c
+index 02feb59..0b20111 100644
+--- a/fs/ubifs/shrinker.c
++++ b/fs/ubifs/shrinker.c
+@@ -277,7 +277,7 @@ static int kick_a_thread(void)
+ 	return 0;
+ }
+ 
+-int ubifs_shrinker(int nr, gfp_t gfp_mask)
++int ubifs_shrinker(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+ {
+ 	int freed, contention = 0;
+ 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
+diff --git a/fs/ubifs/ubifs.h b/fs/ubifs/ubifs.h
+index 2eef553..0431087 100644
+--- a/fs/ubifs/ubifs.h
++++ b/fs/ubifs/ubifs.h
+@@ -1575,7 +1575,7 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot);
+ int ubifs_tnc_end_commit(struct ubifs_info *c);
+ 
+ /* shrinker.c */
+-int ubifs_shrinker(int nr_to_scan, gfp_t gfp_mask);
++int ubifs_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask);
+ 
+ /* commit.c */
+ int ubifs_bg_thread(void *info);
+diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
+index 649ade8..2ee3f7a 100644
+--- a/fs/xfs/linux-2.6/xfs_buf.c
++++ b/fs/xfs/linux-2.6/xfs_buf.c
+@@ -45,7 +45,7 @@
+ 
+ static kmem_zone_t *xfs_buf_zone;
+ STATIC int xfsbufd(void *);
+-STATIC int xfsbufd_wakeup(int, gfp_t);
++STATIC int xfsbufd_wakeup(struct shrinker *, int, gfp_t);
+ STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
+ static struct shrinker xfs_buf_shake = {
+ 	.shrink = xfsbufd_wakeup,
+@@ -340,7 +340,7 @@ _xfs_buf_lookup_pages(
+ 					__func__, gfp_mask);
+ 
+ 			XFS_STATS_INC(xb_page_retries);
+-			xfsbufd_wakeup(0, gfp_mask);
++			xfsbufd_wakeup(NULL, 0, gfp_mask);
+ 			congestion_wait(BLK_RW_ASYNC, HZ/50);
+ 			goto retry;
+ 		}
+@@ -1762,6 +1762,7 @@ xfs_buf_runall_queues(
+ 
+ STATIC int
+ xfsbufd_wakeup(
++	struct shrinker		*shrink,
+ 	int			priority,
+ 	gfp_t			mask)
+ {
+diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
+index ef7f021..be37582 100644
+--- a/fs/xfs/linux-2.6/xfs_sync.c
++++ b/fs/xfs/linux-2.6/xfs_sync.c
+@@ -838,6 +838,7 @@ static struct rw_semaphore xfs_mount_list_lock;
+ 
+ static int
+ xfs_reclaim_inode_shrink(
++	struct shrinker	*shrink,
+ 	int		nr_to_scan,
+ 	gfp_t		gfp_mask)
+ {
+diff --git a/fs/xfs/quota/xfs_qm.c b/fs/xfs/quota/xfs_qm.c
+index 8c117ff..67c0183 100644
+--- a/fs/xfs/quota/xfs_qm.c
++++ b/fs/xfs/quota/xfs_qm.c
+@@ -69,7 +69,7 @@ STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
+ 
+ STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
+ STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
+-STATIC int	xfs_qm_shake(int, gfp_t);
++STATIC int	xfs_qm_shake(struct shrinker *, int, gfp_t);
+ 
+ static struct shrinker xfs_qm_shaker = {
+ 	.shrink = xfs_qm_shake,
+@@ -2117,7 +2117,10 @@ xfs_qm_shake_freelist(
+  */
+ /* ARGSUSED */
+ STATIC int
+-xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
++xfs_qm_shake(
++	struct shrinker	*shrink,
++	int		nr_to_scan,
++	gfp_t		gfp_mask)
+ {
+ 	int	ndqused, nfree, n;
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b969efb..a2b4804 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -999,7 +999,7 @@ static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+  * querying the cache size, so a fastpath for that case is appropriate.
+  */
+ struct shrinker {
+-	int (*shrink)(int nr_to_scan, gfp_t gfp_mask);
++	int (*shrink)(struct shrinker *, int nr_to_scan, gfp_t gfp_mask);
+ 	int seeks;	/* seeks to recreate an obj */
+ 
+ 	/* These are for internal use */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..199fa43 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -213,8 +213,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		unsigned long long delta;
+ 		unsigned long total_scan;
+-		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
++		unsigned long max_pass;
+ 
++		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
+ 		delta = (4 * scanned) / shrinker->seeks;
+ 		delta *= max_pass;
+ 		do_div(delta, lru_pages + 1);
+@@ -242,8 +243,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+ 			int shrink_ret;
+ 			int nr_before;
+ 
+-			nr_before = (*shrinker->shrink)(0, gfp_mask);
+-			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
++			nr_before = (*shrinker->shrink)(shrinker, 0, gfp_mask);
++			shrink_ret = (*shrinker->shrink)(shrinker, this_scan,
++								gfp_mask);
+ 			if (shrink_ret == -1)
+ 				break;
+ 			if (shrink_ret < nr_before)
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
