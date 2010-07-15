@@ -1,134 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A6B3600922
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 14:41:58 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6FIWLAU032201
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:32:21 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6FIfjbl076934
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:41:45 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6FIfjY9030489
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 12:41:45 -0600
-Message-ID: <4C3F5668.2060407@austin.ibm.com>
-Date: Thu, 15 Jul 2010 13:41:44 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: [PATCH 5/5] v2 Enable multiple sections per directory for ppc
-References: <4C3F53D1.3090001@austin.ibm.com>
-In-Reply-To: <4C3F53D1.3090001@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7C96B02A6
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 15:16:30 -0400 (EDT)
+Date: Thu, 15 Jul 2010 12:15:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of
+ lru_pages,  not page order
+Message-Id: <20100715121551.bd5ccc61.akpm@linux-foundation.org>
+In-Reply-To: <20100713144008.EA52.A69D9226@jp.fujitsu.com>
+References: <20100708163934.CD37.A69D9226@jp.fujitsu.com>
+	<AANLkTinwZfaQiTJhP8RcGhlSS-ynEXtbpzorrIZrNyIH@mail.gmail.com>
+	<20100713144008.EA52.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-Update the powerpc/pseries code to initialize
-the memory sysfs directory block size to be the
-same size as a LMB.
+On Tue, 13 Jul 2010 14:41:28 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Signed-off-by; Nathan Fontenot <nfont@austin.ibm.ocm>
----
- arch/powerpc/platforms/pseries/hotplug-memory.c |   66 +++++++++++++++++++-----
- 1 file changed, 53 insertions(+), 13 deletions(-)
+> Now, shrink_slab() has following scanning equation.
+> 
+>                             lru_scanned        max_pass
+>   basic_scan_objects = 4 x -------------  x -----------------------------
+>                             lru_pages        shrinker->seeks (default:2)
+> 
+>   scan_objects = min(basic_scan_objects, max_pass * 2)
+> 
+> Then, If we pass very small value as lru_pages instead real number of
+> lru pages, shrink_slab() drop much objects rather than necessary. and
+> now, __zone_reclaim() pass 'order' as lru_pages by mistake. that makes
+> bad result.
+> 
+> Example, If we receive very low memory pressure (scan = 32, order = 0),
+> shrink_slab() via zone_reclaim() always drop _all_ icache/dcache
+> objects. (see above equation, very small lru_pages make very big
+> scan_objects result)
+> 
+> This patch fixes it.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Acked-by: Christoph Lameter <cl@linux-foundation.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/vmscan.c |    4 +++-
+>  1 files changed, 3 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 6ff51c0..1bf9f72 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2612,6 +2612,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  
+>  	nr_slab_pages0 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+>  	if (nr_slab_pages0 > zone->min_slab_pages) {
+> +		unsigned long lru_pages = zone_reclaimable_pages(zone);
+> +
+>  		/*
+>  		 * shrink_slab() does not currently allow us to determine how
+>  		 * many pages were freed in this zone. So we take the current
+> @@ -2622,7 +2624,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  		 * Note that shrink_slab will free memory on all zones and may
+>  		 * take a long time.
+>  		 */
+> -		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+> +		while (shrink_slab(sc.nr_scanned, gfp_mask, lru_pages) &&
+>  		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
+>  			nr_slab_pages0))
+>  			;
 
-Index: linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c
-===================================================================
---- linux-2.6.orig/arch/powerpc/platforms/pseries/hotplug-memory.c	2010-07-15 09:54:06.000000000 -0500
-+++ linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c	2010-07-15 09:56:19.000000000 -0500
-@@ -17,6 +17,54 @@
- #include <asm/pSeries_reconfig.h>
- #include <asm/sparsemem.h>
- 
-+static u32 get_memblock_size(void)
-+{
-+	struct device_node *np;
-+	unsigned int memblock_size = 0;
-+
-+	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-+	if (np) {
-+		const unsigned int *size;
-+
-+		size = of_get_property(np, "ibm,lmb-size", NULL);
-+		memblock_size = size ? *size : 0;
-+
-+		of_node_put(np);
-+	} else {
-+		unsigned int memzero_size = 0;
-+		const unsigned int *regs;
-+
-+		np = of_find_node_by_path("/memory@0");
-+		if (np) {
-+			regs = of_get_property(np, "reg", NULL);
-+			memzero_size = regs ? regs[3] : 0;
-+			of_node_put(np);
-+		}
-+
-+		if (memzero_size) {
-+			/* We now know the size of memory@0, use this to find
-+			 * the first memoryblock and get its size.
-+			 */
-+			char buf[64];
-+
-+			sprintf(buf, "/memory@%x", memzero_size);
-+			np = of_find_node_by_path(buf);
-+			if (np) {
-+				regs = of_get_property(np, "reg", NULL);
-+				memblock_size = regs ? regs[3] : 0;
-+				of_node_put(np);
-+			}
-+		}
-+	}
-+
-+	return memblock_size;
-+}
-+
-+u32 memory_block_size(void)
-+{
-+	return get_memblock_size();
-+}
-+
- static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
- {
- 	unsigned long start, start_pfn;
-@@ -127,30 +175,22 @@
- 
- static int pseries_drconf_memory(unsigned long *base, unsigned int action)
- {
--	struct device_node *np;
--	const unsigned long *memblock_size;
-+	unsigned long memblock_size;
- 	int rc;
- 
--	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
--	if (!np)
-+	memblock_size = get_memblock_size();
-+	if (!memblock_size)
- 		return -EINVAL;
- 
--	memblock_size = of_get_property(np, "ibm,memblock-size", NULL);
--	if (!memblock_size) {
--		of_node_put(np);
--		return -EINVAL;
--	}
--
- 	if (action == PSERIES_DRCONF_MEM_ADD) {
--		rc = memblock_add(*base, *memblock_size);
-+		rc = memblock_add(*base, memblock_size);
- 		rc = (rc < 0) ? -EINVAL : 0;
- 	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
--		rc = pseries_remove_memblock(*base, *memblock_size);
-+		rc = pseries_remove_memblock(*base, memblock_size);
- 	} else {
- 		rc = -EINVAL;
- 	}
- 
--	of_node_put(np);
- 	return rc;
- }
- 
+Wouldn't it be better to recalculate zone_reclaimable_pages() each time
+around the loop?  For example, shrink_icache_memory()->prune_icache()
+will remove pagecache from an inode if it hits the tail of the list. 
+This can change the number of reclaimable pages by squigabytes, but
+this code thinks nothing changed?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
