@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 49C0F6B02A3
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 14:09:52 -0400 (EDT)
-Date: Thu, 15 Jul 2010 14:09:46 -0400
+	by kanga.kvack.org (Postfix) with ESMTP id 20E8C6B02A3
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 14:10:28 -0400 (EDT)
+Date: Thu, 15 Jul 2010 14:10:25 -0400
 From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/3] mm: add context argument to shrinker callback
-Message-ID: <20100715180946.GA14554@infradead.org>
+Subject: Re: [PATCH 2/3] xfs: convert inode shrinker to per-filesystem
+ contexts
+Message-ID: <20100715181025.GB14554@infradead.org>
 References: <1279194418-16119-1-git-send-email-david@fromorbit.com>
- <1279194418-16119-2-git-send-email-david@fromorbit.com>
+ <1279194418-16119-3-git-send-email-david@fromorbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1279194418-16119-2-git-send-email-david@fromorbit.com>
+In-Reply-To: <1279194418-16119-3-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 To: Dave Chinner <david@fromorbit.com>
 Cc: xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 15, 2010 at 09:46:56PM +1000, Dave Chinner wrote:
+On Thu, Jul 15, 2010 at 09:46:57PM +1000, Dave Chinner wrote:
 > From: Dave Chinner <dchinner@redhat.com>
 > 
-> The current shrinker implementation requires the registered callback
-> to have global state to work from. This makes it difficult to shrink
-> caches that are not global (e.g. per-filesystem caches). Pass the shrinker
-> structure to the callback so that users can embed the shrinker structure
-> in the context the shrinker needs to operate on and get back to it in the
-> callback via container_of().
+> Now the shrinker passes us a context, wire up a shrinker context per
+> filesystem. This allows us to remove the global mount list and the
+> locking problems that introduced. It also means that a shrinker call
+> does not need to traverse clean filesystems before finding a
+> filesystem with reclaimable inodes.  This significantly reduces
+> scanning overhead when lots of filesystems are present.
 > 
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  fs/xfs/linux-2.6/xfs_super.c |    2 -
+>  fs/xfs/linux-2.6/xfs_sync.c  |   62 +++++++++--------------------------------
+>  fs/xfs/linux-2.6/xfs_sync.h  |    2 -
+>  fs/xfs/xfs_mount.h           |    2 +-
+>  4 files changed, 15 insertions(+), 53 deletions(-)
 
-Looks good,
+And makes the code a lot simpler and more obvious.
 
 
 Reviewed-by: Christoph Hellwig <hch@lst.de>
