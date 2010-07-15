@@ -1,84 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D7C96B02A6
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 15:16:30 -0400 (EDT)
-Date: Thu, 15 Jul 2010 12:15:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] vmscan: shrink_slab() require number of
- lru_pages,  not page order
-Message-Id: <20100715121551.bd5ccc61.akpm@linux-foundation.org>
-In-Reply-To: <20100713144008.EA52.A69D9226@jp.fujitsu.com>
-References: <20100708163934.CD37.A69D9226@jp.fujitsu.com>
-	<AANLkTinwZfaQiTJhP8RcGhlSS-ynEXtbpzorrIZrNyIH@mail.gmail.com>
-	<20100713144008.EA52.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3F4FF6B02A3
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 16:20:40 -0400 (EDT)
+Date: Thu, 15 Jul 2010 15:17:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
+In-Reply-To: <alpine.DEB.2.00.1007141518030.17291@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1007151515230.21299@router.home>
+References: <20100709190706.938177313@quilx.com> <alpine.DEB.2.00.1007141518030.17291@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 13 Jul 2010 14:41:28 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Wed, 14 Jul 2010, David Rientjes wrote:
 
-> Now, shrink_slab() has following scanning equation.
-> 
->                             lru_scanned        max_pass
->   basic_scan_objects = 4 x -------------  x -----------------------------
->                             lru_pages        shrinker->seeks (default:2)
-> 
->   scan_objects = min(basic_scan_objects, max_pass * 2)
-> 
-> Then, If we pass very small value as lru_pages instead real number of
-> lru pages, shrink_slab() drop much objects rather than necessary. and
-> now, __zone_reclaim() pass 'order' as lru_pages by mistake. that makes
-> bad result.
-> 
-> Example, If we receive very low memory pressure (scan = 32, order = 0),
-> shrink_slab() via zone_reclaim() always drop _all_ icache/dcache
-> objects. (see above equation, very small lru_pages make very big
-> scan_objects result)
-> 
-> This patch fixes it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Acked-by: Christoph Lameter <cl@linux-foundation.org>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> ---
->  mm/vmscan.c |    4 +++-
->  1 files changed, 3 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6ff51c0..1bf9f72 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2612,6 +2612,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  
->  	nr_slab_pages0 = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
->  	if (nr_slab_pages0 > zone->min_slab_pages) {
-> +		unsigned long lru_pages = zone_reclaimable_pages(zone);
-> +
->  		/*
->  		 * shrink_slab() does not currently allow us to determine how
->  		 * many pages were freed in this zone. So we take the current
-> @@ -2622,7 +2624,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  		 * Note that shrink_slab will free memory on all zones and may
->  		 * take a long time.
->  		 */
-> -		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-> +		while (shrink_slab(sc.nr_scanned, gfp_mask, lru_pages) &&
->  		       (zone_page_state(zone, NR_SLAB_RECLAIMABLE) + nr_pages >
->  			nr_slab_pages0))
->  			;
+> There are a couple differences between how you're using it compared to how
+> I showed the initial regression between slab and slub, however: you're
+> using localhost for your netserver which isn't representative of a real
+> networking round-robin workload and you're using a smaller system with
+> eight cores.  We never measured a _significant_ performance problem with
+> slub compared to slab with four or eight cores, the problem only emerges
+> on larger systems.
 
-Wouldn't it be better to recalculate zone_reclaimable_pages() each time
-around the loop?  For example, shrink_icache_memory()->prune_icache()
-will remove pagecache from an inode if it hits the tail of the list. 
-This can change the number of reclaimable pages by squigabytes, but
-this code thinks nothing changed?
+Larger systems would more NUMA support than is present in the current
+patches.
 
+> When running this patchset on two (client and server running
+> netperf-2.4.5) four 2.2GHz quad-core AMD processors with 64GB of memory,
+> here's the results:
+
+What is their NUMA topology? I dont have anything beyond two nodes here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
