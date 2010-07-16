@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2694A6B02A6
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:39 -0400 (EDT)
-Received: by pxi7 with SMTP id 7so1087669pxi.14
-        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:37 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 874816B02A7
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:50 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so927427pvc.14
+        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:47 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 1/8] Allow sharing xvmalloc for zram and zcache
-Date: Fri, 16 Jul 2010 18:07:43 +0530
-Message-Id: <1279283870-18549-2-git-send-email-ngupta@vflare.org>
+Subject: [PATCH 3/8] Create sysfs nodes and export basic statistics
+Date: Fri, 16 Jul 2010 18:07:45 +0530
+Message-Id: <1279283870-18549-4-git-send-email-ngupta@vflare.org>
 In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,115 +15,240 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co
 Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Both zram and zcache use xvmalloc allocator. If xvmalloc
-is compiled separately for both of them, we will get linker
-error if they are both selected as "built-in".
+Creates per-pool sysfs nodes: /sys/kernel/vm/zcache/pool<id>/
+(<id> = 0, 1, 2, ...) to export following statistics:
+ - orig_data_size: Uncompressed worth of data stored in the pool.
+ - memlimit: Memory limit of the pool. This also allows changing
+   it at runtime (default: 10% of RAM).
 
-So, we now compile xvmalloc separately and export its symbols
-which are then used by both of zram and zcache.
+If memlimit is set to a value smaller than the current number
+of page stored, then excess pages are not freed immediately but
+further puts are blocked till sufficient number of pages are
+flushed/freed.
 
 Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 ---
- drivers/staging/Makefile        |    1 +
- drivers/staging/zram/Kconfig    |    5 +++++
- drivers/staging/zram/Makefile   |    3 ++-
- drivers/staging/zram/xvmalloc.c |    8 ++++++++
- 4 files changed, 16 insertions(+), 1 deletions(-)
+ drivers/staging/zram/zcache_drv.c |  132 ++++++++++++++++++++++++++++++++++++-
+ drivers/staging/zram/zcache_drv.h |    8 ++
+ 2 files changed, 137 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index 63baeee..6de8564 100644
---- a/drivers/staging/Makefile
-+++ b/drivers/staging/Makefile
-@@ -40,6 +40,7 @@ obj-$(CONFIG_MRST_RAR_HANDLER)	+= memrar/
- obj-$(CONFIG_DX_SEP)		+= sep/
- obj-$(CONFIG_IIO)		+= iio/
- obj-$(CONFIG_ZRAM)		+= zram/
-+obj-$(CONFIG_XVMALLOC)		+= zram/
- obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
- obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
- obj-$(CONFIG_BATMAN_ADV)	+= batman-adv/
-diff --git a/drivers/staging/zram/Kconfig b/drivers/staging/zram/Kconfig
-index 4654ae2..9bf26ce 100644
---- a/drivers/staging/zram/Kconfig
-+++ b/drivers/staging/zram/Kconfig
-@@ -1,6 +1,11 @@
-+config XVMALLOC
-+	bool
-+	default n
+diff --git a/drivers/staging/zram/zcache_drv.c b/drivers/staging/zram/zcache_drv.c
+index 160c172..f680f19 100644
+--- a/drivers/staging/zram/zcache_drv.c
++++ b/drivers/staging/zram/zcache_drv.c
+@@ -440,6 +440,85 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
+ 	} while (count == FREE_BATCH);
+ }
+ 
++#ifdef CONFIG_SYSFS
 +
- config ZRAM
- 	tristate "Compressed RAM block device support"
- 	depends on BLOCK
-+	select XVMALLOC
- 	select LZO_COMPRESS
- 	select LZO_DECOMPRESS
- 	default n
-diff --git a/drivers/staging/zram/Makefile b/drivers/staging/zram/Makefile
-index b2c087a..9900f8b 100644
---- a/drivers/staging/zram/Makefile
-+++ b/drivers/staging/zram/Makefile
-@@ -1,3 +1,4 @@
--zram-objs	:=	zram_drv.o xvmalloc.o
-+zram-objs	:=	zram_drv.o
- 
- obj-$(CONFIG_ZRAM)	+=	zram.o
-+obj-$(CONFIG_XVMALLOC)	+=	xvmalloc.o
-diff --git a/drivers/staging/zram/xvmalloc.c b/drivers/staging/zram/xvmalloc.c
-index 3fdbb8a..3f94ef5 100644
---- a/drivers/staging/zram/xvmalloc.c
-+++ b/drivers/staging/zram/xvmalloc.c
-@@ -10,6 +10,8 @@
-  * Released under the terms of GNU General Public License Version 2.0
++#define ZCACHE_POOL_ATTR_RO(_name) \
++	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
++
++#define ZCACHE_POOL_ATTR(_name) \
++	static struct kobj_attribute _name##_attr = \
++		__ATTR(_name, 0644, _name##_show, _name##_store)
++
++static struct zcache_pool *zcache_kobj_to_pool(struct kobject *kobj)
++{
++	int i;
++
++	spin_lock(&zcache->pool_lock);
++	for (i = 0; i < MAX_ZCACHE_POOLS; i++)
++		if (zcache->pools[i]->kobj == kobj)
++			break;
++	spin_unlock(&zcache->pool_lock);
++
++	return zcache->pools[i];
++}
++
++static ssize_t orig_data_size_show(struct kobject *kobj,
++			       struct kobj_attribute *attr, char *buf)
++{
++	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
++
++	return sprintf(buf, "%llu\n", zcache_get_stat(
++			zpool, ZPOOL_STAT_PAGES_STORED) << PAGE_SHIFT);
++}
++ZCACHE_POOL_ATTR_RO(orig_data_size);
++
++static void memlimit_sysfs_common(struct kobject *kobj, u64 *value, int store)
++{
++	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
++
++	if (store)
++		zcache_set_memlimit(zpool, *value);
++	else
++		*value = zcache_get_memlimit(zpool);
++}
++
++static ssize_t memlimit_store(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t len)
++{
++	int ret;
++	u64 memlimit;
++
++	ret = strict_strtoull(buf, 10, &memlimit);
++	if (ret)
++		return ret;
++
++	memlimit &= PAGE_MASK;
++	memlimit_sysfs_common(kobj, &memlimit, 1);
++
++	return len;
++}
++
++static ssize_t memlimit_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	u64 memlimit;
++
++	memlimit_sysfs_common(kobj, &memlimit, 0);
++	return sprintf(buf, "%llu\n", memlimit);
++}
++ZCACHE_POOL_ATTR(memlimit);
++
++static struct attribute *zcache_pool_attrs[] = {
++	&orig_data_size_attr.attr,
++	&memlimit_attr.attr,
++	NULL,
++};
++
++static struct attribute_group zcache_pool_attr_group = {
++	.attrs = zcache_pool_attrs,
++};
++#endif	/* CONFIG_SYSFS */
++
+ /*
+  * cleancache_ops.init_fs
+  *
+@@ -451,7 +530,8 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
   */
- 
-+#include <linux/module.h>
-+#include <linux/kernel.h>
- #include <linux/bitops.h>
- #include <linux/errno.h>
- #include <linux/highmem.h>
-@@ -320,11 +322,13 @@ struct xv_pool *xv_create_pool(void)
- 
- 	return pool;
- }
-+EXPORT_SYMBOL_GPL(xv_create_pool);
- 
- void xv_destroy_pool(struct xv_pool *pool)
+ static int zcache_init_fs(size_t pagesize)
  {
- 	kfree(pool);
- }
-+EXPORT_SYMBOL_GPL(xv_destroy_pool);
+-	int ret;
++	int ret, pool_id;
++	struct zcache_pool *zpool = NULL;
  
- /**
-  * xv_malloc - Allocate block of given size from pool.
-@@ -413,6 +417,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
+ 	/*
+ 	 * pagesize parameter probably makes sense only for Xen's
+@@ -469,14 +549,38 @@ static int zcache_init_fs(size_t pagesize)
+ 		goto out;
+ 	}
  
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(xv_malloc);
+-	ret = zcache_create_pool();
+-	if (ret < 0) {
++	pool_id = zcache_create_pool();
++	if (pool_id < 0) {
+ 		pr_info("Failed to create new pool\n");
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
++	zpool = zcache->pools[pool_id];
++
++#ifdef CONFIG_SYSFS
++	snprintf(zpool->name, MAX_ZPOOL_NAME_LEN, "pool%d", pool_id);
++
++	/* Create /sys/kernel/mm/zcache/pool<id> (<id> = 0, 1, ...) */
++	zpool->kobj = kobject_create_and_add(zpool->name, zcache->kobj);
++	if (!zpool->kobj) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	/* Create various nodes under /sys/.../pool<id>/ */
++	ret = sysfs_create_group(zpool->kobj, &zcache_pool_attr_group);
++	if (ret) {
++		kobject_put(zpool->kobj);
++		goto out;
++	}
++#endif
++
++	ret = pool_id;	/* success */
  
- /*
-  * Free block identified with <page, offset>
-@@ -489,6 +494,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
- 	put_ptr_atomic(page_start, KM_USER0);
- 	spin_unlock(&pool->lock);
+ out:
++	if (ret < 0)	/* failure */
++		zcache_destroy_pool(zpool);
++
+ 	return ret;
  }
-+EXPORT_SYMBOL_GPL(xv_free);
  
- u32 xv_get_object_size(void *obj)
- {
-@@ -497,6 +503,7 @@ u32 xv_get_object_size(void *obj)
- 	blk = (struct block_header *)((char *)(obj) - XV_ALIGN);
- 	return blk->size;
- }
-+EXPORT_SYMBOL_GPL(xv_get_object_size);
+@@ -580,6 +684,13 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
+ 	 */
+ 	zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_STORED);
  
- /*
-  * Returns total memory used by allocator (userdata + metadata)
-@@ -505,3 +512,4 @@ u64 xv_get_total_size_bytes(struct xv_pool *pool)
- {
- 	return pool->total_pages << PAGE_SHIFT;
- }
-+EXPORT_SYMBOL_GPL(xv_get_total_size_bytes);
++	/*
++	 * memlimit can be changed any time by user using sysfs. If
++	 * it is set to a value smaller than current number of pages
++	 * stored, then excess pages are not freed immediately but
++	 * further puts are blocked till sufficient number of pages
++	 * are flushed/freed.
++	 */
+ 	if (zcache_get_stat(zpool, ZPOOL_STAT_PAGES_STORED) >
+ 			zcache_get_memlimit(zpool) >> PAGE_SHIFT) {
+ 		zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
+@@ -690,6 +801,12 @@ static void zcache_flush_fs(int pool_id)
+ 	struct zcache_inode_rb *znode;
+ 	struct zcache_pool *zpool = zcache->pools[pool_id];
+ 
++#ifdef CONFIG_SYSFS
++	/* Remove per-pool sysfs entries */
++	sysfs_remove_group(zpool->kobj, &zcache_pool_attr_group);
++	kobject_put(zpool->kobj);
++#endif
++
+ 	/*
+ 	 * At this point, there is no active I/O on this filesystem.
+ 	 * So we can free all its pages without holding any locks.
+@@ -722,6 +839,15 @@ static int __init zcache_init(void)
+ 	if (!zcache)
+ 		return -ENOMEM;
+ 
++#ifdef CONFIG_SYSFS
++	/* Create /sys/kernel/mm/zcache/ */
++	zcache->kobj = kobject_create_and_add("zcache", mm_kobj);
++	if (!zcache->kobj) {
++		kfree(zcache);
++		return -ENOMEM;
++	}
++#endif
++
+ 	spin_lock_init(&zcache->pool_lock);
+ 	cleancache_ops = ops;
+ 
+diff --git a/drivers/staging/zram/zcache_drv.h b/drivers/staging/zram/zcache_drv.h
+index bfba5d7..808cfb2 100644
+--- a/drivers/staging/zram/zcache_drv.h
++++ b/drivers/staging/zram/zcache_drv.h
+@@ -19,6 +19,7 @@
+ #include <linux/types.h>
+ 
+ #define MAX_ZCACHE_POOLS	32	/* arbitrary */
++#define MAX_ZPOOL_NAME_LEN	8	/* "pool"+id (shown in sysfs) */
+ 
+ enum zcache_pool_stats_index {
+ 	ZPOOL_STAT_PAGES_STORED,
+@@ -51,6 +52,10 @@ struct zcache_pool {
+ 	seqlock_t memlimit_lock;	/* protects memlimit */
+ 	u64 memlimit;			/* bytes */
+ 	struct zcache_pool_stats_cpu *stats;	/* percpu stats */
++#ifdef CONFIG_SYSFS
++	unsigned char name[MAX_ZPOOL_NAME_LEN];
++	struct kobject *kobj;		/* sysfs */
++#endif
+ };
+ 
+ /* Manage all zcache pools */
+@@ -58,6 +63,9 @@ struct zcache {
+ 	struct zcache_pool *pools[MAX_ZCACHE_POOLS];
+ 	u32 num_pools;		/* current no. of zcache pools */
+ 	spinlock_t pool_lock;	/* protects pools[] and num_pools */
++#ifdef CONFIG_SYSFS
++	struct kobject *kobj;	/* sysfs */
++#endif
+ };
+ 
+ #endif
 -- 
 1.7.1.1
 
