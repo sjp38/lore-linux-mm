@@ -1,131 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 983506B02AA
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 07:18:15 -0400 (EDT)
-Date: Fri, 16 Jul 2010 12:17:54 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CD396B02AA
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 07:21:28 -0400 (EDT)
+Date: Fri, 16 Jul 2010 12:21:09 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 5/7] memcg, vmscan: add memcg reclaim tracepoint
-Message-ID: <20100716111754.GI13117@csn.ul.ie>
-References: <20100716191006.7369.A69D9226@jp.fujitsu.com> <20100716191608.7378.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 7/7] memcg: add mm_vmscan_memcg_isolate tracepoint
+Message-ID: <20100716112109.GJ13117@csn.ul.ie>
+References: <20100716191006.7369.A69D9226@jp.fujitsu.com> <20100716191739.737E.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100716191608.7378.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100716191739.737E.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 16, 2010 at 07:16:46PM +0900, KOSAKI Motohiro wrote:
+On Fri, Jul 16, 2010 at 07:18:18PM +0900, KOSAKI Motohiro wrote:
 > 
-> Memcg also need to trace reclaim progress as direct reclaim. This patch
-> add it.
+> Memcg also need to trace page isolation information as global reclaim.
+> This patch does it.
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-
 > ---
->  include/trace/events/vmscan.h |   28 ++++++++++++++++++++++++++++
->  mm/vmscan.c                   |   19 ++++++++++++++++++-
->  2 files changed, 46 insertions(+), 1 deletions(-)
+>  include/trace/events/vmscan.h |   15 +++++++++++++++
+>  mm/memcontrol.c               |    7 +++++++
+>  2 files changed, 22 insertions(+), 0 deletions(-)
 > 
 > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index bd749c1..cc19cb0 100644
+> index e37fe72..eefd399 100644
 > --- a/include/trace/events/vmscan.h
 > +++ b/include/trace/events/vmscan.h
-> @@ -99,6 +99,19 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_b
->  	TP_ARGS(order, may_writepage, gfp_flags)
+> @@ -213,6 +213,21 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
+>  
 >  );
 >  
-> +DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
+> +DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
 > +
-> +	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags),
+> +	TP_PROTO(int order,
+> +		unsigned long nr_requested,
+
+I just spotted that this is badly named by myself. It should have been
+order.
+
+> +		unsigned long nr_scanned,
+> +		unsigned long nr_taken,
+> +		unsigned long nr_lumpy_taken,
+> +		unsigned long nr_lumpy_dirty,
+> +		unsigned long nr_lumpy_failed,
+> +		int isolate_mode),
 > +
-> +	TP_ARGS(order, may_writepage, gfp_flags)
+> +	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode)
+> +
 > +);
 > +
-> +DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
-> +
-> +	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags),
-> +
-> +	TP_ARGS(order, may_writepage, gfp_flags)
-> +);
+>  TRACE_EVENT(mm_vmscan_writepage,
 >  
->  DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_end_template,
+>  	TP_PROTO(struct page *page,
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 81bc9bf..82e191f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -52,6 +52,9 @@
 >  
-> @@ -124,6 +137,21 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_direct_reclaim_end
->  	TP_ARGS(nr_reclaimed)
->  );
+>  #include <asm/uaccess.h>
 >  
-> +DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
-> +
-> +	TP_PROTO(unsigned long nr_reclaimed),
-> +
-> +	TP_ARGS(nr_reclaimed)
-> +);
-> +
-> +DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
-> +
-> +	TP_PROTO(unsigned long nr_reclaimed),
-> +
-> +	TP_ARGS(nr_reclaimed)
-> +);
+> +#include <trace/events/vmscan.h>
 > +
 > +
->  TRACE_EVENT(mm_vmscan_lru_isolate,
+
+Excessive whitespace there.
+
+Otherwise, I didn't spot any problems.
+
+>  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+>  #define MEM_CGROUP_RECLAIM_RETRIES	5
+>  struct mem_cgroup *root_mem_cgroup __read_mostly;
+> @@ -1042,6 +1045,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  	}
 >  
->  	TP_PROTO(int order,
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 89b4287..21eb94f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1943,6 +1943,10 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
->  
-> +	trace_mm_vmscan_memcg_softlimit_reclaim_begin(0,
-> +						      sc.may_writepage,
-> +						      sc.gfp_mask);
+>  	*scanned = scan;
 > +
->  	/*
->  	 * NOTE: Although we can get the priority field, using it
->  	 * here is not a good idea, since it limits the pages we can scan.
-> @@ -1951,6 +1955,9 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  	 * the priority and make it zero.
->  	 */
->  	shrink_zone(0, zone, &sc);
+> +	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
+> +				      0, 0, 0, mode);
 > +
-> +	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
-> +
->  	return sc.nr_reclaimed;
+>  	return nr_taken;
 >  }
->  
-> @@ -1960,6 +1967,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->  					   unsigned int swappiness)
->  {
->  	struct zonelist *zonelist;
-> +	unsigned long nr_reclaimed;
->  	struct scan_control sc = {
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
-> @@ -1974,7 +1982,16 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
->  	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
-> -	return do_try_to_free_pages(zonelist, &sc);
-> +
-> +	trace_mm_vmscan_memcg_reclaim_begin(0,
-> +					    sc.may_writepage,
-> +					    sc.gfp_mask);
-> +
-> +	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
-> +
-> +	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
-> +
-> +	return nr_reclaimed;
->  }
->  #endif
 >  
 > -- 
 > 1.6.5.2
