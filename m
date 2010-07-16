@@ -1,144 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7E7706B02A4
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 06:16:53 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A6BE46B02A5
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 06:17:41 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6GAGpOK014329
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6GAHcs5007992
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 16 Jul 2010 19:16:51 +0900
+	Fri, 16 Jul 2010 19:17:38 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D623B45DE55
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:16:50 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0057145DE57
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:17:38 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AE52945DE4F
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:16:50 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D1D5845DE4F
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:17:37 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FEA31DB803F
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:16:50 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4044C1DB803A
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:16:47 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B4F001DB803C
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:17:37 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7174B1DB803F
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:17:37 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 5/7] memcg, vmscan: add memcg reclaim tracepoint
+Subject: [PATCH 6/7] vmscan: convert mm_vmscan_lru_isolate to DEFINE_EVENT
 In-Reply-To: <20100716191006.7369.A69D9226@jp.fujitsu.com>
 References: <20100716191006.7369.A69D9226@jp.fujitsu.com>
-Message-Id: <20100716191608.7378.A69D9226@jp.fujitsu.com>
+Message-Id: <20100716191649.737B.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 16 Jul 2010 19:16:46 +0900 (JST)
+Date: Fri, 16 Jul 2010 19:17:36 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
 
-Memcg also need to trace reclaim progress as direct reclaim. This patch
-add it.
+TRACE_EVENT() is a bit old fashion and we need to use
+DECLARE_EVENT_CLASS for introducing memcg isolate pages
+tracepoint.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- include/trace/events/vmscan.h |   28 ++++++++++++++++++++++++++++
- mm/vmscan.c                   |   19 ++++++++++++++++++-
- 2 files changed, 46 insertions(+), 1 deletions(-)
+ include/trace/events/vmscan.h |   17 ++++++++++++++++-
+ 1 files changed, 16 insertions(+), 1 deletions(-)
 
 diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index bd749c1..cc19cb0 100644
+index cc19cb0..e37fe72 100644
 --- a/include/trace/events/vmscan.h
 +++ b/include/trace/events/vmscan.h
-@@ -99,6 +99,19 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_b
- 	TP_ARGS(order, may_writepage, gfp_flags)
+@@ -152,7 +152,7 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
  );
  
-+DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
-+
-+	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags),
-+
-+	TP_ARGS(order, may_writepage, gfp_flags)
-+);
-+
-+DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
-+
-+	TP_PROTO(int order, int may_writepage, gfp_t gfp_flags),
-+
-+	TP_ARGS(order, may_writepage, gfp_flags)
-+);
  
- DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_end_template,
- 
-@@ -124,6 +137,21 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_direct_reclaim_end
- 	TP_ARGS(nr_reclaimed)
- );
- 
-+DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_reclaim_end,
-+
-+	TP_PROTO(unsigned long nr_reclaimed),
-+
-+	TP_ARGS(nr_reclaimed)
-+);
-+
-+DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_reclaim_end,
-+
-+	TP_PROTO(unsigned long nr_reclaimed),
-+
-+	TP_ARGS(nr_reclaimed)
-+);
-+
-+
- TRACE_EVENT(mm_vmscan_lru_isolate,
+-TRACE_EVENT(mm_vmscan_lru_isolate,
++DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
  
  	TP_PROTO(int order,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 89b4287..21eb94f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1943,6 +1943,10 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+ 		unsigned long nr_requested,
+@@ -198,6 +198,21 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
+ 		__entry->nr_lumpy_failed)
+ );
  
-+	trace_mm_vmscan_memcg_softlimit_reclaim_begin(0,
-+						      sc.may_writepage,
-+						      sc.gfp_mask);
++DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
 +
- 	/*
- 	 * NOTE: Although we can get the priority field, using it
- 	 * here is not a good idea, since it limits the pages we can scan.
-@@ -1951,6 +1955,9 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 	 * the priority and make it zero.
- 	 */
- 	shrink_zone(0, zone, &sc);
++	TP_PROTO(int order,
++		unsigned long nr_requested,
++		unsigned long nr_scanned,
++		unsigned long nr_taken,
++		unsigned long nr_lumpy_taken,
++		unsigned long nr_lumpy_dirty,
++		unsigned long nr_lumpy_failed,
++		int isolate_mode),
 +
-+	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
++	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode)
 +
- 	return sc.nr_reclaimed;
- }
++);
++
+ TRACE_EVENT(mm_vmscan_writepage,
  
-@@ -1960,6 +1967,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 					   unsigned int swappiness)
- {
- 	struct zonelist *zonelist;
-+	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
-@@ -1974,7 +1982,16 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
- 	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
--	return do_try_to_free_pages(zonelist, &sc);
-+
-+	trace_mm_vmscan_memcg_reclaim_begin(0,
-+					    sc.may_writepage,
-+					    sc.gfp_mask);
-+
-+	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
-+
-+	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
-+
-+	return nr_reclaimed;
- }
- #endif
- 
+ 	TP_PROTO(struct page *page,
 -- 
 1.6.5.2
 
