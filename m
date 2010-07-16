@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 874816B02A7
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:50 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so927427pvc.14
-        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:47 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id E9F276B02A8
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:54 -0400 (EDT)
+Received: by mail-pv0-f169.google.com with SMTP id 30so927427pvc.14
+        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:53 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 3/8] Create sysfs nodes and export basic statistics
-Date: Fri, 16 Jul 2010 18:07:45 +0530
-Message-Id: <1279283870-18549-4-git-send-email-ngupta@vflare.org>
+Subject: [PATCH 4/8] Shrink zcache based on memlimit
+Date: Fri, 16 Jul 2010 18:07:46 +0530
+Message-Id: <1279283870-18549-5-git-send-email-ngupta@vflare.org>
 In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,240 +15,200 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co
 Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Creates per-pool sysfs nodes: /sys/kernel/vm/zcache/pool<id>/
-(<id> = 0, 1, 2, ...) to export following statistics:
- - orig_data_size: Uncompressed worth of data stored in the pool.
- - memlimit: Memory limit of the pool. This also allows changing
-   it at runtime (default: 10% of RAM).
+User can change (per-pool) memlimit using sysfs node:
+/sys/kernel/mm/zcache/pool<id>/memlimit
 
-If memlimit is set to a value smaller than the current number
-of page stored, then excess pages are not freed immediately but
-further puts are blocked till sufficient number of pages are
-flushed/freed.
+When memlimit is set to a value smaller than current
+number of pages allocated for that pool, excess pages
+are now freed immediately instead of waiting for get/
+flush for these pages.
+
+Currently, victim page selection is essentially random.
+Automatic cache resizing and better page replacement
+policies will be implemented later.
 
 Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 ---
- drivers/staging/zram/zcache_drv.c |  132 ++++++++++++++++++++++++++++++++++++-
- drivers/staging/zram/zcache_drv.h |    8 ++
- 2 files changed, 137 insertions(+), 3 deletions(-)
+ drivers/staging/zram/zcache_drv.c |  115 ++++++++++++++++++++++++++++++++++---
+ 1 files changed, 106 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/staging/zram/zcache_drv.c b/drivers/staging/zram/zcache_drv.c
-index 160c172..f680f19 100644
+index f680f19..c5de65d 100644
 --- a/drivers/staging/zram/zcache_drv.c
 +++ b/drivers/staging/zram/zcache_drv.c
-@@ -440,6 +440,85 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
- 	} while (count == FREE_BATCH);
- }
+@@ -41,6 +41,7 @@
+ #include <linux/kernel.h>
+ #include <linux/cleancache.h>
+ #include <linux/highmem.h>
++#include <linux/sched.h>
+ #include <linux/slab.h>
+ #include <linux/u64_stats_sync.h>
  
-+#ifdef CONFIG_SYSFS
-+
-+#define ZCACHE_POOL_ATTR_RO(_name) \
-+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
-+
-+#define ZCACHE_POOL_ATTR(_name) \
-+	static struct kobj_attribute _name##_attr = \
-+		__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+static struct zcache_pool *zcache_kobj_to_pool(struct kobject *kobj)
-+{
-+	int i;
-+
-+	spin_lock(&zcache->pool_lock);
-+	for (i = 0; i < MAX_ZCACHE_POOLS; i++)
-+		if (zcache->pools[i]->kobj == kobj)
-+			break;
-+	spin_unlock(&zcache->pool_lock);
-+
-+	return zcache->pools[i];
-+}
-+
-+static ssize_t orig_data_size_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
-+
-+	return sprintf(buf, "%llu\n", zcache_get_stat(
-+			zpool, ZPOOL_STAT_PAGES_STORED) << PAGE_SHIFT);
-+}
-+ZCACHE_POOL_ATTR_RO(orig_data_size);
-+
-+static void memlimit_sysfs_common(struct kobject *kobj, u64 *value, int store)
-+{
-+	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
-+
-+	if (store)
-+		zcache_set_memlimit(zpool, *value);
-+	else
-+		*value = zcache_get_memlimit(zpool);
-+}
-+
-+static ssize_t memlimit_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t len)
-+{
-+	int ret;
-+	u64 memlimit;
-+
-+	ret = strict_strtoull(buf, 10, &memlimit);
-+	if (ret)
-+		return ret;
-+
-+	memlimit &= PAGE_MASK;
-+	memlimit_sysfs_common(kobj, &memlimit, 1);
-+
-+	return len;
-+}
-+
-+static ssize_t memlimit_show(struct kobject *kobj,
-+			struct kobj_attribute *attr, char *buf)
-+{
-+	u64 memlimit;
-+
-+	memlimit_sysfs_common(kobj, &memlimit, 0);
-+	return sprintf(buf, "%llu\n", memlimit);
-+}
-+ZCACHE_POOL_ATTR(memlimit);
-+
-+static struct attribute *zcache_pool_attrs[] = {
-+	&orig_data_size_attr.attr,
-+	&memlimit_attr.attr,
-+	NULL,
-+};
-+
-+static struct attribute_group zcache_pool_attr_group = {
-+	.attrs = zcache_pool_attrs,
-+};
-+#endif	/* CONFIG_SYSFS */
-+
- /*
-  * cleancache_ops.init_fs
-  *
-@@ -451,7 +530,8 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
+@@ -416,7 +417,8 @@ out:
+  * Called under zcache_inode_rb->tree_lock
   */
- static int zcache_init_fs(size_t pagesize)
+ #define FREE_BATCH 16
+-static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
++static void zcache_free_inode_pages(struct zcache_inode_rb *znode,
++				u32 pages_to_free)
  {
--	int ret;
-+	int ret, pool_id;
-+	struct zcache_pool *zpool = NULL;
+ 	int count;
+ 	unsigned long index = 0;
+@@ -428,6 +430,8 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
  
- 	/*
- 	 * pagesize parameter probably makes sense only for Xen's
-@@ -469,14 +549,38 @@ static int zcache_init_fs(size_t pagesize)
- 		goto out;
- 	}
+ 		count = radix_tree_gang_lookup(&znode->page_tree,
+ 					(void **)pages, index, FREE_BATCH);
++		if (count > pages_to_free)
++			count = pages_to_free;
  
--	ret = zcache_create_pool();
--	if (ret < 0) {
-+	pool_id = zcache_create_pool();
-+	if (pool_id < 0) {
- 		pr_info("Failed to create new pool\n");
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+	zpool = zcache->pools[pool_id];
+ 		for (i = 0; i < count; i++) {
+ 			index = pages[i]->index;
+@@ -437,7 +441,98 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode)
+ 		}
+ 
+ 		index++;
+-	} while (count == FREE_BATCH);
++		pages_to_free -= count;
++	} while (pages_to_free && (count == FREE_BATCH));
++}
 +
-+#ifdef CONFIG_SYSFS
-+	snprintf(zpool->name, MAX_ZPOOL_NAME_LEN, "pool%d", pool_id);
++/*
++ * Returns number of pages stored in excess of currently
++ * set memlimit for the given pool.
++ */
++static u32 zcache_count_excess_pages(struct zcache_pool *zpool)
++{
++	u32 excess_pages, memlimit_pages, pages_stored;
 +
-+	/* Create /sys/kernel/mm/zcache/pool<id> (<id> = 0, 1, ...) */
-+	zpool->kobj = kobject_create_and_add(zpool->name, zcache->kobj);
-+	if (!zpool->kobj) {
-+		ret = -ENOMEM;
-+		goto out;
++	memlimit_pages = zcache_get_memlimit(zpool) >> PAGE_SHIFT;
++	pages_stored = zcache_get_stat(zpool, ZPOOL_STAT_PAGES_STORED);
++	excess_pages = pages_stored > memlimit_pages ?
++			pages_stored - memlimit_pages : 0;
++
++	return excess_pages;
++}
++
++/*
++ * Free pages from this pool till we come within its memlimit.
++ *
++ * Currently, its called only when user sets memlimit lower than the
++ * number of pages currently stored in that pool. We select nodes in
++ * order of increasing inode number. This, in general, has no correlation
++ * with the order in which these are added. So, it is essentially random
++ * selection of nodes. Pages within a victim node node are freed in order
++ * of increasing index number.
++ *
++ * Automatic cache resizing and better page replacement policies will
++ * be implemented later.
++ */
++static void zcache_shrink_pool(struct zcache_pool *zpool)
++{
++	struct rb_node *node;
++	struct zcache_inode_rb *znode;
++
++	read_lock(&zpool->tree_lock);
++	node = rb_first(&zpool->inode_tree);
++	if (unlikely(!node)) {
++		read_unlock(&zpool->tree_lock);
++		return;
 +	}
++	znode = rb_entry(node, struct zcache_inode_rb, rb_node);
++	kref_get(&znode->refcount);
++	read_unlock(&zpool->tree_lock);
 +
-+	/* Create various nodes under /sys/.../pool<id>/ */
-+	ret = sysfs_create_group(zpool->kobj, &zcache_pool_attr_group);
-+	if (ret) {
-+		kobject_put(zpool->kobj);
-+		goto out;
-+	}
-+#endif
++	do {
++		u32 pages_to_free;
++		struct rb_node *next_node;
++		struct zcache_inode_rb *next_znode;
 +
-+	ret = pool_id;	/* success */
- 
- out:
-+	if (ret < 0)	/* failure */
-+		zcache_destroy_pool(zpool);
++		pages_to_free = zcache_count_excess_pages(zpool);
++		if (!pages_to_free) {
++			spin_lock(&znode->tree_lock);
++			if (zcache_inode_is_empty(znode))
++				zcache_inode_isolate(znode);
++			spin_unlock(&znode->tree_lock);
 +
- 	return ret;
++			kref_put(&znode->refcount, zcache_inode_release);
++			break;
++		}
++
++		/*
++		 * Get the next victim node before we (possibly) isolate
++		 * the current node.
++		 */
++		read_lock(&zpool->tree_lock);
++		next_node = rb_next(node);
++		next_znode = NULL;
++		if (next_node) {
++			next_znode = rb_entry(next_node,
++				struct zcache_inode_rb, rb_node);
++			kref_get(&next_znode->refcount);
++		}
++		read_unlock(&zpool->tree_lock);
++
++		spin_lock(&znode->tree_lock);
++		zcache_free_inode_pages(znode, pages_to_free);
++		if (zcache_inode_is_empty(znode))
++			zcache_inode_isolate(znode);
++		spin_unlock(&znode->tree_lock);
++
++		kref_put(&znode->refcount, zcache_inode_release);
++
++		/* Avoid busy-looping */
++		cond_resched();
++
++		node = next_node;
++		znode = next_znode;
++	} while (znode);
  }
  
-@@ -580,6 +684,13 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
- 	 */
- 	zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_STORED);
+ #ifdef CONFIG_SYSFS
+@@ -476,10 +571,13 @@ static void memlimit_sysfs_common(struct kobject *kobj, u64 *value, int store)
+ {
+ 	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
  
-+	/*
-+	 * memlimit can be changed any time by user using sysfs. If
-+	 * it is set to a value smaller than current number of pages
-+	 * stored, then excess pages are not freed immediately but
-+	 * further puts are blocked till sufficient number of pages
-+	 * are flushed/freed.
-+	 */
+-	if (store)
++	if (store) {
+ 		zcache_set_memlimit(zpool, *value);
+-	else
++		if (zcache_count_excess_pages(zpool))
++			zcache_shrink_pool(zpool);
++	} else {
+ 		*value = zcache_get_memlimit(zpool);
++	}
+ }
+ 
+ static ssize_t memlimit_store(struct kobject *kobj,
+@@ -687,9 +785,8 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
+ 	/*
+ 	 * memlimit can be changed any time by user using sysfs. If
+ 	 * it is set to a value smaller than current number of pages
+-	 * stored, then excess pages are not freed immediately but
+-	 * further puts are blocked till sufficient number of pages
+-	 * are flushed/freed.
++	 * stored, then excess pages are freed synchronously when this
++	 * sysfs event occurs.
+ 	 */
  	if (zcache_get_stat(zpool, ZPOOL_STAT_PAGES_STORED) >
  			zcache_get_memlimit(zpool) >> PAGE_SHIFT) {
- 		zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
-@@ -690,6 +801,12 @@ static void zcache_flush_fs(int pool_id)
- 	struct zcache_inode_rb *znode;
- 	struct zcache_pool *zpool = zcache->pools[pool_id];
+@@ -781,7 +878,7 @@ static void zcache_flush_inode(int pool_id, ino_t inode_no)
+ 		return;
  
-+#ifdef CONFIG_SYSFS
-+	/* Remove per-pool sysfs entries */
-+	sysfs_remove_group(zpool->kobj, &zcache_pool_attr_group);
-+	kobject_put(zpool->kobj);
-+#endif
-+
- 	/*
- 	 * At this point, there is no active I/O on this filesystem.
- 	 * So we can free all its pages without holding any locks.
-@@ -722,6 +839,15 @@ static int __init zcache_init(void)
- 	if (!zcache)
- 		return -ENOMEM;
- 
-+#ifdef CONFIG_SYSFS
-+	/* Create /sys/kernel/mm/zcache/ */
-+	zcache->kobj = kobject_create_and_add("zcache", mm_kobj);
-+	if (!zcache->kobj) {
-+		kfree(zcache);
-+		return -ENOMEM;
-+	}
-+#endif
-+
- 	spin_lock_init(&zcache->pool_lock);
- 	cleancache_ops = ops;
- 
-diff --git a/drivers/staging/zram/zcache_drv.h b/drivers/staging/zram/zcache_drv.h
-index bfba5d7..808cfb2 100644
---- a/drivers/staging/zram/zcache_drv.h
-+++ b/drivers/staging/zram/zcache_drv.h
-@@ -19,6 +19,7 @@
- #include <linux/types.h>
- 
- #define MAX_ZCACHE_POOLS	32	/* arbitrary */
-+#define MAX_ZPOOL_NAME_LEN	8	/* "pool"+id (shown in sysfs) */
- 
- enum zcache_pool_stats_index {
- 	ZPOOL_STAT_PAGES_STORED,
-@@ -51,6 +52,10 @@ struct zcache_pool {
- 	seqlock_t memlimit_lock;	/* protects memlimit */
- 	u64 memlimit;			/* bytes */
- 	struct zcache_pool_stats_cpu *stats;	/* percpu stats */
-+#ifdef CONFIG_SYSFS
-+	unsigned char name[MAX_ZPOOL_NAME_LEN];
-+	struct kobject *kobj;		/* sysfs */
-+#endif
- };
- 
- /* Manage all zcache pools */
-@@ -58,6 +63,9 @@ struct zcache {
- 	struct zcache_pool *pools[MAX_ZCACHE_POOLS];
- 	u32 num_pools;		/* current no. of zcache pools */
- 	spinlock_t pool_lock;	/* protects pools[] and num_pools */
-+#ifdef CONFIG_SYSFS
-+	struct kobject *kobj;	/* sysfs */
-+#endif
- };
- 
- #endif
+ 	spin_lock_irqsave(&znode->tree_lock, flags);
+-	zcache_free_inode_pages(znode);
++	zcache_free_inode_pages(znode, UINT_MAX);
+ 	if (zcache_inode_is_empty(znode))
+ 		zcache_inode_isolate(znode);
+ 	spin_unlock_irqrestore(&znode->tree_lock, flags);
+@@ -815,7 +912,7 @@ static void zcache_flush_fs(int pool_id)
+ 	while (node) {
+ 		znode = rb_entry(node, struct zcache_inode_rb, rb_node);
+ 		node = rb_next(node);
+-		zcache_free_inode_pages(znode);
++		zcache_free_inode_pages(znode, UINT_MAX);
+ 		rb_erase(&znode->rb_node, &zpool->inode_tree);
+ 		kfree(znode);
+ 	}
 -- 
 1.7.1.1
 
