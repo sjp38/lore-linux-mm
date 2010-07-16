@@ -1,97 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E0B346B02A3
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 01:46:30 -0400 (EDT)
-Received: by qyk12 with SMTP id 12so557604qyk.14
-        for <linux-mm@kvack.org>; Thu, 15 Jul 2010 22:46:29 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 658C96B02A3
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 04:00:25 -0400 (EDT)
+Date: Fri, 16 Jul 2010 08:58:56 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+	memory management
+Message-ID: <20100716075856.GC16124@n2100.arm.linux.org.uk>
+References: <4C3C0032.5020702@codeaurora.org> <20100713150311B.fujita.tomonori@lab.ntt.co.jp> <20100713121420.GB4263@codeaurora.org> <20100714104353B.fujita.tomonori@lab.ntt.co.jp> <20100714201149.GA14008@codeaurora.org> <20100714220536.GE18138@n2100.arm.linux.org.uk> <20100715012958.GB2239@codeaurora.org> <20100715085535.GC26212@n2100.arm.linux.org.uk> <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTil-sv82zjR7yJr_3nZ0QBO_8Jwj_FO0iFubwe2s@mail.gmail.com>
-References: <1278756333-6850-1-git-send-email-lliubbo@gmail.com>
-	<AANLkTikMcPcldBh_uVKxrH7rEIUju3Y_3X2jLi9jw2Vs@mail.gmail.com>
-	<1279058027.936.236.camel@calx>
-	<AANLkTil-sv82zjR7yJr_3nZ0QBO_8Jwj_FO0iFubwe2s@mail.gmail.com>
-Date: Fri, 16 Jul 2010 13:46:28 +0800
-Message-ID: <AANLkTikbGTlAPAj6lbuR5nIWyBAqnfBpy3IE_LywrPID@mail.gmail.com>
-Subject: Re: [PATCH] slob_free:free objects to their own list
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>
+To: Tim HRM <zt.tmzt@gmail.com>
+Cc: Zach Pfeffer <zpfeffer@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 14, 2010 at 5:07 PM, Pekka Enberg <penberg@cs.helsinki.fi> wrot=
-e:
-> On Wed, Jul 14, 2010 at 12:53 AM, Matt Mackall <mpm@selenic.com> wrote:
->> On Tue, 2010-07-13 at 20:52 +0300, Pekka Enberg wrote:
->>> Hi Bob,
->>>
->>> [ Please CC me on SLOB patches. You can use the 'scripts/get_maintainer=
-.pl'
->>> =C2=A0 script to figure out automatically who to CC on your patches. ]
->>>
->>> On Sat, Jul 10, 2010 at 1:05 PM, Bob Liu <lliubbo@gmail.com> wrote:
->>> > slob has alloced smaller objects from their own list in reduce
->>> > overall external fragmentation and increase repeatability,
->>> > free to their own list also.
->>> >
->>> > Signed-off-by: Bob Liu <lliubbo@gmail.com>
->>>
->>> The patch looks sane to me. Matt, does it look OK to you as well?
->>
->> Yep, this should be a marginal improvement.
->>
->> Acked-by: Matt Mackall <mpm@selenic.com>
->
-> Great! Bob, if you could provide the /proc/meminfo numbers for the
-> patch description, I'd be more than happy to merge this.
->
-Hi, Pekka
+On Thu, Jul 15, 2010 at 08:48:36PM -0400, Tim HRM wrote:
+> Interesting, since I seem to remember the MSM devices mostly conduct
+> IO through regions of normal RAM, largely accomplished through
+> ioremap() calls.
+> 
+> Without more public domain documentation of the MSM chips and AMSS
+> interfaces I wouldn't know how to avoid this, but I can imagine it
+> creates a bit of urgency for Qualcomm developers as they attempt to
+> upstream support for this most interesting SoC.
 
-Sorry for the wrong cc and later reply.
-This is  /proc/meminfo result in my test machine:
-without this patch:
-=3D=3D=3D
-MemTotal:        1030720 kB
-MemFree:          750012 kB
-Buffers:           15496 kB
-Cached:           160396 kB
-SwapCached:            0 kB
-Active:           105024 kB
-Inactive:         145604 kB
-Active(anon):      74816 kB
-Inactive(anon):     2180 kB
-Active(file):      30208 kB
-Inactive(file):   143424 kB
-Unevictable:          16 kB
-....
+As the patch has been out for RFC since early April on the linux-arm-kernel
+mailing list (Subject: [RFC] Prohibit ioremap() on kernel managed RAM),
+and no comments have come back from Qualcomm folk.
 
-with this patch:
-=3D=3D=3D
-MemTotal:        1030720 kB
-MemFree:          751908 kB
-Buffers:           15492 kB
-Cached:           160280 kB
-SwapCached:            0 kB
-Active:           102720 kB
-Inactive:         146140 kB
-Active(anon):      73168 kB
-Inactive(anon):     2180 kB
-Active(file):      29552 kB
-Inactive(file):   143960 kB
-Unevictable:          16 kB
-...
-
-The result show only very small improverment!
-And when i tested it on a embeded system with 64MB, I found this path
-is never called while kernel booting.
-
-Thanks for the kindly review.
-
---=20
-Regards,
---Bob
+The restriction on creation of multiple V:P mappings with differing
+attributes is also fairly hard to miss in the ARM architecture
+specification when reading the sections about caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
