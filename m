@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9FE916B02A9
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:38:00 -0400 (EDT)
-Received: by mail-px0-f169.google.com with SMTP id 7so1087669pxi.14
-        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 173BC6B02AB
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:38:06 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so769752pzk.14
+        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:38:04 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 5/8] Eliminate zero-filled pages
-Date: Fri, 16 Jul 2010 18:07:47 +0530
-Message-Id: <1279283870-18549-6-git-send-email-ngupta@vflare.org>
+Subject: [PATCH 6/8] Compress pages using LZO
+Date: Fri, 16 Jul 2010 18:07:48 +0530
+Message-Id: <1279283870-18549-7-git-send-email-ngupta@vflare.org>
 In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,413 +15,543 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co
 Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Checks if incoming page is completely filled with zeroes.
-For such pages, no additional memory is allocated except
-for an entry in corresponding radix tree. Number of zero
-pages found (per-pool) is exported through sysfs:
-/proc/sys/mm/zcache/pool<id>/zero_pages
+Pages are now compressed using LZO compression algorithm
+and a new statistic is exported through sysfs:
 
-When shrinking a pool -- for example, when memlimit is set
-to a value less than current number of pages stored --
-only non-zero-filled pages are freed to bring pool's memory
-usage within memlimit. Since no memory is allocated for zero
-filled pages, these are not accounted for pool's memory usage.
+/sys/kernel/mm/zcache/pool<id>/compr_data_size
 
-To quickly identify non-zero pages while shrinking a pool,
-radix tree tag (ZCACHE_TAG_PAGE_NONZERO) is used.
+This gives compressed size of pages stored. So, we can
+get compression ratio using this and the orig_data_size
+statistic which is already exported.
+
+We only keep pages which compress to less than or equal to
+PAGE_SIZE/2. However, we still allocate full pages to store
+compressed chunks.
+
+Another change is to enforce memlimit again compressed
+size instead of pages_stored (uncompressed size).
 
 Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 ---
- drivers/staging/zram/zcache_drv.c |  218 ++++++++++++++++++++++++++++++++----
- drivers/staging/zram/zcache_drv.h |   10 ++
- 2 files changed, 203 insertions(+), 25 deletions(-)
+ drivers/staging/zram/zcache_drv.c |  254 +++++++++++++++++++++++++-----------
+ drivers/staging/zram/zcache_drv.h |    7 +-
+ 2 files changed, 181 insertions(+), 80 deletions(-)
 
 diff --git a/drivers/staging/zram/zcache_drv.c b/drivers/staging/zram/zcache_drv.c
-index c5de65d..3ea45a6 100644
+index 3ea45a6..2a02606 100644
 --- a/drivers/staging/zram/zcache_drv.c
 +++ b/drivers/staging/zram/zcache_drv.c
-@@ -47,6 +47,16 @@
+@@ -40,13 +40,18 @@
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <linux/cleancache.h>
++#include <linux/cpu.h>
+ #include <linux/highmem.h>
++#include <linux/lzo.h>
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+ #include <linux/u64_stats_sync.h>
  
  #include "zcache_drv.h"
  
-+/*
-+ * For zero-filled pages, we directly insert 'index' value
-+ * in corresponding radix node. These defines make sure we
-+ * do not try to store NULL value in radix node (index can
-+ * be 0) and that we do not use the lowest bit (which radix
-+ * tree uses for its own purpose).
-+ */
-+#define ZCACHE_ZERO_PAGE_INDEX_SHIFT	2
-+#define ZCACHE_ZERO_PAGE_MARK_BIT	(1 << 1)
-+
- struct zcache *zcache;
- 
- /*
-@@ -101,6 +111,18 @@ static void zcache_dec_stat(struct zcache_pool *zpool,
- 	zcache_add_stat(zpool, idx, -1);
- }
- 
-+static void zcache_dec_pages(struct zcache_pool *zpool, int is_zero)
-+{
-+	enum zcache_pool_stats_index idx;
-+
-+	if (is_zero)
-+		idx = ZPOOL_STAT_PAGES_ZERO;
-+	else
-+		idx = ZPOOL_STAT_PAGES_STORED;
-+
-+	zcache_dec_stat(zpool, idx);
-+}
-+
- static u64 zcache_get_memlimit(struct zcache_pool *zpool)
- {
- 	u64 memlimit;
-@@ -373,20 +395,94 @@ static struct zcache_inode_rb *zcache_find_inode(struct zcache_pool *zpool,
- 	return NULL;
- }
- 
-+static void zcache_handle_zero_page(struct page *page)
-+{
-+	void *user_mem;
-+
-+	user_mem = kmap_atomic(page, KM_USER0);
-+	memset(user_mem, 0, PAGE_SIZE);
-+	kunmap_atomic(user_mem, KM_USER0);
-+
-+	flush_dcache_page(page);
-+}
-+
-+static int zcache_page_zero_filled(void *ptr)
-+{
-+	unsigned int pos;
-+	unsigned long *page;
-+
-+	page = (unsigned long *)ptr;
-+
-+	for (pos = 0; pos != PAGE_SIZE / sizeof(*page); pos++) {
-+		if (page[pos])
-+			return 0;
-+	}
-+
-+	return 1;
-+}
-+
-+
-+/*
-+ * Identifies if the given radix node pointer actually refers
-+ * to a zero-filled page.
-+ */
-+static int zcache_is_zero_page(void *ptr)
-+{
-+	return (unsigned long)(ptr) & ZCACHE_ZERO_PAGE_MARK_BIT;
-+}
-+
-+/*
-+ * Returns "pointer" value to be stored in radix node for
-+ * zero-filled page at the given index.
-+ */
-+static void *zcache_index_to_ptr(unsigned long index)
-+{
-+	return (void *)((index << ZCACHE_ZERO_PAGE_INDEX_SHIFT) |
-+				ZCACHE_ZERO_PAGE_MARK_BIT);
-+}
-+
-+/*
-+ * Returns index value encoded in the given radix node pointer.
-+ */
-+static unsigned long zcache_ptr_to_index(void *ptr)
-+{
-+	return (unsigned long)(ptr) >> ZCACHE_ZERO_PAGE_INDEX_SHIFT;
-+}
-+
-+void zcache_free_page(struct zcache_pool *zpool, struct page *page)
-+{
-+	int is_zero;
-+
-+	if (unlikely(!page))
-+		return;
-+
-+	is_zero = zcache_is_zero_page(page);
-+	if (!is_zero)
-+		__free_page(page);
-+
-+	zcache_dec_pages(zpool, is_zero);
-+}
++static DEFINE_PER_CPU(unsigned char *, compress_buffer);
++static DEFINE_PER_CPU(unsigned char *, compress_workmem);
 +
  /*
-  * Allocate memory for storing the given page and insert
-  * it in the given node's page tree at location 'index'.
-+ * Parameter 'is_zero' specifies if the page is zero-filled.
-  *
-  * Returns 0 on success, negative error code on failure.
+  * For zero-filled pages, we directly insert 'index' value
+  * in corresponding radix node. These defines make sure we
+@@ -96,7 +101,6 @@ static void zcache_add_stat(struct zcache_pool *zpool,
+ 	stats->count[idx] += val;
+ 	u64_stats_update_end(&stats->syncp);
+ 	preempt_enable();
+-
+ }
+ 
+ static void zcache_inc_stat(struct zcache_pool *zpool,
+@@ -442,11 +446,20 @@ static void *zcache_index_to_ptr(unsigned long index)
+ }
+ 
+ /*
+- * Returns index value encoded in the given radix node pointer.
++ * Radix node contains "pointer" value which encode <page, offset>
++ * pair, locating the compressed object. Header of the object then
++ * contains corresponding 'index' value.
   */
- static int zcache_store_page(struct zcache_inode_rb *znode,
--			pgoff_t index, struct page *page)
-+			pgoff_t index, struct page *page, int is_zero)
+-static unsigned long zcache_ptr_to_index(void *ptr)
++static unsigned long zcache_ptr_to_index(struct page *page)
+ {
+-	return (unsigned long)(ptr) >> ZCACHE_ZERO_PAGE_INDEX_SHIFT;
++	unsigned long index;
++
++	if (zcache_is_zero_page(page))
++		index = (unsigned long)(page) >> ZCACHE_ZERO_PAGE_INDEX_SHIFT;
++	else
++		index = page->index;
++
++	return index;
+ }
+ 
+ void zcache_free_page(struct zcache_pool *zpool, struct page *page)
+@@ -457,8 +470,12 @@ void zcache_free_page(struct zcache_pool *zpool, struct page *page)
+ 		return;
+ 
+ 	is_zero = zcache_is_zero_page(page);
+-	if (!is_zero)
++	if (!is_zero) {
++		int clen = page->private;
++
++		zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE, -clen);
+ 		__free_page(page);
++	}
+ 
+ 	zcache_dec_pages(zpool, is_zero);
+ }
+@@ -474,9 +491,12 @@ static int zcache_store_page(struct zcache_inode_rb *znode,
+ 			pgoff_t index, struct page *page, int is_zero)
  {
  	int ret;
++	size_t clen;
  	unsigned long flags;
  	struct page *zpage;
- 	void *src_data, *dest_data;
+-	void *src_data, *dest_data;
++	unsigned char *zbuffer, *zworkmem;
++	unsigned char *src_data, *dest_data;
++	struct zcache_pool *zpool = znode->pool;
  
-+	if (is_zero) {
-+		zpage = zcache_index_to_ptr(index);
-+		goto out_store;
-+	}
-+
- 	zpage = alloc_page(GFP_NOWAIT);
- 	if (!zpage) {
+ 	if (is_zero) {
+ 		zpage = zcache_index_to_ptr(index);
+@@ -488,13 +508,33 @@ static int zcache_store_page(struct zcache_inode_rb *znode,
  		ret = -ENOMEM;
-@@ -400,21 +496,32 @@ static int zcache_store_page(struct zcache_inode_rb *znode,
- 	kunmap_atomic(src_data, KM_USER0);
- 	kunmap_atomic(dest_data, KM_USER1);
- 
-+out_store:
- 	spin_lock_irqsave(&znode->tree_lock, flags);
- 	ret = radix_tree_insert(&znode->page_tree, index, zpage);
-+	if (unlikely(ret)) {
-+		spin_unlock_irqrestore(&znode->tree_lock, flags);
-+		if (!is_zero)
-+			__free_page(zpage);
+ 		goto out;
+ 	}
+-	zpage->index = index;
++
++	preempt_disable();
++	zbuffer = __get_cpu_var(compress_buffer);
++	zworkmem = __get_cpu_var(compress_workmem);
++	if (unlikely(!zbuffer || !zworkmem)) {
++		ret = -EFAULT;
++		preempt_enable();
 +		goto out;
 +	}
-+	if (!is_zero)
-+		radix_tree_tag_set(&znode->page_tree, index,
-+				ZCACHE_TAG_NONZERO_PAGE);
- 	spin_unlock_irqrestore(&znode->tree_lock, flags);
--	if (unlikely(ret))
--		__free_page(zpage);
  
+ 	src_data = kmap_atomic(page, KM_USER0);
+-	dest_data = kmap_atomic(zpage, KM_USER1);
+-	memcpy(dest_data, src_data, PAGE_SIZE);
++	ret = lzo1x_1_compress(src_data, PAGE_SIZE, zbuffer, &clen, zworkmem);
+ 	kunmap_atomic(src_data, KM_USER0);
+-	kunmap_atomic(dest_data, KM_USER1);
++
++	if (unlikely(ret != LZO_E_OK) || clen > zcache_max_page_size) {
++		ret = -EINVAL;
++		preempt_enable();
++		goto out;
++	}
++
++	dest_data = kmap_atomic(zpage, KM_USER0);
++	memcpy(dest_data, zbuffer, clen);
++	kunmap_atomic(dest_data, KM_USER0);
++	preempt_enable();
++
++	zpage->index = index;
++	zpage->private = clen;
+ 
+ out_store:
+ 	spin_lock_irqsave(&znode->tree_lock, flags);
+@@ -505,11 +545,19 @@ out_store:
+ 			__free_page(zpage);
+ 		goto out;
+ 	}
+-	if (!is_zero)
++	if (is_zero) {
++		zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_ZERO);
++	} else {
++		int delta = zcache_max_page_size - clen;
++		zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE, -delta);
++		zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_STORED);
+ 		radix_tree_tag_set(&znode->page_tree, index,
+ 				ZCACHE_TAG_NONZERO_PAGE);
++	}
+ 	spin_unlock_irqrestore(&znode->tree_lock, flags);
+ 
++	ret = 0; /* success */
++
  out:
  	return ret;
  }
- 
- /*
-- * Frees all pages associated with the given zcache node.
-- * Code adapted from brd.c
-+ * Free 'pages_to_free' number of pages associated with the
-+ * given zcache node. Actual number of pages freed might be
-+ * less than this since the node might not contain enough
-+ * pages.
-  *
-  * Called under zcache_inode_rb->tree_lock
-+ * (Code adapted from brd.c)
+@@ -525,42 +573,6 @@ out:
   */
  #define FREE_BATCH 16
  static void zcache_free_inode_pages(struct zcache_inode_rb *znode,
-@@ -434,10 +541,45 @@ static void zcache_free_inode_pages(struct zcache_inode_rb *znode,
+-				u32 pages_to_free)
+-{
+-	int count;
+-	unsigned long index = 0;
+-	struct zcache_pool *zpool = znode->pool;
+-
+-	do {
+-		int i;
+-		struct page *pages[FREE_BATCH];
+-
+-		count = radix_tree_gang_lookup(&znode->page_tree,
+-					(void **)pages, index, FREE_BATCH);
+-		if (count > pages_to_free)
+-			count = pages_to_free;
+-
+-		for (i = 0; i < count; i++) {
+-			if (zcache_is_zero_page(pages[i]))
+-				index = zcache_ptr_to_index(pages[i]);
+-			else
+-				index = pages[i]->index;
+-			radix_tree_delete(&znode->page_tree, index);
+-			zcache_free_page(zpool, pages[i]);
+-		}
+-
+-		index++;
+-		pages_to_free -= count;
+-	} while (pages_to_free && (count == FREE_BATCH));
+-}
+-
+-/*
+- * Same as the previous function except that we only look for
+- * pages with the given tag set.
+- *
+- * Called under zcache_inode_rb->tree_lock
+- */
+-static void zcache_free_inode_pages_tag(struct zcache_inode_rb *znode,
+ 				u32 pages_to_free, enum zcache_tag tag)
+ {
+ 	int count;
+@@ -569,17 +581,26 @@ static void zcache_free_inode_pages_tag(struct zcache_inode_rb *znode,
+ 
+ 	do {
+ 		int i;
+-		struct page *pages[FREE_BATCH];
++		void *objs[FREE_BATCH];
++
++		if (tag == ZCACHE_TAG_INVALID)
++			count = radix_tree_gang_lookup(&znode->page_tree,
++					objs, index, FREE_BATCH);
++		else
++			count = radix_tree_gang_lookup_tag(&znode->page_tree,
++					objs, index, FREE_BATCH, tag);
+ 
+-		count = radix_tree_gang_lookup_tag(&znode->page_tree,
+-				(void **)pages, index, FREE_BATCH, tag);
+ 		if (count > pages_to_free)
  			count = pages_to_free;
  
  		for (i = 0; i < count; i++) {
-+			if (zcache_is_zero_page(pages[i]))
-+				index = zcache_ptr_to_index(pages[i]);
-+			else
-+				index = pages[i]->index;
-+			radix_tree_delete(&znode->page_tree, index);
-+			zcache_free_page(zpool, pages[i]);
-+		}
+-			index = pages[i]->index;
+-			zcache_free_page(zpool, pages[i]);
+-			radix_tree_delete(&znode->page_tree, index);
++			void *obj;
++			unsigned long index;
 +
-+		index++;
-+		pages_to_free -= count;
-+	} while (pages_to_free && (count == FREE_BATCH));
-+}
-+
-+/*
-+ * Same as the previous function except that we only look for
-+ * pages with the given tag set.
-+ *
-+ * Called under zcache_inode_rb->tree_lock
-+ */
-+static void zcache_free_inode_pages_tag(struct zcache_inode_rb *znode,
-+				u32 pages_to_free, enum zcache_tag tag)
-+{
-+	int count;
-+	unsigned long index = 0;
-+	struct zcache_pool *zpool = znode->pool;
-+
-+	do {
-+		int i;
-+		struct page *pages[FREE_BATCH];
-+
-+		count = radix_tree_gang_lookup_tag(&znode->page_tree,
-+				(void **)pages, index, FREE_BATCH, tag);
-+		if (count > pages_to_free)
-+			count = pages_to_free;
-+
-+		for (i = 0; i < count; i++) {
- 			index = pages[i]->index;
-+			zcache_free_page(zpool, pages[i]);
- 			radix_tree_delete(&znode->page_tree, index);
--			__free_page(pages[i]);
--			zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
++			index = zcache_ptr_to_index(objs[i]);
++			obj = radix_tree_delete(&znode->page_tree, index);
++			BUG_ON(obj != objs[i]);
++			zcache_free_page(zpool, obj);
  		}
  
  		index++;
-@@ -520,7 +662,9 @@ static void zcache_shrink_pool(struct zcache_pool *zpool)
- 		read_unlock(&zpool->tree_lock);
+@@ -663,7 +684,7 @@ static void zcache_shrink_pool(struct zcache_pool *zpool)
  
  		spin_lock(&znode->tree_lock);
--		zcache_free_inode_pages(znode, pages_to_free);
-+		/* Free 'pages_to_free' non-zero pages in the current node */
-+		zcache_free_inode_pages_tag(znode, pages_to_free,
-+					ZCACHE_TAG_NONZERO_PAGE);
+ 		/* Free 'pages_to_free' non-zero pages in the current node */
+-		zcache_free_inode_pages_tag(znode, pages_to_free,
++		zcache_free_inode_pages(znode, pages_to_free,
+ 					ZCACHE_TAG_NONZERO_PAGE);
  		if (zcache_inode_is_empty(znode))
  			zcache_inode_isolate(znode);
- 		spin_unlock(&znode->tree_lock);
-@@ -557,6 +701,16 @@ static struct zcache_pool *zcache_kobj_to_pool(struct kobject *kobj)
- 	return zcache->pools[i];
+@@ -721,6 +742,16 @@ static ssize_t orig_data_size_show(struct kobject *kobj,
  }
+ ZCACHE_POOL_ATTR_RO(orig_data_size);
  
-+static ssize_t zero_pages_show(struct kobject *kobj,
-+				struct kobj_attribute *attr, char *buf)
++static ssize_t compr_data_size_show(struct kobject *kobj,
++			       struct kobj_attribute *attr, char *buf)
 +{
 +	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
 +
 +	return sprintf(buf, "%llu\n", zcache_get_stat(
-+			zpool, ZPOOL_STAT_PAGES_ZERO));
++			zpool, ZPOOL_STAT_COMPR_SIZE));
 +}
-+ZCACHE_POOL_ATTR_RO(zero_pages);
++ZCACHE_POOL_ATTR_RO(compr_data_size);
 +
- static ssize_t orig_data_size_show(struct kobject *kobj,
- 			       struct kobj_attribute *attr, char *buf)
+ static void memlimit_sysfs_common(struct kobject *kobj, u64 *value, int store)
  {
-@@ -607,6 +761,7 @@ static ssize_t memlimit_show(struct kobject *kobj,
- ZCACHE_POOL_ATTR(memlimit);
- 
+ 	struct zcache_pool *zpool = zcache_kobj_to_pool(kobj);
+@@ -763,6 +794,7 @@ ZCACHE_POOL_ATTR(memlimit);
  static struct attribute *zcache_pool_attrs[] = {
-+	&zero_pages_attr.attr,
+ 	&zero_pages_attr.attr,
  	&orig_data_size_attr.attr,
++	&compr_data_size_attr.attr,
  	&memlimit_attr.attr,
  	NULL,
-@@ -741,6 +896,11 @@ static int zcache_get_page(int pool_id, ino_t inode_no,
- 	if (!src_page)
- 		goto out;
- 
-+	if (zcache_is_zero_page(src_page)) {
-+		zcache_handle_zero_page(page);
-+		goto out_free;
-+	}
-+
- 	src_data = kmap_atomic(src_page, KM_USER0);
- 	dest_data = kmap_atomic(page, KM_USER1);
- 	memcpy(dest_data, src_data, PAGE_SIZE);
-@@ -749,9 +909,8 @@ static int zcache_get_page(int pool_id, ino_t inode_no,
- 
- 	flush_dcache_page(page);
- 
--	__free_page(src_page);
--
--	zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
-+out_free:
-+	zcache_free_page(zpool, src_page);
- 	ret = 0; /* success */
- 
- out:
-@@ -768,13 +927,27 @@ out:
- static void zcache_put_page(int pool_id, ino_t inode_no,
+ };
+@@ -867,21 +899,25 @@ static int zcache_init_shared_fs(char *uuid, size_t pagesize)
+  * If found, copies it to the given output page 'page' and frees
+  * zcache copy of the same.
+  *
+- * Returns 0 if requested page found, -1 otherwise.
++ * Returns 0 on success, negative error code on failure.
+  */
+ static int zcache_get_page(int pool_id, ino_t inode_no,
  			pgoff_t index, struct page *page)
  {
--	int ret;
-+	int ret, is_zero;
+ 	int ret = -1;
++	size_t clen;
  	unsigned long flags;
- 	struct page *zpage;
+ 	struct page *src_page;
+-	void *src_data, *dest_data;
++	unsigned char *src_data, *dest_data;
++
  	struct zcache_inode_rb *znode;
  	struct zcache_pool *zpool = zcache->pools[pool_id];
  
- 	/*
-+	 * Check if the page is zero-filled. We do not allocate any
-+	 * memory for such pages and hence they do not contribute
-+	 * towards pool's memory usage. So, we can keep accepting
-+	 * such pages even after we have reached memlimit.
-+	 */
-+	void *src_data = kmap_atomic(page, KM_USER0);
-+	is_zero = zcache_page_zero_filled(src_data);
-+	kunmap_atomic(src_data, KM_USER0);
-+	if (is_zero) {
-+		zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_ZERO);
-+		goto out_find_store;
+ 	znode = zcache_find_inode(zpool, inode_no);
+-	if (!znode)
++	if (!znode) {
++		ret = -EFAULT;
+ 		goto out;
 +	}
+ 
+ 	BUG_ON(znode->inode_no != inode_no);
+ 
+@@ -893,20 +929,30 @@ static int zcache_get_page(int pool_id, ino_t inode_no,
+ 
+ 	kref_put(&znode->refcount, zcache_inode_release);
+ 
+-	if (!src_page)
++	if (!src_page) {
++		ret = -EFAULT;
+ 		goto out;
++	}
+ 
+ 	if (zcache_is_zero_page(src_page)) {
+ 		zcache_handle_zero_page(page);
+ 		goto out_free;
+ 	}
+ 
++	clen = PAGE_SIZE;
+ 	src_data = kmap_atomic(src_page, KM_USER0);
+ 	dest_data = kmap_atomic(page, KM_USER1);
+-	memcpy(dest_data, src_data, PAGE_SIZE);
 +
-+	/*
- 	 * Incrementing local pages_stored before summing it from
++	ret = lzo1x_decompress_safe(src_data, src_page->private,
++				dest_data, &clen);
++
+ 	kunmap_atomic(src_data, KM_USER0);
+ 	kunmap_atomic(dest_data, KM_USER1);
+ 
++	/* Failure here means bug in LZO! */
++	if (unlikely(ret != LZO_E_OK))
++		goto out_free;
++
+ 	flush_dcache_page(page);
+ 
+ out_free:
+@@ -942,18 +988,16 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
+ 	void *src_data = kmap_atomic(page, KM_USER0);
+ 	is_zero = zcache_page_zero_filled(src_data);
+ 	kunmap_atomic(src_data, KM_USER0);
+-	if (is_zero) {
+-		zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_ZERO);
++	if (is_zero)
+ 		goto out_find_store;
+-	}
+ 
+ 	/*
+-	 * Incrementing local pages_stored before summing it from
++	 * Incrementing local compr_size before summing it from
  	 * all CPUs makes sure we do not end up storing pages in
  	 * excess of memlimit. In case of failure, we revert back
-@@ -794,11 +967,12 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
+ 	 * this local increment.
+ 	 */
+-	zcache_inc_stat(zpool, ZPOOL_STAT_PAGES_STORED);
++	zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE, zcache_max_page_size);
+ 
+ 	/*
+ 	 * memlimit can be changed any time by user using sysfs. If
+@@ -961,9 +1005,10 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
+ 	 * stored, then excess pages are freed synchronously when this
+ 	 * sysfs event occurs.
+ 	 */
+-	if (zcache_get_stat(zpool, ZPOOL_STAT_PAGES_STORED) >
+-			zcache_get_memlimit(zpool) >> PAGE_SHIFT) {
+-		zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
++	if (zcache_get_stat(zpool, ZPOOL_STAT_COMPR_SIZE) >
++			zcache_get_memlimit(zpool)) {
++		zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE,
++				-zcache_max_page_size);
  		return;
  	}
  
-+out_find_store:
- 	znode = zcache_find_inode(zpool, inode_no);
+@@ -972,7 +1017,8 @@ out_find_store:
  	if (!znode) {
  		znode = zcache_inode_create(pool_id, inode_no);
--		if (!znode) {
--			zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
-+		if (unlikely(!znode)) {
-+			zcache_dec_pages(zpool, is_zero);
+ 		if (unlikely(!znode)) {
+-			zcache_dec_pages(zpool, is_zero);
++			zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE,
++					-zcache_max_page_size);
  			return;
  		}
  	}
-@@ -807,14 +981,12 @@ static void zcache_put_page(int pool_id, ino_t inode_no,
- 	spin_lock_irqsave(&znode->tree_lock, flags);
- 	zpage = radix_tree_delete(&znode->page_tree, index);
- 	spin_unlock_irqrestore(&znode->tree_lock, flags);
--	if (zpage) {
--		__free_page(zpage);
--		zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
--	}
-+	if (zpage)
-+		zcache_free_page(zpool, zpage);
+@@ -985,9 +1031,9 @@ out_find_store:
+ 		zcache_free_page(zpool, zpage);
  
--	ret = zcache_store_page(znode, index, page);
-+	ret = zcache_store_page(znode, index, page, is_zero);
- 	if (ret) {	/* failure */
--		zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
-+		zcache_dec_pages(zpool, is_zero);
- 
+ 	ret = zcache_store_page(znode, index, page, is_zero);
+-	if (ret) {	/* failure */
+-		zcache_dec_pages(zpool, is_zero);
+-
++	if (unlikely(ret)) {
++		zcache_add_stat(zpool, ZPOOL_STAT_COMPR_SIZE,
++				-zcache_max_page_size);
  		/*
  		 * Its possible that racing zcache get/flush could not
-@@ -852,12 +1024,8 @@ static void zcache_flush_page(int pool_id, ino_t inode_no, pgoff_t index)
+ 		 * isolate this node since we held a reference to it.
+@@ -1046,7 +1092,7 @@ static void zcache_flush_inode(int pool_id, ino_t inode_no)
+ 		return;
+ 
+ 	spin_lock_irqsave(&znode->tree_lock, flags);
+-	zcache_free_inode_pages(znode, UINT_MAX);
++	zcache_free_inode_pages(znode, UINT_MAX, ZCACHE_TAG_INVALID);
+ 	if (zcache_inode_is_empty(znode))
+ 		zcache_inode_isolate(znode);
  	spin_unlock_irqrestore(&znode->tree_lock, flags);
- 
- 	kref_put(&znode->refcount, zcache_inode_release);
--	if (!page)
--		return;
--
--	__free_page(page);
- 
--	zcache_dec_stat(zpool, ZPOOL_STAT_PAGES_STORED);
-+	zcache_free_page(zpool, page);
+@@ -1080,7 +1126,7 @@ static void zcache_flush_fs(int pool_id)
+ 	while (node) {
+ 		znode = rb_entry(node, struct zcache_inode_rb, rb_node);
+ 		node = rb_next(node);
+-		zcache_free_inode_pages(znode, UINT_MAX);
++		zcache_free_inode_pages(znode, UINT_MAX, ZCACHE_TAG_INVALID);
+ 		rb_erase(&znode->rb_node, &zpool->inode_tree);
+ 		kfree(znode);
+ 	}
+@@ -1088,8 +1134,47 @@ static void zcache_flush_fs(int pool_id)
+ 	zcache_destroy_pool(zpool);
  }
  
- /*
++/*
++ * Callback for CPU hotplug events. Allocates percpu compression buffers.
++ */
++static int zcache_cpu_notify(struct notifier_block *nb, unsigned long action,
++			void *pcpu)
++{
++	int cpu = (long)pcpu;
++
++	switch (action) {
++	case CPU_UP_PREPARE:
++		per_cpu(compress_buffer, cpu) = (void *)__get_free_pages(
++					GFP_KERNEL | __GFP_ZERO, 1);
++		per_cpu(compress_workmem, cpu) = kzalloc(
++					LZO1X_MEM_COMPRESS, GFP_KERNEL);
++
++		break;
++	case CPU_DEAD:
++	case CPU_UP_CANCELED:
++		free_pages((unsigned long)(per_cpu(compress_buffer, cpu)), 1);
++		per_cpu(compress_buffer, cpu) = NULL;
++
++		kfree(per_cpu(compress_buffer, cpu));
++		per_cpu(compress_buffer, cpu) = NULL;
++
++		break;
++	default:
++		break;
++	}
++
++	return NOTIFY_OK;
++}
++
++static struct notifier_block zcache_cpu_nb = {
++	.notifier_call = zcache_cpu_notify
++};
++
+ static int __init zcache_init(void)
+ {
++	int ret = -ENOMEM;
++	unsigned int cpu;
++
+ 	struct cleancache_ops ops = {
+ 		.init_fs = zcache_init_fs,
+ 		.init_shared_fs = zcache_init_shared_fs,
+@@ -1102,20 +1187,33 @@ static int __init zcache_init(void)
+ 
+ 	zcache = kzalloc(sizeof(*zcache), GFP_KERNEL);
+ 	if (!zcache)
+-		return -ENOMEM;
++		goto out;
++
++	ret = register_cpu_notifier(&zcache_cpu_nb);
++	if (ret)
++		goto out;
++
++	for_each_online_cpu(cpu) {
++		void *pcpu = (void *)(long)cpu;
++		zcache_cpu_notify(&zcache_cpu_nb, CPU_UP_PREPARE, pcpu);
++	}
+ 
+ #ifdef CONFIG_SYSFS
+ 	/* Create /sys/kernel/mm/zcache/ */
+ 	zcache->kobj = kobject_create_and_add("zcache", mm_kobj);
+-	if (!zcache->kobj) {
+-		kfree(zcache);
+-		return -ENOMEM;
+-	}
++	if (!zcache->kobj)
++		goto out;
+ #endif
+ 
+ 	spin_lock_init(&zcache->pool_lock);
+ 	cleancache_ops = ops;
+ 
++	ret = 0; /* success */
++
++out:
++	if (ret)
++		kfree(zcache);
++
+ 	return 0;
+ }
+ 
 diff --git a/drivers/staging/zram/zcache_drv.h b/drivers/staging/zram/zcache_drv.h
-index 808cfb2..1e8c931 100644
+index 1e8c931..9ce97da 100644
 --- a/drivers/staging/zram/zcache_drv.h
 +++ b/drivers/staging/zram/zcache_drv.h
-@@ -22,13 +22,23 @@
- #define MAX_ZPOOL_NAME_LEN	8	/* "pool"+id (shown in sysfs) */
- 
+@@ -24,20 +24,22 @@
  enum zcache_pool_stats_index {
-+	ZPOOL_STAT_PAGES_ZERO,
+ 	ZPOOL_STAT_PAGES_ZERO,
  	ZPOOL_STAT_PAGES_STORED,
++	ZPOOL_STAT_COMPR_SIZE,
  	ZPOOL_STAT_NSTATS,
  };
  
-+/* Radix-tree tags */
-+enum zcache_tag {
-+	ZCACHE_TAG_NONZERO_PAGE,
-+	ZCACHE_TAG_UNUSED
-+};
-+
+ /* Radix-tree tags */
+ enum zcache_tag {
+ 	ZCACHE_TAG_NONZERO_PAGE,
+-	ZCACHE_TAG_UNUSED
++	ZCACHE_TAG_UNUSED,
++	ZCACHE_TAG_INVALID
+ };
+ 
  /* Default zcache per-pool memlimit: 10% of total RAM */
  static const unsigned zcache_pool_default_memlimit_perc_ram = 10;
  
-+ /* We only keep pages that compress to less than this size */
-+static const unsigned zcache_max_page_size = PAGE_SIZE / 2;
-+
+  /* We only keep pages that compress to less than this size */
+-static const unsigned zcache_max_page_size = PAGE_SIZE / 2;
++static const int zcache_max_page_size = PAGE_SIZE / 2;
+ 
  /* Red-Black tree node. Maps inode to its page-tree */
  struct zcache_inode_rb {
- 	struct radix_tree_root page_tree; /* maps inode index to page */
+@@ -61,6 +63,7 @@ struct zcache_pool {
+ 
+ 	seqlock_t memlimit_lock;	/* protects memlimit */
+ 	u64 memlimit;			/* bytes */
++
+ 	struct zcache_pool_stats_cpu *stats;	/* percpu stats */
+ #ifdef CONFIG_SYSFS
+ 	unsigned char name[MAX_ZPOOL_NAME_LEN];
 -- 
 1.7.1.1
 
