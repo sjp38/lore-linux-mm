@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EB959600921
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 06:26:16 -0400 (EDT)
-Date: Fri, 16 Jul 2010 11:25:58 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/7] memcg: sc.nr_to_reclaim should be initialized
-Message-ID: <20100716102557.GE13117@csn.ul.ie>
-References: <20100716191006.7369.A69D9226@jp.fujitsu.com> <20100716191256.736C.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100716191256.736C.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 15754600921
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 06:26:35 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6GAQXnR018361
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 16 Jul 2010 19:26:33 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B26F145DE55
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:26:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 883D345DE4E
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:26:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 268BA1DB803E
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:26:32 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 957841DB803A
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:26:31 +0900 (JST)
+Date: Fri, 16 Jul 2010 19:21:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 5/7] memcg, vmscan: add memcg reclaim tracepoint
+Message-Id: <20100716192150.c6fde6ae.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100716191608.7378.A69D9226@jp.fujitsu.com>
+References: <20100716191006.7369.A69D9226@jp.fujitsu.com>
+	<20100716191608.7378.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 16, 2010 at 07:13:31PM +0900, KOSAKI Motohiro wrote:
-> Currently, mem_cgroup_shrink_node_zone() initialize sc.nr_to_reclaim as 0.
-> It mean shrink_zone() only scan 32 pages and immediately return even if
-> it doesn't reclaim any pages.
+On Fri, 16 Jul 2010 19:16:46 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
 > 
-
-Do you mean it immediately returns once one page is reclaimed? i.e. this
-check
-
-               if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
-                        break;
-
-
-> This patch fixes it.
+> Memcg also need to trace reclaim progress as direct reclaim. This patch
+> add it.
 > 
-
-Otherwise it seems ok. It's unrelated to trace points though so should
-be submitted on its own.
-
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Acked-by: Mel Gorman <mel@csn.ul.ie>
+Thank you!!
 
-> ---
->  mm/vmscan.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1691ad0..bd1d035 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1932,6 +1932,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						struct zone *zone, int nid)
->  {
->  	struct scan_control sc = {
-> +		.nr_to_reclaim = SWAP_CLUSTER_MAX,
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
->  		.may_swap = !noswap,
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
