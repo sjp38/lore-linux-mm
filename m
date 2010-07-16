@@ -1,112 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C4B0C6B02A5
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:32 -0400 (EDT)
-Received: by pwi8 with SMTP id 8so924016pwi.14
-        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2694A6B02A6
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:39 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so1087669pxi.14
+        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:37 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 0/8] zcache: page cache compression support
-Date: Fri, 16 Jul 2010 18:07:42 +0530
-Message-Id: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
+Subject: [PATCH 1/8] Allow sharing xvmalloc for zram and zcache
+Date: Fri, 16 Jul 2010 18:07:43 +0530
+Message-Id: <1279283870-18549-2-git-send-email-ngupta@vflare.org>
+In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Frequently accessed filesystem data is stored in memory to reduce access to
-(much) slower backing disks. Under memory pressure, these pages are freed and
-when needed again, they have to be read from disks again. When combined working
-set of all running application exceeds amount of physical RAM, we get extereme
-slowdown as reading a page from disk can take time in order of milliseconds.
+Both zram and zcache use xvmalloc allocator. If xvmalloc
+is compiled separately for both of them, we will get linker
+error if they are both selected as "built-in".
 
-Memory compression increases effective memory size and allows more pages to
-stay in RAM. Since de/compressing memory pages is several orders of magnitude
-faster than disk I/O, this can provide signifant performance gains for many
-workloads. Also, with multi-cores becoming common, benefits of reduced disk I/O
-should easily outweigh the problem of increased CPU usage.
+So, we now compile xvmalloc separately and export its symbols
+which are then used by both of zram and zcache.
 
-It is implemented as a "backend" for cleancache_ops [1] which provides
-callbacks for events such as when a page is to be removed from the page cache
-and when it is required again. We use them to implement a 'second chance' cache
-for these evicted page cache pages by compressing and storing them in memory
-itself.
+Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+---
+ drivers/staging/Makefile        |    1 +
+ drivers/staging/zram/Kconfig    |    5 +++++
+ drivers/staging/zram/Makefile   |    3 ++-
+ drivers/staging/zram/xvmalloc.c |    8 ++++++++
+ 4 files changed, 16 insertions(+), 1 deletions(-)
 
-We only keep pages that compress to PAGE_SIZE/2 or less. Compressed chunks are
-stored using xvmalloc memory allocator which is already being used by zram
-driver for the same purpose. Zero-filled pages are checked and no memory is
-allocated for them.
-
-A separate "pool" is created for each mount instance for a cleancache-aware
-filesystem. Each incoming page is identified with <pool_id, inode_no, index>
-where inode_no identifies file within the filesystem corresponding to pool_id
-and index is offset of the page within this inode. Within a pool, inodes are
-maintained in an rb-tree and each of its nodes points to a separate radix-tree
-which maintains list of pages within that inode.
-
-While compression reduces disk I/O, it also reduces the space available for
-normal (uncompressed) page cache. This can result in more frequent page cache
-reclaim and thus higher CPU overhead. Thus, it's important to maintain good hit
-rate for compressed cache or increased CPU overhead can nullify any other
-benefits. This requires adaptive (compressed) cache resizing and page
-replacement policies that can maintain optimal cache size and quickly reclaim
-unused compressed chunks. This work is yet to be done. However, in the current
-state, it allows manually resizing cache size using (per-pool) sysfs node
-'memlimit' which in turn frees any excess pages *sigh* randomly.
-
-Finally, it uses percpu stats and compression buffers to allow better
-performance on multi-cores. Still, there are known bottlenecks like a single
-xvmalloc mempool per zcache pool and few others. I will work on this when I
-start with profiling.
-
- * Performance numbers:
-   - Tested using iozone filesystem benchmark
-   - 4 CPUs, 1G RAM
-   - Read performance gain: ~2.5X
-   - Random read performance gain: ~3X
-   - In general, performance gains for every kind of I/O
-
-Test details with graphs can be found here:
-http://code.google.com/p/compcache/wiki/zcacheIOzone
-
-If I can get some help with testing, it would be intersting to find its
-effect in more real-life workloads. In particular, I'm intersted in finding
-out its effect in KVM virtualization case where it can potentially allow
-running more number of VMs per-host for a given amount of RAM. With zcache
-enabled, VMs can be assigned much smaller amount of memory since host can now
-hold bulk of page-cache pages, allowing VMs to maintain similar level of
-performance while a greater number of them can be hosted.
-
- * How to test:
-All patches are against 2.6.35-rc5:
-
- - First, apply all prerequisite patches here:
-http://compcache.googlecode.com/hg/sub-projects/zcache_base_patches
-
- - Then apply this patch series; also uploaded here:
-http://compcache.googlecode.com/hg/sub-projects/zcache_patches
-
-
-Nitin Gupta (8):
-  Allow sharing xvmalloc for zram and zcache
-  Basic zcache functionality
-  Create sysfs nodes and export basic statistics
-  Shrink zcache based on memlimit
-  Eliminate zero-filled pages
-  Compress pages using LZO
-  Use xvmalloc to store compressed chunks
-  Document sysfs entries
-
- Documentation/ABI/testing/sysfs-kernel-mm-zcache |   53 +
- drivers/staging/Makefile                         |    2 +
- drivers/staging/zram/Kconfig                     |   22 +
- drivers/staging/zram/Makefile                    |    5 +-
- drivers/staging/zram/xvmalloc.c                  |    8 +
- drivers/staging/zram/zcache_drv.c                | 1312 ++++++++++++++++++++++
- drivers/staging/zram/zcache_drv.h                |   90 ++
- 7 files changed, 1491 insertions(+), 1 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-kernel-mm-zcache
- create mode 100644 drivers/staging/zram/zcache_drv.c
- create mode 100644 drivers/staging/zram/zcache_drv.h
+diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
+index 63baeee..6de8564 100644
+--- a/drivers/staging/Makefile
++++ b/drivers/staging/Makefile
+@@ -40,6 +40,7 @@ obj-$(CONFIG_MRST_RAR_HANDLER)	+= memrar/
+ obj-$(CONFIG_DX_SEP)		+= sep/
+ obj-$(CONFIG_IIO)		+= iio/
+ obj-$(CONFIG_ZRAM)		+= zram/
++obj-$(CONFIG_XVMALLOC)		+= zram/
+ obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
+ obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
+ obj-$(CONFIG_BATMAN_ADV)	+= batman-adv/
+diff --git a/drivers/staging/zram/Kconfig b/drivers/staging/zram/Kconfig
+index 4654ae2..9bf26ce 100644
+--- a/drivers/staging/zram/Kconfig
++++ b/drivers/staging/zram/Kconfig
+@@ -1,6 +1,11 @@
++config XVMALLOC
++	bool
++	default n
++
+ config ZRAM
+ 	tristate "Compressed RAM block device support"
+ 	depends on BLOCK
++	select XVMALLOC
+ 	select LZO_COMPRESS
+ 	select LZO_DECOMPRESS
+ 	default n
+diff --git a/drivers/staging/zram/Makefile b/drivers/staging/zram/Makefile
+index b2c087a..9900f8b 100644
+--- a/drivers/staging/zram/Makefile
++++ b/drivers/staging/zram/Makefile
+@@ -1,3 +1,4 @@
+-zram-objs	:=	zram_drv.o xvmalloc.o
++zram-objs	:=	zram_drv.o
+ 
+ obj-$(CONFIG_ZRAM)	+=	zram.o
++obj-$(CONFIG_XVMALLOC)	+=	xvmalloc.o
+diff --git a/drivers/staging/zram/xvmalloc.c b/drivers/staging/zram/xvmalloc.c
+index 3fdbb8a..3f94ef5 100644
+--- a/drivers/staging/zram/xvmalloc.c
++++ b/drivers/staging/zram/xvmalloc.c
+@@ -10,6 +10,8 @@
+  * Released under the terms of GNU General Public License Version 2.0
+  */
+ 
++#include <linux/module.h>
++#include <linux/kernel.h>
+ #include <linux/bitops.h>
+ #include <linux/errno.h>
+ #include <linux/highmem.h>
+@@ -320,11 +322,13 @@ struct xv_pool *xv_create_pool(void)
+ 
+ 	return pool;
+ }
++EXPORT_SYMBOL_GPL(xv_create_pool);
+ 
+ void xv_destroy_pool(struct xv_pool *pool)
+ {
+ 	kfree(pool);
+ }
++EXPORT_SYMBOL_GPL(xv_destroy_pool);
+ 
+ /**
+  * xv_malloc - Allocate block of given size from pool.
+@@ -413,6 +417,7 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
+ 
+ 	return 0;
+ }
++EXPORT_SYMBOL_GPL(xv_malloc);
+ 
+ /*
+  * Free block identified with <page, offset>
+@@ -489,6 +494,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
+ 	put_ptr_atomic(page_start, KM_USER0);
+ 	spin_unlock(&pool->lock);
+ }
++EXPORT_SYMBOL_GPL(xv_free);
+ 
+ u32 xv_get_object_size(void *obj)
+ {
+@@ -497,6 +503,7 @@ u32 xv_get_object_size(void *obj)
+ 	blk = (struct block_header *)((char *)(obj) - XV_ALIGN);
+ 	return blk->size;
+ }
++EXPORT_SYMBOL_GPL(xv_get_object_size);
+ 
+ /*
+  * Returns total memory used by allocator (userdata + metadata)
+@@ -505,3 +512,4 @@ u64 xv_get_total_size_bytes(struct xv_pool *pool)
+ {
+ 	return pool->total_pages << PAGE_SHIFT;
+ }
++EXPORT_SYMBOL_GPL(xv_get_total_size_bytes);
+-- 
+1.7.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
