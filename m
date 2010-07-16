@@ -1,30 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 193D66B02A4
-	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 20:13:42 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6G0Dcdr025292
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 443096B02A6
+	for <linux-mm@kvack.org>; Thu, 15 Jul 2010 20:17:21 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6G0HIKk005426
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 16 Jul 2010 09:13:39 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D243845DE50
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:13:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A969445DE4E
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:13:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B23E1DB8038
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:13:38 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BD5C1DB8041
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:13:38 +0900 (JST)
-Date: Fri, 16 Jul 2010 09:08:57 +0900
+	Fri, 16 Jul 2010 09:17:18 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5627C45DE53
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:17:18 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 34EA645DE51
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:17:18 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CB791DB8043
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:17:18 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CA3121DB8038
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 09:17:17 +0900 (JST)
+Date: Fri, 16 Jul 2010 09:12:39 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/5] v2 Create new 'end_phys_index' file
-Message-Id: <20100716090857.5e5c91a3.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4C3F55BC.4020600@austin.ibm.com>
+Subject: Re: [PATCH 4/5] v2 Update sysfs node routines for new sysfs memory
+ directories
+Message-Id: <20100716091239.69f40e47.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4C3F5628.6030809@austin.ibm.com>
 References: <4C3F53D1.3090001@austin.ibm.com>
-	<4C3F55BC.4020600@austin.ibm.com>
+	<4C3F5628.6030809@austin.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -33,89 +34,59 @@ To: Nathan Fontenot <nfont@austin.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Jul 2010 13:38:52 -0500
+On Thu, 15 Jul 2010 13:40:40 -0500
 Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-> Add a new 'end_phys_index' file to each memory sysfs directory to
-> report the physical index of the last memory section
-> covered by the sysfs directory.
+> Update the node sysfs directory routines that create
+> links to the memory sysfs directories under each node.
+> This update makes the node code aware that a memory sysfs
+> directory can cover multiple memory sections.
 > 
 > Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
-Does memory_block have to be contiguous between [phys_index, end_phys_index] ?
-Should we provide "# of sections" or "amount of memory under a block" ?
-
-No objections to end_phys_index...buf plz fix diff style.
+Shouldn't "static int link_mem_sections(int nid)" be update ?
+It does
+ for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+        register..
 
 Thanks,
 -Kame
 
 
 > ---
->  drivers/base/memory.c  |   14 +++++++++++++-
->  include/linux/memory.h |    3 +++
->  2 files changed, 16 insertions(+), 1 deletion(-)
+>  drivers/base/node.c |   12 ++++++++----
+>  1 file changed, 8 insertions(+), 4 deletions(-)
 > 
-> Index: linux-2.6/drivers/base/memory.c
+> Index: linux-2.6/drivers/base/node.c
 > ===================================================================
-> --- linux-2.6.orig/drivers/base/memory.c	2010-07-15 09:55:54.000000000 -0500
-> +++ linux-2.6/drivers/base/memory.c	2010-07-15 09:56:05.000000000 -0500
-> @@ -121,7 +121,15 @@
->  {
->  	struct memory_block *mem =
->  		container_of(dev, struct memory_block, sysdev);
-> -	return sprintf(buf, "%08lx\n", mem->phys_index);
-> +	return sprintf(buf, "%08lx\n", mem->start_phys_index);
-> +}
+> --- linux-2.6.orig/drivers/base/node.c	2010-07-15 09:54:06.000000000 -0500
+> +++ linux-2.6/drivers/base/node.c	2010-07-15 09:56:16.000000000 -0500
+> @@ -346,8 +346,10 @@
+>  		return -EFAULT;
+>  	if (!node_online(nid))
+>  		return 0;
+> -	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+> -	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
 > +
-> +static ssize_t show_mem_end_phys_index(struct sys_device *dev,
-> +			struct sysdev_attribute *attr, char *buf)
-> +{
-> +	struct memory_block *mem =
-> +		container_of(dev, struct memory_block, sysdev);
-> +	return sprintf(buf, "%08lx\n", mem->end_phys_index);
->  }
+> +	sect_start_pfn = section_nr_to_pfn(mem_blk->start_phys_index);
+> +	sect_end_pfn = section_nr_to_pfn(mem_blk->end_phys_index);
+> +	sect_end_pfn += PAGES_PER_SECTION - 1;
+>  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+>  		int page_nid;
 >  
->  /*
-> @@ -321,6 +329,7 @@
->  }
->  
->  static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
-> +static SYSDEV_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
->  static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
->  static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
->  static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
-> @@ -533,6 +542,8 @@
->  		if (!ret)
->  			ret = mem_create_simple_file(mem, phys_index);
->  		if (!ret)
-> +			ret = mem_create_simple_file(mem, end_phys_index);
-> +		if (!ret)
->  			ret = mem_create_simple_file(mem, state);
->  		if (!ret)
->  			ret = mem_create_simple_file(mem, phys_device);
-> @@ -577,6 +588,7 @@
->  	if (list_empty(&mem->sections)) {
->  		unregister_mem_sect_under_nodes(mem);
->  		mem_remove_simple_file(mem, phys_index);
-> +		mem_remove_simple_file(mem, end_phys_index);
->  		mem_remove_simple_file(mem, state);
->  		mem_remove_simple_file(mem, phys_device);
->  		mem_remove_simple_file(mem, removable);
-> Index: linux-2.6/include/linux/memory.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/memory.h	2010-07-15 09:54:06.000000000 -0500
-> +++ linux-2.6/include/linux/memory.h	2010-07-15 09:56:05.000000000 -0500
-> @@ -29,6 +29,9 @@
->  
->  struct memory_block {
->  	unsigned long state;
-> +	unsigned long start_phys_index;
-> +	unsigned long end_phys_index;
+> @@ -383,8 +385,10 @@
+>  	if (!unlinked_nodes)
+>  		return -ENOMEM;
+>  	nodes_clear(*unlinked_nodes);
+> -	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+> -	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
 > +
->  	/*
->  	 * This serializes all state change requests.  It isn't
->  	 * held during creation because the control files are
+> +	sect_start_pfn = section_nr_to_pfn(mem_blk->start_phys_index);
+> +	sect_end_pfn = section_nr_to_pfn(mem_blk->end_phys_index);
+> +	sect_end_pfn += PAGES_PER_SECTION - 1;
+>  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+>  		int nid;
+>  
 > 
 > --
 > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
