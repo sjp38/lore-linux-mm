@@ -1,102 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CD396B02AA
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 07:21:28 -0400 (EDT)
-Date: Fri, 16 Jul 2010 12:21:09 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 7/7] memcg: add mm_vmscan_memcg_isolate tracepoint
-Message-ID: <20100716112109.GJ13117@csn.ul.ie>
-References: <20100716191006.7369.A69D9226@jp.fujitsu.com> <20100716191739.737E.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100716191739.737E.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C4B0C6B02A5
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 08:37:32 -0400 (EDT)
+Received: by pwi8 with SMTP id 8so924016pwi.14
+        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:37:31 -0700 (PDT)
+From: Nitin Gupta <ngupta@vflare.org>
+Subject: [PATCH 0/8] zcache: page cache compression support
+Date: Fri, 16 Jul 2010 18:07:42 +0530
+Message-Id: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 16, 2010 at 07:18:18PM +0900, KOSAKI Motohiro wrote:
-> 
-> Memcg also need to trace page isolation information as global reclaim.
-> This patch does it.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  include/trace/events/vmscan.h |   15 +++++++++++++++
->  mm/memcontrol.c               |    7 +++++++
->  2 files changed, 22 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index e37fe72..eefd399 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -213,6 +213,21 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
->  
->  );
->  
-> +DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
-> +
-> +	TP_PROTO(int order,
-> +		unsigned long nr_requested,
+Frequently accessed filesystem data is stored in memory to reduce access to
+(much) slower backing disks. Under memory pressure, these pages are freed and
+when needed again, they have to be read from disks again. When combined working
+set of all running application exceeds amount of physical RAM, we get extereme
+slowdown as reading a page from disk can take time in order of milliseconds.
 
-I just spotted that this is badly named by myself. It should have been
-order.
+Memory compression increases effective memory size and allows more pages to
+stay in RAM. Since de/compressing memory pages is several orders of magnitude
+faster than disk I/O, this can provide signifant performance gains for many
+workloads. Also, with multi-cores becoming common, benefits of reduced disk I/O
+should easily outweigh the problem of increased CPU usage.
 
-> +		unsigned long nr_scanned,
-> +		unsigned long nr_taken,
-> +		unsigned long nr_lumpy_taken,
-> +		unsigned long nr_lumpy_dirty,
-> +		unsigned long nr_lumpy_failed,
-> +		int isolate_mode),
-> +
-> +	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed, isolate_mode)
-> +
-> +);
-> +
->  TRACE_EVENT(mm_vmscan_writepage,
->  
->  	TP_PROTO(struct page *page,
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 81bc9bf..82e191f 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -52,6 +52,9 @@
->  
->  #include <asm/uaccess.h>
->  
-> +#include <trace/events/vmscan.h>
-> +
-> +
+It is implemented as a "backend" for cleancache_ops [1] which provides
+callbacks for events such as when a page is to be removed from the page cache
+and when it is required again. We use them to implement a 'second chance' cache
+for these evicted page cache pages by compressing and storing them in memory
+itself.
 
-Excessive whitespace there.
+We only keep pages that compress to PAGE_SIZE/2 or less. Compressed chunks are
+stored using xvmalloc memory allocator which is already being used by zram
+driver for the same purpose. Zero-filled pages are checked and no memory is
+allocated for them.
 
-Otherwise, I didn't spot any problems.
+A separate "pool" is created for each mount instance for a cleancache-aware
+filesystem. Each incoming page is identified with <pool_id, inode_no, index>
+where inode_no identifies file within the filesystem corresponding to pool_id
+and index is offset of the page within this inode. Within a pool, inodes are
+maintained in an rb-tree and each of its nodes points to a separate radix-tree
+which maintains list of pages within that inode.
 
->  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
->  struct mem_cgroup *root_mem_cgroup __read_mostly;
-> @@ -1042,6 +1045,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  	}
->  
->  	*scanned = scan;
-> +
-> +	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
-> +				      0, 0, 0, mode);
-> +
->  	return nr_taken;
->  }
->  
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
+While compression reduces disk I/O, it also reduces the space available for
+normal (uncompressed) page cache. This can result in more frequent page cache
+reclaim and thus higher CPU overhead. Thus, it's important to maintain good hit
+rate for compressed cache or increased CPU overhead can nullify any other
+benefits. This requires adaptive (compressed) cache resizing and page
+replacement policies that can maintain optimal cache size and quickly reclaim
+unused compressed chunks. This work is yet to be done. However, in the current
+state, it allows manually resizing cache size using (per-pool) sysfs node
+'memlimit' which in turn frees any excess pages *sigh* randomly.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Finally, it uses percpu stats and compression buffers to allow better
+performance on multi-cores. Still, there are known bottlenecks like a single
+xvmalloc mempool per zcache pool and few others. I will work on this when I
+start with profiling.
+
+ * Performance numbers:
+   - Tested using iozone filesystem benchmark
+   - 4 CPUs, 1G RAM
+   - Read performance gain: ~2.5X
+   - Random read performance gain: ~3X
+   - In general, performance gains for every kind of I/O
+
+Test details with graphs can be found here:
+http://code.google.com/p/compcache/wiki/zcacheIOzone
+
+If I can get some help with testing, it would be intersting to find its
+effect in more real-life workloads. In particular, I'm intersted in finding
+out its effect in KVM virtualization case where it can potentially allow
+running more number of VMs per-host for a given amount of RAM. With zcache
+enabled, VMs can be assigned much smaller amount of memory since host can now
+hold bulk of page-cache pages, allowing VMs to maintain similar level of
+performance while a greater number of them can be hosted.
+
+ * How to test:
+All patches are against 2.6.35-rc5:
+
+ - First, apply all prerequisite patches here:
+http://compcache.googlecode.com/hg/sub-projects/zcache_base_patches
+
+ - Then apply this patch series; also uploaded here:
+http://compcache.googlecode.com/hg/sub-projects/zcache_patches
+
+
+Nitin Gupta (8):
+  Allow sharing xvmalloc for zram and zcache
+  Basic zcache functionality
+  Create sysfs nodes and export basic statistics
+  Shrink zcache based on memlimit
+  Eliminate zero-filled pages
+  Compress pages using LZO
+  Use xvmalloc to store compressed chunks
+  Document sysfs entries
+
+ Documentation/ABI/testing/sysfs-kernel-mm-zcache |   53 +
+ drivers/staging/Makefile                         |    2 +
+ drivers/staging/zram/Kconfig                     |   22 +
+ drivers/staging/zram/Makefile                    |    5 +-
+ drivers/staging/zram/xvmalloc.c                  |    8 +
+ drivers/staging/zram/zcache_drv.c                | 1312 ++++++++++++++++++++++
+ drivers/staging/zram/zcache_drv.h                |   90 ++
+ 7 files changed, 1491 insertions(+), 1 deletions(-)
+ create mode 100644 Documentation/ABI/testing/sysfs-kernel-mm-zcache
+ create mode 100644 drivers/staging/zram/zcache_drv.c
+ create mode 100644 drivers/staging/zram/zcache_drv.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
