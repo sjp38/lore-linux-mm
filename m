@@ -1,77 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0552A6B02A3
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 05:02:45 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o6G92i1x031268
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 02:02:44 -0700
-Received: from pzk10 (pzk10.prod.google.com [10.243.19.138])
-	by wpaz21.hot.corp.google.com with ESMTP id o6G92f0u018157
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 02:02:43 -0700
-Received: by pzk10 with SMTP id 10so538256pzk.32
-        for <linux-mm@kvack.org>; Fri, 16 Jul 2010 02:02:41 -0700 (PDT)
-Date: Fri, 16 Jul 2010 02:02:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q2 00/19] SLUB with queueing (V2) beats SLAB netperf TCP_RR
-In-Reply-To: <4C4016FD.9080207@cs.helsinki.fi>
-Message-ID: <alpine.DEB.2.00.1007160158540.18388@chino.kir.corp.google.com>
-References: <20100709190706.938177313@quilx.com> <alpine.DEB.2.00.1007141650110.29110@chino.kir.corp.google.com> <4C4016FD.9080207@cs.helsinki.fi>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 937A46B02A3
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 06:12:53 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6GACmnO012719
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 16 Jul 2010 19:12:49 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4126C3A62C2
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:12:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F80345DE51
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:12:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B63991DB801D
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:12:47 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 412811DB8015
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 19:12:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 0/7] memcg reclaim tracepoint
+Message-Id: <20100716191006.7369.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 16 Jul 2010 19:12:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jul 2010, Pekka Enberg wrote:
-
-> > I'd also consider patch 7 for 2.6.35-rc6 (and -stable).
-> 
-> It's an obvious bug fix but is it triggered in practice? Is there a bugzilla
-> report for that?
-> 
-
-Let's ask Benjamin who initially reported the problem with arch_initcall 
-whether or not this is rc (and stable) material.
-
-For reference, we're talking about the sysfs_slab_remove() check on 
-slab_state to prevent the WARN in the kobject code you hit with its fix 
-below:
+Recently, Mel Gorman added some vmscan tracepoint. but they can't
+trace memcg. So, This patch series does.
 
 
-From: Christoph Lameter <cl@linux-foundation.org>
+following three patches are nit fix and cleanups.
 
-slub: Allow removal of slab caches during boot
+  memcg: sc.nr_to_reclaim should be initialized
+  memcg: mem_cgroup_shrink_node_zone() doesn't need sc.nodemask
+  memcg: nid and zid can be calculated from zone
 
-If a slab cache is removed before we have setup sysfs then simply skip over
-the sysfs handling.
+following four patches are tracepoint conversion and adding memcg tracepoints.
 
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Roland Dreier <rdreier@cisco.com>
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+  vmscan:        convert direct reclaim tracepoint to DEFINE_EVENT
+  memcg, vmscan: add memcg reclaim tracepoint
+  vmscan:        convert mm_vmscan_lru_isolate to DEFINE_EVENT
+  memcg, vmscan: add mm_vmscan_memcg_isolate tracepoint
 
----
- mm/slub.c |    7 +++++++
- 1 file changed, 7 insertions(+)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-07-06 15:13:48.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-07-06 15:15:27.000000000 -0500
-@@ -4507,6 +4507,13 @@ static int sysfs_slab_add(struct kmem_ca
- 
- static void sysfs_slab_remove(struct kmem_cache *s)
- {
-+	if (slab_state < SYSFS)
-+		/*
-+		 * Sysfs has not been setup yet so no need to remove the
-+		 * cache from sysfs.
-+		 */
-+		return;
-+
- 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
- 	kobject_del(&s->kobj);
- 	kobject_put(&s->kobj);
+diffstat
+================
+ include/linux/memcontrol.h    |    6 ++--
+ include/linux/mmzone.h        |    5 +++
+ include/linux/swap.h          |    3 +-
+ include/trace/events/vmscan.h |   79 +++++++++++++++++++++++++++++++++++++++--
+ mm/memcontrol.c               |   15 +++++---
+ mm/vmscan.c                   |   35 ++++++++++++------
+ 6 files changed, 118 insertions(+), 25 deletions(-)
+
+
+Sameple output is here.
+=========================
+
+              dd-1851  [001]   158.837763: mm_vmscan_memcg_reclaim_begin: order=0 may_writepage=1 gfp_flags=GFP_HIGHUSER_MOVABLE
+              dd-1851  [001]   158.837783: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+              dd-1851  [001]   158.837860: mm_vmscan_memcg_reclaim_end: nr_reclaimed=32
+  (...)
+              dd-1970  [000]   266.608235: mm_vmscan_wakeup_kswapd: nid=0 zid=1 order=0
+              dd-1970  [000]   266.608239: mm_vmscan_wakeup_kswapd: nid=1 zid=1 order=0
+              dd-1970  [000]   266.608248: mm_vmscan_wakeup_kswapd: nid=2 zid=1 order=0
+         kswapd1-348   [001]   266.608254: mm_vmscan_kswapd_wake: nid=1 order=0
+              dd-1970  [000]   266.608254: mm_vmscan_wakeup_kswapd: nid=3 zid=1 order=0
+         kswapd3-350   [000]   266.608266: mm_vmscan_kswapd_wake: nid=3 order=0
+  (...)
+         kswapd0-347   [001]   267.328891: mm_vmscan_memcg_softlimit_reclaim_begin: order=0 may_writepage=1 gfp_flags=GFP_HIGHUSER_MOVABLE
+         kswapd0-347   [001]   267.328897: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+         kswapd0-347   [001]   267.328915: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+         kswapd0-347   [001]   267.328989: mm_vmscan_memcg_softlimit_reclaim_end: nr_reclaimed=32
+         kswapd0-347   [001]   267.329019: mm_vmscan_lru_isolate: isolate_mode=1 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+         kswapd0-347   [001]   267.330562: mm_vmscan_lru_isolate: isolate_mode=1 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+  (...)
+         kswapd2-349   [001]   267.407081: mm_vmscan_kswapd_sleep: nid=2
+         kswapd3-350   [001]   267.408077: mm_vmscan_kswapd_sleep: nid=3
+         kswapd1-348   [000]   267.427858: mm_vmscan_kswapd_sleep: nid=1
+         kswapd0-347   [001]   267.430064: mm_vmscan_kswapd_sleep: nid=0
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
