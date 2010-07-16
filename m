@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 22BCB6B02A3
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 14:33:38 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6GIL1a7012657
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 14:21:01 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6GIXW3i1716346
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 14:33:32 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6GIXWqS004375
-	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 15:33:32 -0300
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 987186B02A3
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 14:45:52 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6GIaBXk005892
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 12:36:11 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6GIjXDT130698
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 12:45:35 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6GIjXh3009162
+	for <linux-mm@kvack.org>; Fri, 16 Jul 2010 12:45:33 -0600
 Subject: Re: [PATCH 1/5] v2 Split the memory_block structure
 From: Dave Hansen <dave@linux.vnet.ibm.com>
 In-Reply-To: <4C40A3BC.3060504@austin.ibm.com>
@@ -18,8 +18,8 @@ References: <4C3F53D1.3090001@austin.ibm.com>
 	 <4C3F557F.3000304@austin.ibm.com> <1279300521.9207.222.camel@nimitz>
 	 <4C40A3BC.3060504@austin.ibm.com>
 Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 16 Jul 2010 11:33:30 -0700
-Message-ID: <1279305210.9207.250.camel@nimitz>
+Date: Fri, 16 Jul 2010 11:45:31 -0700
+Message-ID: <1279305931.9207.265.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,26 +28,63 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, K
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 2010-07-16 at 13:23 -0500, Nathan Fontenot wrote:
-> > If the memory_block's state was inferred to be the same as each
-> > memory_block_section, couldn't we just keep a start and end phys_index
-> > in the memory_block, and get away from having memory_block_sections at
-> > all?
+> >> -    if (mem->state != from_state_req) {
+> >> -            ret = -EINVAL;
+> >> -            goto out;
+> >> +    list_for_each_entry(mbs, &mem->sections, next) {
+> >> +            if (mbs->state != from_state_req)
+> >> +                    continue;
+> >> +
+> >> +            ret = memory_block_action(mbs, to_state);
+> >> +            if (ret)
+> >> +                    break;
+> >> +    }
+> >> +
+> >> +    if (ret) {
+> >> +            list_for_each_entry(mbs, &mem->sections, next) {
+> >> +                    if (mbs->state == from_state_req)
+> >> +                            continue;
+> >> +
+> >> +                    if (memory_block_action(mbs, to_state))
+> >> +                            printk(KERN_ERR "Could not re-enable memory "
+> >> +                                   "section %lx\n", mbs->phys_index);
+> >> +            }
+> >>      }
+> > 
+> > Please just use a goto here.  It's nicer looking, and much more in line
+> > with what's there already.
 > 
-> Oooohhh... I like.  Looking at the code it appears this is possible.  I'll
-> try this out and include it in the next version of the patch.
-> 
-> Do you think we need to add an additional file to each memory block directory
-> to indicate the number of memory sections in the memory block that are actually
-> present? 
+> Not sure if I follow on where you want the goto.  If you mean after the
+> if (memory_block_action())...  I purposely did not have a goto here.
+> Since this is in the recovery path I wanted to make sure we tried to return
+> every memory section to the original state. 
 
-I think it's easiest to just say that each 'memory_block' can only hold
-contiguous 'memory_block_sections', and we give either the start/end or
-start/length pairs.  It gets a lot more complicated if we have to deal
-with lots of holes.
+Looking at it a little closer, I see what you're doing now.
 
-I can just see the hardware designers reading this thread, with their
-Dr. Evil laughs trying to come up with a reason to give us a couple of
-terabytes of RAM with only every-other 16MB area populated. :)  
+First of all, should memory_block_action() get a new name since it isn
+not taking 'memory_block_section's?
+
+The thing I would have liked to see is to have that error handling block
+out of the way a bit.  But, the function is small, and there's not _too_
+much code in there, so what you have is probably the best way to do it.
+
+Minor nit: Please pull the memory_block_action() out of the if() and do
+the:
+
+> >> +            ret = memory_block_action(mbs, to_state);
+> >> +            if (ret)
+> >> +                    break;
+
+thing like above.  It makes it much more obvious that the loop is
+related to the top one.  I was thinking if it made sense to have a
+helper function to go through and do that list walk, so you could do:
+
+	ret = set_all_states(mem->sections, to_state);
+	if (ret)
+		set_all_states(mem->sections, old_state);
+
+But I think you'd need to pass in a bit more information, so it probably
+isn't worth doing that, either.
 
 -- Dave
 
