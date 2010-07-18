@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 168346007F3
-	for <linux-mm@kvack.org>; Sun, 18 Jul 2010 09:59:42 -0400 (EDT)
-Received: by pzk33 with SMTP id 33so1373528pzk.14
-        for <linux-mm@kvack.org>; Sun, 18 Jul 2010 06:59:41 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D978A6007F3
+	for <linux-mm@kvack.org>; Sun, 18 Jul 2010 10:13:21 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so1657361pvc.14
+        for <linux-mm@kvack.org>; Sun, 18 Jul 2010 07:13:20 -0700 (PDT)
+Date: Sun, 18 Jul 2010 23:13:10 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v2
+Message-ID: <20100718141240.GA30402@barrios-desktop>
+References: <1279448311-29788-1-git-send-email-minchan.kim@gmail.com>
+ <AANLkTilQf-43GMAIDa-MKmcB2afdVgkERMg0b5mhIbhE@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <4C43083E.6020201@gmail.com>
-References: <4C43083E.6020201@gmail.com>
-Date: Sun, 18 Jul 2010 21:59:39 +0800
-Message-ID: <AANLkTimM-qRBHxs31AR0xinyvlPpA_Q7qJYGf3G74vgS@mail.gmail.com>
-Subject: Re: [PATCH 2/2] turn BUG_ON for out of bound in mb_cache_entry_find_first/mb_cache_entry_find_next
-From: shenghui <crosslonelyover@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTilQf-43GMAIDa-MKmcB2afdVgkERMg0b5mhIbhE@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>
+To: Kyungmin Park <kmpark@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Kukjin Kim <kgene.kim@samsung.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-=E5=9C=A8 2010=E5=B9=B47=E6=9C=8818=E6=97=A5 =E4=B8=8B=E5=8D=889:57=EF=BC=
-=8CWang Sheng-Hui <crosslonelyover@gmail.com> =E5=86=99=E9=81=93=EF=BC=9A
-> In mb_cache_entry_find_first/mb_cache_entry_find_next, macro
-> mb_assert is used to do assertion on index, but it just prints
-> KERN_ERR info if defined.
-> Currently, only ext2/ext3/ext4 use the function with index set 0.
-> But for potential usage by other subsystems, I think we shoud report BUG
-> if we got some index out of bound here.
->
->
-> Following patch is against 2.6.35-rc3, and should be
-> applied after the first patch.Please check it.
->
+Hi Kyoungmin, 
 
-Sorry, made a typo. It's against 2.6.35-rc5.
+On Sun, Jul 18, 2010 at 08:53:25PM +0900, Kyungmin Park wrote:
+> Hi Minchan,
+> 
+> Please see the OneDRAM spec. it's OneDRAM memory usage.
+> Actually memory size is 80MiB + 16MiB at AP side and it's used 80MiB
+> for dedicated AP.
+> The shared 16MiB used between AP and CP. So we also use the 16MiB.
 
---=20
+It's not only s5pv210 but general problem of memmap hole 
+on ARM's sparsemem. 
 
+It doesn't matter with 16M or 80M. 
+The thing is that section size is greater than physical memory's groups.
 
-Thanks and Best Regards,
-shenghui
+Current sparsemen aren't designed to have memmap hole but ARM makes holes
+to save memory space. So we should solve it by not SECTION_SIZE but more 
+fundamental solution.
+
+I think this patch suggests it.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
