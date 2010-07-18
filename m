@@ -1,67 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1513E6007F3
-	for <linux-mm@kvack.org>; Sun, 18 Jul 2010 09:57:10 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so1654157pvc.14
-        for <linux-mm@kvack.org>; Sun, 18 Jul 2010 06:57:09 -0700 (PDT)
-Message-ID: <4C43083E.6020201@gmail.com>
-Date: Sun, 18 Jul 2010 21:57:18 +0800
-From: Wang Sheng-Hui <crosslonelyover@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E19626007F3
+	for <linux-mm@kvack.org>; Sun, 18 Jul 2010 09:59:00 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so1814746pxi.14
+        for <linux-mm@kvack.org>; Sun, 18 Jul 2010 06:58:59 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH 2/2] turn BUG_ON for out of bound in mb_cache_entry_find_first/mb_cache_entry_find_next
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4C430830.9020903@gmail.com>
+References: <4C430830.9020903@gmail.com>
+Date: Sun, 18 Jul 2010 21:58:59 +0800
+Message-ID: <AANLkTilV_RalPPhHCk9D7p7AvV5WWOgCIPfc4Orn37Xo@mail.gmail.com>
+Subject: Re: [PATCH 1/2 RESEND] fix return value for mb_cache_shrink_fn when
+	nr_to_scan > 0
+From: shenghui <crosslonelyover@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>
+To: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Eric Sandeen <sandeen@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-In mb_cache_entry_find_first/mb_cache_entry_find_next, macro
-mb_assert is used to do assertion on index, but it just prints
-KERN_ERR info if defined.
-Currently, only ext2/ext3/ext4 use the function with index set 0.
-But for potential usage by other subsystems, I think we shoud report BUG
-if we got some index out of bound here.
+=E5=9C=A8 2010=E5=B9=B47=E6=9C=8818=E6=97=A5 =E4=B8=8B=E5=8D=889:57=EF=BC=
+=8CWang Sheng-Hui <crosslonelyover@gmail.com> =E5=86=99=E9=81=93=EF=BC=9A
+> Sorry to resend this patch. For the 2nd patch should
+> be applied after this patch, I just send them together.
+>
+> Following is the explanation of the patch:
+> The comment for struct shrinker in include/linux/mm.h says
+> "shrink...It should return the number of objects which remain in the
+> cache."
+> Please notice the word "remain".
+>
+> In fs/mbcache.h, mb_cache_shrink_fn is used as the shrink function:
+> =C2=A0 =C2=A0 =C2=A0 static struct shrinker mb_cache_shrinker =3D {
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .shrink =3D mb_cache_shr=
+ink_fn,
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 .seeks =3D DEFAULT_SEEKS=
+,
+> =C2=A0 =C2=A0 =C2=A0 };
+> In mb_cache_shrink_fn, the return value for nr_to_scan > 0 is the
+> number of mb_cache_entry before shrink operation. It may because the
+> memory usage for mbcache is low, so the effect is not so obvious.
+>
+> Per Eric Sandeen, we should do the counting only once.
+> Per Christoph Hellwig, we should use list_for_each_entry instead of
+> list_for_each here.
+>
+> Following patch is against 2.6.35-rc4. Please check it.
+>
+>
+
+Sorry, made a typo. It's against 2.6.35-rc5.
+
+--=20
 
 
-Following patch is against 2.6.35-rc3, and should be
-applied after the first patch.Please check it.
-
-Signed-off-by: Wang Sheng-Hui <crosslonelyover@gmail.com>
----
- fs/mbcache.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/mbcache.c b/fs/mbcache.c
-index 5697d9e..ed25979 100644
---- a/fs/mbcache.c
-+++ b/fs/mbcache.c
-@@ -614,7 +614,7 @@ mb_cache_entry_find_first(struct mb_cache *cache,
-int index,
- 	struct list_head *l;
- 	struct mb_cache_entry *ce;
-
--	mb_assert(index < mb_cache_indexes(cache));
-+	BUG_ON((index < 0) || (index >= mb_cache_indexes(cache)));
- 	spin_lock(&mb_cache_spinlock);
- 	l = cache->c_indexes_hash[index][bucket].next;
- 	ce = __mb_cache_entry_find(l, &cache->c_indexes_hash[index][bucket],
-@@ -652,7 +652,7 @@ mb_cache_entry_find_next(struct mb_cache_entry
-*prev, int index,
- 	struct list_head *l;
- 	struct mb_cache_entry *ce;
-
--	mb_assert(index < mb_cache_indexes(cache));
-+	BUG_ON((index < 0) || (index >= mb_cache_indexes(cache)));
- 	spin_lock(&mb_cache_spinlock);
- 	l = prev->e_indexes[index].o_list.next;
- 	ce = __mb_cache_entry_find(l, &cache->c_indexes_hash[index][bucket],
--- 
-1.7.1.1
-
-
-
--- 
-Thanks and Regards,
+Thanks and Best Regards,
 shenghui
 
 --
