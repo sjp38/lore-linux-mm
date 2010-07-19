@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 193C06B02A9
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 14:41:46 -0400 (EDT)
-Date: Mon, 19 Jul 2010 19:40:02 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
-	memory management
-Message-ID: <20100719184002.GA21608@n2100.arm.linux.org.uk>
-References: <20100713150311B.fujita.tomonori@lab.ntt.co.jp> <20100713121420.GB4263@codeaurora.org> <20100714104353B.fujita.tomonori@lab.ntt.co.jp> <20100714201149.GA14008@codeaurora.org> <20100714220536.GE18138@n2100.arm.linux.org.uk> <20100715012958.GB2239@codeaurora.org> <20100715085535.GC26212@n2100.arm.linux.org.uk> <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com> <20100716075856.GC16124@n2100.arm.linux.org.uk> <4C449183.20000@codeaurora.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6D0536B02A9
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 14:43:56 -0400 (EDT)
+Message-ID: <4C449CBA.5090703@redhat.com>
+Date: Mon, 19 Jul 2010 14:43:06 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4C449183.20000@codeaurora.org>
+Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background writeback
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Bohan <mbohan@codeaurora.org>
-Cc: Tim HRM <zt.tmzt@gmail.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 19, 2010 at 10:55:15AM -0700, Michael Bohan wrote:
+On 07/19/2010 09:11 AM, Mel Gorman wrote:
+> From: Wu Fengguang<fengguang.wu@intel.com>
 >
-> On 7/16/2010 12:58 AM, Russell King - ARM Linux wrote:
+> A background flush work may run for ever. So it's reasonable for it to
+> mimic the kupdate behavior of syncing old/expired inodes first.
 >
->> As the patch has been out for RFC since early April on the linux-arm-kernel
->> mailing list (Subject: [RFC] Prohibit ioremap() on kernel managed RAM),
->> and no comments have come back from Qualcomm folk.
+> This behavior also makes sense from the perspective of page reclaim.
+> File pages are added to the inactive list and promoted if referenced
+> after one recycling. If not referenced, it's very easy for pages to be
+> cleaned from reclaim context which is inefficient in terms of IO. If
+> background flush is cleaning pages, it's best it cleans old pages to
+> help minimise IO from reclaim.
 >
-> Would it be unreasonable to allow a map request to succeed if the  
-> requested attributes matched that of the preexisting mapping?
+> Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
+> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
 
-What would be the point of creating such a mapping?
+Acked-by: Rik van Riel <riel@redhat.com>
+
+It can probably be optimized, but we really need something
+like this...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
