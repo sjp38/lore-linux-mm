@@ -1,41 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6D0536B02A9
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 14:43:56 -0400 (EDT)
-Message-ID: <4C449CBA.5090703@redhat.com>
-Date: Mon, 19 Jul 2010 14:43:06 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id D54786B02A9
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 14:44:03 -0400 (EDT)
+From: Andreas Gruenbacher <agruen@suse.de>
+Subject: Re: [PATCH] fix return value for mb_cache_shrink_fn when nr_to_scan > 0
+Date: Mon, 19 Jul 2010 20:39:06 +0200
+References: <4C425273.5000702@gmail.com> <20100718060106.GA579@infradead.org> <4C42A10B.2080904@gmail.com>
+In-Reply-To: <4C42A10B.2080904@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background writeback
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: Text/Plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201007192039.06670.agruen@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Wang Sheng-Hui <crosslonelyover@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Eric Sandeen <sandeen@redhat.com>, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07/19/2010 09:11 AM, Mel Gorman wrote:
-> From: Wu Fengguang<fengguang.wu@intel.com>
->
-> A background flush work may run for ever. So it's reasonable for it to
-> mimic the kupdate behavior of syncing old/expired inodes first.
->
-> This behavior also makes sense from the perspective of page reclaim.
-> File pages are added to the inactive list and promoted if referenced
-> after one recycling. If not referenced, it's very easy for pages to be
-> cleaned from reclaim context which is inefficient in terms of IO. If
-> background flush is cleaning pages, it's best it cleans old pages to
-> help minimise IO from reclaim.
->
-> Signed-off-by: Wu Fengguang<fengguang.wu@intel.com>
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+On Sunday 18 July 2010 08:36:59 Wang Sheng-Hui wrote:
+> I regenerated the patch. Please check it.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+The logic for calculating how many objects to free is still wrong: 
+mb_cache_shrink_fn returns the number of entries scaled by 
+sysctl_vfs_cache_pressure / 100.  It should also scale nr_to_scan by the 
+inverse of that.  The sysctl_vfs_cache_pressure == 0 case (never scale) may 
+require special attention.
 
-It can probably be optimized, but we really need something
-like this...
+See dcache_shrinker() in fs/dcache.c.
+
+Thanks,
+Andreas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
