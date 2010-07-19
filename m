@@ -1,49 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A8462600805
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 11:31:26 -0400 (EDT)
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v5 05/12] Export __get_user_pages_fast.
-Date: Mon, 19 Jul 2010 18:30:55 +0300
-Message-Id: <1279553462-7036-6-git-send-email-gleb@redhat.com>
-In-Reply-To: <1279553462-7036-1-git-send-email-gleb@redhat.com>
-References: <1279553462-7036-1-git-send-email-gleb@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 95BFE600805
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 12:27:30 -0400 (EDT)
+Message-ID: <4C447CE9.20904@redhat.com>
+Date: Mon, 19 Jul 2010 11:27:21 -0500
+From: Eric Sandeen <sandeen@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2 RESEND] fix return value for mb_cache_shrink_fn when
+ nr_to_scan > 0
+References: <4C430830.9020903@gmail.com>
+In-Reply-To: <4C430830.9020903@gmail.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Wang Sheng-Hui <crosslonelyover@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-KVM will use it to try and find a page without falling back to slow
-gup. That is why get_user_pages_fast() is not enough.
+On 07/18/2010 08:57 AM, Wang Sheng-Hui wrote:
+> Sorry to resend this patch. For the 2nd patch should
+> be applied after this patch, I just send them together.
+> 
+> Following is the explanation of the patch:
+> The comment for struct shrinker in include/linux/mm.h says
+> "shrink...It should return the number of objects which remain in the
+> cache."
+> Please notice the word "remain".
+> 
+> In fs/mbcache.h, mb_cache_shrink_fn is used as the shrink function:
+>        static struct shrinker mb_cache_shrinker = {
+>                .shrink = mb_cache_shrink_fn,
+>                .seeks = DEFAULT_SEEKS,
+>        };
+> In mb_cache_shrink_fn, the return value for nr_to_scan > 0 is the
+> number of mb_cache_entry before shrink operation. It may because the
+> memory usage for mbcache is low, so the effect is not so obvious.
+> 
+> Per Eric Sandeen, we should do the counting only once.
+> Per Christoph Hellwig, we should use list_for_each_entry instead of
+> list_for_each here.
+> 
+> Following patch is against 2.6.35-rc4. Please check it.
+> 
+> 
+> Signed-off-by: Wang Sheng-Hui <crosslonelyover@gmail.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
- arch/x86/mm/gup.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Reviewed-by: Eric Sandeen <sandeen@redhat.com>
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 738e659..a4ce19f 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -8,6 +8,7 @@
- #include <linux/mm.h>
- #include <linux/vmstat.h>
- #include <linux/highmem.h>
-+#include <linux/module.h>
- 
- #include <asm/pgtable.h>
- 
-@@ -274,6 +275,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 	return nr;
- }
-+EXPORT_SYMBOL_GPL(__get_user_pages_fast);
- 
- /**
-  * get_user_pages_fast() - pin user pages in memory
--- 
-1.7.1
+Thanks,
+-Eric
+
+> ---
+>  fs/mbcache.c |   22 +++++++++++-----------
+>  1 files changed, 11 insertions(+), 11 deletions(-)
+> 
+> diff --git a/fs/mbcache.c b/fs/mbcache.c
+> index ec88ff3..5697d9e 100644
+> --- a/fs/mbcache.c
+> +++ b/fs/mbcache.c
+> @@ -201,21 +201,13 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
+>  {
+>  	LIST_HEAD(free_list);
+>  	struct list_head *l, *ltmp;
+> +	struct mb_cache *cache;
+>  	int count = 0;
+> 
+> -	spin_lock(&mb_cache_spinlock);
+> -	list_for_each(l, &mb_cache_list) {
+> -		struct mb_cache *cache =
+> -			list_entry(l, struct mb_cache, c_cache_list);
+> -		mb_debug("cache %s (%d)", cache->c_name,
+> -			  atomic_read(&cache->c_entry_count));
+> -		count += atomic_read(&cache->c_entry_count);
+> -	}
+>  	mb_debug("trying to free %d entries", nr_to_scan);
+> -	if (nr_to_scan == 0) {
+> -		spin_unlock(&mb_cache_spinlock);
+> +	if (nr_to_scan == 0)
+>  		goto out;
+> -	}
+> +
+>  	while (nr_to_scan-- && !list_empty(&mb_cache_lru_list)) {
+>  		struct mb_cache_entry *ce =
+>  			list_entry(mb_cache_lru_list.next,
+> @@ -229,6 +221,14 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
+>  						   e_lru_list), gfp_mask);
+>  	}
+>  out:
+> +	spin_lock(&mb_cache_spinlock);
+> +	list_for_each_entry(cache, &mb_cache_list, c_cache_list) {
+> +		mb_debug("cache %s (%d)", cache->c_name,
+> +			  atomic_read(&cache->c_entry_count));
+> +		count += atomic_read(&cache->c_entry_count);
+> +	}
+> +	spin_unlock(&mb_cache_spinlock);
+> +
+>  	return (count / 100) * sysctl_vfs_cache_pressure;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
