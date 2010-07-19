@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BC8E66006B9
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 09:11:39 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 251576007F3
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 09:11:40 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 6/8] fs,xfs: Allow kswapd to writeback pages
-Date: Mon, 19 Jul 2010 14:11:28 +0100
-Message-Id: <1279545090-19169-7-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 5/8] fs,btrfs: Allow kswapd to writeback pages
+Date: Mon, 19 Jul 2010 14:11:27 +0100
+Message-Id: <1279545090-19169-6-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
 References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -15,39 +15,63 @@ List-ID: <linux-mm.kvack.org>
 
 As only kswapd and memcg are writing back pages, there should be no
 danger of overflowing the stack. Allow the writing back of dirty pages
-in xfs from the VM.
+in btrfs from the VM.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- fs/xfs/linux-2.6/xfs_aops.c |   15 ---------------
- 1 files changed, 0 insertions(+), 15 deletions(-)
+ fs/btrfs/disk-io.c |   21 +--------------------
+ fs/btrfs/inode.c   |    6 ------
+ 2 files changed, 1 insertions(+), 26 deletions(-)
 
-diff --git a/fs/xfs/linux-2.6/xfs_aops.c b/fs/xfs/linux-2.6/xfs_aops.c
-index 34640d6..4c89db3 100644
---- a/fs/xfs/linux-2.6/xfs_aops.c
-+++ b/fs/xfs/linux-2.6/xfs_aops.c
-@@ -1333,21 +1333,6 @@ xfs_vm_writepage(
- 	trace_xfs_writepage(inode, page, 0);
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 34f7c37..e4aa547 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -696,26 +696,7 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
+ 	int was_dirty;
  
- 	/*
--	 * Refuse to write the page out if we are called from reclaim context.
--	 *
--	 * This is primarily to avoid stack overflows when called from deep
--	 * used stacks in random callers for direct reclaim, but disabling
--	 * reclaim for kswap is a nice side-effect as kswapd causes rather
--	 * suboptimal I/O patters, too.
--	 *
--	 * This should really be done by the core VM, but until that happens
--	 * filesystems like XFS, btrfs and ext4 have to take care of this
--	 * by themselves.
--	 */
--	if (current->flags & PF_MEMALLOC)
--		goto out_fail;
+ 	tree = &BTRFS_I(page->mapping->host)->io_tree;
+-	if (!(current->flags & PF_MEMALLOC)) {
+-		return extent_write_full_page(tree, page,
+-					      btree_get_extent, wbc);
+-	}
 -
--	/*
- 	 * We need a transaction if:
- 	 *  1. There are delalloc buffers on the page
- 	 *  2. The page is uptodate and we have unmapped buffers
+-	redirty_page_for_writepage(wbc, page);
+-	eb = btrfs_find_tree_block(root, page_offset(page),
+-				      PAGE_CACHE_SIZE);
+-	WARN_ON(!eb);
+-
+-	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
+-	if (!was_dirty) {
+-		spin_lock(&root->fs_info->delalloc_lock);
+-		root->fs_info->dirty_metadata_bytes += PAGE_CACHE_SIZE;
+-		spin_unlock(&root->fs_info->delalloc_lock);
+-	}
+-	free_extent_buffer(eb);
+-
+-	unlock_page(page);
+-	return 0;
++	return extent_write_full_page(tree, page, btree_get_extent, wbc);
+ }
+ 
+ static int btree_writepages(struct address_space *mapping,
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 1bff92a..5c0e604 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -5859,12 +5859,6 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
+ {
+ 	struct extent_io_tree *tree;
+ 
+-
+-	if (current->flags & PF_MEMALLOC) {
+-		redirty_page_for_writepage(wbc, page);
+-		unlock_page(page);
+-		return 0;
+-	}
+ 	tree = &BTRFS_I(page->mapping->host)->io_tree;
+ 	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
+ }
 -- 
 1.7.1
 
