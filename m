@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 32F636007F8
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C71B36007FA
 	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 11:31:18 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v5 07/12] Maintain memslot version number
-Date: Mon, 19 Jul 2010 18:30:57 +0300
-Message-Id: <1279553462-7036-8-git-send-email-gleb@redhat.com>
+Subject: [PATCH v5 12/12] Send async PF when guest is not in userspace too.
+Date: Mon, 19 Jul 2010 18:31:02 +0300
+Message-Id: <1279553462-7036-13-git-send-email-gleb@redhat.com>
 In-Reply-To: <1279553462-7036-1-git-send-email-gleb@redhat.com>
 References: <1279553462-7036-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,40 +13,34 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Code that depends on particular memslot layout can track changes and
-adjust to new layout.
+If guest indicates that it can handle async pf in kernel mode too send
+it, but only if interrupt are enabled.
 
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- include/linux/kvm_host.h |    1 +
- virt/kvm/kvm_main.c      |    1 +
- 2 files changed, 2 insertions(+), 0 deletions(-)
+ arch/x86/kvm/mmu.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index c13cc48..c74ffc0 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -177,6 +177,7 @@ struct kvm {
- 	raw_spinlock_t requests_lock;
- 	struct mutex slots_lock;
- 	struct mm_struct *mm; /* userspace tied to this vm */
-+	u32 memslot_version;
- 	struct kvm_memslots *memslots;
- 	struct srcu_struct srcu;
- #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index b78b794..292514c 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -733,6 +733,7 @@ skip_lpage:
- 	slots->memslots[mem->slot] = new;
- 	old_memslots = kvm->memslots;
- 	rcu_assign_pointer(kvm->memslots, slots);
-+	kvm->memslot_version++;
- 	synchronize_srcu_expedited(&kvm->srcu);
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 12d1a7b..ed87b1c 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2361,7 +2361,13 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+ 	if (!vcpu->arch.apf_data || kvm_event_needs_reinjection(vcpu))
+ 		return false;
  
- 	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
+-	return !!kvm_x86_ops->get_cpl(vcpu);
++	if (vcpu->arch.apf_send_user_only)
++		return !!kvm_x86_ops->get_cpl(vcpu);
++
++	if (!kvm_x86_ops->interrupt_allowed(vcpu))
++		return false;
++
++	return true;
+ }
+ 
+ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 -- 
 1.7.1
 
