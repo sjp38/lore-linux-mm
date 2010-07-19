@@ -1,62 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0C8DB6B02A8
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 02:48:06 -0400 (EDT)
-Received: by pwi8 with SMTP id 8so1852935pwi.14
-        for <linux-mm@kvack.org>; Sun, 18 Jul 2010 23:48:05 -0700 (PDT)
-Message-ID: <4C43F541.7070902@vflare.org>
-Date: Mon, 19 Jul 2010 12:18:33 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4558C6B02AA
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 02:52:37 -0400 (EDT)
+Date: Sun, 18 Jul 2010 23:52:33 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+ memory management
+Message-ID: <20100719065233.GD11054@codeaurora.org>
+References: <4C3C0032.5020702@codeaurora.org>
+ <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+ <20100713121420.GB4263@codeaurora.org>
+ <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+ <20100714201149.GA14008@codeaurora.org>
+ <20100714220536.GE18138@n2100.arm.linux.org.uk>
+ <20100715012958.GB2239@codeaurora.org>
+ <20100715085535.GC26212@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/8] Use xvmalloc to store compressed chunks
-References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>	<1279283870-18549-8-git-send-email-ngupta@vflare.org>	<4C42B2E4.4040504@cs.helsinki.fi>	<4C42B98E.4020208@vflare.org> <AANLkTinjJLaDVenwNcxgN7ycr97XLN_DVi1ckXBZetZm@mail.gmail.com>
-In-Reply-To: <AANLkTinjJLaDVenwNcxgN7ycr97XLN_DVi1ckXBZetZm@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100715085535.GC26212@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/19/2010 10:06 AM, Minchan Kim wrote:
-> Hi Nitin,
+On Thu, Jul 15, 2010 at 09:55:35AM +0100, Russell King - ARM Linux wrote:
+> On Wed, Jul 14, 2010 at 06:29:58PM -0700, Zach Pfeffer wrote:
+> > The VCM ensures that all mappings that map a given physical buffer:
+> > IOMMU mappings, CPU mappings and one-to-one device mappings all map
+> > that buffer using the same (or compatible) attributes. At this point
+> > the only attribute that users can pass is CACHED. In the absence of
+> > CACHED all accesses go straight through to the physical memory.
 > 
-> On Sun, Jul 18, 2010 at 5:21 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->> On 07/18/2010 01:23 PM, Pekka Enberg wrote:
->>> Nitin Gupta wrote:
->>>> @@ -528,17 +581,32 @@ static int zcache_store_page(struct zcache_inode_rb *znode,
->>>>          goto out;
->>>>      }
->>>>
->>>> -    dest_data = kmap_atomic(zpage, KM_USER0);
->>>> +    local_irq_save(flags);
->>>
->>> Does xv_malloc() required interrupts to be disabled? If so, why doesn't the function do it by itself?
->>>
->>
->>
->> xvmalloc itself doesn't require disabling interrupts but zcache needs that since
->> otherwise, we can have deadlock between xvmalloc pool lock and mapping->tree_lock
->> which zcache_put_page() is called. OTOH, zram does not require this disabling of
->> interrupts. So, interrupts are disable separately for zcache case.
+> So what you're saying is that if I have a buffer in kernel space
+> which I already have its virtual address, I can pass this to VCM and
+> tell it !CACHED, and it'll setup another mapping which is not cached
+> for me?
+
+Not quite. The existing mapping will be represented by a reservation
+from the prebuilt VCM of the VM. This reservation has been marked
+non-cached. Another reservation on a IOMMU VCM, also marked non-cached
+will be backed with the same physical memory. This is legal in ARM,
+allowing the vcm_back call to succeed. If you instead passed cached on
+the second mapping, the first mapping would be non-cached and the
+second would be cached. If the underlying architecture supported this
+than the vcm_back would go through.
+
 > 
-> cleancache_put_page always is called with spin_lock_irq.
-> Couldn't we replace spin_lock_irq_save with spin_lock?
+> You are aware that multiple V:P mappings for the same physical page
+> with different attributes are being outlawed with ARMv6 and ARMv7
+> due to speculative prefetching.  The cache can be searched even for
+> a mapping specified as 'normal, uncached' and you can get cache hits
+> because the data has been speculatively loaded through a separate
+> cached mapping of the same physical page.
+
+I didn't know that. Thanks for the heads up.
+
+> FYI, during the next merge window, I will be pushing a patch which makes
+> ioremap() of system RAM fail, which should be the last core code creator
+> of mappings with different memory types.  This behaviour has been outlawed
+> (as unpredictable) in the architecture specification and does cause
+> problems on some CPUs.
+
+That's fair enough, but it seems like it should only be outlawed for
+those processors on which it breaks.
+
 > 
+> We've also the issue of multiple mappings with differing cache attributes
+> which needs addressing too...
 
-I was missing this point regarding cleancache_put(). So, we can now:
- - take plain (non-irq) spin_lock in zcache_put_page()
- - take non-irq rwlock  in zcache_inode_create() which is called only by
-zcache_put_page().
- - Same applies to zcache_store_page(). So, we can also get rid of unnecessary
-preempt_disable()/enable() in this function.
-
-I will put up a comment for all these functions and make these changes.
-
-Thanks,
-Nitin
-
+The VCM has been architected to handle these things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
