@@ -1,30 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 209226007F7
-	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 14:45:09 -0400 (EDT)
-From: Andreas Gruenbacher <agruen@suse.de>
-Subject: Re: [PATCH] fix return value for mb_cache_shrink_fn when nr_to_scan > 0
-Date: Mon, 19 Jul 2010 20:40:08 +0200
-References: <4C425273.5000702@gmail.com> <20100718060106.GA579@infradead.org> <4C42A10B.2080904@gmail.com>
-In-Reply-To: <4C42A10B.2080904@gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3D5E56007F7
+	for <linux-mm@kvack.org>; Mon, 19 Jul 2010 15:00:15 -0400 (EDT)
+Message-ID: <4C44A098.1010806@redhat.com>
+Date: Mon, 19 Jul 2010 14:59:36 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201007192040.09062.agruen@suse.de>
+Subject: Re: [PATCH 8/8] vmscan: Kick flusher threads to clean pages when
+ reclaim is encountering dirty pages
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-9-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1279545090-19169-9-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wang Sheng-Hui <crosslonelyover@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Eric Sandeen <sandeen@redhat.com>, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, kernel-janitors <kernel-janitors@vger.kernel.org>, a.gruenbacher@computer.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 18 July 2010 08:36:59 Wang Sheng-Hui wrote:
-> =E4=BA=8E 2010-7-18 14:01, Christoph Hellwig =E5=86=99=E9=81=93:
-> > This should be using list_for_each_entry.
+On 07/19/2010 09:11 AM, Mel Gorman wrote:
+> There are a number of cases where pages get cleaned but two of concern
+> to this patch are;
+>    o When dirtying pages, processes may be throttled to clean pages if
+>      dirty_ratio is not met.
+>    o Pages belonging to inodes dirtied longer than
+>      dirty_writeback_centisecs get cleaned.
+>
+> The problem for reclaim is that dirty pages can reach the end of the LRU
+> if pages are being dirtied slowly so that neither the throttling cleans
+> them or a flusher thread waking periodically.
 
-It would make sense to change this throughout the whole file.
+I can't see a better way to do this without creating
+a way-too-big-to-merge patch series, and this patch
+should result in the right behaviour, so ...
 
-Thanks,
-Andreas
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
