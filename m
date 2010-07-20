@@ -1,155 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 082AF6B024D
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 08:49:42 -0400 (EDT)
-Received: from epmmp1 (mailout1.samsung.com [203.254.224.24])
- by mailout1.samsung.com
- (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
- with ESMTP id <0L5U00CPHWYS4AB0@mailout1.samsung.com> for linux-mm@kvack.org;
- Tue, 20 Jul 2010 21:49:40 +0900 (KST)
-Received: from kgenekim ([12.23.103.96])
- by mmp1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTPA id <0L5U00AONWYSTC@mmp1.samsung.com> for linux-mm@kvack.org; Tue,
- 20 Jul 2010 21:49:40 +0900 (KST)
-Date: Tue, 20 Jul 2010 21:49:45 +0900
-From: Kukjin Kim <kgene.kim@samsung.com>
-Subject: RE: [PATCH] Tight check of pfn_valid on sparsemem - v2
-In-reply-to: <20100720101557.GD16031@cmpxchg.org>
-Message-id: <004201cb280a$0b15e780$2141b680$%kim@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-language: ko
-Content-transfer-encoding: 7BIT
-References: <1279448311-29788-1-git-send-email-minchan.kim@gmail.com>
- <20100720101557.GD16031@cmpxchg.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 2A1166B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 09:25:17 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6KDDqdB001478
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 07:13:52 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6KDP36p108130
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 07:25:03 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6KDP2Fo014670
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 07:25:03 -0600
+Message-ID: <4C45A3AB.6090407@austin.ibm.com>
+Date: Tue, 20 Jul 2010 08:24:59 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/8] v3 Add new phys_index properties
+References: <4C451BF5.50304@austin.ibm.com> <4C451D92.6020406@austin.ibm.com>
+In-Reply-To: <4C451D92.6020406@austin.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Minchan Kim' <minchan.kim@gmail.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Russell King' <linux@arm.linux.org.uk>, 'Mel Gorman' <mel@csn.ul.ie>, 'linux-mm' <linux-mm@kvack.org>, 'linux-arm-kernel' <linux-arm-kernel@lists.infradead.org>, 'LKML' <linux-kernel@vger.kernel.org>, 'KAMEZAWA Hiroyuki' <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, greg@kroah.com
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner wrote:
-> 
-> Hi,
-> 
-> On Sun, Jul 18, 2010 at 07:18:31PM +0900, Minchan Kim wrote:
-> > Kukjin reported oops happen while he change min_free_kbytes
-> > http://www.spinics.net/lists/arm-kernel/msg92894.html
-> > It happen by memory map on sparsemem.
-> >
-> > The system has a memory map following as.
-> >      section 0             section 1              section 2
-> > 0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
-> > SECTION_SIZE_BITS 28(256M)
-> >
-> > It means section 0 is an incompletely filled section.
-> > Nontheless, current pfn_valid of sparsemem checks pfn loosely.
-> > It checks only mem_section's validation but ARM can free mem_map on hole
-> > to save memory space. So in above case, pfn on 0x25000000 can pass
-> pfn_valid's
-> > validation check. It's not what we want.
-> >
-> > We can match section size to smallest valid size.(ex, above case, 16M)
-> > But Russell doesn't like it due to mem_section's memory overhead with
-different
-> > configuration(ex, 512K section).
-> >
-> > I tried to add valid pfn range in mem_section but everyone doesn't like
-it
-> > due to size overhead. This patch is suggested by KAMEZAWA-san.
-> > I just fixed compile error and change some naming.
-> 
-> I did not like it, because it messes up the whole concept of a
-> section.
-> 
-> But most importantly, we already have a crutch for ARM in place,
-> namely memmap_valid_within().  Looking at Kukjin's bug report,
-> wouldn't it be enough to use that check in
-> setup_zone_migrate_reserve()?
-> 
-> Your approach makes every pfn_valid() more expensive, although the
-> extensive checks are not not needed everywhere (check the comment
-> above memmap_valid_within): vm_normal_page() for example can probably
-> assume that a PTE won't point to a hole within the memory map.
-> 
-> OTOH, if the ARM people do not care, we could probably go with your
-> approach, encode it all into pfn_valid(), and also get rid of
-> memmap_valid_within() completely.  But I would prefer doing a bugfix
-> first and such a conceptual change in a different patch, would you
-> agree?
-> 
-> Kukjin, does the appended patch also fix your problem?
-> 
-Yes, did not happen problem with your patch.
+Update the 'phys_index' properties of a memory block to include a
+'start_phys_index' which is the same as the current 'phys_index' property.
+This also adds an 'end_phys_index' property to indicate the id of the
+last section in th memory block.
 
-But already Minchan requested test on the board with same patch.
+Patch updated to keep the name of the phys_index property instead of
+renaming it to start_phys_index.
 
-And you can find it in following thread about that.
-http://lists.infradead.org/pipermail/linux-arm-kernel/2010-July/020199.html
+Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
+---
+ drivers/base/memory.c  |   28 ++++++++++++++++++++--------
+ include/linux/memory.h |    3 ++-
+ 2 files changed, 22 insertions(+), 9 deletions(-)
 
-I'm not sure which approach is better to us right now.
-
-Hmm...
-
-Thanks.
-
-Best regards,
-Kgene.
---
-Kukjin Kim <kgene.kim@samsung.com>, Senior Engineer,
-SW Solution Development Team, Samsung Electronics Co., Ltd.
-
-> 	Hannes
-> 
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: mm: check mem_map backing in setup_zone_migrate_reserve
-> 
-> Kukjin encountered kernel oopsen when changing
-> /proc/sys/vm/min_free_kbytes.  The problem is that his sparse memory
-> layout on ARM is the following:
-> 
->      section 0             section 1              section 2
-> 0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
-> SECTION_SIZE_BITS 28(256M)
-> 
-> where there is a memory hole at the end of section 0.
-> 
-> Since section 0 has _some_ memory, pfn_valid() will return true for
-> all PFNs in this section.  But ARM releases the mem_map pages of this
-> hole and pfn_valid() alone is not enough anymore to ensure there is a
-> valid page struct behind a PFN.
-> 
-> We acknowledged that ARM does this already and have a function to
-> double-check for mem_map in cases where we do PFN range walks (as
-> opposed to coming from a page table entry, which should not point to a
-> memory hole in the first place e.g.).
-> 
-> setup_zone_migrate_reserve() contains one such range walk which does
-> not have the extra check and was also the cause of the oopsen Kukjin
-> encountered.
-> 
-> This patch adds the needed memmap_valid_within() check.
-> 
-> Reported-by: Kukjin Kim <kgene.kim@samsung.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0b0b629..cb6d6d3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3168,6 +3168,10 @@ static void setup_zone_migrate_reserve(struct zone
-> *zone)
->  			continue;
->  		page = pfn_to_page(pfn);
-> 
-> +		/* Watch out for holes in the memory map */
-> +		if (!memmap_valid_within(pfn, page, zone))
-> +			continue;
-> +
->  		/* Watch out for overlapping nodes */
->  		if (page_to_nid(page) != zone_to_nid(zone))
->  			continue;
+Index: linux-2.6/drivers/base/memory.c
+===================================================================
+--- linux-2.6.orig/drivers/base/memory.c	2010-07-19 20:42:11.000000000 -0500
++++ linux-2.6/drivers/base/memory.c	2010-07-20 06:38:21.000000000 -0500
+@@ -109,12 +109,20 @@ unregister_memory(struct memory_block *m
+  * uses.
+  */
+ 
+-static ssize_t show_mem_phys_index(struct sys_device *dev,
++static ssize_t show_mem_start_phys_index(struct sys_device *dev,
+ 			struct sysdev_attribute *attr, char *buf)
+ {
+ 	struct memory_block *mem =
+ 		container_of(dev, struct memory_block, sysdev);
+-	return sprintf(buf, "%08lx\n", mem->phys_index);
++	return sprintf(buf, "%08lx\n", mem->start_phys_index);
++}
++
++static ssize_t show_mem_end_phys_index(struct sys_device *dev,
++			struct sysdev_attribute *attr, char *buf)
++{
++	struct memory_block *mem =
++		container_of(dev, struct memory_block, sysdev);
++	return sprintf(buf, "%08lx\n", mem->end_phys_index);
+ }
+ 
+ /*
+@@ -128,7 +136,7 @@ static ssize_t show_mem_removable(struct
+ 	struct memory_block *mem =
+ 		container_of(dev, struct memory_block, sysdev);
+ 
+-	start_pfn = section_nr_to_pfn(mem->phys_index);
++	start_pfn = section_nr_to_pfn(mem->start_phys_index);
+ 	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
+ 	return sprintf(buf, "%d\n", ret);
+ }
+@@ -191,7 +199,7 @@ memory_block_action(struct memory_block
+ 	int ret;
+ 	int old_state = mem->state;
+ 
+-	psection = mem->phys_index;
++	psection = mem->start_phys_index;
+ 	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
+ 
+ 	/*
+@@ -264,7 +272,7 @@ store_mem_state(struct sys_device *dev,
+ 	int ret = -EINVAL;
+ 
+ 	mem = container_of(dev, struct memory_block, sysdev);
+-	phys_section_nr = mem->phys_index;
++	phys_section_nr = mem->start_phys_index;
+ 
+ 	if (!present_section_nr(phys_section_nr))
+ 		goto out;
+@@ -296,7 +304,8 @@ static ssize_t show_phys_device(struct s
+ 	return sprintf(buf, "%d\n", mem->phys_device);
+ }
+ 
+-static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
++static SYSDEV_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
++static SYSDEV_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
+ static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
+ static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
+ static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
+@@ -476,16 +485,18 @@ static int add_memory_block(int nid, str
+ 	if (!mem)
+ 		return -ENOMEM;
+ 
+-	mem->phys_index = __section_nr(section);
++	mem->start_phys_index = __section_nr(section);
+ 	mem->state = state;
+ 	mutex_init(&mem->state_mutex);
+-	start_pfn = section_nr_to_pfn(mem->phys_index);
++	start_pfn = section_nr_to_pfn(mem->start_phys_index);
+ 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+ 
+ 	ret = register_memory(mem, section);
+ 	if (!ret)
+ 		ret = mem_create_simple_file(mem, phys_index);
+ 	if (!ret)
++		ret = mem_create_simple_file(mem, end_phys_index);
++	if (!ret)
+ 		ret = mem_create_simple_file(mem, state);
+ 	if (!ret)
+ 		ret = mem_create_simple_file(mem, phys_device);
+@@ -507,6 +518,7 @@ int remove_memory_block(unsigned long no
+ 	mem = find_memory_block(section);
+ 	unregister_mem_sect_under_nodes(mem);
+ 	mem_remove_simple_file(mem, phys_index);
++	mem_remove_simple_file(mem, end_phys_index);
+ 	mem_remove_simple_file(mem, state);
+ 	mem_remove_simple_file(mem, phys_device);
+ 	mem_remove_simple_file(mem, removable);
+Index: linux-2.6/include/linux/memory.h
+===================================================================
+--- linux-2.6.orig/include/linux/memory.h	2010-07-19 20:42:11.000000000 -0500
++++ linux-2.6/include/linux/memory.h	2010-07-20 06:35:38.000000000 -0500
+@@ -21,7 +21,8 @@
+ #include <linux/mutex.h>
+ 
+ struct memory_block {
+-	unsigned long phys_index;
++	unsigned long start_phys_index;
++	unsigned long end_phys_index;
+ 	unsigned long state;
+ 	/*
+ 	 * This serializes all state change requests.  It isn't
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
