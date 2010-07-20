@@ -1,83 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 49AD26B024D
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 03:06:16 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6K76CwN019312
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 20 Jul 2010 16:06:13 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C71A45DE4F
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:06:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 18E9545DE51
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:06:12 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CC4781DB803B
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:06:11 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BF9E1DB8040
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:06:11 +0900 (JST)
-Date: Tue, 20 Jul 2010 16:01:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/8] v3 Add section count to memory_block
-Message-Id: <20100720160131.7cc8c0a2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4C451DD6.3080005@austin.ibm.com>
-References: <4C451BF5.50304@austin.ibm.com>
-	<4C451DD6.3080005@austin.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3064C6B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 03:18:48 -0400 (EDT)
+Subject: [RFC]mm: batch activate_page() to reduce lock contention
+From: Shaohua Li <shaohua.li@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 20 Jul 2010 15:18:44 +0800
+Message-ID: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, greg@kroah.com
+To: linux-mm <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jul 2010 22:53:58 -0500
-Nathan Fontenot <nfont@austin.ibm.com> wrote:
+The zone->lru_lock is heavily contented in workload where activate_page()
+is frequently used. We could do batch activate_page() to reduce the lock
+contention. The batched pages will be added into zone list when the pool
+is full or page reclaim is trying to drain them.
 
-> Add a section count property to the memory_block struct to track the number
-> of memory sections that have been added/removed from a emory block.
-> 
-> Signed-off-by: Nathan Fontenot <nfont@asutin.ibm.com>
-> ---
->  drivers/base/memory.c  |   19 ++++++++++++-------
->  include/linux/memory.h |    2 ++
->  2 files changed, 14 insertions(+), 7 deletions(-)
-> 
-> Index: linux-2.6/drivers/base/memory.c
-> ===================================================================
-> --- linux-2.6.orig/drivers/base/memory.c	2010-07-19 20:43:49.000000000 -0500
-> +++ linux-2.6/drivers/base/memory.c	2010-07-19 20:44:01.000000000 -0500
-> @@ -487,6 +487,7 @@ static int add_memory_block(int nid, str
->  
->  	mem->start_phys_index = __section_nr(section);
->  	mem->state = state;
-> +	atomic_inc(&mem->section_count);
->  	mutex_init(&mem->state_mutex);
->  	start_pfn = section_nr_to_pfn(mem->start_phys_index);
->  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
-> @@ -516,13 +517,17 @@ int remove_memory_block(unsigned long no
->  	struct memory_block *mem;
->  
->  	mem = find_memory_block(section);
-> -	unregister_mem_sect_under_nodes(mem);
-> -	mem_remove_simple_file(mem, start_phys_index);
-> -	mem_remove_simple_file(mem, end_phys_index);
-> -	mem_remove_simple_file(mem, state);
-> -	mem_remove_simple_file(mem, phys_device);
-> -	mem_remove_simple_file(mem, removable);
-> -	unregister_memory(mem, section);
-> +	atomic_dec(&mem->section_count);
-> +
-> +	if (atomic_read(&mem->section_count) == 0) {
+For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
+processes shared map to the file. Each process read access the whole file and
+then exit. The process exit will do unmap_vmas() and cause a lot of
+activate_page() call. In such workload, we saw about 58% total time reduction
+with below patch.
 
-We use atomic_dec_and_test() in usual.
+But we did see some strange regression. The regression is small (usually < 2%)
+and most are from multithread test and none heavily use activate_page(). For
+example, in the same system, we create 64 threads. Each thread creates a private
+mmap region and does read access. We measure the total time and saw about 2%
+regression. But in such workload, 99% time is on page fault and activate_page()
+takes no time. Very strange, we haven't a good explanation for this so far,
+hopefully somebody can share a hint.
 
-Otherwise, I don't see other problems in other part. Please fix this nitpick.
+Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 
-Regards,
--Kame
+diff --git a/mm/swap.c b/mm/swap.c
+index 3ce7bc3..4a3fd7f 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -39,6 +39,7 @@ int page_cluster;
+ 
+ static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+ static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
++static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
+ 
+ /*
+  * This path almost never happens for VM activity - pages are normally
+@@ -175,11 +176,10 @@ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
+ /*
+  * FIXME: speed this up?
+  */
+-void activate_page(struct page *page)
++static void __activate_page(struct page *page)
+ {
+ 	struct zone *zone = page_zone(page);
+ 
+-	spin_lock_irq(&zone->lru_lock);
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		int file = page_is_file_cache(page);
+ 		int lru = page_lru_base_type(page);
+@@ -192,7 +192,46 @@ void activate_page(struct page *page)
+ 
+ 		update_page_reclaim_stat(zone, page, file, 1);
+ 	}
+-	spin_unlock_irq(&zone->lru_lock);
++}
++
++static void activate_page_drain_cpu(int cpu)
++{
++	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
++	struct zone *last_zone = NULL, *zone;
++	int i, j;
++
++	for (i = 0; i < pagevec_count(pvec); i++) {
++		zone = page_zone(pvec->pages[i]);
++		if (zone == last_zone)
++			continue;
++
++		if (last_zone)
++			spin_unlock_irq(&last_zone->lru_lock);
++		last_zone = zone;
++		spin_lock_irq(&last_zone->lru_lock);
++
++		for (j = i; j < pagevec_count(pvec); j++) {
++			struct page *page = pvec->pages[j];
++
++			if (last_zone != page_zone(page))
++				continue;
++			__activate_page(page);
++		}
++	}
++	if (last_zone)
++		spin_unlock_irq(&last_zone->lru_lock);
++	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
++	pagevec_reinit(pvec);
++}
++
++void activate_page(struct page *page)
++{
++	struct pagevec *pvec = &get_cpu_var(activate_page_pvecs);
++
++	page_cache_get(page);
++	if (!pagevec_add(pvec, page))
++		activate_page_drain_cpu(smp_processor_id());
++	put_cpu_var(activate_page_pvecs);
+ }
+ 
+ /*
+@@ -297,6 +336,7 @@ static void drain_cpu_pagevecs(int cpu)
+ void lru_add_drain(void)
+ {
+ 	drain_cpu_pagevecs(get_cpu());
++	activate_page_drain_cpu(smp_processor_id());
+ 	put_cpu();
+ }
+ 
 
 
 --
