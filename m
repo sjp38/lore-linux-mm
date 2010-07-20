@@ -1,125 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 323A16B02A3
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 15:30:12 -0400 (EDT)
-Subject: Re: [PATCH 2/3] xfs: convert inode shrinker to per-filesystem
- contexts
-From: Alex Elder <aelder@sgi.com>
-Reply-To: aelder@sgi.com
-In-Reply-To: <1279194418-16119-3-git-send-email-david@fromorbit.com>
-References: <1279194418-16119-1-git-send-email-david@fromorbit.com>
-	 <1279194418-16119-3-git-send-email-david@fromorbit.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D33D6B02A5
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 15:38:05 -0400 (EDT)
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+From: Daniel Walker <dwalker@codeaurora.org>
+In-Reply-To: <op.vf5o28st7p4s8u@pikus>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+	 <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
+	 <op.vf5o28st7p4s8u@pikus>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 20 Jul 2010 14:30:11 -0500
-Message-ID: <1279654211.1859.235.camel@doink>
+Date: Tue, 20 Jul 2010 12:38:18 -0700
+Message-ID: <1279654698.26765.31.camel@c-dwalke-linux.qualcomm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-07-15 at 21:46 +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Tue, 2010-07-20 at 21:14 +0200, MichaA? Nazarewicz wrote:
+> On Tue, 20 Jul 2010 20:15:24 +0200, Daniel Walker <dwalker@codeaurora.org> wrote:
 > 
-> Now the shrinker passes us a context, wire up a shrinker context per
-> filesystem. This allows us to remove the global mount list and the
-> locking problems that introduced. It also means that a shrinker call
-> does not need to traverse clean filesystems before finding a
-> filesystem with reclaimable inodes.  This significantly reduces
-> scanning overhead when lots of filesystems are present.
+> > On Tue, 2010-07-20 at 17:51 +0200, Michal Nazarewicz wrote:
+> >> +** Use cases
+> >> +
+> >> +    Lets analyse some imaginary system that uses the CMA to see how
+> >> +    the framework can be used and configured.
+> >> +
+> >> +
+> >> +    We have a platform with a hardware video decoder and a camera
+> >> each
+> >> +    needing 20 MiB of memory in worst case.  Our system is written in
+> >> +    such a way though that the two devices are never used at the same
+> >> +    time and memory for them may be shared.  In such a system the
+> >> +    following two command line arguments would be used:
+> >> +
+> >> +        cma=r=20M cma_map=video,camera=r
+> >
+> > This seems inelegant to me.. It seems like these should be connected
+> > with the drivers themselves vs. doing it on the command like for
+> > everything. You could have the video driver declare it needs 20megs, and
+> > the the camera does the same but both indicate it's shared ..
+> >
+> > If you have this disconnected from the drivers it will just cause
+> > confusion, since few will know what these parameters should be for a
+> > given driver set. It needs to be embedded in the kernel.
 > 
+> I see your point but the problem is that devices drivers don't know the
+> rest of the system neither they know what kind of use cases the system
+> should support.
+> 
+> 
+> Lets say, we have a camera, a JPEG encoder, a video decoder and
+> scaler (ie. devices that scales raw image).  We want to support the
+> following 3 use cases:
+> 
+> 1. Camera's output is scaled and displayed in real-time.
+> 2. Single frame is taken from camera and saved as JPEG image.
+> 3. A video file is decoded, scaled and displayed.
+> 
+> What is apparent is that camera and video decoder are never running
+> at the same time.  The same situation is with JPEG encoder and scaler.
+>  From this knowledge we can construct the following:
+> 
+>    cma=a=10M;b=10M cma_map=camera,video=a;jpeg,scaler=b
 
-I have a comment below about an optimization you made.
-It's not necessarily a bug, but I thought I'd call
-attention to it anyway.
+It should be implicit tho. If the video driver isn't using the memory
+then it should tell your framework that the memory is not used. That way
+something else can use it.
 
-Outside of that it looks good to me.
+(btw, these strings your creating yikes, talk about confusing ..)
 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/linux-2.6/xfs_super.c |    2 -
->  fs/xfs/linux-2.6/xfs_sync.c  |   62 +++++++++--------------------------------
->  fs/xfs/linux-2.6/xfs_sync.h  |    2 -
->  fs/xfs/xfs_mount.h           |    2 +-
->  4 files changed, 15 insertions(+), 53 deletions(-)
+> One of the purposes of the CMA framework is to make it let device
+> drivers completely forget about the memory management and enjoy
+> a simple API.
 
-. . .
+The driver, and it's maintainer, are really the best people to know how
+much memory they need and when it's used/unused. You don't really want
+to architect them out.
 
-> diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
-> index be37582..f433819 100644
-> --- a/fs/xfs/linux-2.6/xfs_sync.c
-> +++ b/fs/xfs/linux-2.6/xfs_sync.c
-> @@ -828,14 +828,7 @@ xfs_reclaim_inodes(
->  
->  /*
->   * Shrinker infrastructure.
-> - *
-> - * This is all far more complex than it needs to be. It adds a global list of
-> - * mounts because the shrinkers can only call a global context. We need to make
-> - * the shrinkers pass a context to avoid the need for global state.
->   */
-> -static LIST_HEAD(xfs_mount_list);
-> -static struct rw_semaphore xfs_mount_list_lock;
-> -
->  static int
->  xfs_reclaim_inode_shrink(
->  	struct shrinker	*shrink,
-> @@ -847,65 +840,38 @@ xfs_reclaim_inode_shrink(
->  	xfs_agnumber_t	ag;
->  	int		reclaimable = 0;
->  
-> +	mp = container_of(shrink, struct xfs_mount, m_inode_shrink);
->  	if (nr_to_scan) {
->  		if (!(gfp_mask & __GFP_FS))
->  			return -1;
->  
-> -		down_read(&xfs_mount_list_lock);
-> -		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
-> -			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
-> +		xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
->  					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
-> -			if (nr_to_scan <= 0)
-> -				break;
-> -		}
-> -		up_read(&xfs_mount_list_lock);
-> -	}
-> +		/* if we don't exhaust the scan, don't bother coming back */
-> +		if (nr_to_scan > 0)
-> +			return -1;
+Daniel
 
-This short-circuit return here sort of circumvents the
-SLABS_SCANNED VM event counting.  On the other hand, it
-seems to be counting nr_to_scan repeatedly, which isn't
-necessarily that meaningful in this case either.  (I
-don't know how important this is.)
-
-It also means that shrink_slab() under-counts the number
-of objects freed.  Again, this may not in practice be
-an issue--especially since more will have actually been
-freed than is claimed.
-
-					-Alex
-
-> +       }
->  
-> -	down_read(&xfs_mount_list_lock);
-> -	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
-> -		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-> -			pag = xfs_perag_get(mp, ag);
-> -			reclaimable += pag->pag_ici_reclaimable;
-> -			xfs_perag_put(pag);
-> -		}
-> +	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-> +		pag = xfs_perag_get(mp, ag);
-> +		reclaimable += pag->pag_ici_reclaimable;
-> +		xfs_perag_put(pag);
->  	}
-> -	up_read(&xfs_mount_list_lock);
->  	return reclaimable;
->  }
->  
-. . .
+-- 
+Sent by an consultant of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
