@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D29CE6B024D
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 14:15:25 -0400 (EDT)
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: Daniel Walker <dwalker@codeaurora.org>
-In-Reply-To: <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
-	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
-	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 20 Jul 2010 11:15:24 -0700
-Message-ID: <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C12D6B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 15:10:25 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6KJ29NY007509
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 13:02:09 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o6KJAWqK207464
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 13:10:32 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6KJABGP002611
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 13:10:11 -0600
+Subject: Re: [PATCH 2/8] v3 Add new phys_index properties
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4C45A3AB.6090407@austin.ibm.com>
+References: <4C451BF5.50304@austin.ibm.com>
+	 <4C451D92.6020406@austin.ibm.com>  <4C45A3AB.6090407@austin.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Tue, 20 Jul 2010 12:10:04 -0700
+Message-ID: <1279653004.9207.296.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, greg@kroah.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-07-20 at 17:51 +0200, Michal Nazarewicz wrote:
-> +** Use cases
-> +
-> +    Lets analyse some imaginary system that uses the CMA to see how
-> +    the framework can be used and configured.
-> +
-> +
-> +    We have a platform with a hardware video decoder and a camera
-> each
-> +    needing 20 MiB of memory in worst case.  Our system is written in
-> +    such a way though that the two devices are never used at the same
-> +    time and memory for them may be shared.  In such a system the
-> +    following two command line arguments would be used:
-> +
-> +        cma=r=20M cma_map=video,camera=r 
+On Tue, 2010-07-20 at 08:24 -0500, Nathan Fontenot wrote:
+> Update the 'phys_index' properties of a memory block to include a
+> 'start_phys_index' which is the same as the current 'phys_index' property.
+> This also adds an 'end_phys_index' property to indicate the id of the
+> last section in th memory block.
+> 
+> Patch updated to keep the name of the phys_index property instead of
+> renaming it to start_phys_index.
 
-This seems inelegant to me.. It seems like these should be connected
-with the drivers themselves vs. doing it on the command like for
-everything. You could have the video driver declare it needs 20megs, and
-the the camera does the same but both indicate it's shared ..
+KAME is right on this.  We should keep the old one if at all possible.  
 
-If you have this disconnected from the drivers it will just cause
-confusion, since few will know what these parameters should be for a
-given driver set. It needs to be embedded in the kernel.
+The only other thing we might want to do is move 'phys_index' to
+'start_phys_index', and make a new 'phys_index' that does a WARN_ONCE(),
+gives a deprecated warning, then calls the new 'start_phys_index' code.
 
-Daniel
+So, basically make the new, more clear name, but keep the old one for a
+while and deprecate it.  Maybe we could get away with removing it in ten
+years. :)
 
--- 
-Sent by an consultant of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
