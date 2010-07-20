@@ -1,75 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A6E756B02A4
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 18:54:00 -0400 (EDT)
-Date: Wed, 21 Jul 2010 08:53:55 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/3] mm: add context argument to shrinker callback
-Message-ID: <20100720225355.GP32635@dastard>
-References: <1279194418-16119-1-git-send-email-david@fromorbit.com>
- <1279194418-16119-2-git-send-email-david@fromorbit.com>
- <1279654204.1859.232.camel@doink>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6E93A6B02A4
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 19:03:11 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so7320856iwn.14
+        for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:03:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1279654204.1859.232.camel@doink>
+In-Reply-To: <1279283870-18549-5-git-send-email-ngupta@vflare.org>
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
+	<1279283870-18549-5-git-send-email-ngupta@vflare.org>
+Date: Wed, 21 Jul 2010 08:03:09 +0900
+Message-ID: <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com>
+Subject: Re: [PATCH 4/8] Shrink zcache based on memlimit
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Alex Elder <aelder@sgi.com>
-Cc: xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 20, 2010 at 02:30:04PM -0500, Alex Elder wrote:
-> On Thu, 2010-07-15 at 21:46 +1000, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > The current shrinker implementation requires the registered callback
-> > to have global state to work from. This makes it difficult to shrink
-> > caches that are not global (e.g. per-filesystem caches). Pass the shrinker
-> > structure to the callback so that users can embed the shrinker structure
-> > in the context the shrinker needs to operate on and get back to it in the
-> > callback via container_of().
-> 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > ---
-> >  arch/x86/kvm/mmu.c              |    2 +-
-> >  drivers/gpu/drm/i915/i915_gem.c |    2 +-
-> >  fs/dcache.c                     |    2 +-
-> >  fs/gfs2/glock.c                 |    2 +-
-> >  fs/gfs2/quota.c                 |    2 +-
-> >  fs/gfs2/quota.h                 |    2 +-
-> >  fs/inode.c                      |    2 +-
-> >  fs/mbcache.c                    |    5 +++--
-> >  fs/nfs/dir.c                    |    2 +-
-> >  fs/nfs/internal.h               |    3 ++-
-> >  fs/quota/dquot.c                |    2 +-
-> >  fs/ubifs/shrinker.c             |    2 +-
-> >  fs/ubifs/ubifs.h                |    2 +-
-> >  fs/xfs/linux-2.6/xfs_buf.c      |    5 +++--
-> >  fs/xfs/linux-2.6/xfs_sync.c     |    1 +
-> >  fs/xfs/quota/xfs_qm.c           |    7 +++++--
-> >  include/linux/mm.h              |    2 +-
-> >  mm/vmscan.c                     |    8 +++++---
-> >  18 files changed, 31 insertions(+), 22 deletions(-)
-> 
-> You seem to have missed two registered shrinkers:
-> - ttm_pool_mm_shrink() in "drivers/gpu/drm/ttm/ttm_page_alloc.c"
-> - rpcauth_cache_shrinker() in "net/sunrpc/auth.c"
+Hi,
 
-Bugger - one's a new shrinker since 2.6.34, and I'm not sure how I
-missed the auth cache one. Oh, it throws a single warning:
+On Fri, Jul 16, 2010 at 9:37 PM, Nitin Gupta <ngupta@vflare.org> wrote:
+> User can change (per-pool) memlimit using sysfs node:
+> /sys/kernel/mm/zcache/pool<id>/memlimit
+>
+> When memlimit is set to a value smaller than current
+> number of pages allocated for that pool, excess pages
+> are now freed immediately instead of waiting for get/
+> flush for these pages.
+>
+> Currently, victim page selection is essentially random.
+> Automatic cache resizing and better page replacement
+> policies will be implemented later.
 
-net/sunrpc/auth.c:586: warning: initialization from incompatible pointer type
+Okay. I know this isn't end. I just want to give a concern before you end up.
+I don't know how you implement reclaim policy.
+In current implementation, you use memlimit for determining when reclaim happen.
+But i think we also should follow global reclaim policy of VM.
+I means although memlimit doen't meet, we should reclaim zcache if
+system has a trouble to reclaim memory.
+AFAIK, cleancache doesn't give any hint for that. so we should
+implement it in zcache itself.
+At first glance, we can use shrink_slab or oom_notifier. But both
+doesn't give any information of zone although global reclaim do it by
+per-zone.
+AFAIK, Nick try to implement zone-aware shrink slab. Also if we need
+it, we can change oom_notifier with zone-aware oom_notifier. Now it
+seems anyone doesn't use oom_notifier so I am not sure it's useful.
 
-that I didn't notice as being a new warning.
-
-Oh well, time to update.
-
-Cheers,
-
-Dave.
+It's just my opinion.
+Thanks for effort for good feature. Nitin.
 -- 
-Dave Chinner
-david@fromorbit.com
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
