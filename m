@@ -1,91 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D33D6B02A5
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 15:38:05 -0400 (EDT)
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: Daniel Walker <dwalker@codeaurora.org>
-In-Reply-To: <op.vf5o28st7p4s8u@pikus>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
-	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
-	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-	 <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf5o28st7p4s8u@pikus>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 20 Jul 2010 12:38:18 -0700
-Message-ID: <1279654698.26765.31.camel@c-dwalke-linux.qualcomm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D404C6B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:45:26 -0400 (EDT)
+Date: Tue, 20 Jul 2010 13:45:17 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
+ memory management
+Message-ID: <20100720204515.GA12250@codeaurora.org>
+References: <4C3C0032.5020702@codeaurora.org>
+ <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+ <20100713121420.GB4263@codeaurora.org>
+ <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+ <20100714201149.GA14008@codeaurora.org>
+ <20100714220536.GE18138@n2100.arm.linux.org.uk>
+ <20100715012958.GB2239@codeaurora.org>
+ <20100715085535.GC26212@n2100.arm.linux.org.uk>
+ <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com>
+ <20100716075856.GC16124@n2100.arm.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100716075856.GC16124@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Tim HRM <zt.tmzt@gmail.com>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-07-20 at 21:14 +0200, MichaA? Nazarewicz wrote:
-> On Tue, 20 Jul 2010 20:15:24 +0200, Daniel Walker <dwalker@codeaurora.org> wrote:
+On Fri, Jul 16, 2010 at 08:58:56AM +0100, Russell King - ARM Linux wrote:
+> On Thu, Jul 15, 2010 at 08:48:36PM -0400, Tim HRM wrote:
+> > Interesting, since I seem to remember the MSM devices mostly conduct
+> > IO through regions of normal RAM, largely accomplished through
+> > ioremap() calls.
+> > 
+> > Without more public domain documentation of the MSM chips and AMSS
+> > interfaces I wouldn't know how to avoid this, but I can imagine it
+> > creates a bit of urgency for Qualcomm developers as they attempt to
+> > upstream support for this most interesting SoC.
 > 
-> > On Tue, 2010-07-20 at 17:51 +0200, Michal Nazarewicz wrote:
-> >> +** Use cases
-> >> +
-> >> +    Lets analyse some imaginary system that uses the CMA to see how
-> >> +    the framework can be used and configured.
-> >> +
-> >> +
-> >> +    We have a platform with a hardware video decoder and a camera
-> >> each
-> >> +    needing 20 MiB of memory in worst case.  Our system is written in
-> >> +    such a way though that the two devices are never used at the same
-> >> +    time and memory for them may be shared.  In such a system the
-> >> +    following two command line arguments would be used:
-> >> +
-> >> +        cma=r=20M cma_map=video,camera=r
-> >
-> > This seems inelegant to me.. It seems like these should be connected
-> > with the drivers themselves vs. doing it on the command like for
-> > everything. You could have the video driver declare it needs 20megs, and
-> > the the camera does the same but both indicate it's shared ..
-> >
-> > If you have this disconnected from the drivers it will just cause
-> > confusion, since few will know what these parameters should be for a
-> > given driver set. It needs to be embedded in the kernel.
+> As the patch has been out for RFC since early April on the linux-arm-kernel
+> mailing list (Subject: [RFC] Prohibit ioremap() on kernel managed RAM),
+> and no comments have come back from Qualcomm folk.
 > 
-> I see your point but the problem is that devices drivers don't know the
-> rest of the system neither they know what kind of use cases the system
-> should support.
-> 
-> 
-> Lets say, we have a camera, a JPEG encoder, a video decoder and
-> scaler (ie. devices that scales raw image).  We want to support the
-> following 3 use cases:
-> 
-> 1. Camera's output is scaled and displayed in real-time.
-> 2. Single frame is taken from camera and saved as JPEG image.
-> 3. A video file is decoded, scaled and displayed.
-> 
-> What is apparent is that camera and video decoder are never running
-> at the same time.  The same situation is with JPEG encoder and scaler.
->  From this knowledge we can construct the following:
-> 
->    cma=a=10M;b=10M cma_map=camera,video=a;jpeg,scaler=b
+> The restriction on creation of multiple V:P mappings with differing
+> attributes is also fairly hard to miss in the ARM architecture
+> specification when reading the sections about caches.
 
-It should be implicit tho. If the video driver isn't using the memory
-then it should tell your framework that the memory is not used. That way
-something else can use it.
+As you mention in your patch the things that can't conflict are memory
+type (strongly- ordered/device/normal), cache policy
+(cacheable/non-cacheable, copy- back/write-through), and coherency
+realm (non-shareable/inner- shareable/outer-shareable). You can
+conflict in allocation preferences (write-allocate/write-no-allocate),
+as those are just "hints".
 
-(btw, these strings your creating yikes, talk about confusing ..)
+You can also conflict in access permissions which can and do conflict
+(which are what multiple mappings are all about...some buffer can get
+some access, while others get different access).
 
-> One of the purposes of the CMA framework is to make it let device
-> drivers completely forget about the memory management and enjoy
-> a simple API.
+The VCM API allows the same memory to be mapped as long as it makes
+sense and allows those attributes that can change to be specified. It
+could be the alternative, globally applicable approach, your looking
+for and request in your patch.
 
-The driver, and it's maintainer, are really the best people to know how
-much memory they need and when it's used/unused. You don't really want
-to architect them out.
+Without the VCM API (or something like it) there will just be a bunch
+of duplicated code that's basically doing ioremap. This code will
+probably fail to configure its mappings correctly, in which case your
+patch is a bad idea because it'll spawn bugs all over the place
+instead of at a know location. We could instead change ioremap to
+match the attributes of System RAM if that's what its mapping.
 
-Daniel
 
--- 
-Sent by an consultant of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
