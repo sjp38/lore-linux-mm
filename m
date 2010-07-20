@@ -1,47 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 76F3A60080B
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 00:15:02 -0400 (EDT)
-Date: Mon, 19 Jul 2010 21:14:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/6] writeback: avoid unnecessary calculation of bdi
- dirty thresholds
-Message-Id: <20100719211400.c2bd5494.akpm@linux-foundation.org>
-In-Reply-To: <20100720033437.GE6087@localhost>
-References: <20100711020656.340075560@intel.com>
-	<20100711021748.879183413@intel.com>
-	<20100719143520.d9af9649.akpm@linux-foundation.org>
-	<20100720033437.GE6087@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5B8566B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 03:00:21 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6K70H9t013321
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 20 Jul 2010 16:00:18 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EC4E645DE4F
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:00:16 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A90A145DE52
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:00:16 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 701101DB805F
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:00:16 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 18C721DB8057
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:00:16 +0900 (JST)
+Date: Tue, 20 Jul 2010 15:55:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/8] v3 Move the find_memory_block() routine up
+Message-Id: <20100720155502.17242173.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4C451D4E.8040600@austin.ibm.com>
+References: <4C451BF5.50304@austin.ibm.com>
+	<4C451D4E.8040600@austin.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, greg@kroah.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jul 2010 11:34:37 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Mon, 19 Jul 2010 22:51:42 -0500
+Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-> On Tue, Jul 20, 2010 at 05:35:20AM +0800, Andrew Morton wrote:
-> > On Sun, 11 Jul 2010 10:06:59 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > Split get_dirty_limits() into global_dirty_limits()+bdi_dirty_limit(),
-> > > so that the latter can be avoided when under global dirty background
-> > > threshold (which is the normal state for most systems).
-> > > 
-> > 
-> > mm/page-writeback.c: In function 'balance_dirty_pages_ratelimited_nr':
-> > mm/page-writeback.c:466: warning: 'dirty_exceeded' may be used uninitialized in this function
-> > 
-> > This was a real bug.
+> Move the find_me mory_block() routine up to avoid needing a forward
+> declaration in subsequent patches.
 > 
-> Thanks! But how do you catch this? There are no warnings in my compile test.
+> Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
-Basic `make allmodconfig'.  But I use a range of different compiler
-versions.  Different versions of gcc detect different stuff.  This was 4.1.0
-or 4.0.2, I forget which.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+> ---
+>  drivers/base/memory.c |   62 +++++++++++++++++++++++++-------------------------
+>  1 file changed, 31 insertions(+), 31 deletions(-)
+> 
+> Index: linux-2.6/drivers/base/memory.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/base/memory.c	2010-07-16 12:41:30.000000000 -0500
+> +++ linux-2.6/drivers/base/memory.c	2010-07-19 20:42:11.000000000 -0500
+> @@ -435,6 +435,37 @@ int __weak arch_get_memory_phys_device(u
+>  	return 0;
+>  }
+>  
+> +/*
+> + * For now, we have a linear search to go find the appropriate
+> + * memory_block corresponding to a particular phys_index. If
+> + * this gets to be a real problem, we can always use a radix
+> + * tree or something here.
+> + *
+> + * This could be made generic for all sysdev classes.
+> + */
+> +struct memory_block *find_memory_block(struct mem_section *section)
+> +{
+> +	struct kobject *kobj;
+> +	struct sys_device *sysdev;
+> +	struct memory_block *mem;
+> +	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
+> +
+> +	/*
+> +	 * This only works because we know that section == sysdev->id
+> +	 * slightly redundant with sysdev_register()
+> +	 */
+> +	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
+> +
+> +	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
+> +	if (!kobj)
+> +		return NULL;
+> +
+> +	sysdev = container_of(kobj, struct sys_device, kobj);
+> +	mem = container_of(sysdev, struct memory_block, sysdev);
+> +
+> +	return mem;
+> +}
+> +
+>  static int add_memory_block(int nid, struct mem_section *section,
+>  			unsigned long state, enum mem_add_context context)
+>  {
+> @@ -468,37 +499,6 @@ static int add_memory_block(int nid, str
+>  	return ret;
+>  }
+>  
+> -/*
+> - * For now, we have a linear search to go find the appropriate
+> - * memory_block corresponding to a particular phys_index. If
+> - * this gets to be a real problem, we can always use a radix
+> - * tree or something here.
+> - *
+> - * This could be made generic for all sysdev classes.
+> - */
+> -struct memory_block *find_memory_block(struct mem_section *section)
+> -{
+> -	struct kobject *kobj;
+> -	struct sys_device *sysdev;
+> -	struct memory_block *mem;
+> -	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
+> -
+> -	/*
+> -	 * This only works because we know that section == sysdev->id
+> -	 * slightly redundant with sysdev_register()
+> -	 */
+> -	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
+> -
+> -	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
+> -	if (!kobj)
+> -		return NULL;
+> -
+> -	sysdev = container_of(kobj, struct sys_device, kobj);
+> -	mem = container_of(sysdev, struct memory_block, sysdev);
+> -
+> -	return mem;
+> -}
+> -
+>  int remove_memory_block(unsigned long node_id, struct mem_section *section,
+>  		int phys_device)
+>  {
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
