@@ -1,43 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ECEC6B024D
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 13:51:31 -0400 (EDT)
-Date: Tue, 20 Jul 2010 10:50:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bugme-new] [Bug 16321] New: os unresponsive during buffered
- I/O
-Message-Id: <20100720105052.e077be1c.akpm@linux-foundation.org>
-In-Reply-To: <20100720150855.GA17832@infradead.org>
-References: <bug-16321-10286@https.bugzilla.kernel.org/>
-	<20100702160501.45861821.akpm@linux-foundation.org>
-	<20100719211036.3cfa1727.akpm@linux-foundation.org>
-	<20100720150855.GA17832@infradead.org>
+	by kanga.kvack.org (Postfix) with ESMTP id D29CE6B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 14:15:25 -0400 (EDT)
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+From: Daniel Walker <dwalker@codeaurora.org>
+In-Reply-To: <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 20 Jul 2010 11:15:24 -0700
+Message-ID: <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jul 2010 11:08:55 -0400 Christoph Hellwig <hch@infradead.org> wrote:
+On Tue, 2010-07-20 at 17:51 +0200, Michal Nazarewicz wrote:
+> +** Use cases
+> +
+> +    Lets analyse some imaginary system that uses the CMA to see how
+> +    the framework can be used and configured.
+> +
+> +
+> +    We have a platform with a hardware video decoder and a camera
+> each
+> +    needing 20 MiB of memory in worst case.  Our system is written in
+> +    such a way though that the two devices are never used at the same
+> +    time and memory for them may be shared.  In such a system the
+> +    following two command line arguments would be used:
+> +
+> +        cma=r=20M cma_map=video,camera=r 
 
-> On Mon, Jul 19, 2010 at 09:10:36PM -0700, Andrew Morton wrote:
-> > The reporter has updated the report, says "This bug is consistently
-> > reproducible.".  But no signs of interest from kernel developers yet.
-> 
-> If only the reported can reproduce it that doesn't really help anyone.
+This seems inelegant to me.. It seems like these should be connected
+with the drivers themselves vs. doing it on the command like for
+everything. You could have the video driver declare it needs 20megs, and
+the the camera does the same but both indicate it's shared ..
 
-Garbage.  We have a reporter who is prepared to work with us.  Has
-anyone tried talking him through using the relevant tracepoints? 
-Sending patches to add new ones if needed?
+If you have this disconnected from the drivers it will just cause
+confusion, since few will know what these parameters should be for a
+given driver set. It needs to be embedded in the kernel.
 
-> And neither does hiding bugreports in bugzilla help when this could be
-> discussed much more usefully on the list.
+Daniel
 
-The guy's email address is right there.  And there are over forty more
-people at https://bugzilla.kernel.org/show_bug.cgi?id=7372 seeing
-similar (or other!) problems.
+-- 
+Sent by an consultant of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
