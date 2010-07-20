@@ -1,371 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2BD6B02A4
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 09:29:06 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6KDEtZ3001769
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 09:14:55 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6KDSwjk134044
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 09:28:58 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6KDSvDc002335
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 07:28:57 -0600
-Message-ID: <4C45A497.6090509@austin.ibm.com>
-Date: Tue, 20 Jul 2010 08:28:55 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7916B02A4
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 09:46:15 -0400 (EDT)
+Date: Tue, 20 Jul 2010 14:45:56 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in
+	direct reclaim
+Message-ID: <20100720134555.GU13117@csn.ul.ie>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-5-git-send-email-mel@csn.ul.ie> <20100719221420.GA16031@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] v3 Allow memory_block to span multiple memory sections
-References: <4C451BF5.50304@austin.ibm.com> <4C451E1C.8070907@austin.ibm.com>
-In-Reply-To: <4C451E1C.8070907@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100719221420.GA16031@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, greg@kroah.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Update the memory sysfs code that each sysfs memory directory is now
-considered a memory block that can contain multiple memory sections per
-memory block.  The default size of each memory block is SECTION_SIZE_BITS
-to maintain the current behavior of having a single memory section per
-memory block (i.e. one sysfs directory per memory section).
+On Tue, Jul 20, 2010 at 12:14:20AM +0200, Johannes Weiner wrote:
+> Hi Mel,
+> 
+> On Mon, Jul 19, 2010 at 02:11:26PM +0100, Mel Gorman wrote:
+> > @@ -406,7 +461,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+> >  		return PAGE_SUCCESS;
+> >  	}
+> 
+> Did you forget to delete the worker code from pageout() which is now
+> in write_reclaim_page()?
+> 
 
-For architectures that want to have memory blocks span multiple
-memory sections they need only define their own memory_block_size_bytes()
-routine.
+Damn, a snarl during the final rebase when collapsing patches together that
+I missed when re-reading. Sorry :(
 
-Patch refreshed to apply cleanly with previous two patch updates.
+> > -	return PAGE_CLEAN;
+> > +	return write_reclaim_page(page, mapping, sync_writeback);
+> >  }
+> >  
+> >  /*
+> > @@ -639,6 +694,9 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
+> >  	pagevec_free(&freed_pvec);
+> >  }
+> >  
+> > +/* Direct lumpy reclaim waits up to 5 seconds for background cleaning */
+> > +#define MAX_SWAP_CLEAN_WAIT 50
+> > +
+> >  /*
+> >   * shrink_page_list() returns the number of reclaimed pages
+> >   */
+> > @@ -646,13 +704,19 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  					struct scan_control *sc,
+> >  					enum pageout_io sync_writeback)
+> >  {
+> > -	LIST_HEAD(ret_pages);
+> >  	LIST_HEAD(free_pages);
+> > -	int pgactivate = 0;
+> > +	LIST_HEAD(putback_pages);
+> > +	LIST_HEAD(dirty_pages);
+> > +	int pgactivate;
+> > +	int dirty_isolated = 0;
+> > +	unsigned long nr_dirty;
+> >  	unsigned long nr_reclaimed = 0;
+> >  
+> > +	pgactivate = 0;
+> >  	cond_resched();
+> >  
+> > +restart_dirty:
+> > +	nr_dirty = 0;
+> >  	while (!list_empty(page_list)) {
+> >  		enum page_references references;
+> >  		struct address_space *mapping;
+> > @@ -741,7 +805,19 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  			}
+> >  		}
+> >  
+> > -		if (PageDirty(page)) {
+> > +		if (PageDirty(page))  {
+> > +			/*
+> > +			 * If the caller cannot writeback pages, dirty pages
+> > +			 * are put on a separate list for cleaning by either
+> > +			 * a flusher thread or kswapd
+> > +			 */
+> > +			if (!reclaim_can_writeback(sc, page)) {
+> > +				list_add(&page->lru, &dirty_pages);
+> > +				unlock_page(page);
+> > +				nr_dirty++;
+> > +				goto keep_dirty;
+> > +			}
+> > +
+> >  			if (references == PAGEREF_RECLAIM_CLEAN)
+> >  				goto keep_locked;
+> >  			if (!may_enter_fs)
+> > @@ -852,13 +928,39 @@ activate_locked:
+> >  keep_locked:
+> >  		unlock_page(page);
+> >  keep:
+> > -		list_add(&page->lru, &ret_pages);
+> > +		list_add(&page->lru, &putback_pages);
+> > +keep_dirty:
+> >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+> >  	}
+> >  
+> > +	if (dirty_isolated < MAX_SWAP_CLEAN_WAIT && !list_empty(&dirty_pages)) {
+> > +		/*
+> > +		 * Wakeup a flusher thread to clean at least as many dirty
+> > +		 * pages as encountered by direct reclaim. Wait on congestion
+> > +		 * to throttle processes cleaning dirty pages
+> > +		 */
+> > +		wakeup_flusher_threads(nr_dirty);
+> > +		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > +
+> > +		/*
+> > +		 * As lumpy reclaim and memcg targets specific pages, wait on
+> > +		 * them to be cleaned and try reclaim again.
+> > +		 */
+> > +		if (sync_writeback == PAGEOUT_IO_SYNC ||
+> > +						sc->mem_cgroup != NULL) {
+> > +			dirty_isolated++;
+> > +			list_splice(&dirty_pages, page_list);
+> > +			INIT_LIST_HEAD(&dirty_pages);
+> > +			goto restart_dirty;
+> > +		}
+> > +	}
+> 
+> I think it would turn out more natural to just return dirty pages on
+> page_list and have the whole looping logic in shrink_inactive_list().
+> 
+> Mixing dirty pages with other 'please try again' pages is probably not
+> so bad anyway, it means we could retry all temporary unavailable pages
+> instead of twiddling thumbs over that particular bunch of pages until
+> the flushers catch up.
+> 
+> What do you think?
+> 
 
-Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
----
- drivers/base/memory.c |  141 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 98 insertions(+), 43 deletions(-)
+It's worth considering! It won't be very tidy but it's workable. The reason
+it is not tidy is that dirty pages and pages that couldn't be paged will be
+on the same list so they whole lot will need to be recycled. We'd record in
+scan_control though that there were pages that need to be retried and loop
+based on that value. That is managable though.
 
-Index: linux-2.6/drivers/base/memory.c
-===================================================================
---- linux-2.6.orig/drivers/base/memory.c	2010-07-20 06:43:29.000000000 -0500
-+++ linux-2.6/drivers/base/memory.c	2010-07-20 06:44:30.000000000 -0500
-@@ -28,6 +28,14 @@
- #include <asm/uaccess.h>
- 
- #define MEMORY_CLASS_NAME	"memory"
-+#define MIN_MEMORY_BLOCK_SIZE	(1 << SECTION_SIZE_BITS)
-+
-+static int sections_per_block;
-+
-+static inline int base_memory_block_id(int section_nr)
-+{
-+	return (section_nr / sections_per_block) * sections_per_block;
-+}
- 
- static struct sysdev_class memory_sysdev_class = {
- 	.name = MEMORY_CLASS_NAME,
-@@ -82,22 +90,21 @@ EXPORT_SYMBOL(unregister_memory_isolate_
-  * register_memory - Setup a sysfs device for a memory block
-  */
- static
--int register_memory(struct memory_block *memory, struct mem_section *section)
-+int register_memory(struct memory_block *memory)
- {
- 	int error;
- 
- 	memory->sysdev.cls = &memory_sysdev_class;
--	memory->sysdev.id = __section_nr(section);
-+	memory->sysdev.id = memory->start_phys_index;
- 
- 	error = sysdev_register(&memory->sysdev);
- 	return error;
- }
- 
- static void
--unregister_memory(struct memory_block *memory, struct mem_section *section)
-+unregister_memory(struct memory_block *memory)
- {
- 	BUG_ON(memory->sysdev.cls != &memory_sysdev_class);
--	BUG_ON(memory->sysdev.id != __section_nr(section));
- 
- 	/* drop the ref. we got in remove_memory_block() */
- 	kobject_put(&memory->sysdev.kobj);
-@@ -131,13 +138,16 @@ static ssize_t show_mem_end_phys_index(s
- static ssize_t show_mem_removable(struct sys_device *dev,
- 			struct sysdev_attribute *attr, char *buf)
- {
--	unsigned long start_pfn;
--	int ret;
-+	unsigned long i, pfn;
-+	int ret = 1;
- 	struct memory_block *mem =
- 		container_of(dev, struct memory_block, sysdev);
- 
--	start_pfn = section_nr_to_pfn(mem->start_phys_index);
--	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
-+	for (i = mem->start_phys_index; i <= mem->end_phys_index; i++) {
-+		pfn = section_nr_to_pfn(i);
-+		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
-+	}
-+
- 	return sprintf(buf, "%d\n", ret);
- }
- 
-@@ -190,17 +200,14 @@ int memory_isolate_notify(unsigned long
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
--memory_block_action(struct memory_block *mem, unsigned long action)
-+memory_section_action(unsigned long phys_index, unsigned long action)
- {
- 	int i;
--	unsigned long psection;
- 	unsigned long start_pfn, start_paddr;
- 	struct page *first_page;
- 	int ret;
--	int old_state = mem->state;
- 
--	psection = mem->start_phys_index;
--	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
-+	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
- 
- 	/*
- 	 * The probe routines leave the pages reserved, just
-@@ -213,8 +220,8 @@ memory_block_action(struct memory_block
- 				continue;
- 
- 			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online? \n",
--				psection, i);
-+				"not reserved, was it already online?\n",
-+				phys_index, i);
- 			return -EBUSY;
- 		}
- 	}
-@@ -225,18 +232,13 @@ memory_block_action(struct memory_block
- 			ret = online_pages(start_pfn, PAGES_PER_SECTION);
- 			break;
- 		case MEM_OFFLINE:
--			mem->state = MEM_GOING_OFFLINE;
- 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
- 			ret = remove_memory(start_paddr,
- 					    PAGES_PER_SECTION << PAGE_SHIFT);
--			if (ret) {
--				mem->state = old_state;
--				break;
--			}
- 			break;
- 		default:
--			WARN(1, KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
--					__func__, mem, action, action);
-+			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-+			     "%ld\n", __func__, phys_index, action, action);
- 			ret = -EINVAL;
- 	}
- 
-@@ -246,7 +248,7 @@ memory_block_action(struct memory_block
- static int memory_block_change_state(struct memory_block *mem,
- 		unsigned long to_state, unsigned long from_state_req)
- {
--	int ret = 0;
-+	int i, ret = 0;
- 	mutex_lock(&mem->state_mutex);
- 
- 	if (mem->state != from_state_req) {
-@@ -254,8 +256,21 @@ static int memory_block_change_state(str
- 		goto out;
- 	}
- 
--	ret = memory_block_action(mem, to_state);
--	if (!ret)
-+	if (to_state == MEM_OFFLINE)
-+		mem->state = MEM_GOING_OFFLINE;
-+
-+	for (i = mem->start_phys_index; i <= mem->end_phys_index; i++) {
-+		ret = memory_section_action(i, to_state);
-+		if (ret)
-+			break;
-+	}
-+
-+	if (ret) {
-+		for (i = mem->start_phys_index; i <= mem->end_phys_index; i++)
-+			memory_section_action(i, from_state_req);
-+
-+		mem->state = from_state_req;
-+	} else
- 		mem->state = to_state;
- 
- out:
-@@ -268,20 +283,15 @@ store_mem_state(struct sys_device *dev,
- 		struct sysdev_attribute *attr, const char *buf, size_t count)
- {
- 	struct memory_block *mem;
--	unsigned int phys_section_nr;
- 	int ret = -EINVAL;
- 
- 	mem = container_of(dev, struct memory_block, sysdev);
--	phys_section_nr = mem->start_phys_index;
--
--	if (!present_section_nr(phys_section_nr))
--		goto out;
- 
- 	if (!strncmp(buf, "online", min((int)count, 6)))
- 		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
- 	else if(!strncmp(buf, "offline", min((int)count, 7)))
- 		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
--out:
-+
- 	if (ret)
- 		return ret;
- 	return count;
-@@ -458,12 +468,13 @@ struct memory_block *find_memory_block(s
- 	struct sys_device *sysdev;
- 	struct memory_block *mem;
- 	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
-+	int block_id = base_memory_block_id(__section_nr(section));
- 
- 	/*
- 	 * This only works because we know that section == sysdev->id
- 	 * slightly redundant with sysdev_register()
- 	 */
--	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
-+	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, block_id);
- 
- 	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
- 	if (!kobj)
-@@ -475,24 +486,26 @@ struct memory_block *find_memory_block(s
- 	return mem;
- }
- 
--static int add_memory_block(int nid, struct mem_section *section,
--			unsigned long state, enum mem_add_context context)
-+static int init_memory_block(struct memory_block **memory,
-+			     struct mem_section *section, unsigned long state)
- {
--	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-+	struct memory_block *mem;
- 	unsigned long start_pfn;
- 	int ret = 0;
- 
-+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
- 	if (!mem)
- 		return -ENOMEM;
- 
--	mem->start_phys_index = __section_nr(section);
-+	mem->start_phys_index = base_memory_block_id(__section_nr(section));
-+	mem->end_phys_index = mem->start_phys_index + sections_per_block - 1;
- 	mem->state = state;
- 	atomic_inc(&mem->section_count);
- 	mutex_init(&mem->state_mutex);
- 	start_pfn = section_nr_to_pfn(mem->start_phys_index);
- 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
- 
--	ret = register_memory(mem, section);
-+	ret = register_memory(mem);
- 	if (!ret)
- 		ret = mem_create_simple_file(mem, phys_index);
- 	if (!ret)
-@@ -503,8 +516,27 @@ static int add_memory_block(int nid, str
- 		ret = mem_create_simple_file(mem, phys_device);
- 	if (!ret)
- 		ret = mem_create_simple_file(mem, removable);
-+
-+	*memory = mem;
-+	return ret;
-+}
-+
-+static int add_memory_section(int nid, struct mem_section *section,
-+			unsigned long state, enum mem_add_context context)
-+{
-+	struct memory_block *mem;
-+	int ret = 0;
-+
-+	mem = find_memory_block(section);
-+	if (mem) {
-+		atomic_inc(&mem->section_count);
-+		kobject_put(&mem->sysdev.kobj);
-+	} else
-+		ret = init_memory_block(&mem, section, state);
-+
- 	if (!ret) {
--		if (context == HOTPLUG)
-+		if (context == HOTPLUG &&
-+		    atomic_read(&mem->section_count) == sections_per_block)
- 			ret = register_mem_sect_under_node(mem, nid);
- 	}
- 
-@@ -525,8 +557,9 @@ int remove_memory_block(unsigned long no
- 		mem_remove_simple_file(mem, state);
- 		mem_remove_simple_file(mem, phys_device);
- 		mem_remove_simple_file(mem, removable);
--		unregister_memory(mem, section);
--	}
-+		unregister_memory(mem);
-+	} else
-+		kobject_put(&mem->sysdev.kobj);
- 
- 	return 0;
- }
-@@ -537,7 +570,7 @@ int remove_memory_block(unsigned long no
-  */
- int register_new_memory(int nid, struct mem_section *section)
- {
--	return add_memory_block(nid, section, MEM_OFFLINE, HOTPLUG);
-+	return add_memory_section(nid, section, MEM_OFFLINE, HOTPLUG);
- }
- 
- int unregister_memory_section(struct mem_section *section)
-@@ -548,6 +581,24 @@ int unregister_memory_section(struct mem
- 	return remove_memory_block(0, section, 0);
- }
- 
-+u32 __weak memory_block_size_bytes(void)
-+{
-+	return MIN_MEMORY_BLOCK_SIZE;
-+}
-+
-+static u32 get_memory_block_size(void)
-+{
-+	u32 block_sz;
-+
-+	block_sz = memory_block_size_bytes();
-+
-+	/* Validate blk_sz is a power of 2 and not less than section size */
-+	if ((block_sz & (block_sz - 1)) || (block_sz < MIN_MEMORY_BLOCK_SIZE))
-+		block_sz = MIN_MEMORY_BLOCK_SIZE;
-+
-+	return block_sz;
-+}
-+
- /*
-  * Initialize the sysfs support for memory devices...
-  */
-@@ -556,12 +607,16 @@ int __init memory_dev_init(void)
- 	unsigned int i;
- 	int ret;
- 	int err;
-+	int block_sz;
- 
- 	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
- 	ret = sysdev_class_register(&memory_sysdev_class);
- 	if (ret)
- 		goto out;
- 
-+	block_sz = get_memory_block_size();
-+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
-+
- 	/*
- 	 * Create entries for memory sections that were found
- 	 * during boot and have been initialized
-@@ -569,8 +624,8 @@ int __init memory_dev_init(void)
- 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
- 		if (!present_section_nr(i))
- 			continue;
--		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE,
--				       BOOT);
-+		err = add_memory_section(0, __nr_to_section(i), MEM_ONLINE,
-+					 BOOT);
- 		if (!ret)
- 			ret = err;
- 	}
+The reason why I did it this way was because of lumpy reclaim and memcg
+requiring specific pages. I considered lumpy reclaim to be the more common
+case. In that case, it's removing potentially a large number of pages from
+the LRU that are contiguous. If some of those are dirty and it selects more
+contiguous ranges for reclaim, I'd worry that lumpy reclaim would trash the
+system even worse than it currently does when the system is under load. Hence,
+this wait and retry loop is done instead of returning and isolating more pages.
 
+For memcg, the concern was different. It is depending on flusher threads
+to clean its pages, kswapd does not operate on the list and it can't clean
+pages itself because the stack may overflow. If the memcg has many dirty
+pages, one process in the container could isolate all the dirty pages in
+the list forcing others to reclaim clean pages regardless of age. This
+could be very disruptive but looping like this throttling processes that
+encounter dirty pages instead of isolating more.
+
+For lumpy, I don't think we should return and isolate more pages, it's
+too disruptive. For memcg, I think it could possibly get an advantage
+but there is a nasty corner case if the container is mostly dirty - it
+depends on how memcg handles dirty_ratio I guess.
+
+Is it worth it at this point?
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
