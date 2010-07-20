@@ -1,172 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E36286B024D
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 11:50:57 -0400 (EDT)
-Received: from eu_spt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0L5V00DNM5CP4H@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Tue, 20 Jul 2010 16:50:49 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L5V00HON5COIO@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 20 Jul 2010 16:50:48 +0100 (BST)
-Date: Tue, 20 Jul 2010 17:51:23 +0200
-From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [PATCH 0/4] The Contiguous Memory Allocator
-Message-id: <cover.1279639238.git.m.nazarewicz@samsung.com>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN
-Content-transfer-encoding: 7BIT
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B614A6B02A4
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 11:57:49 -0400 (EDT)
+Received: by pwi8 with SMTP id 8so2630497pwi.14
+        for <linux-mm@kvack.org>; Tue, 20 Jul 2010 08:57:48 -0700 (PDT)
+Date: Wed, 21 Jul 2010 00:57:32 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v2
+Message-ID: <20100720155732.GA1940@barrios-desktop>
+References: <1279448311-29788-1-git-send-email-minchan.kim@gmail.com>
+ <20100720101557.GD16031@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100720101557.GD16031@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Michal Nazarewicz <m.nazarewicz@samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Kukjin Kim <kgene.kim@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello everyone,
+On Tue, Jul 20, 2010 at 12:15:58PM +0200, Johannes Weiner wrote:
+> Hi,
+> 
+> On Sun, Jul 18, 2010 at 07:18:31PM +0900, Minchan Kim wrote:
+> > Kukjin reported oops happen while he change min_free_kbytes
+> > http://www.spinics.net/lists/arm-kernel/msg92894.html
+> > It happen by memory map on sparsemem.
+> > 
+> > The system has a memory map following as. 
+> >      section 0             section 1              section 2
+> > 0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
+> > SECTION_SIZE_BITS 28(256M)
+> > 
+> > It means section 0 is an incompletely filled section.
+> > Nontheless, current pfn_valid of sparsemem checks pfn loosely. 
+> > It checks only mem_section's validation but ARM can free mem_map on hole 
+> > to save memory space. So in above case, pfn on 0x25000000 can pass pfn_valid's 
+> > validation check. It's not what we want.
+> >
+> > We can match section size to smallest valid size.(ex, above case, 16M)
+> > But Russell doesn't like it due to mem_section's memory overhead with different
+> > configuration(ex, 512K section).
+> >
+> > I tried to add valid pfn range in mem_section but everyone doesn't like it 
+> > due to size overhead. This patch is suggested by KAMEZAWA-san. 
+> > I just fixed compile error and change some naming.
+> 
+> I did not like it, because it messes up the whole concept of a
+> section.
 
-The following patchset implement a Contiguous Memory Allocator.  Here
-is an excerpt from the documentation which describes what it is and
-why is it needed:
+Yes. but ARM already have broken it.
+So we can't ignore it. 
 
-   The Contiguous Memory Allocator (CMA) is a framework, which allows
-   setting up a machine-specific configuration for physically-contiguous
-   memory management. Memory for devices is then allocated according
-   to that configuration.
+> 
+> But most importantly, we already have a crutch for ARM in place,
+> namely memmap_valid_within().  Looking at Kukjin's bug report,
+> wouldn't it be enough to use that check in
+> setup_zone_migrate_reserve()?
 
-   The main role of the framework is not to allocate memory, but to
-   parse and manage memory configurations, as well as to act as an
-   in-between between device drivers and pluggable allocators. It is
-   thus not tied to any memory allocation method or strategy.
+I did it.
+But I think it's not a fundamental solution.
+It would make new bad rule which whole pfn walker should call 
+memmap_valid_within. 
 
-** Why is it needed?
+I just greped "grep -nRH 'start_pfn' mm/'.
+If we add it in setup_zone_migration_reserve, look at kmemleak(kmemleak_scan)
+compaction(isolate_migratepages) and so on. I am not sure how many there are.
+I doubt they have a same problem in setup_zone_migrate_pages.
+Should we add memmap_valid_within whenever whole pfn walker does?
 
-    Various devices on embedded systems have no scatter-getter and/or
-    IO map support and as such require contiguous blocks of memory to
-    operate.  They include devices such as cameras, hardware video
-    decoders and encoders, etc.
+> 
+> Your approach makes every pfn_valid() more expensive, although the
+> extensive checks are not not needed everywhere (check the comment
+> above memmap_valid_within): vm_normal_page() for example can probably
+> assume that a PTE won't point to a hole within the memory map.
 
-    Such devices often require big memory buffers (a full HD frame is,
-    for instance, more then 2 mega pixels large, i.e. more than 6 MB
-    of memory), which makes mechanisms such as kmalloc() ineffective.
+I agree. But I think it's trade-off of architecture have memmap hole.
+They want to use such model which don't meet sparsemem's disign
+so that it's cost they have to pay.
+In fact, All we mm guys don't want to use such model, but ARM has been 
+used such model, so we can't ignore them. So I want to care them but doesn't
+affect non-hole architecure of memmap. 
+In terms of such point, this patch doesn't have a overhead 
+in non-hole architecture and it doesn't make new rule as I said above.
+Also, hole architecture developers don't need to override pfn_valid to detect
+hole pfn range. 
 
-    Some embedded devices impose additional requirements on the
-    buffers, e.g. they can operate only on buffers allocated in
-    particular location/memory bank (if system has more than one
-    memory bank) or buffers aligned to a particular memory boundary.
+> 
+> OTOH, if the ARM people do not care, we could probably go with your
+> approach, encode it all into pfn_valid(), and also get rid of
+> memmap_valid_within() completely.  But I would prefer doing a bugfix
+> first and such a conceptual change in a different patch, would you
+> agree?
 
-    Development of embedded devices have seen a big rise recently
-    (especially in the V4L area) and many such drivers include their
-    own memory allocation code. Most of them use bootmem-based methods.
-    CMA framework is an attempt to unify contiguous memory allocation
-    mechanisms and provide a simple API for device drivers, while
-    staying as customisable and modular as possible.
+Hmm, I am not sure. memmap_valid_within problem can happen in only sparemem?
+AFAIR, the problem can happen in punched hole(not either side hole) of FLATMEM?
+If it is right, maybe we should expand this patch 
+to CONFIG_ARCH_HAS_HOLES_MEMORYMODEL not CONFIG_SPARSEMEM.
 
-** Design
+And I think this patch just checks validation of memmap not page's itself 
+validiation. If one page in memmap has mixed(valid or non-valid) struct page 
+descriptors,  it can't  identify it. So pfn walker need to check PageReserved 
+in addition to pfn_valid. But as I review above example, some cases
+doesn't check it. but it's a another story we have to fix. 
 
-    The main design goal for the CMA was to provide a customisable and
-    modular framework, which could be configured to suit the needs of
-    individual systems.  Configuration specifies a list of memory
-    regions, which then are assigned to devices.  Memory regions can
-    be shared among many device drivers or assigned exclusively to
-    one.  This has been achieved in the following ways:
+Thanks for careful review, Hannes. :)
 
-    1. The core of the CMA does not handle allocation of memory and
-       management of free space.  Dedicated allocators are used for
-       that purpose.
-
-       This way, if the provided solution does not match demands
-       imposed on a given system, one can develop a new algorithm and
-       easily plug it into the CMA framework.
-
-       The presented solution includes an implementation of a best-fit
-       algorithm.
-
-    2. CMA allows a run-time configuration of the memory regions it
-       will use to allocate chunks of memory from.  The set of memory
-       regions is given on command line so it can be easily changed
-       without the need for recompiling the kernel.
-
-       Each region has it's own size, alignment demand, a start
-       address (physical address where it should be placed) and an
-       allocator algorithm assigned to the region.
-
-       This means that there can be different algorithms running at
-       the same time, if different devices on the platform have
-       distinct memory usage characteristics and different algorithm
-       match those the best way.
-
-    3. When requesting memory, devices have to introduce themselves.
-       This way CMA knows who the memory is allocated for.  This
-       allows for the system architect to specify which memory regions
-       each device should use.
-
-       3a. Devices can also specify a "kind" of memory they want.
-           This makes it possible to configure the system in such
-           a way, that a single device may get memory from different
-           memory regions, depending on the "kind" of memory it
-           requested.  For example, a video codec driver might want to
-           allocate some shared buffers from the first memory bank and
-           the other from the second to get the highest possible
-           memory throughput.
-
-For more information please refer to the second patch from the
-patchset which contains the documentation.
-
-
-The patches in the patchset include:
-
-Michal Nazarewicz (4):
-  lib: rbtree: rb_root_init() function added
-
-    The rb_root_init() function initialises an RB tree with a single
-    node placed in the root.  This is more convenient then
-    initialising an empty tree and then adding an element.
-
-  mm: cma: Contiguous Memory Allocator added
-
-    This patch is the main patchset that implements the CMA framework
-    including the best-fit allocator.  It also adds a documentation.
-
-  mm: cma: Test device and application added
-
-    This patch adds a misc device that works as a proxy to the CMA
-    framework and a simple testing application.  This lets one test
-    the whole framework from user space as well as reply an recorded
-    allocate/free sequence.
-
-  arm: Added CMA to Aquila and Goni
-
-    This patch adds the CMA platform initialisation code to two ARM
-    platforms.  It serves as an example of how this is achieved.
-
- Documentation/cma.txt               |  435 +++++++++++++++++++
- Documentation/kernel-parameters.txt |    7 +
- arch/arm/Kconfig                    |    1 +
- arch/arm/mach-s5pv210/Kconfig       |    1 +
- arch/arm/mach-s5pv210/mach-aquila.c |    7 +
- arch/arm/mach-s5pv210/mach-goni.c   |    7 +
- drivers/misc/Kconfig                |    8 +
- drivers/misc/Makefile               |    1 +
- drivers/misc/cma-dev.c              |  183 ++++++++
- include/linux/cma-int.h             |  183 ++++++++
- include/linux/cma.h                 |  122 ++++++
- include/linux/rbtree.h              |   11 +
- mm/Kconfig                          |   41 ++
- mm/Makefile                         |    3 +
- mm/cma-allocators.h                 |   42 ++
- mm/cma-best-fit.c                   |  360 ++++++++++++++++
- mm/cma.c                            |  778 +++++++++++++++++++++++++++++++++++
- tools/cma/cma-test.c                |  373 +++++++++++++++++
- 18 files changed, 2563 insertions(+), 0 deletions(-)
- create mode 100644 Documentation/cma.txt
- create mode 100644 drivers/misc/cma-dev.c
- create mode 100644 include/linux/cma-int.h
- create mode 100644 include/linux/cma.h
- create mode 100644 mm/cma-allocators.h
- create mode 100644 mm/cma-best-fit.c
- create mode 100644 mm/cma.c
- create mode 100644 tools/cma/cma-test.c
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
