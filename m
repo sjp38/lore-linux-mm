@@ -1,70 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2733D6B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 05:19:34 -0400 (EDT)
-Subject: Re: [patch 4/6] gfs2: remove dependency on __GFP_NOFAIL
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <alpine.DEB.2.00.1007201940300.8728@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
-	 <alpine.DEB.2.00.1007201940300.8728@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Jul 2010 10:24:45 +0100
-Message-ID: <1279704285.2667.2.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 880BC6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 05:23:15 -0400 (EDT)
+From: Christian Dietrich <stettberger@dokucode.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Dead Config in mm/percpu.c
+Date: Wed, 21 Jul 2010 11:22:51 +0200
+Message-ID: <861vaxjij8.fsf@peer.zerties.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi all!
+=20=20=20=20=20=20=20
+        As part of the VAMOS[0] research project at the University of
+Erlangen we are looking at multiple integrity errors in linux'
+configuration system.
 
-Looks good to me, I've added it to the -nmw tree. There are a few more
-GFP_NOFAIL instances in the code that we can probably remove in the
-future, but these two are pretty easy. Thanks for the patch,
+        I've been running a check on the mm/ sourcetree for
+config Items not defined in Kconfig and found 1 such case. Sourcecode
+blocks depending on these Items are not reachable from a vanilla
+kernel -- dead code. I've seen such dead blocks made on purpose
+e.g. while integrating new features into the kernel but generally
+they're just useless.
 
-Steve.
+We found, that CONFIG_NEED_PER_CPU_KM is a dead symbol, so it isn't defined
+anywhere. Cause of that the percpu_km.c is never included anywhere. Is
+this a intended dead symbol, for use in out of tree development, or is
+this just an error?
 
-On Tue, 2010-07-20 at 19:45 -0700, David Rientjes wrote:
-> The k[mc]allocs in dr_split_leaf() and dir_double_exhash() are failable,
-> so remove __GFP_NOFAIL from their masks.
-> 
-> Cc: Bob Peterson <rpeterso@redhat.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  fs/gfs2/dir.c |   11 +++++++++--
->  1 files changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
-> --- a/fs/gfs2/dir.c
-> +++ b/fs/gfs2/dir.c
-> @@ -955,7 +955,12 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
->  	/* Change the pointers.
->  	   Don't bother distinguishing stuffed from non-stuffed.
->  	   This code is complicated enough already. */
-> -	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS | __GFP_NOFAIL);
-> +	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS);
-> +	if (!lp) {
-> +		error = -ENOMEM;
-> +		goto fail_brelse;
-> +	}
-> +
->  	/*  Change the pointers  */
->  	for (x = 0; x < half_len; x++)
->  		lp[x] = cpu_to_be64(bn);
-> @@ -1063,7 +1068,9 @@ static int dir_double_exhash(struct gfs2_inode *dip)
->  
->  	/*  Allocate both the "from" and "to" buffers in one big chunk  */
->  
-> -	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_NOFS | __GFP_NOFAIL);
-> +	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_NOFS);
-> +	if (!buf)
-> +		return -ENOMEM;
->  
->  	for (block = dip->i_disksize >> sdp->sd_hash_bsize_shift; block--;) {
->  		error = gfs2_dir_read_data(dip, (char *)buf,
-
-
+Regards
+        Christian Dietrich
+--=20
+(=CE=BB x . x x) (=CE=BB x . x x) -- See how beatiful the lambda is
+No documentation is better than bad documentation
+-- Das Ausdrucken dieser Mail wird urheberrechtlich verfolgt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
