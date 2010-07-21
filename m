@@ -1,69 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E54FC6B02A6
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 00:52:16 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so7705829iwn.14
-        for <linux-mm@kvack.org>; Tue, 20 Jul 2010 21:52:15 -0700 (PDT)
-Message-ID: <4C467D18.4050901@vflare.org>
-Date: Wed, 21 Jul 2010 10:22:40 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 69F666B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 01:18:58 -0400 (EDT)
+Message-ID: <5a63b73ff04b72db2930eae4e43e5c5b.squirrel@www.codeaurora.org>
+Date: Tue, 20 Jul 2010 22:18:55 -0700 (PDT)
+Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU,
+           CPU and device memory management
+From: stepanm@codeaurora.org
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] Shrink zcache based on memlimit
-References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>	<1279283870-18549-5-git-send-email-ngupta@vflare.org> <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com>
-In-Reply-To: <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: zpfeffer@codeaurora.org, linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/21/2010 04:33 AM, Minchan Kim wrote:
-> On Fri, Jul 16, 2010 at 9:37 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->> User can change (per-pool) memlimit using sysfs node:
->> /sys/kernel/mm/zcache/pool<id>/memlimit
->>
->> When memlimit is set to a value smaller than current
->> number of pages allocated for that pool, excess pages
->> are now freed immediately instead of waiting for get/
->> flush for these pages.
->>
->> Currently, victim page selection is essentially random.
->> Automatic cache resizing and better page replacement
->> policies will be implemented later.
-> 
-> Okay. I know this isn't end. I just want to give a concern before you end up.
-> I don't know how you implement reclaim policy.
-> In current implementation, you use memlimit for determining when reclaim happen.
-> But i think we also should follow global reclaim policy of VM.
-> I means although memlimit doen't meet, we should reclaim zcache if
-> system has a trouble to reclaim memory.
+> What is the problem about mapping a 1MB buffer with the DMA API?
+>
+> Possibly, an IOMMU can't find space for 1MB but it's not the problem of
+the DMA API.
 
-Yes, we should have a way to do reclaim depending on system memory pressure
-and also when user explicitly wants so i.e. when memlimit is lowered manually.
+As you have pointed out, one of the issues is that allocation can fail.
+While technically VCMM allocations can fail as well, these allocations can
+be made from one or more memory pools that have been set aside
+specifically to be used by devices. Thus, the kernel's normal allocator
+will not encroach on the large physically-contiguous chunks (of size 1MB
+or even 16MB) that are not easy to get back, and would be forced to deal
+with increasing memory pressure in other ways.
+Additionally, some of the memory pools may have special properties, such
+as being part of on-chip memory with higher performance than regular
+memory, and some devices may have special requirements regarding what type
+or memory they need. The VCMM allocator solves the problem in a generic
+way by being able to deal with multiple memory pools and supporting
+prioritization schemes for which subset of the memory pools is to be used
+for each physical allocation.
 
-> AFAIK, cleancache doesn't give any hint for that. so we should
-> implement it in zcache itself.
-
-I think cleancache should be kept minimal so yes, all reclaim policies should
-go in zcache layer only.
-
-> At first glance, we can use shrink_slab or oom_notifier. But both
-> doesn't give any information of zone although global reclaim do it by
-> per-zone.
-> AFAIK, Nick try to implement zone-aware shrink slab. Also if we need
-> it, we can change oom_notifier with zone-aware oom_notifier. Now it
-> seems anyone doesn't use oom_notifier so I am not sure it's useful.
-> 
-
-I don't think we need these notifiers as we can simply create a thread
-to monitor cache hit rate, system memory pressure etc. and shrink/expand
-the cache accordingly.
+Sent by an employee of the Qualcomm Innovation Center, Inc.
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
 
 
-Thanks for your comments.
-Nitin
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
