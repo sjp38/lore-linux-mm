@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6E93A6B02A4
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 19:03:11 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so7320856iwn.14
-        for <linux-mm@kvack.org>; Tue, 20 Jul 2010 16:03:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1279283870-18549-5-git-send-email-ngupta@vflare.org>
-References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
-	<1279283870-18549-5-git-send-email-ngupta@vflare.org>
-Date: Wed, 21 Jul 2010 08:03:09 +0900
-Message-ID: <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com>
-Subject: Re: [PATCH 4/8] Shrink zcache based on memlimit
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 176A56B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 20:12:43 -0400 (EDT)
+Date: Tue, 20 Jul 2010 18:12:39 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+Message-ID: <20100720181239.5a1fd090@bike.lwn.net>
+In-Reply-To: <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+	<d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+	<adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+One other thing occurred to me as I was thinking about this...
 
-On Fri, Jul 16, 2010 at 9:37 PM, Nitin Gupta <ngupta@vflare.org> wrote:
-> User can change (per-pool) memlimit using sysfs node:
-> /sys/kernel/mm/zcache/pool<id>/memlimit
->
-> When memlimit is set to a value smaller than current
-> number of pages allocated for that pool, excess pages
-> are now freed immediately instead of waiting for get/
-> flush for these pages.
->
-> Currently, victim page selection is essentially random.
-> Automatic cache resizing and better page replacement
-> policies will be implemented later.
+> +    There are four calls provided by the CMA framework to devices.  To
+> +    allocate a chunk of memory cma_alloc() function needs to be used:
+> +
+> +            unsigned long cma_alloc(const struct device *dev,
+> +                                    const char *kind,
+> +                                    unsigned long size,
+> +                                    unsigned long alignment);
 
-Okay. I know this isn't end. I just want to give a concern before you end up.
-I don't know how you implement reclaim policy.
-In current implementation, you use memlimit for determining when reclaim happen.
-But i think we also should follow global reclaim policy of VM.
-I means although memlimit doen't meet, we should reclaim zcache if
-system has a trouble to reclaim memory.
-AFAIK, cleancache doesn't give any hint for that. so we should
-implement it in zcache itself.
-At first glance, we can use shrink_slab or oom_notifier. But both
-doesn't give any information of zone although global reclaim do it by
-per-zone.
-AFAIK, Nick try to implement zone-aware shrink slab. Also if we need
-it, we can change oom_notifier with zone-aware oom_notifier. Now it
-seems anyone doesn't use oom_notifier so I am not sure it's useful.
+The purpose behind this interface, I believe, is pretty much always
+going to be to allocate memory for DMA buffers.  Given that, might it
+make more sense to integrate the API with the current DMA mapping API?
+Then the allocation function could stop messing around with long values
+and, instead, just hand back a void * kernel-space pointer and a
+dma_addr_t to hand to the device.  That would make life a little easier
+in driverland...
 
-It's just my opinion.
-Thanks for effort for good feature. Nitin.
--- 
-Kind regards,
-Minchan Kim
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
