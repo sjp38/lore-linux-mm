@@ -1,75 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BEAA6B02A3
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 10:28:59 -0400 (EDT)
-Date: Wed, 21 Jul 2010 16:28:44 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in direct
- reclaim
-Message-ID: <20100721142819.GA10480@cmpxchg.org>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
- <1279545090-19169-5-git-send-email-mel@csn.ul.ie>
- <20100719221420.GA16031@cmpxchg.org>
- <20100720134555.GU13117@csn.ul.ie>
- <20100720220218.GE16031@cmpxchg.org>
- <20100721115250.GX13117@csn.ul.ie>
- <20100721130435.GH16031@cmpxchg.org>
- <20100721133857.GY13117@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100721133857.GY13117@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 78ECA6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 10:30:15 -0400 (EDT)
+Received: from eu_spt2 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L5W00FLYWACM9@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 21 Jul 2010 15:30:12 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L5W009B0WABIP@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 21 Jul 2010 15:30:12 +0100 (BST)
+Date: Wed, 21 Jul 2010 16:31:35 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <20100721135229.GC10930@sirena.org.uk>
+Message-id: <op.vf66mxka7p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+ <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+ <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+ <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf5o28st7p4s8u@pikus> <20100721135229.GC10930@sirena.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mark Brown <broonie@opensource.wolfsonmicro.com>
+Cc: Daniel Walker <dwalker@codeaurora.org>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 21, 2010 at 02:38:57PM +0100, Mel Gorman wrote:
-> Here is an updated version. Thanks very much
-> 
-> ==== CUT HERE ====
-> vmscan: Do not writeback filesystem pages in direct reclaim
-> 
-> When memory is under enough pressure, a process may enter direct
-> reclaim to free pages in the same manner kswapd does. If a dirty page is
-> encountered during the scan, this page is written to backing storage using
-> mapping->writepage. This can result in very deep call stacks, particularly
-> if the target storage or filesystem are complex. It has already been observed
-> on XFS that the stack overflows but the problem is not XFS-specific.
-> 
-> This patch prevents direct reclaim writing back filesystem pages by checking
-> if current is kswapd or the page is anonymous before writing back.  If the
-> dirty pages cannot be written back, they are placed back on the LRU lists
-> for either background writing by the BDI threads or kswapd. If in direct
-> lumpy reclaim and dirty pages are encountered, the process will stall for
-> the background flusher before trying to reclaim the pages again.
-> 
-> As the call-chain for writing anonymous pages is not expected to be deep
-> and they are not cleaned by flusher threads, anonymous pages are still
-> written back in direct reclaim.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Rik van Riel <riel@redhat.com>
+On Wed, 21 Jul 2010 15:52:30 +0200, Mark Brown <broonie@opensource.wolfs=
+onmicro.com> wrote:
 
-Cool!
+> On Tue, Jul 20, 2010 at 09:14:58PM +0200, Micha?? Nazarewicz wrote:
+>> On Tue, 20 Jul 2010 20:15:24 +0200, Daniel Walker <dwalker@codeaurora=
+.org> wrote:
+>
+>> > If you have this disconnected from the drivers it will just cause
+>> > confusion, since few will know what these parameters should be for =
+a
+>> > given driver set. It needs to be embedded in the kernel.
+>
+>> I see your point but the problem is that devices drivers don't know t=
+he
+>> rest of the system neither they know what kind of use cases the syste=
+m
+>> should support.
+>
+> If this does need to be configured per system would having platform da=
+ta
+> of some kind in the kernel not be a sensible a place to do it,
 
-Except for one last tiny thing...
+The current version (and the next version I'm working on) of the code
+has cma_defaults() call.  It is intended to be called from platform
+initialisation code to provide defaults.
 
-> @@ -858,7 +872,7 @@ keep:
->  
->  	free_page_list(&free_pages);
->  
-> -	list_splice(&ret_pages, page_list);
+> or even
+> having a way of configuring this at runtime (after all, the set of
+> currently active users may vary depending on the current configuration=
 
-This will lose all retry pages forever, I think.
+> and keeping everything allocated all the time may be wasteful)?
 
-> +	*nr_still_dirty = nr_dirty;
->  	count_vm_events(PGACTIVATE, pgactivate);
->  	return nr_reclaimed;
->  }
+I am currently working on making the whole thing more dynamic.  I imagin=
+e
+the list of regions would stay pretty much the same after kernel has
+started (that's because one cannot reliably allocate new big contiguous
+memory regions) but it will be possible to change the set of rules, etc.=
 
-Otherwise,
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
