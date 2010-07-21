@@ -1,106 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6928C6B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 13:52:54 -0400 (EDT)
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: Daniel Walker <dwalker@codeaurora.org>
-In-Reply-To: <op.vf6zo9vb7p4s8u@pikus>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
-	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
-	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-	 <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf5o28st7p4s8u@pikus>
-	 <1279654698.26765.31.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf6zo9vb7p4s8u@pikus>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Jul 2010 10:35:50 -0700
-Message-ID: <1279733750.31376.14.camel@c-dwalke-linux.qualcomm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE516B02A4
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 13:54:33 -0400 (EDT)
+From: Roland Dreier <rdreier@cisco.com>
+Subject: Re: [patch 2/6] infiniband: remove dependency on __GFP_NOFAIL
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1007201938570.8728@chino.kir.corp.google.com>
+	<4C466730.1070809@opengridcomputing.com>
+Date: Wed, 21 Jul 2010 10:55:36 -0700
+In-Reply-To: <4C466730.1070809@opengridcomputing.com> (Steve Wise's message of
+	"Tue, 20 Jul 2010 22:19:12 -0500")
+Message-ID: <adaaapkpvmv.fsf@roland-alpha.cisco.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: Steve Wise <swise@opengridcomputing.com>
+Cc: David Rientjes <rientjes@google.com>, Steve Wise <swise@chelsio.com>, Andrew Morton <akpm@linux-foundation.org>, Roland Dreier <rolandd@cisco.com>, linux-rdma@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-07-21 at 14:01 +0200, MichaA? Nazarewicz wrote:
-
-> What you are asking for is:
-> 
-> 	cma=a=100M cma_map=*/*=a
-> 
-> All devices will share the same region so that "if the video driver isn't
-> using the memory" then "something else can use it". (please excuse me quoting
-> you, it was stronger then me ;) ).
-
-Ok ..
-
-> Driver has to little information to say whether it really stopped using
-> memory.  Maybe the next call will be to allocate buffers for frames and
-> initialise the chip?  Sure, some a??good enougha?? defaults can be provided
-> (and the framework allows that) but still platform architect might need
-> more power.
-
-I think your talking more about optimization .. You can take that into
-account ..
-
-> > (btw, these strings your creating yikes, talk about confusing ..)
-> 
-> They are not that scary really.  Let's look at cma:
-> 
-> 	a=10M;b=10M
-> 
-> Split it on semicolon:
-> 
-> 	a=10M
-> 	b=10M
-> 
-> and you see that it defines two regions (a and b) 10M each.
-
-I think your assuming a lot .. I've never seen the notation before I
-wouldn't assuming there's regions or whatever ..
-
-> As of cma_map:
-> 
-> 	camera,video=a;jpeg,scaler=b
-> 
-> Again split it on semicolon:
-> 
-> 	camera,video=a
-> 	jpeg,scaler=b
-> 
-> Now, substitute equal sign by "use(s) region(s)":
-> 
-> 	camera,video	use(s) region(s):	a
-> 	jpeg,scaler	use(s) region(s):	b
-> 
-> No black magic here. ;)
-
-It way too complicated .. Users (i.e. not programmers) has to use
-this ..
-
-> >> One of the purposes of the CMA framework is to make it let device
-> >> drivers completely forget about the memory management and enjoy
-> >> a simple API.
-> >
-> > The driver, and it's maintainer, are really the best people to know how
-> > much memory they need and when it's used/unused. You don't really want
-> > to architect them out.
-> 
-> This might be true if there is only one device but even then it's not
-> always the case.  If many devices need physically-contiguous memory
-> there is no way for them to communicate and share memory.  For best
-> performance someone must look at them and say who gets what.
-
-How do you think regular memory allocation work? I mean there's many
-devices that all need different amounts of memory and they get along.
-Yet your saying it's not possible .
-
-Daniel
-
-
+thanks guys, applied
 -- 
-Sent by an consultant of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+Roland Dreier <rolandd@cisco.com> || For corporate legal information go to:
+http://www.cisco.com/web/about/doing_business/legal/cri/index.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
