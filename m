@@ -1,57 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1A56B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 17:02:02 -0400 (EDT)
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: Daniel Walker <dwalker@codeaurora.org>
-In-Reply-To: <op.vf7ofuif7p4s8u@pikus>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
-	 <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
-	 <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-	 <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf5o28st7p4s8u@pikus>
-	 <1279654698.26765.31.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf6zo9vb7p4s8u@pikus>
-	 <1279733750.31376.14.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7gt3qy7p4s8u@pikus>
-	 <1279736348.31376.20.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7h1yc47p4s8u@pikus>
-	 <1279738688.31376.24.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7j13067p4s8u@pikus>
-	 <1279741029.31376.33.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7lipj67p4s8u@pikus>
-	 <1279742604.31376.40.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7mvhvn7p4s8u@pikus>
-	 <1279744472.31376.42.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7nuzu57p4s8u@pikus>
-	 <1279745143.31376.46.camel@c-dwalke-linux.qualcomm.com>
-	 <op.vf7ofuif7p4s8u@pikus>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Jul 2010 14:01:42 -0700
-Message-ID: <1279746102.31376.47.camel@c-dwalke-linux.qualcomm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A87DD6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 19:22:57 -0400 (EDT)
+Date: Thu, 22 Jul 2010 00:22:46 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH 0/2] mbcache fixes
+Message-ID: <20100721232245.GB903@ZenIV.linux.org.uk>
+References: <4C46D1C5.90200@gmail.com>
+ <4C46FD67.8070808@redhat.com>
+ <20100721202637.4CC213C539AA@imap.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100721202637.4CC213C539AA@imap.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: Andreas Gruenbacher <agruen@suse.de>
+Cc: Eric Sandeen <sandeen@redhat.com>, hch@infradead.org, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors <kernel-janitors@vger.kernel.org>, Wang Sheng-Hui <crosslonelyover@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-07-21 at 22:56 +0200, MichaA? Nazarewicz wrote:
-> On Wed, 21 Jul 2010 22:45:43 +0200, Daniel Walker <dwalker@codeaurora.org> wrote:
-> > Your not hearing the issues.. IT'S TOO COMPLEX! Please remove it.
+On Wed, Jul 21, 2010 at 07:57:20PM +0200, Andreas Gruenbacher wrote:
+> Al,
 > 
-> Remove what exactly?
+> here is an mbcache cleanup and then a fixed version of Shenghui's minor
+> shrinker function fix.  The patches have survived functional testing
+> here.
+> 
+> This seems slightly too much for kernel-janitors, so could you please
+> take the patches?
 
-Remove the command line option and all related code, or make it all a
-debug option.
-
-Arguing with me isn't going to help your cause.
-
-Daniel
-
--- 
-Sent by an consultant of the Qualcomm Innovation Center, Inc.
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
+Done.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
