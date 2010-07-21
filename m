@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 880BC6B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 05:23:15 -0400 (EDT)
-From: Christian Dietrich <stettberger@dokucode.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 136376B02A3
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 05:32:11 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o6L9W75Y013711
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 02:32:07 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by kpbe12.cbf.corp.google.com with ESMTP id o6L9W6hD021287
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 02:32:06 -0700
+Received: by pzk9 with SMTP id 9so3135050pzk.40
+        for <linux-mm@kvack.org>; Wed, 21 Jul 2010 02:32:06 -0700 (PDT)
+Date: Wed, 21 Jul 2010 02:31:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 4/6] gfs2: remove dependency on __GFP_NOFAIL
+In-Reply-To: <1279704285.2667.2.camel@localhost>
+Message-ID: <alpine.DEB.2.00.1007210229490.19769@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com> <alpine.DEB.2.00.1007201940300.8728@chino.kir.corp.google.com> <1279704285.2667.2.camel@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Subject: Dead Config in mm/percpu.c
-Date: Wed, 21 Jul 2010 11:22:51 +0200
-Message-ID: <861vaxjij8.fsf@peer.zerties.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>, David Howells <dhowells@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Steven Whitehouse <swhiteho@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all!
-=20=20=20=20=20=20=20
-        As part of the VAMOS[0] research project at the University of
-Erlangen we are looking at multiple integrity errors in linux'
-configuration system.
+On Wed, 21 Jul 2010, Steven Whitehouse wrote:
 
-        I've been running a check on the mm/ sourcetree for
-config Items not defined in Kconfig and found 1 such case. Sourcecode
-blocks depending on these Items are not reachable from a vanilla
-kernel -- dead code. I've seen such dead blocks made on purpose
-e.g. while integrating new features into the kernel but generally
-they're just useless.
+> Hi,
+> 
+> Looks good to me, I've added it to the -nmw tree. There are a few more
+> GFP_NOFAIL instances in the code that we can probably remove in the
+> future, but these two are pretty easy. Thanks for the patch,
+> 
 
-We found, that CONFIG_NEED_PER_CPU_KM is a dead symbol, so it isn't defined
-anywhere. Cause of that the percpu_km.c is never included anywhere. Is
-this a intended dead symbol, for use in out of tree development, or is
-this just an error?
+Thanks!  I'm planning on replacing __GFP_NOFAIL with a different flag that 
+will use all of the page allocator's capabilities (direct reclaim, 
+compaction for order > 0, and oom killer) but not loop forever.  Existing 
+__GFP_NOFAIL callers can then do
 
-Regards
-        Christian Dietrich
---=20
-(=CE=BB x . x x) (=CE=BB x . x x) -- See how beatiful the lambda is
-No documentation is better than bad documentation
--- Das Ausdrucken dieser Mail wird urheberrechtlich verfolgt.
+	do {
+		page = alloc_page(GFP_KERNEL | __GFP_KILLABLE);
+	} while (!page);
+
+to duplicate the behavior of __GFP_NOFAIL until such time as 
+__GFP_KILLABLE can be removed as well.  That's what I was planning for the 
+remaining instances in gfs2 during the second phase.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
