@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D196B02A3
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 11:06:47 -0400 (EDT)
-Date: Wed, 21 Jul 2010 16:06:29 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in
-	direct reclaim
-Message-ID: <20100721150629.GB13117@csn.ul.ie>
-References: <1279545090-19169-5-git-send-email-mel@csn.ul.ie> <20100719221420.GA16031@cmpxchg.org> <20100720134555.GU13117@csn.ul.ie> <20100720220218.GE16031@cmpxchg.org> <20100721115250.GX13117@csn.ul.ie> <20100721130435.GH16031@cmpxchg.org> <20100721133857.GY13117@csn.ul.ie> <20100721142819.GA10480@cmpxchg.org> <20100721143118.GA13117@csn.ul.ie> <20100721143955.GB10480@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E7BA6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 11:12:49 -0400 (EDT)
+Message-ID: <4C470E69.7020900@kernel.org>
+Date: Wed, 21 Jul 2010 17:12:41 +0200
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100721143955.GB10480@cmpxchg.org>
+Subject: Re: Dead Config in mm/percpu.c
+References: <861vaxjij8.fsf@peer.zerties.org>
+In-Reply-To: <861vaxjij8.fsf@peer.zerties.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Christian Dietrich <stettberger@dokucode.de>
+Cc: David Howells <dhowells@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 21, 2010 at 04:39:56PM +0200, Johannes Weiner wrote:
-> On Wed, Jul 21, 2010 at 03:31:19PM +0100, Mel Gorman wrote:
-> > On Wed, Jul 21, 2010 at 04:28:44PM +0200, Johannes Weiner wrote:
-> > > On Wed, Jul 21, 2010 at 02:38:57PM +0100, Mel Gorman wrote:
-> > > > @@ -858,7 +872,7 @@ keep:
-> > > >  
-> > > >  	free_page_list(&free_pages);
-> > > >  
-> > > > -	list_splice(&ret_pages, page_list);
-> > > 
-> > > This will lose all retry pages forever, I think.
-> > > 
-> > 
-> > Above this is
-> > 
-> > while (!list_empty(page_list)) {
-> > 	...
-> > }
-> > 
-> > page_list should be empty and keep_locked is putting the pages on ret_pages
-> > already so I think it's ok.
+On 07/21/2010 11:22 AM, Christian Dietrich wrote:
+> Hi all!
+>        
+>         As part of the VAMOS[0] research project at the University of
+> Erlangen we are looking at multiple integrity errors in linux'
+> configuration system.
 > 
-> But ret_pages is function-local.  Putting them back on the then-empty
-> page_list is to give them back to the caller, otherwise they are lost
-> in a dead stack slot.
+>         I've been running a check on the mm/ sourcetree for
+> config Items not defined in Kconfig and found 1 such case. Sourcecode
+> blocks depending on these Items are not reachable from a vanilla
+> kernel -- dead code. I've seen such dead blocks made on purpose
+> e.g. while integrating new features into the kernel but generally
+> they're just useless.
 > 
+> We found, that CONFIG_NEED_PER_CPU_KM is a dead symbol, so it isn't defined
+> anywhere. Cause of that the percpu_km.c is never included anywhere. Is
+> this a intended dead symbol, for use in out of tree development, or is
+> this just an error?
 
-Bah, you're right, it is repaired now. /me slaps self. Thanks
+Oh, it's new code waiting to be used.  It's for cases where SMP is
+used w/o MMU.  IIRC, it was blackfin.
+
+Thanks.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
