@@ -1,101 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E44696B02A8
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 10:00:18 -0400 (EDT)
-Message-ID: <4C46FD67.8070808@redhat.com>
-Date: Wed, 21 Jul 2010 09:00:07 -0500
-From: Eric Sandeen <sandeen@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 284CD6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 10:27:30 -0400 (EDT)
+Date: Wed, 21 Jul 2010 15:27:10 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in
+	direct reclaim
+Message-ID: <20100721142710.GZ13117@csn.ul.ie>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-5-git-send-email-mel@csn.ul.ie> <20100719221420.GA16031@cmpxchg.org> <20100720134555.GU13117@csn.ul.ie> <20100720220218.GE16031@cmpxchg.org> <20100721115250.GX13117@csn.ul.ie> <20100721210111.06dda351.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix return value for mb_cache_shrink_fn when nr_to_scan
- > 0
-References: <4C46D1C5.90200@gmail.com>
-In-Reply-To: <4C46D1C5.90200@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100721210111.06dda351.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wang Sheng-Hui <crosslonelyover@gmail.com>
-Cc: agruen@suse.de, hch@infradead.org, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors <kernel-janitors@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Wang Sheng-Hui wrote:
-> Sorry. regerated the patch, please check it.
-> I wrapped most code in single pair of spinlock ops for 2 reasons:
-> 1) get spinlock 2 times seems time consuming
-> 2) use single pair of spinlock ops can keep "count"
->   consistent for the shrink operation. 2 pairs may
->   get some new ces created by other processes.
+On Wed, Jul 21, 2010 at 09:01:11PM +0900, KAMEZAWA Hiroyuki wrote:
+> > <SNIP>
+> >  
+> >  	/*
+> > -	 * If we are direct reclaiming for contiguous pages and we do
+> > +	 * If specific pages are needed such as with direct reclaiming
+> > +	 * for contiguous pages or for memory containers and we do
+> >  	 * not reclaim everything in the list, try again and wait
+> > -	 * for IO to complete. This will stall high-order allocations
+> > -	 * but that should be acceptable to the caller
+> > +	 * for IO to complete. This will stall callers that require
+> > +	 * specific pages but it should be acceptable to the caller
+> >  	 */
+> > -	if (nr_reclaimed < nr_taken && !current_is_kswapd() &&
+> > -			sc->lumpy_reclaim_mode) {
+> > -		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > +	if (sc->may_writepage && !current_is_kswapd() &&
+> > +			(sc->lumpy_reclaim_mode || sc->mem_cgroup)) {
+> > +		int dirty_retry = MAX_SWAP_CLEAN_WAIT;
+> 
+> Hmm, ok. I see what will happen to memcg.
+
+Thanks
+
+> But, hmm, memcg will have to select to enter this rounine based on
+> the result of 1st memory reclaim.
 > 
 
-Sorry, this patch appears to have whitespace cut & paste mangling.
+It has the option of igoring pages being dirtied but I worry that the
+container could be filled with dirty pages waiting for flushers to do
+something.
 
-More comments below.
-
-> Signed-off-by: Wang Sheng-Hui <crosslonelyover@gmail.com>
-> ---
-> fs/mbcache.c |   24 ++++++++++++------------
-> 1 files changed, 12 insertions(+), 12 deletions(-)
+> >  
+> > -		/*
+> > -		 * The attempt at page out may have made some
+> > -		 * of the pages active, mark them inactive again.
+> > -		 */
+> > -		nr_active = clear_active_flags(&page_list, NULL);
+> > -		count_vm_events(PGDEACTIVATE, nr_active);
+> > +		while (nr_reclaimed < nr_taken && nr_dirty && dirty_retry--) {
+> > +			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
+> > +			congestion_wait(BLK_RW_ASYNC, HZ/10);
+> >  
+>
+> Congestion wait is required ?? Where the congestion happens ?
+> I'm sorry you already have some other trick in other patch.
 > 
-> diff --git a/fs/mbcache.c b/fs/mbcache.c
-> index ec88ff3..ee57aa3 100644
-> --- a/fs/mbcache.c
-> +++ b/fs/mbcache.c
-> @@ -201,21 +201,15 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
-> {
->     LIST_HEAD(free_list);
->     struct list_head *l, *ltmp;
-> +    struct mb_cache *cache;
->     int count = 0;
+
+It's to wait for the IO to occur.
+
+> > -		nr_reclaimed += shrink_page_list(&page_list, sc, PAGEOUT_IO_SYNC);
+> > +			/*
+> > +			 * The attempt at page out may have made some
+> > +			 * of the pages active, mark them inactive again.
+> > +			 */
+> > +			nr_active = clear_active_flags(&page_list, NULL);
+> > +			count_vm_events(PGDEACTIVATE, nr_active);
+> > +	
+> > +			nr_reclaimed += shrink_page_list(&page_list, sc,
+> > +						PAGEOUT_IO_SYNC, &nr_dirty);
+> > +		}
 > 
-> -    spin_lock(&mb_cache_spinlock);
-> -    list_for_each(l, &mb_cache_list) {
-> -        struct mb_cache *cache =
-> -            list_entry(l, struct mb_cache, c_cache_list);
-> -        mb_debug("cache %s (%d)", cache->c_name,
-> -              atomic_read(&cache->c_entry_count));
-> -        count += atomic_read(&cache->c_entry_count);
-> -    }
->     mb_debug("trying to free %d entries", nr_to_scan);
-> -    if (nr_to_scan == 0) {
-> -        spin_unlock(&mb_cache_spinlock);
-> +
-> +    spin_lock(&mb_cache_spinlock);
-> +    if (nr_to_scan == 0)
->         goto out;
-> -    }
-> +
->     while (nr_to_scan-- && !list_empty(&mb_cache_lru_list)) {
->         struct mb_cache_entry *ce =
->             list_entry(mb_cache_lru_list.next,
-> @@ -223,12 +217,18 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
->         list_move_tail(&ce->e_lru_list, &free_list);
->         __mb_cache_entry_unhash(ce);
->     }
-> -    spin_unlock(&mb_cache_spinlock);
-
-you can't do this because
-
->     list_for_each_safe(l, ltmp, &free_list) {
->         __mb_cache_entry_forget(list_entry(l, struct mb_cache_entry,
-
-this takes the spinlock too and you'll deadlock.
-
-Did you test this patch?
-
--Eric
-
->                            e_lru_list), gfp_mask);
->     }
-> out:
-> +    list_for_each_entry(cache, &mb_cache_list, c_cache_list) {
-> +        mb_debug("cache %s (%d)", cache->c_name,
-> +              atomic_read(&cache->c_entry_count));
-> +        count += atomic_read(&cache->c_entry_count);
-> +    }
-> +    spin_unlock(&mb_cache_spinlock);
-> +
->     return (count / 100) * sysctl_vfs_cache_pressure;
-> }
+> Just a question. This PAGEOUT_IO_SYNC has some meanings ?
 > 
+
+Yes, in pageout it will wait on pages currently being written back to be
+cleaned before trying to reclaim them.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
