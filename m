@@ -1,37 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5F46B02A3
-	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 21:45:36 -0400 (EDT)
-Date: Wed, 21 Jul 2010 10:44:37 +0900
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20100720221959.GC12250@codeaurora.org>
-References: <20100715014148.GC2239@codeaurora.org>
-	<20100719082213.GA7421@n2100.arm.linux.org.uk>
-	<20100720221959.GC12250@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100721104356S.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F926B024D
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 22:44:56 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o6L2iqm4031470
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 19:44:52 -0700
+Received: from pvh1 (pvh1.prod.google.com [10.241.210.193])
+	by wpaz29.hot.corp.google.com with ESMTP id o6L2ipV0017016
+	for <linux-mm@kvack.org>; Tue, 20 Jul 2010 19:44:51 -0700
+Received: by pvh1 with SMTP id 1so3306183pvh.41
+        for <linux-mm@kvack.org>; Tue, 20 Jul 2010 19:44:51 -0700 (PDT)
+Date: Tue, 20 Jul 2010 19:44:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 0/6] remove dependency on __GFP_NOFAIL for failable
+ allocations
+Message-ID: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: zpfeffer@codeaurora.org
-Cc: linux@arm.linux.org.uk, fujita.tomonori@lab.ntt.co.jp, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Steve Wise <swise@chelsio.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Jan Kara <jack@suse.cz>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Roland Dreier <rolandd@cisco.com>, Jens Axboe <jens.axboe@oracle.com>, Bob Peterson <rpeterso@redhat.com>, Andreas Dilger <adilger@sun.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jul 2010 15:20:01 -0700
-Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+This patchset removes __GFP_NOFAIL from various allocations when those 
+callers have error handling or the subsystem doesn't absolutely require
+success.
 
-> > I'm not saying that it's reasonable to pass (or even allocate) a 1MB
-> > buffer via the DMA API.
-> 
-> But given a bunch of large chunks of memory, is there any API that can
-> manage them (asked this on the other thread as well)?
-
-What is the problem about mapping a 1MB buffer with the DMA API?
-
-Possibly, an IOMMU can't find space for 1MB but it's not the problem
-of the DMA API.
+This is the first phase of two for the total removal of __GFP_NOFAIL:
+this patchset is intended to fix obvious users of __GFP_NOFAIL that are
+already failable or otherwise unnecessary.  The second phase will replace
+__GFP_NOFAIL with a different gfp which will use all of the page
+allocator's resources (direct reclaim, compaction, and the oom killer)
+to free memory but not infinitely loop in the allocator itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
