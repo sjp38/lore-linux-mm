@@ -1,366 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CC4876B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 07:03:18 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6LB3FbZ032430
+	by kanga.kvack.org (Postfix) with SMTP id 4479C6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 07:05:22 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6LB5Js1012139
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 21 Jul 2010 20:03:15 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7634045DE50
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:03:15 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AD7545DE4F
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:03:15 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 416F31DB8012
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:03:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3AAF1DB8014
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:03:11 +0900 (JST)
-Date: Wed, 21 Jul 2010 19:58:31 +0900
+	Wed, 21 Jul 2010 20:05:20 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BDCA145DE4F
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:05:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DF1245DE4E
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:05:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 872CF1DB8037
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:05:19 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 444931DB803B
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:05:16 +0900 (JST)
+Date: Wed, 21 Jul 2010 20:00:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/2][memcg] moving memcg's node info array to virtually
- contiguous array
-Message-Id: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/2][memcg] use virt-array for memcg.
+Message-Id: <20100721200033.7a8031e5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-These are just a _toy_ level patches yet. My final purpose is to use indexed array
-for mem_cgroup itself, it has IDs.
-
-Background:
-  memory cgroup uses struct page_cgroup for tracking all used pages. It's defined as
-==
-struct page_cgroup {
-        unsigned long flags;
-        struct mem_cgroup *mem_cgroup;
-        struct page *page;
-        struct list_head lru;           /* per cgroup LRU list */
-};
-==
-  and this increase the cost of per-page-objects dramatically. Now, we have
-  troubles on this object.
-  1.  Recently, a blkio-tracking guy wants to add "blockio-cgroup" information
-      to page_cgroup. But our concern is extra 8bytes per page.
-  2.  At tracking dirty page status etc...we need some trick for safe access
-      to page_cgroup and memcgroup's information. For example, a small seqlock.
-
-Now, each memory cgroup has its own ID (0-65535). So, if we can replace
-8byte of pointer "pc->mem_cgroup" with an ID, which is 2 bytes, we may able
-to have another room. (Moreover, I think we can reduce the number of IDs...)
-
-This patch is a trial for implement a virually-indexed on-demand array and
-an example of usage. Any commetns are welcome.
-
+This makes memcg to depend on CONFIG_MMU.
 ==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This virt-array allocates a virtally contiguous array via get_vm_area()
-and allows object allocation per an element of array.
-Physical pages are used only for used items in the array.
+Using virt_array for memcg's node information.
+Now, memcg allocates an array of pointer in the lengh of MAXNUMNODES
+to hold pointers for per-node information.
 
- - At first, the user has to create an array by create_virt_array().
- - At using an element, virt_array_alloc_index(index) should be called.
- - At freeing an element, virt_array_free_index(index) should be called.
- - At destroying, destroy_virt_array() should be called.
+This has 2 bad points
+  - struct mem_cgroup can be very big.
+  - need to access a pointer table for lookup zoneinfo.
 
-Item used/unused status is controlled by bitmap and back-end physical
-pages are automatically allocated/freed. This is useful when you
-want to access objects by index in light weight. For example,
-
-	create_virt_array(va);
-	struct your_struct *objmap = va->address;
-	Then, you can access your objects by objmap[i].
-
-In usual case, holding reference by index rather than pointer can save memory.
-But index -> object lookup cost cannot be negligible. In such case,
-this virt-array may be helpful. Ah yes, if lookup performance is not important,
-using radix-tree will be better (from TLB point of view). This virty-array
-may consume VMALLOC area too much. and alloc/free routine is very slow.
+This patch replaces memcg's nodeinfo with virt-array and do
+direct access. With my config on x86-64, struct mem_cgroup's
+size is changed from 4368->352.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/virt-array.h |   22 ++++
- lib/Makefile               |    2 
- lib/virt-array.c           |  216 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 239 insertions(+), 1 deletion(-)
+ init/Kconfig    |    2 +-
+ mm/memcontrol.c |   51 ++++++++++++++++-----------------------------------
+ 2 files changed, 17 insertions(+), 36 deletions(-)
 
-Index: mmotm-2.6.35-0719/lib/Makefile
+Index: mmotm-2.6.35-0719/init/Kconfig
 ===================================================================
---- mmotm-2.6.35-0719.orig/lib/Makefile
-+++ mmotm-2.6.35-0719/lib/Makefile
-@@ -14,7 +14,7 @@ lib-y := ctype.o string.o vsprintf.o cmd
- 	 proportions.o prio_heap.o ratelimit.o show_mem.o \
- 	 is_single_threaded.o plist.o decompress.o flex_array.o
+--- mmotm-2.6.35-0719.orig/init/Kconfig
++++ mmotm-2.6.35-0719/init/Kconfig
+@@ -555,7 +555,7 @@ config RESOURCE_COUNTERS
  
--lib-$(CONFIG_MMU) += ioremap.o
-+lib-$(CONFIG_MMU) += ioremap.o virt-array.o
- lib-$(CONFIG_SMP) += cpumask.o
- 
- lib-y	+= kobject.o kref.o klist.o
-Index: mmotm-2.6.35-0719/lib/virt-array.c
+ config CGROUP_MEM_RES_CTLR
+ 	bool "Memory Resource Controller for Control Groups"
+-	depends on CGROUPS && RESOURCE_COUNTERS
++	depends on CGROUPS && RESOURCE_COUNTERS && MMU
+ 	select MM_OWNER
+ 	help
+ 	  Provides a memory resource controller that manages both anonymous
+Index: mmotm-2.6.35-0719/mm/memcontrol.c
 ===================================================================
---- /dev/null
-+++ mmotm-2.6.35-0719/lib/virt-array.c
-@@ -0,0 +1,225 @@
-+#include <linux/mm.h>
-+#include <linux/vmalloc.h>
-+#include <linux/slab.h>
+--- mmotm-2.6.35-0719.orig/mm/memcontrol.c
++++ mmotm-2.6.35-0719/mm/memcontrol.c
+@@ -48,6 +48,7 @@
+ #include <linux/page_cgroup.h>
+ #include <linux/cpu.h>
+ #include <linux/oom.h>
 +#include <linux/virt-array.h>
-+#include <asm/cacheflush.h>
-+
-+
-+/*
-+ * Why define this here is because this function should be
-+ * defined by user for getting better code. This generic one is slow
-+ * because the compiler cannot know what the "size" is.
-+ */
-+static unsigned long idx_to_addr(struct virt_array *v, int idx)
-+{
-+	return (unsigned long)v->vm_area->addr + idx * v->size;
-+}
-+
-+static unsigned long addr_index(struct virt_array *v, unsigned long addr)
-+{
-+	return (addr - (unsigned long)v->vm_area->addr) >> PAGE_SHIFT;
-+}
-+
-+static int idx_used(const struct virt_array *v, int idx)
-+{
-+	return test_bit(idx, v->map);
-+}
-+
-+static void unmap_free_page(struct virt_array *v, unsigned long page)
-+{
-+	struct page *pg;
-+	unsigned long page_idx;
-+
-+	page_idx = addr_index(v, page);
-+	/* alloc_idx's undo routine may find !pg */
-+	pg = radix_tree_delete(&v->phys_pages, page_idx);
-+	if (!pg)
-+		return;
-+	unmap_kernel_range(page, PAGE_SIZE);
-+	__free_page(pg);
-+
-+}
-+
-+static void __free_head_page(struct virt_array *v, int idx)
-+{
-+	int i;
-+	unsigned long page;
-+
-+	page = idx_to_addr(v, idx) & PAGE_MASK;
-+
-+	/* check backword */
-+	for (i = idx - 1; i >= 0; i--) {
-+		unsigned long address = idx_to_addr(v, i) + v->size - 1;
-+		if ((address & PAGE_MASK) != page)
-+			break;
-+		/* A used object shares this page ? */
-+		if (idx_used(v, i))
-+			return;
+ #include "internal.h"
+ 
+ #include <asm/uaccess.h>
+@@ -119,11 +120,7 @@ struct mem_cgroup_per_zone {
+ 
+ struct mem_cgroup_per_node {
+ 	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
+-};
+-
+-struct mem_cgroup_lru_info {
+-	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+-};
++} ____cacheline_aligned_in_smp;
+ 
+ /*
+  * Cgroups above their limits are maintained in a RB-Tree, independent of
+@@ -205,7 +202,8 @@ struct mem_cgroup {
+ 	 * Per cgroup active and inactive list, similar to the
+ 	 * per zone LRU lists.
+ 	 */
+-	struct mem_cgroup_lru_info info;
++	struct mem_cgroup_per_node *nodes;
++	struct virt_array node_array;
+ 
+ 	/*
+ 	  protect against reclaim related member.
+@@ -344,7 +342,7 @@ static void drain_all_stock_async(void);
+ static struct mem_cgroup_per_zone *
+ mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+ {
+-	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
++	return &mem->nodes[nid].zoneinfo[zid];
+ }
+ 
+ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
+@@ -3944,27 +3942,14 @@ static int register_memsw_files(struct c
+ }
+ #endif
+ 
+-static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
++static int init_mem_cgroup_node_info(struct mem_cgroup *mem, int node)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	struct mem_cgroup_per_zone *mz;
+ 	enum lru_list l;
+-	int zone, tmp = node;
+-	/*
+-	 * This routine is called against possible nodes.
+-	 * But it's BUG to call kmalloc() against offline node.
+-	 *
+-	 * TODO: this routine can waste much memory for nodes which will
+-	 *       never be onlined. It's better to use memory hotplug callback
+-	 *       function.
+-	 */
+-	if (!node_state(node, N_NORMAL_MEMORY))
+-		tmp = -1;
+-	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+-	if (!pn)
+-		return 1;
++	int zone;
+ 
+-	mem->info.nodeinfo[node] = pn;
++	pn = mem->nodes + node;
+ 	memset(pn, 0, sizeof(*pn));
+ 
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+@@ -3978,11 +3963,6 @@ static int alloc_mem_cgroup_per_zone_inf
+ 	return 0;
+ }
+ 
+-static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+-{
+-	kfree(mem->info.nodeinfo[node]);
+-}
+-
+ static struct mem_cgroup *mem_cgroup_alloc(void)
+ {
+ 	struct mem_cgroup *mem;
+@@ -4022,13 +4002,10 @@ static struct mem_cgroup *mem_cgroup_all
+ 
+ static void __mem_cgroup_free(struct mem_cgroup *mem)
+ {
+-	int node;
+-
+ 	mem_cgroup_remove_from_trees(mem);
+ 	free_css_id(&mem_cgroup_subsys, &mem->css);
+ 
+-	for_each_node_state(node, N_POSSIBLE)
+-		free_mem_cgroup_per_zone_info(mem, node);
++	destroy_varray(&mem->node_array);
+ 
+ 	free_percpu(mem->stat);
+ 	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
+@@ -4115,10 +4092,14 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	if (!mem)
+ 		return ERR_PTR(error);
+ 
+-	for_each_node_state(node, N_POSSIBLE)
+-		if (alloc_mem_cgroup_per_zone_info(mem, node))
+-			goto free_out;
++	mem->nodes = create_varray(&mem->node_array,
++			sizeof(struct mem_cgroup_per_node), MAX_NUMNODES);
+ 
++	for_each_node_state(node, N_POSSIBLE) {
++		if (!alloc_varray_item(&mem->node_array, node))
++			goto free_out;
++		init_mem_cgroup_node_info(mem, node);
 +	}
-+	unmap_free_page(v, page);
-+}
-+
-+
-+static void __free_middle_page(struct virt_array *v, int idx)
-+{
-+	unsigned long page, end_page;
-+
-+	page = (idx_to_addr(v, idx)) & PAGE_MASK;
-+	end_page = (idx_to_addr(v, idx) + v->size) & PAGE_MASK;
-+	if (end_page - page <= PAGE_SIZE)
-+		return;
-+	/* free all pages between head and tail */
-+	for (page += PAGE_SIZE; page != end_page; page += PAGE_SIZE)
-+		unmap_free_page(v, page);
-+}
-+
-+
-+static void __free_tail_page(struct virt_array *v, int idx)
-+{
-+	int i;
-+	unsigned long page;
-+
-+	page = (idx_to_addr(v, idx) + v->size) & PAGE_MASK;
-+	/* check forword */
-+	for (i = idx + 1; i < v->nelem ; i++) {
-+		unsigned long address = idx_to_addr(v, i);
-+		if ((address & PAGE_MASK) != page)
-+			break;
-+		/* A used object shares this page ? */
-+		if (idx_used(v, i))
-+			return;
-+	}
-+	/* we can free this page */
-+	unmap_free_page(v, page);
-+}
-+
-+static void __free_this_page(struct virt_array *v, int idx, unsigned long page)
-+{
-+	int i;
-+
-+	/* check backword */
-+	for (i = idx - 1; i >= 0; i--) {
-+		unsigned long address = idx_to_addr(v, i) + v->size - 1;
-+		if ((address & PAGE_MASK) != page)
-+			break;
-+		/* A used object shares this page ? */
-+		if (idx_used(v, i))
-+			return;
-+	}
-+	/* check forward */
-+	for (i = idx + 1; i < v->nelem; i++) {
-+		unsigned long address = idx_to_addr(v, i);
-+		if ((address & PAGE_MASK) != page)
-+			break;
-+		/* A used object shares this page ? */
-+		if (idx_used(v, i))
-+			return;
-+	}
-+	/* we can free this page */
-+	unmap_free_page(v, page);
-+}
-+
-+static void __free_unmap_entry(struct virt_array *v, int idx)
-+{
-+	unsigned long address, end;
-+
-+	address = idx_to_addr(v, idx);
-+	end = address + v->size;
-+	if ((address & PAGE_MASK) == (end & PAGE_MASK)) {
-+		__free_this_page(v, idx, address & PAGE_MASK);
-+	} else {
-+		__free_head_page(v, idx);
-+		__free_middle_page(v, idx);
-+		__free_tail_page(v, idx);
-+	}
-+}
-+
-+void free_varray_item(struct virt_array *v, int idx)
-+{
-+	mutex_lock(&v->mutex);
-+	__free_unmap_entry(v, idx);
-+	mutex_unlock(&v->mutex);
-+}
-+
-+void *alloc_varray_item(struct virt_array *v, int idx)
-+{
-+	unsigned long obj, tmp, start, end, addr_idx;
-+	struct page *pg[1];
-+	void *ret = ERR_PTR(-EBUSY);
-+
-+	mutex_lock(&v->mutex);
-+	if (idx_used(v, idx))
-+		goto out;
-+
-+	obj = idx_to_addr(v, idx);
-+	start = obj & PAGE_MASK;
-+	end = PAGE_ALIGN(obj + v->size);
-+
-+	for (tmp = start; tmp < end; tmp+=PAGE_SIZE) {
-+		addr_idx = addr_index(v, tmp);
-+		pg[0] = radix_tree_lookup(&v->phys_pages, addr_idx);
-+		if (pg[0])
-+			continue;
-+		pg[0] = alloc_page(GFP_KERNEL);
-+		if (map_kernel_range_noflush(tmp, PAGE_SIZE,
-+			PAGE_KERNEL, pg) == -ENOMEM) {
-+				__free_page(pg[0]);
-+				goto out_unmap;
-+		}
-+
-+		radix_tree_preload(GFP_KERNEL);
-+		if (radix_tree_insert(&va->phys_pages, addr_idx, pg[0])) {
-+			BUG();
-+		}
-+		radix_tree_preload_end();
-+	}
-+	flush_cache_vmap(start, end);
-+	ret = (void *)obj;
-+out:
-+	mutex_unlock(&v->mutex);
-+	return ret;
-+out_unmap:
-+	ret = ERR_PTR(-ENOMEM);
-+	__free_unmap_entry(v, idx);
-+	goto out;
-+}
-+
-+void *create_varray(struct virt_array *v,int size, int nelem)
-+{
-+	unsigned long total = size * nelem;
-+	unsigned long bits;
-+
-+	bits = ((nelem/BITS_PER_LONG)+1) * sizeof(long);
-+	v->map = kzalloc(bits, GFP_KERNEL);
-+	if (!v->map)
-+		return NULL;
-+	total = PAGE_ALIGN(total);
-+	v->vm_area = get_vm_area(total, 0);
-+	if (!v->vm_area) {
-+		kfree(v->map);
-+		return NULL;
-+	}
-+
-+	v->size = size;
-+	v->nelem = nelem;
-+	INIT_RADIX_TREE(&v->phys_pages, GFP_KERNEL);
-+	mutex_init(&v->mutex);
-+	return v->vm_area->addr;
-+}
-+
-+void destroy_varray(struct virt_array *v)
-+{
-+	int i;
-+
-+	for_each_set_bit(i, v->map, v->nelem)
-+		__free_unmap_entry(v, i);
-+	kfree(v->map);
-+	free_vm_area(v->vm_area);
-+	return;
-+}
-+
-+int varray_find_free_index(struct virt_array *v)
-+{
-+	return find_first_zero_bit(v->map, v->nelem);
-+}
-+
-Index: mmotm-2.6.35-0719/include/linux/virt-array.h
-===================================================================
---- /dev/null
-+++ mmotm-2.6.35-0719/include/linux/virt-array.h
-@@ -0,0 +1,22 @@
-+#ifndef __LINUX_VIRTARRAY_H
-+#define __LINUX_VIRTARRAY_H
-+
-+#include <linux/vmalloc.h>
-+#include <linux/radix-tree.h>
-+
-+struct virt_array {
-+	struct vm_struct *vm_area;
-+	int size;
-+	int nelem;
-+	struct mutex mutex;
-+	struct radix_tree_root phys_pages;
-+	unsigned long *map;
-+};
-+
-+void *create_varray(struct virt_array *va, int size, int nelems);
-+void *alloc_varray_item(struct virt_array *va, int index);
-+void free_varray_item(struct virt_array *va, int index);
-+void destroy_varray(struct virt_array *va);
-+int varray_find_free_index(struct virt_array *va);
-+
-+#endif
+ 	/* root ? */
+ 	if (cont->parent == NULL) {
+ 		int cpu;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
