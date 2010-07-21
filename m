@@ -1,88 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B877B6B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 03:46:00 -0400 (EDT)
-From: "Shilimkar, Santosh" <santosh.shilimkar@ti.com>
-Date: Wed, 21 Jul 2010 13:15:14 +0530
-Subject: RE: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
-	memory management
-Message-ID: <EAF47CD23C76F840A9E7FCE10091EFAB02C61C60DD@dbde02.ent.ti.com>
-References: <20100714220536.GE18138@n2100.arm.linux.org.uk>
- <20100715012958.GB2239@codeaurora.org>
- <20100715085535.GC26212@n2100.arm.linux.org.uk>
- <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com>
- <20100716075856.GC16124@n2100.arm.linux.org.uk>
- <4C449183.20000@codeaurora.org>
- <20100719184002.GA21608@n2100.arm.linux.org.uk>
- <bb667e285fd8be82ea8cc9cc25cf335b.squirrel@www.codeaurora.org>
- <20100720222952.GD10553@n2100.arm.linux.org.uk>
- <EAF47CD23C76F840A9E7FCE10091EFAB02C61C5FCA@dbde02.ent.ti.com>
- <20100721072837.GB6009@n2100.arm.linux.org.uk>
-In-Reply-To: <20100721072837.GB6009@n2100.arm.linux.org.uk>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2733D6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 05:19:34 -0400 (EDT)
+Subject: Re: [patch 4/6] gfs2: remove dependency on __GFP_NOFAIL
+From: Steven Whitehouse <swhiteho@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1007201940300.8728@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+	 <alpine.DEB.2.00.1007201940300.8728@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 21 Jul 2010 10:24:45 +0100
+Message-ID: <1279704285.2667.2.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "stepanm@codeaurora.org" <stepanm@codeaurora.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "dwalker@codeaurora.org" <dwalker@codeaurora.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "linux-arm-msm@vger.kernel.org" <linux-arm-msm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "andi@firstfloor.org" <andi@firstfloor.org>, Zach Pfeffer <zpfeffer@codeaurora.org>, Michael Bohan <mbohan@codeaurora.org>, Tim HRM <zt.tmzt@gmail.com>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> -----Original Message-----
-> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
-> Sent: Wednesday, July 21, 2010 12:59 PM
-> To: Shilimkar, Santosh
-> Cc: stepanm@codeaurora.org; linux-arch@vger.kernel.org;
-> dwalker@codeaurora.org; mel@csn.ul.ie; linux-arm-msm@vger.kernel.org;
-> linux-kernel@vger.kernel.org; FUJITA Tomonori; linux-mm@kvack.org;
-> andi@firstfloor.org; Zach Pfeffer; Michael Bohan; Tim HRM; linux-
-> omap@vger.kernel.org; linux-arm-kernel@lists.infradead.org;
-> ebiederm@xmission.com
-> Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and devic=
-e
-> memory management
->=20
-> On Wed, Jul 21, 2010 at 11:19:58AM +0530, Shilimkar, Santosh wrote:
-> > > -----Original Message-----
-> > > From: linux-arm-kernel-bounces@lists.infradead.org [mailto:linux-arm-
-> > > kernel-bounces@lists.infradead.org] On Behalf Of Russell King - ARM
-> Linux
-> > > Sent: Wednesday, July 21, 2010 4:00 AM
-> > > To: stepanm@codeaurora.org
-> > > Cc: linux-arch@vger.kernel.org; dwalker@codeaurora.org; mel@csn.ul.ie=
-;
-> > > linux-arm-msm@vger.kernel.org; linux-kernel@vger.kernel.org; FUJITA
-> > > Tomonori; linux-mm@kvack.org; andi@firstfloor.org; Zach Pfeffer;
-> Michael
-> > > Bohan; Tim HRM; linux-omap@vger.kernel.org; linux-arm-
-> > > kernel@lists.infradead.org; ebiederm@xmission.com
-> > > Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and
-> device
-> > > memory management
->=20
-> *************************************************************************
-> > > This is difficult to achieve without remapping kernel memory using L2
-> > > page tables, so we can unmap pages on 4K page granularity.  That's
-> > > going to increase TLB overhead and result in lower system performance
-> > > as there'll be a greater number of MMU misses.
-> *************************************************************************
->=20
-> > > However, one obvious case would be to use highmem-only pages for
-> > > remapping - but you then have to ensure that those pages are never
-> > > kmapped in any way, because those mappings will fall into the same
-> > > unpredictable category that we're already trying to avoid.  This
-> > > may be possible, but you'll have to ensure that most of the system
-> > > RAM is in highmem - which poses other problems (eg, if lowmem gets
-> > > low.)
-> >
-> > Why can't we consider an option of removing the old mappings when
-> > we need to create new ones with different attributes as suggested
-> > by Catalin on similar thread previously. This will avoid the duplicate
-> > mapping with different attributes issue on newer ARMs.
->=20
-> See the first paragraph which I've highlighted above.
->
-Sorry about missing that para Russell.
+Hi,
+
+Looks good to me, I've added it to the -nmw tree. There are a few more
+GFP_NOFAIL instances in the code that we can probably remove in the
+future, but these two are pretty easy. Thanks for the patch,
+
+Steve.
+
+On Tue, 2010-07-20 at 19:45 -0700, David Rientjes wrote:
+> The k[mc]allocs in dr_split_leaf() and dir_double_exhash() are failable,
+> so remove __GFP_NOFAIL from their masks.
+> 
+> Cc: Bob Peterson <rpeterso@redhat.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  fs/gfs2/dir.c |   11 +++++++++--
+>  1 files changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
+> --- a/fs/gfs2/dir.c
+> +++ b/fs/gfs2/dir.c
+> @@ -955,7 +955,12 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
+>  	/* Change the pointers.
+>  	   Don't bother distinguishing stuffed from non-stuffed.
+>  	   This code is complicated enough already. */
+> -	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS | __GFP_NOFAIL);
+> +	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS);
+> +	if (!lp) {
+> +		error = -ENOMEM;
+> +		goto fail_brelse;
+> +	}
+> +
+>  	/*  Change the pointers  */
+>  	for (x = 0; x < half_len; x++)
+>  		lp[x] = cpu_to_be64(bn);
+> @@ -1063,7 +1068,9 @@ static int dir_double_exhash(struct gfs2_inode *dip)
+>  
+>  	/*  Allocate both the "from" and "to" buffers in one big chunk  */
+>  
+> -	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_NOFS | __GFP_NOFAIL);
+> +	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_NOFS);
+> +	if (!buf)
+> +		return -ENOMEM;
+>  
+>  	for (block = dip->i_disksize >> sdp->sd_hash_bsize_shift; block--;) {
+>  		error = gfs2_dir_read_data(dip, (char *)buf,
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
