@@ -1,110 +1,86 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/6] writeback: kill writeback_control.more_io
-Date: Thu, 22 Jul 2010 13:09:31 +0800
-Message-ID: <20100722061822.763629019@intel.com>
+Subject: [PATCH 1/6] writeback: pass writeback_control down to move_expired_inodes()
+Date: Thu, 22 Jul 2010 13:09:29 +0800
+Message-ID: <20100722061822.484666925@intel.com>
 References: <20100722050928.653312535@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Obp83-0003c2-0v
-	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:35 +0200
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B57CA6B02A5
+	id 1Obp7z-0003bw-PD
+	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:32 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6F3326B024D
 	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 02:19:27 -0400 (EDT)
-Content-Disposition: inline; filename=writeback-kill-more_io.patch
+Content-Disposition: inline; filename=writeback-pass-wbc-to-queue_io.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-When wbc.more_io was first introduced, it indicates whether there are
-at least one superblock whose s_more_io contains more IO work. Now with
-the per-bdi writeback, it can be replaced with a simple b_more_io test.
+This is to prepare for moving the dirty expire policy to move_expired_inodes().
+No behavior change.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c                |    9 ++-------
- include/linux/writeback.h        |    1 -
- include/trace/events/writeback.h |    5 +----
- 3 files changed, 3 insertions(+), 12 deletions(-)
+ fs/fs-writeback.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
---- linux-next.orig/fs/fs-writeback.c	2010-07-22 11:23:27.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-07-22 12:56:42.000000000 +0800
-@@ -507,12 +507,8 @@ static int writeback_sb_inodes(struct su
- 		iput(inode);
- 		cond_resched();
- 		spin_lock(&inode_lock);
--		if (wbc->nr_to_write <= 0) {
--			wbc->more_io = 1;
-+		if (wbc->nr_to_write <= 0)
- 			return 1;
--		}
--		if (!list_empty(&wb->b_more_io))
--			wbc->more_io = 1;
- 	}
- 	/* b_io is empty */
- 	return 1;
-@@ -622,7 +618,6 @@ static long wb_writeback(struct bdi_writ
- 		if (work->for_background && !over_bground_thresh())
+--- linux-next.orig/fs/fs-writeback.c	2010-07-21 20:12:38.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-07-21 20:14:38.000000000 +0800
+@@ -213,8 +213,8 @@ static bool inode_dirtied_after(struct i
+  * Move expired dirty inodes from @delaying_queue to @dispatch_queue.
+  */
+ static void move_expired_inodes(struct list_head *delaying_queue,
+-			       struct list_head *dispatch_queue,
+-				unsigned long *older_than_this)
++				struct list_head *dispatch_queue,
++				struct writeback_control *wbc)
+ {
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+@@ -224,8 +224,8 @@ static void move_expired_inodes(struct l
+ 
+ 	while (!list_empty(delaying_queue)) {
+ 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+-		if (older_than_this &&
+-		    inode_dirtied_after(inode, *older_than_this))
++		if (wbc->older_than_this &&
++		    inode_dirtied_after(inode, *wbc->older_than_this))
  			break;
+ 		if (sb && sb != inode->i_sb)
+ 			do_sb_sort = 1;
+@@ -257,10 +257,10 @@ static void move_expired_inodes(struct l
+  *                 => b_more_io inodes
+  *                 => remaining inodes in b_io => (dequeue for sync)
+  */
+-static void queue_io(struct bdi_writeback *wb, unsigned long *older_than_this)
++static void queue_io(struct bdi_writeback *wb, struct writeback_control *wbc)
+ {
+ 	list_splice_init(&wb->b_more_io, &wb->b_io);
+-	move_expired_inodes(&wb->b_dirty, &wb->b_io, older_than_this);
++	move_expired_inodes(&wb->b_dirty, &wb->b_io, wbc);
+ }
  
--		wbc.more_io = 0;
- 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
- 		wbc.pages_skipped = 0;
+ static int write_inode(struct inode *inode, struct writeback_control *wbc)
+@@ -519,7 +519,7 @@ void writeback_inodes_wb(struct bdi_writ
+ 	wbc->wb_start = jiffies; /* livelock avoidance */
+ 	spin_lock(&inode_lock);
+ 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+-		queue_io(wb, wbc->older_than_this);
++		queue_io(wb, wbc);
  
-@@ -644,7 +639,7 @@ static long wb_writeback(struct bdi_writ
- 		/*
- 		 * Didn't write everything and we don't have more IO, bail
- 		 */
--		if (!wbc.more_io)
-+		if (list_empty(&wb->b_more_io))
- 			break;
- 		/*
- 		 * Did we write something? Try for more
---- linux-next.orig/include/linux/writeback.h	2010-07-22 11:23:27.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-07-22 11:24:46.000000000 +0800
-@@ -49,7 +49,6 @@ struct writeback_control {
- 	unsigned for_background:1;	/* A background writeback */
- 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
- 	unsigned range_cyclic:1;	/* range_start is cyclic */
--	unsigned more_io:1;		/* more io to be dispatched */
- };
- 
- /*
---- linux-next.orig/include/trace/events/writeback.h	2010-07-22 11:23:27.000000000 +0800
-+++ linux-next/include/trace/events/writeback.h	2010-07-22 11:24:46.000000000 +0800
-@@ -99,7 +99,6 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__field(int, for_background)
- 		__field(int, for_reclaim)
- 		__field(int, range_cyclic)
--		__field(int, more_io)
- 		__field(long, range_start)
- 		__field(long, range_end)
- 	),
-@@ -113,13 +112,12 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__entry->for_background	= wbc->for_background;
- 		__entry->for_reclaim	= wbc->for_reclaim;
- 		__entry->range_cyclic	= wbc->range_cyclic;
--		__entry->more_io	= wbc->more_io;
- 		__entry->range_start	= (long)wbc->range_start;
- 		__entry->range_end	= (long)wbc->range_end;
- 	),
- 
- 	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
--		"bgrd=%d reclm=%d cyclic=%d more=%d "
-+		"bgrd=%d reclm=%d cyclic=%d "
- 		"start=0x%lx end=0x%lx",
- 		__entry->name,
- 		__entry->nr_to_write,
-@@ -129,7 +127,6 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__entry->for_background,
- 		__entry->for_reclaim,
- 		__entry->range_cyclic,
--		__entry->more_io,
- 		__entry->range_start,
- 		__entry->range_end)
- )
+ 	while (!list_empty(&wb->b_io)) {
+ 		struct inode *inode = list_entry(wb->b_io.prev,
+@@ -548,7 +548,7 @@ static void __writeback_inodes_sb(struct
+ 	wbc->wb_start = jiffies; /* livelock avoidance */
+ 	spin_lock(&inode_lock);
+ 	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+-		queue_io(wb, wbc->older_than_this);
++		queue_io(wb, wbc);
+ 	writeback_sb_inodes(sb, wb, wbc, true);
+ 	spin_unlock(&inode_lock);
+ }
 
 
 --
