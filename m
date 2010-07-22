@@ -1,112 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8241E6B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:02:24 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6M02Mvd015845
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Jul 2010 09:02:22 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D698945DE54
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:02:21 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D37E45DE50
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:02:21 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BA931DB805D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:02:21 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1658C1DB8055
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:02:21 +0900 (JST)
-Date: Thu, 22 Jul 2010 08:57:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in direct
- reclaim
-Message-Id: <20100722085734.ff252542.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100721142710.GZ13117@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
-	<1279545090-19169-5-git-send-email-mel@csn.ul.ie>
-	<20100719221420.GA16031@cmpxchg.org>
-	<20100720134555.GU13117@csn.ul.ie>
-	<20100720220218.GE16031@cmpxchg.org>
-	<20100721115250.GX13117@csn.ul.ie>
-	<20100721210111.06dda351.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100721142710.GZ13117@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9A9D16B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:27:20 -0400 (EDT)
+Date: Thu, 22 Jul 2010 08:27:17 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
+Message-ID: <20100722002716.GA7740@sli10-desk.sh.intel.com>
+References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
+ <20100721160634.GA7976@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100721160634.GA7976@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Jul 2010 15:27:10 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
-
-> On Wed, Jul 21, 2010 at 09:01:11PM +0900, KAMEZAWA Hiroyuki wrote:
- 
-> > But, hmm, memcg will have to select to enter this rounine based on
-> > the result of 1st memory reclaim.
+On Thu, Jul 22, 2010 at 12:06:34AM +0800, Minchan Kim wrote:
+> On Tue, Jul 20, 2010 at 03:18:44PM +0800, Shaohua Li wrote:
+> > The zone->lru_lock is heavily contented in workload where activate_page()
+> > is frequently used. We could do batch activate_page() to reduce the lock
+> > contention. The batched pages will be added into zone list when the pool
+> > is full or page reclaim is trying to drain them.
 > > 
+> > For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
+> > processes shared map to the file. Each process read access the whole file and
+> > then exit. The process exit will do unmap_vmas() and cause a lot of
+> > activate_page() call. In such workload, we saw about 58% total time reduction
+> > with below patch.
 > 
-> It has the option of igoring pages being dirtied but I worry that the
-> container could be filled with dirty pages waiting for flushers to do
-> something.
-
-I'll prepare dirty_ratio for memcg. It's not easy but requested by I/O cgroup
-guys, too...
-
-
-> 
-> > >  
-> > > -		/*
-> > > -		 * The attempt at page out may have made some
-> > > -		 * of the pages active, mark them inactive again.
-> > > -		 */
-> > > -		nr_active = clear_active_flags(&page_list, NULL);
-> > > -		count_vm_events(PGDEACTIVATE, nr_active);
-> > > +		while (nr_reclaimed < nr_taken && nr_dirty && dirty_retry--) {
-> > > +			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
-> > > +			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > >  
-> >
-> > Congestion wait is required ?? Where the congestion happens ?
-> > I'm sorry you already have some other trick in other patch.
+> Great :)
 > > 
+> > But we did see some strange regression. The regression is small (usually < 2%)
+> > and most are from multithread test and none heavily use activate_page(). For
+> > example, in the same system, we create 64 threads. Each thread creates a private
+> > mmap region and does read access. We measure the total time and saw about 2%
+> > regression. But in such workload, 99% time is on page fault and activate_page()
+> > takes no time. Very strange, we haven't a good explanation for this so far,
+> > hopefully somebody can share a hint.
 > 
-> It's to wait for the IO to occur.
-> 
-1 tick penalty seems too large. I hope we can have some waitqueue in future.
+> Mabye it might be due to lru_add_drain. 
+> You are adding cost in lru_add_drain and it is called several place.
+> So if we can't get the gain in there, it could make a bit of regression.
+> I might be wrong and it's a just my guessing. 
+The workload with regression doesn't invoke too many activate_page, so
+basically activate_page_drain_cpu() is a nop, it should not take too much.
 
-
-
-> > > -		nr_reclaimed += shrink_page_list(&page_list, sc, PAGEOUT_IO_SYNC);
-> > > +			/*
-> > > +			 * The attempt at page out may have made some
-> > > +			 * of the pages active, mark them inactive again.
-> > > +			 */
-> > > +			nr_active = clear_active_flags(&page_list, NULL);
-> > > +			count_vm_events(PGDEACTIVATE, nr_active);
-> > > +	
-> > > +			nr_reclaimed += shrink_page_list(&page_list, sc,
-> > > +						PAGEOUT_IO_SYNC, &nr_dirty);
-> > > +		}
+> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
 > > 
-> > Just a question. This PAGEOUT_IO_SYNC has some meanings ?
-> > 
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index 3ce7bc3..4a3fd7f 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -39,6 +39,7 @@ int page_cluster;
+> >  
+> >  static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+> >  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+> > +static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
+> >  
+> >  /*
+> >   * This path almost never happens for VM activity - pages are normally
+> > @@ -175,11 +176,10 @@ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
+> >  /*
+> >   * FIXME: speed this up?
+> >   */
+> Couldn't we remove above comment by this patch?
+ha, yes.
+
+> > -void activate_page(struct page *page)
+> > +static void __activate_page(struct page *page)
+> >  {
+> >  	struct zone *zone = page_zone(page);
+> >  
+> > -	spin_lock_irq(&zone->lru_lock);
+> >  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+> >  		int file = page_is_file_cache(page);
+> >  		int lru = page_lru_base_type(page);
+> > @@ -192,7 +192,46 @@ void activate_page(struct page *page)
+> >  
+> >  		update_page_reclaim_stat(zone, page, file, 1);
+> >  	}
+> > -	spin_unlock_irq(&zone->lru_lock);
+> > +}
+> > +
+> > +static void activate_page_drain_cpu(int cpu)
+> > +{
+> > +	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
+> > +	struct zone *last_zone = NULL, *zone;
+> > +	int i, j;
+> > +
+> > +	for (i = 0; i < pagevec_count(pvec); i++) {
+> > +		zone = page_zone(pvec->pages[i]);
+> > +		if (zone == last_zone)
+> > +			continue;
+> > +
+> > +		if (last_zone)
+> > +			spin_unlock_irq(&last_zone->lru_lock);
+> > +		last_zone = zone;
+> > +		spin_lock_irq(&last_zone->lru_lock);
+> > +
+> > +		for (j = i; j < pagevec_count(pvec); j++) {
+> > +			struct page *page = pvec->pages[j];
+> > +
+> > +			if (last_zone != page_zone(page))
+> > +				continue;
+> > +			__activate_page(page);
+> > +		}
+> > +	}
+> > +	if (last_zone)
+> > +		spin_unlock_irq(&last_zone->lru_lock);
+> > +	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
+> > +	pagevec_reinit(pvec);
 > 
-> Yes, in pageout it will wait on pages currently being written back to be
-> cleaned before trying to reclaim them.
-> 
-Hmm. IIUC, this routine is called only when !current_is_kswapd() and
-pageout is done only whne current_is_kswapd(). So, this seems ....
-Wrong ?
+> In worst case(DMA->NORMAL->HIGHMEM->DMA->NORMA->HIGHMEM->......), 
+> overhead would is big than old. how about following as?
+> static DEFINE_PER_CPU(struct pagevec[MAX_NR_ZONES], activate_page_pvecs);
+> Is it a overkill?
+activate_page_drain_cpu is a two level loop. In you case, the drain order
+will be DMA->DMA->NORMAL->NORMAL->HIGHMEM->HIGHMEM. Since pagevec size is
+14, the loop should finish quickly.
 
 Thanks,
--Kame
-
-
-
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
