@@ -1,108 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D719C6B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:26:59 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6M9Qsv8017422
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Jul 2010 18:26:54 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 75BF245DE55
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:26:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1201245DE52
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:26:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CED4A1DB8018
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:26:53 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4ADE08006
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:26:53 +0900 (JST)
-Date: Thu, 22 Jul 2010 18:22:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in direct
- reclaim
-Message-Id: <20100722182204.81dddfa9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100722091930.GD13117@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
-	<1279545090-19169-5-git-send-email-mel@csn.ul.ie>
-	<20100719221420.GA16031@cmpxchg.org>
-	<20100720134555.GU13117@csn.ul.ie>
-	<20100720220218.GE16031@cmpxchg.org>
-	<20100721115250.GX13117@csn.ul.ie>
-	<20100721210111.06dda351.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100721142710.GZ13117@csn.ul.ie>
-	<20100722085734.ff252542.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100722091930.GD13117@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2EAB86B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:33:30 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L5Y001F8D7P44@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Thu, 22 Jul 2010 10:33:27 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L5Y00E3PD7PUO@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Jul 2010 10:33:25 +0100 (BST)
+Date: Thu, 22 Jul 2010 11:34:50 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <1279746102.31376.47.camel@c-dwalke-linux.qualcomm.com>
+Message-id: <op.vf8nkct57p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+ <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf5o28st7p4s8u@pikus>
+ <1279654698.26765.31.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf6zo9vb7p4s8u@pikus>
+ <1279733750.31376.14.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7gt3qy7p4s8u@pikus>
+ <1279736348.31376.20.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7h1yc47p4s8u@pikus>
+ <1279738688.31376.24.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7j13067p4s8u@pikus>
+ <1279741029.31376.33.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7lipj67p4s8u@pikus>
+ <1279742604.31376.40.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7mvhvn7p4s8u@pikus>
+ <1279744472.31376.42.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7nuzu57p4s8u@pikus>
+ <1279745143.31376.46.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf7ofuif7p4s8u@pikus>
+ <1279746102.31376.47.camel@c-dwalke-linux.qualcomm.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Daniel Walker <dwalker@codeaurora.org>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jul 2010 10:19:30 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, 21 Jul 2010 23:01:42 +0200, Daniel Walker <dwalker@codeaurora.or=
+g> wrote:
 
-> On Thu, Jul 22, 2010 at 08:57:34AM +0900, KAMEZAWA Hiroyuki wrote:
-> > On Wed, 21 Jul 2010 15:27:10 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
+> On Wed, 2010-07-21 at 22:56 +0200, Micha=C5=82 Nazarewicz wrote:
+>> On Wed, 21 Jul 2010 22:45:43 +0200, Daniel Walker <dwalker@codeaurora=
+.org> wrote:
+>> > Your not hearing the issues.. IT'S TOO COMPLEX! Please remove it.
+>>
+>> Remove what exactly?
+>
+> Remove the command line option and all related code, or make it all a
+> debug option.
 
-> > 1 tick penalty seems too large. I hope we can have some waitqueue in future.
-> > 
-> 
-> congestion_wait() if congestion occurs goes onto a waitqueue that is
-> woken if congestion clears. I didn't measure it this time around but I
-> doubt it waits for HZ/10 much of the time.
-> 
-Okay.
+How convenient... you have stripped the part of my mail where I describe=
+d
+why this is request have no sense.  I'll quote myself then:
 
-> > > > > -		nr_reclaimed += shrink_page_list(&page_list, sc, PAGEOUT_IO_SYNC);
-> > > > > +			/*
-> > > > > +			 * The attempt at page out may have made some
-> > > > > +			 * of the pages active, mark them inactive again.
-> > > > > +			 */
-> > > > > +			nr_active = clear_active_flags(&page_list, NULL);
-> > > > > +			count_vm_events(PGDEACTIVATE, nr_active);
-> > > > > +	
-> > > > > +			nr_reclaimed += shrink_page_list(&page_list, sc,
-> > > > > +						PAGEOUT_IO_SYNC, &nr_dirty);
-> > > > > +		}
-> > > > 
-> > > > Just a question. This PAGEOUT_IO_SYNC has some meanings ?
-> > > > 
-> > > 
-> > > Yes, in pageout it will wait on pages currently being written back to be
-> > > cleaned before trying to reclaim them.
-> > > 
-> > Hmm. IIUC, this routine is called only when !current_is_kswapd() and
-> > pageout is done only whne current_is_kswapd(). So, this seems ....
-> > Wrong ?
-> > 
-> 
-> Both direct reclaim and kswapd can reach shrink_inactive_list
-> 
-> Direct reclaim
-> do_try_to_free_pages
->   -> shrink_zones
->     -> shrink_zone
->       -> shrink_list
->         -> shrink_inactive list <--- the routine in question
-> 
-> Kswapd
-> balance_pgdat
->   -> shrink_zone
->     -> shrink_list
->       -> shrink_inactive_list
-> 
-> pageout() is still called by direct reclaim if the page is anon so it
-> will synchronously wait on those if PAGEOUT_IO_SYNC is set. 
+>> The command line parameter? It's like 50 lines of code, so I don't
+>> see any benefits.
 
-Ah, ok. I missed that. Thank you for kindly clarification.
+As such, I'm not going to add bunch of #ifdefs just to remove 50 lines
+of code.
 
-Thanks,
--Kame
+>> The possibility to specify the configuration? It would defy the whole=
+
+>> purpose of CMA, so I won't do that.
+
+Simply as that.  We work with a platform where whole of the functionalit=
+y
+provided by CMA is required (many regions, region start address, region
+alignment, device->region mapping).
+
+This means, what I keep repeating and you keep ignoring, that the comple=
+xity
+will be there if not as a parsing code then moved to the platform
+initialisation code and drivers code.
+
+One of the purposes of CMA is to hide the complexity inside CMA framewor=
+k so
+device driver authors and platform maintainers can use a simpler interfa=
+ce.
+
+
+Some time age (like year or two) I've posted some other solution to the
+problem which served our purpose just well and had very little complexit=
+y
+in it.  Unfortunately, customising that solution was quite hard (require=
+d
+changes to a header file and adding modifying code for reserving space).=
+
+
+Also, in this old solution, adding or removing regions required device
+drivers to be modified.
+
+This was not nice, not nice at all.  True, however, the core wasn't comp=
+lex.
+
+
+So when you say remove the complicity I say: I have been there, it's ugl=
+y.
+
+
+> Arguing with me isn't going to help your cause.
+
+It's you who keep repeating =E2=80=9Cremove it, it's to complex=E2=80=9D=
+ without
+hearing my arguments.  I keep trying to show that all of the
+functionality is required and is being used on our development
+platform.
+
+If your hardware does not require that complexity... well, you're one
+lucky man.  Unfortunately, we are not, and we need a complex solution
+to work with complex hardware.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
