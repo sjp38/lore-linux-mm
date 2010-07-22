@@ -1,30 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B02D6B02A5
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 06:55:27 -0400 (EDT)
-Date: Thu, 22 Jul 2010 11:55:18 +0100
-From: Mark Brown <broonie@opensource.wolfsonmicro.com>
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-Message-ID: <20100722105518.GJ10930@sirena.org.uk>
-References: <000001cb296f$6eba8fa0$4c2faee0$%szyprowski@samsung.com> <20100722183432U.fujita.tomonori@lab.ntt.co.jp> <op.vf8oa80k7p4s8u@pikus> <20100722191658V.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B68F6B02A5
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 07:02:11 -0400 (EDT)
+Date: Thu, 22 Jul 2010 12:01:54 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/7] memcg: nid and zid can be calculated from zone
+Message-ID: <20100722110154.GG13117@csn.ul.ie>
+References: <20100716191418.7372.A69D9226@jp.fujitsu.com> <20100716105648.GG13117@csn.ul.ie> <20100721223349.870D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100722191658V.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100721223349.870D.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: m.nazarewicz@samsung.com, m.szyprowski@samsung.com, corbet@lwn.net, linux-mm@kvack.org, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 07:17:42PM +0900, FUJITA Tomonori wrote:
+On Wed, Jul 21, 2010 at 10:33:56PM +0900, KOSAKI Motohiro wrote:
+> > > +static inline int zone_nid(struct zone *zone)
+> > > +{
+> > > +	return zone->zone_pgdat->node_id;
+> > > +}
+> > > +
+> > 
+> > hmm, adding a helper and not converting the existing users of
+> > zone->zone_pgdat may be a little confusing particularly as both types of
+> > usage would exist in the same file e.g. in mem_cgroup_zone_nr_pages.
+> 
+> I see. here is incrementa patch.
+> 
 
-> And adjusting drivers in embedded systems is necessary anyway.
+Looks grand. Thanks
 
-Actually for embedded systems we make strong efforts to ensure that
-drivers do not need tuning per system and that where this is unavoidable
-we separate the configuration from the driver itself (using either a
-driver specific interface or a subsystem one depending on the
-genericness) so that the driver does not need modifying.
+> From 62cf765251af257c98fc92a58215d101d200e7ef Mon Sep 17 00:00:00 2001
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Date: Tue, 20 Jul 2010 11:30:14 +0900
+> Subject: [PATCH] memcg: convert to zone_nid() from bare zone->zone_pgdat->node_id
+> 
+> Now, we have zone_nid(). this patch convert all existing users of
+> zone->zone_pgdat.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+> <SNIP>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
