@@ -1,78 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EB0DF6B02A3
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 17:16:43 -0400 (EDT)
-Date: Thu, 22 Jul 2010 14:00:05 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH 0/8] zcache: page cache compression support
-Message-ID: <20100722210005.GC29981@kroah.com>
-References: <1279283870-18549-1-git-send-email-ngupta@vflare.org20100722191457.GA13309@kroah.com>
- <a9978c9a-6d85-477e-9962-395208fb5dd4@default>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a9978c9a-6d85-477e-9962-395208fb5dd4@default>
+	by kanga.kvack.org (Postfix) with ESMTP id E46296B02A3
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:36:01 -0400 (EDT)
+Date: Thu, 22 Jul 2010 15:34:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 16415] New: Show_Memory/Shift-ScrollLock triggers
+ "unable to handle kernel paging request at 00021c6e"
+Message-Id: <20100722153443.e266b2d6.akpm@linux-foundation.org>
+In-Reply-To: <bug-16415-27@https.bugzilla.kernel.org/>
+References: <bug-16415-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tnimble@xs4all.nl
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 12:54:57PM -0700, Dan Magenheimer wrote:
-> > From: Greg KH [mailto:greg@kroah.com]
-> > Sent: Thursday, July 22, 2010 1:15 PM
-> > To: Nitin Gupta
-> > Cc: Pekka Enberg; Hugh Dickins; Andrew Morton; Dan Magenheimer; Rik van
-> > Riel; Avi Kivity; Christoph Hellwig; Minchan Kim; Konrad Rzeszutek
-> > Wilk; linux-mm; linux-kernel
-> > Subject: Re: [PATCH 0/8] zcache: page cache compression support
-> > 
-> > On Fri, Jul 16, 2010 at 06:07:42PM +0530, Nitin Gupta wrote:
-> > > Frequently accessed filesystem data is stored in memory to reduce
-> > access to
-> > > (much) slower backing disks. Under memory pressure, these pages are
-> > freed and
-> > > when needed again, they have to be read from disks again. When
-> > combined working
-> > > set of all running application exceeds amount of physical RAM, we get
-> > extereme
-> > > slowdown as reading a page from disk can take time in order of
-> > milliseconds.
-> > 
-> > <snip>
-> > 
-> > Given that there were a lot of comments and changes for this series,
-> > can
-> > you resend them with your updates so I can then apply them if they are
-> > acceptable to everyone?
-> > 
-> > thanks,
-> > greg k-h
+
+
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+Thanks for the report.
+
+On Mon, 19 Jul 2010 11:18:46 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=16415
 > 
-> Hi Greg --
+>            Summary: Show_Memory/Shift-ScrollLock triggers "unable to
+>                     handle kernel paging request at 00021c6e"
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 2.6.34.1
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: tnimble@xs4all.nl
+>         Regression: No
 > 
-> Nitin's zcache code is dependent on the cleancache series:
-> http://lkml.org/lkml/2010/6/21/411 
-
-Ah, I didn't realize that.  Hm, that makes it something that I can't
-take until that code is upstream, sorry.
-
-> The cleancache series has not changed since V3 (other than
-> fixing a couple of documentation typos) and didn't receive any
-> comments other than Christoph's concern that there weren't
-> any users... which I think has been since addressed with the
-> posting of the Xen tmem driver code and Nitin's zcache.
 > 
-> If you are ready to apply the cleancache series, great!
-> If not, please let me know next steps so cleancache isn't
-> an impediment for applying the zcache series.
+> Created an attachment (id=27147)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=27147)
+> Kernel startup output
+> 
+> When doing a show_memory the following trace is outputted and the box freezes.
+> A reboot is then initiated by the wachtdog timer after about a minute.
+> 
+> The show_registers (altr-scrollock) functions just fine.
+> 
+> This problem might be related to other memory related issues. This as when
+> cached memory usage increases of when a large file is allocated on a tmpfs the
+> system also freezes after pagefaults / panics
+> 
+> This problem was first noticed after updating to kernel 2.6.34 (from 2.6.12.6).
+> Both kernels have been tested on multiple sets of hardware. The system is run
+> from compact flash disk and tmpfs for /tmp and /var/...
+> 
 
-I don't know, work with the kernel developers to resolve the issues they
-pointed out in the cleancache code and when it goes in, then I can take
-these patches.
+It's i386, highmem.
 
-good luck,
+> 
+> BUG: unable to handle kernel paging request at 00021c6e
+> IP: [<c01d124b>] show_mem+0xbf/0x15c
+> *pde = 00000000 
+> Oops: 0000 [#1] SMP 
+> last sysfs file: /sys/devices/platform/coretemp.0/temp1_input
+> Modules linked in: ipv6 nf_nat_irc nf_nat_ftp ipt_MASQUERADE ipt_REJECT
+> ipt_REDIRECT xt_state xt_limit ipt_LOG iptable_nat nf_nat iptable_mangle
+> iptable_filter nf_conntrack_irc nf_conntrack_ftp nf_conntrack_ipv4 nf_conntrack
+> nf_defrag_ipv4 ip_tables x_tables coretemp usbhid i2c_i801 ehci_hcd uhci_hcd
+> fan iTCO_wdt iTCO_vendor_support e1000e usbcore thermal button processor evdev
+> nls_iso8859_1
+> 
+> Pid: 0, comm: swapper Not tainted 2.6.34.1 #1 945GM/E-ITE8712/945GM/E-ITE8712
+> EIP: 0060:[<c01d124b>] EFLAGS: 00010002 CPU: 0
+> EIP is at show_mem+0xbf/0x15c
+> EAX: 00021c6a EBX: 00018020 ECX: 00000001 EDX: c1301400
+> ESI: 00018010 EDI: c03fbf80 EBP: c03d5ca0 ESP: c03d5c80
+>  DS: 007b ES: 007b FS: 00d8 GS: 0000 SS: 0068
+> Process swapper (pid: 0, ti=c03d4000 task=c03e2ea0 task.ti=c03d4000)
+> Stack:
+>  00018010 0000147a ed0ff381 00000000 00000000 f700b000 00000046 c03ef203
+> <0> c03d5ca8 c022a4dd c03d5cb4 c0229a0c 00000002 c03d5ce8 c022ae51 f694cc00
+> <0> 020030b4 f700b000 f700b000 00000001 00000001 00000000 0000f203 f64a7d40
+> Call Trace:
+>  [<c022a4dd>] ? fn_show_mem+0x8/0xa
+>  [<c0229a0c>] ? k_spec+0x33/0x36
+>  [<c022ae51>] ? kbd_event+0x46f/0x4da
+>  [<c027891f>] ? input_pass_event+0x63/0x9e
+>  [<c012df0e>] ? mod_timer+0xe7/0xf2
 
-greg k-h
+Here it is:
+
+: void show_mem(void)
+: {
+: 	pg_data_t *pgdat;
+: 	unsigned long total = 0, reserved = 0, shared = 0,
+: 		nonshared = 0, highmem = 0;
+: 
+: 	printk("Mem-Info:\n");
+: 	show_free_areas();
+: 
+: 	for_each_online_pgdat(pgdat) {
+: 		unsigned long i, flags;
+: 
+: 		pgdat_resize_lock(pgdat, &flags);
+: 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+: 			struct page *page;
+: 			unsigned long pfn = pgdat->node_start_pfn + i;
+: 
+: 			if (unlikely(!(i % MAX_ORDER_NR_PAGES)))
+: 				touch_nmi_watchdog();
+: 
+: 			if (!pfn_valid(pfn))
+: 				continue;
+: 
+: 			page = pfn_to_page(pfn);
+: 
+: 			if (PageHighMem(page))
+: 				highmem++;
+: 
+: 			if (PageReserved(page))
+: 				reserved++;
+: 			else if (page_count(page) == 1)
+: 				nonshared++;
+: 			else if (page_count(page) > 1)
+: 				shared += page_count(page) - 1;
+: 
+: 			total++;
+: 		}
+: 		pgdat_resize_unlock(pgdat, &flags);
+: 	}
+
+afaict what happened was that the PageReserved() test survived somehow.
+ Then the page_count() test internally decided that it was a PageTail()
+page, then got itself a new page* and then tried to read that pointer's
+->count field, and oopsed.
+
+So probably that pfn_to_page() expression returned us some garbage
+which doesn't refer to a pageframe at all.
+
+I attempted to cc people who work on these things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
