@@ -1,88 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1AEC26B02A5
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 11:35:00 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so3743296pvc.14
-        for <linux-mm@kvack.org>; Thu, 22 Jul 2010 08:34:50 -0700 (PDT)
-Date: Fri, 23 Jul 2010 00:34:40 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
- writeback
-Message-ID: <20100722153440.GA1898@barrios-desktop>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
- <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
- <20100719142145.GD12510@infradead.org>
- <20100719144046.GR13117@csn.ul.ie>
- <20100722085210.GA26714@localhost>
- <20100722092155.GA28425@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C2FB76B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 12:13:56 -0400 (EDT)
+Date: Thu, 22 Jul 2010 09:13:53 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
+Message-ID: <20100722161351.GB10255@codeaurora.org>
+References: <20100713094244.7eb84f1b@lxorguk.ukuu.org.uk>
+ <20100713174519D.fujita.tomonori@lab.ntt.co.jp>
+ <20100713090223.GB20590@n2100.arm.linux.org.uk>
+ <20100714105922D.fujita.tomonori@lab.ntt.co.jp>
+ <20100722035026.GB14176@codeaurora.org>
+ <20100722075151.GD6802@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722092155.GA28425@localhost>
+In-Reply-To: <20100722075151.GD6802@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, alan@lxorguk.ukuu.org.uk, randy.dunlap@oracle.com, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, joro@8bytes.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Wu. 
-Thanks for Cced me. 
-
-AFAIR, we discussed this by private mail and didn't conclude yet. 
-Let's start from beginning. 
-
-On Thu, Jul 22, 2010 at 05:21:55PM +0800, Wu Fengguang wrote:
-> > I guess this new patch is more problem oriented and acceptable:
+On Thu, Jul 22, 2010 at 08:51:51AM +0100, Russell King - ARM Linux wrote:
+> On Wed, Jul 21, 2010 at 08:50:26PM -0700, Zach Pfeffer wrote:
+> > On Wed, Jul 14, 2010 at 10:59:43AM +0900, FUJITA Tomonori wrote:
+> > > On Tue, 13 Jul 2010 10:02:23 +0100
+> > > 
+> > > Zach Pfeffer said this new VCM infrastructure can be useful for
+> > > video4linux. However, I don't think we need 3,000-lines another
+> > > abstraction layer to solve video4linux's issue nicely.
 > > 
-> > --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> > +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
-> > @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
-> >  			count_vm_events(PGDEACTIVATE, nr_active);
-> >  
-> >  			nr_freed += shrink_page_list(&page_list, sc,
-> > -							PAGEOUT_IO_SYNC);
-> > +					priority < DEF_PRIORITY / 3 ?
-> > +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
-> >  		}
-> >  
-> >  		nr_reclaimed += nr_freed;
+> > Its only 3000 lines because I haven't converted the code to use
+> > function pointers.
 > 
-> This one looks better:
-> ---
-> vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
+> I don't understand - you've made this claim a couple of times.  I
+> can't see how converting the code to use function pointers (presumably
+> to eliminate those switch statements) would reduce the number of lines
+> of code.
 > 
-> Fix "system goes totally unresponsive with many dirty/writeback pages"
-> problem:
+> Please explain (or show via new patches) how does converting this to
+> function pointers significantly reduce the number of lines of code.
 > 
-> 	http://lkml.org/lkml/2010/4/4/86
-> 
-> The root cause is, wait_on_page_writeback() is called too early in the
-> direct reclaim path, which blocks many random/unrelated processes when
-> some slow (USB stick) writeback is on the way.
-> 
-> A simple dd can easily create a big range of dirty pages in the LRU
-> list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
-> typical desktop, which triggers the lumpy reclaim mode and hence
-> wait_on_page_writeback().
+> We might then be able to put just _one_ of these issues to bed.
 
-I see oom message. order is zero. 
-How is lumpy reclaim work?
-For working lumpy reclaim, we have to meet priority < 10 and sc->order > 0.
-
-Please, clarify the problem.
+Aye. Its getting worked on. Once its done I'll push it.
 
 > 
-> In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
-> the 22MB writeback and 190MB dirty pages. There can easily be a
+> > Getting back to the point. There is no API that can handle large
+> > buffer allocation and sharing with low-level attribute control for
+> > virtual address spaces outside the CPU.
+> 
+> I think we've dealt with the attribute issue to death now.  Shall we
+> repeat it again?
 
-What's 22MB and 190M?
-It would be better to explain more detail. 
-I think the description has to be clear as summary of the problem 
-without the above link. 
+I think the only point of agreement is that all mappings must have
+compatible attributes, the issue of multiple mappings is still
+outstanding, as is needing more fine grained control of the attributes
+of a set of compatible mappings (I still need to digest your examples
+a little).
 
-Thanks for taking out this problem, again. :)
--- 
-Kind regards,
-Minchan Kim
+> 
+> > The DMA API et al. take a CPU centric view of virtual space
+> > management, sharing has to be explicitly written and external virtual
+> > space management is left up to device driver writers.
+> 
+> I think I've also shown that not to be the case with example code.
+> 
+> The code behind the DMA API can be changed on a per-device basis
+> (currently on ARM we haven't supported that because no one's asked
+> for it yet) so that it can support multiple IOMMUs even of multiple
+> different types.
+
+I'm seeing that now. As I become more familiar with the DMA API the
+way forward may become more clear to me. I certainly appreciate the
+time you've spent discussing things and the code examples you've
+listed. For example, it fairly clear how I can use a scatter list to
+describe a mapping of big buffers. I can start down this path and see
+what shakes out.
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
