@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E2C86B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:41:13 -0400 (EDT)
-Date: Thu, 22 Jul 2010 14:40:56 +0100
-From: Mark Brown <broonie@opensource.wolfsonmicro.com>
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-Message-ID: <20100722134056.GJ4737@rakim.wolfsonmicro.main>
-References: <20100721135229.GC10930@sirena.org.uk>
- <op.vf66mxka7p4s8u@pikus>
- <20100721182457.GE10930@sirena.org.uk>
- <op.vf7h6ysh7p4s8u@pikus>
- <20100722090602.GF10930@sirena.org.uk>
- <000901cb297f$e28f2b10$a7ad8130$%szyprowski@samsung.com>
- <20100722105203.GD4737@rakim.wolfsonmicro.main>
- <op.vf8sxqro7p4s8u@pikus>
- <20100722124559.GH4737@rakim.wolfsonmicro.main>
- <op.vf8x60wi7p4s8u@pikus>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E903D6B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 10:14:49 -0400 (EDT)
+Date: Thu, 22 Jul 2010 10:14:37 -0400
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [patch 6/6] jbd2: remove dependency on __GFP_NOFAIL
+Message-ID: <20100722141437.GA14882@thunk.org>
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1007201943340.8728@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <op.vf8x60wi7p4s8u@pikus>
+In-Reply-To: <alpine.DEB.2.00.1007201943340.8728@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: =?utf-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, Pawel Osciak <p.osciak@samsung.com>, 'Xiaolin Zhang' <xiaolin.zhang@intel.com>, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'Robert Fekete' <robert.fekete@stericsson.com>, 'Marcus Lorentzon' <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andreas Dilger <adilger@sun.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 03:24:26PM +0200, MichaA? Nazarewicz wrote:
+On Tue, Jul 20, 2010 at 07:45:10PM -0700, David Rientjes wrote:
+> The kzalloc() in start_this_handle() is failable, so remove __GFP_NOFAIL
+> from its mask.
 
-> That's why command line is only intended as a way to overwrite the
-> defaults which are provided by the platform.  In a final product,
-> configuration should be specified in platform code and not on
-> command line.
+Unfortunately, while there is error handling in start_this_handle(),
+there isn't in all of the callers of start_this_handle(), which is why
+the __GFP_NOFAIL is there.  At the moment, if we get an ENOMEM in the
+delayed writeback code paths, for example, it's a disaster; user data
+can get lost, as a result.
 
-Yeah, agreed though I'm not convinced we can't do it via userspace
-(initrd would give us a chance to do stuff early) or just kernel
-rebuilds.
+I could add retry code in the places where we really can't fail, and
+reflect the change back up to the userspace code everywhere else, but
+that will take a while to do, and even then it means that any VFS
+syscall (chmod, unlink, rmdir, mkdir, read, close, etc.) would now
+potentially return ENOMEM.  And we know how often application
+programmers do error checking....
 
-> >It sounds like apart from the way you're passing the configuration in
-> >you're doing roughly what I'd suggest.  I'd expect that in a lot of
-> >cases the map could be satisfied from the default region so there'd be
-> >no need to explicitly set one up.
+But until we fix up all of the callers of jbd2_journal_start() and
+jbd2_journal_restart(), I'd prefer keep this __GFP_NOFAIL in place,
+thanks.
 
-> Platform can specify something like:
+						- Ted
 
-> 	cma_defaults("reg=20M", "*/*=reg");
-
-> which would make all the drivers share 20 MiB region by default.  I'm also
-> thinking if something like:
-
-Yes, exactly - probably you can even have a default region backed by
-normal vmalloc() RAM which would at least be able to take a stab at
-working by default.
+P.S.  There may also be some places where we haven't taken locks yet,
+and so it might be safe in a few locations to omit the GFP_NOFS flag.
+That would mean adding a new version of jbd2_journal_start() which can
+take a gfp_mask, but the net result would be a file system that would
+be a little bit more of a "good citizen" as far as allowing memory
+reclaim.  I am worried about reflecting ENOMEM errors back up to
+userspace, though, since I'm painfully aware of how much crappy
+userspace code is out there.  What might be nice is a
+"__GFP_RETRY_HARDER" which is weaker form of __GFP_NOFAIL...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
