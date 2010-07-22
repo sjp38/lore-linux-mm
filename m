@@ -1,66 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A9C9C6B02A4
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:01:11 -0400 (EDT)
-Date: Fri, 23 Jul 2010 05:01:00 +1000
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: VFS scalability git tree
-Message-ID: <20100722190100.GA22269@amd>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 358BA6B02A3
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:15:35 -0400 (EDT)
+Date: Thu, 22 Jul 2010 12:14:57 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/8] zcache: page cache compression support
+Message-ID: <20100722191457.GA13309@kroah.com>
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1279283870-18549-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Frank Mayhar <fmayhar@google.com>, John Stultz <johnstul@us.ibm.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Minchan Kim <minchan.kim@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-I'm pleased to announce I have a git tree up of my vfs scalability work.
+On Fri, Jul 16, 2010 at 06:07:42PM +0530, Nitin Gupta wrote:
+> Frequently accessed filesystem data is stored in memory to reduce access to
+> (much) slower backing disks. Under memory pressure, these pages are freed and
+> when needed again, they have to be read from disks again. When combined working
+> set of all running application exceeds amount of physical RAM, we get extereme
+> slowdown as reading a page from disk can take time in order of milliseconds.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
-http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
+<snip>
 
-Branch vfs-scale-working
+Given that there were a lot of comments and changes for this series, can
+you resend them with your updates so I can then apply them if they are
+acceptable to everyone?
 
-The really interesting new item is the store-free path walk, (43fe2b)
-which I've re-introduced. It has had a complete redesign, it has much
-better performance and scalability in more cases, and is actually sane
-code now.
+thanks,
 
-What this does is to allow parallel name lookups to walk down common
-elements without any cacheline bouncing between them.  It can walk
-across many interesting cases such as mount points, back up '..', and
-negative dentries of most filesystems. It does so without requiring any
-atomic operations or any stores at all to hared data.  This also makes
-it very fast in serial performance (path walking is nearly twice as fast
-on my Opteron).
-
-In cases where it cannot continue the RCU walk (eg. dentry does not
-exist), then it can in most cases take a reference on the farthest
-element it has reached so far, and then continue on with a regular
-refcount-based path walk. My first attempt at this simply dropped
-everything and re-did the full refcount based walk.
-
-I've also been working on stress testing, bug fixing, cutting down
-'XXX'es, and improving changelogs and comments.
-
-Most filesystems are untested (it's too large a job to do comprehensive
-stress tests on everything), but none have known issues (except nilfs2).
-Ext2/3, nfs, nfsd, and ram based filesystems seem to work well,
-ext4/btrfs/xfs/autofs4 have had light testing.
-
-I've never had filesystem corruption when testing these patches (only
-lockups or other bugs). But standard disclaimer: they may eat your data.
-
-Summary of a few numbers I've run. google's socket teardown workload
-runs 3-4x faster on my 2 socket Opteron. Single thread git diff runs 20%
-on same machine. 32 node Altix runs dbench on ramfs 150x faster (100MB/s
-up to 15GB/s).
-
-At this point, I would be very interested in reviewing, correctness
-testing on different configurations, and of course benchmarking.
-
-Thanks,
-Nick
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
