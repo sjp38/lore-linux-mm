@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 44BA46B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 12:44:59 -0400 (EDT)
-Date: Thu, 22 Jul 2010 09:44:56 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-Message-ID: <20100722164454.GF10255@codeaurora.org>
-References: <20100720221959.GC12250@codeaurora.org>
- <20100721104356S.fujita.tomonori@lab.ntt.co.jp>
- <20100722043034.GC22559@codeaurora.org>
- <20100722134253B.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3ED996B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 13:39:25 -0400 (EDT)
+Date: Thu, 22 Jul 2010 19:39:20 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUGFIX][PATCH] Fix false positive BUG_ON in
+ __page_set_anon_rmap
+Message-ID: <20100722173920.GI24928@random.random>
+References: <20100722164118.d500b850.kamezawa.hiroyu@jp.fujitsu.com>
+ <4C4844BC.4090709@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722134253B.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <4C4844BC.4090709@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: linux@arm.linux.org.uk, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Rik van Riel <riel@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 01:43:26PM +0900, FUJITA Tomonori wrote:
-> On Wed, 21 Jul 2010 21:30:34 -0700
-> Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
+On Thu, Jul 22, 2010 at 09:16:44AM -0400, Rik van Riel wrote:
+> On 07/22/2010 03:41 AM, KAMEZAWA Hiroyuki wrote:
+> > Rik, how do you think ?
+> >
+> > ==
+> > From: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> > Problem: wrong BUG_ON() in  __page_set_anon_rmap().
+> > Kernel version: mmotm-0719
 > 
-> > On Wed, Jul 21, 2010 at 10:44:37AM +0900, FUJITA Tomonori wrote:
-> > > On Tue, 20 Jul 2010 15:20:01 -0700
-> > > Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> > > 
-> > > > > I'm not saying that it's reasonable to pass (or even allocate) a 1MB
-> > > > > buffer via the DMA API.
-> > > > 
-> > > > But given a bunch of large chunks of memory, is there any API that can
-> > > > manage them (asked this on the other thread as well)?
-> > > 
-> > > What is the problem about mapping a 1MB buffer with the DMA API?
-> > > 
-> > > Possibly, an IOMMU can't find space for 1MB but it's not the problem
-> > > of the DMA API.
-> > 
-> > This goes to the nub of the issue. We need a lot of 1 MB physically
-> > contiguous chunks. The system is going to fragment and we'll never get
-> > our 12 1 MB chunks that we'll need, since the DMA API allocator uses
-> > the system pool it will never succeed. For this reason we reserve a
-> > pool of 1 MB chunks (and 16 MB, 64 KB etc...) to satisfy our
-> > requests. This same use case is seen on most embedded "media" engines
-> > that are getting built today.
+> > Description:
+> >    Even if SwapCache is fully unmapped and mapcount goes down to 0,
+> >    page->mapping is not cleared and will remain on memory until kswapd or some
+> >    finds it. If a thread cause a page fault onto such "unmapped-but-not-discarded"
+> >    swapcache, it will see a swap cache whose mapcount is 0 but page->mapping has a
+> >    valid value.
+> >
+> >    When it's reused at do_swap_page(), __page_set_anon_rmap() is called with
+> >    "exclusive==1" and hits BUG_ON(). But this BUG_ON() is wrong. Nothing bad
+> >    with rmapping a page which has page->mapping isn't 0.
 > 
-> We don't need a new abstraction to reserve some memory.
+> Yes, you are absolutely right.
 > 
-> If you want pre-allocated memory pool per device (and share them with
-> some), the DMA API can for coherent memory (see
-> dma_alloc_from_coherent). You can extend the DMA API if necessary.
 
-That function won't work for us. We can't use
-bitmap_find_free_region(), we need to use our own allocator. If
-anything we need a dma_alloc_from_custom(my_allocator). Take a look
-at:
+I already noticed the problem when I merged your patch in aa.git
+(before it would only be exclusive=0 in do_swap_page so it wasn't a
+false positive), and I fixed it this way:
 
-mm: iommu: A physical allocator for the VCMM
-vcm_alloc_max_munch() 
+http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=commitdiff;h=2fe4f42f0f17498984b3f86b2339d583004b45de;hp=ffd146080305632406d97c7f6f984a648854d755
+
+So I retained the BUG_ON for the real page_add_anon_rmap. Maybe not
+worth it but you can have a look at my solution if you're interested
+to retain it too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
