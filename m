@@ -1,138 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0956B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 00:06:56 -0400 (EDT)
-Date: Wed, 21 Jul 2010 21:06:40 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 212FD6B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 00:25:31 -0400 (EDT)
+Date: Wed, 21 Jul 2010 21:25:28 -0700
 From: Zach Pfeffer <zpfeffer@codeaurora.org>
 Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
  memory management
-Message-ID: <20100722040637.GA22559@codeaurora.org>
-References: <20100714201149.GA14008@codeaurora.org>
+Message-ID: <20100722042528.GB22559@codeaurora.org>
+References: <4C3C0032.5020702@codeaurora.org>
+ <20100713150311B.fujita.tomonori@lab.ntt.co.jp>
+ <20100713121420.GB4263@codeaurora.org>
+ <20100714104353B.fujita.tomonori@lab.ntt.co.jp>
+ <20100714201149.GA14008@codeaurora.org>
  <20100714220536.GE18138@n2100.arm.linux.org.uk>
  <20100715012958.GB2239@codeaurora.org>
  <20100715085535.GC26212@n2100.arm.linux.org.uk>
- <AANLkTinVZeaZxt_lWKhjKa0dqhu3_j3BRNySO-2LvMdw@mail.gmail.com>
- <20100716075856.GC16124@n2100.arm.linux.org.uk>
- <20100717000108.GB21293@labbmf-linux.quicinc.com>
- <AANLkTinTQXbsD91JDHiSFrvDoUeHbaGUGSWA-5aT5ZCr@mail.gmail.com>
- <20100721004407.GA14176@codeaurora.org>
- <AANLkTinFCo8xTm2QM1kFWbv2xViGWt0bQz72U9YcQjv6@mail.gmail.com>
+ <20100719065233.GD11054@codeaurora.org>
+ <m1mxtndifi.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTinFCo8xTm2QM1kFWbv2xViGWt0bQz72U9YcQjv6@mail.gmail.com>
+In-Reply-To: <m1mxtndifi.fsf@fess.ebiederm.org>
 Sender: owner-linux-mm@kvack.org
-To: Timothy Meade <zt.tmzt@gmail.com>
-Cc: Larry Bassel <lbassel@codeaurora.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 20, 2010 at 09:44:12PM -0400, Timothy Meade wrote:
-> On Tue, Jul 20, 2010 at 8:44 PM, Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
-> > On Mon, Jul 19, 2010 at 05:21:35AM -0400, Tim HRM wrote:
-> >> On Fri, Jul 16, 2010 at 8:01 PM, Larry Bassel <lbassel@codeaurora.org> wrote:
-> >> > On 16 Jul 10 08:58, Russell King - ARM Linux wrote:
-> >> >> On Thu, Jul 15, 2010 at 08:48:36PM -0400, Tim HRM wrote:
-> >> >> > Interesting, since I seem to remember the MSM devices mostly conduct
-> >> >> > IO through regions of normal RAM, largely accomplished through
-> >> >> > ioremap() calls.
-> >> >> >
-> >> >> > Without more public domain documentation of the MSM chips and AMSS
-> >> >> > interfaces I wouldn't know how to avoid this, but I can imagine it
-> >> >> > creates a bit of urgency for Qualcomm developers as they attempt to
-> >> >> > upstream support for this most interesting SoC.
-> >> >>
-> >> >> As the patch has been out for RFC since early April on the linux-arm-kernel
-> >> >> mailing list (Subject: [RFC] Prohibit ioremap() on kernel managed RAM),
-> >> >> and no comments have come back from Qualcomm folk.
-> >> >
-> >> > We are investigating the impact of this change on us, and I
-> >> > will send out more detailed comments next week.
-> >> >
-> >> >>
-> >> >> The restriction on creation of multiple V:P mappings with differing
-> >> >> attributes is also fairly hard to miss in the ARM architecture
-> >> >> specification when reading the sections about caches.
-> >> >>
-> >> >
-> >> > Larry Bassel
-> >> >
-> >> > --
-> >> > Sent by an employee of the Qualcomm Innovation Center, Inc.
-> >> > The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum.
-> >> >
-> >>
-> >> Hi Larry and Qualcomm people.
-> >> I'm curious what your reason for introducing this new api (or adding
-> >> to dma) is. ?Specifically how this would be used to make the memory
-> >> mapping of the MSM chip dynamic in contrast to the fixed _PHYS defines
-> >> in the Android and Codeaurora trees.
-> >
-> > The MSM has many integrated engines that allow offloading a variety of
-> > workloads. These engines have always addressed memory using physical
-> > addresses, because of this we had to reserve large (10's MB) buffers
-> > at boot. These buffers are never freed regardless of whether an engine
-> > is actually using them. As you can imagine, needing to reserve memory
-> > for all time on a device that doesn't have a lot of memory in the
-> > first place is not ideal because that memory could be used for other
-> > things, running apps, etc.
-> >
-> > To solve this problem we put IOMMUs in front of a lot of the
-> > engines. IOMMUs allow us to map physically discontiguous memory into a
-> > virtually contiguous address range. This means that we could ask the
-> > OS for 10 MB of pages and map all of these into our IOMMU space and
-> > the engine would still see a contiguous range.
-> >
+On Mon, Jul 19, 2010 at 12:44:49AM -0700, Eric W. Biederman wrote:
+> Zach Pfeffer <zpfeffer@codeaurora.org> writes:
 > 
+> > On Thu, Jul 15, 2010 at 09:55:35AM +0100, Russell King - ARM Linux wrote:
+> >> On Wed, Jul 14, 2010 at 06:29:58PM -0700, Zach Pfeffer wrote:
+> >> > The VCM ensures that all mappings that map a given physical buffer:
+> >> > IOMMU mappings, CPU mappings and one-to-one device mappings all map
+> >> > that buffer using the same (or compatible) attributes. At this point
+> >> > the only attribute that users can pass is CACHED. In the absence of
+> >> > CACHED all accesses go straight through to the physical memory.
+> >> 
+> >> So what you're saying is that if I have a buffer in kernel space
+> >> which I already have its virtual address, I can pass this to VCM and
+> >> tell it !CACHED, and it'll setup another mapping which is not cached
+> >> for me?
+> >
+> > Not quite. The existing mapping will be represented by a reservation
+> > from the prebuilt VCM of the VM. This reservation has been marked
+> > non-cached. Another reservation on a IOMMU VCM, also marked non-cached
+> > will be backed with the same physical memory. This is legal in ARM,
+> > allowing the vcm_back call to succeed. If you instead passed cached on
+> > the second mapping, the first mapping would be non-cached and the
+> > second would be cached. If the underlying architecture supported this
+> > than the vcm_back would go through.
 > 
-> I see. Much like I suspected, this is used to replace the static
-> regime of the earliest Android kernel.  You mention placing IOMMUs in
-> front of the A11 engines, you are involved in this architecture as an
-> engineer or similar?  
+> How does this compare with the x86 pat code?
 
-I'm involved to the extent of designing and implementing VCM and,
-finding it useful for this class of problems, trying push it upstream.
+First, thanks for asking this question. I wasn't aware of the x86 pat
+code and I got to read about it. From my initial read the VCM differs in 2 ways:
 
-> Is there a reason a cooperative approach using
-> RPC or another mechanism is not used for memory reservation, this is
-> something that can be accomplished fully on APPS side?
+1. The attributes are explicitly set on virtual address ranges. These
+reservations can then map physical memory with these attributes.
 
-It can be accomplished a few ways. At this point we let the
-application processor manage the buffers. Other cooperative approaches
-have been talked about. As you can see in the short, but voluminous
-cannon of MSM Linux support there is a degree of RPC used to
-communicate with other nodes in the system. As time progresses the
-cannon of code shows this usage going down.
+2. We explicitly allow multiple mappings (as long as the attributes are
+compatible). One such mapping may come from a IOMMU's virtual address
+space while another comes from the CPUs virtual address space. These
+mappings may exist at the same time.
 
 > 
-> > In reality, limitations in the hardware meant that we needed to map
-> > memory using larger mappings to minimize the number of TLB
-> > misses. This, plus the number of IOMMUs and the extreme use cases we
-> > needed to design for led us to a generic design.
+> >> You are aware that multiple V:P mappings for the same physical page
+> >> with different attributes are being outlawed with ARMv6 and ARMv7
+> >> due to speculative prefetching.  The cache can be searched even for
+> >> a mapping specified as 'normal, uncached' and you can get cache hits
+> >> because the data has been speculatively loaded through a separate
+> >> cached mapping of the same physical page.
 > >
-> > This generic design solved our problem and the general mapping
-> > problem. We thought other people, who had this same big-buffer
-> > interoperation problem would also appreciate a common API that was
-> > built with their needs in mind so we pushed our idea up.
+> > I didn't know that. Thanks for the heads up.
 > >
-> >>
-> >> I'm also interested in how this ability to map memory regions as files
-> >> for devices like KGSL/DRI or PMEM might work and why this is better
-> >> suited to that purpose than existing methods, where this fits into
-> >> camera preview and other issues that have been dealt with in these
-> >> trees in novel ways (from my perspective).
+> >> FYI, during the next merge window, I will be pushing a patch which makes
+> >> ioremap() of system RAM fail, which should be the last core code creator
+> >> of mappings with different memory types.  This behaviour has been outlawed
+> >> (as unpredictable) in the architecture specification and does cause
+> >> problems on some CPUs.
 > >
-> > The file based approach was driven by Android's buffer passing scheme
-> > and the need to write userspace drivers for multimedia, etc...
-> >
-> >
-> So the Android file backed approach is obiviated by GEM and other mechanisms?
-
-Aye.
-
+> > That's fair enough, but it seems like it should only be outlawed for
+> > those processors on which it breaks.
 > 
-> Thanks you for you help,
-> Timothy Meade
-> -tmzt #htc-linux (facebook.com/HTCLinux)
+> To my knowledge mismatch of mapping attributes is a problem on most
+> cpus on every architecture.  I don't see it making sense to encourage
+> coding constructs that will fail in the strangest most difficult to
+> debug ways.
+
+Yes it is a problem, as Russell has brought up, but there's something
+I probably haven't communicated well. I'll use the following example:
+
+There are 3 devices: A CPU, a decoder and a video output device. All 3
+devices need to map the same 12 MB buffer at the same time. Once this
+buffer has served its purpose it gets freed and goes back into the
+pool of big buffers. When the same usage case exists again the buffer
+needs to get reallocated and the same devices need to map to it.
+
+This usage case does exist, not only for Qualcomm but for all of these
+SoC media engines that have started running Linux. The VCM API
+attempts to cover this case for the Linux kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
