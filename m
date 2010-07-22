@@ -1,114 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BCCB46B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 02:09:33 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6M69VqK013541
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Jul 2010 15:09:31 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A84B245DE4F
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:09:30 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 677CC45DE51
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:09:30 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D4FB1DB8063
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:09:30 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B9C391DB803F
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 15:09:29 +0900 (JST)
-Date: Thu, 22 Jul 2010 15:04:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/2][memcg] moving memcg's node info array to
- virtually contiguous array
-Message-Id: <20100722150445.19a4a701.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100722144356.b9681621.nishimura@mxp.nes.nec.co.jp>
-References: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100722144356.b9681621.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B39526B02A9
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 03:32:29 -0400 (EDT)
+Received: from epmmp2 (mailout3.samsung.com [203.254.224.33])
+ by mailout3.samsung.com
+ (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
+ with ESMTP id <0L5Y00AG97HEB2D0@mailout3.samsung.com> for linux-mm@kvack.org;
+ Thu, 22 Jul 2010 16:29:38 +0900 (KST)
+Received: from AMDC159 ([106.116.37.153])
+ by mmp2.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTPA id <0L5Y00GK37H02C@mmp2.samsung.com> for linux-mm@kvack.org; Thu,
+ 22 Jul 2010 16:29:38 +0900 (KST)
+Date: Thu, 22 Jul 2010 09:28:02 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <20100722143652V.fujita.tomonori@lab.ntt.co.jp>
+Message-id: <000001cb296f$6eba8fa0$4c2faee0$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: 
+ <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+ <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+ <20100720181239.5a1fd090@bike.lwn.net>
+ <20100722143652V.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: 'FUJITA Tomonori' <fujita.tomonori@lab.ntt.co.jp>, corbet@lwn.net
+Cc: m.nazarewicz@samsung.com, linux-mm@kvack.org, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jul 2010 14:43:56 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Hello,
 
-> On Wed, 21 Jul 2010 19:58:31 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thursday, July 22, 2010 7:38 AM FUJITA Tomonori wrote:
+
+> On Tue, 20 Jul 2010 18:12:39 -0600
+> Jonathan Corbet <corbet@lwn.net> wrote:
 > 
-> > These are just a _toy_ level patches yet. My final purpose is to use indexed array
-> > for mem_cgroup itself, it has IDs.
-> > 
-> > Background:
-> >   memory cgroup uses struct page_cgroup for tracking all used pages. It's defined as
-> > ==
-> > struct page_cgroup {
-> >         unsigned long flags;
-> >         struct mem_cgroup *mem_cgroup;
-> >         struct page *page;
-> >         struct list_head lru;           /* per cgroup LRU list */
-> > };
-> > ==
-> >   and this increase the cost of per-page-objects dramatically. Now, we have
-> >   troubles on this object.
-> >   1.  Recently, a blkio-tracking guy wants to add "blockio-cgroup" information
-> >       to page_cgroup. But our concern is extra 8bytes per page.
-> >   2.  At tracking dirty page status etc...we need some trick for safe access
-> >       to page_cgroup and memcgroup's information. For example, a small seqlock.
-> > 
-> > Now, each memory cgroup has its own ID (0-65535). So, if we can replace
-> > 8byte of pointer "pc->mem_cgroup" with an ID, which is 2 bytes, we may able
-> > to have another room. (Moreover, I think we can reduce the number of IDs...)
-> > 
-> > This patch is a trial for implement a virually-indexed on-demand array and
-> > an example of usage. Any commetns are welcome.
-> > 
-
-Hi,
-> So, your purpose is to:
+> > One other thing occurred to me as I was thinking about this...
+> >
+> > > +    There are four calls provided by the CMA framework to devices.  To
+> > > +    allocate a chunk of memory cma_alloc() function needs to be used:
+> > > +
+> > > +            unsigned long cma_alloc(const struct device *dev,
+> > > +                                    const char *kind,
+> > > +                                    unsigned long size,
+> > > +                                    unsigned long alignment);
+> >
+> > The purpose behind this interface, I believe, is pretty much always
+> > going to be to allocate memory for DMA buffers.  Given that, might it
+> > make more sense to integrate the API with the current DMA mapping
+> > API?
 > 
-> - make the size of mem_croup small(by [2/2])
-It's just an example to test virt-array. I don't convice it can
-save memory or make something fast. and I found a bug in free routine.)
-
-
-> - manage all the mem_cgroup in virt-array indexed by its ID(it would be faster
->   than using css_lookup)
-yes.
-
-> - replace pc->mem_cgroup by its ID and make the size of page_cgroup small
+> IMO, having separate APIs for allocating memory and doing DMA mapping
+> is much better. The DMA API covers the latter well. We could extend
+> the current API to allocate memory or create new one similar to the
+> current.
 > 
-yes.
+> I don't see any benefit of a new abstraction that does both magically.
 
-Final style I'm thinking is
-	struct page_cgroup {
-		unsigned long flags;
-		spinlock_t	lock;  # for lock_page_cgroup()
-		unsigned short memcg;
-		unsigned short blkio;
-		struct page *page;
-		struct list_head list;
-	};
-This will be benefical in 64bit. About 32bit, I may have to merge some fields.
-Or I may have to add some "version" field for updating memcg's statistics
-without locks. memcg field may be able to be moved onto high-bits of "flags"
-because it's stable value unless it's not under move_charge. 
-(IIUC, at move_charge, memcg is off-LRU and there are no race with AcctLRU bit
- v.s. pc->mem_cgroup field. With other flags, lock_page_cgroup() works enough.)
+That's true. DMA mapping API is quite stable and already working.
+ 
+> About the framework, it looks too complicated than we actually need
+> (the command line stuff looks insane).
 
-Anyway, race with move_charge() will be the last enemy for us to track 
-dirty pages etc...at least, this kind of "make room" job is required, I feel.
+Well, this command line stuff was designed to provide a way to configure
+memory allocation for devices with very sophisticated memory requirements.
+It might look insane in first sight, but we haven't implemented it just
+for fun. We have just taken the real requirements for our multimedia
+devices (especially hardware video codec) tried to create a solution that
+would cover all of them.
 
-There are many things to be considered, but I'm a bit in hurry. I'd like to do
-some preparation before Mel at el rewrites memory-reclaim+writeback complelety.
+However I understand your point. It might be really good idea to set a
+default mapping as a "one global memory pool for all devices". This way
+the complicated cma boot argument would need to be provided only on
+machines that really require it, all other can use it without any advanced
+command line magic.
 
+> Why can't we have something simpler, like using memblock to reserve
+> contiguous memory at boot and using kinda mempool to share such memory
+> between devices?
 
-Thanks,
--Kame
+There are a few problems with such simple approach:
+
+1. It does not provide all required functionality for our multimedia
+devices. The main problem is the fact that our multimedia devices
+require particular kind of buffers to be allocated in particular memory
+bank. Then add 2 more requirements: a proper alignment (for some of them
+it is even 128Kb) and particular range of addresses requirement (some
+buffers must be allocated at higher addresses than the firmware).
+This is very hard to achieve with such simple allocator.
+
+2. One global memory pool heavily increases fragmentation issues and
+gives no way to control or limit it. The opposite solution - like having
+a separate pools per each multimedia device solves some fragmentation
+issues but it's a huge waste a of the memory. Our idea was to provide
+something configurable that can be placed between both solutions, that
+can take advantages of both.
+
+Best regards
+--
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
