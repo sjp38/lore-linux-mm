@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A49226B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:36:29 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6M5IRRk015438
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:18:27 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6M5aRJj1781830
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:36:27 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6M5aQpf031811
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:36:27 -0400
-Date: Thu, 22 Jul 2010 11:06:24 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/7] memcg: nid and zid can be calculated from zone
-Message-ID: <20100722053624.GN14369@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100716191418.7372.A69D9226@jp.fujitsu.com>
- <20100716105648.GG13117@csn.ul.ie>
- <20100721223349.870D.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100721223349.870D.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id F10FB6B02A4
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:37:55 -0400 (EDT)
+Date: Thu, 22 Jul 2010 14:37:49 +0900
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100720181239.5a1fd090@bike.lwn.net>
+References: <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+	<adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+	<20100720181239.5a1fd090@bike.lwn.net>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20100722143652V.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: corbet@lwn.net
+Cc: m.nazarewicz@samsung.com, linux-mm@kvack.org, m.szyprowski@samsung.com, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-07-21 22:33:56]:
+On Tue, 20 Jul 2010 18:12:39 -0600
+Jonathan Corbet <corbet@lwn.net> wrote:
 
-> > > +static inline int zone_nid(struct zone *zone)
-> > > +{
-> > > +	return zone->zone_pgdat->node_id;
-> > > +}
-> > > +
-> > 
-> > hmm, adding a helper and not converting the existing users of
-> > zone->zone_pgdat may be a little confusing particularly as both types of
-> > usage would exist in the same file e.g. in mem_cgroup_zone_nr_pages.
+> One other thing occurred to me as I was thinking about this...
 > 
-> I see. here is incrementa patch.
+> > +    There are four calls provided by the CMA framework to devices.  To
+> > +    allocate a chunk of memory cma_alloc() function needs to be used:
+> > +
+> > +            unsigned long cma_alloc(const struct device *dev,
+> > +                                    const char *kind,
+> > +                                    unsigned long size,
+> > +                                    unsigned long alignment);
 > 
-> Thanks
-> 
-> From 62cf765251af257c98fc92a58215d101d200e7ef Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Tue, 20 Jul 2010 11:30:14 +0900
-> Subject: [PATCH] memcg: convert to zone_nid() from bare zone->zone_pgdat->node_id
-> 
-> Now, we have zone_nid(). this patch convert all existing users of
-> zone->zone_pgdat.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |    6 +++---
->  1 files changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 82e191f..3d5b645 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -951,7 +951,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
->  				       struct zone *zone,
->  				       enum lru_list lru)
->  {
-> -	int nid = zone->zone_pgdat->node_id;
-> +	int nid = zone_nid(zone);
->  	int zid = zone_idx(zone);
->  	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
->  
-> @@ -961,7 +961,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
->  struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
->  						      struct zone *zone)
->  {
-> -	int nid = zone->zone_pgdat->node_id;
-> +	int nid = zone_nid(zone);
->  	int zid = zone_idx(zone);
->  	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
->  
-> @@ -1006,7 +1006,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  	LIST_HEAD(pc_list);
->  	struct list_head *src;
->  	struct page_cgroup *pc, *tmp;
-> -	int nid = z->zone_pgdat->node_id;
-> +	int nid = zone_nid(z);
->  	int zid = zone_idx(z);
->  	struct mem_cgroup_per_zone *mz;
->  	int lru = LRU_FILE * file + active;
+> The purpose behind this interface, I believe, is pretty much always
+> going to be to allocate memory for DMA buffers.  Given that, might it
+> make more sense to integrate the API with the current DMA mapping
+> API?
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
--- 
-	Three Cheers,
-	Balbir
+IMO, having separate APIs for allocating memory and doing DMA mapping
+is much better. The DMA API covers the latter well. We could extend
+the current API to allocate memory or create new one similar to the
+current. 
+
+I don't see any benefit of a new abstraction that does both magically.
+
+
+About the framework, it looks too complicated than we actually need
+(the command line stuff looks insane).
+
+Why can't we have something simpler, like using memblock to reserve
+contiguous memory at boot and using kinda mempool to share such memory
+between devices?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
