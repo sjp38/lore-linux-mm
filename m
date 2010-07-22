@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0E20A6B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:02:39 -0400 (EDT)
-Date: Thu, 22 Jul 2010 17:02:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
- writeback
-Message-ID: <20100722090231.GA27947@localhost>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
- <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
- <20100719142145.GD12510@infradead.org>
- <20100719144046.GR13117@csn.ul.ie>
- <20100722085210.GA26714@localhost>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 45C156B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:06:13 -0400 (EDT)
+Date: Thu, 22 Jul 2010 10:06:04 +0100
+From: Mark Brown <broonie@opensource.wolfsonmicro.com>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+Message-ID: <20100722090602.GF10930@sirena.org.uk>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com> <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com> <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com> <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com> <op.vf5o28st7p4s8u@pikus> <20100721135229.GC10930@sirena.org.uk> <op.vf66mxka7p4s8u@pikus> <20100721182457.GE10930@sirena.org.uk> <op.vf7h6ysh7p4s8u@pikus>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722085210.GA26714@localhost>
+In-Reply-To: <op.vf7h6ysh7p4s8u@pikus>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Micha?? Nazarewicz <m.nazarewicz@samsung.com>
+Cc: Daniel Walker <dwalker@codeaurora.org>, linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry, please ignore this hack, it's non sense..
+On Wed, Jul 21, 2010 at 08:41:12PM +0200, Micha?? Nazarewicz wrote:
+> On Wed, 21 Jul 2010 20:24:58 +0200, Mark Brown <broonie@opensource.wolfsonmicro.com> wrote:
 
-> 
-> --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
-> @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
->  			count_vm_events(PGDEACTIVATE, nr_active);
->  
->  			nr_freed += shrink_page_list(&page_list, sc,
-> -							PAGEOUT_IO_SYNC);
-> +					priority < DEF_PRIORITY / 3 ?
-> +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
->  		}
->  
->  		nr_reclaimed += nr_freed;
- 
-Thanks,
-Fengguang
+> >> I am currently working on making the whole thing more dynamic.  I imagine
+
+> > Yes, I think it will be much easier to be able to grab the regions at
+> > startup but hopefully the allocation within those regions can be made
+> > much more dynamic.  This would render most of the configuration syntax
+> > unneeded.
+
+> Not sure what you mean by the last sentence.  Maybe we have different
+> things in mind?
+
+I mean that if the drivers are able to request things dynamically and
+have some knowledge of their own requirements then that removes the need
+to manually specify exactly which regions go to which drivers which
+means that most of the complexity of the existing syntax is not needed
+since it can be figured out at runtime.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
