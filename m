@@ -1,122 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BFC46B02A4
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 00:49:22 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6M4jmwh016181
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 22:45:48 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6M4nHpc109760
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 22:49:17 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6M4nG3n018145
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 22:49:17 -0600
-Date: Thu, 22 Jul 2010 10:19:12 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/7] memcg: mem_cgroup_shrink_node_zone() doesn't need
- sc.nodemask
-Message-ID: <20100722044911.GK14369@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100716191006.7369.A69D9226@jp.fujitsu.com>
- <20100716191334.736F.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EBAA26B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 00:54:49 -0400 (EDT)
+Date: Wed, 21 Jul 2010 21:54:35 -0700
+From: Zach Pfeffer <zpfeffer@codeaurora.org>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+Message-ID: <20100722045435.GD22559@codeaurora.org>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+ <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+ <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100716191334.736F.A69D9226@jp.fujitsu.com>
+In-Reply-To: <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Pawel Osciak <p.osciak@samsung.com>, Xiaolin Zhang <xiaolin.zhang@intel.com>, Hiremath Vaibhav <hvaibhav@ti.com>, Robert Fekete <robert.fekete@stericsson.com>, Marcus Lorentzon <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-07-16 19:14:15]:
-
-> Currently mem_cgroup_shrink_node_zone() call shrink_zone() directly.
-> thus it doesn't need to initialize sc.nodemask. shrink_zone() doesn't
-> use it at all.
+On Tue, Jul 20, 2010 at 05:51:25PM +0200, Michal Nazarewicz wrote:
+> The Contiguous Memory Allocator framework is a set of APIs for
+> allocating physically contiguous chunks of memory.
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Various chips require contiguous blocks of memory to operate.  Those
+> chips include devices such as cameras, hardware video decoders and
+> encoders, etc.
+> 
+> The code is highly modular and customisable to suit the needs of
+> various users.  Set of regions reserved for CMA can be configured on
+> run-time and it is easy to add custom allocator algorithms if one
+> has such need.
+> 
+> Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> Reviewed-by: Pawel Osciak <p.osciak@samsung.com>
 > ---
->  include/linux/swap.h |    3 +--
->  mm/memcontrol.c      |    3 +--
->  mm/vmscan.c          |    8 ++------
->  3 files changed, 4 insertions(+), 10 deletions(-)
+>  Documentation/cma.txt               |  435 +++++++++++++++++++
+>  Documentation/kernel-parameters.txt |    7 +
+>  include/linux/cma-int.h             |  183 ++++++++
+>  include/linux/cma.h                 |   92 ++++
+>  mm/Kconfig                          |   41 ++
+>  mm/Makefile                         |    3 +
+>  mm/cma-allocators.h                 |   42 ++
+>  mm/cma-best-fit.c                   |  360 ++++++++++++++++
+>  mm/cma.c                            |  778 +++++++++++++++++++++++++++++++++++
+>  9 files changed, 1941 insertions(+), 0 deletions(-)
+>  create mode 100644 Documentation/cma.txt
+>  create mode 100644 include/linux/cma-int.h
+>  create mode 100644 include/linux/cma.h
+>  create mode 100644 mm/cma-allocators.h
+>  create mode 100644 mm/cma-best-fit.c
+>  create mode 100644 mm/cma.c
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ff4acea..bf4eb62 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -244,8 +244,7 @@ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
->  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						gfp_t gfp_mask, bool noswap,
->  						unsigned int swappiness,
-> -						struct zone *zone,
-> -						int nid);
-> +						struct zone *zone);
->  extern int __isolate_lru_page(struct page *page, int mode, int file);
->  extern unsigned long shrink_all_memory(unsigned long nr_pages);
->  extern int vm_swappiness;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index aba4310..01f38ff 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1307,8 +1307,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  		/* we use swappiness of local cgroup */
->  		if (check_soft)
->  			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
-> -				noswap, get_swappiness(victim), zone,
-> -				zone->zone_pgdat->node_id);
-> +				noswap, get_swappiness(victim), zone);
->  		else
->  			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
->  						noswap, get_swappiness(victim));
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index bd1d035..be860a0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1929,7 +1929,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						gfp_t gfp_mask, bool noswap,
->  						unsigned int swappiness,
-> -						struct zone *zone, int nid)
-> +						struct zone *zone)
->  {
->  	struct scan_control sc = {
->  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> @@ -1940,13 +1940,9 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  		.order = 0,
->  		.mem_cgroup = mem,
->  	};
-> -	nodemask_t nm  = nodemask_of_node(nid);
-> -
->  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
-> -	sc.nodemask = &nm;
-> -	sc.nr_reclaimed = 0;
-> -	sc.nr_scanned = 0;
-
-We need the initialization to 0, is there a reason why it was removed?
-What happens when we compare or increment sc.nr_*?
-
-Can we keep this indepedent of the tracing patches?
-
+> diff --git a/Documentation/cma.txt b/Documentation/cma.txt
+> new file mode 100644
+> index 0000000..7edc20a
+> --- /dev/null
+> +++ b/Documentation/cma.txt
+> @@ -0,0 +1,435 @@
+> +                                                             -*- org -*-
 > +
->  	/*
->  	 * NOTE: Although we can get the priority field, using it
->  	 * here is not a good idea, since it limits the pages we can scan.
-> -- 
-> 1.6.5.2
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +* Contiguous Memory Allocator
+> +
+> +   The Contiguous Memory Allocator (CMA) is a framework, which allows
+> +   setting up a machine-specific configuration for physically-contiguous
+> +   memory management. Memory for devices is then allocated according
+> +   to that configuration.
+> +
+> +   The main role of the framework is not to allocate memory, but to
+> +   parse and manage memory configurations, as well as to act as an
+> +   in-between between device drivers and pluggable allocators. It is
+> +   thus not tied to any memory allocation method or strategy.
+> +
 
--- 
-	Three Cheers,
-	Balbir
+This topic seems very hot lately. I recently sent out a few RFCs that
+implement something called a Virtual Contiguous Memory Manager that
+does what this patch does, and works for IOMMU and works for CPU
+mappings. It also does multihomed memory targeting (use physical set 1
+memory for A allocations and use physical memory set 2 for B
+allocations). Check out:
+
+mm: iommu: An API to unify IOMMU, CPU and device memory management
+mm: iommu: A physical allocator for the VCMM
+mm: iommu: The Virtual Contiguous Memory Manager
+
+It unifies IOMMU and physical mappings by creating a one-to-one
+software IOMMU for all devices that map memory physically.
+
+It looks like you've got some good ideas though. Perhaps we can
+leverage each other's work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
