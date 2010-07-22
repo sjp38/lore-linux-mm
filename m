@@ -1,121 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C1D8B6B02A9
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 03:56:09 -0400 (EDT)
-Received: from epmmp1. (mailout2.samsung.com [203.254.224.25])
- by mailout2.samsung.com
- (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
- with ESMTP id <0L5Y00ITD8H9P320@mailout2.samsung.com> for linux-mm@kvack.org;
- Thu, 22 Jul 2010 16:51:09 +0900 (KST)
-Received: from AMDC159 (unknown [106.116.37.153])
- by mmp1.samsung.com (Sun Java(tm) System Messaging Server 7u3-15.01 64bit
- (built Feb 12 2010)) with ESMTPA id <0L5Y008SW8GVPR60@mmp1.samsung.com> for
- linux-mm@kvack.org; Thu, 22 Jul 2010 16:51:09 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
- <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
- <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
- <20100722045435.GD22559@codeaurora.org>
-In-reply-to: <20100722045435.GD22559@codeaurora.org>
-Subject: RE: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-Date: Thu, 22 Jul 2010 09:49:33 +0200
-Message-id: <000401cb2972$704016d0$50c04470$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: pl
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E84E6B02A9
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 04:01:30 -0400 (EDT)
+Date: Thu, 22 Jul 2010 16:54:25 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 1/2][memcg] moving memcg's node info array to
+ virtually contiguous array
+Message-Id: <20100722165425.a472cd88.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100722150445.19a4a701.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100722144356.b9681621.nishimura@mxp.nes.nec.co.jp>
+	<20100722150445.19a4a701.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: 'Zach Pfeffer' <zpfeffer@codeaurora.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Pawel Osciak <p.osciak@samsung.com>, 'Xiaolin Zhang' <xiaolin.zhang@intel.com>, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'Robert Fekete' <robert.fekete@stericsson.com>, 'Marcus Lorentzon' <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 22 Jul 2010 15:04:45 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-On Thursday, July 22, 2010 6:55 AM Zach Pfeffer wrote:
-
-> On Tue, Jul 20, 2010 at 05:51:25PM +0200, Michal Nazarewicz wrote:
-> > The Contiguous Memory Allocator framework is a set of APIs for
-> > allocating physically contiguous chunks of memory.
-> >
-> > Various chips require contiguous blocks of memory to operate.  Those
-> > chips include devices such as cameras, hardware video decoders and
-> > encoders, etc.
-> >
-> > The code is highly modular and customisable to suit the needs of
-> > various users.  Set of regions reserved for CMA can be configured on
-> > run-time and it is easy to add custom allocator algorithms if one
-> > has such need.
-> >
-> > Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
-> > Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-> > Reviewed-by: Pawel Osciak <p.osciak@samsung.com>
-> > ---
-> >  Documentation/cma.txt               |  435 +++++++++++++++++++
-> >  Documentation/kernel-parameters.txt |    7 +
-> >  include/linux/cma-int.h             |  183 ++++++++
-> >  include/linux/cma.h                 |   92 ++++
-> >  mm/Kconfig                          |   41 ++
-> >  mm/Makefile                         |    3 +
-> >  mm/cma-allocators.h                 |   42 ++
-> >  mm/cma-best-fit.c                   |  360 ++++++++++++++++
-> >  mm/cma.c                            |  778
-> +++++++++++++++++++++++++++++++++++
-> >  9 files changed, 1941 insertions(+), 0 deletions(-)
-> >  create mode 100644 Documentation/cma.txt
-> >  create mode 100644 include/linux/cma-int.h
-> >  create mode 100644 include/linux/cma.h
-> >  create mode 100644 mm/cma-allocators.h
-> >  create mode 100644 mm/cma-best-fit.c
-> >  create mode 100644 mm/cma.c
-> >
-> > diff --git a/Documentation/cma.txt b/Documentation/cma.txt
-> > new file mode 100644
-> > index 0000000..7edc20a
-> > --- /dev/null
-> > +++ b/Documentation/cma.txt
-> > @@ -0,0 +1,435 @@
-> > +                                                             -*- org -*-
-> > +
-> > +* Contiguous Memory Allocator
-> > +
-> > +   The Contiguous Memory Allocator (CMA) is a framework, which allows
-> > +   setting up a machine-specific configuration for physically-contiguous
-> > +   memory management. Memory for devices is then allocated according
-> > +   to that configuration.
-> > +
-> > +   The main role of the framework is not to allocate memory, but to
-> > +   parse and manage memory configurations, as well as to act as an
-> > +   in-between between device drivers and pluggable allocators. It is
-> > +   thus not tied to any memory allocation method or strategy.
-> > +
+> On Thu, 22 Jul 2010 14:43:56 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> This topic seems very hot lately. I recently sent out a few RFCs that
-> implement something called a Virtual Contiguous Memory Manager that
-> does what this patch does, and works for IOMMU and works for CPU
-> mappings. It also does multihomed memory targeting (use physical set 1
-> memory for A allocations and use physical memory set 2 for B
-> allocations). Check out:
+> > On Wed, 21 Jul 2010 19:58:31 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> > > These are just a _toy_ level patches yet. My final purpose is to use indexed array
+> > > for mem_cgroup itself, it has IDs.
+> > > 
+> > > Background:
+> > >   memory cgroup uses struct page_cgroup for tracking all used pages. It's defined as
+> > > ==
+> > > struct page_cgroup {
+> > >         unsigned long flags;
+> > >         struct mem_cgroup *mem_cgroup;
+> > >         struct page *page;
+> > >         struct list_head lru;           /* per cgroup LRU list */
+> > > };
+> > > ==
+> > >   and this increase the cost of per-page-objects dramatically. Now, we have
+> > >   troubles on this object.
+> > >   1.  Recently, a blkio-tracking guy wants to add "blockio-cgroup" information
+> > >       to page_cgroup. But our concern is extra 8bytes per page.
+> > >   2.  At tracking dirty page status etc...we need some trick for safe access
+> > >       to page_cgroup and memcgroup's information. For example, a small seqlock.
+> > > 
+> > > Now, each memory cgroup has its own ID (0-65535). So, if we can replace
+> > > 8byte of pointer "pc->mem_cgroup" with an ID, which is 2 bytes, we may able
+> > > to have another room. (Moreover, I think we can reduce the number of IDs...)
+> > > 
+> > > This patch is a trial for implement a virually-indexed on-demand array and
+> > > an example of usage. Any commetns are welcome.
+> > > 
 > 
-> mm: iommu: An API to unify IOMMU, CPU and device memory management
-> mm: iommu: A physical allocator for the VCMM
-> mm: iommu: The Virtual Contiguous Memory Manager
+> Hi,
+> > So, your purpose is to:
+> > 
+> > - make the size of mem_croup small(by [2/2])
+> It's just an example to test virt-array. I don't convice it can
+> save memory or make something fast. and I found a bug in free routine.)
 > 
-> It unifies IOMMU and physical mappings by creating a one-to-one
-> software IOMMU for all devices that map memory physically.
 > 
-> It looks like you've got some good ideas though. Perhaps we can
-> leverage each other's work.
+> > - manage all the mem_cgroup in virt-array indexed by its ID(it would be faster
+> >   than using css_lookup)
+> yes.
+> 
+> > - replace pc->mem_cgroup by its ID and make the size of page_cgroup small
+> > 
+> yes.
+> 
+> Final style I'm thinking is
+> 	struct page_cgroup {
+> 		unsigned long flags;
+> 		spinlock_t	lock;  # for lock_page_cgroup()
+> 		unsigned short memcg;
+> 		unsigned short blkio;
+> 		struct page *page;
+> 		struct list_head list;
+> 	};
+> This will be benefical in 64bit. About 32bit, I may have to merge some fields.
+> Or I may have to add some "version" field for updating memcg's statistics
+> without locks. memcg field may be able to be moved onto high-bits of "flags"
+> because it's stable value unless it's not under move_charge. 
+> (IIUC, at move_charge, memcg is off-LRU and there are no race with AcctLRU bit
+>  v.s. pc->mem_cgroup field. With other flags, lock_page_cgroup() works enough.)
+> 
+> Anyway, race with move_charge() will be the last enemy for us to track 
+> dirty pages etc...at least, this kind of "make room" job is required, I feel.
+> 
+> There are many things to be considered, but I'm a bit in hurry. I'd like to do
+> some preparation before Mel at el rewrites memory-reclaim+writeback complelety.
+> 
+Thank you for clarifying your thought.
 
-We are aware of your patches. However our CMA solves the problem that is
-a bit orthogonal to the setting up iommu. When you have IOMMU you don't really
-need to care about memory fragmentation. In CMA approach we had to care
-about it.
+I have one comment for this patch.
+> +static int idx_used(const struct virt_array *v, int idx)
+> +{
+> +	return test_bit(idx, v->map);
+> +}
+> +
+Who set the bit ?
+Shouldn't we set it at alloc_varray_item() ?
 
-Best regards
---
-Marek Szyprowski
-Samsung Poland R&D Center
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
