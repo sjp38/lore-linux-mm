@@ -1,28 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A30466B02A3
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 18:38:35 -0400 (EDT)
-Date: Thu, 22 Jul 2010 15:37:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 16415] New: Show_Memory/Shift-ScrollLock triggers
- "unable to handle kernel paging request at 00021c6e"
-Message-Id: <20100722153729.9d1470f2.akpm@linux-foundation.org>
-In-Reply-To: <20100722153443.e266b2d6.akpm@linux-foundation.org>
-References: <bug-16415-27@https.bugzilla.kernel.org/>
-	<20100722153443.e266b2d6.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B8CC36B02A3
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 19:09:47 -0400 (EDT)
+Date: Thu, 22 Jul 2010 19:09:35 -0400
+From: Ted Ts'o <tytso@mit.edu>
+Subject: Re: [patch 6/6] jbd2: remove dependency on __GFP_NOFAIL
+Message-ID: <20100722230935.GB16373@thunk.org>
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1007201943340.8728@chino.kir.corp.google.com>
+ <20100722141437.GA14882@thunk.org>
+ <alpine.DEB.2.00.1007221108360.30080@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1007221108360.30080@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tnimble@xs4all.nl
+To: David Rientjes <rientjes@google.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andreas Dilger <adilger@sun.com>, Jiri Kosina <jkosina@suse.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jul 2010 15:34:43 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, Jul 22, 2010 at 11:09:53AM -0700, David Rientjes wrote:
+> 
+> I'll change this to
+> 
+> 	do {
+> 		new_transaction = kzalloc(sizeof(*new_transaction),
+> 							GFP_NOFS);
+> 	} while (!new_transaction);
+> 
+> in the next phase when I introduce __GFP_KILLABLE (that jbd and jbd2 can't 
+> use because they are GFP_NOFS).
 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=16415
+OK, I can carry a patch which does this in the ext4 tree to push to
+linus when the merge window opens shortly, since the goal is you want
+to get rid of __GFP_NOFAIL altogether, right?
 
-See also https://bugzilla.kernel.org/show_bug.cgi?id=16416
+      	       	     	    	  	    	   - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
