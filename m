@@ -1,75 +1,60 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 6/6] writeback: introduce writeback_control.inodes_written
-Date: Thu, 22 Jul 2010 13:09:34 +0800
-Message-ID: <20100722061823.196659592@intel.com>
-References: <20100722050928.653312535@intel.com>
+Subject: [PATCH 0/6] [RFC] writeback: try to write older pages first
+Date: Thu, 22 Jul 2010 13:09:28 +0800
+Message-ID: <20100722050928.653312535@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Obp8A-0003fa-7P
-	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:42 +0200
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 539EF6B02A7
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 02:19:28 -0400 (EDT)
-Content-Disposition: inline; filename=writeback-inodes_written.patch
+	id 1Obp8G-0003hg-0U
+	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:48 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 45C506006B6
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 02:19:33 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Introduce writeback_control.inodes_written to count successful
-->write_inode() calls.  A non-zero value means there are some
-progress on writeback, in which case more writeback will be tried.
+Andrew,
 
-This prevents aborting a background writeback work prematually when
-the current set of inodes for IO happen to be metadata-only dirty.
+The basic way of avoiding pageout() is to make the flusher sync inodes in the
+right order. Oldest dirty inodes contains oldest pages. The smaller inode it
+is, the more correlation between inode dirty time and its pages' dirty time.
+So for small dirty inodes, syncing in the order of inode dirty time is able to
+avoid pageout(). If pageout() is still triggered frequently in this case, the
+30s dirty expire time may be too long and could be shrinked adaptively; or it
+may be a stressed memcg list whose dirty inodes/pages are more hard to track.
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c         |    5 +++++
- include/linux/writeback.h |    1 +
- 2 files changed, 6 insertions(+)
+For a large dirty inode, it may flush lots of newly dirtied pages _after_
+syncing the expired pages. This is the normal case for a single-stream
+sequential dirtier, where older pages are in lower offsets.  In this case we
+shall not insist on syncing the whole large dirty inode before considering the
+other small dirty inodes. This risks wasting time syncing 1GB freshly dirtied
+pages before syncing the other N*1MB expired dirty pages who are approaching
+the end of the LRU list and hence pageout().
 
---- linux-next.orig/fs/fs-writeback.c	2010-07-22 13:07:54.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-07-22 13:07:58.000000000 +0800
-@@ -379,6 +379,8 @@ writeback_single_inode(struct inode *ino
- 		int err = write_inode(inode, wbc);
- 		if (ret == 0)
- 			ret = err;
-+		if (!err)
-+			wbc->inodes_written++;
- 	}
- 
- 	spin_lock(&inode_lock);
-@@ -628,6 +630,7 @@ static long wb_writeback(struct bdi_writ
- 
- 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
- 		wbc.pages_skipped = 0;
-+		wbc.inodes_written = 0;
- 
- 		trace_wbc_writeback_start(&wbc, wb->bdi);
- 		if (work->sb)
-@@ -650,6 +653,8 @@ static long wb_writeback(struct bdi_writ
- 		 */
- 		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
- 			continue;
-+		if (wbc.inodes_written)
-+			continue;
- 
- 		/*
- 		 * Nothing written and no more inodes for IO, bail
---- linux-next.orig/include/linux/writeback.h	2010-07-22 11:24:46.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-07-22 13:07:58.000000000 +0800
-@@ -34,6 +34,7 @@ struct writeback_control {
- 	long nr_to_write;		/* Write this many pages, and decrement
- 					   this for each page written */
- 	long pages_skipped;		/* Pages which were not written */
-+	long inodes_written;		/* Number of inodes(metadata) synced */
- 
- 	/*
- 	 * For a_ops->writepages(): is start or end are non-zero then this is
+For a large dirty inode, it may also flush lots of newly dirtied pages _before_
+hitting the desired old ones, in which case it helps for pageout() to do some
+clustered writeback, and/or set mapping->writeback_index to help the flusher
+focus on old pages.
 
+For a large dirty inode, it may also have intermixed old and new dirty pages.
+In this case we need to make sure the inode is queued for IO before some of
+its pages hit pageout(). Adaptive dirty expire time helps here.
+
+OK, end of the vapour ideas. As for this patchset, it fixes the current
+kupdate/background writeback priority:
+
+- the kupdate/background writeback shall include newly expired inodes at each
+  queue_io() time, as the large inodes left over from previous writeback rounds
+  are likely to have less density of old pages.
+
+- the background writeback shall consider expired inodes first, just like the
+  kupdate writeback
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
