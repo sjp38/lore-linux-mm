@@ -1,84 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C896B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 08:46:01 -0400 (EDT)
-Date: Thu, 22 Jul 2010 13:46:00 +0100
-From: Mark Brown <broonie@opensource.wolfsonmicro.com>
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-Message-ID: <20100722124559.GH4737@rakim.wolfsonmicro.main>
-References: <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
- <op.vf5o28st7p4s8u@pikus>
- <20100721135229.GC10930@sirena.org.uk>
- <op.vf66mxka7p4s8u@pikus>
- <20100721182457.GE10930@sirena.org.uk>
- <op.vf7h6ysh7p4s8u@pikus>
- <20100722090602.GF10930@sirena.org.uk>
- <000901cb297f$e28f2b10$a7ad8130$%szyprowski@samsung.com>
- <20100722105203.GD4737@rakim.wolfsonmicro.main>
- <op.vf8sxqro7p4s8u@pikus>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8287C6B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 09:16:51 -0400 (EDT)
+Message-ID: <4C4844BC.4090709@redhat.com>
+Date: Thu, 22 Jul 2010 09:16:44 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <op.vf8sxqro7p4s8u@pikus>
+Subject: Re: [BUGFIX][PATCH] Fix false positive BUG_ON in __page_set_anon_rmap
+References: <20100722164118.d500b850.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100722164118.d500b850.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: =?utf-8?Q?Micha=C5=82?= Nazarewicz <m.nazarewicz@samsung.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, Pawel Osciak <p.osciak@samsung.com>, 'Xiaolin Zhang' <xiaolin.zhang@intel.com>, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'Robert Fekete' <robert.fekete@stericsson.com>, 'Marcus Lorentzon' <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 01:30:52PM +0200, MichaA? Nazarewicz wrote:
+On 07/22/2010 03:41 AM, KAMEZAWA Hiroyuki wrote:
+> Rik, how do you think ?
+>
+> ==
+> From: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Problem: wrong BUG_ON() in  __page_set_anon_rmap().
+> Kernel version: mmotm-0719
 
-> The first one, I believe, should be there as to specify the regions
-> that are to be reserved.  Drivers and platform will still be able to
-> add their own regions but I believe that in vest majority of cases,
-> it will be enough to just pass the list of region on a command line.
+> Description:
+>    Even if SwapCache is fully unmapped and mapcount goes down to 0,
+>    page->mapping is not cleared and will remain on memory until kswapd or some
+>    finds it. If a thread cause a page fault onto such "unmapped-but-not-discarded"
+>    swapcache, it will see a swap cache whose mapcount is 0 but page->mapping has a
+>    valid value.
+>
+>    When it's reused at do_swap_page(), __page_set_anon_rmap() is called with
+>    "exclusive==1" and hits BUG_ON(). But this BUG_ON() is wrong. Nothing bad
+>    with rmapping a page which has page->mapping isn't 0.
 
-The command line is a real pain for stuff like this since it's not
-usually committed to revision control so robustly and it's normally more
-painful to change the bootloader to pass the desired command line in
-than it is to change either the kernel or userspace (some bootloaders
-are just completely unconfigurable without reflashing, and if your only
-recovery mechanism is JTAG that can be a bit of a concern).
+Yes, you are absolutely right.
 
-> Alternatively, instead of the textual description of platform could
-> provide an array of regions it want reserved.  It would remove like
-> 50 lines of code from CMA core (in the version I have on my drive at
-> least, where part of the syntax was simplified) however it would
-> remove the possibility to easily change the configuration from
-> command line (ie. no need to recompile which is handy when you need
-> to optimise this and test various configurations) and would add more
-> code to the platform initialisation code, ie: instead of:
+Acked-by: Rik van Riel <riel@redhat.com>
 
-> 	cma_defaults("reg1=20M;reg2=20M", NULL);
+> Index: mmotm-2.6.35-0719/mm/rmap.c
+> ===================================================================
+> --- mmotm-2.6.35-0719.orig/mm/rmap.c
+> +++ mmotm-2.6.35-0719/mm/rmap.c
+> @@ -783,8 +783,16 @@ static void __page_set_anon_rmap(struct
+>   		if (PageAnon(page))
+>   			return;
+>   		anon_vma = anon_vma->root;
+> -	} else
+> -		BUG_ON(PageAnon(page));
+> +	} else {
+> +		/*
+> + 		 * In this case, swapped-out-but-not-discarded swap-cache
+> + 		 * is remapped. So, no need to update page->mapping here.
+> + 		 * We convice anon_vma poitned by page->mapping is not obsolete
+> + 		 * because vma->anon_vma is necessary to be a family of it.
+> + 		 */
+> +		if (PageAnon(page))
+> +			return;
+> +	}
+>
+>   	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+>   	page->mapping = (struct address_space *) anon_vma;
+>
 
-> one would have to define an array with the regions descriptors.
-> Personally, I don't see much benefits from this.
 
-I think it'd be vastly more legible, especially if the list of regions
-gets large.  I had thought the only reason for the text format was to
-put it onto the command line.
-
-> I agree that parsing it is not nice but thanks to it, all you need to
-> do in the driver is:
-
-> 	cma_alloc(dev, "a", ...)
-> 	cma_alloc(dev, "b", ...)
-> 	cma_alloc(dev, "f", ...)
-
-> Without cma_map you'd have to pass names of the region to the driver
-> and make the driver use those.
-
-I agree that a mapping facility for the names is essential, especially
-if drivers need to share regions.
-
-> What I'm trying to say is that I'm trying to move complexity out of
-> the drivers into the framework (as I believe that's what frameworks
-> are for).
-
-It sounds like apart from the way you're passing the configuration in
-you're doing roughly what I'd suggest.  I'd expect that in a lot of
-cases the map could be satisfied from the default region so there'd be
-no need to explicitly set one up.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
