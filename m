@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F10FB6B02A4
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:37:55 -0400 (EDT)
-Date: Thu, 22 Jul 2010 14:37:49 +0900
-Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20100720181239.5a1fd090@bike.lwn.net>
-References: <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
-	<adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
-	<20100720181239.5a1fd090@bike.lwn.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D0F6D6B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 01:48:07 -0400 (EDT)
+Date: Thu, 22 Jul 2010 14:43:56 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 1/2][memcg] moving memcg's node info array to
+ virtually contiguous array
+Message-Id: <20100722144356.b9681621.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <20100722143652V.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: corbet@lwn.net
-Cc: m.nazarewicz@samsung.com, linux-mm@kvack.org, m.szyprowski@samsung.com, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 20 Jul 2010 18:12:39 -0600
-Jonathan Corbet <corbet@lwn.net> wrote:
+On Wed, 21 Jul 2010 19:58:31 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> One other thing occurred to me as I was thinking about this...
+> These are just a _toy_ level patches yet. My final purpose is to use indexed array
+> for mem_cgroup itself, it has IDs.
 > 
-> > +    There are four calls provided by the CMA framework to devices.  To
-> > +    allocate a chunk of memory cma_alloc() function needs to be used:
-> > +
-> > +            unsigned long cma_alloc(const struct device *dev,
-> > +                                    const char *kind,
-> > +                                    unsigned long size,
-> > +                                    unsigned long alignment);
+> Background:
+>   memory cgroup uses struct page_cgroup for tracking all used pages. It's defined as
+> ==
+> struct page_cgroup {
+>         unsigned long flags;
+>         struct mem_cgroup *mem_cgroup;
+>         struct page *page;
+>         struct list_head lru;           /* per cgroup LRU list */
+> };
+> ==
+>   and this increase the cost of per-page-objects dramatically. Now, we have
+>   troubles on this object.
+>   1.  Recently, a blkio-tracking guy wants to add "blockio-cgroup" information
+>       to page_cgroup. But our concern is extra 8bytes per page.
+>   2.  At tracking dirty page status etc...we need some trick for safe access
+>       to page_cgroup and memcgroup's information. For example, a small seqlock.
 > 
-> The purpose behind this interface, I believe, is pretty much always
-> going to be to allocate memory for DMA buffers.  Given that, might it
-> make more sense to integrate the API with the current DMA mapping
-> API?
+> Now, each memory cgroup has its own ID (0-65535). So, if we can replace
+> 8byte of pointer "pc->mem_cgroup" with an ID, which is 2 bytes, we may able
+> to have another room. (Moreover, I think we can reduce the number of IDs...)
+> 
+> This patch is a trial for implement a virually-indexed on-demand array and
+> an example of usage. Any commetns are welcome.
+> 
+So, your purpose is to:
 
-IMO, having separate APIs for allocating memory and doing DMA mapping
-is much better. The DMA API covers the latter well. We could extend
-the current API to allocate memory or create new one similar to the
-current. 
+- make the size of mem_croup small(by [2/2])
+- manage all the mem_cgroup in virt-array indexed by its ID(it would be faster
+  than using css_lookup)
+- replace pc->mem_cgroup by its ID and make the size of page_cgroup small
 
-I don't see any benefit of a new abstraction that does both magically.
+right?
 
-
-About the framework, it looks too complicated than we actually need
-(the command line stuff looks insane).
-
-Why can't we have something simpler, like using memblock to reserve
-contiguous memory at boot and using kinda mempool to share such memory
-between devices?
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
