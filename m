@@ -1,64 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E676B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:35:15 -0400 (EDT)
-Date: Thu, 22 Jul 2010 18:35:07 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EB2B46B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:38:27 -0400 (EDT)
+Received: from epmmp1. (mailout2.samsung.com [203.254.224.25])
+ by mailout2.samsung.com
+ (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
+ with ESMTP id <0L5Y00M9RCXPNE50@mailout2.samsung.com> for linux-mm@kvack.org;
+ Thu, 22 Jul 2010 18:27:25 +0900 (KST)
+Received: from AMDC159 (unknown [106.116.37.153])
+ by mmp1.samsung.com (Sun Java(tm) System Messaging Server 7u3-15.01 64bit
+ (built Feb 12 2010)) with ESMTPA id <0L5Y00AV8CXA7LA0@mmp1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Jul 2010 18:27:25 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+References: <cover.1279639238.git.m.nazarewicz@samsung.com>
+ <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
+ <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
+ <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
+ <op.vf5o28st7p4s8u@pikus> <20100721135229.GC10930@sirena.org.uk>
+ <op.vf66mxka7p4s8u@pikus> <20100721182457.GE10930@sirena.org.uk>
+ <op.vf7h6ysh7p4s8u@pikus> <20100722090602.GF10930@sirena.org.uk>
+In-reply-to: <20100722090602.GF10930@sirena.org.uk>
 Subject: RE: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <000001cb296f$6eba8fa0$4c2faee0$%szyprowski@samsung.com>
-References: <20100720181239.5a1fd090@bike.lwn.net>
-	<20100722143652V.fujita.tomonori@lab.ntt.co.jp>
-	<000001cb296f$6eba8fa0$4c2faee0$%szyprowski@samsung.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100722183432U.fujita.tomonori@lab.ntt.co.jp>
+Date: Thu, 22 Jul 2010 11:25:48 +0200
+Message-id: <000901cb297f$e28f2b10$a7ad8130$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: pl
 Sender: owner-linux-mm@kvack.org
-To: m.szyprowski@samsung.com
-Cc: fujita.tomonori@lab.ntt.co.jp, corbet@lwn.net, m.nazarewicz@samsung.com, linux-mm@kvack.org, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
+To: 'Mark Brown' <broonie@opensource.wolfsonmicro.com>, Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, Pawel Osciak <p.osciak@samsung.com>, 'Xiaolin Zhang' <xiaolin.zhang@intel.com>, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'Robert Fekete' <robert.fekete@stericsson.com>, 'Marcus Lorentzon' <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jul 2010 09:28:02 +0200
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+Hello,
 
-> > About the framework, it looks too complicated than we actually need
-> > (the command line stuff looks insane).
+On Thursday, July 22, 2010 11:06 AM Mark Brown wrote:
+
+> On Wed, Jul 21, 2010 at 08:41:12PM +0200, Micha?? Nazarewicz wrote:
+> > On Wed, 21 Jul 2010 20:24:58 +0200, Mark Brown
+> <broonie@opensource.wolfsonmicro.com> wrote:
 > 
-> Well, this command line stuff was designed to provide a way to configure
-> memory allocation for devices with very sophisticated memory requirements.
-
-You have the feature in the wrong place.
-
-Your example: a camera driver and a video driver can share 20MB, then
-they want 20MB exclusively.
-
-You can reserve 20MB and make them share it. Then you can reserve 20MB
-for both exclusively.
-
-You know how the whole system works. Adjust drivers (probably, with
-module parameters).
-
-
-> > Why can't we have something simpler, like using memblock to reserve
-> > contiguous memory at boot and using kinda mempool to share such memory
-> > between devices?
+> > >> I am currently working on making the whole thing more dynamic.  I
+> imagine
 > 
-> There are a few problems with such simple approach:
+> > > Yes, I think it will be much easier to be able to grab the regions at
+> > > startup but hopefully the allocation within those regions can be made
+> > > much more dynamic.  This would render most of the configuration syntax
+> > > unneeded.
 > 
-> 1. It does not provide all required functionality for our multimedia
-> devices. The main problem is the fact that our multimedia devices
-> require particular kind of buffers to be allocated in particular memory
-> bank. Then add 2 more requirements: a proper alignment (for some of them
-> it is even 128Kb) and particular range of addresses requirement (some
-> buffers must be allocated at higher addresses than the firmware).
-> This is very hard to achieve with such simple allocator.
+> > Not sure what you mean by the last sentence.  Maybe we have different
+> > things in mind?
+> 
+> I mean that if the drivers are able to request things dynamically and
+> have some knowledge of their own requirements then that removes the need
+> to manually specify exactly which regions go to which drivers which
+> means that most of the complexity of the existing syntax is not needed
+> since it can be figured out at runtime.
 
-When a video driver needs 20MB to work properly, what's the point of
-releasing the 20MB for others then trying to get it again later?
+The driver may specify memory requirements (like memory address range or
+alignment), but it cannot provide enough information to avoid or reduce
+memory fragmentation. More than one memory region can be perfectly used
+to reduce memory fragmentation IF common usage patterns are known. In
+embedded world usually not all integrated device are being used at the
+same time. This way some memory regions can be shared by 2 or more devices. 
 
-Even with the above example (two devices never use the memory at the
-same time), the driver needs memory regularly. What's the point of
-split the 20MB to small chunks and allocate them to others?
+Just assume that gfx accelerator allocates memory is rather small chunks,
+but keeps it while relevant surface is being displayed or processed by
+application. It is not surprising that GUI (accelerated by the hardware
+engine) is used almost all the time on a mobile device. This usage pattern
+would produce a lot of fragmentation in the memory pool that is used by gfx
+accelerator. Then we want to run a camera capture device to take a 8Mpix
+photo. This require a large contiguous buffer. If we try to allocate it from
+common pool it might happen that it is not possible (because of the
+fragmentation).
+
+With CMA approach we can create 2 memory regions for this case. One for gfx
+accelerator and the other for camera capture device, video decoder or jpeg
+decoder, because common usage analysis showed that these 3 devices usually
+are not used at the same time.
+
+Best regards
+--
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
