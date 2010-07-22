@@ -1,138 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 365B86B02A9
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 04:03:56 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6M83sg2031760
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Jul 2010 17:03:54 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 55D6545DE4F
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 17:03:54 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B61B45DE51
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 17:03:54 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C9361DB8053
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 17:03:54 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BF8D1DB8056
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 17:03:53 +0900 (JST)
-Date: Thu, 22 Jul 2010 16:59:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/2][memcg] moving memcg's node info array to
- virtually contiguous array
-Message-Id: <20100722165908.4fa6d418.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100722165425.a472cd88.nishimura@mxp.nes.nec.co.jp>
-References: <20100721195831.6aa8dca5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100722144356.b9681621.nishimura@mxp.nes.nec.co.jp>
-	<20100722150445.19a4a701.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100722165425.a472cd88.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id EB7E66B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 04:52:19 -0400 (EDT)
+Date: Thu, 22 Jul 2010 16:52:10 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
+ writeback
+Message-ID: <20100722085210.GA26714@localhost>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
+ <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
+ <20100719142145.GD12510@infradead.org>
+ <20100719144046.GR13117@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100719144046.GR13117@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jul 2010 16:54:25 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> Some insight on how the other writeback changes that are being floated
+> around might affect the number of dirty pages reclaim encounters would also
+> be helpful.
 
-> On Thu, 22 Jul 2010 15:04:45 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Thu, 22 Jul 2010 14:43:56 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > On Wed, 21 Jul 2010 19:58:31 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > These are just a _toy_ level patches yet. My final purpose is to use indexed array
-> > > > for mem_cgroup itself, it has IDs.
-> > > > 
-> > > > Background:
-> > > >   memory cgroup uses struct page_cgroup for tracking all used pages. It's defined as
-> > > > ==
-> > > > struct page_cgroup {
-> > > >         unsigned long flags;
-> > > >         struct mem_cgroup *mem_cgroup;
-> > > >         struct page *page;
-> > > >         struct list_head lru;           /* per cgroup LRU list */
-> > > > };
-> > > > ==
-> > > >   and this increase the cost of per-page-objects dramatically. Now, we have
-> > > >   troubles on this object.
-> > > >   1.  Recently, a blkio-tracking guy wants to add "blockio-cgroup" information
-> > > >       to page_cgroup. But our concern is extra 8bytes per page.
-> > > >   2.  At tracking dirty page status etc...we need some trick for safe access
-> > > >       to page_cgroup and memcgroup's information. For example, a small seqlock.
-> > > > 
-> > > > Now, each memory cgroup has its own ID (0-65535). So, if we can replace
-> > > > 8byte of pointer "pc->mem_cgroup" with an ID, which is 2 bytes, we may able
-> > > > to have another room. (Moreover, I think we can reduce the number of IDs...)
-> > > > 
-> > > > This patch is a trial for implement a virually-indexed on-demand array and
-> > > > an example of usage. Any commetns are welcome.
-> > > > 
-> > 
-> > Hi,
-> > > So, your purpose is to:
-> > > 
-> > > - make the size of mem_croup small(by [2/2])
-> > It's just an example to test virt-array. I don't convice it can
-> > save memory or make something fast. and I found a bug in free routine.)
-> > 
-> > 
-> > > - manage all the mem_cgroup in virt-array indexed by its ID(it would be faster
-> > >   than using css_lookup)
-> > yes.
-> > 
-> > > - replace pc->mem_cgroup by its ID and make the size of page_cgroup small
-> > > 
-> > yes.
-> > 
-> > Final style I'm thinking is
-> > 	struct page_cgroup {
-> > 		unsigned long flags;
-> > 		spinlock_t	lock;  # for lock_page_cgroup()
-> > 		unsigned short memcg;
-> > 		unsigned short blkio;
-> > 		struct page *page;
-> > 		struct list_head list;
-> > 	};
-> > This will be benefical in 64bit. About 32bit, I may have to merge some fields.
-> > Or I may have to add some "version" field for updating memcg's statistics
-> > without locks. memcg field may be able to be moved onto high-bits of "flags"
-> > because it's stable value unless it's not under move_charge. 
-> > (IIUC, at move_charge, memcg is off-LRU and there are no race with AcctLRU bit
-> >  v.s. pc->mem_cgroup field. With other flags, lock_page_cgroup() works enough.)
-> > 
-> > Anyway, race with move_charge() will be the last enemy for us to track 
-> > dirty pages etc...at least, this kind of "make room" job is required, I feel.
-> > 
-> > There are many things to be considered, but I'm a bit in hurry. I'd like to do
-> > some preparation before Mel at el rewrites memory-reclaim+writeback complelety.
-> > 
-> Thank you for clarifying your thought.
-> 
-> I have one comment for this patch.
-> > +static int idx_used(const struct virt_array *v, int idx)
-> > +{
-> > +	return test_bit(idx, v->map);
-> > +}
-> > +
-> Who set the bit ?
-> Shouldn't we set it at alloc_varray_item() ?
-> 
+Here is an interesting related problem about the wait_on_page_writeback() call
+inside shrink_page_list():
 
-yes. That's bug. my host crashed ;(
-and....clear_bit() is also lacked .
+        http://lkml.org/lkml/2010/4/4/86
 
-I'll prepare a patch for memory_cgroup_on_array _after_ tests ;)
+The problem is, wait_on_page_writeback() is called too early in the
+direct reclaim path, which blocks many random/unrelated processes when
+some slow (USB stick) writeback is on the way.
+
+A simple dd can easily create a big range of dirty pages in the LRU
+list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
+typical desktop, which triggers the lumpy reclaim mode and hence
+wait_on_page_writeback().
+
+I proposed this patch at the time, which was confirmed to solve the problem:
+
+--- linux-next.orig/mm/vmscan.c	2010-06-24 14:32:03.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-07-22 16:12:34.000000000 +0800
+@@ -1650,7 +1650,7 @@ static void set_lumpy_reclaim_mode(int p
+ 	 */
+ 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+ 		sc->lumpy_reclaim_mode = 1;
+-	else if (sc->order && priority < DEF_PRIORITY - 2)
++	else if (sc->order && priority < DEF_PRIORITY / 2)
+ 		sc->lumpy_reclaim_mode = 1;
+ 	else
+ 		sc->lumpy_reclaim_mode = 0;
+
+
+However KOSAKI and Minchan raised concerns about raising the bar.
+I guess this new patch is more problem oriented and acceptable:
+
+--- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
+@@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
+ 			count_vm_events(PGDEACTIVATE, nr_active);
+ 
+ 			nr_freed += shrink_page_list(&page_list, sc,
+-							PAGEOUT_IO_SYNC);
++					priority < DEF_PRIORITY / 3 ?
++					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
+ 		}
+ 
+ 		nr_reclaimed += nr_freed;
 
 Thanks,
--Kame
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
