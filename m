@@ -1,121 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F586B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:19:49 -0400 (EDT)
-Date: Thu, 22 Jul 2010 10:19:30 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 4/8] vmscan: Do not writeback filesystem pages in
-	direct reclaim
-Message-ID: <20100722091930.GD13117@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-5-git-send-email-mel@csn.ul.ie> <20100719221420.GA16031@cmpxchg.org> <20100720134555.GU13117@csn.ul.ie> <20100720220218.GE16031@cmpxchg.org> <20100721115250.GX13117@csn.ul.ie> <20100721210111.06dda351.kamezawa.hiroyu@jp.fujitsu.com> <20100721142710.GZ13117@csn.ul.ie> <20100722085734.ff252542.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8B5466B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:22:03 -0400 (EDT)
+Date: Thu, 22 Jul 2010 17:21:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
+ writeback
+Message-ID: <20100722092155.GA28425@localhost>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
+ <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
+ <20100719142145.GD12510@infradead.org>
+ <20100719144046.GR13117@csn.ul.ie>
+ <20100722085210.GA26714@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722085734.ff252542.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100722085210.GA26714@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 08:57:34AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 21 Jul 2010 15:27:10 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+> I guess this new patch is more problem oriented and acceptable:
 > 
-> > On Wed, Jul 21, 2010 at 09:01:11PM +0900, KAMEZAWA Hiroyuki wrote:
+> --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
+> +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
+> @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
+>  			count_vm_events(PGDEACTIVATE, nr_active);
 >  
-> > > But, hmm, memcg will have to select to enter this rounine based on
-> > > the result of 1st memory reclaim.
-> > > 
-> > 
-> > It has the option of igoring pages being dirtied but I worry that the
-> > container could be filled with dirty pages waiting for flushers to do
-> > something.
-> 
-> I'll prepare dirty_ratio for memcg. It's not easy but requested by I/O cgroup
-> guys, too...
-> 
+>  			nr_freed += shrink_page_list(&page_list, sc,
+> -							PAGEOUT_IO_SYNC);
+> +					priority < DEF_PRIORITY / 3 ?
+> +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
+>  		}
+>  
+>  		nr_reclaimed += nr_freed;
 
-I can see why it might be difficult. Dirty pages are not being counted
-on a per-container basis. It would require additional infrastructure to
-count it or a lot of scanning.
+This one looks better:
+---
+vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
 
-> 
-> > 
-> > > >  
-> > > > -		/*
-> > > > -		 * The attempt at page out may have made some
-> > > > -		 * of the pages active, mark them inactive again.
-> > > > -		 */
-> > > > -		nr_active = clear_active_flags(&page_list, NULL);
-> > > > -		count_vm_events(PGDEACTIVATE, nr_active);
-> > > > +		while (nr_reclaimed < nr_taken && nr_dirty && dirty_retry--) {
-> > > > +			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
-> > > > +			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > > >  
-> > >
-> > > Congestion wait is required ?? Where the congestion happens ?
-> > > I'm sorry you already have some other trick in other patch.
-> > > 
-> > 
-> > It's to wait for the IO to occur.
-> > 
->
-> 1 tick penalty seems too large. I hope we can have some waitqueue in future.
-> 
+Fix "system goes totally unresponsive with many dirty/writeback pages"
+problem:
 
-congestion_wait() if congestion occurs goes onto a waitqueue that is
-woken if congestion clears. I didn't measure it this time around but I
-doubt it waits for HZ/10 much of the time.
+	http://lkml.org/lkml/2010/4/4/86
 
-> > > > -		nr_reclaimed += shrink_page_list(&page_list, sc, PAGEOUT_IO_SYNC);
-> > > > +			/*
-> > > > +			 * The attempt at page out may have made some
-> > > > +			 * of the pages active, mark them inactive again.
-> > > > +			 */
-> > > > +			nr_active = clear_active_flags(&page_list, NULL);
-> > > > +			count_vm_events(PGDEACTIVATE, nr_active);
-> > > > +	
-> > > > +			nr_reclaimed += shrink_page_list(&page_list, sc,
-> > > > +						PAGEOUT_IO_SYNC, &nr_dirty);
-> > > > +		}
-> > > 
-> > > Just a question. This PAGEOUT_IO_SYNC has some meanings ?
-> > > 
-> > 
-> > Yes, in pageout it will wait on pages currently being written back to be
-> > cleaned before trying to reclaim them.
-> > 
-> Hmm. IIUC, this routine is called only when !current_is_kswapd() and
-> pageout is done only whne current_is_kswapd(). So, this seems ....
-> Wrong ?
-> 
+The root cause is, wait_on_page_writeback() is called too early in the
+direct reclaim path, which blocks many random/unrelated processes when
+some slow (USB stick) writeback is on the way.
 
-Both direct reclaim and kswapd can reach shrink_inactive_list
+A simple dd can easily create a big range of dirty pages in the LRU
+list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
+typical desktop, which triggers the lumpy reclaim mode and hence
+wait_on_page_writeback().
 
-Direct reclaim
-do_try_to_free_pages
-  -> shrink_zones
-    -> shrink_zone
-      -> shrink_list
-        -> shrink_inactive list <--- the routine in question
+In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
+the 22MB writeback and 190MB dirty pages. There can easily be a
+continuous range of 512KB dirty/writeback pages in the LRU, which will
+trigger the wait logic.
 
-Kswapd
-balance_pgdat
-  -> shrink_zone
-    -> shrink_list
-      -> shrink_inactive_list
+To make it worse, when there are 50MB writeback pages and USB 1.1 is
+writing them in 1MB/s, wait_on_page_writeback() may stuck for up to 50
+seconds.
 
-pageout() is still called by direct reclaim if the page is anon so it
-will synchronously wait on those if PAGEOUT_IO_SYNC is set. For either
-anon or file pages, if they are being currently written back, they will
-be waited on in shrink_page_list() if PAGEOUT_IO_SYNC.
+So only enter sync write&wait when priority goes below DEF_PRIORITY/3,
+or 6.25% LRU. As the default dirty throttle ratio is 20%, sync write&wait
+will hardly be triggered by pure dirty pages.
 
-So it still has meaning. Did I miss something?
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+--- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-07-22 17:03:47.000000000 +0800
+@@ -1206,7 +1206,7 @@ static unsigned long shrink_inactive_lis
+ 		 * but that should be acceptable to the caller
+ 		 */
+ 		if (nr_freed < nr_taken && !current_is_kswapd() &&
+-		    sc->lumpy_reclaim_mode) {
++		    sc->lumpy_reclaim_mode && priority < DEF_PRIORITY / 3) {
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
