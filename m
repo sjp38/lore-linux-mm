@@ -1,60 +1,81 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 0/6] [RFC] writeback: try to write older pages first
-Date: Thu, 22 Jul 2010 13:09:28 +0800
-Message-ID: <20100722050928.653312535@intel.com>
+Subject: [PATCH 5/6] writeback: try more writeback as long as something was written
+Date: Thu, 22 Jul 2010 13:09:33 +0800
+Message-ID: <20100722061823.050523298@intel.com>
+References: <20100722050928.653312535@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Obp8G-0003hg-0U
-	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:48 +0200
+	id 1Obp8D-0003gp-CS
+	for glkm-linux-mm-2@m.gmane.org; Thu, 22 Jul 2010 08:19:45 +0200
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 45C506006B6
+	by kanga.kvack.org (Postfix) with SMTP id 2A0A8600365
 	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 02:19:33 -0400 (EDT)
+Content-Disposition: inline; filename=writeback-background-retry.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Andrew,
+writeback_inodes_wb()/__writeback_inodes_sb() are not agressive in that
+they only populate b_io when necessary at entrance time. When the queued
+set of inodes are all synced, they just return, possibly with
+wbc.nr_to_write > 0.
 
-The basic way of avoiding pageout() is to make the flusher sync inodes in the
-right order. Oldest dirty inodes contains oldest pages. The smaller inode it
-is, the more correlation between inode dirty time and its pages' dirty time.
-So for small dirty inodes, syncing in the order of inode dirty time is able to
-avoid pageout(). If pageout() is still triggered frequently in this case, the
-30s dirty expire time may be too long and could be shrinked adaptively; or it
-may be a stressed memcg list whose dirty inodes/pages are more hard to track.
+For kupdate and background writeback, there may be more eligible inodes
+sitting in b_dirty when the current set of b_io inodes are completed. So
+it is necessary to try another round of writeback as long as we made some
+progress in this round. When there are no more eligible inodes, no more
+inodes will be enqueued in queue_io(), hence nothing could/will be
+synced and we may safely bail.
 
-For a large dirty inode, it may flush lots of newly dirtied pages _after_
-syncing the expired pages. This is the normal case for a single-stream
-sequential dirtier, where older pages are in lower offsets.  In this case we
-shall not insist on syncing the whole large dirty inode before considering the
-other small dirty inodes. This risks wasting time syncing 1GB freshly dirtied
-pages before syncing the other N*1MB expired dirty pages who are approaching
-the end of the LRU list and hence pageout().
+This will livelock sync when there are heavy dirtiers. However in that case
+sync will already be livelocked w/o this patch, as the current livelock
+avoidance code is virtually a no-op (for one thing, wb_time should be
+set statically at sync start time and be used in move_expired_inodes()).
+The sync livelock problem will be addressed in other patches.
 
-For a large dirty inode, it may also flush lots of newly dirtied pages _before_
-hitting the desired old ones, in which case it helps for pageout() to do some
-clustered writeback, and/or set mapping->writeback_index to help the flusher
-focus on old pages.
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |   19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 
-For a large dirty inode, it may also have intermixed old and new dirty pages.
-In this case we need to make sure the inode is queued for IO before some of
-its pages hit pageout(). Adaptive dirty expire time helps here.
+--- linux-next.orig/fs/fs-writeback.c	2010-07-22 13:07:51.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-07-22 13:07:54.000000000 +0800
+@@ -640,20 +640,23 @@ static long wb_writeback(struct bdi_writ
+ 		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+ 
+ 		/*
+-		 * If we consumed everything, see if we have more
++		 * Did we write something? Try for more
++		 *
++		 * This is needed _before_ the b_more_io test because the
++		 * background writeback moves inodes to b_io and works on
++		 * them in batches (in order to sync old pages first).  The
++		 * completion of the current batch does not necessarily mean
++		 * the overall work is done.
+ 		 */
+-		if (wbc.nr_to_write <= 0)
++		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+ 			continue;
++
+ 		/*
+-		 * Didn't write everything and we don't have more IO, bail
++		 * Nothing written and no more inodes for IO, bail
+ 		 */
+ 		if (list_empty(&wb->b_more_io))
+ 			break;
+-		/*
+-		 * Did we write something? Try for more
+-		 */
+-		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+-			continue;
++
+ 		/*
+ 		 * Nothing written. Wait for some inode to
+ 		 * become available for writeback. Otherwise
 
-OK, end of the vapour ideas. As for this patchset, it fixes the current
-kupdate/background writeback priority:
-
-- the kupdate/background writeback shall include newly expired inodes at each
-  queue_io() time, as the large inodes left over from previous writeback rounds
-  are likely to have less density of old pages.
-
-- the background writeback shall consider expired inodes first, just like the
-  kupdate writeback
-
-Thanks,
-Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
