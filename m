@@ -1,87 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C6386B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:42:27 -0400 (EDT)
-Date: Thu, 22 Jul 2010 10:42:09 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
-	writeback
-Message-ID: <20100722094208.GE13117@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-8-git-send-email-mel@csn.ul.ie> <20100719142145.GD12510@infradead.org> <20100719144046.GR13117@csn.ul.ie> <20100722085210.GA26714@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100722085210.GA26714@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 80E7B6B02A5
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:49:37 -0400 (EDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from eu_spt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0L5Y00H5VDYMD350@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Jul 2010 10:49:34 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L5Y0043PDYLMW@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Jul 2010 10:49:34 +0100 (BST)
+Date: Thu, 22 Jul 2010 11:50:58 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <20100722183432U.fujita.tomonori@lab.ntt.co.jp>
+Message-id: <op.vf8oa80k7p4s8u@pikus>
+Content-transfer-encoding: Quoted-Printable
+References: <20100720181239.5a1fd090@bike.lwn.net>
+ <20100722143652V.fujita.tomonori@lab.ntt.co.jp>
+ <000001cb296f$6eba8fa0$4c2faee0$%szyprowski@samsung.com>
+ <20100722183432U.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: m.szyprowski@samsung.com, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: corbet@lwn.net, linux-mm@kvack.org, p.osciak@samsung.com, xiaolin.zhang@intel.com, hvaibhav@ti.com, robert.fekete@stericsson.com, marcus.xm.lorentzon@stericsson.com, linux-kernel@vger.kernel.org, kyungmin.park@samsung.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 04:52:10PM +0800, Wu Fengguang wrote:
-> > Some insight on how the other writeback changes that are being floated
-> > around might affect the number of dirty pages reclaim encounters would also
-> > be helpful.
-> 
-> Here is an interesting related problem about the wait_on_page_writeback() call
-> inside shrink_page_list():
-> 
->         http://lkml.org/lkml/2010/4/4/86
-> 
-> The problem is, wait_on_page_writeback() is called too early in the
-> direct reclaim path, which blocks many random/unrelated processes when
-> some slow (USB stick) writeback is on the way.
-> 
-> A simple dd can easily create a big range of dirty pages in the LRU
-> list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
-> typical desktop, which triggers the lumpy reclaim mode and hence
-> wait_on_page_writeback().
-> 
+On Thu, 22 Jul 2010 11:35:07 +0200, FUJITA Tomonori <fujita.tomonori@lab=
+.ntt.co.jp> wrote:
+> You have the feature in the wrong place.
+>
+> Your example: a camera driver and a video driver can share 20MB, then
+> they want 20MB exclusively.
+>
+> You can reserve 20MB and make them share it. Then you can reserve 20MB=
 
-Lumpy reclaim is for high-order allocations. A simple dd should not be
-triggering it regularly unless there was a lot of forking going on at the
-same time. Also, how would a random or unrelated process get blocked on
-writeback unless they were also doing high-order allocations?  What was the
-source of the high-order allocations?
+> for both exclusively.
+>
+> You know how the whole system works. Adjust drivers (probably, with
+> module parameters).
 
-> I proposed this patch at the time, which was confirmed to solve the problem:
-> 
-> --- linux-next.orig/mm/vmscan.c	2010-06-24 14:32:03.000000000 +0800
-> +++ linux-next/mm/vmscan.c	2010-07-22 16:12:34.000000000 +0800
-> @@ -1650,7 +1650,7 @@ static void set_lumpy_reclaim_mode(int p
->  	 */
->  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
->  		sc->lumpy_reclaim_mode = 1;
-> -	else if (sc->order && priority < DEF_PRIORITY - 2)
-> +	else if (sc->order && priority < DEF_PRIORITY / 2)
->  		sc->lumpy_reclaim_mode = 1;
->  	else
->  		sc->lumpy_reclaim_mode = 0;
-> 
-> 
-> However KOSAKI and Minchan raised concerns about raising the bar.
-> I guess this new patch is more problem oriented and acceptable:
-> 
-> --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
-> @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
->  			count_vm_events(PGDEACTIVATE, nr_active);
->  
->  			nr_freed += shrink_page_list(&page_list, sc,
-> -							PAGEOUT_IO_SYNC);
-> +					priority < DEF_PRIORITY / 3 ?
-> +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
->  		}
->  
+So you are talking about moving complexity from the CMA core to the driv=
+ers.
+Ie. instead of configuring regions and mapping via CMA command line
+parameters, the whole configuration is pushed to modules.  We consider t=
+hat
+suboptimal because it (i) does not reduce complexity -- it just moves it=
 
-I'm not seeing how this helps. It delays when lumpy reclaim waits on IO
-to clean contiguous ranges of pages.
+somewhere else, (ii) spreads the complexity to many modules instead of
+single core of CMA, and (iii) spreads the configuration to many modules
+instead of keeping it in one place.
 
-I'll read that full thread as I wasn't aware of it before.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> When a video driver needs 20MB to work properly, what's the point of
+> releasing the 20MB for others then trying to get it again later?
+
+If you have a video driver that needs 20MiB and a camera that needs 20Mi=
+B
+will you reserve 40MiB total? That's 20MiB wasted if on your system thos=
+e
+two can never work at the same time.  So do you reserve 20MiB and share?=
+
+That won't work if on your system the two can work at the same time.
+
+With CMA you can configure the kernel for both cases.
+
+> Even with the above example (two devices never use the memory at the
+> same time), the driver needs memory regularly. What's the point of
+> split the 20MB to small chunks and allocate them to others?
+
+Lost you there...  If something does not make sense on your system you
+don't configure CMA to do that.  That's one of the points of CMA.  What
+does not make sense on your platform may make perfect sense on some
+other system, with some other drivers maybe.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
