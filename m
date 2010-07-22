@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id EB2B46B02A8
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:38:27 -0400 (EDT)
-Received: from epmmp1. (mailout2.samsung.com [203.254.224.25])
- by mailout2.samsung.com
- (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
- with ESMTP id <0L5Y00M9RCXPNE50@mailout2.samsung.com> for linux-mm@kvack.org;
- Thu, 22 Jul 2010 18:27:25 +0900 (KST)
-Received: from AMDC159 (unknown [106.116.37.153])
- by mmp1.samsung.com (Sun Java(tm) System Messaging Server 7u3-15.01 64bit
- (built Feb 12 2010)) with ESMTPA id <0L5Y00AV8CXA7LA0@mmp1.samsung.com> for
- linux-mm@kvack.org; Thu, 22 Jul 2010 18:27:25 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-References: <cover.1279639238.git.m.nazarewicz@samsung.com>
- <d6d104950c1391eaf3614d56615617cee5722fb4.1279639238.git.m.nazarewicz@samsung.com>
- <adceebd371e8a66a2c153f429b38068eca99e99f.1279639238.git.m.nazarewicz@samsung.com>
- <1279649724.26765.23.camel@c-dwalke-linux.qualcomm.com>
- <op.vf5o28st7p4s8u@pikus> <20100721135229.GC10930@sirena.org.uk>
- <op.vf66mxka7p4s8u@pikus> <20100721182457.GE10930@sirena.org.uk>
- <op.vf7h6ysh7p4s8u@pikus> <20100722090602.GF10930@sirena.org.uk>
-In-reply-to: <20100722090602.GF10930@sirena.org.uk>
-Subject: RE: [PATCH 2/4] mm: cma: Contiguous Memory Allocator added
-Date: Thu, 22 Jul 2010 11:25:48 +0200
-Message-id: <000901cb297f$e28f2b10$a7ad8130$%szyprowski@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: pl
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6386B02A8
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 05:42:27 -0400 (EDT)
+Date: Thu, 22 Jul 2010 10:42:09 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
+	writeback
+Message-ID: <20100722094208.GE13117@csn.ul.ie>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-8-git-send-email-mel@csn.ul.ie> <20100719142145.GD12510@infradead.org> <20100719144046.GR13117@csn.ul.ie> <20100722085210.GA26714@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100722085210.GA26714@localhost>
 Sender: owner-linux-mm@kvack.org
-To: 'Mark Brown' <broonie@opensource.wolfsonmicro.com>, Michal Nazarewicz <m.nazarewicz@samsung.com>
-Cc: 'Daniel Walker' <dwalker@codeaurora.org>, linux-mm@kvack.org, Pawel Osciak <p.osciak@samsung.com>, 'Xiaolin Zhang' <xiaolin.zhang@intel.com>, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'Robert Fekete' <robert.fekete@stericsson.com>, 'Marcus Lorentzon' <marcus.xm.lorentzon@stericsson.com>, linux-kernel@vger.kernel.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, linux-arm-msm@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-
-On Thursday, July 22, 2010 11:06 AM Mark Brown wrote:
-
-> On Wed, Jul 21, 2010 at 08:41:12PM +0200, Micha?? Nazarewicz wrote:
-> > On Wed, 21 Jul 2010 20:24:58 +0200, Mark Brown
-> <broonie@opensource.wolfsonmicro.com> wrote:
+On Thu, Jul 22, 2010 at 04:52:10PM +0800, Wu Fengguang wrote:
+> > Some insight on how the other writeback changes that are being floated
+> > around might affect the number of dirty pages reclaim encounters would also
+> > be helpful.
 > 
-> > >> I am currently working on making the whole thing more dynamic.  I
-> imagine
+> Here is an interesting related problem about the wait_on_page_writeback() call
+> inside shrink_page_list():
 > 
-> > > Yes, I think it will be much easier to be able to grab the regions at
-> > > startup but hopefully the allocation within those regions can be made
-> > > much more dynamic.  This would render most of the configuration syntax
-> > > unneeded.
+>         http://lkml.org/lkml/2010/4/4/86
 > 
-> > Not sure what you mean by the last sentence.  Maybe we have different
-> > things in mind?
+> The problem is, wait_on_page_writeback() is called too early in the
+> direct reclaim path, which blocks many random/unrelated processes when
+> some slow (USB stick) writeback is on the way.
 > 
-> I mean that if the drivers are able to request things dynamically and
-> have some knowledge of their own requirements then that removes the need
-> to manually specify exactly which regions go to which drivers which
-> means that most of the complexity of the existing syntax is not needed
-> since it can be figured out at runtime.
+> A simple dd can easily create a big range of dirty pages in the LRU
+> list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
+> typical desktop, which triggers the lumpy reclaim mode and hence
+> wait_on_page_writeback().
+> 
 
-The driver may specify memory requirements (like memory address range or
-alignment), but it cannot provide enough information to avoid or reduce
-memory fragmentation. More than one memory region can be perfectly used
-to reduce memory fragmentation IF common usage patterns are known. In
-embedded world usually not all integrated device are being used at the
-same time. This way some memory regions can be shared by 2 or more devices. 
+Lumpy reclaim is for high-order allocations. A simple dd should not be
+triggering it regularly unless there was a lot of forking going on at the
+same time. Also, how would a random or unrelated process get blocked on
+writeback unless they were also doing high-order allocations?  What was the
+source of the high-order allocations?
 
-Just assume that gfx accelerator allocates memory is rather small chunks,
-but keeps it while relevant surface is being displayed or processed by
-application. It is not surprising that GUI (accelerated by the hardware
-engine) is used almost all the time on a mobile device. This usage pattern
-would produce a lot of fragmentation in the memory pool that is used by gfx
-accelerator. Then we want to run a camera capture device to take a 8Mpix
-photo. This require a large contiguous buffer. If we try to allocate it from
-common pool it might happen that it is not possible (because of the
-fragmentation).
+> I proposed this patch at the time, which was confirmed to solve the problem:
+> 
+> --- linux-next.orig/mm/vmscan.c	2010-06-24 14:32:03.000000000 +0800
+> +++ linux-next/mm/vmscan.c	2010-07-22 16:12:34.000000000 +0800
+> @@ -1650,7 +1650,7 @@ static void set_lumpy_reclaim_mode(int p
+>  	 */
+>  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+>  		sc->lumpy_reclaim_mode = 1;
+> -	else if (sc->order && priority < DEF_PRIORITY - 2)
+> +	else if (sc->order && priority < DEF_PRIORITY / 2)
+>  		sc->lumpy_reclaim_mode = 1;
+>  	else
+>  		sc->lumpy_reclaim_mode = 0;
+> 
+> 
+> However KOSAKI and Minchan raised concerns about raising the bar.
+> I guess this new patch is more problem oriented and acceptable:
+> 
+> --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
+> +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
+> @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
+>  			count_vm_events(PGDEACTIVATE, nr_active);
+>  
+>  			nr_freed += shrink_page_list(&page_list, sc,
+> -							PAGEOUT_IO_SYNC);
+> +					priority < DEF_PRIORITY / 3 ?
+> +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
+>  		}
+>  
 
-With CMA approach we can create 2 memory regions for this case. One for gfx
-accelerator and the other for camera capture device, video decoder or jpeg
-decoder, because common usage analysis showed that these 3 devices usually
-are not used at the same time.
+I'm not seeing how this helps. It delays when lumpy reclaim waits on IO
+to clean contiguous ranges of pages.
 
-Best regards
---
-Marek Szyprowski
-Samsung Poland R&D Center
+I'll read that full thread as I wasn't aware of it before.
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
