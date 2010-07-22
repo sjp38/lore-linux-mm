@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 567176B024D
-	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 12:28:23 -0400 (EDT)
-Date: Thu, 22 Jul 2010 09:28:20 -0700
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 20D056B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 12:33:43 -0400 (EDT)
+Date: Thu, 22 Jul 2010 09:33:40 -0700
 From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: Re: [RFC 1/3 v3] mm: iommu: An API to unify IOMMU, CPU and device
- memory management
-Message-ID: <20100722162818.GD10255@codeaurora.org>
-References: <20100715014148.GC2239@codeaurora.org>
- <20100719082213.GA7421@n2100.arm.linux.org.uk>
- <20100720221959.GC12250@codeaurora.org>
- <20100721104356S.fujita.tomonori@lab.ntt.co.jp>
- <20100722043034.GC22559@codeaurora.org>
- <20100722073917.GC6802@n2100.arm.linux.org.uk>
+Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
+Message-ID: <20100722163338.GE10255@codeaurora.org>
+References: <20100713090223.GB20590@n2100.arm.linux.org.uk>
+ <20100714105922D.fujita.tomonori@lab.ntt.co.jp>
+ <20100722035026.GB14176@codeaurora.org>
+ <20100722134708I.fujita.tomonori@lab.ntt.co.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722073917.GC6802@n2100.arm.linux.org.uk>
+In-Reply-To: <20100722134708I.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, ebiederm@xmission.com, linux-arch@vger.kernel.org, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: linux@arm.linux.org.uk, alan@lxorguk.ukuu.org.uk, randy.dunlap@oracle.com, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, joro@8bytes.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 08:39:17AM +0100, Russell King - ARM Linux wrote:
-> On Wed, Jul 21, 2010 at 09:30:34PM -0700, Zach Pfeffer wrote:
-> > This goes to the nub of the issue. We need a lot of 1 MB physically
-> > contiguous chunks. The system is going to fragment and we'll never get
-> > our 12 1 MB chunks that we'll need, since the DMA API allocator uses
-> > the system pool it will never succeed.
+On Thu, Jul 22, 2010 at 01:47:36PM +0900, FUJITA Tomonori wrote:
+> On Wed, 21 Jul 2010 20:50:26 -0700
+> Zach Pfeffer <zpfeffer@codeaurora.org> wrote:
 > 
-> By the "DMA API allocator" I assume you mean the coherent DMA interface,
-> The DMA coherent API and DMA streaming APIs are two separate sub-interfaces
-> of the DMA API and are not dependent on each other.
+> > On Wed, Jul 14, 2010 at 10:59:43AM +0900, FUJITA Tomonori wrote:
+> > > On Tue, 13 Jul 2010 10:02:23 +0100
+> > > 
+> > > Zach Pfeffer said this new VCM infrastructure can be useful for
+> > > video4linux. However, I don't think we need 3,000-lines another
+> > > abstraction layer to solve video4linux's issue nicely.
+> > 
+> > Its only 3000 lines because I haven't converted the code to use
+> > function pointers.
+> 
+> The main point is adding a new abstraction that don't provide the huge
+> benefit.
 
-I didn't know that, but yes. As far as I can tell they both allocate
-memory from the VM. We'd need a way to hook in our our own minimized
-mapping allocator.
+I disagree. In its current form the API may not be appropriate for
+inclusion into the kernel, but it provides a common framework for
+handling a class of problems that have been solved many times in the
+kernel: large buffer management, IOMMU interoperation and fine grained
+mapping control.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
