@@ -1,128 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9A9D16B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:27:20 -0400 (EDT)
-Date: Thu, 22 Jul 2010 08:27:17 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
-Message-ID: <20100722002716.GA7740@sli10-desk.sh.intel.com>
-References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
- <20100721160634.GA7976@barrios-desktop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6E8AA6B024D
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 20:54:46 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so3607934pxi.14
+        for <linux-mm@kvack.org>; Wed, 21 Jul 2010 17:54:44 -0700 (PDT)
+Message-ID: <4C4796CE.6080306@gmail.com>
+Date: Thu, 22 Jul 2010 08:54:38 +0800
+From: Wang Sheng-Hui <crosslonelyover@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100721160634.GA7976@barrios-desktop>
+Subject: re: [PATCH] fix return value for mb_cache_shrink_fn when nr_to_scan
+ > 0
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: Eric Sandeen <sandeen@redhat.com>, agruen@suse.de, hch@infradead.org, linux-ext4 <linux-ext4@vger.kernel.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kernel-janitors <kernel-janitors@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 12:06:34AM +0800, Minchan Kim wrote:
-> On Tue, Jul 20, 2010 at 03:18:44PM +0800, Shaohua Li wrote:
-> > The zone->lru_lock is heavily contented in workload where activate_page()
-> > is frequently used. We could do batch activate_page() to reduce the lock
-> > contention. The batched pages will be added into zone list when the pool
-> > is full or page reclaim is trying to drain them.
-> > 
-> > For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-> > processes shared map to the file. Each process read access the whole file and
-> > then exit. The process exit will do unmap_vmas() and cause a lot of
-> > activate_page() call. In such workload, we saw about 58% total time reduction
-> > with below patch.
-> 
-> Great :)
-> > 
-> > But we did see some strange regression. The regression is small (usually < 2%)
-> > and most are from multithread test and none heavily use activate_page(). For
-> > example, in the same system, we create 64 threads. Each thread creates a private
-> > mmap region and does read access. We measure the total time and saw about 2%
-> > regression. But in such workload, 99% time is on page fault and activate_page()
-> > takes no time. Very strange, we haven't a good explanation for this so far,
-> > hopefully somebody can share a hint.
-> 
-> Mabye it might be due to lru_add_drain. 
-> You are adding cost in lru_add_drain and it is called several place.
-> So if we can't get the gain in there, it could make a bit of regression.
-> I might be wrong and it's a just my guessing. 
-The workload with regression doesn't invoke too many activate_page, so
-basically activate_page_drain_cpu() is a nop, it should not take too much.
+Sorry, missed that. Regerated and passed checkpatch.pl check. 
+Please check it.
 
-> > Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-> > 
-> > diff --git a/mm/swap.c b/mm/swap.c
-> > index 3ce7bc3..4a3fd7f 100644
-> > --- a/mm/swap.c
-> > +++ b/mm/swap.c
-> > @@ -39,6 +39,7 @@ int page_cluster;
-> >  
-> >  static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
-> >  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
-> > +static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-> >  
-> >  /*
-> >   * This path almost never happens for VM activity - pages are normally
-> > @@ -175,11 +176,10 @@ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
-> >  /*
-> >   * FIXME: speed this up?
-> >   */
-> Couldn't we remove above comment by this patch?
-ha, yes.
 
-> > -void activate_page(struct page *page)
-> > +static void __activate_page(struct page *page)
-> >  {
-> >  	struct zone *zone = page_zone(page);
-> >  
-> > -	spin_lock_irq(&zone->lru_lock);
-> >  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-> >  		int file = page_is_file_cache(page);
-> >  		int lru = page_lru_base_type(page);
-> > @@ -192,7 +192,46 @@ void activate_page(struct page *page)
-> >  
-> >  		update_page_reclaim_stat(zone, page, file, 1);
-> >  	}
-> > -	spin_unlock_irq(&zone->lru_lock);
-> > +}
-> > +
-> > +static void activate_page_drain_cpu(int cpu)
-> > +{
-> > +	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
-> > +	struct zone *last_zone = NULL, *zone;
-> > +	int i, j;
-> > +
-> > +	for (i = 0; i < pagevec_count(pvec); i++) {
-> > +		zone = page_zone(pvec->pages[i]);
-> > +		if (zone == last_zone)
-> > +			continue;
-> > +
-> > +		if (last_zone)
-> > +			spin_unlock_irq(&last_zone->lru_lock);
-> > +		last_zone = zone;
-> > +		spin_lock_irq(&last_zone->lru_lock);
-> > +
-> > +		for (j = i; j < pagevec_count(pvec); j++) {
-> > +			struct page *page = pvec->pages[j];
-> > +
-> > +			if (last_zone != page_zone(page))
-> > +				continue;
-> > +			__activate_page(page);
-> > +		}
-> > +	}
-> > +	if (last_zone)
-> > +		spin_unlock_irq(&last_zone->lru_lock);
-> > +	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
-> > +	pagevec_reinit(pvec);
-> 
-> In worst case(DMA->NORMAL->HIGHMEM->DMA->NORMA->HIGHMEM->......), 
-> overhead would is big than old. how about following as?
-> static DEFINE_PER_CPU(struct pagevec[MAX_NR_ZONES], activate_page_pvecs);
-> Is it a overkill?
-activate_page_drain_cpu is a two level loop. In you case, the drain order
-will be DMA->DMA->NORMAL->NORMAL->HIGHMEM->HIGHMEM. Since pagevec size is
-14, the loop should finish quickly.
+Signed-off-by: Wang Sheng-Hui <crosslonelyover@gmail.com>
+---
+ fs/mbcache.c |   23 ++++++++++++-----------
+ 1 files changed, 12 insertions(+), 11 deletions(-)
 
-Thanks,
-Shaohua
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index ec88ff3..603170e 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -201,21 +201,14 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
+ {
+ 	LIST_HEAD(free_list);
+ 	struct list_head *l, *ltmp;
++	struct mb_cache *cache;
+ 	int count = 0;
+ 
+-	spin_lock(&mb_cache_spinlock);
+-	list_for_each(l, &mb_cache_list) {
+-		struct mb_cache *cache =
+-			list_entry(l, struct mb_cache, c_cache_list);
+-		mb_debug("cache %s (%d)", cache->c_name,
+-			  atomic_read(&cache->c_entry_count));
+-		count += atomic_read(&cache->c_entry_count);
+-	}
+ 	mb_debug("trying to free %d entries", nr_to_scan);
+-	if (nr_to_scan == 0) {
+-		spin_unlock(&mb_cache_spinlock);
++	if (nr_to_scan == 0)
+ 		goto out;
+-	}
++
++	spin_lock(&mb_cache_spinlock);
+ 	while (nr_to_scan-- && !list_empty(&mb_cache_lru_list)) {
+ 		struct mb_cache_entry *ce =
+ 			list_entry(mb_cache_lru_list.next,
+@@ -229,6 +222,14 @@ mb_cache_shrink_fn(int nr_to_scan, gfp_t gfp_mask)
+ 						   e_lru_list), gfp_mask);
+ 	}
+ out:
++	spin_lock(&mb_cache_spinlock);
++	list_for_each_entry(cache, &mb_cache_list, c_cache_list) {
++		mb_debug("cache %s (%d)", cache->c_name,
++			  atomic_read(&cache->c_entry_count));
++		count += atomic_read(&cache->c_entry_count);
++	}
++	spin_unlock(&mb_cache_spinlock);
++
+ 	return (count / 100) * sysctl_vfs_cache_pressure;
+ }
+ 
+-- 
+1.6.3.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
