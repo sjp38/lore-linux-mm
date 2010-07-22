@@ -1,50 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 450C26B024D
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 23:50:30 -0400 (EDT)
-Date: Wed, 21 Jul 2010 20:50:26 -0700
-From: Zach Pfeffer <zpfeffer@codeaurora.org>
-Subject: Re: [RFC 3/3] mm: iommu: The Virtual Contiguous Memory Manager
-Message-ID: <20100722035026.GB14176@codeaurora.org>
-References: <20100713094244.7eb84f1b@lxorguk.ukuu.org.uk>
- <20100713174519D.fujita.tomonori@lab.ntt.co.jp>
- <20100713090223.GB20590@n2100.arm.linux.org.uk>
- <20100714105922D.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F616B024D
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2010 00:00:18 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6M3qKVV005186
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 21:52:20 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o6M40EdS129752
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 22:00:15 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6M40DbO001480
+	for <linux-mm@kvack.org>; Wed, 21 Jul 2010 22:00:14 -0600
+Date: Thu, 22 Jul 2010 09:30:07 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/7] memcg reclaim tracepoint
+Message-ID: <20100722040007.GJ14369@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100716191006.7369.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100714105922D.fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100716191006.7369.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: linux@arm.linux.org.uk, alan@lxorguk.ukuu.org.uk, randy.dunlap@oracle.com, dwalker@codeaurora.org, mel@csn.ul.ie, linux-arm-msm@vger.kernel.org, joro@8bytes.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 14, 2010 at 10:59:43AM +0900, FUJITA Tomonori wrote:
-> On Tue, 13 Jul 2010 10:02:23 +0100
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-07-16 19:12:46]:
+
+> Recently, Mel Gorman added some vmscan tracepoint. but they can't
+> trace memcg. So, This patch series does.
 > 
-> Zach Pfeffer said this new VCM infrastructure can be useful for
-> video4linux. However, I don't think we need 3,000-lines another
-> abstraction layer to solve video4linux's issue nicely.
+> 
+> following three patches are nit fix and cleanups.
+> 
+>   memcg: sc.nr_to_reclaim should be initialized
+>   memcg: mem_cgroup_shrink_node_zone() doesn't need sc.nodemask
+>   memcg: nid and zid can be calculated from zone
+> 
+> following four patches are tracepoint conversion and adding memcg tracepoints.
+> 
+>   vmscan:        convert direct reclaim tracepoint to DEFINE_EVENT
+>   memcg, vmscan: add memcg reclaim tracepoint
+>   vmscan:        convert mm_vmscan_lru_isolate to DEFINE_EVENT
+>   memcg, vmscan: add mm_vmscan_memcg_isolate tracepoint
+> 
+> 
+> diffstat
+> ================
+>  include/linux/memcontrol.h    |    6 ++--
+>  include/linux/mmzone.h        |    5 +++
+>  include/linux/swap.h          |    3 +-
+>  include/trace/events/vmscan.h |   79 +++++++++++++++++++++++++++++++++++++++--
+>  mm/memcontrol.c               |   15 +++++---
+>  mm/vmscan.c                   |   35 ++++++++++++------
+>  6 files changed, 118 insertions(+), 25 deletions(-)
+> 
+> 
+> Sameple output is here.
+> =========================
+> 
+>               dd-1851  [001]   158.837763: mm_vmscan_memcg_reclaim_begin: order=0 may_writepage=1 gfp_flags=GFP_HIGHUSER_MOVABLE
+>               dd-1851  [001]   158.837783: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>               dd-1851  [001]   158.837860: mm_vmscan_memcg_reclaim_end: nr_reclaimed=32
+>   (...)
+>               dd-1970  [000]   266.608235: mm_vmscan_wakeup_kswapd: nid=0 zid=1 order=0
+>               dd-1970  [000]   266.608239: mm_vmscan_wakeup_kswapd: nid=1 zid=1 order=0
+>               dd-1970  [000]   266.608248: mm_vmscan_wakeup_kswapd: nid=2 zid=1 order=0
+>          kswapd1-348   [001]   266.608254: mm_vmscan_kswapd_wake: nid=1 order=0
+>               dd-1970  [000]   266.608254: mm_vmscan_wakeup_kswapd: nid=3 zid=1 order=0
+>          kswapd3-350   [000]   266.608266: mm_vmscan_kswapd_wake: nid=3 order=0
+>   (...)
+>          kswapd0-347   [001]   267.328891: mm_vmscan_memcg_softlimit_reclaim_begin: order=0 may_writepage=1 gfp_flags=GFP_HIGHUSER_MOVABLE
+>          kswapd0-347   [001]   267.328897: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>          kswapd0-347   [001]   267.328915: mm_vmscan_memcg_isolate: isolate_mode=0 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>          kswapd0-347   [001]   267.328989: mm_vmscan_memcg_softlimit_reclaim_end: nr_reclaimed=32
+>          kswapd0-347   [001]   267.329019: mm_vmscan_lru_isolate: isolate_mode=1 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>          kswapd0-347   [001]   267.330562: mm_vmscan_lru_isolate: isolate_mode=1 order=0 nr_requested=32 nr_scanned=32 nr_taken=32 contig_taken=0 contig_dirty=0 contig_failed=0
+>   (...)
+>          kswapd2-349   [001]   267.407081: mm_vmscan_kswapd_sleep: nid=2
+>          kswapd3-350   [001]   267.408077: mm_vmscan_kswapd_sleep: nid=3
+>          kswapd1-348   [000]   267.427858: mm_vmscan_kswapd_sleep: nid=1
+>          kswapd0-347   [001]   267.430064: mm_vmscan_kswapd_sleep: nid=0
+>
 
-Its only 3000 lines because I haven't converted the code to use
-function pointers.
+This looks interesting, but I think I need to look deeper to see how
+the name like mm_vmscan_memcg_softlimit_reclaim_begin is generated. 
 
-> I can't find any reasonable reasons that we need to merge VCM; seems
-> that the combination of the current APIs (or with some small
-> extensions) can work for the issues that VCM tries to solve.
-
-Getting back to the point. There is no API that can handle large
-buffer allocation and sharing with low-level attribute control for
-virtual address spaces outside the CPU. At this point if you need to
-work with big buffers, 1 MB and 16 MB etc, and map those big buffers
-to non-CPU virtual spaces you need to explicitly carve them out and
-set up the mappings and sharing by hand. Its reasonable to have an API
-that can do this especially since IOMMUs are going to become more
-prevalent. The DMA API et al. take a CPU centric view of virtual space
-management, sharing has to be explicitly written and external virtual
-space management is left up to device driver writers. Given a system
-where each device has an IOMMU or a MMU the whole concept of a
-scatterlist goes away. The VCM API gets a jump on it.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
