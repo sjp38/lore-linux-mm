@@ -1,86 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BAAC66B02AD
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 15:22:54 -0400 (EDT)
-Received: by pxi7 with SMTP id 7so4576582pxi.14
-        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 12:22:53 -0700 (PDT)
-Message-ID: <4C49EC29.4070202@vflare.org>
-Date: Sat, 24 Jul 2010 00:53:21 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] Shrink zcache based on memlimit
-References: <1279283870-18549-1-git-send-email-ngupta@vflare.org> <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com> <4C467D18.4050901@vflare.org> <201007210732.03909.edt@aei.ca>
-In-Reply-To: <201007210732.03909.edt@aei.ca>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 707F96B02AE
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 15:36:54 -0400 (EDT)
+Date: Fri, 23 Jul 2010 12:36:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 3/6] fs: remove dependency on __GFP_NOFAIL
+Message-Id: <20100723123618.3b2b8824.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1007201939430.8728@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1007201936210.8728@chino.kir.corp.google.com>
+	<alpine.DEB.2.00.1007201939430.8728@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ed Tomlinson <edt@aei.ca>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/21/2010 05:02 PM, Ed Tomlinson wrote:
-> On Wednesday 21 July 2010 00:52:40 Nitin Gupta wrote:
->> On 07/21/2010 04:33 AM, Minchan Kim wrote:
->>> On Fri, Jul 16, 2010 at 9:37 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->>>> User can change (per-pool) memlimit using sysfs node:
->>>> /sys/kernel/mm/zcache/pool<id>/memlimit
->>>>
->>>> When memlimit is set to a value smaller than current
->>>> number of pages allocated for that pool, excess pages
->>>> are now freed immediately instead of waiting for get/
->>>> flush for these pages.
->>>>
->>>> Currently, victim page selection is essentially random.
->>>> Automatic cache resizing and better page replacement
->>>> policies will be implemented later.
->>>
->>> Okay. I know this isn't end. I just want to give a concern before you end up.
->>> I don't know how you implement reclaim policy.
->>> In current implementation, you use memlimit for determining when reclaim happen.
->>> But i think we also should follow global reclaim policy of VM.
->>> I means although memlimit doen't meet, we should reclaim zcache if
->>> system has a trouble to reclaim memory.
->>
->> Yes, we should have a way to do reclaim depending on system memory pressure
->> and also when user explicitly wants so i.e. when memlimit is lowered manually.
->>
->>> AFAIK, cleancache doesn't give any hint for that. so we should
->>> implement it in zcache itself.
->>
->> I think cleancache should be kept minimal so yes, all reclaim policies should
->> go in zcache layer only.
->>
->>> At first glance, we can use shrink_slab or oom_notifier. But both
->>> doesn't give any information of zone although global reclaim do it by
->>> per-zone.
->>> AFAIK, Nick try to implement zone-aware shrink slab. Also if we need
->>> it, we can change oom_notifier with zone-aware oom_notifier. Now it
->>> seems anyone doesn't use oom_notifier so I am not sure it's useful.
->>>
->>
->> I don't think we need these notifiers as we can simply create a thread
->> to monitor cache hit rate, system memory pressure etc. and shrink/expand
->> the cache accordingly.
-> 
-> Nitin,
-> 
-> Based on experience gained when adding the shrinker callbacks, I would 
-> strongly recommend you use them.  I tried several hacks along the lines of
-> what you are proposing before moving settling on the callbacks.  They 
-> are effective and make sure that memory is released when its required.
-> What would happen with the other methods is that memory would either 
-> not be released or would be released when it was not needed.
-> 
+On Tue, 20 Jul 2010 19:45:00 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
+> The kmalloc() in bio_integrity_prep() is failable, so remove __GFP_NOFAIL
+> from its mask.
+> 
+> Cc: Jens Axboe <jens.axboe@oracle.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  fs/bio-integrity.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
+> --- a/fs/bio-integrity.c
+> +++ b/fs/bio-integrity.c
+> @@ -413,7 +413,7 @@ int bio_integrity_prep(struct bio *bio)
+>  
+>  	/* Allocate kernel buffer for protection data */
+>  	len = sectors * blk_integrity_tuple_size(bi);
+> -	buf = kmalloc(len, GFP_NOIO | __GFP_NOFAIL | q->bounce_gfp);
+> +	buf = kmalloc(len, GFP_NOIO | q->bounce_gfp);
+>  	if (unlikely(buf == NULL)) {
+>  		printk(KERN_ERR "could not allocate integrity buffer\n");
+>  		return -EIO;
 
-I had similar experience with "swap notify callback" -- yes, things
-don't seem to work without a proper callback. I will check if some
-callback already exists for OOM like condition or if new one can
-be added easily.
-
-Thanks,
-Nitin
+                        ^^^  what?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
