@@ -1,181 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD156B024D
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 06:57:39 -0400 (EDT)
-Date: Fri, 23 Jul 2010 11:57:19 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
-	writeback
-Message-ID: <20100723105719.GE5300@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-8-git-send-email-mel@csn.ul.ie> <20100719142145.GD12510@infradead.org> <20100719144046.GR13117@csn.ul.ie> <20100722085210.GA26714@localhost> <20100722092155.GA28425@localhost> <20100722104823.GF13117@csn.ul.ie> <20100723094515.GD5043@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3B36B024D
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 07:13:27 -0400 (EDT)
+Date: Fri, 23 Jul 2010 21:13:10 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: VFS scalability git tree
+Message-ID: <20100723111310.GI32635@dastard>
+References: <20100722190100.GA22269@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100723094515.GD5043@localhost>
+In-Reply-To: <20100722190100.GA22269@amd>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Nick Piggin <npiggin@kernel.dk>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frank Mayhar <fmayhar@google.com>, John Stultz <johnstul@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 23, 2010 at 05:45:15PM +0800, Wu Fengguang wrote:
-> On Thu, Jul 22, 2010 at 06:48:23PM +0800, Mel Gorman wrote:
-> > On Thu, Jul 22, 2010 at 05:21:55PM +0800, Wu Fengguang wrote:
-> > > > I guess this new patch is more problem oriented and acceptable:
-> > > > 
-> > > > --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> > > > +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
-> > > > @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
-> > > >  			count_vm_events(PGDEACTIVATE, nr_active);
-> > > >  
-> > > >  			nr_freed += shrink_page_list(&page_list, sc,
-> > > > -							PAGEOUT_IO_SYNC);
-> > > > +					priority < DEF_PRIORITY / 3 ?
-> > > > +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
-> > > >  		}
-> > > >  
-> > > >  		nr_reclaimed += nr_freed;
-> > > 
-> > > This one looks better:
-> > > ---
-> > > vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
-> > > 
-> > > Fix "system goes totally unresponsive with many dirty/writeback pages"
-> > > problem:
-> > > 
-> > > 	http://lkml.org/lkml/2010/4/4/86
-> > > 
-> > > The root cause is, wait_on_page_writeback() is called too early in the
-> > > direct reclaim path, which blocks many random/unrelated processes when
-> > > some slow (USB stick) writeback is on the way.
-> > > 
-> > 
-> > So, what's the bet if lumpy reclaim is a factor that it's
-> > high-order-but-low-cost such as fork() that are getting caught by this since
-> > [78dc583d: vmscan: low order lumpy reclaim also should use PAGEOUT_IO_SYNC]
-> > was introduced?
+On Fri, Jul 23, 2010 at 05:01:00AM +1000, Nick Piggin wrote:
+> I'm pleased to announce I have a git tree up of my vfs scalability work.
 > 
-> Sorry I'm a bit confused by your wording..
+> git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
+> http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
 > 
+> Branch vfs-scale-working
 
-After reading the thread, I realised that fork() stalling could be a
-factor. That commit allows lumpy reclaim and PAGEOUT_IO_SYNC to be used for
-high-order allocations such as those used by fork(). It might have been an
-oversight to allow order-1 to use PAGEOUT_IO_SYNC too easily.
+I've got a couple of patches needed to build XFS - they shrinker
+merge left some bad fragments - I'll post them in a minute. This
+email is for the longest ever lockdep warning I've seen that
+occurred on boot.
 
-> > That could manifest to the user as stalls creating new processes when under
-> > heavy IO. I would be surprised it would freeze the entire system but certainly
-> > any new work would feel very slow.
-> > 
-> > > A simple dd can easily create a big range of dirty pages in the LRU
-> > > list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
-> > > typical desktop, which triggers the lumpy reclaim mode and hence
-> > > wait_on_page_writeback().
-> > > 
-> > 
-> > which triggers the lumpy reclaim mode for high-order allocations.
-> 
-> Exactly. Changelog updated.
-> 
-> > lumpy reclaim mode is not something that is triggered just because priority
-> > is high.
-> 
-> Right.
-> 
-> > I think there is a second possibility for causing stalls as well that is
-> > unrelated to lumpy reclaim. Once dirty_limit is reached, new page faults may
-> > also result in stalls. If it is taking a long time to writeback dirty data,
-> > random processes could be getting stalled just because they happened to dirty
-> > data at the wrong time.  This would be the case if the main dirtying process
-> > (e.g. dd) is not calling sync and dropping pages it's no longer using.
-> 
-> The dirty_limit throttling will slow down the dirty process to the
-> writeback throughput. If a process is dirtying files on sda (HDD),
-> it will be throttled at 80MB/s. If another process is dirtying files
-> on sdb (USB 1.1), it will be throttled at 1MB/s.
-> 
+Cheers,
 
-It will slow down the dirty process doing the dd, but can it also slow
-down other processes that just happened to dirty pages at the wrong
-time.
+Dave.
 
-> So dirty throttling will slow things down. However the slow down
-> should be smooth (a series of 100ms stalls instead of a sudden 10s
-> stall), and won't impact random processes (which does no read/write IO
-> at all).
-> 
-
-Ok.
-
-> > > In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
-> > > the 22MB writeback and 190MB dirty pages. There can easily be a
-> > > continuous range of 512KB dirty/writeback pages in the LRU, which will
-> > > trigger the wait logic.
-> > > 
-> > > To make it worse, when there are 50MB writeback pages and USB 1.1 is
-> > > writing them in 1MB/s, wait_on_page_writeback() may stuck for up to 50
-> > > seconds.
-> > > 
-> > > So only enter sync write&wait when priority goes below DEF_PRIORITY/3,
-> > > or 6.25% LRU. As the default dirty throttle ratio is 20%, sync write&wait
-> > > will hardly be triggered by pure dirty pages.
-> > > 
-> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > ---
-> > >  mm/vmscan.c |    4 ++--
-> > >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > > 
-> > > --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> > > +++ linux-next/mm/vmscan.c	2010-07-22 17:03:47.000000000 +0800
-> > > @@ -1206,7 +1206,7 @@ static unsigned long shrink_inactive_lis
-> > >  		 * but that should be acceptable to the caller
-> > >  		 */
-> > >  		if (nr_freed < nr_taken && !current_is_kswapd() &&
-> > > -		    sc->lumpy_reclaim_mode) {
-> > > +		    sc->lumpy_reclaim_mode && priority < DEF_PRIORITY / 3) {
-> > >  			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > >  
-> > 
-> > This will also delay waiting on congestion for really high-order
-> > allocations such as huge pages, some video decoder and the like which
-> > really should be stalling.
-> 
-> I absolutely agree that high order allocators should be somehow throttled.
-> 
-> However given that one can easily create a large _continuous_ range of
-> dirty LRU pages, let someone bumping all the way through the range
-> sounds a bit cruel..
-> 
-> > How about the following compile-tested diff?
-> > It takes the cost of the high-order allocation into account and the
-> > priority when deciding whether to synchronously wait or not.
-> 
-> Very nice patch. Thanks!
-> 
-
-Will you be picking it up or should I? The changelog should be more or less
-the same as yours and consider it
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-
-It'd be nice if the original tester is still knocking around and willing
-to confirm the patch resolves his/her problem. I am running this patch on
-my desktop at the moment and it does feel a little smoother but it might be
-my imagination. I had trouble with odd stalls that I never pinned down and
-was attributing to the machine being commonly heavily loaded but I haven't
-noticed them today.
-
-It also needs an Acked-by or Reviewed-by from Kosaki Motohiro as it alters
-logic he introduced in commit [78dc583: vmscan: low order lumpy reclaim also
-should use PAGEOUT_IO_SYNC]
-
-Thanks
-
-> <SNIP>
+[    6.368707] ======================================================
+[    6.369773] [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
+[    6.370379] 2.6.35-rc5-dgc+ #58
+[    6.370882] ------------------------------------------------------
+[    6.371475] pmcd/2124 [HC0[0]:SC0[1]:HE1:SE0] is trying to acquire:
+[    6.372062]  (&sb->s_type->i_lock_key#6){+.+...}, at: [<ffffffff81736f8c>] socket_get_id+0x3c/0x60
+[    6.372268] 
+[    6.372268] and this task is already holding:
+[    6.372268]  (&(&hashinfo->ehash_locks[i])->rlock){+.-...}, at: [<ffffffff81791750>] established_get_first+0x60/0x120
+[    6.372268] which would create a new lock dependency:
+[    6.372268]  (&(&hashinfo->ehash_locks[i])->rlock){+.-...} -> (&sb->s_type->i_lock_key#6){+.+...}
+[    6.372268] 
+[    6.372268] but this new dependency connects a SOFTIRQ-irq-safe lock:
+[    6.372268]  (&(&hashinfo->ehash_locks[i])->rlock){+.-...}
+[    6.372268] ... which became SOFTIRQ-irq-safe at:
+[    6.372268]   [<ffffffff810b3b26>] __lock_acquire+0x576/0x1450
+[    6.372268]   [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]   [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]   [<ffffffff8177a1ba>] __inet_hash_nolisten+0xfa/0x180
+[    6.372268]   [<ffffffff8179392a>] tcp_v4_syn_recv_sock+0x1aa/0x2d0
+[    6.372268]   [<ffffffff81795502>] tcp_check_req+0x202/0x440
+[    6.372268]   [<ffffffff817948c4>] tcp_v4_do_rcv+0x304/0x4f0
+[    6.372268]   [<ffffffff81795134>] tcp_v4_rcv+0x684/0x7e0
+[    6.372268]   [<ffffffff81771512>] ip_local_deliver+0xe2/0x1c0
+[    6.372268]   [<ffffffff81771af7>] ip_rcv+0x397/0x760
+[    6.372268]   [<ffffffff8174d067>] __netif_receive_skb+0x277/0x330
+[    6.372268]   [<ffffffff8174d1f4>] process_backlog+0xd4/0x1e0
+[    6.372268]   [<ffffffff8174dc38>] net_rx_action+0x188/0x2b0
+[    6.372268]   [<ffffffff81084cc2>] __do_softirq+0xd2/0x260
+[    6.372268]   [<ffffffff81035edc>] call_softirq+0x1c/0x50
+[    6.372268]   [<ffffffff8108551b>] local_bh_enable_ip+0xeb/0xf0
+[    6.372268]   [<ffffffff8182c544>] _raw_spin_unlock_bh+0x34/0x40
+[    6.372268]   [<ffffffff8173c59e>] release_sock+0x14e/0x1a0
+[    6.372268]   [<ffffffff817a3975>] inet_stream_connect+0x75/0x320
+[    6.372268]   [<ffffffff81737917>] sys_connect+0xa7/0xc0
+[    6.372268]   [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268] 
+[    6.372268] to a SOFTIRQ-irq-unsafe lock:
+[    6.372268]  (&sb->s_type->i_lock_key#6){+.+...}
+[    6.372268] ... which became SOFTIRQ-irq-unsafe at:
+[    6.372268] ...  [<ffffffff810b3b73>] __lock_acquire+0x5c3/0x1450
+[    6.372268]   [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]   [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]   [<ffffffff8116af72>] new_inode+0x52/0xd0
+[    6.372268]   [<ffffffff81174a40>] get_sb_pseudo+0xb0/0x180
+[    6.372268]   [<ffffffff81735a41>] sockfs_get_sb+0x21/0x30
+[    6.372268]   [<ffffffff81152dba>] vfs_kern_mount+0x8a/0x1e0
+[    6.372268]   [<ffffffff81152f29>] kern_mount_data+0x19/0x20
+[    6.372268]   [<ffffffff81e1c075>] sock_init+0x4e/0x59
+[    6.372268]   [<ffffffff810001dc>] do_one_initcall+0x3c/0x1a0
+[    6.372268]   [<ffffffff81de5767>] kernel_init+0x17a/0x204
+[    6.372268]   [<ffffffff81035de4>] kernel_thread_helper+0x4/0x10
+[    6.372268] 
+[    6.372268] other info that might help us debug this:
+[    6.372268] 
+[    6.372268] 3 locks held by pmcd/2124:
+[    6.372268]  #0:  (&p->lock){+.+.+.}, at: [<ffffffff81171dae>] seq_read+0x3e/0x430
+[    6.372268]  #1:  (&(&hashinfo->ehash_locks[i])->rlock){+.-...}, at: [<ffffffff81791750>] established_get_first+0x60/0x120
+[    6.372268]  #2:  (clock-AF_INET){++....}, at: [<ffffffff8173b6ae>] sock_i_ino+0x2e/0x70
+[    6.372268] 
+[    6.372268] the dependencies between SOFTIRQ-irq-safe lock and the holding lock:
+[    6.372268] -> (&(&hashinfo->ehash_locks[i])->rlock){+.-...} ops: 3 {
+[    6.372268]    HARDIRQ-ON-W at:
+[    6.372268]                                        [<ffffffff810b3b47>] __lock_acquire+0x597/0x1450
+[    6.372268]                                        [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                        [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                        [<ffffffff8177a1ba>] __inet_hash_nolisten+0xfa/0x180
+[    6.372268]                                        [<ffffffff8177ab6a>] __inet_hash_connect+0x33a/0x3d0
+[    6.372268]                                        [<ffffffff8177ac4f>] inet_hash_connect+0x4f/0x60
+[    6.372268]                                        [<ffffffff81792522>] tcp_v4_connect+0x272/0x4f0
+[    6.372268]                                        [<ffffffff817a3b8e>] inet_stream_connect+0x28e/0x320
+[    6.372268]                                        [<ffffffff81737917>] sys_connect+0xa7/0xc0
+[    6.372268]                                        [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268]    IN-SOFTIRQ-W at:
+[    6.372268]                                        [<ffffffff810b3b26>] __lock_acquire+0x576/0x1450
+[    6.372268]                                        [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                        [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                        [<ffffffff8177a1ba>] __inet_hash_nolisten+0xfa/0x180
+[    6.372268]                                        [<ffffffff8179392a>] tcp_v4_syn_recv_sock+0x1aa/0x2d0
+[    6.372268]                                        [<ffffffff81795502>] tcp_check_req+0x202/0x440
+[    6.372268]                                        [<ffffffff817948c4>] tcp_v4_do_rcv+0x304/0x4f0
+[    6.372268]                                        [<ffffffff81795134>] tcp_v4_rcv+0x684/0x7e0
+[    6.372268]                                        [<ffffffff81771512>] ip_local_deliver+0xe2/0x1c0
+[    6.372268]                                        [<ffffffff81771af7>] ip_rcv+0x397/0x760
+[    6.372268]                                        [<ffffffff8174d067>] __netif_receive_skb+0x277/0x330
+[    6.372268]                                        [<ffffffff8174d1f4>] process_backlog+0xd4/0x1e0
+[    6.372268]                                        [<ffffffff8174dc38>] net_rx_action+0x188/0x2b0
+[    6.372268]                                        [<ffffffff81084cc2>] __do_softirq+0xd2/0x260
+[    6.372268]                                        [<ffffffff81035edc>] call_softirq+0x1c/0x50
+[    6.372268]                                        [<ffffffff8108551b>] local_bh_enable_ip+0xeb/0xf0
+[    6.372268]                                        [<ffffffff8182c544>] _raw_spin_unlock_bh+0x34/0x40
+[    6.372268]                                        [<ffffffff8173c59e>] release_sock+0x14e/0x1a0
+[    6.372268]                                        [<ffffffff817a3975>] inet_stream_connect+0x75/0x320
+[    6.372268]                                        [<ffffffff81737917>] sys_connect+0xa7/0xc0
+[    6.372268]                                        [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268]    INITIAL USE at:
+[    6.372268]                                       [<ffffffff810b37e2>] __lock_acquire+0x232/0x1450
+[    6.372268]                                       [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                       [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                       [<ffffffff8177a1ba>] __inet_hash_nolisten+0xfa/0x180
+[    6.372268]                                       [<ffffffff8177ab6a>] __inet_hash_connect+0x33a/0x3d0
+[    6.372268]                                       [<ffffffff8177ac4f>] inet_hash_connect+0x4f/0x60
+[    6.372268]                                       [<ffffffff81792522>] tcp_v4_connect+0x272/0x4f0
+[    6.372268]                                       [<ffffffff817a3b8e>] inet_stream_connect+0x28e/0x320
+[    6.372268]                                       [<ffffffff81737917>] sys_connect+0xa7/0xc0
+[    6.372268]                                       [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268]  }
+[    6.372268]  ... key      at: [<ffffffff8285ddf8>] __key.47027+0x0/0x8
+[    6.372268]  ... acquired at:
+[    6.372268]    [<ffffffff810b2940>] check_irq_usage+0x60/0xf0
+[    6.372268]    [<ffffffff810b41ff>] __lock_acquire+0xc4f/0x1450
+[    6.372268]    [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]    [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]    [<ffffffff81736f8c>] socket_get_id+0x3c/0x60
+[    6.372268]    [<ffffffff8173b6c3>] sock_i_ino+0x43/0x70
+[    6.372268]    [<ffffffff81790fc9>] tcp4_seq_show+0x1a9/0x520
+[    6.372268]    [<ffffffff81172005>] seq_read+0x295/0x430
+[    6.372268]    [<ffffffff811ad9f4>] proc_reg_read+0x84/0xc0
+[    6.372268]    [<ffffffff81150165>] vfs_read+0xb5/0x170
+[    6.372268]    [<ffffffff81150274>] sys_read+0x54/0x90
+[    6.372268]    [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268] 
+[    6.372268] 
+[    6.372268] the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
+[    6.372268] -> (&sb->s_type->i_lock_key#6){+.+...} ops: 1185 {
+[    6.372268]    HARDIRQ-ON-W at:
+[    6.372268]                                        [<ffffffff810b3b47>] __lock_acquire+0x597/0x1450
+[    6.372268]                                        [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                        [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                        [<ffffffff8116af72>] new_inode+0x52/0xd0
+[    6.372268]                                        [<ffffffff81174a40>] get_sb_pseudo+0xb0/0x180
+[    6.372268]                                        [<ffffffff81735a41>] sockfs_get_sb+0x21/0x30
+[    6.372268]                                        [<ffffffff81152dba>] vfs_kern_mount+0x8a/0x1e0
+[    6.372268]                                        [<ffffffff81152f29>] kern_mount_data+0x19/0x20
+[    6.372268]                                        [<ffffffff81e1c075>] sock_init+0x4e/0x59
+[    6.372268]                                        [<ffffffff810001dc>] do_one_initcall+0x3c/0x1a0
+[    6.372268]                                        [<ffffffff81de5767>] kernel_init+0x17a/0x204
+[    6.372268]                                        [<ffffffff81035de4>] kernel_thread_helper+0x4/0x10
+[    6.372268]    SOFTIRQ-ON-W at:
+[    6.372268]                                        [<ffffffff810b3b73>] __lock_acquire+0x5c3/0x1450
+[    6.372268]                                        [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                        [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                        [<ffffffff8116af72>] new_inode+0x52/0xd0
+[    6.372268]                                        [<ffffffff81174a40>] get_sb_pseudo+0xb0/0x180
+[    6.372268]                                        [<ffffffff81735a41>] sockfs_get_sb+0x21/0x30
+[    6.372268]                                        [<ffffffff81152dba>] vfs_kern_mount+0x8a/0x1e0
+[    6.372268]                                        [<ffffffff81152f29>] kern_mount_data+0x19/0x20
+[    6.372268]                                        [<ffffffff81e1c075>] sock_init+0x4e/0x59
+[    6.372268]                                        [<ffffffff810001dc>] do_one_initcall+0x3c/0x1a0
+[    6.372268]                                        [<ffffffff81de5767>] kernel_init+0x17a/0x204
+[    6.372268]                                        [<ffffffff81035de4>] kernel_thread_helper+0x4/0x10
+[    6.372268]    INITIAL USE at:
+[    6.372268]                                       [<ffffffff810b37e2>] __lock_acquire+0x232/0x1450
+[    6.372268]                                       [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]                                       [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]                                       [<ffffffff8116af72>] new_inode+0x52/0xd0
+[    6.372268]                                       [<ffffffff81174a40>] get_sb_pseudo+0xb0/0x180
+[    6.372268]                                       [<f                          [<ffffffff81152dba>] vfs_kern_mount+0x8a/0x1e0
+[    6.372268]                                       [<ffffffff81152f29>] kern_mount_data+0x19/0x20
+[    6.372268]                                       [<ffffffff81e1c075>] sock_init+0x4e/0x59
+[    6.372268]                                       [<ffffffff810001dc>] do_one_initcall+0x3c/0x1a0
+[    6.372268]                                       [<ffffffff81de5767>] kernel_init+0x17a/0x204
+[    6.372268]                                       [<ffffffff81035de4>] kernel_thread_helper+0x4/0x10
+[    6.372268]  }
+[    6.372268]  ... key      at: [<ffffffff81bd5bd8>] sock_fs_type+0x58/0x80
+[    6.372268]  ... acquired at:
+[    6.372268]    [<ffffffff810b2940>] check_irq_usage+0x60/0xf0
+[    6.372268]    [<ffffffff810b41ff>] __lock_acquire+0xc4f/0x1450
+[    6.372268]    [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]    [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]    [<ffffffff81736f8c>] socket_get_id+0x3c/0x60
+[    6.372268]    [<ffffffff8173b6c3>] sock_i_ino+0x43/0x70
+[    6.372268]    [<ffffffff81790fc9>] tcp4_seq_show+0x1a9/0x520
+[    6.372268]    [<ffffffff81172005>] seq_read+0x295/0x430
+[    6.372268]    [<ffffffff811ad9f4>] proc_reg_read+0x84/0xc0
+[    6.372268]    [<ffffffff81150165>] vfs_read+0xb5/0x170
+[    6.372268]    [<ffffffff81150274>] sys_read+0x54/0x90
+[    6.372268]    [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
+[    6.372268] 
+[    6.372268] 
+[    6.372268] stack backtrace:
+[    6.372268] Pid: 2124, comm: pmcd Not tainted 2.6.35-rc5-dgc+ #58
+[    6.372268] Call Trace:
+[    6.372268]  [<ffffffff810b28d9>] check_usage+0x499/0x4a0
+[    6.372268]  [<ffffffff810b24c6>] ? check_usage+0x86/0x4a0
+[    6.372268]  [<ffffffff810af729>] ? __bfs+0x129/0x260
+[    6.372268]  [<ffffffff810b2940>] check_irq_usage+0x60/0xf0
+[    6.372268]  [<ffffffff810b41ff>] __lock_acquire+0xc4f/0x1450
+[    6.372268]  [<ffffffff810b4aa6>] lock_acquire+0xa6/0x160
+[    6.372268]  [<ffffffff81736f8c>] ? socket_get_id+0x3c/0x60
+[    6.372268]  [<ffffffff8182bb26>] _raw_spin_lock+0x36/0x70
+[    6.372268]  [<ffffffff81736f8c>] ? socket_get_id+0x3c/0x60
+[    6.372268]  [<ffffffff81736f8c>] socket_get_id+0x3c/0x60
+[    6.372268]  [<ffffffff8173b6c3>] sock_i_ino+0x43/0x70
+[    6.372268]  [<ffffffff81790fc9>] tcp4_seq_show+0x1a9/0x520
+[    6.372268]  [<ffffffff81791750>] ? established_get_first+0x60/0x120
+[    6.372268]  [<ffffffff8182beb7>] ? _raw_spin_lock_bh+0x67/0x70
+[    6.372268]  [<ffffffff81172005>] seq_read+0x295/0x430
+[    6.372268]  [<ffffffff81171d70>] ? seq_read+0x0/0x430
+[    6.372268]  [<ffffffff811ad9f4>] proc_reg_read+0x84/0xc0
+[    6.372268]  [<ffffffff81150165>] vfs_read+0xb5/0x170
+[    6.372268]  [<ffffffff81150274>] sys_read+0x54/0x90
+[    6.372268]  [<ffffffff81034ff2>] system_call_fastpath+0x16/0x1b
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
