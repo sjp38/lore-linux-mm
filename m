@@ -1,68 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BE1F6B02A4
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 13:38:36 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 061386B02A3
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 13:40:30 -0400 (EDT)
+Date: Fri, 23 Jul 2010 19:39:54 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 5/6] writeback: try more writeback as long as something
+ was written
+Message-ID: <20100723173953.GB20540@quack.suse.cz>
+References: <20100722050928.653312535@intel.com>
+ <20100722061823.050523298@intel.com>
 MIME-Version: 1.0
-Message-ID: <c979fa45-8878-4e40-9060-c3e929eebbab@default>
-Date: Fri, 23 Jul 2010 10:37:51 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V3 0/8] Cleancache: overview
-References: <20100621231809.GA11111@ca-server1.us.oracle.com4C49468B.40307@vflare.org>
- <840b32ff-a303-468e-9d4e-30fc92f629f8@default
- 20100723140440.GA12423@infradead.org
- 364c83bd-ccb2-48cc-920d-ffcf9ca7df19@default>
-In-Reply-To: <364c83bd-ccb2-48cc-920d-ffcf9ca7df19@default>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20100722061823.050523298@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>, ngupta@vflare.org
-Cc: akpm@linux-foundation.org, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Dan Magenheimer
-> Subject: RE: [PATCH V3 0/8] Cleancache: overview
->=20
-> > From: Christoph Hellwig [mailto:hch@infradead.org]
-> > Subject: Re: [PATCH V3 0/8] Cleancache: overview
-> >
-> > On Fri, Jul 23, 2010 at 06:58:03AM -0700, Dan Magenheimer wrote:
-> > > CHRISTOPH AND ANDREW, if you disagree and your concerns have
-> > > not been resolved, please speak up.
->=20
-> Hi Christoph --
->=20
-> Thanks very much for the quick (instantaneous?) reply!
->=20
-> > Anything that need modification of a normal non-shared fs is utterly
-> > broken and you'll get a clear NAK, so the propsal before is a good
-> > one.
->=20
-> Unless/until all filesystems are 100% built on top of VFS,
-> I have to disagree.  Abstractions (e.g. VFS) are never perfect.
+On Thu 22-07-10 13:09:33, Wu Fengguang wrote:
+> writeback_inodes_wb()/__writeback_inodes_sb() are not agressive in that
+> they only populate b_io when necessary at entrance time. When the queued
+> set of inodes are all synced, they just return, possibly with
+> wbc.nr_to_write > 0.
+> 
+> For kupdate and background writeback, there may be more eligible inodes
+> sitting in b_dirty when the current set of b_io inodes are completed. So
+> it is necessary to try another round of writeback as long as we made some
+> progress in this round. When there are no more eligible inodes, no more
+> inodes will be enqueued in queue_io(), hence nothing could/will be
+> synced and we may safely bail.
+> 
+> This will livelock sync when there are heavy dirtiers. However in that case
+> sync will already be livelocked w/o this patch, as the current livelock
+> avoidance code is virtually a no-op (for one thing, wb_time should be
+> set statically at sync start time and be used in move_expired_inodes()).
+> The sync livelock problem will be addressed in other patches.
+  Hmm, any reason why you don't solve this problem by just removing the
+condition before queue_io()? It would also make the logic simpler - always
+queue all inodes that are eligible for writeback...
 
-After thinking about this some more, I can see a way
-to enforce "opt-in" in the cleancache backend without
-any changes to non-generic fs code.   I think it's a horrible
-hack and we can try it, but I expect fs maintainers
-would prefer the explicit one-line-patch opt-in.
+								Honza
 
-1) Cleancache backend maintains a list of "known working"
-   filesystems (those that have been tested).
 
-2) Nitin's proposed changes pass the *sb as a parameter.
-  The string name of the filesystem type is available via
-  sb->s_type->name.  This can be compared against
-  the "known working" list.
-
-Using the sb pointer as a "handle" requires an extra
-table search on every cleancache get/put/flush,
-and fs/super.c changes are required for fs unmount
-notification anyway (e.g. to call cleancache_flush_fs)
-so I'd prefer to keep the cleancache_poolid addition
-to the sb.  I'll assume this is OK since this is in generic
-fs code.
-
-Dan
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   19 +++++++++++--------
+>  1 file changed, 11 insertions(+), 8 deletions(-)
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-22 13:07:51.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-22 13:07:54.000000000 +0800
+> @@ -640,20 +640,23 @@ static long wb_writeback(struct bdi_writ
+>  		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+>  
+>  		/*
+> -		 * If we consumed everything, see if we have more
+> +		 * Did we write something? Try for more
+> +		 *
+> +		 * This is needed _before_ the b_more_io test because the
+> +		 * background writeback moves inodes to b_io and works on
+> +		 * them in batches (in order to sync old pages first).  The
+> +		 * completion of the current batch does not necessarily mean
+> +		 * the overall work is done.
+>  		 */
+> -		if (wbc.nr_to_write <= 0)
+> +		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+>  			continue;
+> +
+>  		/*
+> -		 * Didn't write everything and we don't have more IO, bail
+> +		 * Nothing written and no more inodes for IO, bail
+>  		 */
+>  		if (list_empty(&wb->b_more_io))
+>  			break;
+> -		/*
+> -		 * Did we write something? Try for more
+> -		 */
+> -		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+> -			continue;
+> +
+>  		/*
+>  		 * Nothing written. Wait for some inode to
+>  		 * become available for writeback. Otherwise
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
