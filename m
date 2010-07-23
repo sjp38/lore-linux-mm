@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CAD60600365
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:35:42 -0400 (EDT)
-Received: by pwi8 with SMTP id 8so4376008pwi.14
-        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 11:35:35 -0700 (PDT)
-Message-ID: <4C49E111.2000106@vflare.org>
-Date: Sat, 24 Jul 2010 00:06:01 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BAAC66B02AD
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 15:22:54 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so4576582pxi.14
+        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 12:22:53 -0700 (PDT)
+Message-ID: <4C49EC29.4070202@vflare.org>
+Date: Sat, 24 Jul 2010 00:53:21 +0530
 From: Nitin Gupta <ngupta@vflare.org>
 Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Subject: Re: [PATCH V3 0/8] Cleancache: overview
-References: <20100621231809.GA11111@ca-server1.us.oracle.com4C49468B.40307@vflare.org> <840b32ff-a303-468e-9d4e-30fc92f629f8@default 20100723140440.GA12423@infradead.org 364c83bd-ccb2-48cc-920d-ffcf9ca7df19@default> <c979fa45-8878-4e40-9060-c3e929eebbab@default>
-In-Reply-To: <c979fa45-8878-4e40-9060-c3e929eebbab@default>
+Subject: Re: [PATCH 4/8] Shrink zcache based on memlimit
+References: <1279283870-18549-1-git-send-email-ngupta@vflare.org> <AANLkTinaX-huEMGP-k4mCSr0USQhJp68AUgOf4FHqr5Q@mail.gmail.com> <4C467D18.4050901@vflare.org> <201007210732.03909.edt@aei.ca>
+In-Reply-To: <201007210732.03909.edt@aei.ca>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
+To: Ed Tomlinson <edt@aei.ca>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Rik van Riel <riel@redhat.com>, Avi Kivity <avi@redhat.com>, Christoph Hellwig <hch@infradead.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 07/23/2010 11:07 PM, Dan Magenheimer wrote:
->> From: Dan Magenheimer
->> Subject: RE: [PATCH V3 0/8] Cleancache: overview
->>
->>> From: Christoph Hellwig [mailto:hch@infradead.org]
->>> Subject: Re: [PATCH V3 0/8] Cleancache: overview
+On 07/21/2010 05:02 PM, Ed Tomlinson wrote:
+> On Wednesday 21 July 2010 00:52:40 Nitin Gupta wrote:
+>> On 07/21/2010 04:33 AM, Minchan Kim wrote:
+>>> On Fri, Jul 16, 2010 at 9:37 PM, Nitin Gupta <ngupta@vflare.org> wrote:
+>>>> User can change (per-pool) memlimit using sysfs node:
+>>>> /sys/kernel/mm/zcache/pool<id>/memlimit
+>>>>
+>>>> When memlimit is set to a value smaller than current
+>>>> number of pages allocated for that pool, excess pages
+>>>> are now freed immediately instead of waiting for get/
+>>>> flush for these pages.
+>>>>
+>>>> Currently, victim page selection is essentially random.
+>>>> Automatic cache resizing and better page replacement
+>>>> policies will be implemented later.
 >>>
->>> On Fri, Jul 23, 2010 at 06:58:03AM -0700, Dan Magenheimer wrote:
->>>> CHRISTOPH AND ANDREW, if you disagree and your concerns have
->>>> not been resolved, please speak up.
+>>> Okay. I know this isn't end. I just want to give a concern before you end up.
+>>> I don't know how you implement reclaim policy.
+>>> In current implementation, you use memlimit for determining when reclaim happen.
+>>> But i think we also should follow global reclaim policy of VM.
+>>> I means although memlimit doen't meet, we should reclaim zcache if
+>>> system has a trouble to reclaim memory.
 >>
->> Hi Christoph --
+>> Yes, we should have a way to do reclaim depending on system memory pressure
+>> and also when user explicitly wants so i.e. when memlimit is lowered manually.
 >>
->> Thanks very much for the quick (instantaneous?) reply!
+>>> AFAIK, cleancache doesn't give any hint for that. so we should
+>>> implement it in zcache itself.
 >>
->>> Anything that need modification of a normal non-shared fs is utterly
->>> broken and you'll get a clear NAK, so the propsal before is a good
->>> one.
+>> I think cleancache should be kept minimal so yes, all reclaim policies should
+>> go in zcache layer only.
 >>
->> Unless/until all filesystems are 100% built on top of VFS,
->> I have to disagree.  Abstractions (e.g. VFS) are never perfect.
+>>> At first glance, we can use shrink_slab or oom_notifier. But both
+>>> doesn't give any information of zone although global reclaim do it by
+>>> per-zone.
+>>> AFAIK, Nick try to implement zone-aware shrink slab. Also if we need
+>>> it, we can change oom_notifier with zone-aware oom_notifier. Now it
+>>> seems anyone doesn't use oom_notifier so I am not sure it's useful.
+>>>
+>>
+>> I don't think we need these notifiers as we can simply create a thread
+>> to monitor cache hit rate, system memory pressure etc. and shrink/expand
+>> the cache accordingly.
 > 
-> After thinking about this some more, I can see a way
-> to enforce "opt-in" in the cleancache backend without
-> any changes to non-generic fs code.   I think it's a horrible
-> hack and we can try it, but I expect fs maintainers
-> would prefer the explicit one-line-patch opt-in.
+> Nitin,
 > 
-> 1) Cleancache backend maintains a list of "known working"
->    filesystems (those that have been tested).
-
-Checks against "known working list" indeed looks horrible.
-Isn't there any way to identify pagecache -> disk I/O boundaries
-which every filesystem obeys? I'm not yet sure but if this is
-doable, then we won't require such hacks.
-
-> 
-> 2) Nitin's proposed changes pass the *sb as a parameter.
->   The string name of the filesystem type is available via
->   sb->s_type->name.  This can be compared against
->   the "known working" list.
->
-
-sb->s_magic could also be used, or better if we can somehow
-get rid of these checks  :)
-
-> Using the sb pointer as a "handle" requires an extra
-> table search on every cleancache get/put/flush,
-> and fs/super.c changes are required for fs unmount
-> notification anyway (e.g. to call cleancache_flush_fs)
-> so I'd prefer to keep the cleancache_poolid addition
-> to the sb.  I'll assume this is OK since this is in generic
-> fs code.
+> Based on experience gained when adding the shrinker callbacks, I would 
+> strongly recommend you use them.  I tried several hacks along the lines of
+> what you are proposing before moving settling on the callbacks.  They 
+> are effective and make sure that memory is released when its required.
+> What would happen with the other methods is that memory would either 
+> not be released or would be released when it was not needed.
 > 
 
 
-I will also try making changes to cleancache so it does not
-touch any fs specific code. Though IMHO one liners to fs-code
-should really be acceptable but unfortunately this doesn't seem
-to be the case.  Maybe generic cleancache will have better
-chances.
+I had similar experience with "swap notify callback" -- yes, things
+don't seem to work without a proper callback. I will check if some
+callback already exists for OOM like condition or if new one can
+be added easily.
 
 Thanks,
 Nitin
