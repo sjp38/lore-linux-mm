@@ -1,222 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C34C26B024D
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 05:45:35 -0400 (EDT)
-Date: Fri, 23 Jul 2010 17:45:15 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 7/8] writeback: sync old inodes first in background
- writeback
-Message-ID: <20100723094515.GD5043@localhost>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
- <1279545090-19169-8-git-send-email-mel@csn.ul.ie>
- <20100719142145.GD12510@infradead.org>
- <20100719144046.GR13117@csn.ul.ie>
- <20100722085210.GA26714@localhost>
- <20100722092155.GA28425@localhost>
- <20100722104823.GF13117@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7766B024D
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 06:24:20 -0400 (EDT)
+Date: Fri, 23 Jul 2010 11:24:00 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/6] [RFC] writeback: try to write older pages first
+Message-ID: <20100723102400.GD5300@csn.ul.ie>
+References: <20100722050928.653312535@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100722104823.GF13117@csn.ul.ie>
+In-Reply-To: <20100722050928.653312535@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 06:48:23PM +0800, Mel Gorman wrote:
-> On Thu, Jul 22, 2010 at 05:21:55PM +0800, Wu Fengguang wrote:
-> > > I guess this new patch is more problem oriented and acceptable:
-> > > 
-> > > --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> > > +++ linux-next/mm/vmscan.c	2010-07-22 16:39:57.000000000 +0800
-> > > @@ -1217,7 +1217,8 @@ static unsigned long shrink_inactive_lis
-> > >  			count_vm_events(PGDEACTIVATE, nr_active);
-> > >  
-> > >  			nr_freed += shrink_page_list(&page_list, sc,
-> > > -							PAGEOUT_IO_SYNC);
-> > > +					priority < DEF_PRIORITY / 3 ?
-> > > +					PAGEOUT_IO_SYNC : PAGEOUT_IO_ASYNC);
-> > >  		}
-> > >  
-> > >  		nr_reclaimed += nr_freed;
-> > 
-> > This one looks better:
-> > ---
-> > vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
-> > 
-> > Fix "system goes totally unresponsive with many dirty/writeback pages"
-> > problem:
-> > 
-> > 	http://lkml.org/lkml/2010/4/4/86
-> > 
-> > The root cause is, wait_on_page_writeback() is called too early in the
-> > direct reclaim path, which blocks many random/unrelated processes when
-> > some slow (USB stick) writeback is on the way.
-> > 
+I queued these up for testing yesterday before starting a review. For
+anyone watching, the following patches are pre-requisites from
+linux-next if one wants to test against 2.6.35-rc5. I did this because I
+wanted to test as few changes as possible
+
+a75db72d30a6402f4b1d841af3b4ce43682d0ac4 writeback: remove wb_list 
+2225753c10aef6af9c764a295b71d11bc483c4d6 writeback: merge bdi_writeback_task and bdi_start_fn
+aab24fcf6f5ccf0e8de3cc333559bddf9a46f11e writeback: Initial tracing support
+f689fba23f3819e3e0bc237c104f2ec25decc219 writeback: Add tracing to balance_dirty_pages
+ca43586868b49eb5a07d895708e4d257e2df814e simplify checks for I_CLEAR/I_FREEING
+
+I applied your series on top of this and fired it up. The ordering of
+patch application was still teh same
+
+tracing
+no direct writeback
+Wu's patches and Christoph's pre-reqs from linux-next
+Kick flusher threads when dirty pages applied
+
+With them applied, btrfs failed to build but if it builds for you, it
+just means I didn't bring a required patch from linux-next. I was
+testing against XFS so I didn't dig too deep.
+
+On Thu, Jul 22, 2010 at 01:09:28PM +0800, Wu Fengguang wrote:
 > 
-> So, what's the bet if lumpy reclaim is a factor that it's
-> high-order-but-low-cost such as fork() that are getting caught by this since
-> [78dc583d: vmscan: low order lumpy reclaim also should use PAGEOUT_IO_SYNC]
-> was introduced?
-
-Sorry I'm a bit confused by your wording..
-
-> That could manifest to the user as stalls creating new processes when under
-> heavy IO. I would be surprised it would freeze the entire system but certainly
-> any new work would feel very slow.
+> The basic way of avoiding pageout() is to make the flusher sync inodes in the
+> right order. Oldest dirty inodes contains oldest pages. The smaller inode it
+> is, the more correlation between inode dirty time and its pages' dirty time.
+> So for small dirty inodes, syncing in the order of inode dirty time is able to
+> avoid pageout(). If pageout() is still triggered frequently in this case, the
+> 30s dirty expire time may be too long and could be shrinked adaptively; or it
+> may be a stressed memcg list whose dirty inodes/pages are more hard to track.
 > 
-> > A simple dd can easily create a big range of dirty pages in the LRU
-> > list. Therefore priority can easily go below (DEF_PRIORITY - 2) in a
-> > typical desktop, which triggers the lumpy reclaim mode and hence
-> > wait_on_page_writeback().
-> > 
+
+Have you confirmed this theory with the trace points? It makes perfect
+sense and is very rational but proof is a plus. I'm guessing you have
+some decent writeback-related tests that might be of use. Mine have a
+big mix of anon and file writeback so it's not as clear-cut.
+
+Monitoring it isn't hard. Mount debugfs, enable the vmscan tracepoints
+and read the tracing_pipe. To reduce interference, I always pipe it
+through gzip and do post-processing afterwards offline with the script
+included in Documentation/
+
+Here is what I got from sysbench on x86-64 (other machines hours away)
+
+
+SYSBENCH FTrace Reclaim Statistics
+                    traceonly-v5r6         nodirect-v5r7      flusholdest-v5r7     flushforward-v5r7
+Direct reclaims                                683        785        670        938 
+Direct reclaim pages scanned                199776     161195     200400     166639 
+Direct reclaim write file async I/O          64802          0          0          0 
+Direct reclaim write anon async I/O           1009        419       1184      11390 
+Direct reclaim write file sync I/O              18          0          0          0 
+Direct reclaim write anon sync I/O               0          0          0          0 
+Wake kswapd requests                        685360     697255     691009     864602 
+Kswapd wakeups                                1596       1517       1517       1545 
+Kswapd pages scanned                      17527865   16817554   16816510   15032525 
+Kswapd reclaim write file async I/O         888082     618123     649167     147903 
+Kswapd reclaim write anon async I/O         229724     229123     233639     243561 
+Kswapd reclaim write file sync I/O               0          0          0          0 
+Kswapd reclaim write anon sync I/O               0          0          0          0 
+Time stalled direct reclaim (ms)             32.79      22.47      19.75       6.34 
+Time kswapd awake (ms)                     2192.03    2165.17    2112.73    2055.90 
+
+User/Sys Time Running Test (seconds)         663.3    656.37    664.14    654.63
+Percentage Time Spent Direct Reclaim         0.00%     0.00%     0.00%     0.00%
+Total Elapsed Time (seconds)               6703.22   6468.78   6472.69   6479.62
+Percentage Time kswapd Awake                 0.03%     0.00%     0.00%     0.00%
+
+Flush oldest actually increased the number of pages written back by
+kswapd but the anon writeback is also high as swap is involved. Kicking
+flusher threads also helps a lot. It helps less than previous released
+because I noticed I was kicking flusher threads for both anon and file
+dirty pages which is cheating. It's now only waking the threads for
+file. It's still a reduction of 84% overall so nothing to sneeze at.
+
+What the patch did do was reduce time stalled in direct reclaim and time
+kswapd spent awake so it still might be going the right direction. I
+don't have a feeling for how much the writeback figures change between
+runs because they take so long to run.
+
+STRESS-HIGHALLOC FTrace Reclaim Statistics
+                  stress-highalloc      stress-highalloc      stress-highalloc      stress-highalloc
+                    traceonly-v5r6         nodirect-v5r7      flusholdest-v5r7     flushforward-v5r7
+Direct reclaims                               1221       1284       1127       1252 
+Direct reclaim pages scanned                146220     186156     142075     140617 
+Direct reclaim write file async I/O           3433          0          0          0 
+Direct reclaim write anon async I/O          25238      28758      23940      23247 
+Direct reclaim write file sync I/O            3095          0          0          0 
+Direct reclaim write anon sync I/O           10911     305579     281824     246251 
+Wake kswapd requests                          1193       1196       1088       1209 
+Kswapd wakeups                                 805        824        758        804 
+Kswapd pages scanned                      30953364   52621368   42722498   30945547 
+Kswapd reclaim write file async I/O         898087     241135     570467      54319 
+Kswapd reclaim write anon async I/O        2278607    2201894    1885741    1949170 
+Kswapd reclaim write file sync I/O               0          0          0          0 
+Kswapd reclaim write anon sync I/O               0          0          0          0 
+Time stalled direct reclaim (ms)           8567.29    6628.83    6520.39    6947.23 
+Time kswapd awake (ms)                     5847.60    3589.43    3900.74   15837.59 
+
+User/Sys Time Running Test (seconds)       2824.76   2833.05   2833.26   2830.46
+Percentage Time Spent Direct Reclaim         0.25%     0.00%     0.00%     0.00%
+Total Elapsed Time (seconds)              10920.14   9021.17   8872.06   9301.86
+Percentage Time kswapd Awake                 0.15%     0.00%     0.00%     0.00%
+
+Same here, the number of pages written back by kswapd increased but
+again anon writeback was a big factor. Kicking threads when dirty pages
+are encountered still helps a lot with a 94% reduction of pages written
+back overall..
+
+Also, your patch really helped the time spent stalled by direct reclaim
+and kswapd was awake a lot less less with tests completing far faster.
+
+Overally, I still think your series if a big help (although I don't know if
+the patches in linux-next are also making a difference) but it's not actually
+reducing the pages encountered by direct reclaim. Maybe that is because
+the tests were making more forward progress and so scanning faster. The
+sysbench performance results are too varied to draw conclusions from but it
+did slightly improve the success rate of high-order allocations.
+
+The flush-forward patches would appear to be a requirement. Christoph
+first described them as a band-aid but he didn't chuck rocks at me when
+the patch was actually released. Right now, I'm leaning towards pushing
+it and judge by the Swear Meter how good/bad others think it is. So far
+it's, me pro, Rik pro, Christoph maybe.
+
+> For a large dirty inode, it may flush lots of newly dirtied pages _after_
+> syncing the expired pages. This is the normal case for a single-stream
+> sequential dirtier, where older pages are in lower offsets.  In this case we
+> shall not insist on syncing the whole large dirty inode before considering the
+> other small dirty inodes. This risks wasting time syncing 1GB freshly dirtied
+> pages before syncing the other N*1MB expired dirty pages who are approaching
+> the end of the LRU list and hence pageout().
 > 
-> which triggers the lumpy reclaim mode for high-order allocations.
 
-Exactly. Changelog updated.
+Intuitively, this makes a lot of sense.
 
-> lumpy reclaim mode is not something that is triggered just because priority
-> is high.
-
-Right.
-
-> I think there is a second possibility for causing stalls as well that is
-> unrelated to lumpy reclaim. Once dirty_limit is reached, new page faults may
-> also result in stalls. If it is taking a long time to writeback dirty data,
-> random processes could be getting stalled just because they happened to dirty
-> data at the wrong time.  This would be the case if the main dirtying process
-> (e.g. dd) is not calling sync and dropping pages it's no longer using.
-
-The dirty_limit throttling will slow down the dirty process to the
-writeback throughput. If a process is dirtying files on sda (HDD),
-it will be throttled at 80MB/s. If another process is dirtying files
-on sdb (USB 1.1), it will be throttled at 1MB/s.
-
-So dirty throttling will slow things down. However the slow down
-should be smooth (a series of 100ms stalls instead of a sudden 10s
-stall), and won't impact random processes (which does no read/write IO
-at all).
-
-> > In Andreas' case, 512MB/1024 = 512KB, this is way too low comparing to
-> > the 22MB writeback and 190MB dirty pages. There can easily be a
-> > continuous range of 512KB dirty/writeback pages in the LRU, which will
-> > trigger the wait logic.
-> > 
-> > To make it worse, when there are 50MB writeback pages and USB 1.1 is
-> > writing them in 1MB/s, wait_on_page_writeback() may stuck for up to 50
-> > seconds.
-> > 
-> > So only enter sync write&wait when priority goes below DEF_PRIORITY/3,
-> > or 6.25% LRU. As the default dirty throttle ratio is 20%, sync write&wait
-> > will hardly be triggered by pure dirty pages.
-> > 
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  mm/vmscan.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > --- linux-next.orig/mm/vmscan.c	2010-07-22 16:36:58.000000000 +0800
-> > +++ linux-next/mm/vmscan.c	2010-07-22 17:03:47.000000000 +0800
-> > @@ -1206,7 +1206,7 @@ static unsigned long shrink_inactive_lis
-> >  		 * but that should be acceptable to the caller
-> >  		 */
-> >  		if (nr_freed < nr_taken && !current_is_kswapd() &&
-> > -		    sc->lumpy_reclaim_mode) {
-> > +		    sc->lumpy_reclaim_mode && priority < DEF_PRIORITY / 3) {
-> >  			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> >  
+> For a large dirty inode, it may also flush lots of newly dirtied pages _before_
+> hitting the desired old ones, in which case it helps for pageout() to do some
+> clustered writeback, and/or set mapping->writeback_index to help the flusher
+> focus on old pages.
 > 
-> This will also delay waiting on congestion for really high-order
-> allocations such as huge pages, some video decoder and the like which
-> really should be stalling.
 
-I absolutely agree that high order allocators should be somehow throttled.
+Will put this idea on the maybe pile.
 
-However given that one can easily create a large _continuous_ range of
-dirty LRU pages, let someone bumping all the way through the range
-sounds a bit cruel..
-
-> How about the following compile-tested diff?
-> It takes the cost of the high-order allocation into account and the
-> priority when deciding whether to synchronously wait or not.
-
-Very nice patch. Thanks!
-
-Cheers,
-Fengguang
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9c7e57c..d652e0c 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1110,6 +1110,48 @@ static int too_many_isolated(struct zone *zone, int file,
->  }
->  
->  /*
-> + * Returns true if the caller should stall on congestion and retry to clean
-> + * the list of pages synchronously.
-> + *
-> + * If we are direct reclaiming for contiguous pages and we do not reclaim
-> + * everything in the list, try again and wait for IO to complete. This
-> + * will stall high-order allocations but that should be acceptable to
-> + * the caller
-> + */
-> +static inline bool should_reclaim_stall(unsigned long nr_taken,
-> +				unsigned long nr_freed,
-> +				int priority,
-> +				struct scan_control *sc)
-> +{
-> +	int lumpy_stall_priority;
-> +
-> +	/* kswapd should not stall on sync IO */
-> +	if (current_is_kswapd())
-> +		return false;
-> +
-> +	/* Only stall on lumpy reclaim */
-> +	if (!sc->lumpy_reclaim_mode)
-> +		return false;
-> +
-> +	/* If we have relaimed everything on the isolated list, no stall */
-> +	if (nr_freed == nr_taken)
-> +		return false;
-> +
-> +	/*
-> +	 * For high-order allocations, there are two stall thresholds.
-> +	 * High-cost allocations stall immediately where as lower
-> +	 * order allocations such as stacks require the scanning
-> +	 * priority to be much higher before stalling
-> +	 */
-> +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> +		lumpy_stall_priority = DEF_PRIORITY;
-> +	else
-> +		lumpy_stall_priority = DEF_PRIORITY / 3;
-> +
-> +	return priority <= lumpy_stall_priority;
-> +}
-> +
-> +/*
->   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
->   * of reclaimed pages
->   */
-> @@ -1199,14 +1241,8 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
->  		nr_scanned += nr_scan;
->  		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
->  
-> -		/*
-> -		 * If we are direct reclaiming for contiguous pages and we do
-> -		 * not reclaim everything in the list, try again and wait
-> -		 * for IO to complete. This will stall high-order allocations
-> -		 * but that should be acceptable to the caller
-> -		 */
-> -		if (nr_freed < nr_taken && !current_is_kswapd() &&
-> -		    sc->lumpy_reclaim_mode) {
-> +		/* Check if we should syncronously wait for writeback */
-> +		if (should_reclaim_stall(nr_taken, nr_freed, priority, sc)) {
->  			congestion_wait(BLK_RW_ASYNC, HZ/10);
->  
->  			/*
+> For a large dirty inode, it may also have intermixed old and new dirty pages.
+> In this case we need to make sure the inode is queued for IO before some of
+> its pages hit pageout(). Adaptive dirty expire time helps here.
 > 
+> OK, end of the vapour ideas. As for this patchset, it fixes the current
+> kupdate/background writeback priority:
 > 
+> - the kupdate/background writeback shall include newly expired inodes at each
+>   queue_io() time, as the large inodes left over from previous writeback rounds
+>   are likely to have less density of old pages.
+> 
+> - the background writeback shall consider expired inodes first, just like the
+>   kupdate writeback
+> 
+
+I haven't actually reviewed these. I got testing kicked off first
+because it didn't require brains :)
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
