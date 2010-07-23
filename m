@@ -1,53 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CB9046B02A4
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 10:04:46 -0400 (EDT)
-From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 1/2] xfs: fix shrinker build
-Date: Sat, 24 Jul 2010 00:04:01 +1000
-Message-Id: <1279893842-4246-2-git-send-email-david@fromorbit.com>
-In-Reply-To: <20100723111310.GI32635@dastard>
-References: <20100723111310.GI32635@dastard>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D24D16B02A5
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 10:04:54 -0400 (EDT)
+Date: Fri, 23 Jul 2010 10:04:40 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH V3 0/8] Cleancache: overview
+Message-ID: <20100723140440.GA12423@infradead.org>
+References: <20100621231809.GA11111@ca-server1.us.oracle.com4C49468B.40307@vflare.org>
+ <840b32ff-a303-468e-9d4e-30fc92f629f8@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <840b32ff-a303-468e-9d4e-30fc92f629f8@default>
 Sender: owner-linux-mm@kvack.org
-To: npiggin@kernel.dk
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fmayhar@google.com, johnstul@us.ibm.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: ngupta@vflare.org, Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Dave Chinner <dchinner@redhat.com>
+On Fri, Jul 23, 2010 at 06:58:03AM -0700, Dan Magenheimer wrote:
+> CHRISTOPH AND ANDREW, if you disagree and your concerns have
+> not been resolved, please speak up.
 
-Remove the stray mount list lock reference from the shrinker code.
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
- fs/xfs/linux-2.6/xfs_sync.c |    5 +----
- 1 files changed, 1 insertions(+), 4 deletions(-)
-
-diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
-index 7a5a368..05426bf 100644
---- a/fs/xfs/linux-2.6/xfs_sync.c
-+++ b/fs/xfs/linux-2.6/xfs_sync.c
-@@ -916,10 +916,8 @@ xfs_reclaim_inode_shrink(
- 
- done:
- 	nr = shrinker_do_scan(&nr_to_scan, SHRINK_BATCH);
--	if (!nr) {
--		up_read(&xfs_mount_list_lock);
-+	if (!nr)
- 		return 0;
--	}
- 	xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
- 				XFS_ICI_RECLAIM_TAG, 1, &nr);
- 	/* if we don't exhaust the scan, don't bother coming back */
-@@ -935,7 +933,6 @@ xfs_inode_shrinker_register(
- 	struct xfs_mount	*mp)
- {
- 	mp->m_inode_shrink.shrink = xfs_reclaim_inode_shrink;
--	mp->m_inode_shrink.seeks = DEFAULT_SEEKS;
- 	register_shrinker(&mp->m_inode_shrink);
- }
- 
--- 
-1.7.1
+Anything that need modification of a normal non-shared fs is utterly
+broken and you'll get a clear NAK, so the propsal before is a good
+one.  There's a couple more issues like the still weird prototypes,
+e.g. and i_ino might not be enoug to uniquely identify an inode
+on serveral filesystems that use 64-bit inode inode numbers on 32-bit
+systems.  Also making the ops vector global is just a bad idea.
+There is nothing making this sort of caching inherently global.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
