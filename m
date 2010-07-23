@@ -1,82 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1835E6B02A8
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:06:39 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so4382760pvc.14
-        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 11:06:34 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id D1EAF600365
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:15:52 -0400 (EDT)
+Date: Fri, 23 Jul 2010 20:15:21 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 4/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20100723181521.GC20540@quack.suse.cz>
+References: <20100722050928.653312535@intel.com>
+ <20100722061822.906037624@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20100723152552.GE8127@basil.fritz.box>
-References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
-	<20100723234938.88EB.A69D9226@jp.fujitsu.com>
-	<20100723152552.GE8127@basil.fritz.box>
-Date: Sat, 24 Jul 2010 03:06:33 +0900
-Message-ID: <AANLkTin3EbBe_x2JpdaOyz7KsBb7ztW++1=w_4RrPyK3@mail.gmail.com>
-Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100722061822.906037624@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
->> > processes shared map to the file. Each process read access the whole file and
->> > then exit. The process exit will do unmap_vmas() and cause a lot of
->> > activate_page() call. In such workload, we saw about 58% total time reduction
->> > with below patch.
->>
->> I'm not sure this. Why process exiting on your workload call unmap_vmas?
->
-> Trick question?
->
-> Getting rid of a mm on process exit requires unmapping the vmas.
+On Thu 22-07-10 13:09:32, Wu Fengguang wrote:
+> A background flush work may run for ever. So it's reasonable for it to
+> mimic the kupdate behavior of syncing old/expired inodes first.
+> 
+> The policy is
+> - enqueue all newly expired inodes at each queue_io() time
+> - retry with halfed expire interval until get some inodes to sync
+  Hmm, this logic looks a bit arbitrary to me. What I actually don't like
+very much about this that when there aren't inodes older than say 2
+seconds, you'll end up queueing just inodes between 2s and 1s. So I'd
+rather just queue inodes older than the limit and if there are none, just
+queue all other dirty inodes.
 
-Oops, I misparsed unmap_vmas() and unuse_vma(). thanks fix me.
+								Honza
 
-Ho Hum, zap_pte_range() call mark_page_accessed(). it was introduced slightly
-recent (below).
-
-----------------------------------------------------------------------------------
-commit bf3f3bc5e734706730c12a323f9b2068052aa1f0
-Author: Nick Piggin <npiggin@suse.de>
-Date:   Tue Jan 6 14:38:55 2009 -0800
-
-    mm: don't mark_page_accessed in fault path
-----------------------------------------------------------------------------------
-
-
-So, I guess we can apply following small optimization.
-the intention is, if the exiting process is last mapped one,
-we don't need to refrect its pte_young() because it is good
-sign that the page is never touched.
-
-Of cource, this is offtopic. On Shaouhua's testcase, 64 processes
-shared map to the file.
-
--------------------------------------------------------------------------------
-diff --git a/mm/memory.c b/mm/memory.c
-index 833952d..ebdfcb1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -951,7 +951,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
-                                if (pte_dirty(ptent))
-                                        set_page_dirty(page);
-                                if (pte_young(ptent) &&
--                                   likely(!VM_SequentialReadHint(vma)))
-+                                   (page_mapcount(page) != 1) &&
-+                                   !VM_SequentialReadHint(vma))
-                                        mark_page_accessed(page);
-                                rss[MM_FILEPAGES]--;
--------------------------------------------------------------------------------
-
-One more offtopic:
-we need to move ClearPageReferenced() from mark_page_accessed()
-to __activate_page() honorly. unuse_vma() case also need to clear
-page-referenced bit. I think.
-
-
-Anyway, I agree original patch concept is fine. Thanks a lot of productive
-information!
+> CC: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   20 ++++++++++++++------
+>  1 file changed, 14 insertions(+), 6 deletions(-)
+> 
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-22 12:56:42.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-22 13:07:51.000000000 +0800
+> @@ -217,14 +217,14 @@ static void move_expired_inodes(struct l
+>  				struct writeback_control *wbc)
+>  {
+>  	unsigned long expire_interval = 0;
+> -	unsigned long older_than_this;
+> +	unsigned long older_than_this = 0; /* reset to kill gcc warning */
+>  	LIST_HEAD(tmp);
+>  	struct list_head *pos, *node;
+>  	struct super_block *sb = NULL;
+>  	struct inode *inode;
+>  	int do_sb_sort = 0;
+>  
+> -	if (wbc->for_kupdate) {
+> +	if (wbc->for_kupdate || wbc->for_background) {
+>  		expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
+>  		older_than_this = jiffies - expire_interval;
+>  	}
+> @@ -232,8 +232,15 @@ static void move_expired_inodes(struct l
+>  	while (!list_empty(delaying_queue)) {
+>  		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+>  		if (expire_interval &&
+> -		    inode_dirtied_after(inode, older_than_this))
+> -			break;
+> +		    inode_dirtied_after(inode, older_than_this)) {
+> +			if (wbc->for_background &&
+> +			    list_empty(dispatch_queue) && list_empty(&tmp)) {
+> +				expire_interval >>= 1;
+> +				older_than_this = jiffies - expire_interval;
+> +				continue;
+> +			} else
+> +				break;
+> +		}
+>  		if (sb && sb != inode->i_sb)
+>  			do_sb_sort = 1;
+>  		sb = inode->i_sb;
+> @@ -521,7 +528,8 @@ void writeback_inodes_wb(struct bdi_writ
+>  
+>  	wbc->wb_start = jiffies; /* livelock avoidance */
+>  	spin_lock(&inode_lock);
+> -	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+> +
+> +	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
+>  		queue_io(wb, wbc);
+>  
+>  	while (!list_empty(&wb->b_io)) {
+> @@ -550,7 +558,7 @@ static void __writeback_inodes_sb(struct
+>  
+>  	wbc->wb_start = jiffies; /* livelock avoidance */
+>  	spin_lock(&inode_lock);
+> -	if (!wbc->for_kupdate || list_empty(&wb->b_io))
+> +	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
+>  		queue_io(wb, wbc);
+>  	writeback_sb_inodes(sb, wb, wbc, true);
+>  	spin_unlock(&inode_lock);
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
