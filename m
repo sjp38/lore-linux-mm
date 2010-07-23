@@ -1,191 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E75600365
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:18:20 -0400 (EDT)
-Date: Fri, 23 Jul 2010 20:17:51 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D127600365
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:24:42 -0400 (EDT)
+Date: Fri, 23 Jul 2010 20:24:14 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/6] writeback: the kupdate expire timestamp should be
- a moving target
-Message-ID: <20100723181751.GE20540@quack.suse.cz>
+Subject: Re: [PATCH 3/6] writeback: kill writeback_control.more_io
+Message-ID: <20100723182413.GF20540@quack.suse.cz>
 References: <20100722050928.653312535@intel.com>
- <20100722061822.630779474@intel.com>
+ <20100722061822.763629019@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100722061822.630779474@intel.com>
+In-Reply-To: <20100722061822.763629019@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 22-07-10 13:09:30, Wu Fengguang wrote:
-> Dynamicly compute the dirty expire timestamp at queue_io() time.
-> Also remove writeback_control.older_than_this which is no longer used.
-> 
-> writeback_control.older_than_this used to be determined at entrance to
-> the kupdate writeback work. This _static_ timestamp may go stale if the
-> kupdate work runs on and on. The flusher may then stuck with some old
-> busy inodes, never considering newly expired inodes thereafter.
-  This seems to make sense. The patch looks fine as well.
+On Thu 22-07-10 13:09:31, Wu Fengguang wrote:
+> When wbc.more_io was first introduced, it indicates whether there are
+> at least one superblock whose s_more_io contains more IO work. Now with
+> the per-bdi writeback, it can be replaced with a simple b_more_io test.
+  Looks fine.
 
 Acked-by: Jan Kara <jack@suse.cz>
 
-								Honza
 > 
-> This has two possible problems:
-> 
-> - It is unfair for a large dirty inode to delay (for a long time) the
->   writeback of small dirty inodes.
-> 
-> - As time goes by, the large and busy dirty inode may contain only
->   _freshly_ dirtied pages. Ignoring newly expired dirty inodes risks
->   delaying the expired dirty pages to the end of LRU lists, triggering
->   the very bad pageout(). Neverthless this patch merely addresses part
->   of the problem.
-> 
-> CC: Jan Kara <jack@suse.cz>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 > ---
->  fs/fs-writeback.c                |   24 +++++++++---------------
->  include/linux/writeback.h        |    2 --
->  include/trace/events/writeback.h |    6 +-----
->  mm/backing-dev.c                 |    1 -
->  mm/page-writeback.c              |    1 -
->  5 files changed, 10 insertions(+), 24 deletions(-)
+>  fs/fs-writeback.c                |    9 ++-------
+>  include/linux/writeback.h        |    1 -
+>  include/trace/events/writeback.h |    5 +----
+>  3 files changed, 3 insertions(+), 12 deletions(-)
 > 
-> --- linux-next.orig/fs/fs-writeback.c	2010-07-21 22:20:01.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-07-22 11:23:27.000000000 +0800
-> @@ -216,16 +216,23 @@ static void move_expired_inodes(struct l
->  				struct list_head *dispatch_queue,
->  				struct writeback_control *wbc)
->  {
-> +	unsigned long expire_interval = 0;
-> +	unsigned long older_than_this;
->  	LIST_HEAD(tmp);
->  	struct list_head *pos, *node;
->  	struct super_block *sb = NULL;
->  	struct inode *inode;
->  	int do_sb_sort = 0;
->  
-> +	if (wbc->for_kupdate) {
-> +		expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
-> +		older_than_this = jiffies - expire_interval;
-> +	}
-> +
->  	while (!list_empty(delaying_queue)) {
->  		inode = list_entry(delaying_queue->prev, struct inode, i_list);
-> -		if (wbc->older_than_this &&
-> -		    inode_dirtied_after(inode, *wbc->older_than_this))
-> +		if (expire_interval &&
-> +		    inode_dirtied_after(inode, older_than_this))
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-22 11:23:27.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-22 12:56:42.000000000 +0800
+> @@ -507,12 +507,8 @@ static int writeback_sb_inodes(struct su
+>  		iput(inode);
+>  		cond_resched();
+>  		spin_lock(&inode_lock);
+> -		if (wbc->nr_to_write <= 0) {
+> -			wbc->more_io = 1;
+> +		if (wbc->nr_to_write <= 0)
+>  			return 1;
+> -		}
+> -		if (!list_empty(&wb->b_more_io))
+> -			wbc->more_io = 1;
+>  	}
+>  	/* b_io is empty */
+>  	return 1;
+> @@ -622,7 +618,6 @@ static long wb_writeback(struct bdi_writ
+>  		if (work->for_background && !over_bground_thresh())
 >  			break;
->  		if (sb && sb != inode->i_sb)
->  			do_sb_sort = 1;
-> @@ -583,29 +590,19 @@ static inline bool over_bground_thresh(v
->   * Try to run once per dirty_writeback_interval.  But if a writeback event
->   * takes longer than a dirty_writeback_interval interval, then leave a
->   * one-second gap.
-> - *
-> - * older_than_this takes precedence over nr_to_write.  So we'll only write back
-> - * all dirty pages if they are all attached to "old" mappings.
->   */
->  static long wb_writeback(struct bdi_writeback *wb,
->  			 struct wb_writeback_work *work)
->  {
->  	struct writeback_control wbc = {
->  		.sync_mode		= work->sync_mode,
-> -		.older_than_this	= NULL,
->  		.for_kupdate		= work->for_kupdate,
->  		.for_background		= work->for_background,
->  		.range_cyclic		= work->range_cyclic,
->  	};
-> -	unsigned long oldest_jif;
->  	long wrote = 0;
->  	struct inode *inode;
 >  
-> -	if (wbc.for_kupdate) {
-> -		wbc.older_than_this = &oldest_jif;
-> -		oldest_jif = jiffies -
-> -				msecs_to_jiffies(dirty_expire_interval * 10);
-> -	}
->  	if (!wbc.range_cyclic) {
->  		wbc.range_start = 0;
->  		wbc.range_end = LLONG_MAX;
-> @@ -998,9 +995,6 @@ EXPORT_SYMBOL(__mark_inode_dirty);
->   * Write out a superblock's list of dirty inodes.  A wait will be performed
->   * upon no inodes, all inodes or the final one, depending upon sync_mode.
->   *
-> - * If older_than_this is non-NULL, then only write out inodes which
-> - * had their first dirtying at a time earlier than *older_than_this.
-> - *
->   * If `bdi' is non-zero then we're being asked to writeback a specific queue.
->   * This function assumes that the blockdev superblock's inodes are backed by
->   * a variety of queues, so all inodes are searched.  For other superblocks,
-> --- linux-next.orig/include/linux/writeback.h	2010-07-21 22:20:02.000000000 +0800
-> +++ linux-next/include/linux/writeback.h	2010-07-22 11:23:27.000000000 +0800
-> @@ -28,8 +28,6 @@ enum writeback_sync_modes {
->   */
->  struct writeback_control {
->  	enum writeback_sync_modes sync_mode;
-> -	unsigned long *older_than_this;	/* If !NULL, only write back inodes
-> -					   older than this */
->  	unsigned long wb_start;         /* Time writeback_inodes_wb was
->  					   called. This is needed to avoid
->  					   extra jobs and livelock */
-> --- linux-next.orig/include/trace/events/writeback.h	2010-07-21 22:20:02.000000000 +0800
-> +++ linux-next/include/trace/events/writeback.h	2010-07-22 11:23:27.000000000 +0800
-> @@ -100,7 +100,6 @@ DECLARE_EVENT_CLASS(wbc_class,
+> -		wbc.more_io = 0;
+>  		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
+>  		wbc.pages_skipped = 0;
+>  
+> @@ -644,7 +639,7 @@ static long wb_writeback(struct bdi_writ
+>  		/*
+>  		 * Didn't write everything and we don't have more IO, bail
+>  		 */
+> -		if (!wbc.more_io)
+> +		if (list_empty(&wb->b_more_io))
+>  			break;
+>  		/*
+>  		 * Did we write something? Try for more
+> --- linux-next.orig/include/linux/writeback.h	2010-07-22 11:23:27.000000000 +0800
+> +++ linux-next/include/linux/writeback.h	2010-07-22 11:24:46.000000000 +0800
+> @@ -49,7 +49,6 @@ struct writeback_control {
+>  	unsigned for_background:1;	/* A background writeback */
+>  	unsigned for_reclaim:1;		/* Invoked from the page allocator */
+>  	unsigned range_cyclic:1;	/* range_start is cyclic */
+> -	unsigned more_io:1;		/* more io to be dispatched */
+>  };
+>  
+>  /*
+> --- linux-next.orig/include/trace/events/writeback.h	2010-07-22 11:23:27.000000000 +0800
+> +++ linux-next/include/trace/events/writeback.h	2010-07-22 11:24:46.000000000 +0800
+> @@ -99,7 +99,6 @@ DECLARE_EVENT_CLASS(wbc_class,
+>  		__field(int, for_background)
 >  		__field(int, for_reclaim)
 >  		__field(int, range_cyclic)
->  		__field(int, more_io)
-> -		__field(unsigned long, older_than_this)
+> -		__field(int, more_io)
 >  		__field(long, range_start)
 >  		__field(long, range_end)
 >  	),
-> @@ -115,14 +114,12 @@ DECLARE_EVENT_CLASS(wbc_class,
+> @@ -113,13 +112,12 @@ DECLARE_EVENT_CLASS(wbc_class,
+>  		__entry->for_background	= wbc->for_background;
 >  		__entry->for_reclaim	= wbc->for_reclaim;
 >  		__entry->range_cyclic	= wbc->range_cyclic;
->  		__entry->more_io	= wbc->more_io;
-> -		__entry->older_than_this = wbc->older_than_this ?
-> -						*wbc->older_than_this : 0;
+> -		__entry->more_io	= wbc->more_io;
 >  		__entry->range_start	= (long)wbc->range_start;
 >  		__entry->range_end	= (long)wbc->range_end;
 >  	),
 >  
 >  	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
-> -		"bgrd=%d reclm=%d cyclic=%d more=%d older=0x%lx "
-> +		"bgrd=%d reclm=%d cyclic=%d more=%d "
+> -		"bgrd=%d reclm=%d cyclic=%d more=%d "
+> +		"bgrd=%d reclm=%d cyclic=%d "
 >  		"start=0x%lx end=0x%lx",
 >  		__entry->name,
 >  		__entry->nr_to_write,
-> @@ -133,7 +130,6 @@ DECLARE_EVENT_CLASS(wbc_class,
+> @@ -129,7 +127,6 @@ DECLARE_EVENT_CLASS(wbc_class,
+>  		__entry->for_background,
 >  		__entry->for_reclaim,
 >  		__entry->range_cyclic,
->  		__entry->more_io,
-> -		__entry->older_than_this,
+> -		__entry->more_io,
 >  		__entry->range_start,
 >  		__entry->range_end)
 >  )
-> --- linux-next.orig/mm/page-writeback.c	2010-07-21 22:20:02.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-07-21 22:20:03.000000000 +0800
-> @@ -482,7 +482,6 @@ static void balance_dirty_pages(struct a
->  	for (;;) {
->  		struct writeback_control wbc = {
->  			.sync_mode	= WB_SYNC_NONE,
-> -			.older_than_this = NULL,
->  			.nr_to_write	= write_chunk,
->  			.range_cyclic	= 1,
->  		};
-> --- linux-next.orig/mm/backing-dev.c	2010-07-22 11:23:34.000000000 +0800
-> +++ linux-next/mm/backing-dev.c	2010-07-22 11:23:39.000000000 +0800
-> @@ -271,7 +271,6 @@ static void bdi_flush_io(struct backing_
->  {
->  	struct writeback_control wbc = {
->  		.sync_mode		= WB_SYNC_NONE,
-> -		.older_than_this	= NULL,
->  		.range_cyclic		= 1,
->  		.nr_to_write		= 1024,
->  	};
 > 
 > 
 > --
