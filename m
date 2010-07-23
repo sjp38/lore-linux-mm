@@ -1,123 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D127600365
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:24:42 -0400 (EDT)
-Date: Fri, 23 Jul 2010 20:24:14 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/6] writeback: kill writeback_control.more_io
-Message-ID: <20100723182413.GF20540@quack.suse.cz>
-References: <20100722050928.653312535@intel.com>
- <20100722061822.763629019@intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id CAD60600365
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 14:35:42 -0400 (EDT)
+Received: by pwi8 with SMTP id 8so4376008pwi.14
+        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 11:35:35 -0700 (PDT)
+Message-ID: <4C49E111.2000106@vflare.org>
+Date: Sat, 24 Jul 2010 00:06:01 +0530
+From: Nitin Gupta <ngupta@vflare.org>
+Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100722061822.763629019@intel.com>
+Subject: Re: [PATCH V3 0/8] Cleancache: overview
+References: <20100621231809.GA11111@ca-server1.us.oracle.com4C49468B.40307@vflare.org> <840b32ff-a303-468e-9d4e-30fc92f629f8@default 20100723140440.GA12423@infradead.org 364c83bd-ccb2-48cc-920d-ffcf9ca7df19@default> <c979fa45-8878-4e40-9060-c3e929eebbab@default>
+In-Reply-To: <c979fa45-8878-4e40-9060-c3e929eebbab@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 22-07-10 13:09:31, Wu Fengguang wrote:
-> When wbc.more_io was first introduced, it indicates whether there are
-> at least one superblock whose s_more_io contains more IO work. Now with
-> the per-bdi writeback, it can be replaced with a simple b_more_io test.
-  Looks fine.
+On 07/23/2010 11:07 PM, Dan Magenheimer wrote:
+>> From: Dan Magenheimer
+>> Subject: RE: [PATCH V3 0/8] Cleancache: overview
+>>
+>>> From: Christoph Hellwig [mailto:hch@infradead.org]
+>>> Subject: Re: [PATCH V3 0/8] Cleancache: overview
+>>>
+>>> On Fri, Jul 23, 2010 at 06:58:03AM -0700, Dan Magenheimer wrote:
+>>>> CHRISTOPH AND ANDREW, if you disagree and your concerns have
+>>>> not been resolved, please speak up.
+>>
+>> Hi Christoph --
+>>
+>> Thanks very much for the quick (instantaneous?) reply!
+>>
+>>> Anything that need modification of a normal non-shared fs is utterly
+>>> broken and you'll get a clear NAK, so the propsal before is a good
+>>> one.
+>>
+>> Unless/until all filesystems are 100% built on top of VFS,
+>> I have to disagree.  Abstractions (e.g. VFS) are never perfect.
+> 
+> After thinking about this some more, I can see a way
+> to enforce "opt-in" in the cleancache backend without
+> any changes to non-generic fs code.   I think it's a horrible
+> hack and we can try it, but I expect fs maintainers
+> would prefer the explicit one-line-patch opt-in.
+> 
+> 1) Cleancache backend maintains a list of "known working"
+>    filesystems (those that have been tested).
 
-Acked-by: Jan Kara <jack@suse.cz>
+Checks against "known working list" indeed looks horrible.
+Isn't there any way to identify pagecache -> disk I/O boundaries
+which every filesystem obeys? I'm not yet sure but if this is
+doable, then we won't require such hacks.
 
 > 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c                |    9 ++-------
->  include/linux/writeback.h        |    1 -
->  include/trace/events/writeback.h |    5 +----
->  3 files changed, 3 insertions(+), 12 deletions(-)
+> 2) Nitin's proposed changes pass the *sb as a parameter.
+>   The string name of the filesystem type is available via
+>   sb->s_type->name.  This can be compared against
+>   the "known working" list.
+>
+
+sb->s_magic could also be used, or better if we can somehow
+get rid of these checks  :)
+
+> Using the sb pointer as a "handle" requires an extra
+> table search on every cleancache get/put/flush,
+> and fs/super.c changes are required for fs unmount
+> notification anyway (e.g. to call cleancache_flush_fs)
+> so I'd prefer to keep the cleancache_poolid addition
+> to the sb.  I'll assume this is OK since this is in generic
+> fs code.
 > 
-> --- linux-next.orig/fs/fs-writeback.c	2010-07-22 11:23:27.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-07-22 12:56:42.000000000 +0800
-> @@ -507,12 +507,8 @@ static int writeback_sb_inodes(struct su
->  		iput(inode);
->  		cond_resched();
->  		spin_lock(&inode_lock);
-> -		if (wbc->nr_to_write <= 0) {
-> -			wbc->more_io = 1;
-> +		if (wbc->nr_to_write <= 0)
->  			return 1;
-> -		}
-> -		if (!list_empty(&wb->b_more_io))
-> -			wbc->more_io = 1;
->  	}
->  	/* b_io is empty */
->  	return 1;
-> @@ -622,7 +618,6 @@ static long wb_writeback(struct bdi_writ
->  		if (work->for_background && !over_bground_thresh())
->  			break;
->  
-> -		wbc.more_io = 0;
->  		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
->  		wbc.pages_skipped = 0;
->  
-> @@ -644,7 +639,7 @@ static long wb_writeback(struct bdi_writ
->  		/*
->  		 * Didn't write everything and we don't have more IO, bail
->  		 */
-> -		if (!wbc.more_io)
-> +		if (list_empty(&wb->b_more_io))
->  			break;
->  		/*
->  		 * Did we write something? Try for more
-> --- linux-next.orig/include/linux/writeback.h	2010-07-22 11:23:27.000000000 +0800
-> +++ linux-next/include/linux/writeback.h	2010-07-22 11:24:46.000000000 +0800
-> @@ -49,7 +49,6 @@ struct writeback_control {
->  	unsigned for_background:1;	/* A background writeback */
->  	unsigned for_reclaim:1;		/* Invoked from the page allocator */
->  	unsigned range_cyclic:1;	/* range_start is cyclic */
-> -	unsigned more_io:1;		/* more io to be dispatched */
->  };
->  
->  /*
-> --- linux-next.orig/include/trace/events/writeback.h	2010-07-22 11:23:27.000000000 +0800
-> +++ linux-next/include/trace/events/writeback.h	2010-07-22 11:24:46.000000000 +0800
-> @@ -99,7 +99,6 @@ DECLARE_EVENT_CLASS(wbc_class,
->  		__field(int, for_background)
->  		__field(int, for_reclaim)
->  		__field(int, range_cyclic)
-> -		__field(int, more_io)
->  		__field(long, range_start)
->  		__field(long, range_end)
->  	),
-> @@ -113,13 +112,12 @@ DECLARE_EVENT_CLASS(wbc_class,
->  		__entry->for_background	= wbc->for_background;
->  		__entry->for_reclaim	= wbc->for_reclaim;
->  		__entry->range_cyclic	= wbc->range_cyclic;
-> -		__entry->more_io	= wbc->more_io;
->  		__entry->range_start	= (long)wbc->range_start;
->  		__entry->range_end	= (long)wbc->range_end;
->  	),
->  
->  	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
-> -		"bgrd=%d reclm=%d cyclic=%d more=%d "
-> +		"bgrd=%d reclm=%d cyclic=%d "
->  		"start=0x%lx end=0x%lx",
->  		__entry->name,
->  		__entry->nr_to_write,
-> @@ -129,7 +127,6 @@ DECLARE_EVENT_CLASS(wbc_class,
->  		__entry->for_background,
->  		__entry->for_reclaim,
->  		__entry->range_cyclic,
-> -		__entry->more_io,
->  		__entry->range_start,
->  		__entry->range_end)
->  )
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+
+
+I will also try making changes to cleancache so it does not
+touch any fs specific code. Though IMHO one liners to fs-code
+should really be acceptable but unfortunately this doesn't seem
+to be the case.  Maybe generic cleancache will have better
+chances.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
