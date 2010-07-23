@@ -1,36 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 790346B024D
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 04:14:18 -0400 (EDT)
-Date: Fri, 23 Jul 2010 16:14:14 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
-Message-ID: <20100723081414.GA13107@localhost>
-References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
- <20100721160634.GA7976@barrios-desktop>
- <20100722002716.GA7740@sli10-desk.sh.intel.com>
- <AANLkTimDszQHVV8P=C9xjNMY65NDNz16qOm8DUHu=Mz0@mail.gmail.com>
- <20100722051702.GA26829@sli10-desk.sh.intel.com>
- <20100723081224.GB5043@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 598306B024D
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 04:17:08 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so10439086iwn.14
+        for <linux-mm@kvack.org>; Fri, 23 Jul 2010 01:17:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100723081224.GB5043@localhost>
+In-Reply-To: <4C49468B.40307@vflare.org>
+References: <20100621231809.GA11111@ca-server1.us.oracle.com>
+	<4C49468B.40307@vflare.org>
+Date: Fri, 23 Jul 2010 17:16:47 +0900
+Message-ID: <AANLkTikV6nypnLHjaidOyJPsP9xDawQ9ABOoRWKB-2+B@mail.gmail.com>
+Subject: Re: [PATCH V3 0/8] Cleancache: overview
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "Li, Shaohua" <shaohua.li@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: ngupta@vflare.org
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@suse.de, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 23, 2010 at 04:12:24PM +0800, Wu Fengguang wrote:
-> > Each node has zones, so a pagevec[MAX_NR_ZONES] doesn't work here.
-> 
-> It's actually pagevec[MAX_NR_ZONES][nr_cpus], where the CPU dimension
-> selects a NUMA node. So it looks like a worthy optimization.
+On Fri, Jul 23, 2010 at 4:36 PM, Nitin Gupta <ngupta@vflare.org> wrote:
+>
+> 2. I think change in btrfs can be avoided by moving cleancache_get_page()
+> from do_mpage_reapage() to filemap_fault() and this should work for all
+> filesystems. See:
+>
+> handle_pte_fault() -> do_(non)linear_fault() -> __do_fault()
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0-> vma->vm_ops->fault()
+>
+> which is defined as filemap_fault() for all filesystems. If some future
+> filesystem uses its own custom function (why?) then it will have to arran=
+ge for
+> call to cleancache_get_page(), if it wants this feature.
 
-Ah sorry, please ignore this. activate_page() may be called from any CPU..
 
-Thanks,
-Fengguang
+filemap fault works only in case of file-backed page which is mapped
+but don't work not-mapped cache page.  So we could miss cache page by
+read system call if we move it into filemap_fault.
+
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
