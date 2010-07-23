@@ -1,51 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 73F006B024D
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 10:00:15 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <840b32ff-a303-468e-9d4e-30fc92f629f8@default>
-Date: Fri, 23 Jul 2010 06:58:03 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V3 0/8] Cleancache: overview
-References: <20100621231809.GA11111@ca-server1.us.oracle.com
- 4C49468B.40307@vflare.org>
-In-Reply-To: <4C49468B.40307@vflare.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 74B046B024D
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 10:04:21 -0400 (EDT)
+From: Dave Chinner <david@fromorbit.com>
+Subject: [PATCH 2/2] xfs: shrinker should use a per-filesystem scan count
+Date: Sat, 24 Jul 2010 00:04:02 +1000
+Message-Id: <1279893842-4246-3-git-send-email-david@fromorbit.com>
+In-Reply-To: <20100723111310.GI32635@dastard>
+References: <20100723111310.GI32635@dastard>
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org, Christoph Hellwig <hch@infradead.org>, akpm@linux-foundation.org
-Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
+To: npiggin@kernel.dk
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, fmayhar@google.com, johnstul@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-> Since zcache is now one of its use cases, I think the major
-> objection that remains against cleancache is its intrusiveness
-> -- in particular, need to change individual filesystems (even
-> though one liners). Changes below should help avoid these
-> per-fs changes and make it more self contained.
+From: Dave Chinner <dchinner@redhat.com>
 
-Hi Nitin --
+The shrinker uses a global static to aggregate excess scan counts.
+This should be per filesystem like all the other shrinker context to
+operate correctly.
 
-I think my reply at http://lkml.org/lkml/2010/6/22/202 adequately
-refutes the claim of intrusiveness (43 lines!).  And FAQ #2 near
-the end of the original posting at http://lkml.org/lkml/2010/6/21/411
-explains why the per-fs "opt-in" approach is sensible and necessary.
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ fs/xfs/linux-2.6/xfs_sync.c |    5 ++---
+ fs/xfs/xfs_mount.h          |    1 +
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-CHRISTOPH AND ANDREW, if you disagree and your concerns have
-not been resolved, please speak up.
-
-Further, the maintainers of the changed filesystems have acked
-the very minor cleancache patches; and maintainers of other
-filesystems are not affected unless they choose to opt-in,
-whereas these other filesystems MAY be affected with your
-suggested changes to the patches.
-
-So I think it's just a matter of waiting for the Linux wheels
-to turn for a patch that (however lightly) touches a number of
-maintainers' code, though I would very much welcome any
-input on anything I can do to make those wheels turn faster.
-
-Thanks,
-Dan
+diff --git a/fs/xfs/linux-2.6/xfs_sync.c b/fs/xfs/linux-2.6/xfs_sync.c
+index 05426bf..b0e6296 100644
+--- a/fs/xfs/linux-2.6/xfs_sync.c
++++ b/fs/xfs/linux-2.6/xfs_sync.c
+@@ -893,7 +893,6 @@ xfs_reclaim_inode_shrink(
+ 	unsigned long	global,
+ 	gfp_t		gfp_mask)
+ {
+-	static unsigned long nr_to_scan;
+ 	int		nr;
+ 	struct xfs_mount *mp;
+ 	struct xfs_perag *pag;
+@@ -908,14 +907,14 @@ xfs_reclaim_inode_shrink(
+ 		nr_reclaimable += pag->pag_ici_reclaimable;
+ 		xfs_perag_put(pag);
+ 	}
+-	shrinker_add_scan(&nr_to_scan, scanned, global, nr_reclaimable,
++	shrinker_add_scan(&mp->m_shrink_scan_nr, scanned, global, nr_reclaimable,
+ 				DEFAULT_SEEKS);
+ 	if (!(gfp_mask & __GFP_FS)) {
+ 		return 0;
+ 	}
+ 
+ done:
+-	nr = shrinker_do_scan(&nr_to_scan, SHRINK_BATCH);
++	nr = shrinker_do_scan(&mp->m_shrink_scan_nr, SHRINK_BATCH);
+ 	if (!nr)
+ 		return 0;
+ 	xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
+diff --git a/fs/xfs/xfs_mount.h b/fs/xfs/xfs_mount.h
+index 5761087..ed5531f 100644
+--- a/fs/xfs/xfs_mount.h
++++ b/fs/xfs/xfs_mount.h
+@@ -260,6 +260,7 @@ typedef struct xfs_mount {
+ 	__int64_t		m_update_flags;	/* sb flags we need to update
+ 						   on the next remount,rw */
+ 	struct shrinker		m_inode_shrink;	/* inode reclaim shrinker */
++	unsigned long		m_shrink_scan_nr; /* shrinker scan count */
+ } xfs_mount_t;
+ 
+ /*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
