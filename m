@@ -1,78 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 37AEE6B02A5
-	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 04:44:53 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6O8ioCD006458
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E53626B02A9
+	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 04:46:27 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6O8kO04032712
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 24 Jul 2010 17:44:51 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AB10045DE4F
-	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:44:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89F7F45DE4E
-	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:44:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 718DA1DB803A
-	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:44:50 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3115E1DB8038
-	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:44:50 +0900 (JST)
+	Sat, 24 Jul 2010 17:46:24 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BA9845DE4E
+	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:46:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A76445DE52
+	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:46:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C3EE1DB8040
+	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:46:24 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C873D1DB805D
+	for <linux-mm@kvack.org>; Sat, 24 Jul 2010 17:46:23 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 1/2] vmscan: shrink_all_slab() use reclaim_state instead the return value of shrink_slab()
+Subject: [PATCH 2/2] vmscan: change shrink_slab() return tyep with void
 In-Reply-To: <20100724174038.3C96.A69D9226@jp.fujitsu.com>
 References: <20100722190100.GA22269@amd> <20100724174038.3C96.A69D9226@jp.fujitsu.com>
-Message-Id: <20100724174405.3C99.A69D9226@jp.fujitsu.com>
+Message-Id: <20100724174455.3C9C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Sat, 24 Jul 2010 17:44:49 +0900 (JST)
+Date: Sat, 24 Jul 2010 17:46:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@kernel.dk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frank Mayhar <fmayhar@google.com>, John Stultz <johnstul@us.ibm.com>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Now, shrink_slab() doesn't return number of reclaimed objects. IOW,
-current shrink_all_slab() is broken. Thus instead we use reclaim_state
-to detect no reclaimable slab objects.
+Now, no caller use the return value of shrink_slab(). Thus we can change
+it with void.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/vmscan.c |   20 +++++++++-----------
- 1 files changed, 9 insertions(+), 11 deletions(-)
+ mm/vmscan.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d7256e0..bfa1975 100644
+index bfa1975..89b593e 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -300,18 +300,16 @@ static unsigned long shrink_slab(struct zone *zone, unsigned long scanned, unsig
- void shrink_all_slab(void)
+@@ -277,24 +277,23 @@ EXPORT_SYMBOL(shrinker_do_scan);
+  *
+  * Returns the number of slab objects which we shrunk.
+  */
+-static unsigned long shrink_slab(struct zone *zone, unsigned long scanned, unsigned long total,
++static void shrink_slab(struct zone *zone, unsigned long scanned, unsigned long total,
+ 			unsigned long global, gfp_t gfp_mask)
  {
- 	struct zone *zone;
--	unsigned long nr;
-+	struct reclaim_state reclaim_state;
+ 	struct shrinker *shrinker;
+-	unsigned long ret = 0;
  
--again:
--	nr = 0;
--	for_each_zone(zone)
--		nr += shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
--	/*
--	 * If we reclaimed less than 10 objects, might as well call
--	 * it a day. Nothing special about the number 10.
--	 */
--	if (nr >= 10)
--		goto again;
-+	current->reclaim_state = &reclaim_state;
-+	do {
-+		reclaim_state.reclaimed_slab = 0;
-+		for_each_zone(zone)
-+			shrink_slab(zone, 1, 1, 1, GFP_KERNEL);
-+	} while (reclaim_state.reclaimed_slab);
-+
-+	current->reclaim_state = NULL;
+ 	if (scanned == 0)
+ 		scanned = SWAP_CLUSTER_MAX;
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem))
+-		return 1;	/* Assume we'll be able to shrink next time */
++		return;
+ 
+ 	list_for_each_entry(shrinker, &shrinker_list, list) {
+ 		(*shrinker->shrink)(shrinker, zone, scanned,
+ 					total, global, gfp_mask);
+ 	}
+ 	up_read(&shrinker_rwsem);
+-	return ret;
++	return;
  }
  
- static inline int is_page_cache_freeable(struct page *page)
+ void shrink_all_slab(void)
 -- 
 1.6.5.2
 
