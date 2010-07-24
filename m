@@ -1,70 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C83B96B02A7
-	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 20:21:14 -0400 (EDT)
-Date: Sat, 24 Jul 2010 10:21:01 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: VFS scalability git tree
-Message-ID: <20100724002101.GL32635@dastard>
-References: <20100722190100.GA22269@amd>
- <20100723111310.GI32635@dastard>
- <20100723155118.GB5773@amd>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 347C76B02A4
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 23:10:02 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o6O30KS0020359
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 21:00:20 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o6O39xbv078186
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 21:09:59 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o6O39x8b015102
+	for <linux-mm@kvack.org>; Fri, 23 Jul 2010 21:09:59 -0600
+Message-ID: <4C4A5985.6000206@austin.ibm.com>
+Date: Fri, 23 Jul 2010 22:09:57 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 4/8] v3 Allow memory_block to span multiple memory sections
+References: <4C451BF5.50304@austin.ibm.com>	 <4C451E1C.8070907@austin.ibm.com> <1279653481.9785.4.camel@nimitz>
+In-Reply-To: <1279653481.9785.4.camel@nimitz>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100723155118.GB5773@amd>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@kernel.dk>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frank Mayhar <fmayhar@google.com>, John Stultz <johnstul@us.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, greg@kroah.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 24, 2010 at 01:51:18AM +1000, Nick Piggin wrote:
-> On Fri, Jul 23, 2010 at 09:13:10PM +1000, Dave Chinner wrote:
-> > On Fri, Jul 23, 2010 at 05:01:00AM +1000, Nick Piggin wrote:
-> > > I'm pleased to announce I have a git tree up of my vfs scalability work.
-> > > 
-> > > git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
-> > > http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
-> > > 
-> > > Branch vfs-scale-working
-> > 
-> > I've got a couple of patches needed to build XFS - they shrinker
-> > merge left some bad fragments - I'll post them in a minute. This
+On 07/20/2010 02:18 PM, Dave Hansen wrote:
+> On Mon, 2010-07-19 at 22:55 -0500, Nathan Fontenot wrote:
+>> +static int add_memory_section(int nid, struct mem_section *section,
+>> +                       unsigned long state, enum mem_add_context context)
+>> +{
+>> +       struct memory_block *mem;
+>> +       int ret = 0;
+>> +
+>> +       mem = find_memory_block(section);
+>> +       if (mem) {
+>> +               atomic_inc(&mem->section_count);
+>> +               kobject_put(&mem->sysdev.kobj);
+>> +       } else
+>> +               ret = init_memory_block(&mem, section, state);
+>> +
+>>         if (!ret) {
+>> -               if (context == HOTPLUG)
+>> +               if (context == HOTPLUG &&
+>> +                   atomic_read(&mem->section_count) == sections_per_block)
+>>                         ret = register_mem_sect_under_node(mem, nid);
+>>         } 
 > 
-> OK cool.
+> I think the atomic_inc() can race with the atomic_dec_and_test() in
+> remove_memory_block().
 > 
+> Thread 1 does:
 > 
-> > email is for the longest ever lockdep warning I've seen that
-> > occurred on boot.
+> 	mem = find_memory_block(section);
 > 
-> Ah thanks. OK that was one of my attempts to keep sockets out of
-> hidding the vfs as much as possible (lazy inode number evaluation).
-> Not a big problem, but I'll drop the patch for now.
+> Thread 2 does 
 > 
-> I have just got one for you too, btw :) (on vanilla kernel but it is
-> messing up my lockdep stress testing on xfs). Real or false?
+> 	atomic_dec_and_test(&mem->section_count);
 > 
-> [ INFO: possible circular locking dependency detected ]
-> 2.6.35-rc5-00064-ga9f7f2e #334
-> -------------------------------------------------------
-> kswapd0/605 is trying to acquire lock:
->  (&(&ip->i_lock)->mr_lock){++++--}, at: [<ffffffff8125500c>]
-> xfs_ilock+0x7c/0xa0
+> and destroys the memory block,  Thread 1 runs again:
+> 	
+>        if (mem) {
+>                atomic_inc(&mem->section_count);
+>                kobject_put(&mem->sysdev.kobj);
+>        } else
 > 
-> but task is already holding lock:
->  (&xfs_mount_list_lock){++++.-}, at: [<ffffffff81281a76>]
-> xfs_reclaim_inode_shrink+0xc6/0x140
+> but now mem got destroyed by Thread 2.  You probably need to change
+> find_memory_block() to itself take a reference, and to use
+> atomic_inc_unless().
+> 
 
-False positive, but the xfs_mount_list_lock is gone in 2.6.35-rc6 -
-the shrinker context change has fixed that - so you can ignore it
-anyway.
+You're right but I think the fix you suggested will narrow the window for the
+race condition, not eliminate it.  We could still take a time splice in
+find_memory_block prior to the container_of() calls to get the memory
+block pointer and end up de-referencing a invalid kobject o sysdev pointer.
 
-Cheers,
+I think if we want to eliminate this we may need to have lock that protects
+access to any of the memory_block structures.  This would need to be taken
+any time find_memory_block is called and released when use of the memory_block
+returned is finished.  If we're going to fix this we should eliminate the
+window completely instead of just closing it further.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+If we add a lock should I submit it as part of this patchset? or submit it
+as a follow-on?
+
+-Nathan 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
