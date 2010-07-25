@@ -1,186 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 92DA36B02A4
-	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 10:03:13 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so5049971pvc.14
-        for <linux-mm@kvack.org>; Sun, 25 Jul 2010 07:03:11 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] Tight check of pfn_valid on sparsemem - v3
-Date: Sun, 25 Jul 2010 23:02:41 +0900
-Message-Id: <1280066561-8543-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1493F6B02A4
+	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 12:40:13 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so2446281iwn.14
+        for <linux-mm@kvack.org>; Sun, 25 Jul 2010 09:40:12 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100725184322.40CF.A69D9226@jp.fujitsu.com>
+References: <20100723154638.88C8.A69D9226@jp.fujitsu.com>
+	<AANLkTikpZ8iH1oO1k84kvo2qYYS96LYuNmmw6xJL-1QV@mail.gmail.com>
+	<20100725184322.40CF.A69D9226@jp.fujitsu.com>
+Date: Sun, 25 Jul 2010 22:10:12 +0530
+Message-ID: <AANLkTinD8=XycQJ-yFBW_tJiE0kH70s2g2asfWtykEgL@mail.gmail.com>
+Subject: Re: [PATCH 1/7] memcg: sc.nr_to_reclaim should be initialized
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Kukjin Kim <kgene.kim@samsung.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Russell King <linux@arm.linux.org.uk>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-Changelog since v2
- o Change some function names
- o Remove mark_memmap_hole in memmap bring up
- o Change CONFIG_SPARSEMEM with CONFIG_ARCH_HAS_HOLES_MEMORYMODEL 
- 
-I have a plan following as after this patch is acked.
+On Sun, Jul 25, 2010 at 3:18 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >> 1. How far does this push pages (in terms of when limit is hit)?
+>> >
+>> > 32 pages per mem_cgroup_shrink_node_zone().
+>> >
+>> > That said, the algorithm is here.
+>> >
+>> > 1. call mem_cgroup_largest_soft_limit_node()
+>> > =A0 calculate largest cgroup
+>> > 2. call mem_cgroup_shrink_node_zone() and shrink 32 pages
+>> > 3. goto 1 if limit is still exceed.
+>> >
+>> > If it's not your intention, can you please your intended algorithm?
+>>
+>> We set it to 0, since we care only about a single page reclaim on
+>> hitting the limit. IIRC, in the past we saw an excessive pushback on
+>> reclaiming SWAP_CLUSTER_MAX pages, just wanted to check if you are
+>> seeing the same behaviour even now after your changes.
+>
+> Actually, we have 32 pages reclaim batch size. (see nr_scan_try_batch() a=
+nd related functions)
+> thus <32 value doesn't works as your intended.
+>
+> But, If you run your test again, and (if there is) report any bugs. I'm v=
+ery glad and fix it soon.
+>
 
-TODO:
-1) expand pfn_valid to FALTMEM in ARM
-I think we can enhance pfn_valid of FLATMEM in ARM.
-Now it is doing binary search and it's expesive.
-First of all, After we merge this patch, I expand it to FALTMEM of ARM.
+I understand that, the point is when to do stop the reclaim (do we
+really need 32 pages to stop the reclaim, when we hit the limit,
+something as low as a single page can help).  This is quite a subtle
+thing, I'd mark it as low priority. I'll definitely come back if I see
+unexpected behaviour.
 
-2) remove memmap_valid_within
-We can remove memmap_valid_within by strict pfn_valid's tight check.
-
-3) Optimize hole check in sparsemem
-In case of spasemem, we can optimize pfn_valid through defining new flag
-like SECTION_HAS_HOLE of hole mem_section. 
-
-== CUT HERE ==
-
-Kukjin reported oops happen while he change min_free_kbytes
-http://www.spinics.net/lists/arm-kernel/msg92894.html
-It happen by memory map on sparsemem.
-
-The system has a memory map following as.
-     section 0             section 1              section 2
-0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
-SECTION_SIZE_BITS 28(256M)
-
-It means section 0 is an incompletely filled section.
-Nontheless, current pfn_valid of sparsemem checks pfn loosely.
-It checks only mem_section's validation but ARM can free mem_map on hole
-to save memory space. So in above case, pfn on 0x25000000 can pass pfn_valid's
-validation check. It's not what we want.
-
-We can match section size to smallest valid size.(ex, above case, 16M)
-But Russell doesn't like it due to mem_section's memory overhead with different
-configuration(ex, 512K section).
-
-I tried to add valid pfn range in mem_section but everyone doesn't like it
-due to size overhead. This patch is suggested by KAMEZAWA-san.
-I just fixed compile error and change some naming.
-
-This patch registers address of mem_section to memmap itself's page struct's
-pg->private field. This means the page is used for memmap of the section.
-Otherwise, the page is used for other purpose and memmap has a hole.
-
-This patch is based on mmotm-2010-07-19
-
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reported-by: Kukjin Kim <kgene.kim@samsung.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Russell King <linux@arm.linux.org.uk>
----
- arch/arm/mm/init.c                  |    4 +++-
- include/linux/mmzone.h              |   22 +++++++++++++++++++++-
- mm/mmzone.c                         |   34 ++++++++++++++++++++++++++++++++++
- 5 files changed, 58 insertions(+), 2 deletions(-)
-
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index f6a9994..25e2670 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -482,8 +482,10 @@ free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
- 	 * If there are free pages between these,
- 	 * free the section of the memmap array.
- 	 */
--	if (pg < pgend)
-+	if (pg < pgend) {
-+ 		mark_invalid_memmap(pg >> PAGE_SHIFT, pgend >> PAGE_SHIFT);
- 		free_bootmem_node(NODE_DATA(node), pg, pgend - pg);
-+	}
- }
- 
- /*
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b4d109e..a3195bd 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -15,6 +15,7 @@
- #include <linux/seqlock.h>
- #include <linux/nodemask.h>
- #include <linux/pageblock-flags.h>
-+#include <linux/mm_types.h>
- #include <generated/bounds.h>
- #include <asm/atomic.h>
- #include <asm/page.h>
-@@ -1049,11 +1050,30 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
- 	return __nr_to_section(pfn_to_section_nr(pfn));
- }
- 
-+void mark_invalid_memmap(unsigned long start, unsigned long end);
-+
-+#ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
-+#define MEMMAP_HOLE	(0x1UL)
-+static inline int memmap_valid(unsigned long pfn)
-+{
-+	struct page *page = pfn_to_page(pfn);
-+	struct page *__pg = virt_to_page(page);
-+	return !(__pg->private & MEMMAP_HOLE);
-+}
-+#else
-+static inline int memmap_valid(unsigned long pfn)
-+{
-+	return 1;
-+}
-+#endif
-+
- static inline int pfn_valid(unsigned long pfn)
- {
-+	struct mem_section *ms;
- 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
- 		return 0;
--	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
-+	ms = __nr_to_section(pfn_to_section_nr(pfn));
-+	return valid_section(ms) && memmap_valid(pfn);
- }
- 
- static inline int pfn_present(unsigned long pfn)
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index f5b7d17..7c84e5e 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -86,4 +86,38 @@ int memmap_valid_within(unsigned long pfn,
- 
- 	return 1;
- }
-+
-+/*
-+ * Fill pg->private on hole memmap with MEMMAP_HOLE.
-+ * pfn_valid() will check this later. (see include/linux/mmzone.h)
-+ * Evenry arch should call
-+ * 	mark_invalid_memmap(start, end) # for all holes in mem_map.
-+ * please see usage in ARM.
-+ */
-+void mark_invalid_memmap(unsigned long start, unsigned long end)
-+{
-+	struct mem_section *ms;
-+	unsigned long pos, next;
-+	struct page *pg;
-+	void *memmap, *mapend;
-+
-+	for (pos = start; pos < end; pos = next) {
-+		next = (pos + PAGES_PER_SECTION) & PAGE_SECTION_MASK;
-+		ms = __pfn_to_section(pos);
-+		if (!valid_section(ms))
-+			continue;
-+
-+		for (memmap = (void*)pfn_to_page(pos),
-+			/* The last page in section */
-+			mapend = pfn_to_page(next-1);
-+			memmap < mapend; memmap += PAGE_SIZE) {
-+			pg = virt_to_page(memmap);
-+			pg->private = MEMMAP_HOLE;
-+		}
-+	}
-+}
-+#else
-+void mark_invalid_memmap(unsigned long start, unsigned long end)
-+{
-+}
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
--- 
-1.7.0.5
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
