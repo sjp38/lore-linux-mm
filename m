@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1493F6B02A4
-	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 12:40:13 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so2446281iwn.14
-        for <linux-mm@kvack.org>; Sun, 25 Jul 2010 09:40:12 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DC24A6B02A4
+	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 13:03:09 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so2462482iwn.14
+        for <linux-mm@kvack.org>; Sun, 25 Jul 2010 10:03:08 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100725184322.40CF.A69D9226@jp.fujitsu.com>
-References: <20100723154638.88C8.A69D9226@jp.fujitsu.com>
-	<AANLkTikpZ8iH1oO1k84kvo2qYYS96LYuNmmw6xJL-1QV@mail.gmail.com>
-	<20100725184322.40CF.A69D9226@jp.fujitsu.com>
-Date: Sun, 25 Jul 2010 22:10:12 +0530
-Message-ID: <AANLkTinD8=XycQJ-yFBW_tJiE0kH70s2g2asfWtykEgL@mail.gmail.com>
-Subject: Re: [PATCH 1/7] memcg: sc.nr_to_reclaim should be initialized
+In-Reply-To: <1280066561-8543-1-git-send-email-minchan.kim@gmail.com>
+References: <1280066561-8543-1-git-send-email-minchan.kim@gmail.com>
+Date: Sun, 25 Jul 2010 22:33:08 +0530
+Message-ID: <AANLkTimtN9PuvwrB2PAUZMajWzg=TbEP1jeseVM3MST3@mail.gmail.com>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v3
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, Kukjin Kim <kgene.kim@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Russell King <linux@arm.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 25, 2010 at 3:18 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> 1. How far does this push pages (in terms of when limit is hit)?
->> >
->> > 32 pages per mem_cgroup_shrink_node_zone().
->> >
->> > That said, the algorithm is here.
->> >
->> > 1. call mem_cgroup_largest_soft_limit_node()
->> > =A0 calculate largest cgroup
->> > 2. call mem_cgroup_shrink_node_zone() and shrink 32 pages
->> > 3. goto 1 if limit is still exceed.
->> >
->> > If it's not your intention, can you please your intended algorithm?
->>
->> We set it to 0, since we care only about a single page reclaim on
->> hitting the limit. IIRC, in the past we saw an excessive pushback on
->> reclaiming SWAP_CLUSTER_MAX pages, just wanted to check if you are
->> seeing the same behaviour even now after your changes.
+On Sun, Jul 25, 2010 at 7:32 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> Changelog since v2
+> =A0o Change some function names
+> =A0o Remove mark_memmap_hole in memmap bring up
+> =A0o Change CONFIG_SPARSEMEM with CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
 >
-> Actually, we have 32 pages reclaim batch size. (see nr_scan_try_batch() a=
-nd related functions)
-> thus <32 value doesn't works as your intended.
+> I have a plan following as after this patch is acked.
 >
-> But, If you run your test again, and (if there is) report any bugs. I'm v=
-ery glad and fix it soon.
+> TODO:
+> 1) expand pfn_valid to FALTMEM in ARM
+> I think we can enhance pfn_valid of FLATMEM in ARM.
+> Now it is doing binary search and it's expesive.
+> First of all, After we merge this patch, I expand it to FALTMEM of ARM.
+>
+> 2) remove memmap_valid_within
+> We can remove memmap_valid_within by strict pfn_valid's tight check.
+>
+> 3) Optimize hole check in sparsemem
+> In case of spasemem, we can optimize pfn_valid through defining new flag
+> like SECTION_HAS_HOLE of hole mem_section.
 >
 
-I understand that, the point is when to do stop the reclaim (do we
-really need 32 pages to stop the reclaim, when we hit the limit,
-something as low as a single page can help).  This is quite a subtle
-thing, I'd mark it as low priority. I'll definitely come back if I see
-unexpected behaviour.
+Is there an assumption somewhere that assumes that page->private will
+always have MEMMAP_HOLE set when the pfn is invalid, independent of
+the context in which it is invoked? BTW, I'd also recommend moving
+over to using set_page_private() and page_private() wrappers (makes
+the code easier to search)
 
 Balbir
 
