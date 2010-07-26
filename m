@@ -1,15 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8093C6B02A5
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:23:16 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so3237337iwn.14
-        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 03:23:14 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 929A36B02AB
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:24:07 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so3237958iwn.14
+        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 03:24:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100726120224.2EF1.A69D9226@jp.fujitsu.com>
 References: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
-Date: Mon, 26 Jul 2010 15:53:13 +0530
-Message-ID: <AANLkTi=sVdkkHm8wvjRC4gQUjsKBm1TiLfvxvVBEbbAn@mail.gmail.com>
-Subject: Re: [PATCH 0/4] memcg reclaim tracepoint v2
+	<20100726120224.2EF1.A69D9226@jp.fujitsu.com>
+Date: Mon, 26 Jul 2010 15:54:06 +0530
+Message-ID: <AANLkTi=Eou4UVgYN2JY_AWnCj+Lcbv6MkMmUpn94SRYK@mail.gmail.com>
+Subject: Re: [PATCH 1/4] vmscan: convert direct reclaim tracepoint to
+	DEFINE_TRACE
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
@@ -17,17 +19,22 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 8:32 AM, KOSAKI Motohiro
+On Mon, Jul 26, 2010 at 8:33 AM, KOSAKI Motohiro
 <kosaki.motohiro@jp.fujitsu.com> wrote:
+> Mel Gorman recently added some vmscan tracepoints. Unfortunately they are
+> covered only global reclaim. But we want to trace memcg reclaim too.
 >
-> Recently, Mel Gorman added some vmscan tracepoint. but they can't
-> trace memcg. So, This patch series does.
+> Thus, this patch convert them to DEFINE_TRACE macro. it help to reuse
+> tracepoint definition for other similar usage (i.e. memcg).
+> This patch have no functionally change.
 >
-
-The overall series looks good to me, acking the approach and the need
-for these patches
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
 
 Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
