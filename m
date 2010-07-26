@@ -1,40 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 929A36B02AB
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:24:07 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so3237958iwn.14
-        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 03:24:06 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5726C600227
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:24:41 -0400 (EDT)
+Message-ID: <4C4D620E.9010008@amd.com>
+Date: Mon, 26 Jul 2010 12:23:10 +0200
+From: Andre Przywara <andre.przywara@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <20100726120224.2EF1.A69D9226@jp.fujitsu.com>
-References: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
-	<20100726120224.2EF1.A69D9226@jp.fujitsu.com>
-Date: Mon, 26 Jul 2010 15:54:06 +0530
-Message-ID: <AANLkTi=Eou4UVgYN2JY_AWnCj+Lcbv6MkMmUpn94SRYK@mail.gmail.com>
-Subject: Re: [PATCH 1/4] vmscan: convert direct reclaim tracepoint to
-	DEFINE_TRACE
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] Fix off-by-one bug in mbind() syscall implementation
+References: <1280136498-28219-1-git-send-email-andre.przywara@amd.com> <20100726094931.GA17756@basil.fritz.box>
+In-Reply-To: <20100726094931.GA17756@basil.fritz.box>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 8:33 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> Mel Gorman recently added some vmscan tracepoints. Unfortunately they are
-> covered only global reclaim. But we want to trace memcg reclaim too.
->
-> Thus, this patch convert them to DEFINE_TRACE macro. it help to reuse
-> tracepoint definition for other similar usage (i.e. memcg).
-> This patch have no functionally change.
->
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
+Andi Kleen wrote:
+> On Mon, Jul 26, 2010 at 11:28:18AM +0200, Andre Przywara wrote:
+>> When the mbind() syscall implementation processes the node mask
+>> provided by the user, the last node is accidentally masked out.
+>> This is present since the dawn of time (aka Before Git), I guess
+>> nobody realized that because libnuma as the most prominent user of
+>> mbind() uses large masks (sizeof(long)) and nobody cared if the
+>> 64th node is not handled properly. But if the user application
+>> defers the masking to the kernel and provides the number of valid bits
+>> in maxnodes, there is always the last node missing.
+>> However this also affect the special case with maxnodes=0, the manpage
+>> reads that mbind(ptr, len, MPOL_DEFAULT, &some_long, 0, 0); should
+>> reset the policy to the default one, but in fact it returns EINVAL.
+>> This patch just removes the decrease-by-one statement, I hope that
+>> there is no workaround code in the wild that relies on the bogus
+>> behavior.
+> 
+> Actually libnuma and likely most existing users rely on it.
+If grep didn't fool me, then the only users in libnuma aware of that bug 
+are the test implementations in numactl-2.0.3/test, namely /test/tshm.c 
+(NUMA_MAX_NODES+1) and test/mbind_mig_pages.c (old_nodes->size + 1).
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Has this bug been known before?
+> 
+> The only way to change it would be to add new system calls.
+That would probably be overkill, but if this behavior is now fixed, it 
+should be documented (in the manpage and in the kernel code).
+Also the actual libnuma code should be adjusted, then.
 
-Balbir
+Regards,
+Andre.
+
+-- 
+Andre Przywara
+AMD-Operating System Research Center (OSRC), Dresden, Germany
+Tel: +49 351 448-3567-12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
