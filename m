@@ -1,49 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A5A66B02B1
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:52:18 -0400 (EDT)
-Date: Mon, 26 Jul 2010 11:52:00 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8B96006B6
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:53:25 -0400 (EDT)
+Date: Mon, 26 Jul 2010 11:53:08 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/6] writeback: the kupdate expire timestamp should be
-	a moving target
-Message-ID: <20100726105200.GK5300@csn.ul.ie>
-References: <20100722050928.653312535@intel.com> <20100722061822.630779474@intel.com>
+Subject: Re: [PATCH 3/6] writeback: kill writeback_control.more_io
+Message-ID: <20100726105308.GL5300@csn.ul.ie>
+References: <20100722050928.653312535@intel.com> <20100722061822.763629019@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100722061822.630779474@intel.com>
+In-Reply-To: <20100722061822.763629019@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 22, 2010 at 01:09:30PM +0800, Wu Fengguang wrote:
-> Dynamicly compute the dirty expire timestamp at queue_io() time.
-> Also remove writeback_control.older_than_this which is no longer used.
+On Thu, Jul 22, 2010 at 01:09:31PM +0800, Wu Fengguang wrote:
+> When wbc.more_io was first introduced, it indicates whether there are
+> at least one superblock whose s_more_io contains more IO work. Now with
+> the per-bdi writeback, it can be replaced with a simple b_more_io test.
 > 
-> writeback_control.older_than_this used to be determined at entrance to
-> the kupdate writeback work. This _static_ timestamp may go stale if the
-> kupdate work runs on and on. The flusher may then stuck with some old
-> busy inodes, never considering newly expired inodes thereafter.
-> 
-> This has two possible problems:
-> 
-> - It is unfair for a large dirty inode to delay (for a long time) the
->   writeback of small dirty inodes.
-> 
-> - As time goes by, the large and busy dirty inode may contain only
->   _freshly_ dirtied pages. Ignoring newly expired dirty inodes risks
->   delaying the expired dirty pages to the end of LRU lists, triggering
->   the very bad pageout(). Neverthless this patch merely addresses part
->   of the problem.
-> 
-> CC: Jan Kara <jack@suse.cz>
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-
-Again, makes sense and I can't see a problem. There are some worth
-smithing issues in the changelog such as Dynamicly -> Dynamically and
-s/writeback_control.older_than_this used/writeback_control.older_than_this is used/
-but other than that.
 
 Acked-by: Mel Gorman <mel@csn.ul.ie>
 
