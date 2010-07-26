@@ -1,84 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 290FE6007FA
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 09:10:34 -0400 (EDT)
-Date: Mon, 26 Jul 2010 21:10:08 +0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 534136007FA
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 09:12:12 -0400 (EDT)
+Date: Mon, 26 Jul 2010 21:11:52 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 8/8] vmscan: Kick flusher threads to clean pages when
- reclaim is encountering dirty pages
-Message-ID: <20100726131008.GE11947@localhost>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
- <1279545090-19169-9-git-send-email-mel@csn.ul.ie>
- <20100726072832.GB13076@localhost>
- <20100726092616.GG5300@csn.ul.ie>
- <20100726112709.GB6284@localhost>
- <20100726125717.GS5300@csn.ul.ie>
+Subject: Re: [PATCH 4/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20100726131152.GF11947@localhost>
+References: <20100722050928.653312535@intel.com>
+ <20100722061822.906037624@intel.com>
+ <20100726105736.GM5300@csn.ul.ie>
+ <20100726125635.GC11947@localhost>
+ <20100726125954.GT5300@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100726125717.GS5300@csn.ul.ie>
+In-Reply-To: <20100726125954.GT5300@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 08:57:17PM +0800, Mel Gorman wrote:
-> On Mon, Jul 26, 2010 at 07:27:09PM +0800, Wu Fengguang wrote:
-> > > > > @@ -933,13 +934,16 @@ keep_dirty:
-> > > > >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
-> > > > >  	}
-> > > > >  
-> > > > > +	/*
-> > > > > +	 * If reclaim is encountering dirty pages, it may be because
-> > > > > +	 * dirty pages are reaching the end of the LRU even though
-> > > > > +	 * the dirty_ratio may be satisified. In this case, wake
-> > > > > +	 * flusher threads to pro-actively clean some pages
-> > > > > +	 */
-> > > > > +	wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty + nr_dirty / 2);
-> > > > 
-> > > > Ah it's very possible that nr_dirty==0 here! Then you are hitting the
-> > > > number of dirty pages down to 0 whether or not pageout() is called.
-> > > > 
+On Mon, Jul 26, 2010 at 08:59:55PM +0800, Mel Gorman wrote:
+> On Mon, Jul 26, 2010 at 08:56:35PM +0800, Wu Fengguang wrote:
+> > > > @@ -232,8 +232,15 @@ static void move_expired_inodes(struct l
+> > > >  	while (!list_empty(delaying_queue)) {
+> > > >  		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+> > > >  		if (expire_interval &&
+> > > > -		    inode_dirtied_after(inode, older_than_this))
+> > > > -			break;
+> > > > +		    inode_dirtied_after(inode, older_than_this)) {
+> > > > +			if (wbc->for_background &&
+> > > > +			    list_empty(dispatch_queue) && list_empty(&tmp)) {
+> > > > +				expire_interval >>= 1;
+> > > > +				older_than_this = jiffies - expire_interval;
+> > > > +				continue;
+> > > > +			} else
+> > > > +				break;
+> > > > +		}
 > > > 
-> > > True, this has been fixed to only wakeup flusher threads when this is
-> > > the file LRU, dirty pages have been encountered and the caller has
-> > > sc->may_writepage.
-> > 
-> > OK.
-> > 
-> > > > Another minor issue is, the passed (nr_dirty + nr_dirty / 2) is
-> > > > normally a small number, much smaller than MAX_WRITEBACK_PAGES.
-> > > > The flusher will sync at least MAX_WRITEBACK_PAGES pages, this is good
-> > > > for efficiency.
-> > > > And it seems good to let the flusher write much more
-> > > > than nr_dirty pages to safeguard a reasonable large
-> > > > vmscan-head-to-first-dirty-LRU-page margin. So it would be enough to
-> > > > update the comments.
-> > > > 
+> > > This needs a comment.
 > > > 
-> > > Ok, the reasoning had been to flush a number of pages that was related
-> > > to the scanning rate but if that is inefficient for the flusher, I'll
-> > > use MAX_WRITEBACK_PAGES.
+> > > I think what it is saying is that if background flush is active but no
+> > > inodes are old enough, consider newer inodes. This is on the assumption
+> > > that page reclaim has encountered dirty pages and the dirty inodes are
+> > > still too young.
 > > 
-> > It would be better to pass something like (nr_dirty * N).
-> > MAX_WRITEBACK_PAGES may be increased to 128MB in the future, which is
-> > obviously too large as a parameter. When the batch size is increased
-> > to 128MB, the writeback code may be improved somehow to not exceed the
-> > nr_pages limit too much.
+> > Yes this should be commented. How about this one?
 > > 
+> > @@ -232,8 +232,20 @@ static void move_expired_inodes(struct l
+> >         while (!list_empty(delaying_queue)) {
+> >                 inode = list_entry(delaying_queue->prev, struct inode, i_list);
+> >                 if (expire_interval &&
+> > -                   inode_dirtied_after(inode, older_than_this))
+> > +                   inode_dirtied_after(inode, older_than_this)) {
+> > +                       /*
+> > +                        * background writeback will start with expired inodes,
+> > +                        * and then fresh inodes. This order helps reducing
+> > +                        * the number of dirty pages reaching the end of LRU
+> > +                        * lists and cause trouble to the page reclaim.
+> > +                        */
 > 
-> What might be a useful value for N? 1.5 appears to work reasonably well
-> to create a window of writeback ahead of the scanner but it's a bit
-> arbitrary.
+> s/reducing/reduce/
+> 
+> Otherwise, it's enough detail to know what is going on. Thanks
 
-I'd recommend N to be a large value. It's no longer relevant now since
-we'll call the flusher to sync some range containing the target page.
-The flusher will then choose an N large enough (eg. 4MB) for efficient
-IO. It needs to be a large value, otherwise the vmscan code will
-quickly run into dirty pages again..
+Thanks. Here is the updated patch.
+---
+Subject: writeback: sync expired inodes first in background writeback
+From: Wu Fengguang <fengguang.wu@intel.com>
+Date: Wed Jul 21 20:11:53 CST 2010
 
-Thanks,
-Fengguang
+A background flush work may run for ever. So it's reasonable for it to
+mimic the kupdate behavior of syncing old/expired inodes first.
+
+The policy is
+- enqueue all newly expired inodes at each queue_io() time
+- enqueue all dirty inodes if there are no more expired inodes to sync
+
+This will help reduce the number of dirty pages encountered by page
+reclaim, eg. the pageout() calls. Normally older inodes contain older
+dirty pages, which are more close to the end of the LRU lists. So
+syncing older inodes first helps reducing the dirty pages reached by
+the page reclaim code.
+
+CC: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c |   23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
+
+--- linux-next.orig/fs/fs-writeback.c	2010-07-26 20:19:01.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-07-26 21:10:42.000000000 +0800
+@@ -217,14 +217,14 @@ static void move_expired_inodes(struct l
+ 				struct writeback_control *wbc)
+ {
+ 	unsigned long expire_interval = 0;
+-	unsigned long older_than_this;
++	unsigned long older_than_this = 0; /* reset to kill gcc warning */
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+ 	struct super_block *sb = NULL;
+ 	struct inode *inode;
+ 	int do_sb_sort = 0;
+ 
+-	if (wbc->for_kupdate) {
++	if (wbc->for_kupdate || wbc->for_background) {
+ 		expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
+ 		older_than_this = jiffies - expire_interval;
+ 	}
+@@ -232,8 +232,20 @@ static void move_expired_inodes(struct l
+ 	while (!list_empty(delaying_queue)) {
+ 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+ 		if (expire_interval &&
+-		    inode_dirtied_after(inode, older_than_this))
++		    inode_dirtied_after(inode, older_than_this)) {
++			/*
++			 * background writeback will start with expired inodes,
++			 * and then fresh inodes. This order helps reduce the
++			 * number of dirty pages reaching the end of LRU lists
++			 * and cause trouble to the page reclaim.
++			 */
++			if (wbc->for_background &&
++			    list_empty(dispatch_queue) && list_empty(&tmp)) {
++				expire_interval = 0;
++				continue;
++			}
+ 			break;
++		}
+ 		if (sb && sb != inode->i_sb)
+ 			do_sb_sort = 1;
+ 		sb = inode->i_sb;
+@@ -521,7 +533,8 @@ void writeback_inodes_wb(struct bdi_writ
+ 
+ 	wbc->wb_start = jiffies; /* livelock avoidance */
+ 	spin_lock(&inode_lock);
+-	if (!wbc->for_kupdate || list_empty(&wb->b_io))
++
++	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
+ 		queue_io(wb, wbc);
+ 
+ 	while (!list_empty(&wb->b_io)) {
+@@ -550,7 +563,7 @@ static void __writeback_inodes_sb(struct
+ 
+ 	wbc->wb_start = jiffies; /* livelock avoidance */
+ 	spin_lock(&inode_lock);
+-	if (!wbc->for_kupdate || list_empty(&wb->b_io))
++	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
+ 		queue_io(wb, wbc);
+ 	writeback_sb_inodes(sb, wb, wbc, true);
+ 	spin_unlock(&inode_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
