@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 23824600044
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 18:12:10 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o6QMC7aF002470
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 15:12:07 -0700
-Received: from pzk6 (pzk6.prod.google.com [10.243.19.134])
-	by kpbe11.cbf.corp.google.com with ESMTP id o6QMC5Ro032337
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 15:12:06 -0700
-Received: by pzk6 with SMTP id 6so1588436pzk.31
-        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 15:12:05 -0700 (PDT)
-Date: Mon, 26 Jul 2010 15:12:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
-In-Reply-To: <AANLkTikUO+WMHXqTMc7jR84UMgKidzX5d5JX6q=DvmpY@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1007261510320.2993@chino.kir.corp.google.com>
-References: <AANLkTimAF1zxXlnEavXSnlKTkQgGD0u9UqCtUVT_r9jV@mail.gmail.com> <AANLkTimUYmUCdFMIaVi1qqcz2DqGoILeu43XWZBHSILP@mail.gmail.com> <AANLkTilmr29Vv3N64n7KVj9fSDpfBHIt8-quxtEwY0_X@mail.gmail.com> <alpine.LSU.2.00.1005211410170.14789@sister.anvils>
- <AANLkTil8sEzrsC9If5HdU8S5R-sK84_fUt_BXUDcAu0J@mail.gmail.com> <alpine.DEB.2.00.1006011351400.13136@chino.kir.corp.google.com> <AANLkTikUO+WMHXqTMc7jR84UMgKidzX5d5JX6q=DvmpY@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7D384600044
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 18:47:31 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so3733595iwn.14
+        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 15:47:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1007261136160.5438@router.home>
+References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com>
+	<alpine.DEB.2.00.1007261136160.5438@router.home>
+Date: Tue, 27 Jul 2010 07:47:26 +0900
+Message-ID: <AANLkTikMMMWcT5Uvv5+80yeGP-uYbW7awQsHL7A7NXmw@mail.gmail.com>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Kukjin Kim <kgene.kim@samsung.com>, LKML <linux-kernel@vger.kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Jul 2010, dave b wrote:
+Hi Christoph,
 
-> Actually it turns out on 2.6.34.1 I can trigger this issue. What it
-> really is, is that linux doesn't invoke the oom killer when it should
-> and kill something off. This is *really* annoying.
-> 
+On Tue, Jul 27, 2010 at 1:40 AM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+> On Tue, 27 Jul 2010, Minchan Kim wrote:
+>
+>> This patch registers address of mem_section to memmap itself's page struct's
+>> pg->private field. This means the page is used for memmap of the section.
+>> Otherwise, the page is used for other purpose and memmap has a hole.
+>
+> What if page->private just happens to be the value of the page struct?
+> Even if that is not possible today, someday someone may add new
+> functionality to the kernel where page->pivage == page is used for some
+> reason.
 
-I'm not exactly sure what you're referring to, it's been two months and 
-you're using a new kernel and now you're saying that the oom killer isn't 
-being utilized when the original problem statement was that it was killing 
-things inappropriately?
+I agree.
 
-> I used the follow script - (on 2.6.34.1)
-> cat ./scripts/disable_over_commit
-> #!/bin/bash
-> echo 2 > /proc/sys/vm/overcommit_memory
-> echo 40 > /proc/sys/vm/dirty_ratio
-> echo 5 > /proc/sys/vm/dirty_background_ratio
-> 
-> And I was still able to reproduce this bug.
-> Here is some c  code to trigger the condition I am talking about.
-> 
-> 
-> #include <stdlib.h>
-> #include <stdio.h>
-> 
-> int main(void)
-> {
-> 	while(1)
-> 	{
-> 		malloc(1000);
-> 	}
-> 
-> 	return 0;
-> }
-> 
+>
+> Checking for PG_reserved wont work?
+
+Okay. It would be better to consider page point itself with PG_reserved.
+I will reflect your opinion next version. :)
+
+Thanks, Christoph.
+
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
