@@ -1,155 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 534136007FA
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 09:12:12 -0400 (EDT)
-Date: Mon, 26 Jul 2010 21:11:52 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/6] writeback: sync expired inodes first in background
- writeback
-Message-ID: <20100726131152.GF11947@localhost>
-References: <20100722050928.653312535@intel.com>
- <20100722061822.906037624@intel.com>
- <20100726105736.GM5300@csn.ul.ie>
- <20100726125635.GC11947@localhost>
- <20100726125954.GT5300@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7A14D6007FA
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 10:06:31 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so1225497pzk.14
+        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 07:06:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100726125954.GT5300@csn.ul.ie>
+In-Reply-To: <alpine.DEB.2.00.1006011351400.13136@chino.kir.corp.google.com>
+References: <AANLkTimAF1zxXlnEavXSnlKTkQgGD0u9UqCtUVT_r9jV@mail.gmail.com>
+	<AANLkTimUYmUCdFMIaVi1qqcz2DqGoILeu43XWZBHSILP@mail.gmail.com>
+	<AANLkTilmr29Vv3N64n7KVj9fSDpfBHIt8-quxtEwY0_X@mail.gmail.com>
+	<alpine.LSU.2.00.1005211410170.14789@sister.anvils> <AANLkTil8sEzrsC9If5HdU8S5R-sK84_fUt_BXUDcAu0J@mail.gmail.com>
+	<alpine.DEB.2.00.1006011351400.13136@chino.kir.corp.google.com>
+From: dave b <db.pub.mail@gmail.com>
+Date: Tue, 27 Jul 2010 00:05:55 +1000
+Message-ID: <AANLkTikUO+WMHXqTMc7jR84UMgKidzX5d5JX6q=DvmpY@mail.gmail.com>
+Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 08:59:55PM +0800, Mel Gorman wrote:
-> On Mon, Jul 26, 2010 at 08:56:35PM +0800, Wu Fengguang wrote:
-> > > > @@ -232,8 +232,15 @@ static void move_expired_inodes(struct l
-> > > >  	while (!list_empty(delaying_queue)) {
-> > > >  		inode = list_entry(delaying_queue->prev, struct inode, i_list);
-> > > >  		if (expire_interval &&
-> > > > -		    inode_dirtied_after(inode, older_than_this))
-> > > > -			break;
-> > > > +		    inode_dirtied_after(inode, older_than_this)) {
-> > > > +			if (wbc->for_background &&
-> > > > +			    list_empty(dispatch_queue) && list_empty(&tmp)) {
-> > > > +				expire_interval >>= 1;
-> > > > +				older_than_this = jiffies - expire_interval;
-> > > > +				continue;
-> > > > +			} else
-> > > > +				break;
-> > > > +		}
-> > > 
-> > > This needs a comment.
-> > > 
-> > > I think what it is saying is that if background flush is active but no
-> > > inodes are old enough, consider newer inodes. This is on the assumption
-> > > that page reclaim has encountered dirty pages and the dirty inodes are
-> > > still too young.
-> > 
-> > Yes this should be commented. How about this one?
-> > 
-> > @@ -232,8 +232,20 @@ static void move_expired_inodes(struct l
-> >         while (!list_empty(delaying_queue)) {
-> >                 inode = list_entry(delaying_queue->prev, struct inode, i_list);
-> >                 if (expire_interval &&
-> > -                   inode_dirtied_after(inode, older_than_this))
-> > +                   inode_dirtied_after(inode, older_than_this)) {
-> > +                       /*
-> > +                        * background writeback will start with expired inodes,
-> > +                        * and then fresh inodes. This order helps reducing
-> > +                        * the number of dirty pages reaching the end of LRU
-> > +                        * lists and cause trouble to the page reclaim.
-> > +                        */
-> 
-> s/reducing/reduce/
-> 
-> Otherwise, it's enough detail to know what is going on. Thanks
+On 2 June 2010 06:52, David Rientjes <rientjes@google.com> wrote:
+> On Thu, 27 May 2010, dave b wrote:
+>
+>> That was just a simple test case with dd. That test case might be
+>> invalid - but it is trying to trigger out of memory - doing this any
+>> other way still causes the problem. I note that playing with some bios
+>> settings I was actually able to trigger what appeared to be graphics
+>> corruption issues when I launched kde applications ... nothing shows
+>> up in dmesg so this might just be a conflict between xorg and the
+>> kernel with those bios settings...
+>>
+>> Anyway, This is no longer a 'problem' for me since I disabled
+>> overcommit and altered the values for dirty_ratio and
+>> dirty_background_ratio - and I cannot trigger it.
+>>
+>
+> Disabling overcommit should always do it, but I'd be interested to know if
+> restoring dirty_ratio to 40 would help your usecase.
+>
+Actually it turns out on 2.6.34.1 I can trigger this issue. What it
+really is, is that linux doesn't invoke the oom killer when it should
+and kill something off. This is *really* annoying.
 
-Thanks. Here is the updated patch.
----
-Subject: writeback: sync expired inodes first in background writeback
-From: Wu Fengguang <fengguang.wu@intel.com>
-Date: Wed Jul 21 20:11:53 CST 2010
+I used the follow script - (on 2.6.34.1)
+cat ./scripts/disable_over_commit
+#!/bin/bash
+echo 2 > /proc/sys/vm/overcommit_memory
+echo 40 > /proc/sys/vm/dirty_ratio
+echo 5 > /proc/sys/vm/dirty_background_ratio
 
-A background flush work may run for ever. So it's reasonable for it to
-mimic the kupdate behavior of syncing old/expired inodes first.
+And I was still able to reproduce this bug.
+Here is some c  code to trigger the condition I am talking about.
 
-The policy is
-- enqueue all newly expired inodes at each queue_io() time
-- enqueue all dirty inodes if there are no more expired inodes to sync
 
-This will help reduce the number of dirty pages encountered by page
-reclaim, eg. the pageout() calls. Normally older inodes contain older
-dirty pages, which are more close to the end of the LRU lists. So
-syncing older inodes first helps reducing the dirty pages reached by
-the page reclaim code.
+#include <stdlib.h>
+#include <stdio.h>
 
-CC: Jan Kara <jack@suse.cz>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c |   23 ++++++++++++++++++-----
- 1 file changed, 18 insertions(+), 5 deletions(-)
+int main(void)
+{
+	while(1)
+	{
+		malloc(1000);
+	}
 
---- linux-next.orig/fs/fs-writeback.c	2010-07-26 20:19:01.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-07-26 21:10:42.000000000 +0800
-@@ -217,14 +217,14 @@ static void move_expired_inodes(struct l
- 				struct writeback_control *wbc)
- {
- 	unsigned long expire_interval = 0;
--	unsigned long older_than_this;
-+	unsigned long older_than_this = 0; /* reset to kill gcc warning */
- 	LIST_HEAD(tmp);
- 	struct list_head *pos, *node;
- 	struct super_block *sb = NULL;
- 	struct inode *inode;
- 	int do_sb_sort = 0;
- 
--	if (wbc->for_kupdate) {
-+	if (wbc->for_kupdate || wbc->for_background) {
- 		expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
- 		older_than_this = jiffies - expire_interval;
- 	}
-@@ -232,8 +232,20 @@ static void move_expired_inodes(struct l
- 	while (!list_empty(delaying_queue)) {
- 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
- 		if (expire_interval &&
--		    inode_dirtied_after(inode, older_than_this))
-+		    inode_dirtied_after(inode, older_than_this)) {
-+			/*
-+			 * background writeback will start with expired inodes,
-+			 * and then fresh inodes. This order helps reduce the
-+			 * number of dirty pages reaching the end of LRU lists
-+			 * and cause trouble to the page reclaim.
-+			 */
-+			if (wbc->for_background &&
-+			    list_empty(dispatch_queue) && list_empty(&tmp)) {
-+				expire_interval = 0;
-+				continue;
-+			}
- 			break;
-+		}
- 		if (sb && sb != inode->i_sb)
- 			do_sb_sort = 1;
- 		sb = inode->i_sb;
-@@ -521,7 +533,8 @@ void writeback_inodes_wb(struct bdi_writ
- 
- 	wbc->wb_start = jiffies; /* livelock avoidance */
- 	spin_lock(&inode_lock);
--	if (!wbc->for_kupdate || list_empty(&wb->b_io))
-+
-+	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
- 		queue_io(wb, wbc);
- 
- 	while (!list_empty(&wb->b_io)) {
-@@ -550,7 +563,7 @@ static void __writeback_inodes_sb(struct
- 
- 	wbc->wb_start = jiffies; /* livelock avoidance */
- 	spin_lock(&inode_lock);
--	if (!wbc->for_kupdate || list_empty(&wb->b_io))
-+	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
- 		queue_io(wb, wbc);
- 	writeback_sb_inodes(sb, wb, wbc, true);
- 	spin_unlock(&inode_lock);
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
