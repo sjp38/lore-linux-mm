@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 739D96B024D
-	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 23:05:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6Q35FYq020747
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B24E66B02A3
+	for <linux-mm@kvack.org>; Sun, 25 Jul 2010 23:06:09 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6Q367EE020982
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 26 Jul 2010 12:05:15 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 490B645DE62
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:05:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3BBC45DE4F
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:05:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 903221DB8048
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:05:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 29E1A1DB8043
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:05:14 +0900 (JST)
+	Mon, 26 Jul 2010 12:06:07 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 65FF045DE51
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:06:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2536F45DE4F
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:06:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7E41DB8050
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:06:07 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B37211DB8042
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 12:06:06 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 3/4] vmscan: convert mm_vmscan_lru_isolate to DEFINE_EVENT
+Subject: [PATCH 4/4] memcg: add mm_vmscan_memcg_isolate tracepoint
 In-Reply-To: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
 References: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
-Message-Id: <20100726120422.2EF7.A69D9226@jp.fujitsu.com>
+Message-Id: <20100726120519.2EFA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon, 26 Jul 2010 12:05:13 +0900 (JST)
+Date: Mon, 26 Jul 2010 12:06:05 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman recently added some vmscan tracepoints. Unfortunately
-they are covered only global reclaim. But we want to trace memcg
-reclaim too.
-
-Thus, this patch convert them to DEFINE_TRACE macro. it help to
-reuse tracepoint definition for other similar usage (i.e. memcg).
-This patch have no functionally change.
+Memcg also need to trace page isolation information as global reclaim.
+This patch does it.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/trace/events/vmscan.h |   17 ++++++++++++++++-
- 1 files changed, 16 insertions(+), 1 deletions(-)
+ include/trace/events/vmscan.h |   15 +++++++++++++++
+ mm/memcontrol.c               |    6 ++++++
+ 2 files changed, 21 insertions(+), 0 deletions(-)
 
 diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index c35e905..b97a3db 100644
+index b97a3db..776f92b 100644
 --- a/include/trace/events/vmscan.h
 +++ b/include/trace/events/vmscan.h
-@@ -152,7 +152,7 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
+@@ -213,6 +213,21 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
+ 
  );
  
- 
--TRACE_EVENT(mm_vmscan_lru_isolate,
-+DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 
- 	TP_PROTO(int order,
- 		unsigned long nr_requested,
-@@ -198,6 +198,21 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
- 		__entry->nr_lumpy_failed)
- );
- 
-+DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
++DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
 +
 +	TP_PROTO(int order,
 +		unsigned long nr_requested,
@@ -81,6 +68,30 @@ index c35e905..b97a3db 100644
  TRACE_EVENT(mm_vmscan_writepage,
  
  	TP_PROTO(struct page *page,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2b648ce..2600776 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -52,6 +52,8 @@
+ 
+ #include <asm/uaccess.h>
+ 
++#include <trace/events/vmscan.h>
++
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
+ struct mem_cgroup *root_mem_cgroup __read_mostly;
+@@ -1011,6 +1013,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+ 	}
+ 
+ 	*scanned = scan;
++
++	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
++				      0, 0, 0, mode);
++
+ 	return nr_taken;
+ }
+ 
 -- 
 1.6.5.2
 
