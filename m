@@ -1,42 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FFEF6B02AD
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 05:49:37 -0400 (EDT)
-Date: Mon, 26 Jul 2010 11:49:31 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] Fix off-by-one bug in mbind() syscall implementation
-Message-ID: <20100726094931.GA17756@basil.fritz.box>
-References: <1280136498-28219-1-git-send-email-andre.przywara@amd.com>
+	by kanga.kvack.org (Postfix) with SMTP id 8093C6B02A5
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:23:16 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so3237337iwn.14
+        for <linux-mm@kvack.org>; Mon, 26 Jul 2010 03:23:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1280136498-28219-1-git-send-email-andre.przywara@amd.com>
+In-Reply-To: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
+References: <20100726120107.2EEE.A69D9226@jp.fujitsu.com>
+Date: Mon, 26 Jul 2010 15:53:13 +0530
+Message-ID: <AANLkTi=sVdkkHm8wvjRC4gQUjsKBm1TiLfvxvVBEbbAn@mail.gmail.com>
+Subject: Re: [PATCH 0/4] memcg reclaim tracepoint v2
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andre Przywara <andre.przywara@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 11:28:18AM +0200, Andre Przywara wrote:
-> When the mbind() syscall implementation processes the node mask
-> provided by the user, the last node is accidentally masked out.
-> This is present since the dawn of time (aka Before Git), I guess
-> nobody realized that because libnuma as the most prominent user of
-> mbind() uses large masks (sizeof(long)) and nobody cared if the
-> 64th node is not handled properly. But if the user application
-> defers the masking to the kernel and provides the number of valid bits
-> in maxnodes, there is always the last node missing.
-> However this also affect the special case with maxnodes=0, the manpage
-> reads that mbind(ptr, len, MPOL_DEFAULT, &some_long, 0, 0); should
-> reset the policy to the default one, but in fact it returns EINVAL.
-> This patch just removes the decrease-by-one statement, I hope that
-> there is no workaround code in the wild that relies on the bogus
-> behavior.
+On Mon, Jul 26, 2010 at 8:32 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>
+> Recently, Mel Gorman added some vmscan tracepoint. but they can't
+> trace memcg. So, This patch series does.
+>
 
-Actually libnuma and likely most existing users rely on it.
+The overall series looks good to me, acking the approach and the need
+for these patches
 
-The only way to change it would be to add new system calls.
-
--Andi
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
