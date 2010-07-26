@@ -1,56 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 315656B02A4
-	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:40:26 -0400 (EDT)
-Date: Mon, 26 Jul 2010 12:40:20 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] Fix off-by-one bug in mbind() syscall implementation
-Message-ID: <20100726104020.GB17756@basil.fritz.box>
-References: <1280136498-28219-1-git-send-email-andre.przywara@amd.com>
- <20100726094931.GA17756@basil.fritz.box>
- <4C4D620E.9010008@amd.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id BEF5E6B02AD
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2010 06:42:23 -0400 (EDT)
+Date: Mon, 26 Jul 2010 11:42:04 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/6] [RFC] writeback: try to write older pages first
+Message-ID: <20100726104204.GI5300@csn.ul.ie>
+References: <20100722050928.653312535@intel.com> <20100723102400.GD5300@csn.ul.ie> <20100726071803.GA13076@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <4C4D620E.9010008@amd.com>
+In-Reply-To: <20100726071803.GA13076@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andre Przywara <andre.przywara@amd.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 12:23:10PM +0200, Andre Przywara wrote:
-> Andi Kleen wrote:
-> >On Mon, Jul 26, 2010 at 11:28:18AM +0200, Andre Przywara wrote:
-> >>When the mbind() syscall implementation processes the node mask
-> >>provided by the user, the last node is accidentally masked out.
-> >>This is present since the dawn of time (aka Before Git), I guess
-> >>nobody realized that because libnuma as the most prominent user of
-> >>mbind() uses large masks (sizeof(long)) and nobody cared if the
-> >>64th node is not handled properly. But if the user application
-> >>defers the masking to the kernel and provides the number of valid bits
-> >>in maxnodes, there is always the last node missing.
-> >>However this also affect the special case with maxnodes=0, the manpage
-> >>reads that mbind(ptr, len, MPOL_DEFAULT, &some_long, 0, 0); should
-> >>reset the policy to the default one, but in fact it returns EINVAL.
-> >>This patch just removes the decrease-by-one statement, I hope that
-> >>there is no workaround code in the wild that relies on the bogus
-> >>behavior.
-> >
-> >Actually libnuma and likely most existing users rely on it.
-> If grep didn't fool me, then the only users in libnuma aware of that
-> bug are the test implementations in numactl-2.0.3/test, namely
-> /test/tshm.c (NUMA_MAX_NODES+1) and test/mbind_mig_pages.c
-> (old_nodes->size + 1).
-
-At least libnuma 1 (which is the libnuma most distributions use today)
-explicitely knows about it and will break if you change it.
-
+On Mon, Jul 26, 2010 at 03:18:03PM +0800, Wu Fengguang wrote:
+> > On Thu, Jul 22, 2010 at 01:09:28PM +0800, Wu Fengguang wrote:
+> > > 
+> > > The basic way of avoiding pageout() is to make the flusher sync inodes in the
+> > > right order. Oldest dirty inodes contains oldest pages. The smaller inode it
+> > > is, the more correlation between inode dirty time and its pages' dirty time.
+> > > So for small dirty inodes, syncing in the order of inode dirty time is able to
+> > > avoid pageout(). If pageout() is still triggered frequently in this case, the
+> > > 30s dirty expire time may be too long and could be shrinked adaptively; or it
+> > > may be a stressed memcg list whose dirty inodes/pages are more hard to track.
+> > > 
+> > 
+> > Have you confirmed this theory with the trace points? It makes perfect
+> > sense and is very rational but proof is a plus.
 > 
-> Has this bug been known before?
+> The proof would be simple.
+> 
+> On average, it takes longer time to dirty a large file than a small file.
+> 
+> For example, when uploading files to a file server with 1MB/s
+> throughput, it will take 10s for a 10MB file and 30s for a 30MB file.
+> This is the common case.
+> 
+> Another case is some fast dirtier. It may take 10ms to dirty a 100MB
+> file and 10s to dirty a 1G file -- the latter is dirty throttled to
+> the much lower IO throughput due to too many dirty pages. The opposite
+> may happen, however this is more likely in possibility. If both are
+> throttled, it degenerates to the above file server case.
+> 
+> So large files tend to contain dirty pages of more varied age.
+> 
 
-Yes (and you can argue whether it's a problem or not)
+Ok.
 
--Andi
+> > I'm guessing you have
+> > some decent writeback-related tests that might be of use. Mine have a
+> > big mix of anon and file writeback so it's not as clear-cut.
+> 
+> A neat trick is to run your test with `swapoff -a` :)
+> 
+
+Good point.
+
+> Seriously I have no scripts to monitor pageout() calls.
+> I'll explore ways to test it.
+> 
+
+I'll see about running tests with swapoff.
+
+> > Monitoring it isn't hard. Mount debugfs, enable the vmscan tracepoints
+> > and read the tracing_pipe. To reduce interference, I always pipe it
+> > through gzip and do post-processing afterwards offline with the script
+> > included in Documentation/
+> 
+> Thanks for the tip!
+> 
+> > Here is what I got from sysbench on x86-64 (other machines hours away)
+> > 
+> > 
+> > SYSBENCH FTrace Reclaim Statistics
+> >                     traceonly-v5r6         nodirect-v5r7      flusholdest-v5r7     flushforward-v5r7
+> > Direct reclaims                                683        785        670        938 
+> > Direct reclaim pages scanned                199776     161195     200400     166639 
+> > Direct reclaim write file async I/O          64802          0          0          0 
+> > Direct reclaim write anon async I/O           1009        419       1184      11390 
+> > Direct reclaim write file sync I/O              18          0          0          0 
+> > Direct reclaim write anon sync I/O               0          0          0          0 
+> > Wake kswapd requests                        685360     697255     691009     864602 
+> > Kswapd wakeups                                1596       1517       1517       1545 
+> > Kswapd pages scanned                      17527865   16817554   16816510   15032525 
+> > Kswapd reclaim write file async I/O         888082     618123     649167     147903 
+> > Kswapd reclaim write anon async I/O         229724     229123     233639     243561 
+> > Kswapd reclaim write file sync I/O               0          0          0          0 
+> > Kswapd reclaim write anon sync I/O               0          0          0          0 
+> 
+> > Time stalled direct reclaim (ms)             32.79      22.47      19.75       6.34 
+> > Time kswapd awake (ms)                     2192.03    2165.17    2112.73    2055.90 
+> 
+> I noticed that $total_direct_latency is divided by 1000 before
+> printing the above lines, so the unit should be seconds?
+> 
+
+Correct. That figure was generated by another post-processing script that
+creates the table. It got the units wrong so the percentage time lines are
+wrong and the time spent awake is saying ms when it should say seconds. Sorry
+about that.
+
+> > User/Sys Time Running Test (seconds)         663.3    656.37    664.14    654.63
+> > Percentage Time Spent Direct Reclaim         0.00%     0.00%     0.00%     0.00%
+> > Total Elapsed Time (seconds)               6703.22   6468.78   6472.69   6479.62
+> > Percentage Time kswapd Awake                 0.03%     0.00%     0.00%     0.00%
+> 
+> I don't see the code for generating the "Percentage" lines. And the
+> numbers seem too small to be true.
+> 
+
+The code is in a table-generation script that had access to data on the
+length of time the test ran. I was ignoring the percentage time line
+since early on and I missed the error.
+
+The percentage time spent on direct reclaim is
+
+direct_reclaim*100/(user_time+sys_time+stalled_time)
+
+A report based on a corrected scipt looks like
+
+                    traceonly-v5r6         nodirect-v5r9 flusholdest-v5r9     flushforward-v5r9
+Direct reclaims                                683        528        808 943 
+Direct reclaim pages scanned                199776     298562     125991 83325 
+Direct reclaim write file async I/O          64802          0          0 0 
+Direct reclaim write anon async I/O           1009       3340        926 2227 
+Direct reclaim write file sync I/O              18          0          0 0 
+Direct reclaim write anon sync I/O               0          0          0 0 
+Wake kswapd requests                        685360     522123     763448 827895 
+Kswapd wakeups                                1596       1538       1452 1565 
+Kswapd pages scanned                      17527865   17020235   16367809 15415022 
+Kswapd reclaim write file async I/O         888082     869540     536427 89004 
+Kswapd reclaim write anon async I/O         229724     262934     253396 215861 
+Kswapd reclaim write file sync I/O               0          0          0 0 
+Kswapd reclaim write anon sync I/O               0          0          0 0 
+Time stalled direct reclaim (seconds)        32.79      23.46      20.70 7.01 
+Time kswapd awake (seconds)                2192.03    2172.22    2117.82 2166.53 
+
+User/Sys Time Running Test (seconds)         663.3    644.43    637.34 680.53
+Percentage Time Spent Direct Reclaim         4.71%     3.51%     3.15% 1.02%
+Total Elapsed Time (seconds)               6703.22   6477.95   6503.39 6781.90
+Percentage Time kswapd Awake                32.70%    33.53%    32.56% 31.95%
+
+> > Flush oldest actually increased the number of pages written back by
+> > kswapd but the anon writeback is also high as swap is involved. Kicking
+> > flusher threads also helps a lot. It helps less than previous released
+> > because I noticed I was kicking flusher threads for both anon and file
+> > dirty pages which is cheating. It's now only waking the threads for
+> > file. It's still a reduction of 84% overall so nothing to sneeze at.
+> > 
+> > What the patch did do was reduce time stalled in direct reclaim and time
+> > kswapd spent awake so it still might be going the right direction. I
+> > don't have a feeling for how much the writeback figures change between
+> > runs because they take so long to run.
+> > 
+> > STRESS-HIGHALLOC FTrace Reclaim Statistics
+> >                   stress-highalloc      stress-highalloc      stress-highalloc      stress-highalloc
+> >                     traceonly-v5r6         nodirect-v5r7      flusholdest-v5r7     flushforward-v5r7
+> > Direct reclaims                               1221       1284       1127       1252 
+> > Direct reclaim pages scanned                146220     186156     142075     140617 
+> > Direct reclaim write file async I/O           3433          0          0          0 
+> > Direct reclaim write anon async I/O          25238      28758      23940      23247 
+> > Direct reclaim write file sync I/O            3095          0          0          0 
+> > Direct reclaim write anon sync I/O           10911     305579     281824     246251 
+> > Wake kswapd requests                          1193       1196       1088       1209 
+> > Kswapd wakeups                                 805        824        758        804 
+> > Kswapd pages scanned                      30953364   52621368   42722498   30945547 
+> > Kswapd reclaim write file async I/O         898087     241135     570467      54319 
+> > Kswapd reclaim write anon async I/O        2278607    2201894    1885741    1949170 
+> > Kswapd reclaim write file sync I/O               0          0          0          0 
+> > Kswapd reclaim write anon sync I/O               0          0          0          0 
+> > Time stalled direct reclaim (ms)           8567.29    6628.83    6520.39    6947.23 
+> > Time kswapd awake (ms)                     5847.60    3589.43    3900.74   15837.59 
+> > 
+> > User/Sys Time Running Test (seconds)       2824.76   2833.05   2833.26   2830.46
+> > Percentage Time Spent Direct Reclaim         0.25%     0.00%     0.00%     0.00%
+> > Total Elapsed Time (seconds)              10920.14   9021.17   8872.06   9301.86
+> > Percentage Time kswapd Awake                 0.15%     0.00%     0.00%     0.00%
+> > 
+> > Same here, the number of pages written back by kswapd increased but
+> > again anon writeback was a big factor. Kicking threads when dirty pages
+> > are encountered still helps a lot with a 94% reduction of pages written
+> > back overall..
+> 
+> That is impressive! So it definitely helps to reduce total number of
+> dirty pages under memory pressure.
+> 
+
+Yes.
+
+> > Also, your patch really helped the time spent stalled by direct reclaim
+> > and kswapd was awake a lot less less with tests completing far faster.
+> 
+> Thanks. So it does improve the dirty page layout in the LRU lists.
+> 
+
+It would appear to.
+
+> > Overally, I still think your series if a big help (although I don't know if
+> > the patches in linux-next are also making a difference) but it's not actually
+> > reducing the pages encountered by direct reclaim. Maybe that is because
+> > the tests were making more forward progress and so scanning faster. The
+> > sysbench performance results are too varied to draw conclusions from but it
+> > did slightly improve the success rate of high-order allocations.
+> > 
+> > The flush-forward patches would appear to be a requirement. Christoph
+> > first described them as a band-aid but he didn't chuck rocks at me when
+> > the patch was actually released. Right now, I'm leaning towards pushing
+> > it and judge by the Swear Meter how good/bad others think it is. So far
+> > it's, me pro, Rik pro, Christoph maybe.
+> 
+> Sorry for the delay, I'll help review it.
+> 
+
+Don't be sorry, I still haven't reviewed the writeback patches.
+
+> > > For a large dirty inode, it may flush lots of newly dirtied pages _after_
+> > > syncing the expired pages. This is the normal case for a single-stream
+> > > sequential dirtier, where older pages are in lower offsets.  In this case we
+> > > shall not insist on syncing the whole large dirty inode before considering the
+> > > other small dirty inodes. This risks wasting time syncing 1GB freshly dirtied
+> > > pages before syncing the other N*1MB expired dirty pages who are approaching
+> > > the end of the LRU list and hence pageout().
+> > > 
+> > 
+> > Intuitively, this makes a lot of sense.
+> > 
+> > > For a large dirty inode, it may also flush lots of newly dirtied pages _before_
+> > > hitting the desired old ones, in which case it helps for pageout() to do some
+> > > clustered writeback, and/or set mapping->writeback_index to help the flusher
+> > > focus on old pages.
+> > > 
+> > 
+> > Will put this idea on the maybe pile.
+> > 
+> > > For a large dirty inode, it may also have intermixed old and new dirty pages.
+> > > In this case we need to make sure the inode is queued for IO before some of
+> > > its pages hit pageout(). Adaptive dirty expire time helps here.
+> > > 
+> > > OK, end of the vapour ideas. As for this patchset, it fixes the current
+> > > kupdate/background writeback priority:
+> > > 
+> > > - the kupdate/background writeback shall include newly expired inodes at each
+> > >   queue_io() time, as the large inodes left over from previous writeback rounds
+> > >   are likely to have less density of old pages.
+> > > 
+> > > - the background writeback shall consider expired inodes first, just like the
+> > >   kupdate writeback
+> > > 
+> > 
+> > I haven't actually reviewed these. I got testing kicked off first
+> > because it didn't require brains :)
+> 
+> Thanks all the same!
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
