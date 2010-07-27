@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E1B600815
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 10:09:55 -0400 (EDT)
-Date: Tue, 27 Jul 2010 16:09:47 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: struct backing_dev - purpose and life time rules
-Message-ID: <20100727140947.GA25106@lst.de>
-References: <20100727090107.GA9572@lst.de> <20100727091459.GA11134@lst.de> <20100727133956.GA7347@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 782F7600815
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 10:22:20 -0400 (EDT)
+Date: Tue, 27 Jul 2010 23:21:37 +0900
+Subject: Re: [PATCHv2 2/4] mm: cma: Contiguous Memory Allocator added
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20100727065842.40ae76c8@bike.lwn.net>
+References: <20100727120841.GC11468@n2100.arm.linux.org.uk>
+	<003701cb2d89$adae4580$090ad080$%szyprowski@samsung.com>
+	<20100727065842.40ae76c8@bike.lwn.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100727133956.GA7347@redhat.com>
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20100727232106Z.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>, jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, kay.sievers@vrfy.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: corbet@lwn.net
+Cc: m.szyprowski@samsung.com, linux@arm.linux.org.uk, m.nazarewicz@samsung.com, linux-mm@kvack.org, dwalker@codeaurora.org, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, fujita.tomonori@lab.ntt.co.jp, kyungmin.park@samsung.com, zpfeffer@codeaurora.org, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 27, 2010 at 09:39:56AM -0400, Vivek Goyal wrote:
-> How can I do it better?
-> 
-> I needed a unique identifier with which user can work in terms of
-> specifying weights to devices and in terms of understanding what stats
-> mean. Device major/minor number looked like a obivious choice.
-> 
-> I was looking for how to determine what is the major/minor number of disk
-> request queue is associated with and I could use bdi to do that.
+On Tue, 27 Jul 2010 06:58:42 -0600
+Jonathan Corbet <corbet@lwn.net> wrote:
 
-The problem is that a queue can be shared between multiple gendisks,
-so dev_t of a gendisk is not a unique identifier.  In addition to that
-we even have gendisks that do not even have a block device associated
-with them (e.g. for scsi tapes) or request queues that do not have
-any gendisks attached to it (e.g. scsi devices without an ULD like
-various types of scanners or printers).
+> On Tue, 27 Jul 2010 14:45:58 +0200
+> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+> 
+> > > How does one obtain the CPU address of this memory in order for the CPU
+> > > to access it?  
+> > 
+> > Right, we did not cover such case. In CMA approach we tried to separate
+> > memory allocation from the memory mapping into user/kernel space. Mapping
+> > a buffer is much more complicated process that cannot be handled in a
+> > generic way, so we decided to leave this for the device drivers. Usually
+> > video processing devices also don't need in-kernel mapping for such
+> > buffers at all.
+> 
+> Still...that *is* why I suggested an interface which would return both
+> the DMA address and a kernel-space virtual address, just like the DMA
+> API does...  Either that, or just return the void * kernel address and
+
+The DMA API for coherent memory (dma_alloc_coherent) returns both an
+DMA address and a kernel-space virtual address because it does both
+allocation and mapping.
+
+However, other DMA API (dma_map_*) returns only an DMA address because
+it does only mapping.
+
+I think that if we need new API for coherent memory, we could
+unify it with the DMA API for coherent memory.
+
+IMO, it's cleaner to having two separate APIs for allocation and
+mapping (except for coherent memory). The drivers have been working
+in that way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
