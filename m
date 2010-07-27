@@ -1,105 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EF192600365
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 05:01:20 -0400 (EDT)
-Date: Tue, 27 Jul 2010 11:01:07 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: struct backing_dev - purpose and life time rules
-Message-ID: <20100727090107.GA9572@lst.de>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2C816600365
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 05:12:49 -0400 (EDT)
+Date: Tue, 27 Jul 2010 11:12:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/6] writeback: reduce calls to global_page_state in
+ balance_dirty_pages()
+Message-ID: <20100727091220.GD3358@quack.suse.cz>
+References: <20100711020656.340075560@intel.com>
+ <20100711021748.735126772@intel.com>
+ <20100726151946.GH3280@quack.suse.cz>
+ <20100727035941.GA15007@localhost>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20100727035941.GA15007@localhost>
 Sender: owner-linux-mm@kvack.org
-To: jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, kay.sievers@vrfy.org, viro@zeniv.linux.org.uk
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, Dave Chinner <david@fromorbit.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-The struct backing_dev was introduced back in Linux 2.5 days by Andrew's
+On Tue 27-07-10 11:59:41, Wu Fengguang wrote:
+> > > This patch slightly changes behavior by replacing clip_bdi_dirty_limit()
+> > > with the explicit check (nr_reclaimable + nr_writeback >= dirty_thresh)
+> > > to avoid exceeding the dirty limit. Since the bdi dirty limit is mostly
+> > > accurate we don't need to do routinely clip. A simple dirty limit check
+> > > would be enough.
+> > > 
+> > > The check is necessary because, in principle we should throttle
+> > > everything calling balance_dirty_pages() when we're over the total
+> > > limit, as said by Peter.
+> > > 
+> > > We now set and clear dirty_exceeded not only based on bdi dirty limits,
+> > > but also on the global dirty limits. This is a bit counterintuitive, but
+> > > the global limits are the ultimate goal and shall be always imposed.
+> >   Thinking about this again - what you did is rather big change for systems
+> > with more active BDIs. For example if I have two disks sda and sdb and
+> > write for some time to sda, then dirty limit for sdb gets scaled down.
+> > So when we start writing to sbd we'll heavily throttle the threads until
+> > the dirty limit for sdb ramps up regardless of how far are we to reach the
+> > global limit...
+> 
+> The global threshold check is added in place of clip_bdi_dirty_limit()
+> for safety and not intended as a behavior change. If ever leading to
+> big behavior change and regression, that it would be indicating some
+> too permissive per-bdi threshold calculation.
+> 
+> Did you see the global dirty threshold get exceeded when writing to 2+
+> devices? Occasional small exceeding should be OK though. I tried the
+> following debug patch and see no warnings when doing two concurrent cp
+> over local disk and NFS.
+  Oops, sorry. I've misread the code. You're right. There shouldn't be a big
+change in the behavior.
 
-	"[PATCH] pdflush exclusion infrastructure"
-
-at which point it was still fairly simple, having a simple ra_pages
-field, and a state with two flags.  Lifetime rules at that point where
-rather simple, too - we either had one embedded into the block queue,
-or a default_backing_dev_info that was statically allocated.  At little
-later we got congestion information, per-bdi unplug support and the
-complicated capabilies scheme we have now, but until 2007 things stay
-very simple, and we don't have any interesting life time rules.
-
-In 2007 Peter added per-cpu statistics counters to the BDI, which at
-this point required bdi_init / bdi_destroy calls to guard the lifetime
-of the BDI.  Now we actively need to manage the life time, but it's
-still pretty simple.
-
-It starts to get interesting with
-
-	"mm: bdi: export BDI attributes in sysfs"
-
-that Peter added in April 2008, which ties the previously simple
-structure into the device model / sysfs life time rules.  And at
-least for the block device it does so rather badly given that it
-tries to register the per-queue backing-device object during
-add_disk, ignoring that we can have multiple gendisks for a
-given request_queue.
-
-Even worse it really mixes up the unregister vs destroy concepts
-by simply calling bdi_unregister from bdi_destroy, which means we'll
-easily get duplicate unregisters.  It more or less protects by
-checking bdi->dev (without synchronization) and doesn't do too
-stupid mixups between unregister and destroy yet, so life isn't
-that bad.
-
-Commit
-
-	"bdi: register sysfs bdi device only once per queue"
-
-from December 2008 tries to work around this by simply skipping
-out of bdi_register if a device is already registered, which ignores
-the fundamental problems with the issue.  And also leaves the duplicate
-removals in place.
-
-Then last year in commit
-
-	"writeback: switch to per-bdi threads for flushing data"
-
-The per-bdi flusher thread preparion and shutdown gets added to
-bdi_register/unregister.  Now that's where the next big pile of
-issues start.  If a disk is surprise removed that means that both
-the flusher thread disappear and the newly added s_bdi pointer
-in the superblock disappear.  But we still have a life filesystem
-that might reference s->bdi and we don't have any good thing
-preventing it from doing it.  If it had been done in destroy
-we could skip all these efforts.
-
-In the meantime we've also grown two names for the bdi: bdi->name,
-which has a generic name, afaik only used for a single debug printk,
-and the name for the sysfs device which we use in a couple other
-places.
-
-So what do we need to do to sort this mess out?
-
-For one thing the bdi needs it's own life time rules, and if we want
-to keep it in sysfs it needs to get a name independent of the block
-device dev_t pointing to it.  Just generalizing bdi object naming to
-bdi->name + sequence number would fix this nicely while also
-simplifying the code.  The links from the disk device could remain
-their current names, which should keep userspace looking at it working.
-of the disks.
-
-Second bdi_register/unregister would go away in their current form,
-we'd always keep the bdi registered during it's life time, only the
-links from a disk get added / removed by add_disk / unlink_gendisk
-but that will be handled outside the bdi code (it already is).  A bdi
-will never go away while a superblock uses it.  For the non block
-based filesystems that's already true, but for block ones that means
-we need to stop unliking it in unlink_gendisk.
-
-One issue with this is that some of the "random" backing devices
-are initialized too early to actually create the sysfs representation.
-Maybe we should never bother to register bdis like the /dev/zero one
-and not allow people to tweak the settings?  The only thing that could
-be tweaked would be the ra_pages number anyway, which doesn't make
-sense for these non-writeable bdis.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
