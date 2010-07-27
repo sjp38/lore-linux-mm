@@ -1,98 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E753560080D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 09:35:31 -0400 (EDT)
-Date: Tue, 27 Jul 2010 14:35:13 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 8/8] vmscan: Kick flusher threads to clean pages when
-	reclaim is encountering dirty pages
-Message-ID: <20100727133513.GZ5300@csn.ul.ie>
-References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie> <1279545090-19169-9-git-send-email-mel@csn.ul.ie> <20100726072832.GB13076@localhost> <20100726092616.GG5300@csn.ul.ie> <20100726112709.GB6284@localhost> <20100726125717.GS5300@csn.ul.ie> <20100726131008.GE11947@localhost>
+	by kanga.kvack.org (Postfix) with SMTP id 6526F60080D
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 09:40:02 -0400 (EDT)
+Date: Tue, 27 Jul 2010 09:39:56 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: struct backing_dev - purpose and life time rules
+Message-ID: <20100727133956.GA7347@redhat.com>
+References: <20100727090107.GA9572@lst.de>
+ <20100727091459.GA11134@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100726131008.GE11947@localhost>
+In-Reply-To: <20100727091459.GA11134@lst.de>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, kay.sievers@vrfy.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2010 at 09:10:08PM +0800, Wu Fengguang wrote:
-> On Mon, Jul 26, 2010 at 08:57:17PM +0800, Mel Gorman wrote:
-> > On Mon, Jul 26, 2010 at 07:27:09PM +0800, Wu Fengguang wrote:
-> > > > > > @@ -933,13 +934,16 @@ keep_dirty:
-> > > > > >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
-> > > > > >  	}
-> > > > > >  
-> > > > > > +	/*
-> > > > > > +	 * If reclaim is encountering dirty pages, it may be because
-> > > > > > +	 * dirty pages are reaching the end of the LRU even though
-> > > > > > +	 * the dirty_ratio may be satisified. In this case, wake
-> > > > > > +	 * flusher threads to pro-actively clean some pages
-> > > > > > +	 */
-> > > > > > +	wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty + nr_dirty / 2);
-> > > > > 
-> > > > > Ah it's very possible that nr_dirty==0 here! Then you are hitting the
-> > > > > number of dirty pages down to 0 whether or not pageout() is called.
-> > > > > 
-> > > > 
-> > > > True, this has been fixed to only wakeup flusher threads when this is
-> > > > the file LRU, dirty pages have been encountered and the caller has
-> > > > sc->may_writepage.
-> > > 
-> > > OK.
-> > > 
-> > > > > Another minor issue is, the passed (nr_dirty + nr_dirty / 2) is
-> > > > > normally a small number, much smaller than MAX_WRITEBACK_PAGES.
-> > > > > The flusher will sync at least MAX_WRITEBACK_PAGES pages, this is good
-> > > > > for efficiency.
-> > > > > And it seems good to let the flusher write much more
-> > > > > than nr_dirty pages to safeguard a reasonable large
-> > > > > vmscan-head-to-first-dirty-LRU-page margin. So it would be enough to
-> > > > > update the comments.
-> > > > > 
-> > > > 
-> > > > Ok, the reasoning had been to flush a number of pages that was related
-> > > > to the scanning rate but if that is inefficient for the flusher, I'll
-> > > > use MAX_WRITEBACK_PAGES.
-> > > 
-> > > It would be better to pass something like (nr_dirty * N).
-> > > MAX_WRITEBACK_PAGES may be increased to 128MB in the future, which is
-> > > obviously too large as a parameter. When the batch size is increased
-> > > to 128MB, the writeback code may be improved somehow to not exceed the
-> > > nr_pages limit too much.
-> > > 
-> > 
-> > What might be a useful value for N? 1.5 appears to work reasonably well
-> > to create a window of writeback ahead of the scanner but it's a bit
-> > arbitrary.
+On Tue, Jul 27, 2010 at 11:14:59AM +0200, Christoph Hellwig wrote:
+> In addition to these gem's there's an even worse issue in blk cfq,
+> introduced in commit
 > 
-> I'd recommend N to be a large value. It's no longer relevant now since
-> we'll call the flusher to sync some range containing the target page.
-> The flusher will then choose an N large enough (eg. 4MB) for efficient
-> IO. It needs to be a large value, otherwise the vmscan code will
-> quickly run into dirty pages again..
+> 	"blkio: Export disk time and sectors used by a group to user space"
 > 
+> which parses the name inside the backing_dev sysfs device back into a
+> major / minor number.  Given how obviously stupid this is,
 
-Ok, I took the 4MB at face value to be a "reasonable amount that should
-not cause congestion". The end result is
+How can I do it better?
 
-#define MAX_WRITEBACK (4194304UL >> PAGE_SHIFT)
-#define WRITEBACK_FACTOR (MAX_WRITEBACK / SWAP_CLUSTER_MAX)
-static inline long nr_writeback_pages(unsigned long nr_dirty)
-{
-        return laptop_mode ? 0 :
-                        min(MAX_WRITEBACK, (nr_dirty * WRITEBACK_FACTOR));
-}
+I needed a unique identifier with which user can work in terms of
+specifying weights to devices and in terms of understanding what stats
+mean. Device major/minor number looked like a obivious choice.
 
-nr_writeback_pages(nr_dirty) is what gets passed to
-wakeup_flusher_threads(). Does that seem sensible?
+I was looking for how to determine what is the major/minor number of disk
+request queue is associated with and I could use bdi to do that.
 
+So I was working under the assumption that there is one request queue
+associated with one gendisk and I can use major/minor number for that
+disk to uniquely identify request queue.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+But you seem to be suggesting that there can be multiple gendisk associated
+with a single request queue. I am not sure how does that happen but if it
+does, that means a single request queue has requests for multiple gendisks
+hence for multiple major/minor number pairs?
+
+If yes, then we need to come up with unique naming scheme for request queue
+which CFQ can use to export stats to user space through cgroup interface
+and also a user can use same name/indentifier to be able to specify per
+device/request queue weigths.
+
+> and given
+> the whack a mole blkiocg is I'm tempted to simply break it and see if
+> anyone cares.
+
+I do care about blkiocg. Why do you think it is a mole? If things are
+wrong, guide me how to go about fixing it and I will do that.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
