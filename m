@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 27EAF6007F9
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 07:17:07 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6RBH4cU027129
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 27 Jul 2010 20:17:04 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 057CE45DE52
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 20:17:04 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D386045DE4D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 20:17:03 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B724CE08002
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 20:17:03 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D3E71DB804D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 20:17:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Add trace points to mmap, munmap, and brk
-In-Reply-To: <20100727110904.GA6519@mgebm.net>
-References: <20100721223359.8710.A69D9226@jp.fujitsu.com> <20100727110904.GA6519@mgebm.net>
-Message-Id: <20100727201644.2F46.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 0ECE260080D
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 07:26:37 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so473568pvc.14
+        for <linux-mm@kvack.org>; Tue, 27 Jul 2010 04:26:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 27 Jul 2010 20:17:02 +0900 (JST)
+In-Reply-To: <20100727200804.2F40.A69D9226@jp.fujitsu.com>
+References: <AANLkTikjJ0giM+MpzNu3e0NQN=JLMviPT8UPHdZqGGpz@mail.gmail.com>
+	<AANLkTinT_W4Zfg8xcpKXMpqTAomdVBdHve7VqamdSr4o@mail.gmail.com>
+	<20100727200804.2F40.A69D9226@jp.fujitsu.com>
+From: dave b <db.pub.mail@gmail.com>
+Date: Tue, 27 Jul 2010 21:26:16 +1000
+Message-ID: <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
+Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Eric B Munson <emunson@mgebm.net>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 21 Jul 2010, KOSAKI Motohiro wrote:
-> 
-> > > This patch adds trace points to mmap, munmap, and brk that will report
-> > > relevant addresses and sizes before each function exits successfully.
-> > > 
-> > > Signed-off-by: Eric B Munson <emunson@mgebm.net>
-> > 
-> > I don't think this is good idea. if you need syscall result, you should 
-> > use syscall tracer. IOW, This tracepoint bring zero information.
-> > 
-> > Please see perf_event_mmap() usage. Our kernel manage adress space by
-> > vm_area_struct. we need to trace it if we need to know what kernel does.
-> > 
-> > Thanks.
-> 
-> The syscall tracer does not give you the address and size of the mmaped areas
-> so this does provide information above simply tracing the enter/exit points
-> for each call.
+On 27 July 2010 21:14, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On 27 July 2010 18:09, dave b <db.pub.mail@gmail.com> wrote:
+>> > On 27 July 2010 16:09, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>> >>> > Do you mean the issue will be gone if disabling intel graphics?
+>> >>> It may be a general issue or it could just be specific :)
+>> >
+>> > I will try with the latest ubuntu and report how that goes (that will
+>> > be using fairly new xorg etc.) it is likely to be hidden issue just
+>> > with the intel graphics driver. However, my concern is that it isn't -
+>> > and it is about how shared graphics memory is handled :)
+>>
+>>
+>> Ok my desktop still stalled and no oom killer was invoked when I added
+>> swap to a live-cd of 10.04 amd64.
+>>
+>> *Without* *swap* *on* - the oom killer was invoked - here is a copy of it.
+>
+> This stack seems similar following bug. can you please try to disable intel graphics
+> driver?
+>
+> https://bugzilla.kernel.org/show_bug.cgi?id=14933
 
-Why don't you fix this?
-
-
-
-> perf_event_mmap does provide the information for mmap calls.  Originally I sent
-> a patch to add a trace point to munmap and Peter Z asked for corresponding points
-> in the mmap family.  If the consensus is that the trace point in munmap is the
-> only one that should be added I can resend that patch.
-> 
-> -- 
-> Eric B Munson
-> IBM Linux Technology Center
-> ebmunson@us.ibm.com
-> 
-
-
+Ok I am not sure how to do that :)
+I could revert the patch and see if it 'fixes' this :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
