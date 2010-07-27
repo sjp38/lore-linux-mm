@@ -1,91 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B2B86600365
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 04:18:30 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6R8IiMR003003
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 27 Jul 2010 17:18:44 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A87545DE51
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 17:18:44 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F1E545DE55
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 17:18:44 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F03721DB803C
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 17:18:43 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C5A41DB805B
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 17:18:40 +0900 (JST)
-Date: Tue, 27 Jul 2010 17:13:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-Message-Id: <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <pfn.valid.v4.reply.2@mdm.bga.com>
-References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com>
-	<alpine.DEB.2.00.1007261136160.5438@router.home>
-	<pfn.valid.v4.reply.1@mdm.bga.com>
-	<AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com>
-	<pfn.valid.v4.reply.2@mdm.bga.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EF192600365
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 05:01:20 -0400 (EDT)
+Date: Tue, 27 Jul 2010 11:01:07 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: struct backing_dev - purpose and life time rules
+Message-ID: <20100727090107.GA9572@lst.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Milton Miller <miltonm@bga.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, kay.sievers@vrfy.org, viro@zeniv.linux.org.uk
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Jul 2010 03:12:38 -0500
-Milton Miller <miltonm@bga.com> wrote:
+The struct backing_dev was introduced back in Linux 2.5 days by Andrew's
 
-> > > > > +/*
-> > > > > + * Fill pg->private on valid mem_map with page itself.
-> > > > > + * pfn_valid() will check this later. (see include/linux/mmzone.h)
-> > > > > + * Every arch for supporting hole of mem_map should call
-> > > > > + * mark_valid_memmap(start, end). please see usage in ARM.
-> > > > > + */
-> > > > > +void mark_valid_memmap(unsigned long start, unsigned long end)
-> > > > > +{
-> > > > > +	struct mem_section *ms;
-> > > > > +	unsigned long pos, next;
-> > > > > +	struct page *pg;
-> > > > > +	void *memmap, *mapend;
-> > > > > +
-> > > > > +	for (pos = start; pos < end; pos = next) {
-> > > > > +		next = (pos + PAGES_PER_SECTION) & PAGE_SECTION_MASK;
-> > > > > +		ms = __pfn_to_section(pos);
-> > > > > +		if (!valid_section(ms))
-> > > > > +			continue;
-> > > > > +	
-> > > > > +		for (memmap = (void*)pfn_to_page(pos),
-> > > > > +					/* The last page in section */
-> > > > > +					mapend = pfn_to_page(next-1);
-> > > > > +				memmap < mapend; memmap += PAGE_SIZE) {
-> > > > > +			pg = virt_to_page(memmap);
-> > > > > +			set_page_private(pg, (unsigned long)pg);
-> > > > > +		}
-> > > > > +	}
-> > > > > +}
-> 
-> Hmm, this loop would need to change for sections.   And sizeof(struct
-> page) % PAGE_SIZE may not be 0, so we want a global symbol for sparsemem
-> too. 
-IIUC, sizeof(struct page) % PAGE_SIZE is not a probelm.
+	"[PATCH] pdflush exclusion infrastructure"
 
+at which point it was still fairly simple, having a simple ra_pages
+field, and a state with two flags.  Lifetime rules at that point where
+rather simple, too - we either had one embedded into the block queue,
+or a default_backing_dev_info that was statically allocated.  At little
+later we got congestion information, per-bdi unplug support and the
+complicated capabilies scheme we have now, but until 2007 things stay
+very simple, and we don't have any interesting life time rules.
 
-> Perhaps the mem_section array.  Using a symbol that is part of
-> the model pre-checks can remove a global symbol lookup and has the side
-> effect of making sure our pfn_valid is for the right model.
-> 
+In 2007 Peter added per-cpu statistics counters to the BDI, which at
+this point required bdi_init / bdi_destroy calls to guard the lifetime
+of the BDI.  Now we actively need to manage the life time, but it's
+still pretty simple.
 
-But yes, maybe it's good to make use of a fixed-(magic)-value.
+It starts to get interesting with
 
+	"mm: bdi: export BDI attributes in sysfs"
 
-Tanks,
--Kame
+that Peter added in April 2008, which ties the previously simple
+structure into the device model / sysfs life time rules.  And at
+least for the block device it does so rather badly given that it
+tries to register the per-queue backing-device object during
+add_disk, ignoring that we can have multiple gendisks for a
+given request_queue.
 
+Even worse it really mixes up the unregister vs destroy concepts
+by simply calling bdi_unregister from bdi_destroy, which means we'll
+easily get duplicate unregisters.  It more or less protects by
+checking bdi->dev (without synchronization) and doesn't do too
+stupid mixups between unregister and destroy yet, so life isn't
+that bad.
 
+Commit
+
+	"bdi: register sysfs bdi device only once per queue"
+
+from December 2008 tries to work around this by simply skipping
+out of bdi_register if a device is already registered, which ignores
+the fundamental problems with the issue.  And also leaves the duplicate
+removals in place.
+
+Then last year in commit
+
+	"writeback: switch to per-bdi threads for flushing data"
+
+The per-bdi flusher thread preparion and shutdown gets added to
+bdi_register/unregister.  Now that's where the next big pile of
+issues start.  If a disk is surprise removed that means that both
+the flusher thread disappear and the newly added s_bdi pointer
+in the superblock disappear.  But we still have a life filesystem
+that might reference s->bdi and we don't have any good thing
+preventing it from doing it.  If it had been done in destroy
+we could skip all these efforts.
+
+In the meantime we've also grown two names for the bdi: bdi->name,
+which has a generic name, afaik only used for a single debug printk,
+and the name for the sysfs device which we use in a couple other
+places.
+
+So what do we need to do to sort this mess out?
+
+For one thing the bdi needs it's own life time rules, and if we want
+to keep it in sysfs it needs to get a name independent of the block
+device dev_t pointing to it.  Just generalizing bdi object naming to
+bdi->name + sequence number would fix this nicely while also
+simplifying the code.  The links from the disk device could remain
+their current names, which should keep userspace looking at it working.
+of the disks.
+
+Second bdi_register/unregister would go away in their current form,
+we'd always keep the bdi registered during it's life time, only the
+links from a disk get added / removed by add_disk / unlink_gendisk
+but that will be handled outside the bdi code (it already is).  A bdi
+will never go away while a superblock uses it.  For the non block
+based filesystems that's already true, but for block ones that means
+we need to stop unliking it in unlink_gendisk.
+
+One issue with this is that some of the "random" backing devices
+are initialized too early to actually create the sysfs representation.
+Maybe we should never bother to register bdis like the /dev/zero one
+and not allow people to tweak the settings?  The only thing that could
+be tweaked would be the ra_pages number anyway, which doesn't make
+sense for these non-writeable bdis.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
