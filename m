@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6526F60080D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 09:40:02 -0400 (EDT)
-Date: Tue, 27 Jul 2010 09:39:56 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: struct backing_dev - purpose and life time rules
-Message-ID: <20100727133956.GA7347@redhat.com>
-References: <20100727090107.GA9572@lst.de>
- <20100727091459.GA11134@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100727091459.GA11134@lst.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7AF2F600815
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 09:48:11 -0400 (EDT)
+Received: from epmmp2 (mailout2.samsung.com [203.254.224.25])
+ by mailout2.samsung.com
+ (Sun Java(tm) System Messaging Server 7u3-15.01 64bit (built Feb 12 2010))
+ with ESMTP id <0L670044KYC9OW40@mailout2.samsung.com> for linux-mm@kvack.org;
+ Tue, 27 Jul 2010 22:48:09 +0900 (KST)
+Received: from AMDC159 ([106.116.37.153])
+ by mmp2.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTPA id <0L670011XYBULS@mmp2.samsung.com> for linux-mm@kvack.org; Tue,
+ 27 Jul 2010 22:48:09 +0900 (KST)
+Date: Tue, 27 Jul 2010 15:46:26 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: RE: [PATCHv2 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <20100727065842.40ae76c8@bike.lwn.net>
+Message-id: <003f01cb2d92$20819730$6184c590$%szyprowski@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-language: pl
+Content-transfer-encoding: 7BIT
+References: <cover.1280151963.git.m.nazarewicz@samsung.com>
+ <743102607e2c5fb20e3c0676fadbcb93d501a78e.1280151963.git.m.nazarewicz@samsung.com>
+ <dc4bdf3e0b02c0ac4770927f72b6cbc3f0b486a2.1280151963.git.m.nazarewicz@samsung.com>
+ <20100727120841.GC11468@n2100.arm.linux.org.uk>
+ <003701cb2d89$adae4580$090ad080$%szyprowski@samsung.com>
+ <20100727065842.40ae76c8@bike.lwn.net>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@lst.de>
-Cc: jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, kay.sievers@vrfy.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: 'Jonathan Corbet' <corbet@lwn.net>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, 'Daniel Walker' <dwalker@codeaurora.org>, Pawel Osciak <p.osciak@samsung.com>, 'Mark Brown' <broonie@opensource.wolfsonmicro.com>, linux-kernel@vger.kernel.org, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'FUJITA Tomonori' <fujita.tomonori@lab.ntt.co.jp>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Zach Pfeffer' <zpfeffer@codeaurora.org>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 27, 2010 at 11:14:59AM +0200, Christoph Hellwig wrote:
-> In addition to these gem's there's an even worse issue in blk cfq,
-> introduced in commit
+Hello,
+
+On Tuesday, July 27, 2010 2:59 PM Jonathan Corbet wrote:
+
+> On Tue, 27 Jul 2010 14:45:58 +0200
+> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 > 
-> 	"blkio: Export disk time and sectors used by a group to user space"
+> > > How does one obtain the CPU address of this memory in order for the CPU
+> > > to access it?
+> >
+> > Right, we did not cover such case. In CMA approach we tried to separate
+> > memory allocation from the memory mapping into user/kernel space. Mapping
+> > a buffer is much more complicated process that cannot be handled in a
+> > generic way, so we decided to leave this for the device drivers. Usually
+> > video processing devices also don't need in-kernel mapping for such
+> > buffers at all.
 > 
-> which parses the name inside the backing_dev sysfs device back into a
-> major / minor number.  Given how obviously stupid this is,
+> Still...that *is* why I suggested an interface which would return both
+> the DMA address and a kernel-space virtual address, just like the DMA
+> API does...  Either that, or just return the void * kernel address and
+> let drivers do the DMA mapping themselves.  Returning only the
+> dma_addr_t address will make the interface difficult to use in many
+> situations.
 
-How can I do it better?
+As I said, drivers usually don't need in-kernel mapping for video buffers.
+Is there really a need for creating such mapping?
 
-I needed a unique identifier with which user can work in terms of
-specifying weights to devices and in terms of understanding what stats
-mean. Device major/minor number looked like a obivious choice.
+Best regards
+--
+Marek Szyprowski
+Samsung Poland R&D Center
 
-I was looking for how to determine what is the major/minor number of disk
-request queue is associated with and I could use bdi to do that.
-
-So I was working under the assumption that there is one request queue
-associated with one gendisk and I can use major/minor number for that
-disk to uniquely identify request queue.
-
-But you seem to be suggesting that there can be multiple gendisk associated
-with a single request queue. I am not sure how does that happen but if it
-does, that means a single request queue has requests for multiple gendisks
-hence for multiple major/minor number pairs?
-
-If yes, then we need to come up with unique naming scheme for request queue
-which CFQ can use to export stats to user space through cgroup interface
-and also a user can use same name/indentifier to be able to specify per
-device/request queue weigths.
-
-> and given
-> the whack a mole blkiocg is I'm tempted to simply break it and see if
-> anyone cares.
-
-I do care about blkiocg. Why do you think it is a mole? If things are
-wrong, guide me how to go about fixing it and I will do that.
-
-Thanks
-Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
