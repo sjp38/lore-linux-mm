@@ -1,197 +1,353 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 26662600815
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 11:09:20 -0400 (EDT)
-Date: Wed, 28 Jul 2010 01:09:08 +1000
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: VFS scalability git tree
-Message-ID: <20100727150908.GA3749@amd>
-References: <20100722190100.GA22269@amd>
- <20100723135514.GJ32635@dastard>
- <20100727070538.GA2893@amd>
- <20100727131810.GO7362@dastard>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0DFD1600815
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 11:22:10 -0400 (EDT)
+Date: Tue, 27 Jul 2010 23:21:47 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 8/8] vmscan: Kick flusher threads to clean pages when
+ reclaim is encountering dirty pages
+Message-ID: <20100727152147.GB5184@localhost>
+References: <1279545090-19169-1-git-send-email-mel@csn.ul.ie>
+ <1279545090-19169-9-git-send-email-mel@csn.ul.ie>
+ <20100726072832.GB13076@localhost>
+ <20100726092616.GG5300@csn.ul.ie>
+ <20100726112709.GB6284@localhost>
+ <20100726125717.GS5300@csn.ul.ie>
+ <20100726131008.GE11947@localhost>
+ <20100727133513.GZ5300@csn.ul.ie>
+ <20100727142412.GA4771@localhost>
+ <20100727143805.GB5300@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100727131810.GO7362@dastard>
+In-Reply-To: <20100727143805.GB5300@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Nick Piggin <npiggin@kernel.dk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frank Mayhar <fmayhar@google.com>, John Stultz <johnstul@us.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 27, 2010 at 11:18:10PM +1000, Dave Chinner wrote:
-> On Tue, Jul 27, 2010 at 05:05:39PM +1000, Nick Piggin wrote:
-> > On Fri, Jul 23, 2010 at 11:55:14PM +1000, Dave Chinner wrote:
-> > > On Fri, Jul 23, 2010 at 05:01:00AM +1000, Nick Piggin wrote:
-> > > > I'm pleased to announce I have a git tree up of my vfs scalability work.
+On Tue, Jul 27, 2010 at 10:38:05PM +0800, Mel Gorman wrote:
+> On Tue, Jul 27, 2010 at 10:24:13PM +0800, Wu Fengguang wrote:
+> > On Tue, Jul 27, 2010 at 09:35:13PM +0800, Mel Gorman wrote:
+> > > On Mon, Jul 26, 2010 at 09:10:08PM +0800, Wu Fengguang wrote:
+> > > > On Mon, Jul 26, 2010 at 08:57:17PM +0800, Mel Gorman wrote:
+> > > > > On Mon, Jul 26, 2010 at 07:27:09PM +0800, Wu Fengguang wrote:
+> > > > > > > > > @@ -933,13 +934,16 @@ keep_dirty:
+> > > > > > > > >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
+> > > > > > > > >  	}
+> > > > > > > > >  
+> > > > > > > > > +	/*
+> > > > > > > > > +	 * If reclaim is encountering dirty pages, it may be because
+> > > > > > > > > +	 * dirty pages are reaching the end of the LRU even though
+> > > > > > > > > +	 * the dirty_ratio may be satisified. In this case, wake
+> > > > > > > > > +	 * flusher threads to pro-actively clean some pages
+> > > > > > > > > +	 */
+> > > > > > > > > +	wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty + nr_dirty / 2);
+> > > > > > > > 
+> > > > > > > > Ah it's very possible that nr_dirty==0 here! Then you are hitting the
+> > > > > > > > number of dirty pages down to 0 whether or not pageout() is called.
+> > > > > > > > 
+> > > > > > > 
+> > > > > > > True, this has been fixed to only wakeup flusher threads when this is
+> > > > > > > the file LRU, dirty pages have been encountered and the caller has
+> > > > > > > sc->may_writepage.
+> > > > > > 
+> > > > > > OK.
+> > > > > > 
+> > > > > > > > Another minor issue is, the passed (nr_dirty + nr_dirty / 2) is
+> > > > > > > > normally a small number, much smaller than MAX_WRITEBACK_PAGES.
+> > > > > > > > The flusher will sync at least MAX_WRITEBACK_PAGES pages, this is good
+> > > > > > > > for efficiency.
+> > > > > > > > And it seems good to let the flusher write much more
+> > > > > > > > than nr_dirty pages to safeguard a reasonable large
+> > > > > > > > vmscan-head-to-first-dirty-LRU-page margin. So it would be enough to
+> > > > > > > > update the comments.
+> > > > > > > > 
+> > > > > > > 
+> > > > > > > Ok, the reasoning had been to flush a number of pages that was related
+> > > > > > > to the scanning rate but if that is inefficient for the flusher, I'll
+> > > > > > > use MAX_WRITEBACK_PAGES.
+> > > > > > 
+> > > > > > It would be better to pass something like (nr_dirty * N).
+> > > > > > MAX_WRITEBACK_PAGES may be increased to 128MB in the future, which is
+> > > > > > obviously too large as a parameter. When the batch size is increased
+> > > > > > to 128MB, the writeback code may be improved somehow to not exceed the
+> > > > > > nr_pages limit too much.
+> > > > > > 
+> > > > > 
+> > > > > What might be a useful value for N? 1.5 appears to work reasonably well
+> > > > > to create a window of writeback ahead of the scanner but it's a bit
+> > > > > arbitrary.
 > > > > 
-> > > > git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
-> > > > http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
+> > > > I'd recommend N to be a large value. It's no longer relevant now since
+> > > > we'll call the flusher to sync some range containing the target page.
+> > > > The flusher will then choose an N large enough (eg. 4MB) for efficient
+> > > > IO. It needs to be a large value, otherwise the vmscan code will
+> > > > quickly run into dirty pages again..
 > > > > 
-> > > > Branch vfs-scale-working
 > > > 
-> > > With a production build (i.e. no lockdep, no xfs debug), I'll
-> > > run the same fs_mark parallel create/unlink workload to show
-> > > scalability as I ran here:
-> > > 
-> > > http://oss.sgi.com/archives/xfs/2010-05/msg00329.html
+> > > Ok, I took the 4MB at face value to be a "reasonable amount that should
+> > > not cause congestion".
 > > 
-> > I've made a similar setup, 2s8c machine, but using 2GB ramdisk instead
-> > of a real disk (I don't have easy access to a good disk setup ATM, but
-> > I guess we're more interested in code above the block layer anyway).
+> > Under memory pressure, the disk should be busy/congested anyway.
+> 
+> Not necessarily. It could be streaming reads where pages are being added
+> to the LRU quickly but not necessarily dominated by dirty pages. Due to the
+> scanning rate, a dirty page may be encountered but it could be rare.
+
+Right.
+
+> > The big 4MB adds much work, however many of the pages may need to be
+> > synced in the near future anyway. It also requires more time to do
+> > the bigger IO, hence adding some latency, however the latency should
+> > be a small factor comparing to the IO queue time (which will be long
+> > for a busy disk).
 > > 
-> > Made an XFS on /dev/ram0 with 16 ags, 64MB log, otherwise same config as
-> > yours.
-> 
-> A s a personal prefernce, I don't like testing filesystem performance
-> on ramdisks because it hides problems caused by changes in IO
-> latency. I'll come back to this later.
-
-Very true, although it's good if you don't have some fast disks,
-and it can be good to trigger different races than disks tend to.
-
-So I still want to get to the bottom of the slowdown you saw on
-vfs-scale.
-
-
-> > I found that performance is a little unstable, so I sync and echo 3 >
-> > drop_caches between each run.
-> 
-> Quite possibly because of the smaller log - that will cause more
-> frequent pushing on the log tail and hence I/O patterns will vary a
-> bit...
-
-Well... I think the test case (or how I'm running it) is simply a
-bit unstable. I mean, there are subtle interactions all the way from
-the CPU scheduler to the disk, so when I say unstable I'm not
-particularly blaming XFS :)
-
- 
-> Also, keep in mind that delayed logging is shiny and new - it has
-> increased XFS metadata performance and parallelism by an order of
-> magnitude and so we're really seeing new a bunch of brand new issues
-> that have never been seen before with this functionality.  As such,
-> there's still some interactions I haven't got to the bottom of with
-> delayed logging - it's stable enough to use and benchmark and won't
-> corrupt anything but there are still has some warts we need to
-> solve. The difficulty (as always) is in reliably reproducing the bad
-> behaviour.
-
-Sure, and I didn't see any corruptions, it seems pretty stable and
-scalability is better than other filesystems. I'll see if I can
-give a better recipe to reproduce the 'livelock'ish behaviour.
-
- 
-> > I then did 10 runs of -n 20000 but with -L 4 (4 iterations) which did
-> > start to fill up memory and cause reclaim during the 2nd and subsequent
-> > iterations.
-> 
-> I haven't used this mode, so I can't really comment on the results
-> you are seeing.
-
-It's a bit strange. Help says it should clear inodes between iterations
-(without the -k flag), but it does not seem to.
-
- 
-> > > enabled. ext4 is using default mkfs and mount parameters except for
-> > > barrier=0. All numbers are averages of three runs.
-> > > 
-> > > 	fs_mark rate (thousands of files/second)
-> > >            2.6.35-rc5   2.6.35-rc5-scale
-> > > threads    xfs   ext4     xfs    ext4
-> > >   1         20    39       20     39
-> > >   2         35    55       35     57
-> > >   4         60    41       57     42
-> > >   8         79     9       75      9
-> > > 
-> > > ext4 is getting IO bound at more than 2 threads, so apart from
-> > > pointing out that XFS is 8-9x faster than ext4 at 8 thread, I'm
-> > > going to ignore ext4 for the purposes of testing scalability here.
-> > > 
-> > > For XFS w/ delayed logging, 2.6.35-rc5 is only getting to about 600%
-> > > CPU and with Nick's patches it's about 650% (10% higher) for
-> > > slightly lower throughput.  So at this class of machine for this
-> > > workload, the changes result in a slight reduction in scalability.
+> > Overall expectation is, the more efficient IO, the more progress :)
 > > 
-> > I wonder if these results are stable. It's possible that changes in
-> > reclaim behaviour are causing my patches to require more IO for a
-> > given unit of work?
 > 
-> More likely that's the result of using a smaller log size because it
-> will require more frequent metadata pushes to make space for new
-> transactions.
-
-I was just checking whether your numbers are stable (where you
-saw some slowdown with vfs-scale patches), and what could be the
-cause. I agree that running real disks could make big changes in
-behaviour.
-
-
-> > I was seeing XFS 'livelock' in reclaim more with my patches, it
-> > could be due to more parallelism now being allowed from the vfs and
-> > reclaim.
-> >
-> > Based on my above numbers, I don't see that rcu-inodes is causing a
-> > problem, and in terms of SMP scalability, there is really no way that
-> > vanilla is more scalable, so I'm interested to see where this slowdown
-> > is coming from.
+> Ok.
 > 
-> As I said initially, ram disks hide IO latency changes resulting
-> from increased numbers of IO or increases in seek distances.  My
-> initial guess is the change in inode reclaim behaviour causing
-> different IO patterns and more seeks under reclaim because the zone
-> based reclaim is no longer reclaiming inodes in the order
-> they are created (i.e. we are not doing sequential inode reclaim any
-> more.
+> > > The end result is
+> > > 
+> > > #define MAX_WRITEBACK (4194304UL >> PAGE_SHIFT)
+> > > #define WRITEBACK_FACTOR (MAX_WRITEBACK / SWAP_CLUSTER_MAX)
+> > > static inline long nr_writeback_pages(unsigned long nr_dirty)
+> > > {
+> > >         return laptop_mode ? 0 :
+> > >                         min(MAX_WRITEBACK, (nr_dirty * WRITEBACK_FACTOR));
+> > > }
+> > > 
+> > > nr_writeback_pages(nr_dirty) is what gets passed to
+> > > wakeup_flusher_threads(). Does that seem sensible?
+> > 
+> > If you plan to keep wakeup_flusher_threads(), a simpler form may be
+> > sufficient, eg.
+> > 
+> >         laptop_mode ? 0 : (nr_dirty * 16)
+> > 
+> 
+> I plan to keep wakeup_flusher_threads() for now. I didn't go with 16 because
+> while nr_dirty will usually be < SWAP_CLUSTER_MAX, it might not be due to lumpy
+> reclaim. I wanted to firmly bound how much writeback was being requested -
+> hence the mild complexity.
 
-Sounds plausible. I'll do more investigations along those lines.
+OK.
+
+> > On top of this, we may write another patch to convert the
+> > wakeup_flusher_threads(bdi, nr_pages) call to some
+> > bdi_start_inode_writeback(inode, offset) call, to start more oriented
+> > writeback.
+> > 
+> 
+> I did a first pass at optimising based on prioritising inodes related to
+> dirty pages. It's incredibly primitive and I have to sit down and see
+> how the entire of writeback is put together to improve on it. Maybe
+> you'll spot something simple or see if it's the totally wrong direction.
+> Patch is below.
+
+The simplest style may be
+
+        struct writeback_control wbc = {
+                .sync_mode = WB_SYNC_NONE,
+                .nr_to_write = MAX_WRITEBACK_PAGES,
+        };
+       
+        mapping->writeback_index = offset;
+        return do_writepages(mapping, &wbc);
+
+But sure there will be many details to handle.
+
+> > When talking the 4MB optimization, I was referring to the internal
+> > implementation of bdi_start_inode_writeback(). Sorry for the missing
+> > context in the previous email.
+> > 
+> 
+> No worries, I was assuming it was something in mainline I didn't know
+> yet :)
+> 
+> > It may need a big patch to implement bdi_start_inode_writeback().
+> > Would you like to try it, or leave the task to me?
+> > 
+> 
+> If you send me a patch, I can try it out but it's not my highest
+> priority right now. I'm still looking to get writeback-from-reclaim down
+> to a reasonable level without causing a large amount of churn.
+
+OK. That's already a great work.
+ 
+> Here is the first pass anyway at kicking wakeup_flusher_threads() for
+> inodes belonging to a list of pages. You'll note that I do nothing with
+> page offset because I didn't spot a simple way of taking that
+> information into account. It's also horrible from a locking perspective.
+> So far, it's testing has been "it didn't crash".
+
+It seems a neat way to prioritize the inodes with a new flag
+I_DIRTY_RECLAIM. However it may require vastly different
+implementation when considering the offset. I'll try to work up a
+prototype tomorrow.
+
+Thanks,
+Fengguang
 
  
-> FWIW, I use PCP monitoring graphs to correlate behavioural changes
-> across different subsystems because it is far easier to relate
-> information visually than it is by looking at raw numbers or traces.
-> I think this graph shows the effect of relcaim on performance
-> most clearly:
+> ==== CUT HERE ====
+> writeback: Prioritise dirty inodes encountered by reclaim for background flushing
 > 
-> http://userweb.kernel.org/~dgc/shrinker-2.6.36/fs_mark-2.6.35-rc3-context-only-per-xfs-batch6-16x500-xfs.png
-
-I haven't actually used that, it looks interesting.
-
- 
-> It's pretty clear that when the inode/dentry cache shrinkers are
-> running, sustained create/unlink performance goes right down. From a
-> different tab not in the screen shot (the other "test-4" tab), I
-> could see CPU usage also goes down and the disk iops go way up
-> whenever the create/unlink performance dropped. This same behaviour
-> happens with the vfs-scale patchset, so it's not related to lock
-> contention - just aggressive reclaim of still-dirty inodes.
+> It is preferable that as few dirty pages as possible are dispatched for
+> cleaning from the page reclaim path. When dirty pages are encountered by
+> page reclaim, this patch marks the inodes that they should be dispatched
+> immediately. When the background flusher runs, it moves such inodes immediately
+> to the dispatch queue regardless of inode age.
 > 
-> FYI, The patch under test there was the XFS shrinker ignoring 7 out
-> of 8 shrinker calls and then on the 8th call doing the work of all
-> previous calls. i.e emulating  SHRINK_BATCH = 1024. Interestingly
-> enough, that one change reduced the runtime of the 8m inode
-> create/unlink load by ~25% (from ~24min to ~18min).
-
-Hmm, interesting. Well that's naturally configurable with the
-shrinker API changes I'm hoping to have merged. I'll plan to push
-that ahead of the vfs-scale patches of course.
-
-
-> That is by far the largest improvement I've been able to obtain from
-> modifying the shrinker code, and it is from those sorts of
-> observations that I think that IO being issued from reclaim is
-> currently the most significant performance limiting factor for XFS
-> in this sort of workload....
-
-How is the xfs inode reclaim tied to linux inode reclaim? Does the
-xfs inode not become reclaimable until some time after the linux inode
-is reclaimed? Or what?
-
-Do all or most of the xfs inodes require IO before being reclaimed
-during this test? I wonder if you could throttle them a bit or sort
-them somehow so that they tend to be cleaned by writeout and reclaim
-just comes after and removes the clean ones, like pagecache reclaim
-is (supposed) to work.?
+> This is an early prototype. It could be optimised to not regularly take
+> the inode lock repeatedly and ideally the page offset would also be
+> taken into account.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  fs/fs-writeback.c         |   52 ++++++++++++++++++++++++++++++++++++++++++++-
+>  include/linux/fs.h        |    5 ++-
+>  include/linux/writeback.h |    1 +
+>  mm/vmscan.c               |    6 +++-
+>  4 files changed, 59 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 5a3c764..27a8b75 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -221,7 +221,7 @@ static void move_expired_inodes(struct list_head *delaying_queue,
+>  	LIST_HEAD(tmp);
+>  	struct list_head *pos, *node;
+>  	struct super_block *sb = NULL;
+> -	struct inode *inode;
+> +	struct inode *inode, *tinode;
+>  	int do_sb_sort = 0;
+>  
+>  	if (wbc->for_kupdate || wbc->for_background) {
+> @@ -229,6 +229,14 @@ static void move_expired_inodes(struct list_head *delaying_queue,
+>  		older_than_this = jiffies - expire_interval;
+>  	}
+>  
+> +	/* Move inodes reclaim found at end of LRU to dispatch queue */
+> +	list_for_each_entry_safe(inode, tinode, delaying_queue, i_list) {
+> +		if (inode->i_state & I_DIRTY_RECLAIM) {
+> +			inode->i_state &= ~I_DIRTY_RECLAIM;
+> +			list_move(&inode->i_list, &tmp);
+> +		}
+> +	}
+> +
+>  	while (!list_empty(delaying_queue)) {
+>  		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+>  		if (expire_interval &&
+> @@ -906,6 +914,48 @@ void wakeup_flusher_threads(long nr_pages)
+>  	rcu_read_unlock();
+>  }
+>  
+> +/*
+> + * Similar to wakeup_flusher_threads except prioritise inodes contained
+> + * in the page_list regardless of age
+> + */
+> +void wakeup_flusher_threads_pages(long nr_pages, struct list_head *page_list)
+> +{
+> +	struct page *page;
+> +	struct address_space *mapping;
+> +	struct inode *inode;
+> +
+> +	list_for_each_entry(page, page_list, lru) {
+> +		if (!PageDirty(page))
+> +			continue;
+> +
+> +		lock_page(page);
+> +		mapping = page_mapping(page);
+> +		if (!mapping || mapping == &swapper_space)
+> +			goto unlock;
+> +
+> +		/*
+> +		 * Test outside the lock to see as if it is already set, taking
+> +		 * the inode lock is a waste and the inode should be pinned by
+> +		 * the lock_page
+> +		 */
+> +		inode = page->mapping->host;
+> +		if (inode->i_state & I_DIRTY_RECLAIM)
+> +			goto unlock;
+> +
+> +		/*
+> +		 * XXX: Yuck, has to be a way of batching this by not requiring
+> +		 * 	the page lock to pin the inode
+> +		 */
+> +		spin_lock(&inode_lock);
+> +		inode->i_state |= I_DIRTY_RECLAIM;
+> +		spin_unlock(&inode_lock);
+> +unlock:
+> +		unlock_page(page);
+> +	}
+> +
+> +	wakeup_flusher_threads(nr_pages);
+> +}
+> +
+>  static noinline void block_dump___mark_inode_dirty(struct inode *inode)
+>  {
+>  	if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev")) {
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index e29f0ed..8836698 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1585,8 +1585,8 @@ struct super_operations {
+>  /*
+>   * Inode state bits.  Protected by inode_lock.
+>   *
+> - * Three bits determine the dirty state of the inode, I_DIRTY_SYNC,
+> - * I_DIRTY_DATASYNC and I_DIRTY_PAGES.
+> + * Four bits determine the dirty state of the inode, I_DIRTY_SYNC,
+> + * I_DIRTY_DATASYNC, I_DIRTY_PAGES and I_DIRTY_RECLAIM.
+>   *
+>   * Four bits define the lifetime of an inode.  Initially, inodes are I_NEW,
+>   * until that flag is cleared.  I_WILL_FREE, I_FREEING and I_CLEAR are set at
+> @@ -1633,6 +1633,7 @@ struct super_operations {
+>  #define I_DIRTY_SYNC		1
+>  #define I_DIRTY_DATASYNC	2
+>  #define I_DIRTY_PAGES		4
+> +#define I_DIRTY_RECLAIM		256
+>  #define __I_NEW			3
+>  #define I_NEW			(1 << __I_NEW)
+>  #define I_WILL_FREE		16
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index 494edd6..73a4df2 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -64,6 +64,7 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
+>  		struct writeback_control *wbc);
+>  long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+>  void wakeup_flusher_threads(long nr_pages);
+> +void wakeup_flusher_threads_pages(long nr_pages, struct list_head *page_list);
+>  
+>  /* writeback.h requires fs.h; it, too, is not included from here. */
+>  static inline void wait_on_inode(struct inode *inode)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b66d1f5..bad1abf 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -901,7 +901,8 @@ keep:
+>  	 * laptop mode avoiding disk spin-ups
+>  	 */
+>  	if (file && nr_dirty_seen && sc->may_writepage)
+> -		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
+> +		wakeup_flusher_threads_pages(nr_writeback_pages(nr_dirty),
+> +					page_list);
+>  
+>  	*nr_still_dirty = nr_dirty;
+>  	count_vm_events(PGACTIVATE, pgactivate);
+> @@ -1368,7 +1369,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  				list_add(&page->lru, &putback_list);
+>  			}
+>  
+> -			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
+> +			wakeup_flusher_threads_pages(laptop_mode ? 0 : nr_dirty,
+> +								&page_list);
+>  			congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  
+>  			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
