@@ -1,48 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0ECE260080D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 07:26:37 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so473568pvc.14
-        for <linux-mm@kvack.org>; Tue, 27 Jul 2010 04:26:36 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B78E260080D
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 08:09:01 -0400 (EDT)
+Date: Tue, 27 Jul 2010 13:08:41 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCHv2 2/4] mm: cma: Contiguous Memory Allocator added
+Message-ID: <20100727120841.GC11468@n2100.arm.linux.org.uk>
+References: <cover.1280151963.git.m.nazarewicz@samsung.com> <743102607e2c5fb20e3c0676fadbcb93d501a78e.1280151963.git.m.nazarewicz@samsung.com> <dc4bdf3e0b02c0ac4770927f72b6cbc3f0b486a2.1280151963.git.m.nazarewicz@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <20100727200804.2F40.A69D9226@jp.fujitsu.com>
-References: <AANLkTikjJ0giM+MpzNu3e0NQN=JLMviPT8UPHdZqGGpz@mail.gmail.com>
-	<AANLkTinT_W4Zfg8xcpKXMpqTAomdVBdHve7VqamdSr4o@mail.gmail.com>
-	<20100727200804.2F40.A69D9226@jp.fujitsu.com>
-From: dave b <db.pub.mail@gmail.com>
-Date: Tue, 27 Jul 2010 21:26:16 +1000
-Message-ID: <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
-Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dc4bdf3e0b02c0ac4770927f72b6cbc3f0b486a2.1280151963.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, linux-kernel@vger.kernel.org, Hiremath Vaibhav <hvaibhav@ti.com>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On 27 July 2010 21:14, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> On 27 July 2010 18:09, dave b <db.pub.mail@gmail.com> wrote:
->> > On 27 July 2010 16:09, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >>> > Do you mean the issue will be gone if disabling intel graphics?
->> >>> It may be a general issue or it could just be specific :)
->> >
->> > I will try with the latest ubuntu and report how that goes (that will
->> > be using fairly new xorg etc.) it is likely to be hidden issue just
->> > with the intel graphics driver. However, my concern is that it isn't -
->> > and it is about how shared graphics memory is handled :)
->>
->>
->> Ok my desktop still stalled and no oom killer was invoked when I added
->> swap to a live-cd of 10.04 amd64.
->>
->> *Without* *swap* *on* - the oom killer was invoked - here is a copy of it.
->
-> This stack seems similar following bug. can you please try to disable intel graphics
-> driver?
->
-> https://bugzilla.kernel.org/show_bug.cgi?id=14933
+On Mon, Jul 26, 2010 at 04:40:30PM +0200, Michal Nazarewicz wrote:
+> +** Why is it needed?
+> +
+> +    Various devices on embedded systems have no scatter-getter and/or
+> +    IO map support and as such require contiguous blocks of memory to
+> +    operate.  They include devices such as cameras, hardware video
+> +    decoders and encoders, etc.
 
-Ok I am not sure how to do that :)
-I could revert the patch and see if it 'fixes' this :)
+Yes, this is becoming quite a big problem - and many ARM SoCs suffer
+from the existing memory allocators being extremely inadequate for
+their use.
+
+One of the areas I've been working on is sorting out the DMA coherent
+allocator so we don't violate the architecture requirements for ARMv6
+and ARMv7 CPUs (which basically prohibits multiple mappings of memory
+with different attributes.)
+
+One of the ideas that I've thought about for this is to reserve an
+amount of contiguous memory at boot time to fill the entire DMA coherent
+mapping, marking the memory in the main kernel memory map as 'no access',
+and allocate directly from the DMA coherent region.
+
+However, discussing this with people who have the problem you're trying
+to solve indicates that they do not want to set aside an amount of
+memory as they perceive this to be a waste of resources.
+
+This concern also applies to 'cma'.
+
+> +/*
+> + * Don't call it directly, use cma_alloc(), cma_alloc_from() or
+> + * cma_alloc_from_region().
+> + */
+> +dma_addr_t __must_check
+> +__cma_alloc(const struct device *dev, const char *kind,
+> +	    size_t size, dma_addr_t alignment);
+
+Does this really always return DMA-able memory (memory which can be
+DMA'd to/from without DMA-mapping etc?)
+
+As it returns a dma_addr_t, it's returning a cookie for the memory which
+will be suitable for writing directly to the device 'dev' doing the DMA.
+(NB: DMA addresses may not be the same as physical addresses, especially
+if the device is on a downstream bus.  We have ARM platforms which have
+different bus offsets.)
+
+How does one obtain the CPU address of this memory in order for the CPU
+to access it?
+
+> +static inline dma_addr_t __must_check
+> +cma_alloc(const struct device *dev, const char *kind,
+> +	  size_t size, dma_addr_t alignment)
+> +{
+> +	return dev ? -EINVAL : __cma_alloc(dev, kind, size, alignment);
+
+So I can't use this to allocate memory for anything but a NULL device?
+
+> +static inline int
+> +cma_info(struct cma_info *info, const struct device *dev, const char *kind)
+> +{
+> +	return dev ? -EINVAL : __cma_info(info, dev, kind);
+
+This won't return information for anything but a NULL device?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
