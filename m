@@ -1,94 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 631946B02A6
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 11:56:27 -0400 (EDT)
-Received: by pxi7 with SMTP id 7so1162990pxi.14
-        for <linux-mm@kvack.org>; Wed, 28 Jul 2010 08:56:26 -0700 (PDT)
-Date: Thu, 29 Jul 2010 00:56:17 +0900
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id AC0C06B02A6
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:30:10 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so1183715pxi.14
+        for <linux-mm@kvack.org>; Wed, 28 Jul 2010 09:30:04 -0700 (PDT)
+Date: Thu, 29 Jul 2010 01:29:53 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-Message-ID: <20100728155617.GA5401@barrios-desktop>
-References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com>
- <alpine.DEB.2.00.1007261136160.5438@router.home>
- <pfn.valid.v4.reply.1@mdm.bga.com>
- <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com>
- <pfn.valid.v4.reply.2@mdm.bga.com>
- <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com>
- <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com>
- <alpine.DEB.2.00.1007270929290.28648@router.home>
- <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
- <alpine.DEB.2.00.1007281005440.21717@router.home>
+Subject: Re: [PATCH] vmscan: remove wait_on_page_writeback() from pageout()
+Message-ID: <20100728162953.GB5401@barrios-desktop>
+References: <20100728071705.GA22964@localhost>
+ <AANLkTimaj6+MzY5Aa_xqi75zKy1fDOQV5QiQjdX8jgm7@mail.gmail.com>
+ <20100728084654.GA26776@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1007281005440.21717@router.home>
+In-Reply-To: <20100728084654.GA26776@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 28, 2010 at 10:14:51AM -0500, Christoph Lameter wrote:
-> On Wed, 28 Jul 2010, Minchan Kim wrote:
-> 
-> > static inline int memmap_valid(unsigned long pfn)
-> > {
-> >        struct page *page = pfn_to_page(pfn);
-> >        struct page *__pg = virt_to_page(page);
-> 
-> Does that work both for vmemmap and real mmapping?
+On Wed, Jul 28, 2010 at 04:46:54PM +0800, Wu Fengguang wrote:
+> And the wait page-by-page behavior of pageout(SYNC) will lead to very
+> long stall time if running into some range of dirty pages. So it's bad
+> idea anyway to call wait_on_page_writeback() inside pageout().
 
-When Kame suggested this idea, he doesn't consider vmemmap model. 
-(He prevent this featur's enabling by config !SPARSEMEM_VMEMMAP)
-
-config SPARSEMEM_HAS_HOLE
-       bool "allow holes in sparsemem's memmap"
-       depends on ARM && SPARSEMEM && !SPARSEMEM_VMEMMAP
-       default n
-
-When I change it with ARCH_HAS_HOLES_MEMORYMODEL, it was my mistake.
-I can change it with ARCH_HAS_HOLES_MEMORYMODEL && !SPARSE_VMEMMAP. 
-
-I wonder whether we supports VMEMMAP. 
-That's because hole problem of sparsemem is specific on ARM. 
-ARM forks uses it for saving memory space but VMEMMAP does use more memory.
-I think it's irony. 
-
-> 
-> >        return page_private(__pg) == MAGIC_MEMMAP && PageReserved(__pg);
-> > }
-> 
-> Problem is that pages may be allocated for the mmap from a variety of
-> places. The pages in mmap_init_zone() and allocated during boot may have
-> PageReserved set whereas the page allocated via vmemmap_alloc_block() have
-> PageReserved cleared since they came from the page allocator.
-> 
-> You need to have consistent use of PageReserved in page structs for the
-> mmap in order to do this properly.
-
-Yes if we supports both model. 
-
-> 
-> Simplest scheme would be to clear PageReserved() in all page struct
-> associated with valid pages and clear those for page structs that do not
-> refer to valid pages.
-
-I can't understand your words.
-Clear PG_resereved in valid pages and invalid pages both?
-
-I guess your code look like that clear PG_revered on valid memmap
-but set PG_reserved on invalid memmap.
-Right?
-
-invalid memmap pages will be freed by free_memmap and will be used 
-on any place. How do we make sure it has PG_reserved?
-
-Maybe I don't understand your point. 
-
-
-> 
-> Then
-> 
-> mmap_valid = !PageReserved(xxx(pfn_to_page(pfn))
+Although we remove it in pageout, shrink_page_list still has it.
+So it would result in long stall. And it is for lumpy reclaim which 
+means it's a trade-off, I think. 
 
 -- 
 Kind regards,
