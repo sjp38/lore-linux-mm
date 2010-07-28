@@ -1,57 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5DCFF6B024D
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 22:30:38 -0400 (EDT)
-Date: Tue, 27 Jul 2010 22:30:27 -0400
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CB2106B024D
+	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 22:39:12 -0400 (EDT)
+Date: Tue, 27 Jul 2010 22:39:04 -0400
 From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [RFC][PATCH 2/7][memcg] cgroup arbitarary ID allocation
-Message-ID: <20100728023027.GD12642@redhat.com>
+Subject: Re: [RFC][PATCH 4/7][memcg] memcg use ID in page_cgroup
+Message-ID: <20100728023904.GE12642@redhat.com>
 References: <20100727165155.8b458b7f.kamezawa.hiroyu@jp.fujitsu.com>
- <20100727165417.dacbe199.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100727165629.6f98145c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100727165417.dacbe199.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100727165629.6f98145c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 27, 2010 at 04:54:17PM +0900, KAMEZAWA Hiroyuki wrote:
+On Tue, Jul 27, 2010 at 04:56:29PM +0900, KAMEZAWA Hiroyuki wrote:
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> When a subsystem want to make use of "id" more, it's necessary to
-> manage the id at cgroup subsystem creation time. But, now,
-> because of the order of cgroup creation callback, subsystem can't
-> declare the id it wants. This patch allows subsystem to use customized
-> ID for themselves.
+> Now, addresses of memory cgroup can be calculated by their ID without complex.
+> This patch relplaces pc->mem_cgroup from a pointer to a unsigned short.
+> On 64bit architecture, this offers us more 6bytes room per page_cgroup.
+> Use 2bytes for blkio-cgroup's page tracking. More 4bytes will be used for
+> some light-weight concurrent access.
+> 
+> We may able to move this id onto flags field but ...go step by step.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-[..]
-> Index: mmotm-2.6.35-0719/Documentation/cgroups/cgroups.txt
+> ---
+>  include/linux/page_cgroup.h |    3 ++-
+>  mm/memcontrol.c             |   40 +++++++++++++++++++++++++---------------
+>  mm/page_cgroup.c            |    2 +-
+>  3 files changed, 28 insertions(+), 17 deletions(-)
+> 
+> Index: mmotm-0719/include/linux/page_cgroup.h
 > ===================================================================
-> --- mmotm-2.6.35-0719.orig/Documentation/cgroups/cgroups.txt
-> +++ mmotm-2.6.35-0719/Documentation/cgroups/cgroups.txt
-> @@ -621,6 +621,15 @@ and root cgroup. Currently this will onl
->  the default hierarchy (which never has sub-cgroups) and a hierarchy
->  that is being created/destroyed (and hence has no sub-cgroups).
->  
-> +void custom_id(struct cgroup_subsys *ss, struct cgroup *cgrp)
-> +
-> +Called at assigning a new ID to cgroup subsystem state struct. This
-> +is called when ss->use_id == true. If this function is not provided,
-> +a new ID is automatically assigned. If you enable ss->use_id,
-> +you can use css_lookup()  and css_get_next() to access "css" objects
-> +via IDs.
-> +
+> --- mmotm-0719.orig/include/linux/page_cgroup.h
+> +++ mmotm-0719/include/linux/page_cgroup.h
+> @@ -12,7 +12,8 @@
+>   */
+>  struct page_cgroup {
+>  	unsigned long flags;
+> -	struct mem_cgroup *mem_cgroup;
+> +	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
+> +	unsigned short blk_cgroup;	/* Not Used..but will be. */
 
-Couple of lines to explain why a subsystem would like to assign its
-own ids and not be happy with generic cgroup assigned id be helpful.
-In this case, I think you are using this id as index into array
-and want to control the index, hence you seem to be doing it.
+So later I shall have to use virtually indexed arrays in blkio controller?
+Or you are just using virtually indexed arrays for lookup speed and
+I can continue to use css_lookup() and not worry about using virtually
+indexed arrays.
 
-But I am not sure again why do you want to control index?
+So the idea is that when a page is allocated, also store the blk_group
+id and once that page is submitted for writeback, we should be able
+to associate it to right blkio group?
 
 Vivek
 
