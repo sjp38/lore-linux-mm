@@ -1,22 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 36C4E6B02B0
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 07:03:22 -0400 (EDT)
-Message-ID: <4C500E68.5040309@redhat.com>
-Date: Wed, 28 Jul 2010 19:03:04 +0800
-From: Xiaotian Feng <dfeng@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 44DE26B02B2
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 07:05:43 -0400 (EDT)
+Date: Wed, 28 Jul 2010 07:05:07 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 3/9] vmscan: tracing: Update post-processing script to
+ distinguish between anon and file IO from page reclaim
+Message-ID: <20100728110507.GA31360@infradead.org>
+References: <1280312843-11789-1-git-send-email-mel@csn.ul.ie>
+ <1280312843-11789-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH RHEL6 RESEND] kernel performance optimization with CONFIG_DEBUG_RODATA
-References: <20100728110043.27677.13908.sendpatchset@dhcp-65-180.nay.redhat.com>
-In-Reply-To: <20100728110043.27677.13908.sendpatchset@dhcp-65-180.nay.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1280312843-11789-4-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-Cc: Xiaotian Feng <dfeng@redhat.com>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, netdev@vger.kernel.org, cl@linux-foundation.org, a.p.zijlstra@chello.nl, lwang@redhat.com, penberg@cs.helsinki.fi, davem@davemloft.net
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-oops, script got some wrong, sorry for the noise... please ignore the 
-mail ...
+Just wondering if you ever looked into the perf perl scripting support?
+Making this a directly accesible command in perf would be quite nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
