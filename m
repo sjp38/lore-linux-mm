@@ -1,69 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 36A686B02A3
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 01:06:26 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6S56Nk8009392
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 28 Jul 2010 14:06:24 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 69ABD45DE51
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 14:06:23 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 492FF45DE4C
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 14:06:23 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E3DD01DB8012
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 14:06:22 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 60335E08002
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 14:06:22 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
-In-Reply-To: <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
-References: <20100727200804.2F40.A69D9226@jp.fujitsu.com> <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
-Message-Id: <20100728135850.7A92.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DC2646B024D
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 02:17:10 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [RFC][PATCH 7/7][memcg] use spin lock instead of bit_spin_lock in page_cgroup
+References: <20100727165155.8b458b7f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100727170225.64f78b15.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 27 Jul 2010 23:16:54 -0700
+In-Reply-To: <20100727170225.64f78b15.kamezawa.hiroyu@jp.fujitsu.com>
+	(KAMEZAWA Hiroyuki's message of "Tue, 27 Jul 2010 17:02:25 +0900")
+Message-ID: <xr93bp9sm8q1.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Wed, 28 Jul 2010 14:06:21 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On 27 July 2010 21:14, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> On 27 July 2010 18:09, dave b <db.pub.mail@gmail.com> wrote:
-> >> > On 27 July 2010 16:09, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> >> >>> > Do you mean the issue will be gone if disabling intel graphics?
-> >> >>> It may be a general issue or it could just be specific :)
-> >> >
-> >> > I will try with the latest ubuntu and report how that goes (that will
-> >> > be using fairly new xorg etc.) it is likely to be hidden issue just
-> >> > with the intel graphics driver. However, my concern is that it isn't -
-> >> > and it is about how shared graphics memory is handled :)
-> >>
-> >>
-> >> Ok my desktop still stalled and no oom killer was invoked when I added
-> >> swap to a live-cd of 10.04 amd64.
-> >>
-> >> *Without* *swap* *on* - the oom killer was invoked - here is a copy of it.
-> >
-> > This stack seems similar following bug. can you please try to disable intel graphics
-> > driver?
-> >
-> > https://bugzilla.kernel.org/show_bug.cgi?id=14933
-> 
-> Ok I am not sure how to do that :)
-> I could revert the patch and see if it 'fixes' this :)
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
-Oops, no, revert is not good action. the patch is correct. 
-probably my explanation was not clear. sorry.
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> This patch replaces page_cgroup's bit_spinlock with spinlock. In general,
+> spinlock has good implementation than bit_spin_lock and we should use
+> it if we have a room for it. In 64bit arch, we have extra 4bytes.
+> Let's use it.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> --
+> Index: mmotm-0719/include/linux/page_cgroup.h
+> ===================================================================
+> --- mmotm-0719.orig/include/linux/page_cgroup.h
+> +++ mmotm-0719/include/linux/page_cgroup.h
+> @@ -10,8 +10,14 @@
+>   * All page cgroups are allocated at boot or memory hotplug event,
+>   * then the page cgroup for pfn always exists.
+>   */
+> +#ifdef CONFIG_64BIT
+> +#define PCG_HAS_SPINLOCK
+> +#endif
+>  struct page_cgroup {
+>  	unsigned long flags;
+> +#ifdef PCG_HAS_SPINLOCK
+> +	spinlock_t	lock;
+> +#endif
+>  	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
+>  	unsigned short blk_cgroup;	/* Not Used..but will be. */
+>  	struct page *page;
+> @@ -90,6 +96,16 @@ static inline enum zone_type page_cgroup
+>  	return page_zonenum(pc->page);
+>  }
+>  
+> +#ifdef PCG_HAS_SPINLOCK
+> +static inline void lock_page_cgroup(struct page_cgroup *pc)
+> +{
+> +	spin_lock(&pc->lock);
+> +}
 
-I did hope to disable 'driver' (i.e. using vga), not disable the patch.
+This is minor issue, but this patch breaks usage of PageCgroupLocked().
+Example from __mem_cgroup_move_account() cases panic:
+	VM_BUG_ON(!PageCgroupLocked(pc));
 
-Thanks.
+I assume that this patch should also delete the following:
+- PCG_LOCK definition from page_cgroup.h
+- TESTPCGFLAG(Locked, LOCK) from page_cgroup.h
+- PCGF_LOCK from memcontrol.c
 
+> +static inline void unlock_page_cgroup(struct page_cgroup *pc)
+> +{
+> +	spin_unlock(&pc->lock);
+> +}
+> +#else
+>  static inline void lock_page_cgroup(struct page_cgroup *pc)
+>  {
+>  	bit_spin_lock(PCG_LOCK, &pc->flags);
+> @@ -99,6 +115,7 @@ static inline void unlock_page_cgroup(st
+>  {
+>  	bit_spin_unlock(PCG_LOCK, &pc->flags);
+>  }
+> +#endif
+>  
+>  static inline void SetPCGFileFlag(struct page_cgroup *pc, int idx)
+>  {
+> Index: mmotm-0719/mm/page_cgroup.c
+> ===================================================================
+> --- mmotm-0719.orig/mm/page_cgroup.c
+> +++ mmotm-0719/mm/page_cgroup.c
+> @@ -17,6 +17,9 @@ __init_page_cgroup(struct page_cgroup *p
+>  	pc->mem_cgroup = 0;
+>  	pc->page = pfn_to_page(pfn);
+>  	INIT_LIST_HEAD(&pc->lru);
+> +#ifdef PCG_HAS_SPINLOCK
+> +	spin_lock_init(&pc->lock);
+> +#endif
+>  }
+>  static unsigned long total_usage;
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
