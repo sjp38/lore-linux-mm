@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5605A6B02A8
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 13:02:21 -0400 (EDT)
-Date: Wed, 28 Jul 2010 12:02:16 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-In-Reply-To: <20100728155617.GA5401@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.1007281158150.21717@router.home>
-References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com> <alpine.DEB.2.00.1007261136160.5438@router.home> <pfn.valid.v4.reply.1@mdm.bga.com> <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com> <pfn.valid.v4.reply.2@mdm.bga.com>
- <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com> <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
- <alpine.DEB.2.00.1007281005440.21717@router.home> <20100728155617.GA5401@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1276B02A6
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 13:31:45 -0400 (EDT)
+Date: Wed, 28 Jul 2010 10:30:56 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Why PAGEOUT_IO_SYNC stalls for a long time
+Message-Id: <20100728103056.c5511c78.akpm@linux-foundation.org>
+In-Reply-To: <20100728191322.4A85.A69D9226@jp.fujitsu.com>
+References: <20100728071705.GA22964@localhost>
+	<20100728191322.4A85.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, stable@kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jul 2010, Minchan Kim wrote:
+On Wed, 28 Jul 2010 20:40:21 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> > Simplest scheme would be to clear PageReserved() in all page struct
-> > associated with valid pages and clear those for page structs that do not
-> > refer to valid pages.
->
-> I can't understand your words.
-> Clear PG_resereved in valid pages and invalid pages both?
+> 3. pageout() is intended anynchronous api. but doesn't works so.
+> 
+> pageout() call ->writepage with wbc->nonblocking=1. because if the system have
+> default vm.dirty_ratio (i.e. 20), we have 80% clean memory. so, getting stuck
+> on one page is stupid, we should scan much pages as soon as possible.
+> 
+> HOWEVER, block layer ignore this argument. if slow usb memory device connect
+> to the system, ->writepage() will sleep long time. because submit_bio() call
+> get_request_wait() unconditionally and it doesn't have any PF_MEMALLOC task
+> bonus.
 
-Argh sorry. No. Set PageReserved for pages that do not refer to reserved
-pages.
+The idea is that vmscan doesn't call ->writepage if the underlying
+queue is congested.  may_write_to_queue()->bdi_queue_congested() should
+return false and we skip the write.
 
-> I guess your code look like that clear PG_revered on valid memmap
-> but set PG_reserved on invalid memmap.
-> Right?
-
-Right.
-
-> invalid memmap pages will be freed by free_memmap and will be used
-> on any place. How do we make sure it has PG_reserved?
-
-Not present memmap pages make pfn_valid fail already since there is no
-entry for the page table (vmemmap) or blocks are missing in the sparsemem
-tables.
-
-> Maybe I don't understand your point.
-
-I thought we are worrying about holes in the memmap blocks containing page
-structs. Some page structs point to valid pages and some are not. The
-invalid page structs need to be marked consistently to allow the check.
-
+If that logic is broken then that would explain a few things...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
