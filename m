@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 483836B02A8
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:53:08 -0400 (EDT)
-Received: by bwz9 with SMTP id 9so4963417bwz.14
-        for <linux-mm@kvack.org>; Wed, 28 Jul 2010 09:53:06 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5605A6B02A8
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 13:02:21 -0400 (EDT)
+Date: Wed, 28 Jul 2010 12:02:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
+In-Reply-To: <20100728155617.GA5401@barrios-desktop>
+Message-ID: <alpine.DEB.2.00.1007281158150.21717@router.home>
+References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com> <alpine.DEB.2.00.1007261136160.5438@router.home> <pfn.valid.v4.reply.1@mdm.bga.com> <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com> <pfn.valid.v4.reply.2@mdm.bga.com>
+ <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com> <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
+ <alpine.DEB.2.00.1007281005440.21717@router.home> <20100728155617.GA5401@barrios-desktop>
 MIME-Version: 1.0
-In-Reply-To: <1280335203-23305-1-git-send-email-segooon@gmail.com>
-References: <1280335203-23305-1-git-send-email-segooon@gmail.com>
-Date: Wed, 28 Jul 2010 19:53:06 +0300
-Message-ID: <AANLkTimhz5D4jthc8__HvHekznWSftXqqDihzjKbW9=P@mail.gmail.com>
-Subject: Re: [PATCH 05/10] mm: check kmalloc() return value
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Kulikov Vasiliy <segooon@gmail.com>
-Cc: kernel-janitors@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Jan Beulich <jbeulich@novell.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 28, 2010 at 7:40 PM, Kulikov Vasiliy <segooon@gmail.com> wrote:
-> kmalloc() may fail, if so return -ENOMEM.
->
-> Signed-off-by: Kulikov Vasiliy <segooon@gmail.com>
+On Thu, 29 Jul 2010, Minchan Kim wrote:
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> > Simplest scheme would be to clear PageReserved() in all page struct
+> > associated with valid pages and clear those for page structs that do not
+> > refer to valid pages.
+>
+> I can't understand your words.
+> Clear PG_resereved in valid pages and invalid pages both?
 
-> ---
-> =A0mm/vmalloc.c | =A0 =A05 ++++-
-> =A01 files changed, 4 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index b7e314b..f63684a 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2437,8 +2437,11 @@ static int vmalloc_open(struct inode *inode, struc=
-t file *file)
-> =A0 =A0 =A0 =A0unsigned int *ptr =3D NULL;
-> =A0 =A0 =A0 =A0int ret;
->
-> - =A0 =A0 =A0 if (NUMA_BUILD)
-> + =A0 =A0 =A0 if (NUMA_BUILD) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0ptr =3D kmalloc(nr_node_ids * sizeof(unsig=
-ned int), GFP_KERNEL);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (ptr =3D=3D NULL)
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return -ENOMEM;
-> + =A0 =A0 =A0 }
-> =A0 =A0 =A0 =A0ret =3D seq_open(file, &vmalloc_op);
-> =A0 =A0 =A0 =A0if (!ret) {
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0struct seq_file *m =3D file->private_data;
-> --
-> 1.7.0.4
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+Argh sorry. No. Set PageReserved for pages that do not refer to reserved
+pages.
+
+> I guess your code look like that clear PG_revered on valid memmap
+> but set PG_reserved on invalid memmap.
+> Right?
+
+Right.
+
+> invalid memmap pages will be freed by free_memmap and will be used
+> on any place. How do we make sure it has PG_reserved?
+
+Not present memmap pages make pfn_valid fail already since there is no
+entry for the page table (vmemmap) or blocks are missing in the sparsemem
+tables.
+
+> Maybe I don't understand your point.
+
+I thought we are worrying about holes in the memmap blocks containing page
+structs. Some page structs point to valid pages and some are not. The
+invalid page structs need to be marked consistently to allow the check.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
