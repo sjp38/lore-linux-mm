@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 56ACB6B02A3
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2010 23:26:20 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6S3QHrg030941
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 28 Jul 2010 12:26:17 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CA76745DE55
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:26:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EEE645DE4E
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:26:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 493F21DB8016
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:26:16 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B0B1E38002
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 12:26:15 +0900 (JST)
-Date: Wed, 28 Jul 2010 12:21:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 4/7][memcg] memcg use ID in page_cgroup
-Message-Id: <20100728122128.411f2128.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100728121820.0475142a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100727165155.8b458b7f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100727165629.6f98145c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100728023904.GE12642@redhat.com>
-	<20100728114402.571b8ec6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100728031358.GG12642@redhat.com>
-	<20100728121820.0475142a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 339CB6B024D
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 00:43:18 -0400 (EDT)
+Received: by ywg8 with SMTP id 8so930169ywg.14
+        for <linux-mm@kvack.org>; Tue, 27 Jul 2010 21:43:14 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100728085458C.fujita.tomonori@lab.ntt.co.jp>
+References: <20100727091459.GA11134@lst.de> <20100727133956.GA7347@redhat.com>
+	<20100727140947.GA25106@lst.de> <20100728085458C.fujita.tomonori@lab.ntt.co.jp>
+From: Kay Sievers <kay.sievers@vrfy.org>
+Date: Wed, 28 Jul 2010 06:42:59 +0200
+Message-ID: <AANLkTi=azx1FvV9Hm8dVQH95LJK6T20bTBqYVSp0RqKH@mail.gmail.com>
+Subject: Re: struct backing_dev - purpose and life time rules
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: hch@lst.de, vgoyal@redhat.com, jaxboe@fusionio.com, peterz@infradead.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Jul 2010 12:18:20 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
- 
-> > > Hmm, but page-allocation-time doesn't sound very good for me.
-> > > 
-> > 
-> > Why?
-> > 
-> 
-> As you wrote, by attaching ID when a page cache is added, we'll have
-> much chances of free-rider until it's paged out. So, adding some
-> reseting-owner point may be good. 
-> 
-> But considering real world usage, I may be wrong.
-> There will not be much free rider in real world, especially at write().
-> Then, page-allocation time may be good.
-> 
-> (Because database doesn't use page-cache, there will be no big random write
->  application.)
-> 
+On Wed, Jul 28, 2010 at 01:55, FUJITA Tomonori
+<fujita.tomonori@lab.ntt.co.jp> wrote:
+> Not a comment on the original topic,
+>
+> On Tue, 27 Jul 2010 16:09:47 +0200
+> Christoph Hellwig <hch@lst.de> wrote:
+>
+>> On Tue, Jul 27, 2010 at 09:39:56AM -0400, Vivek Goyal wrote:
+>> > How can I do it better?
+>> >
+>> > I needed a unique identifier with which user can work in terms of
+>> > specifying weights to devices and in terms of understanding what stats
+>> > mean. Device major/minor number looked like a obivious choice.
+>> >
+>> > I was looking for how to determine what is the major/minor number of disk
+>> > request queue is associated with and I could use bdi to do that.
+>>
+>> The problem is that a queue can be shared between multiple gendisks,
+>
+> Is anyone still doing this?
+>
+> I thought that everyone agreed that this was wrong. Such users (like
+> MTD) were fixed.
 
-Sorry, one more reason. memory cgroup has much complex code for supporting
-move_account, re-attaching memory cgroup per pages.
-So, if you take care of task-move-between-groups, blkio-ID may have
-some problems if you only support allocation-time accounting.
+I think it was MTD, which is fixed, and floppy, which is still the way it was.
 
-Thanks,
--Kame
-
+Kay
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
