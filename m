@@ -1,48 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0710E6B02AA
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 11:14:55 -0400 (EDT)
-Date: Wed, 28 Jul 2010 10:14:51 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-In-Reply-To: <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1007281005440.21717@router.home>
-References: <1280159163-23386-1-git-send-email-minchan.kim@gmail.com> <alpine.DEB.2.00.1007261136160.5438@router.home> <pfn.valid.v4.reply.1@mdm.bga.com> <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com> <pfn.valid.v4.reply.2@mdm.bga.com>
- <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com> <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id EB8586B02A6
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 11:47:17 -0400 (EDT)
+Message-ID: <4C505025.1040709@ds.jp.nec.com>
+Date: Wed, 28 Jul 2010 11:43:33 -0400
+From: Munehiro Ikeda <m-ikeda@ds.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC][PATCH 4/7][memcg] memcg use ID in page_cgroup
+References: <20100727165155.8b458b7f.kamezawa.hiroyu@jp.fujitsu.com> <20100727165629.6f98145c.kamezawa.hiroyu@jp.fujitsu.com> <20100728023904.GE12642@redhat.com> <20100728114402.571b8ec6.kamezawa.hiroyu@jp.fujitsu.com> <20100728031358.GG12642@redhat.com>
+In-Reply-To: <20100728031358.GG12642@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Jul 2010, Minchan Kim wrote:
+Vivek Goyal wrote, on 07/27/2010 11:13 PM:
+> On Wed, Jul 28, 2010 at 11:44:02AM +0900, KAMEZAWA Hiroyuki wrote:
+>> On Tue, 27 Jul 2010 22:39:04 -0400
+>> Vivek Goyal<vgoyal@redhat.com>  wrote:
+>>
+>>> On Tue, Jul 27, 2010 at 04:56:29PM +0900, KAMEZAWA Hiroyuki wrote:
+>>>> From: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>>>
+>>>> Now, addresses of memory cgroup can be calculated by their ID without complex.
+>>>> This patch relplaces pc->mem_cgroup from a pointer to a unsigned short.
+>>>> On 64bit architecture, this offers us more 6bytes room per page_cgroup.
+>>>> Use 2bytes for blkio-cgroup's page tracking. More 4bytes will be used for
+>>>> some light-weight concurrent access.
+>>>>
+>>>> We may able to move this id onto flags field but ...go step by step.
+>>>>
+>>>> Signed-off-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+>>>> ---
+>>>>   include/linux/page_cgroup.h |    3 ++-
+>>>>   mm/memcontrol.c             |   40 +++++++++++++++++++++++++---------------
+>>>>   mm/page_cgroup.c            |    2 +-
+>>>>   3 files changed, 28 insertions(+), 17 deletions(-)
+>>>>
+>>>> Index: mmotm-0719/include/linux/page_cgroup.h
+>>>> ===================================================================
+>>>> --- mmotm-0719.orig/include/linux/page_cgroup.h
+>>>> +++ mmotm-0719/include/linux/page_cgroup.h
+>>>> @@ -12,7 +12,8 @@
+>>>>    */
+>>>>   struct page_cgroup {
+>>>>   	unsigned long flags;
+>>>> -	struct mem_cgroup *mem_cgroup;
+>>>> +	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
+>>>> +	unsigned short blk_cgroup;	/* Not Used..but will be. */
+>>>
+>>> So later I shall have to use virtually indexed arrays in blkio controller?
+>>> Or you are just using virtually indexed arrays for lookup speed and
+>>> I can continue to use css_lookup() and not worry about using virtually
+>>> indexed arrays.
+>>>
+>> yes. you can use css_lookup() even if it's slow.
+>>
+>
+> Ok.
+>
+>>> So the idea is that when a page is allocated, also store the blk_group
+>>> id and once that page is submitted for writeback, we should be able
+>>> to associate it to right blkio group?
+>>>
+>> blk_cgroup id can be attached whenever you wants. please overwrite
+>> page_cgroup->blk_cgroup when it's necessary.
+>
+>> Did you read Ikeda's patch ? I myself doesn't have patches at this point.
+>> This is just for make a room for recording blkio-ID, which was requested
+>> for a year.
+>
+> I have not read his patches yet. IIRC, previously there were issues
+> regarding which group should be charged for the page. The person who
+> allocated it or the thread which did last write to it etc... I guess
+> we can sort that out later.
 
-> static inline int memmap_valid(unsigned long pfn)
-> {
->        struct page *page = pfn_to_page(pfn);
->        struct page *__pg = virt_to_page(page);
+Absolutely.
+iotrack, a part of blkio cgroup for async write patch I posted, charges
+the thread (in exact, blkio-cgroup to which the thread belongs) which
+dirtied the page first.  Though it should be controversial and we need
+to discuss who should be charged, adding pc->blk_cgroup has no problem
+because blkio-cgroup can overwrite it any time, as Kame said above.
 
-Does that work both for vmemmap and real mmapping?
+Beyond that, adding pc->blk_cgroup is a big step for us.  Now I encode
+and store ID in pc->flags.  pc->blk_cgroup is more straight and that
+is what we have been looking forward.  Thanks Kame!
 
->        return page_private(__pg) == MAGIC_MEMMAP && PageReserved(__pg);
-> }
 
-Problem is that pages may be allocated for the mmap from a variety of
-places. The pages in mmap_init_zone() and allocated during boot may have
-PageReserved set whereas the page allocated via vmemmap_alloc_block() have
-PageReserved cleared since they came from the page allocator.
 
-You need to have consistent use of PageReserved in page structs for the
-mmap in order to do this properly.
-
-Simplest scheme would be to clear PageReserved() in all page struct
-associated with valid pages and clear those for page structs that do not
-refer to valid pages.
-
-Then
-
-mmap_valid = !PageReserved(xxx(pfn_to_page(pfn))
+-- 
+IKEDA, Munehiro
+   NEC Corporation of America
+     m-ikeda@ds.jp.nec.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
