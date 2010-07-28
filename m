@@ -1,83 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6041E6B02A4
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 04:47:00 -0400 (EDT)
-Date: Wed, 28 Jul 2010 16:46:54 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] vmscan: remove wait_on_page_writeback() from pageout()
-Message-ID: <20100728084654.GA26776@localhost>
-References: <20100728071705.GA22964@localhost>
- <AANLkTimaj6+MzY5Aa_xqi75zKy1fDOQV5QiQjdX8jgm7@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTimaj6+MzY5Aa_xqi75zKy1fDOQV5QiQjdX8jgm7@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 951836B02A4
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 04:51:56 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L6900E0OFACOJ@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Wed, 28 Jul 2010 09:51:48 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L6900B7BFABFQ@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 28 Jul 2010 09:51:48 +0100 (BST)
+Date: Wed, 28 Jul 2010 10:53:17 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCHv2 2/4] mm: cma: Contiguous Memory Allocator added
+In-reply-to: <20100727120841.GC11468@n2100.arm.linux.org.uk>
+Message-id: <op.vgjpm3it7p4s8u@pikus>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1280151963.git.m.nazarewicz@samsung.com>
+ <743102607e2c5fb20e3c0676fadbcb93d501a78e.1280151963.git.m.nazarewicz@samsung.com>
+ <dc4bdf3e0b02c0ac4770927f72b6cbc3f0b486a2.1280151963.git.m.nazarewicz@samsung.com>
+ <20100727120841.GC11468@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, linux-kernel@vger.kernel.org, Hiremath Vaibhav <hvaibhav@ti.com>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The wait_on_page_writeback() call inside pageout() is virtually dead code.
+>> +static inline dma_addr_t __must_check
+>> +cma_alloc(const struct device *dev, const char *kind,
+>> +	  size_t size, dma_addr_t alignment)
+>> +{
+>> +	return dev ? -EINVAL : __cma_alloc(dev, kind, size, alignment);
 
-        shrink_inactive_list()
-          shrink_page_list(PAGEOUT_IO_ASYNC)
-            pageout(PAGEOUT_IO_ASYNC)
-          shrink_page_list(PAGEOUT_IO_SYNC)
-            pageout(PAGEOUT_IO_SYNC)
+On Tue, 27 Jul 2010 14:08:41 +0200, Russell King - ARM Linux <linux@arm.=
+linux.org.uk> wrote:
+> So I can't use this to allocate memory for anything but a NULL device?=
 
-Because shrink_page_list/pageout(PAGEOUT_IO_SYNC) is always called after
-a preceding shrink_page_list/pageout(PAGEOUT_IO_ASYNC), the first
-pageout(ASYNC) converts dirty pages into writeback pages, the second
-shrink_page_list(SYNC) waits on the clean of writeback pages before
-calling pageout(SYNC). The second shrink_page_list(SYNC) can hardly run
-into dirty pages for pageout(SYNC) unless in some race conditions.
 
-And the wait page-by-page behavior of pageout(SYNC) will lead to very
-long stall time if running into some range of dirty pages. So it's bad
-idea anyway to call wait_on_page_writeback() inside pageout().
+>> +static inline int
+>> +cma_info(struct cma_info *info, const struct device *dev, const char=
+ *kind)
+>> +{
+>> +	return dev ? -EINVAL : __cma_info(info, dev, kind);
 
-CC: Andy Whitcroft <apw@shadowen.org>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/vmscan.c |   13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+> This won't return information for anything but a NULL device?
 
---- linux-next.orig/mm/vmscan.c	2010-07-28 16:22:21.000000000 +0800
-+++ linux-next/mm/vmscan.c	2010-07-28 16:23:35.000000000 +0800
-@@ -324,8 +324,7 @@ typedef enum {
-  * pageout is called by shrink_page_list() for each dirty page.
-  * Calls ->writepage().
-  */
--static pageout_t pageout(struct page *page, struct address_space *mapping,
--						enum pageout_io sync_writeback)
-+static pageout_t pageout(struct page *page, struct address_space *mapping)
- {
- 	/*
- 	 * If the page is dirty, only perform writeback if that write
-@@ -384,14 +383,6 @@ static pageout_t pageout(struct page *pa
- 			return PAGE_ACTIVATE;
- 		}
- 
--		/*
--		 * Wait on writeback if requested to. This happens when
--		 * direct reclaiming a large contiguous area and the
--		 * first attempt to free a range of pages fails.
--		 */
--		if (PageWriteback(page) && sync_writeback == PAGEOUT_IO_SYNC)
--			wait_on_page_writeback(page);
--
- 		if (!PageWriteback(page)) {
- 			/* synchronous write or broken a_ops? */
- 			ClearPageReclaim(page);
-@@ -727,7 +718,7 @@ static unsigned long shrink_page_list(st
- 				goto keep_locked;
- 
- 			/* Page is dirty, try to write it out here */
--			switch (pageout(page, mapping, sync_writeback)) {
-+			switch (pageout(page, mapping)) {
- 			case PAGE_KEEP:
- 				goto keep_locked;
- 			case PAGE_ACTIVATE:
+Obviously a bug.  Thanks for spotting that.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
