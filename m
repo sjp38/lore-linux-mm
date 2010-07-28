@@ -1,56 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 84A7C6B02A6
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 03:15:15 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so927878pvc.14
-        for <linux-mm@kvack.org>; Wed, 28 Jul 2010 00:15:12 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 639066B02A8
+	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 03:17:11 -0400 (EDT)
+Date: Wed, 28 Jul 2010 15:17:05 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
+Message-ID: <20100728071705.GA22964@localhost>
 MIME-Version: 1.0
-In-Reply-To: <20100728135850.7A92.A69D9226@jp.fujitsu.com>
-References: <20100727200804.2F40.A69D9226@jp.fujitsu.com> <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
-	<20100728135850.7A92.A69D9226@jp.fujitsu.com>
-From: dave b <db.pub.mail@gmail.com>
-Date: Wed, 28 Jul 2010 17:14:52 +1000
-Message-ID: <AANLkTi=fk8B-TnC6m3AoLT7k_G239rMaQA1COwHLxwRM@mail.gmail.com>
-Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
+Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On 28 July 2010 15:06, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> On 27 July 2010 21:14, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> On 27 July 2010 18:09, dave b <db.pub.mail@gmail.com> wrote:
->> >> > On 27 July 2010 16:09, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
->> >> >>> > Do you mean the issue will be gone if disabling intel graphics?
->> >> >>> It may be a general issue or it could just be specific :)
->> >> >
->> >> > I will try with the latest ubuntu and report how that goes (that will
->> >> > be using fairly new xorg etc.) it is likely to be hidden issue just
->> >> > with the intel graphics driver. However, my concern is that it isn't -
->> >> > and it is about how shared graphics memory is handled :)
->> >>
->> >>
->> >> Ok my desktop still stalled and no oom killer was invoked when I added
->> >> swap to a live-cd of 10.04 amd64.
->> >>
->> >> *Without* *swap* *on* - the oom killer was invoked - here is a copy of it.
->> >
->> > This stack seems similar following bug. can you please try to disable intel graphics
->> > driver?
->> >
->> > https://bugzilla.kernel.org/show_bug.cgi?id=14933
->>
->> Ok I am not sure how to do that :)
->> I could revert the patch and see if it 'fixes' this :)
->
-> Oops, no, revert is not good action. the patch is correct.
-> probably my explanation was not clear. sorry.
->
-> I did hope to disable 'driver' (i.e. using vga), not disable the patch.
+Fix "system goes unresponsive under memory pressure and lots of
+dirty/writeback pages" bug.
 
-Oh you mean in xorg, I will also blacklist the module. Sure that patch
-might not it but in 2.6.26 the problem isn't there :)
+	http://lkml.org/lkml/2010/4/4/86
+
+In the above thread, Andreas Mohr described that
+
+	Invoking any command locked up for minutes (note that I'm
+	talking about attempted additional I/O to the _other_,
+	_unaffected_ main system HDD - such as loading some shell
+	binaries -, NOT the external SSD18M!!).
+
+This happens when the two conditions are both meet:
+- under memory pressure
+- writing heavily to a slow device
+
+OOM also happens in Andreas' system. The OOM trace shows that 3
+processes are stuck in wait_on_page_writeback() in the direct reclaim
+path. One in do_fork() and the other two in unix_stream_sendmsg(). They
+are blocked on this condition:
+
+	(sc->order && priority < DEF_PRIORITY - 2)
+
+which was introduced in commit 78dc583d (vmscan: low order lumpy reclaim
+also should use PAGEOUT_IO_SYNC) one year ago. That condition may be too
+permissive. In Andreas' case, 512MB/1024 = 512KB. If the direct reclaim
+for the order-1 fork() allocation runs into a range of 512KB
+hard-to-reclaim LRU pages, it will be stalled.
+
+It's a severe problem in three ways.
+
+Firstly, it can easily happen in daily desktop usage.  vmscan priority
+can easily go below (DEF_PRIORITY - 2) on _local_ memory pressure. Even
+if the system has 50% globally reclaimable pages, it still has good
+opportunity to have 0.1% sized hard-to-reclaim ranges. For example, a
+simple dd can easily create a big range (up to 20%) of dirty pages in
+the LRU lists.
+
+Secondly, once triggered, it will stall unrelated processes (not doing IO
+at all) in the system. This "one slow USB device stalls the whole system"
+avalanching effect is very bad.
+
+Thirdly, once stalled, the stall time could be intolerable long for the
+users.  When there are 20MB queued writeback pages and USB 1.1 is
+writing them in 1MB/s, wait_on_page_writeback() will stuck for up to 20
+seconds.  Not to mention it may be called multiple times.
+
+So raise the bar to only enable PAGEOUT_IO_SYNC when priority goes below
+DEF_PRIORITY/3, or 6.25% LRU size. As the default dirty throttle ratio is
+20%, it will hardly be triggered by pure dirty pages. We'd better treat
+PAGEOUT_IO_SYNC as some last resort workaround -- its stall time is so
+uncomfortably long (easily goes beyond 1s).
+
+The bar is only raised for (order < PAGE_ALLOC_COSTLY_ORDER) allocations,
+which are easy to satisfy in 1TB memory boxes. So, although 6.25% of
+memory could be an awful lot of pages to scan on a system with 1TB of
+memory, it won't really have to busy scan that much.
+
+Reported-by: Andreas Mohr <andi@lisas.de>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |   51 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 43 insertions(+), 8 deletions(-)
+
+--- linux-next.orig/mm/vmscan.c	2010-07-28 13:00:21.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-07-28 14:58:50.000000000 +0800
+@@ -1110,6 +1110,47 @@ static int too_many_isolated(struct zone
+ }
+ 
+ /*
++ * Returns true if the caller should wait to clean dirty/writeback pages.
++ *
++ * If we are direct reclaiming for contiguous pages and we do not reclaim
++ * everything in the list, try again and wait for writeback IO to complete.
++ * This will stall high-order allocations noticeably. Only do that when really
++ * need to free the pages under high memory pressure.
++ */
++static inline bool should_reclaim_stall(unsigned long nr_taken,
++					unsigned long nr_freed,
++					int priority,
++					struct scan_control *sc)
++{
++	int lumpy_stall_priority;
++
++	/* kswapd should not stall on sync IO */
++	if (current_is_kswapd())
++		return false;
++
++	/* Only stall on lumpy reclaim */
++	if (!sc->lumpy_reclaim_mode)
++		return false;
++
++	/* If we have relaimed everything on the isolated list, no stall */
++	if (nr_freed == nr_taken)
++		return false;
++
++	/*
++	 * For high-order allocations, there are two stall thresholds.
++	 * High-cost allocations stall immediately where as lower
++	 * order allocations such as stacks require the scanning
++	 * priority to be much higher before stalling.
++	 */
++	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
++		lumpy_stall_priority = DEF_PRIORITY;
++	else
++		lumpy_stall_priority = DEF_PRIORITY / 3;
++
++	return priority <= lumpy_stall_priority;
++}
++
++/*
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+  */
+@@ -1199,14 +1240,8 @@ static unsigned long shrink_inactive_lis
+ 		nr_scanned += nr_scan;
+ 		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
+ 
+-		/*
+-		 * If we are direct reclaiming for contiguous pages and we do
+-		 * not reclaim everything in the list, try again and wait
+-		 * for IO to complete. This will stall high-order allocations
+-		 * but that should be acceptable to the caller
+-		 */
+-		if (nr_freed < nr_taken && !current_is_kswapd() &&
+-		    sc->lumpy_reclaim_mode) {
++		/* Check if we should syncronously wait for writeback */
++		if (should_reclaim_stall(nr_taken, nr_freed, priority, sc)) {
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
