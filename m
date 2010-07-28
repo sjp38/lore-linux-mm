@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 290F7600802
+	by kanga.kvack.org (Postfix) with ESMTP id D645C6007FF
 	for <linux-mm@kvack.org>; Wed, 28 Jul 2010 06:27:32 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 8/9] vmscan: Kick flusher threads to clean pages when reclaim is encountering dirty pages
-Date: Wed, 28 Jul 2010 11:27:22 +0100
-Message-Id: <1280312843-11789-9-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 9/9] writeback: Prioritise dirty inodes encountered by reclaim for background flushing
+Date: Wed, 28 Jul 2010 11:27:23 +0100
+Message-Id: <1280312843-11789-10-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1280312843-11789-1-git-send-email-mel@csn.ul.ie>
 References: <1280312843-11789-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,117 +13,156 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-There are a number of cases where pages get cleaned but two of concern
-to this patch are;
-  o When dirtying pages, processes may be throttled to clean pages if
-    dirty_ratio is not met.
-  o Pages belonging to inodes dirtied longer than
-    dirty_writeback_centisecs get cleaned.
-
-The problem for reclaim is that dirty pages can reach the end of the LRU if
-pages are being dirtied slowly so that neither the throttling or a flusher
-thread waking periodically cleans them.
-
-Background flush is already cleaning old or expired inodes first but the
-expire time is too far in the future at the time of page reclaim. To mitigate
-future problems, this patch wakes flusher threads to clean 4M of data -
-an amount that should be manageable without causing congestion in many cases.
-
-Ideally, the background flushers would only be cleaning pages belonging
-to the zone being scanned but it's not clear if this would be of benefit
-(less IO) or not (potentially less efficient IO if an inode is scattered
-across multiple zones).
+It is preferable that as few dirty pages are dispatched for cleaning from
+the page reclaim path. When dirty pages are encountered by page reclaim,
+this patch marks the inodes that they should be dispatched immediately. When
+the background flusher runs, it moves such inodes immediately to the dispatch
+queue regardless of inode age.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/vmscan.c |   33 +++++++++++++++++++++++++++++++--
- 1 files changed, 31 insertions(+), 2 deletions(-)
+ fs/fs-writeback.c         |   52 ++++++++++++++++++++++++++++++++++++++++++++-
+ include/linux/fs.h        |    5 ++-
+ include/linux/writeback.h |    1 +
+ mm/vmscan.c               |    6 +++-
+ 4 files changed, 59 insertions(+), 5 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2d2b588..b66d1f5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -142,6 +142,18 @@ static DECLARE_RWSEM(shrinker_rwsem);
- /* Direct lumpy reclaim waits up to five seconds for background cleaning */
- #define MAX_SWAP_CLEAN_WAIT 50
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 5a3c764..27a8b75 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -221,7 +221,7 @@ static void move_expired_inodes(struct list_head *delaying_queue,
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+ 	struct super_block *sb = NULL;
+-	struct inode *inode;
++	struct inode *inode, *tinode;
+ 	int do_sb_sort = 0;
  
-+/*
-+ * When reclaim encounters dirty data, wakeup flusher threads to clean
-+ * a maximum of 4M of data.
-+ */
-+#define MAX_WRITEBACK (4194304UL >> PAGE_SHIFT)
-+#define WRITEBACK_FACTOR (MAX_WRITEBACK / SWAP_CLUSTER_MAX)
-+static inline long nr_writeback_pages(unsigned long nr_dirty)
-+{
-+	return laptop_mode ? 0 : 
-+			min(MAX_WRITEBACK, (nr_dirty * WRITEBACK_FACTOR));
-+}
-+
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
- 						  struct scan_control *sc)
- {
-@@ -649,12 +661,14 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
- static unsigned long shrink_page_list(struct list_head *page_list,
- 					struct scan_control *sc,
- 					enum pageout_io sync_writeback,
-+					int file,
- 					unsigned long *nr_still_dirty)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
- 	unsigned long nr_dirty = 0;
-+	unsigned long nr_dirty_seen = 0;
- 	unsigned long nr_reclaimed = 0;
- 
- 	cond_resched();
-@@ -748,6 +762,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		}
- 
- 		if (PageDirty(page)) {
-+			nr_dirty_seen++;
-+
- 			/*
- 			 * Only kswapd can writeback filesystem pages to
- 			 * avoid risk of stack overflow
-@@ -875,6 +891,18 @@ keep:
- 
- 	list_splice(&ret_pages, page_list);
- 
-+	/*
-+	 * If reclaim is encountering dirty pages, it may be because
-+	 * dirty pages are reaching the end of the LRU even though the
-+	 * dirty_ratio may be satisified. In this case, wake flusher
-+	 * threads to pro-actively clean up to a maximum of
-+	 * 4 * SWAP_CLUSTER_MAX amount of data (usually 1/2MB) unless
-+	 * !may_writepage indicates that this is a direct reclaimer in
-+	 * laptop mode avoiding disk spin-ups
-+	 */
-+	if (file && nr_dirty_seen && sc->may_writepage)
-+		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
-+
- 	*nr_still_dirty = nr_dirty;
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	return nr_reclaimed;
-@@ -1315,7 +1343,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	spin_unlock_irq(&zone->lru_lock);
- 
- 	nr_reclaimed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC,
--								&nr_dirty);
-+							file, &nr_dirty);
- 
- 	/*
- 	 * If specific pages are needed such as with direct reclaiming
-@@ -1351,7 +1379,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 			count_vm_events(PGDEACTIVATE, nr_active);
- 
- 			nr_reclaimed += shrink_page_list(&page_list, sc,
--						PAGEOUT_IO_SYNC, &nr_dirty);
-+						PAGEOUT_IO_SYNC, file,
-+						&nr_dirty);
- 		}
+ 	if (wbc->for_kupdate || wbc->for_background) {
+@@ -229,6 +229,14 @@ static void move_expired_inodes(struct list_head *delaying_queue,
+ 		older_than_this = jiffies - expire_interval;
  	}
  
++	/* Move inodes reclaim found at end of LRU to dispatch queue */
++	list_for_each_entry_safe(inode, tinode, delaying_queue, i_list) {
++		if (inode->i_state & I_DIRTY_RECLAIM) {
++			inode->i_state &= ~I_DIRTY_RECLAIM;
++			list_move(&inode->i_list, &tmp);
++		}
++	}
++
+ 	while (!list_empty(delaying_queue)) {
+ 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+ 		if (expire_interval &&
+@@ -906,6 +914,48 @@ void wakeup_flusher_threads(long nr_pages)
+ 	rcu_read_unlock();
+ }
+ 
++/*
++ * Similar to wakeup_flusher_threads except prioritise inodes contained
++ * in the page_list regardless of age
++ */
++void wakeup_flusher_threads_pages(long nr_pages, struct list_head *page_list)
++{
++	struct page *page;
++	struct address_space *mapping;
++	struct inode *inode;
++
++	list_for_each_entry(page, page_list, lru) {
++		if (!PageDirty(page))
++			continue;
++
++		lock_page(page);
++		mapping = page_mapping(page);
++		if (!mapping || mapping == &swapper_space)
++			goto unlock;
++
++		/*
++		 * Test outside the lock to see as if it is already set, taking
++		 * the inode lock is a waste and the inode should be pinned by
++		 * the lock_page
++		 */
++		inode = page->mapping->host;
++		if (inode->i_state & I_DIRTY_RECLAIM)
++			goto unlock;
++
++		/*
++		 * XXX: Yuck, has to be a way of batching this by not requiring
++		 * 	the page lock to pin the inode
++		 */
++		spin_lock(&inode_lock);
++		inode->i_state |= I_DIRTY_RECLAIM;
++		spin_unlock(&inode_lock);
++unlock:
++		unlock_page(page);
++	}
++
++	wakeup_flusher_threads(nr_pages);
++}
++
+ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
+ {
+ 	if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev")) {
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index e29f0ed..8836698 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1585,8 +1585,8 @@ struct super_operations {
+ /*
+  * Inode state bits.  Protected by inode_lock.
+  *
+- * Three bits determine the dirty state of the inode, I_DIRTY_SYNC,
+- * I_DIRTY_DATASYNC and I_DIRTY_PAGES.
++ * Four bits determine the dirty state of the inode, I_DIRTY_SYNC,
++ * I_DIRTY_DATASYNC, I_DIRTY_PAGES and I_DIRTY_RECLAIM.
+  *
+  * Four bits define the lifetime of an inode.  Initially, inodes are I_NEW,
+  * until that flag is cleared.  I_WILL_FREE, I_FREEING and I_CLEAR are set at
+@@ -1633,6 +1633,7 @@ struct super_operations {
+ #define I_DIRTY_SYNC		1
+ #define I_DIRTY_DATASYNC	2
+ #define I_DIRTY_PAGES		4
++#define I_DIRTY_RECLAIM		256
+ #define __I_NEW			3
+ #define I_NEW			(1 << __I_NEW)
+ #define I_WILL_FREE		16
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 494edd6..73a4df2 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -64,6 +64,7 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
+ 		struct writeback_control *wbc);
+ long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
+ void wakeup_flusher_threads(long nr_pages);
++void wakeup_flusher_threads_pages(long nr_pages, struct list_head *page_list);
+ 
+ /* writeback.h requires fs.h; it, too, is not included from here. */
+ static inline void wait_on_inode(struct inode *inode)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b66d1f5..bad1abf 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -901,7 +901,8 @@ keep:
+ 	 * laptop mode avoiding disk spin-ups
+ 	 */
+ 	if (file && nr_dirty_seen && sc->may_writepage)
+-		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
++		wakeup_flusher_threads_pages(nr_writeback_pages(nr_dirty),
++					page_list);
+ 
+ 	*nr_still_dirty = nr_dirty;
+ 	count_vm_events(PGACTIVATE, pgactivate);
+@@ -1368,7 +1369,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 				list_add(&page->lru, &putback_list);
+ 			}
+ 
+-			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
++			wakeup_flusher_threads_pages(laptop_mode ? 0 : nr_dirty,
++								&page_list);
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 			/*
 -- 
 1.7.1
 
