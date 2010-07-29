@@ -1,200 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D47BE6B02A6
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 06:34:23 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6TAYLUv014130
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 29 Jul 2010 19:34:21 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D3E1C45DE54
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 19:34:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A5FEE45DE52
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 19:34:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8511B1DB805F
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 19:34:20 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F4A81DB803F
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 19:34:20 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Why PAGEOUT_IO_SYNC stalls for a long time
-In-Reply-To: <20100728131017.GI5300@csn.ul.ie>
-References: <20100728191322.4A85.A69D9226@jp.fujitsu.com> <20100728131017.GI5300@csn.ul.ie>
-Message-Id: <20100729153719.4ABD.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 634796B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 08:57:43 -0400 (EDT)
+Date: Thu, 29 Jul 2010 13:57:25 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: compaction: why depends on HUGETLB_PAGE
+Message-ID: <20100729125725.GA3571@csn.ul.ie>
+References: <D25878F935704D9281E62E0393CAD951@rainbow>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 29 Jul 2010 19:34:19 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <D25878F935704D9281E62E0393CAD951@rainbow>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, Jul 28, 2010 at 08:40:21PM +0900, KOSAKI Motohiro wrote:
-> > In this week, I've tested some IO congested workload for a while. and probably
-> > I did reproduced Andreas's issue.
-> > 
-> > So, I would like to explain current lumpy reclaim how works and why so much sucks.
-> > 
-> > 
-> > 1. Now isolate_lru_pages() have following pfn neighber grabbing logic.
-> > 
-> >                 for (; pfn < end_pfn; pfn++) {
-> > (snip)
-> >                         if (__isolate_lru_page(cursor_page, mode, file) == 0) {
-> >                                 list_move(&cursor_page->lru, dst);
-> >                                 mem_cgroup_del_lru(cursor_page);
-> >                                 nr_taken++;
-> >                                 nr_lumpy_taken++;
-> >                                 if (PageDirty(cursor_page))
-> >                                         nr_lumpy_dirty++;
-> >                                 scan++;
-> >                         } else {
-> >                                 if (mode == ISOLATE_BOTH &&
-> >                                                 page_count(cursor_page))
-> >                                         nr_lumpy_failed++;
-> >                         }
-> >                 }
-> > 
-> > Mainly, __isolate_lru_page() failure can be caused following reasons.
-> >   (1) the page have already been freed and is in buddy.
-> >   (2) the page is used for non user process purpose
-> >   (3) the page is unevictable (e.g. mlocked)
-> > 
-> > (2), (3) have very different characteristic from (1). the lumpy reclaim
-> > mean 'contenious physical memory reclaiming'. that said, if we are trying
-> > order 9 reclaim, 512 pages reclaim success and 511 pages reclaim success
-> > are completely differennt.
-> 
-> Yep, and this can occur quite regularly. Judging from the ftrace
-> results, contig_failed is frequently positive although whether this is
-> due to the page being about to be freed or because it's due (2), I don't
-> know.
-> 
-> > former mean lumpy reclaim successfull, latter mean
-> > failure. So, if (2) or (3) occur, that pfn have lost a possibility of lumpy
-> > reclaim successfull. then, we should stop pfn neighbor search immediately and
-> > try to get lru next page. (i.e. we should use 'break' statement instead 'continue')
-> > 
-> 
-> Easy enough to do.
+On Thu, Jul 29, 2010 at 10:53:12AM +0900, Iram Shahzad wrote:
+> Hi
+>
+> I have found that memory compaction (CONFIG_COMPACTION)
+> is mainlined while looking at 2.6.35-rc5 source code.
+> I have a question regarding its dependency on HUGETLB_PAGE.
+>
+> While trying to use CONFIG_COMPACTION on ARM architecture,
+> I found that I cannot enable CONFIG_COMPACTION because
+> it depends on CONFIG_HUGETLB_PAGE which is not available
+> on ARM.
+>
+> I disabled the dependency and was able to build it.
+> And it looks like working!
+>
+> My question is: why does it depend on CONFIG_HUGETLB_PAGE?
 
-Yup.
+Because as the Kconfig says "Allows the compaction of memory for the
+allocation of huge pages.". Depending on compaction to satisfy other
+high-order allocation types is not likely to be a winning strategy.
 
+> Is it wrong to use it on ARM by disabling CONFIG_HUGETLB_PAGE?
+>
 
-> > 2. synchronous lumpy reclaim condition is insane.
-> > 
-> > currently, synchrounous lumpy reclaim will be invoked when following
-> > condition.
-> > 
-> >         if (nr_reclaimed < nr_taken && !current_is_kswapd() &&
-> >                         sc->lumpy_reclaim_mode) {
-> > 
-> > but "nr_reclaimed < nr_taken" is pretty stupid. if isolated pages have
-> > much dirty pages, pageout() only issue first 113 IOs.
-> > (if io queue have >113 requests, bdi_write_congested() return true and
-> >  may_write_to_queue() return false)
-> > 
-> > So, we haven't call ->writepage(), congestion_wait() and wait_on_page_writeback()
-> > are surely stupid.
-> > 
-> 
-> This is somewhat intentional though. See the comment
-> 
->                         /*
->                          * Synchronous reclaim is performed in two passes,
->                          * first an asynchronous pass over the list to
->                          * start parallel writeback, and a second synchronous
->                          * pass to wait for the IO to complete......
-> 
-> If all pages on the list were not taken, it means that some of the them
-> were dirty but most should now be queued for writeback (possibly not all if
-> congested). The intention is to loop a second time waiting for that writeback
-> to complete before continueing on.
+It depends on why you need compaction. If it's for some device that
+requires high-order allocations (particularly if they are atomic), then
+it's not likely to work very well in the long term.
 
-May I explain more a bit? Generically, a worth of retrying depend on successful ratio.
-now shrink_page_list() can't free the page when following situation.
-
-1. trylock_page() failure
-2. page is unevictable
-3. zone reclaim and page is mapped
-4. PageWriteback() is true and not synchronous lumpy reclaim
-5. page is swapbacked and swap is full
-6. add_to_swap() fail (note, this is frequently fail rather than expected because
-    it is using GFP_NOMEMALLOC)
-7. page is dirty and gfpmask don't have GFP_IO, GFP_FS
-8. page is pinned
-9. IO queue is congested
-10. pageout() start IO, but not finished
-
-So, (4) and (10) are perfectly good condition to wait. (1) and (8) might be solved
-by sleeping awhile, but it's unrelated on io-congestion. but might not be. It only works
-by lucky. So I don't like to depned on luck.  (9) can be solved by io
-waiting. but congestion_wait() is NOT correct wait. congestion_wait() mean 
-"sleep until one or more block device in the system are no congested". That said,
-if the system have two or more disks, congestion_wait() doesn't works well for 
-synchronous lumpy reclaim purpose. btw, desktop user oftern use USB storage
-device. (2), (3), (5), (6) and (7) can't be solved by waiting. It's just silly.
-
-In the other hand, synchrounous lumpy reclaim work fine following situation.
-
-1. called shrink_page_list(PAGEOUT_IO_ASYNC) 
-2. pageout() kicked IO
-3. waiting by wait_on_page_writeback()
-4. application touched the page again. and the page became dirty again
-5. IO finished, and wakeuped reclaim thread 
-6. called pageout()
-7. called wait_on_page_writeback() again
-8. ok. we are successful high order reclaim
-
-So, I'd like to narrowing to invoke synchrounous lumpy reclaim condtion.
-
-
-> 
-> > 3. pageout() is intended anynchronous api. but doesn't works so.
-> > 
-> > pageout() call ->writepage with wbc->nonblocking=1. because if the system have
-> > default vm.dirty_ratio (i.e. 20), we have 80% clean memory. so, getting stuck
-> > on one page is stupid, we should scan much pages as soon as possible.
-> > 
-> > HOWEVER, block layer ignore this argument. if slow usb memory device connect
-> > to the system, ->writepage() will sleep long time. because submit_bio() call
-> > get_request_wait() unconditionally and it doesn't have any PF_MEMALLOC task
-> > bonus.
-> 
-> Is this not a problem in the writeback layer rather than pageout()
-> specifically?
-
-Well, outside pageout(), probably only XFS makes PF_MEMALLOC + writeout. 
-because PF_MEMALLOC is enabled only very limited situation. but I don't know
-XFS detail at all. I can't tell this area...
-
-
-
-
-> > 4. synchronous lumpy reclaim call clear_active_flags(). but it is also silly.
-> > 
-> > Now, page_check_references() ignore pte young bit when we are processing lumpy reclaim.
-> > Then, In almostly case, PageActive() mean "swap device is full". Therefore,
-> > waiting IO and retry pageout() are just silly.
-> > 
-> 
-> try_to_unmap also obey reference bits. If you remove the call to
-> clear_active_flags, then pageout should pass TTY_IGNORE_ACCESS to
-> try_to_unmap(). I had a patch to do this but it didn't improve
-> high-order allocation success rates any so I dropped it.
-
-I think this is unrelated issue.  actually, page_referenced() is called before try_to_unmap()
-and page_referenced() will drop pte young bit. This logic have very narrowing race. but
- I don't think this is big matter practically.
-
-And, As I said, PageActive() mean retry is not meaningful. usuallty swap full doen't clear
-even if waiting a while.
-
-
-Thanks.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
