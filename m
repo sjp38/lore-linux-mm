@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B34396B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 00:31:53 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6T4VoKl004441
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 29 Jul 2010 13:31:50 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5188545DE4F
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 13:31:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 27E8945DE4E
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 13:31:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F7391DB8038
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 13:31:50 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EB68B6B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 01:25:44 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6T5Pgnc029251
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 29 Jul 2010 14:25:42 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 20C6D45DE4F
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:25:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 02B7F45DE4C
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:25:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E111C1DB8013
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:25:41 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA1E71DB803E
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 13:31:49 +0900 (JST)
-Date: Thu, 29 Jul 2010 13:27:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/7][memcg] virtually indexed array library.
-Message-Id: <20100729132703.2d53e8a4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100729093226.7b899930.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100727165155.8b458b7f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100727165303.7d7d18e9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100728124513.85bfa047.akpm@linux-foundation.org>
-	<20100729093226.7b899930.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A38691DB8012
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:25:41 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 0/5] memcg: few nit fix and cleanups
+Message-Id: <20100729140700.4AA2.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 29 Jul 2010 14:25:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jul 2010 09:32:26 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Wed, 28 Jul 2010 12:45:13 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
- 
-> > My gut reaction to this sort of thing is "run away in terror".  It
-> > encourages kernel developers to operate like lackadaisical userspace
-> > developers and to assume that underlying code can perform heroic and
-> > immortal feats.  But it can't.  This is the kernel and the kernel is a
-> > tough and hostile place and callers should be careful and defensive and
-> > take great efforts to minimise the strain they put upon other systems.
-> > 
-> > IOW, can we avoid doing this?
-> > 
-> 
+This fixes were a part of memcg tracepoint series. and now It was divided
+from such series. All patches are trivial. 
 
-I'll use pre-allocated pointer array in the next version. It's simple even
-if a bit slow.
 
-==
-struct mem_cgroup *mem_cgroups[CONFIG_MAX_MEM_CGROUPS] __read_mostly;
-#define id_to_memcg(id)		mem_cgroups[id];
-==
-But this can use hugepage-mapping-for-kernel...so, can be quick.
 
-Thanks,
--Kame
+KOSAKI Motohiro (5):
+  memcg: sc.nr_to_reclaim should be initialized
+  memcg: kill unnecessary initialization
+  memcg: mem_cgroup_shrink_node_zone() doesn't need sc.nodemask
+  memcg: remove nid and zid argument from mem_cgroup_soft_limit_reclaim()
+  memcg: convert to use zone_to_nid() from bare zone->zone_pgdat->node_id
+
+ include/linux/memcontrol.h |    6 +++---
+ include/linux/swap.h       |    3 +--
+ mm/memcontrol.c            |   14 ++++++--------
+ mm/vmscan.c                |   15 ++++-----------
+ 4 files changed, 14 insertions(+), 24 deletions(-)
 
 
 
