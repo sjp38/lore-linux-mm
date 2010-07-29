@@ -1,82 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 28E306B02A9
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 01:29:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6T5TpqV027396
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 29 Jul 2010 14:29:52 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 93AAC45DE50
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:29:51 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A3A845DE4E
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:29:51 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 50CAB1DB8041
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:29:51 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0385A1DB803E
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 14:29:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 5/5] memcg: convert to use zone_to_nid() from bare zone->zone_pgdat->node_id
-In-Reply-To: <20100729140700.4AA2.A69D9226@jp.fujitsu.com>
-References: <20100729140700.4AA2.A69D9226@jp.fujitsu.com>
-Message-Id: <20100729142914.4AB4.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 712236B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 04:45:35 -0400 (EDT)
+Date: Thu, 29 Jul 2010 04:45:23 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 0/9] Reduce writeback from page reclaim context V5
+Message-ID: <20100729084523.GA537@infradead.org>
+References: <1280312843-11789-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 29 Jul 2010 14:29:50 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1280312843-11789-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nishimura Daisuke <d-nishimura@mtf.biglobe.ne.jp>, Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
-We have zone_to_nid(). this patch convert all existing users of
-zone->zone_pgdat->node_id.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
- mm/memcontrol.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b9ffc0c..b7bb7d9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -919,7 +919,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
- 				       struct zone *zone,
- 				       enum lru_list lru)
- {
--	int nid = zone->zone_pgdat->node_id;
-+	int nid = zone_to_nid(zone);
- 	int zid = zone_idx(zone);
- 	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
- 
-@@ -929,7 +929,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
- struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone)
- {
--	int nid = zone->zone_pgdat->node_id;
-+	int nid = zone_to_nid(zone);
- 	int zid = zone_idx(zone);
- 	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
- 
-@@ -974,7 +974,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 	LIST_HEAD(pc_list);
- 	struct list_head *src;
- 	struct page_cgroup *pc, *tmp;
--	int nid = z->zone_pgdat->node_id;
-+	int nid = zone_to_nid(z);
- 	int zid = zone_idx(z);
- 	struct mem_cgroup_per_zone *mz;
- 	int lru = LRU_FILE * file + active;
--- 
-1.6.5.2
-
-
+Btw, I'm very happy with all this writeback related progress we've made
+for the 2.6.36 cycle.  The only major thing that's really missing, and
+which should help dramatically with the I/O patters is stopping direct
+writeback from balance_dirty_pages().  I've seen patches frrom Wu and
+and Jan for this and lots of discussion.  If we get either variant in
+this should be once of the best VM release from the filesystem point of
+view.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
