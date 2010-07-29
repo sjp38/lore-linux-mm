@@ -1,117 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F4A96B02A7
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:21:01 -0400 (EDT)
-Date: Thu, 29 Jul 2010 18:20:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/5] writeback: stop periodic/background work on seeing
- sync works
-Message-ID: <20100729162027.GF12690@quack.suse.cz>
-References: <20100729115142.102255590@intel.com>
- <20100729121423.332557547@intel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id D7BC16B02A9
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:47:31 -0400 (EDT)
+Date: Thu, 29 Jul 2010 11:47:26 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
+In-Reply-To: <20100729161856.GA16420@barrios-desktop>
+Message-ID: <alpine.DEB.2.00.1007291132210.17734@router.home>
+References: <pfn.valid.v4.reply.2@mdm.bga.com> <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com> <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
+ <alpine.DEB.2.00.1007281005440.21717@router.home> <20100728155617.GA5401@barrios-desktop> <alpine.DEB.2.00.1007281158150.21717@router.home> <20100728225756.GA6108@barrios-desktop> <alpine.DEB.2.00.1007291038100.16510@router.home>
+ <20100729161856.GA16420@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100729121423.332557547@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 29-07-10 19:51:44, Wu Fengguang wrote:
-> The periodic/background writeback can run forever. So when any
-> sync work is enqueued, increase bdi->sync_works to notify the
-> active non-sync works to exit. Non-sync works queued after sync
-> works won't be affected.
-  Hmm, wouldn't it be simpler logic to just make for_kupdate and
-for_background work always yield when there's some other work to do (as
-they are livelockable from the definition of the target they have) and
-make sure any other work isn't livelockable? The only downside is that
-non-livelockable work cannot be "fair" in the sense that we cannot switch
-inodes after writing MAX_WRITEBACK_PAGES.
-  I even had a patch for this but it's already outdated by now. But I
-can refresh it if we decide this is the way to go.
+On Fri, 30 Jul 2010, Minchan Kim wrote:
 
-								Honza
+> The thing is valid section also have a invalid memmap.
 
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c           |   13 +++++++++++++
->  include/linux/backing-dev.h |    6 ++++++
->  mm/backing-dev.c            |    1 +
->  3 files changed, 20 insertions(+)
-> 
-> --- linux-next.orig/fs/fs-writeback.c	2010-07-29 17:13:23.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-07-29 17:13:49.000000000 +0800
-> @@ -80,6 +80,8 @@ static void bdi_queue_work(struct backin
->  
->  	spin_lock(&bdi->wb_lock);
->  	list_add_tail(&work->list, &bdi->work_list);
-> +	if (work->for_sync)
-> +		atomic_inc(&bdi->wb.sync_works);
->  	spin_unlock(&bdi->wb_lock);
->  
->  	/*
-> @@ -633,6 +635,14 @@ static long wb_writeback(struct bdi_writ
->  			break;
->  
->  		/*
-> +		 * background/periodic works can run forever, need to abort
-> +		 * on seeing any pending sync work, to prevent livelock it.
-> +		 */
-> +		if (atomic_read(&wb->sync_works) &&
-> +		    (work->for_background || work->for_kupdate))
-> +			break;
-> +
-> +		/*
->  		 * For background writeout, stop when we are below the
->  		 * background dirty threshold
->  		 */
-> @@ -765,6 +775,9 @@ long wb_do_writeback(struct bdi_writebac
->  
->  		wrote += wb_writeback(wb, work);
->  
-> +		if (work->for_sync)
-> +			atomic_dec(&wb->sync_works);
-> +
->  		/*
->  		 * Notify the caller of completion if this is a synchronous
->  		 * work item, otherwise just free it.
-> --- linux-next.orig/include/linux/backing-dev.h	2010-07-29 17:13:23.000000000 +0800
-> +++ linux-next/include/linux/backing-dev.h	2010-07-29 17:13:31.000000000 +0800
-> @@ -50,6 +50,12 @@ struct bdi_writeback {
->  
->  	unsigned long last_old_flush;		/* last old data flush */
->  
-> +	/*
-> +	 * sync works queued, background works shall abort on seeing this,
-> +	 * to prevent livelocking the sync works
-> +	 */
-> +	atomic_t sync_works;
-> +
->  	struct task_struct	*task;		/* writeback task */
->  	struct list_head	b_dirty;	/* dirty inodes */
->  	struct list_head	b_io;		/* parked for writeback */
-> --- linux-next.orig/mm/backing-dev.c	2010-07-29 17:13:23.000000000 +0800
-> +++ linux-next/mm/backing-dev.c	2010-07-29 17:13:31.000000000 +0800
-> @@ -257,6 +257,7 @@ static void bdi_wb_init(struct bdi_write
->  
->  	wb->bdi = bdi;
->  	wb->last_old_flush = jiffies;
-> +	atomic_set(&wb->sync_works, 0);
->  	INIT_LIST_HEAD(&wb->b_dirty);
->  	INIT_LIST_HEAD(&wb->b_io);
->  	INIT_LIST_HEAD(&wb->b_more_io);
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Oww... . A valid section points to a valid memmap memory block (the page
+structs) but the underlying memory pages may not present. So you can check
+the (useless) page structs for the page state of the not present pages in
+the memory map. If the granularity of the sparsemem mapping is not
+sufficient for your purpose then you can change the sparsemem config
+(configuration is in arch/<arch>/include/asm/sparsemem.h but does not
+exist for arm).
+
+>      It means section 0 is an incompletely filled section.
+>      Nontheless, current pfn_valid of sparsemem checks pfn loosely.
+>      It checks only mem_section's validation but ARM can free mem_map on hole
+>      to save memory space. So in above case, pfn on 0x25000000 can pass pfn_valid's
+>      validation check. It's not what we want.
+
+IMHO ARM should not poke holes in the memmap sections. The guarantee of
+the full presence of the section is intentional to avoid having to do
+these checks that you are proposing. The page allocator typically expects
+to be able to check all page structs in one basic allocation unit.
+
+Also pfn_valid then does not have to touch the pag struct to perform its
+function as long as we guarantee the presence of the memmap section.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
