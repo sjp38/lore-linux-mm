@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 14A546B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 11:46:17 -0400 (EDT)
-Date: Thu, 29 Jul 2010 10:46:13 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-In-Reply-To: <20100728225756.GA6108@barrios-desktop>
-Message-ID: <alpine.DEB.2.00.1007291038100.16510@router.home>
-References: <pfn.valid.v4.reply.1@mdm.bga.com> <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com> <pfn.valid.v4.reply.2@mdm.bga.com> <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com>
- <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com> <alpine.DEB.2.00.1007281005440.21717@router.home> <20100728155617.GA5401@barrios-desktop> <alpine.DEB.2.00.1007281158150.21717@router.home>
- <20100728225756.GA6108@barrios-desktop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 780486B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:10:21 -0400 (EDT)
+Date: Thu, 29 Jul 2010 18:09:47 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/5]  [RFC] transfer ASYNC vmscan writeback IO to the
+ flusher threads
+Message-ID: <20100729160947.GE12690@quack.suse.cz>
+References: <20100729115142.102255590@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100729115142.102255590@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jul 2010, Minchan Kim wrote:
+On Thu 29-07-10 19:51:42, Wu Fengguang wrote:
+> Andrew,
+> 
+> It's possible to transfer ASYNC vmscan writeback IOs to the flusher threads.
+> This simple patchset shows the basic idea. Since it's a big behavior change,
+> there are inevitably lots of details to sort out. I don't know where it will
+> go after tests and discussions, so the patches are intentionally kept simple.
+> 
+> sync livelock avoidance (need more to be complete, but this is minimal required for the last two patches)
+> 	[PATCH 1/5] writeback: introduce wbc.for_sync to cover the two sync stages
+> 	[PATCH 2/5] writeback: stop periodic/background work on seeing sync works
+> 	[PATCH 3/5] writeback: prevent sync livelock with the sync_after timestamp
+  Well, essentially any WB_SYNC_NONE writeback is still livelockable if you
+just grow a file constantly. So your changes are a step in the right
+direction but won't fix the issue completely. But what we could do to fix
+the issue completely would be to just set wbc->nr_to_write to LONG_MAX
+before writing inode for sync use my livelock avoidance using page-tagging
+for this case (it wouldn't have the possible performance issue because we
+are going to write all the inode anyway).
+  I can write the patch but frankly there are so many patches floating
+around that I'm not sure what I should base it on...
 
-> On Wed, Jul 28, 2010 at 12:02:16PM -0500, Christoph Lameter wrote:
-> > On Thu, 29 Jul 2010, Minchan Kim wrote:
-> > > invalid memmap pages will be freed by free_memmap and will be used
-> > > on any place. How do we make sure it has PG_reserved?
-> >
-> > Not present memmap pages make pfn_valid fail already since there is no
-> > entry for the page table (vmemmap) or blocks are missing in the sparsemem
-> > tables.
-> >
-> > > Maybe I don't understand your point.
-> >
-> > I thought we are worrying about holes in the memmap blocks containing page
-> > structs. Some page structs point to valid pages and some are not. The
-> > invalid page structs need to be marked consistently to allow the check.
->
-> The thing is that memmap pages which contains struct page array on hole will be
-> freed by free_memmap in ARM. Please loot at arch/arm/mm/init.c.
-> And it will be used by page allocator as free pages.
+								Honza
 
-Arg thats the solution to the mystery. freememmap() is arm specific hack!
-
-Sparsemem allows you to properly handle holes already and then pfn_valid
-will work correctly.
-
-Why are the ways to manage holes in the core not used by arm?
-
-sparsemem does a table lookup to determine valid and invalid sections of
-the memmp.
-
-from include/linux/mmzone.h:
-
-static inline int pfn_valid(unsigned long pfn)
-{
-        if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-                return 0;
-        return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
-}
-
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
