@@ -1,107 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 355F66B02A8
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 11:04:43 -0400 (EDT)
-Date: Thu, 29 Jul 2010 17:04:13 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/5] writeback: introduce wbc.for_sync to cover the two
- sync stages
-Message-ID: <20100729150413.GD12690@quack.suse.cz>
-References: <20100729115142.102255590@intel.com>
- <20100729121423.184456417@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 14A546B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 11:46:17 -0400 (EDT)
+Date: Thu, 29 Jul 2010 10:46:13 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
+In-Reply-To: <20100728225756.GA6108@barrios-desktop>
+Message-ID: <alpine.DEB.2.00.1007291038100.16510@router.home>
+References: <pfn.valid.v4.reply.1@mdm.bga.com> <AANLkTimtTVvorrR9pDVTyPKj0HbYOYY3aR7B-QWGhTei@mail.gmail.com> <pfn.valid.v4.reply.2@mdm.bga.com> <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com> <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com>
+ <alpine.DEB.2.00.1007270929290.28648@router.home> <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com> <alpine.DEB.2.00.1007281005440.21717@router.home> <20100728155617.GA5401@barrios-desktop> <alpine.DEB.2.00.1007281158150.21717@router.home>
+ <20100728225756.GA6108@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100729121423.184456417@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 29-07-10 19:51:43, Wu Fengguang wrote:
-> The sync() is performed in two stages: the WB_SYNC_NONE sync and
-> the WB_SYNC_ALL sync. It is necessary to tag both stages with
-> wbc.for_sync, so as to prevent either of them being livelocked.
-> 
-> The basic livelock scheme will be based on the sync_after timestamp.
-> Inodes dirtied after that won't be queued for IO. The timestamp could be
-> recorded as early as the sync() time, this patch lazily sets it in
-> writeback_inodes_sb()/sync_inodes_sb(). This will stop livelock, but
-> may do more work than necessary.
-> 
-> Note that writeback_inodes_sb() is called by not only sync(), they
-> are treated the same because the other callers need the same livelock
-> prevention.
-  OK, but the patch does nothing, doesn't it? I'd prefer if the fields
-you introduce were actually used in this patch.
+On Thu, 29 Jul 2010, Minchan Kim wrote:
 
-								Honza
+> On Wed, Jul 28, 2010 at 12:02:16PM -0500, Christoph Lameter wrote:
+> > On Thu, 29 Jul 2010, Minchan Kim wrote:
+> > > invalid memmap pages will be freed by free_memmap and will be used
+> > > on any place. How do we make sure it has PG_reserved?
+> >
+> > Not present memmap pages make pfn_valid fail already since there is no
+> > entry for the page table (vmemmap) or blocks are missing in the sparsemem
+> > tables.
+> >
+> > > Maybe I don't understand your point.
+> >
+> > I thought we are worrying about holes in the memmap blocks containing page
+> > structs. Some page structs point to valid pages and some are not. The
+> > invalid page structs need to be marked consistently to allow the check.
+>
+> The thing is that memmap pages which contains struct page array on hole will be
+> freed by free_memmap in ARM. Please loot at arch/arm/mm/init.c.
+> And it will be used by page allocator as free pages.
 
-> CC: Jan Kara <jack@suse.cz>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c         |   21 ++++++++++++---------
->  include/linux/writeback.h |    1 +
->  2 files changed, 13 insertions(+), 9 deletions(-)
-> 
-> --- linux-next.orig/fs/fs-writeback.c	2010-07-28 17:05:17.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-07-28 21:21:31.000000000 +0800
-> @@ -36,6 +36,8 @@ struct wb_writeback_work {
->  	long nr_pages;
->  	struct super_block *sb;
->  	enum writeback_sync_modes sync_mode;
-> +	unsigned long sync_after;
-> +	unsigned int for_sync:1;
->  	unsigned int for_kupdate:1;
->  	unsigned int range_cyclic:1;
->  	unsigned int for_background:1;
-> @@ -1086,20 +1090,17 @@ static void wait_sb_inodes(struct super_
->   */
->  void writeback_inodes_sb(struct super_block *sb)
->  {
-> -	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
-> -	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
->  	DECLARE_COMPLETION_ONSTACK(done);
->  	struct wb_writeback_work work = {
->  		.sb		= sb,
->  		.sync_mode	= WB_SYNC_NONE,
-> +		.for_sync	= 1,
-> +		.sync_after	= jiffies,
->  		.done		= &done,
->  	};
->  
->  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
->  
-> -	work.nr_pages = nr_dirty + nr_unstable +
-> -			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
-> -
->  	bdi_queue_work(sb->s_bdi, &work);
->  	wait_for_completion(&done);
->  }
-> @@ -1137,6 +1138,8 @@ void sync_inodes_sb(struct super_block *
->  	struct wb_writeback_work work = {
->  		.sb		= sb,
->  		.sync_mode	= WB_SYNC_ALL,
-> +		.for_sync	= 1,
-> +		.sync_after	= jiffies,
->  		.nr_pages	= LONG_MAX,
->  		.range_cyclic	= 0,
->  		.done		= &done,
-> --- linux-next.orig/include/linux/writeback.h	2010-07-28 17:05:17.000000000 +0800
-> +++ linux-next/include/linux/writeback.h	2010-07-28 21:24:54.000000000 +0800
-> @@ -48,6 +48,7 @@ struct writeback_control {
->  	unsigned encountered_congestion:1; /* An output: a queue is full */
->  	unsigned for_kupdate:1;		/* A kupdate writeback */
->  	unsigned for_background:1;	/* A background writeback */
-> +	unsigned for_sync:1;		/* A writeback for sync */
->  	unsigned for_reclaim:1;		/* Invoked from the page allocator */
->  	unsigned range_cyclic:1;	/* range_start is cyclic */
->  };
-> 
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Arg thats the solution to the mystery. freememmap() is arm specific hack!
+
+Sparsemem allows you to properly handle holes already and then pfn_valid
+will work correctly.
+
+Why are the ways to manage holes in the core not used by arm?
+
+sparsemem does a table lookup to determine valid and invalid sections of
+the memmp.
+
+from include/linux/mmzone.h:
+
+static inline int pfn_valid(unsigned long pfn)
+{
+        if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+                return 0;
+        return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
