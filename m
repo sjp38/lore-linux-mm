@@ -1,99 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3F7A26B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:19:07 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so194716pvc.14
-        for <linux-mm@kvack.org>; Thu, 29 Jul 2010 09:19:05 -0700 (PDT)
-Date: Fri, 30 Jul 2010 01:18:56 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
-Message-ID: <20100729161856.GA16420@barrios-desktop>
-References: <pfn.valid.v4.reply.2@mdm.bga.com>
- <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com>
- <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com>
- <alpine.DEB.2.00.1007270929290.28648@router.home>
- <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
- <alpine.DEB.2.00.1007281005440.21717@router.home>
- <20100728155617.GA5401@barrios-desktop>
- <alpine.DEB.2.00.1007281158150.21717@router.home>
- <20100728225756.GA6108@barrios-desktop>
- <alpine.DEB.2.00.1007291038100.16510@router.home>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F4A96B02A7
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:21:01 -0400 (EDT)
+Date: Thu, 29 Jul 2010 18:20:27 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/5] writeback: stop periodic/background work on seeing
+ sync works
+Message-ID: <20100729162027.GF12690@quack.suse.cz>
+References: <20100729115142.102255590@intel.com>
+ <20100729121423.332557547@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1007291038100.16510@router.home>
+In-Reply-To: <20100729121423.332557547@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 29, 2010 at 10:46:13AM -0500, Christoph Lameter wrote:
-> On Thu, 29 Jul 2010, Minchan Kim wrote:
-> 
-> > On Wed, Jul 28, 2010 at 12:02:16PM -0500, Christoph Lameter wrote:
-> > > On Thu, 29 Jul 2010, Minchan Kim wrote:
-> > > > invalid memmap pages will be freed by free_memmap and will be used
-> > > > on any place. How do we make sure it has PG_reserved?
-> > >
-> > > Not present memmap pages make pfn_valid fail already since there is no
-> > > entry for the page table (vmemmap) or blocks are missing in the sparsemem
-> > > tables.
-> > >
-> > > > Maybe I don't understand your point.
-> > >
-> > > I thought we are worrying about holes in the memmap blocks containing page
-> > > structs. Some page structs point to valid pages and some are not. The
-> > > invalid page structs need to be marked consistently to allow the check.
-> >
-> > The thing is that memmap pages which contains struct page array on hole will be
-> > freed by free_memmap in ARM. Please loot at arch/arm/mm/init.c.
-> > And it will be used by page allocator as free pages.
-> 
-> Arg thats the solution to the mystery. freememmap() is arm specific hack!
-> 
-> Sparsemem allows you to properly handle holes already and then pfn_valid
-> will work correctly.
-> 
-> Why are the ways to manage holes in the core not used by arm?
+On Thu 29-07-10 19:51:44, Wu Fengguang wrote:
+> The periodic/background writeback can run forever. So when any
+> sync work is enqueued, increase bdi->sync_works to notify the
+> active non-sync works to exit. Non-sync works queued after sync
+> works won't be affected.
+  Hmm, wouldn't it be simpler logic to just make for_kupdate and
+for_background work always yield when there's some other work to do (as
+they are livelockable from the definition of the target they have) and
+make sure any other work isn't livelockable? The only downside is that
+non-livelockable work cannot be "fair" in the sense that we cannot switch
+inodes after writing MAX_WRITEBACK_PAGES.
+  I even had a patch for this but it's already outdated by now. But I
+can refresh it if we decide this is the way to go.
 
-I did use ARCH_HAS_HOLES_MEMORYMODEL.
-It is used by only ARM now. 
-If you disable the config, it doesn't affect the core. 
+								Honza
 
 > 
-> sparsemem does a table lookup to determine valid and invalid sections of
-> the memmp.
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c           |   13 +++++++++++++
+>  include/linux/backing-dev.h |    6 ++++++
+>  mm/backing-dev.c            |    1 +
+>  3 files changed, 20 insertions(+)
 > 
-The thing is valid section also have a invalid memmap. 
-Maybe my description isn't enough. 
-Please look at description and following URL. 
-
-We already confirmed this problem. 
-http://www.spinics.net/lists/arm-kernel/msg92918.html
-
-== CUT HERE ==
-
-Kukjin reported oops happen while he change min_free_kbytes
-http://www.spinics.net/lists/arm-kernel/msg92894.html
-It happen by memory map on sparsemem.
-
-The system has a memory map following as.
-     section 0             section 1              section 2
-     0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
-     SECTION_SIZE_BITS 28(256M)
-
-     It means section 0 is an incompletely filled section.
-     Nontheless, current pfn_valid of sparsemem checks pfn loosely.
-     It checks only mem_section's validation but ARM can free mem_map on hole
-     to save memory space. So in above case, pfn on 0x25000000 can pass pfn_valid's
-     validation check. It's not what we want.
-
-
-
-
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-29 17:13:23.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-29 17:13:49.000000000 +0800
+> @@ -80,6 +80,8 @@ static void bdi_queue_work(struct backin
+>  
+>  	spin_lock(&bdi->wb_lock);
+>  	list_add_tail(&work->list, &bdi->work_list);
+> +	if (work->for_sync)
+> +		atomic_inc(&bdi->wb.sync_works);
+>  	spin_unlock(&bdi->wb_lock);
+>  
+>  	/*
+> @@ -633,6 +635,14 @@ static long wb_writeback(struct bdi_writ
+>  			break;
+>  
+>  		/*
+> +		 * background/periodic works can run forever, need to abort
+> +		 * on seeing any pending sync work, to prevent livelock it.
+> +		 */
+> +		if (atomic_read(&wb->sync_works) &&
+> +		    (work->for_background || work->for_kupdate))
+> +			break;
+> +
+> +		/*
+>  		 * For background writeout, stop when we are below the
+>  		 * background dirty threshold
+>  		 */
+> @@ -765,6 +775,9 @@ long wb_do_writeback(struct bdi_writebac
+>  
+>  		wrote += wb_writeback(wb, work);
+>  
+> +		if (work->for_sync)
+> +			atomic_dec(&wb->sync_works);
+> +
+>  		/*
+>  		 * Notify the caller of completion if this is a synchronous
+>  		 * work item, otherwise just free it.
+> --- linux-next.orig/include/linux/backing-dev.h	2010-07-29 17:13:23.000000000 +0800
+> +++ linux-next/include/linux/backing-dev.h	2010-07-29 17:13:31.000000000 +0800
+> @@ -50,6 +50,12 @@ struct bdi_writeback {
+>  
+>  	unsigned long last_old_flush;		/* last old data flush */
+>  
+> +	/*
+> +	 * sync works queued, background works shall abort on seeing this,
+> +	 * to prevent livelocking the sync works
+> +	 */
+> +	atomic_t sync_works;
+> +
+>  	struct task_struct	*task;		/* writeback task */
+>  	struct list_head	b_dirty;	/* dirty inodes */
+>  	struct list_head	b_io;		/* parked for writeback */
+> --- linux-next.orig/mm/backing-dev.c	2010-07-29 17:13:23.000000000 +0800
+> +++ linux-next/mm/backing-dev.c	2010-07-29 17:13:31.000000000 +0800
+> @@ -257,6 +257,7 @@ static void bdi_wb_init(struct bdi_write
+>  
+>  	wb->bdi = bdi;
+>  	wb->last_old_flush = jiffies;
+> +	atomic_set(&wb->sync_works, 0);
+>  	INIT_LIST_HEAD(&wb->b_dirty);
+>  	INIT_LIST_HEAD(&wb->b_io);
+>  	INIT_LIST_HEAD(&wb->b_more_io);
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 -- 
-Kind regards,
-Minchan Kim
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
