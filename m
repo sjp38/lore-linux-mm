@@ -1,126 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 619E06B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:15:52 -0400 (EDT)
-Date: Thu, 29 Jul 2010 11:15:37 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: [PATCH] Fix off-by-one bug in mbind() syscall implementation
-Message-ID: <20100729161537.GA13268@sgi.com>
-References: <1280136498-28219-1-git-send-email-andre.przywara@amd.com> <20100726094931.GA17756@basil.fritz.box> <4C4D620E.9010008@amd.com> <20100726104020.GB17756@basil.fritz.box> <4C5140DD.802@amd.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7A26B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 12:19:07 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so194716pvc.14
+        for <linux-mm@kvack.org>; Thu, 29 Jul 2010 09:19:05 -0700 (PDT)
+Date: Fri, 30 Jul 2010 01:18:56 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] Tight check of pfn_valid on sparsemem - v4
+Message-ID: <20100729161856.GA16420@barrios-desktop>
+References: <pfn.valid.v4.reply.2@mdm.bga.com>
+ <20100727171351.98d5fb60.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTikCsGHshU8v86SQiuO+UZBCbdjOKN=GyJFPb7rY@mail.gmail.com>
+ <alpine.DEB.2.00.1007270929290.28648@router.home>
+ <AANLkTinXmkaX38pLjSBCRUS-c84GqpUE7xJQFDDHDLCC@mail.gmail.com>
+ <alpine.DEB.2.00.1007281005440.21717@router.home>
+ <20100728155617.GA5401@barrios-desktop>
+ <alpine.DEB.2.00.1007281158150.21717@router.home>
+ <20100728225756.GA6108@barrios-desktop>
+ <alpine.DEB.2.00.1007291038100.16510@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C5140DD.802@amd.com>
+In-Reply-To: <alpine.DEB.2.00.1007291038100.16510@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Andre Przywara <andre.przywara@amd.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Milton Miller <miltonm@bga.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Kukjin Kim <kgene.kim@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 29, 2010 at 10:50:37AM +0200, Andre Przywara wrote:
-> Andi Kleen wrote:
->> On Mon, Jul 26, 2010 at 12:23:10PM +0200, Andre Przywara wrote:
->>> Andi Kleen wrote:
->>>> On Mon, Jul 26, 2010 at 11:28:18AM +0200, Andre Przywara wrote:
->>>>> When the mbind() syscall implementation processes the node mask
->>>>> provided by the user, the last node is accidentally masked out.
->>>>> This is present since the dawn of time (aka Before Git), I guess
->>>>> nobody realized that because libnuma as the most prominent user of
->>>>> mbind() uses large masks (sizeof(long)) and nobody cared if the
->>>>> 64th node is not handled properly. But if the user application
->>>>> defers the masking to the kernel and provides the number of valid bits
->>>>> in maxnodes, there is always the last node missing.
->>>>> However this also affect the special case with maxnodes=0, the manpage
->>>>> reads that mbind(ptr, len, MPOL_DEFAULT, &some_long, 0, 0); should
->>>>> reset the policy to the default one, but in fact it returns EINVAL.
->>>>> This patch just removes the decrease-by-one statement, I hope that
->>>>> there is no workaround code in the wild that relies on the bogus
->>>>> behavior.
->>>> Actually libnuma and likely most existing users rely on it.
->>> If grep didn't fool me, then the only users in libnuma aware of that
->>> bug are the test implementations in numactl-2.0.3/test, namely
->>> /test/tshm.c (NUMA_MAX_NODES+1) and test/mbind_mig_pages.c
->>> (old_nodes->size + 1).
->>
->> At least libnuma 1 (which is the libnuma most distributions use today)
->> explicitely knows about it and will break if you change it.
-> Please define most distributions. I just did some research:
-> Old libnuma with the workaround active:
-> * OpenSuse 11.0 (recently EOL)
-> * Fedora 9 (EOL for about a year)
-> * SLES10 (still supported, but unlikey to get a vanilla kernel update)
-> * CentOS 5.5 (same as SLES10)
-> First version with a safe libnuma:
-> * OpenSuse 11.1
-> * Fedora 10
-> * SLES11
-> Didn't check others, but I guess that looks similar. If they get an official 
-> kernel update, they likely get the corresponding library fixes along with 
-> it.
-> Also I found that numactl-1.0.3 already had the bug fix.
->
-> So how big is the chance the anyone with these old distros will use a 
-> 2.6.36+ kernel with it? If someone does so, then I'd guess he'd be on his 
-> own and will probably also update other parts of the system (or better 
-> upgrade the whole setup).
-> I see that this is a general question and should not be answered with 
-> probability arguments, but I would like to hear other statements on this 
-> policy. After all this is a clear kernel bug and should be fixed. Recent 
-> library implementation will trigger this bug.
-> Also I would like to know whether we support any older library with newer 
-> kernels. I guess there is no such promise (thinking of modutils, udev, ...)
-> Is the stable syscall interface defined by documentation or by (possibly 
-> buggy) de facto implementation?
->
->>
->>> Has this bug been known before?
->>
->> Yes (and you can argue whether it's a problem or not)
-> OK, I will:
-> 1. It's not documented, neither in the kernel nor in libnuma.
-> 2. The default interface for large bitmaps (consisting of a number of longs) 
-> is to pass the number of valid bits. A variant would be passing the highest 
-> valid bit number. The number of bits plus one is not in the list.
-> 3. There is a special case in the syscall interface for resetting the 
-> policy. It says you need to pass either a NULL pointer or 0 for the number 
-> of bits (along with MPOL_DEFAULT). This simply does not work. Instead you 
-> have to pass a NULL pointer or _1_. Also that means that passing 1 
-> intentionally triggers the special case.
-> 3. libnuma changed the behavior from work-arounding to ignoring some 18 
-> month or so before. This bug will lead to the 64th node (or the 128th node, 
-> the 192th node, ...) to be ignored. And please don't argument that nobody 
-> will ever have 64 nodes...
+On Thu, Jul 29, 2010 at 10:46:13AM -0500, Christoph Lameter wrote:
+> On Thu, 29 Jul 2010, Minchan Kim wrote:
+> 
+> > On Wed, Jul 28, 2010 at 12:02:16PM -0500, Christoph Lameter wrote:
+> > > On Thu, 29 Jul 2010, Minchan Kim wrote:
+> > > > invalid memmap pages will be freed by free_memmap and will be used
+> > > > on any place. How do we make sure it has PG_reserved?
+> > >
+> > > Not present memmap pages make pfn_valid fail already since there is no
+> > > entry for the page table (vmemmap) or blocks are missing in the sparsemem
+> > > tables.
+> > >
+> > > > Maybe I don't understand your point.
+> > >
+> > > I thought we are worrying about holes in the memmap blocks containing page
+> > > structs. Some page structs point to valid pages and some are not. The
+> > > invalid page structs need to be marked consistently to allow the check.
+> >
+> > The thing is that memmap pages which contains struct page array on hole will be
+> > freed by free_memmap in ARM. Please loot at arch/arm/mm/init.c.
+> > And it will be used by page allocator as free pages.
+> 
+> Arg thats the solution to the mystery. freememmap() is arm specific hack!
+> 
+> Sparsemem allows you to properly handle holes already and then pfn_valid
+> will work correctly.
+> 
+> Why are the ways to manage holes in the core not used by arm?
 
-FYI -
-	cct405-1:~ # numactl --hardware
-	available: 254 nodes (0-253)
-	node 0 cpus: 0 1 2 3 1648 1649 1650 1651
-	node 0 size: 14298 MB
-	node 0 free: 13352 MB
-	...
-	node 253 cpus: 1640 1641 1642 1643 1644 1645 1646 1647 2904 2905 2906 2907 2908 2909 2910 2911
-	node 253 size: 32752 MB
-	node 253 free: 32229 MB
+I did use ARCH_HAS_HOLES_MEMORYMODEL.
+It is used by only ARM now. 
+If you disable the config, it doesn't affect the core. 
 
-> 4. If one use mbind() directly and lets the kernel do the masking by passing 
-> the number of valid bits (and not the size of the buffer) then the last node 
-> will always be masked off.
->
-> So I strongly opt for fixing this by removing the line and maybe add some 
-> documentation about the old behavior.
->
-> Regards,
-> Andre.
->
-> -- 
-> Andre Przywara
-> AMD-Operating System Research Center (OSRC), Dresden, Germany
-> Tel: +49 351 448-3567-12
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> sparsemem does a table lookup to determine valid and invalid sections of
+> the memmp.
+> 
+The thing is valid section also have a invalid memmap. 
+Maybe my description isn't enough. 
+Please look at description and following URL. 
+
+We already confirmed this problem. 
+http://www.spinics.net/lists/arm-kernel/msg92918.html
+
+== CUT HERE ==
+
+Kukjin reported oops happen while he change min_free_kbytes
+http://www.spinics.net/lists/arm-kernel/msg92894.html
+It happen by memory map on sparsemem.
+
+The system has a memory map following as.
+     section 0             section 1              section 2
+     0x20000000-0x25000000, 0x40000000-0x50000000, 0x50000000-0x58000000
+     SECTION_SIZE_BITS 28(256M)
+
+     It means section 0 is an incompletely filled section.
+     Nontheless, current pfn_valid of sparsemem checks pfn loosely.
+     It checks only mem_section's validation but ARM can free mem_map on hole
+     to save memory space. So in above case, pfn on 0x25000000 can pass pfn_valid's
+     validation check. It's not what we want.
+
+
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
