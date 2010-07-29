@@ -1,67 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C5CAE6B02A7
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 05:47:44 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6T9lgON024415
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 29 Jul 2010 18:47:42 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5807545DE51
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 18:47:42 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3832045DE4E
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 18:47:42 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AC0A1DB8038
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 18:47:42 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B56AD1DB805B
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 18:47:38 +0900 (JST)
-Date: Thu, 29 Jul 2010 18:42:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/5] memcg updates towards I/O aware memcg v2.
-Message-Id: <20100729184250.acdff587.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E9B4F6B02A8
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 05:48:36 -0400 (EDT)
+Received: by qwk4 with SMTP id 4so62525qwk.14
+        for <linux-mm@kvack.org>; Thu, 29 Jul 2010 02:48:35 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <AANLkTikq=v_7dbW1Z+LUbTKmnezKT0cd8ZTErwP1X0C+@mail.gmail.com>
+References: <20100727200804.2F40.A69D9226@jp.fujitsu.com> <AANLkTin47_htYK8eV-6C4QkRK_U__qYeWX16Ly=YK-0w@mail.gmail.com>
+	<20100728135850.7A92.A69D9226@jp.fujitsu.com> <AANLkTi=fk8B-TnC6m3AoLT7k_G239rMaQA1COwHLxwRM@mail.gmail.com>
+	<AANLkTikq=v_7dbW1Z+LUbTKmnezKT0cd8ZTErwP1X0C+@mail.gmail.com>
+From: dave b <db.pub.mail@gmail.com>
+Date: Thu, 29 Jul 2010 19:48:14 +1000
+Message-ID: <AANLkTikN7XN3hymsmqH05nynAHH9st0W2pkDhoCLUTo9@mail.gmail.com>
+Subject: Re: PROBLEM: oom killer and swap weirdness on 2.6.3* kernels
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, this version removes virt-array and use simple id <-> memcg table.
-and removed RFC.
+On 29 July 2010 19:47, dave b <db.pub.mail@gmail.com> wrote:
+> On 28 July 2010 17:14, dave b <db.pub.mail@gmail.com> wrote:
+>> On 28 July 2010 15:06, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> =
+wrote:
+>>>> On 27 July 2010 21:14, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com=
+> wrote:
+>>>> >> On 27 July 2010 18:09, dave b <db.pub.mail@gmail.com> wrote:
+>>>> >> > On 27 July 2010 16:09, KOSAKI Motohiro <kosaki.motohiro@jp.fujits=
+u.com> wrote:
+>>>> >> >>> > Do you mean the issue will be gone if disabling intel graphic=
+s?
+>>>> >> >>> It may be a general issue or it could just be specific :)
+>>>> >> >
+>>>> >> > I will try with the latest ubuntu and report how that goes (that =
+will
+>>>> >> > be using fairly new xorg etc.) it is likely to be hidden issue ju=
+st
+>>>> >> > with the intel graphics driver. However, my concern is that it is=
+n't -
+>>>> >> > and it is about how shared graphics memory is handled :)
+>>>> >>
+>>>> >>
+>>>> >> Ok my desktop still stalled and no oom killer was invoked when I ad=
+ded
+>>>> >> swap to a live-cd of 10.04 amd64.
+>>>> >>
+>>>> >> *Without* *swap* *on* - the oom killer was invoked - here is a copy=
+ of it.
+>>>> >
+>>>> > This stack seems similar following bug. can you please try to disabl=
+e intel graphics
+>>>> > driver?
+>>>> >
+>>>> > https://bugzilla.kernel.org/show_bug.cgi?id=3D14933
+>>>>
+>>>> Ok I am not sure how to do that :)
+>>>> I could revert the patch and see if it 'fixes' this :)
+>>>
+>>> Oops, no, revert is not good action. the patch is correct.
+>>> probably my explanation was not clear. sorry.
+>>>
+>>> I did hope to disable 'driver' (i.e. using vga), not disable the patch.
+>>
+>> Oh you mean in xorg, I will also blacklist the module. Sure that patch
+>> might not it but in 2.6.26 the problem isn't there :)
+>
+> Ok I re-tested with 2.6.26 and 2.6.34.1
+> So I will describe what happens below:
+>
+> 2.6.26 - with xorg running
+> "Given I have a test file called a.out
+> =C2=A0And I can see Xorg
+> =C2=A0And I am using 2.6.26
+> =C2=A0And I have swap on
+> =C2=A0When I run it I run a.out
+> =C2=A0Then I see the system freeze up slightly
+> =C2=A0And the hard drive churns( and the cpu is doing something as the
+> large fan kicks)
+> =C2=A0And after a while the system unfreezes"
+>
+> 2.6.26 - from single mode - before xorg starts and i915 is *not* loaded.
+> "Given I have a test file called a.out
+> =C2=A0And I cannot see Xorg
+> =C2=A0And I am using 2.6.26
+> =C2=A0And I have swap on
+> =C2=A0When I run it I run a.out
+> =C2=A0Then I see the system freeze up
+> =C2=A0And the system fan doesn't spin any faster
+> =C2=A0And the system just sits idle"
+>
+> 2.6.34.1
+> With and without xorg - WITH spam on the same behaviour as in the
+> 2.6.26 kernel appears (when xorg is not loaded).
+>
+> OOM attached from the 2.6.26 kernel when I used magic keys to invoke
+> the oom killer :) (this was on the 2.6.26 kernel - before i915 had
+> loaded and in single mode).
 
-This set has 2+1 purposes.
- 1. re-desgin struct page_cgroup and makes room for blocckio-cgroup ID.
- 2. implement quick updating method for memcg's file stat.
- 3. optionally? use spin_lock instead of bit_spinlock.
-
-Plans after this.
-
- 1. check influence of Mel's new writeback method.
-    I think we'll see OOM easier. IIUC, memory cgroup needs a thread like kswapd
-    to do background writeback or low-high watermark.
-    (By this, we can control priority of background writeout thread priority
-     by CFS. This is very good.)
-
- 2. implementing dirty_ratio.
-    Now, Greg Thelen is working on. One of biggest problems of previous trial was
-    update cost of status. I think this patch set can reduce it.
-
- 3. record blockio cgroup's ID.
-    Ikeda posted one. IIUC, it requires some consideration on (swapin)readahead
-    for assigning IDs. But it seemed to be good in general.
-
-Importance is in this order in my mind. But all aboves can be done in parallel.
-
-Beyond that, some guys has problem with file-cache-control. If it need to use
-account migration, we have to take care of races.
-
-
-Thanks,
--Kame
+s/spam/same/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
