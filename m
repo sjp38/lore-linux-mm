@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B2316B02A4
-	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 12:50:14 -0400 (EDT)
-Date: Fri, 30 Jul 2010 17:49:57 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: compaction: why depends on HUGETLB_PAGE
-Message-ID: <20100730164957.GH3571@csn.ul.ie>
-References: <20100730164414.88965.qmail@web4208.mail.ogk.yahoo.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100730164414.88965.qmail@web4208.mail.ogk.yahoo.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9110C6B02A4
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 15:17:56 -0400 (EDT)
+From: Jason Wessel <jason.wessel@windriver.com>
+Subject: [PATCH 15/15] mm,kdb,kgdb: Add a debug reference for the kdb kmap usage
+Date: Fri, 30 Jul 2010 14:17:36 -0500
+Message-Id: <1280517456-1167-16-git-send-email-jason.wessel@windriver.com>
+In-Reply-To: <1280517456-1167-1-git-send-email-jason.wessel@windriver.com>
+References: <1280517456-1167-1-git-send-email-jason.wessel@windriver.com>
 Sender: owner-linux-mm@kvack.org
-To: Round Robinjp <roundrobinjp@yahoo.co.jp>
-Cc: linux-mm@kvack.org, iram.shahzad@jp.fujitsu.com
+To: linux-kernel@vger.kernel.org
+Cc: kgdb-bugreport@lists.sourceforge.net, mingo@elte.hu, Jason Wessel <jason.wessel@windriver.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 31, 2010 at 01:44:09AM +0900, Round Robinjp wrote:
-> > > Please could you elaborate a little more why depending on
-> > > compaction to satisfy other high-order allocation is not good.
-> > >
-> > 
-> > At the very least, it's not a situation that has been tested heavily and
-> > because other high-order allocations are typically not movable. In the
-> > worst case, if they are both frequent and long-lived they *may* eventually
-> > encounter fragmentation-related problems. This uncertainity is why it's
-> > not good. It gets worse if there is no swap as eventually all movable pages
-> > will be compacted as much as possible but there still might not be enough
-> > contiguous memory for a high-order page because other pages are pinned.
-> 
-> I am interested in this topic too.
-> 
-> How about using compaction for infrequent short-lived
-> high-order allocations?
+The kdb kmap should never get used outside of the kernel debugger
+exception context.
 
-Depend on MIGRATE_RESERVE instead within fragmentation avoidance. It's
-objective is to keep certain blocks of pages free unless there is no other
-choice. How many blocks of MIGRATE_RESERVE there are depends on the value
-of min_free_kbytes (which can be tuned to a recommended value with hugeadm)
-MIGRATE_RESERVE is known to be important for short-lived high-order allocations
-- particularly atomic ones.
+Signed-off-by: Jason Wessel<jason.wessel@windriver.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Ingo Molnar <mingo@elte.hu>
+CC: linux-mm@kvack.org
+---
+ mm/highmem.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
 
-> Is there any problem in that case?
-> (apart from the point that it is not tested for that purpose)
-> 
-
-It's racy, you are depending on compaction to happen at the right time
-and with enough vigour to prevent allocation failures.
-
-> Also how about using compaction as a preparation
-> for partial refresh?
-> 
-
-Hacky, but you could do it from userspace by periodically writing to
-/proc/sys/vm/compact_memory. In the event allocation failures are
-common, it would still be best to figure out how long-lived those
-allocations are and why MIGRATE_RESERVE was insufficient.
-
-I'm not saying pre-emptively compacting won't work, it probably will for
-a large number of cases but there will be failure scenarios in the
-field.
-
+diff --git a/mm/highmem.c b/mm/highmem.c
+index 66baa20..7a0aa1b 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -26,6 +26,7 @@
+ #include <linux/init.h>
+ #include <linux/hash.h>
+ #include <linux/highmem.h>
++#include <linux/kgdb.h>
+ #include <asm/tlbflush.h>
+ 
+ /*
+@@ -470,6 +471,12 @@ void debug_kmap_atomic(enum km_type type)
+ 			warn_count--;
+ 		}
+ 	}
++#ifdef CONFIG_KGDB_KDB
++	if (unlikely(type == KM_KDB && atomic_read(&kgdb_active) == -1)) {
++		WARN_ON(1);
++		warn_count--;
++	}
++#endif /* CONFIG_KGDB_KDB */
+ }
+ 
+ #endif
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.6.4.rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
