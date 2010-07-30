@@ -1,37 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F191C6B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 21:38:34 -0400 (EDT)
-Date: Thu, 29 Jul 2010 18:38:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-Message-Id: <20100729183809.ca4ed8be.akpm@linux-foundation.org>
-In-Reply-To: <20100730091125.4AC3.A69D9226@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1007170307110.8730@chino.kir.corp.google.com>
-	<20100729160822.cd910c1b.akpm@linux-foundation.org>
-	<20100730091125.4AC3.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4BF116B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 22:52:44 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o6U2qfIW020958
+	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
+	Fri, 30 Jul 2010 11:52:42 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F32E45DE51
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 11:52:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 101FE45DE50
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 11:52:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D7BBDEF8005
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 11:52:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 13F611DB804E
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 11:52:40 +0900 (JST)
+Message-ID: <545904F46F6C4026A234512CEAED30AE@rainbow>
+From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
+References: <D25878F935704D9281E62E0393CAD951@rainbow> <20100729125725.GA3571@csn.ul.ie>
+Subject: Re: compaction: why depends on HUGETLB_PAGE
+Date: Fri, 30 Jul 2010 11:56:25 +0900
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-15";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 30 Jul 2010 09:12:26 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > On Sat, 17 Jul 2010 12:16:33 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > 
-> > > This a complete rewrite of the oom killer's badness() heuristic 
-> > 
-> > Any comments here, or are we ready to proceed?
-> > 
-> > Gimme those acked-bys, reviewed-bys and tested-bys, please!
+Mel Gorman wrote:
+>> My question is: why does it depend on CONFIG_HUGETLB_PAGE?
 > 
-> If he continue to resend all of rewrite patch, I continue to refuse them.
-> I explained it multi times.
+> Because as the Kconfig says "Allows the compaction of memory for the
+> allocation of huge pages.". Depending on compaction to satisfy other
+> high-order allocation types is not likely to be a winning strategy.
 
-There are about 1000 emails on this topic.  Please briefly explain it again.
+Please could you elaborate a little more why depending on
+compaction to satisfy other high-order allocation is not good.
+
+>> Is it wrong to use it on ARM by disabling CONFIG_HUGETLB_PAGE?
+>>
+> 
+> It depends on why you need compaction. If it's for some device that
+> requires high-order allocations (particularly if they are atomic), then
+> it's not likely to work very well in the long term.
+
+Would you please elaborate on this as well.
+
+Many thanks for the reply
+Iram
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
