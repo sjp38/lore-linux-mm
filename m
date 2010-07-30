@@ -1,127 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B58DA6B02A4
-	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 09:18:33 -0400 (EDT)
-Date: Fri, 30 Jul 2010 21:18:00 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 0/5]  [RFC] transfer ASYNC vmscan writeback IO to the
- flusher threads
-Message-ID: <20100730131800.GB6262@localhost>
-References: <20100729115142.102255590@intel.com>
- <20100729232330.GO655@dastard>
- <20100730075819.GE8811@localhost>
- <20100730111244.GC2126@dastard>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 94AFE6B02A6
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 09:18:44 -0400 (EDT)
+Date: Fri, 30 Jul 2010 15:17:35 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
+Message-ID: <20100730131735.GZ16655@random.random>
+References: <20100728071705.GA22964@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100730111244.GC2126@dastard>
+In-Reply-To: <20100728071705.GA22964@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 30, 2010 at 07:12:44PM +0800, Dave Chinner wrote:
-> On Fri, Jul 30, 2010 at 03:58:19PM +0800, Wu Fengguang wrote:
-> > On Fri, Jul 30, 2010 at 07:23:30AM +0800, Dave Chinner wrote:
-> > > On Thu, Jul 29, 2010 at 07:51:42PM +0800, Wu Fengguang wrote:
-> > > > Andrew,
-> > > > 
-> > > > It's possible to transfer ASYNC vmscan writeback IOs to the flusher threads.
-> > > > This simple patchset shows the basic idea. Since it's a big behavior change,
-> > > > there are inevitably lots of details to sort out. I don't know where it will
-> > > > go after tests and discussions, so the patches are intentionally kept simple.
-> > > > 
-> > > > sync livelock avoidance (need more to be complete, but this is minimal required for the last two patches)
-> > > > 	[PATCH 1/5] writeback: introduce wbc.for_sync to cover the two sync stages
-> > > > 	[PATCH 2/5] writeback: stop periodic/background work on seeing sync works
-> > > > 	[PATCH 3/5] writeback: prevent sync livelock with the sync_after timestamp
-> > > > 
-> > > > let the flusher threads do ASYNC writeback for pageout()
-> > > > 	[PATCH 4/5] writeback: introduce bdi_start_inode_writeback()
-> > > > 	[PATCH 5/5] vmscan: transfer async file writeback to the flusher
-> > > 
-> > > I really do not like this - all it does is transfer random page writeback
-> > > from vmscan to the flusher threads rather than avoiding random page
-> > > writeback altogether. Random page writeback is nasty - just say no.
-> > 
-> > There are cases we have to do pageout().
-> > 
-> > - a stressed memcg with lots of dirty pages
-> > - a large NUMA system whose nodes have unbalanced vmscan rate and dirty pages
-> > 
-> > In the above cases, the whole system may not be that stressed,
-> > except for some local LRU list being busy scanned.  If the local
-> > memory stress lead to lots of pageout(), it could bring down the whole
-> > system by congesting the disks with many small seeky IO.
-> > 
-> > It may be an overkill to push global writeback (ie. it's silly to sync
-> > 1GB dirty data because there is a small stressed 100MB LRU list).
+On Wed, Jul 28, 2010 at 03:17:05PM +0800, Wu Fengguang wrote:
+> Fix "system goes unresponsive under memory pressure and lots of
+> dirty/writeback pages" bug.
 > 
-> No it isn't. Dirty pages have to cleaned sometime and it reclaim has
-> a need to clean pages, we may as well start cleaning them all.
-> Kicking background writeback is effectively just starting work we
-> have already delayed into the future a little bit earlier than we
-> otherwise would have.
+> 	http://lkml.org/lkml/2010/4/4/86
 > 
-> Doing this is only going to hurt performance if the same pages are
-> being frequently dirtied, but the cahnges to flush expired inodes
-> first in background writeback should avoid the worst of that
-> behaviour. Further, the more clean pages we have, the faster
-> susbequent memory reclaims are going to free up pages....
-
-You have some points here, the data have to be synced anyway, earlier
-or later.
-
-However it still helps to clean the right data first. With
-write-around, we may get clean pages in the stressed LRU in 10ms.
-Blindly syncing the global inodes...maybe after 10s if unlucky.
-
-So pageout() is still good to have/keep. But sure we need to improve it
-(transfer work to the flusher, do write-around, throttle) as well as
-reducing it (kick global writeback and knock down global dirty pages).
-
-> > The
-> > obvious solution is to keep the pageout() calls and make them more IO
-> > wise by doing write-around at the same time.  The write-around pages
-> > will likely be in the same stressed LRU list, hence will do good for
-> > page reclaim as well.
+> In the above thread, Andreas Mohr described that
 > 
-> You've kind of already done that by telling it to writeback 1024
-> pages starting with a specific page. However, the big problem with
-> this is that it asusme that the inode has contiguous dirty pages in
-
-Right. We could use .writeback_index/.nr_to_write instead of
-.range_start/.range_end as the writeback parameters. It's a bit racy
-to use mapping->writeback_index though.
-
-> the cache.  That assumption fall down in many cases e.g. when you
-> are writing lots of small files like kernel trees contain, and so
-> you still end up with random IO patterns coming out of reclaim.
-
-Small files lead to random IO anyway? You may mean .offset=1 so the
-dirty page 0 will be left out. I do have the plan to do write-around
-to cover such issue, since it would be very common case. Imagine the
-dirty page at offset N lies in Normal zone and N+1 in DMA32 zone.
-If DMA32 is scanned slightly before Normal, then we got page N+1
-first, while actually we should start with page N.
-
-> > Transferring ASYNC work to the flushers helps the
-> > kswapd-vs-flusher priority problem too. Currently the
-> > kswapd/direct reclaim either have to skip dirty pages on
-> > congestion, or to risk being blocked in get_request_wait(), both
-> > are not good options. However the use of
-> > bdi_start_inode_writeback() do ask for a good vmscan throttling
-> > scheme to prevent it falsely OOM before the flusher is able to
-> > clean the transfered pages. This would be tricky.
+> 	Invoking any command locked up for minutes (note that I'm
+> 	talking about attempted additional I/O to the _other_,
+> 	_unaffected_ main system HDD - such as loading some shell
+> 	binaries -, NOT the external SSD18M!!).
 > 
-> I have no problem with that aspect ofthe patch - my issue is that it
-> does nothing to prevent the problem that causes excessive congestion
-> in the first place...
+> This happens when the two conditions are both meet:
+> - under memory pressure
+> - writing heavily to a slow device
+> 
+> OOM also happens in Andreas' system. The OOM trace shows that 3
+> processes are stuck in wait_on_page_writeback() in the direct reclaim
+> path. One in do_fork() and the other two in unix_stream_sendmsg(). They
+> are blocked on this condition:
+> 
+> 	(sc->order && priority < DEF_PRIORITY - 2)
+> 
+> which was introduced in commit 78dc583d (vmscan: low order lumpy reclaim
+> also should use PAGEOUT_IO_SYNC) one year ago. That condition may be too
+> permissive. In Andreas' case, 512MB/1024 = 512KB. If the direct reclaim
+> for the order-1 fork() allocation runs into a range of 512KB
+> hard-to-reclaim LRU pages, it will be stalled.
+> 
+> It's a severe problem in three ways.
 
-No problem. It's merely the first step, stay tuned :)
+Lumpy reclaim just made the system totally unusable with frequent
+order 9 allocations. I nuked it long ago and replaced it with mem
+compaction. You may try aa.git to test how thing goes without lumpy
+reclaim. I recently also started to use mem compaction for order 1/2/3
+allocations as there's no point not to use it for them, and to call
+mem compaction from kswapd to satisfy order 2 GFP_ATOMIC in
+replacement of blind responsiveness-destroyer lumpy.
 
-Thanks,
-Fengguang
+Not sure why people insists on lumpy when we've memory compaction that
+won't alter the working set and it's more effective.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
