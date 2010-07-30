@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id DE7F06B02A4
-	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 01:17:50 -0400 (EDT)
-Date: Fri, 30 Jul 2010 13:17:46 +0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5B056B02A4
+	for <linux-mm@kvack.org>; Fri, 30 Jul 2010 01:34:11 -0400 (EDT)
+Date: Fri, 30 Jul 2010 13:34:06 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/5] writeback: prevent sync livelock with the
- sync_after timestamp
-Message-ID: <20100730051746.GB8811@localhost>
+Subject: Re: [PATCH 0/5]  [RFC] transfer ASYNC vmscan writeback IO to the
+ flusher threads
+Message-ID: <20100730053406.GC8811@localhost>
 References: <20100729115142.102255590@intel.com>
- <20100729121423.471866750@intel.com>
- <20100729150241.GC12690@quack.suse.cz>
+ <20100729160947.GE12690@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100729150241.GC12690@quack.suse.cz>
+In-Reply-To: <20100729160947.GE12690@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 To: Jan Kara <jack@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 29, 2010 at 11:02:41PM +0800, Jan Kara wrote:
->   Hi Fengguang,
-> 
-> On Thu 29-07-10 19:51:45, Wu Fengguang wrote:
-> > The start time in writeback_inodes_wb() is not very useful because it
-> > slips at each invocation time. Preferrably one _constant_ time shall be
-> > used at the beginning to cover the whole sync() work.
+On Fri, Jul 30, 2010 at 12:09:47AM +0800, Jan Kara wrote:
+> On Thu 29-07-10 19:51:42, Wu Fengguang wrote:
+> > Andrew,
 > > 
-> > The newly dirtied inodes are now guarded at the queue_io() time instead
-> > of the b_io walk time. This is more natural: non-empty b_io/b_more_io
-> > means "more work pending".
+> > It's possible to transfer ASYNC vmscan writeback IOs to the flusher threads.
+> > This simple patchset shows the basic idea. Since it's a big behavior change,
+> > there are inevitably lots of details to sort out. I don't know where it will
+> > go after tests and discussions, so the patches are intentionally kept simple.
 > > 
-> > The timestamp is now grabbed the sync work submission time, and may be
-> > further optimized to the initial sync() call time.
->   The patch seems to have some issues...
-> 
-> > +	if (wbc->for_sync) {
->   For example this is never set. You only set wb->for_sync.
+> > sync livelock avoidance (need more to be complete, but this is minimal required for the last two patches)
+> > 	[PATCH 1/5] writeback: introduce wbc.for_sync to cover the two sync stages
+> > 	[PATCH 2/5] writeback: stop periodic/background work on seeing sync works
+> > 	[PATCH 3/5] writeback: prevent sync livelock with the sync_after timestamp
+>   Well, essentially any WB_SYNC_NONE writeback is still livelockable if you
+> just grow a file constantly. So your changes are a step in the right
+> direction but won't fix the issue completely.
 
-Ah right.
+Right. We have complementary patches to prevent livelocks both inside
+file and among files.
 
-> > +		expire_interval = 1;
-> > +		older_than_this = wbc->sync_after;
->   And sync_after is never set either???
+> But what we could do to fix
+> the issue completely would be to just set wbc->nr_to_write to LONG_MAX
+> before writing inode for sync use my livelock avoidance using page-tagging
+> for this case (it wouldn't have the possible performance issue because we
+> are going to write all the inode anyway).
 
-Sorry I must lose some chunk when rebasing the patch ..
+Yeah your patches are good to avoid livelocking in one single busy file.
+I didn't forgot them :)
 
-> > -	if (!(wbc->for_kupdate || wbc->for_background) || list_empty(&wb->b_io))
-> > +	if (list_empty(&wb->b_io))
-> >  		queue_io(wb, wbc);
->   And what is the purpose of this? It looks as an unrelated change to me.
+>   I can write the patch but frankly there are so many patches floating
+> around that I'm not sure what I should base it on...
 
-Yes it's not tightly related. It may be simpler to do
-
- -	if (!wbc->for_kupdate || list_empty(&wb->b_io))
- +	if (list_empty(&wb->b_io))
-
-in the previous patch "writeback: sync expired inodes first in
-background writeback".
+Me confused too. It may take some time to quiet down..
 
 Thanks,
 Fengguang
