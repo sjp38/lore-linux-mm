@@ -1,37 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AF3A06B02B7
-	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 14:09:36 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so2918415iwn.14
-        for <linux-mm@kvack.org>; Sat, 31 Jul 2010 11:09:35 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 805786B02B4
+	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 15:58:40 -0400 (EDT)
+Date: Sat, 31 Jul 2010 12:55:06 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/8] v3 De-couple sysfs memory directories from memory
+	sections
+Message-ID: <20100731195506.GC4644@kroah.com>
+References: <4C451BF5.50304@austin.ibm.com> <1280554584.1902.31.camel@pasglop>
 MIME-Version: 1.0
-In-Reply-To: <20100731175951.GA17519@infradead.org>
-References: <20100728071705.GA22964@localhost>
-	<20100731161358.GA5147@localhost>
-	<20100731173328.GA21072@infradead.org>
-	<AANLkTi=+muw_2jWq1QKsxp6A_fAtdhdns7MD_bKQo-72@mail.gmail.com>
-	<20100731175951.GA17519@infradead.org>
-Date: Sat, 31 Jul 2010 21:09:35 +0300
-Message-ID: <AANLkTikG7UOSh=iH02YwO0ihpu2waKt3bHH7LLK-33MP@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1280554584.1902.31.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 31, 2010 at 8:59 PM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Sat, Jul 31, 2010 at 08:55:57PM +0300, Pekka Enberg wrote:
->> Do you have CONFIG_SLUB enabled? It does high order allocations by
->> default for performance reasons.
->
-> Yes. This is a kernel using slub.
+On Sat, Jul 31, 2010 at 03:36:24PM +1000, Benjamin Herrenschmidt wrote:
+> On Mon, 2010-07-19 at 22:45 -0500, Nathan Fontenot wrote:
+> > This set of patches de-couples the idea that there is a single
+> > directory in sysfs for each memory section.  The intent of the
+> > patches is to reduce the number of sysfs directories created to
+> > resolve a boot-time performance issue.  On very large systems
+> > boot time are getting very long (as seen on powerpc hardware)
+> > due to the enormous number of sysfs directories being created.
+> > On a system with 1 TB of memory we create ~63,000 directories.
+> > For even larger systems boot times are being measured in hours.
+> 
+> Greg, Kame, how do we proceed with these ? I'm happy to put them in
+> powerpc.git with appropriate acks or will you take them ?
 
-You can pass "slub_debug=o" as a kernel parameter to disable higher
-order allocations if you want to test things. The per-cache default
-order is calculated in calculate_order() of mm/slub.c. How many CPUs
-do you have on your system?
+I thought there would be at least one more round of these patches based
+on the review comments, right?
+
+I'll be glad to take them when everyone agrees with them.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
