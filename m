@@ -1,65 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 843966B02A7
-	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 00:21:26 -0400 (EDT)
-Received: by qwk4 with SMTP id 4so631671qwk.14
-        for <linux-mm@kvack.org>; Fri, 30 Jul 2010 21:21:24 -0700 (PDT)
-MIME-Version: 1.0
-Date: Sat, 31 Jul 2010 09:51:24 +0530
-Message-ID: <AANLkTintdQoSu9cFz2_mCqok+LC7Xtz2MTE4YpnyPFnE@mail.gmail.com>
-Subject: mmap()
-From: Manu Abraham <abraham.manu@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5897A6B02A8
+	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 01:38:44 -0400 (EDT)
+Subject: Re: [PATCH 0/8] v3 De-couple sysfs memory directories from memory
+ sections
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <4C451BF5.50304@austin.ibm.com>
+References: <4C451BF5.50304@austin.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Sat, 31 Jul 2010 15:36:24 +1000
+Message-ID: <1280554584.1902.31.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: npiggin@suse.de, piggin@cyberone.com.au, nickpiggin@yahoo.com.au
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, greg@kroah.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick, all,
+On Mon, 2010-07-19 at 22:45 -0500, Nathan Fontenot wrote:
+> This set of patches de-couples the idea that there is a single
+> directory in sysfs for each memory section.  The intent of the
+> patches is to reduce the number of sysfs directories created to
+> resolve a boot-time performance issue.  On very large systems
+> boot time are getting very long (as seen on powerpc hardware)
+> due to the enormous number of sysfs directories being created.
+> On a system with 1 TB of memory we create ~63,000 directories.
+> For even larger systems boot times are being measured in hours.
 
-With mmap() VM operations, with a page fault would it be possible to
-allocate/map more than one page ?
+Greg, Kame, how do we proceed with these ? I'm happy to put them in
+powerpc.git with appropriate acks or will you take them ?
 
-I will try to explain a bit more in detail, what I would like to do.
+Cheers,
+Ben.
 
-I have a PCIe bridge which can capture frames at very high resolutions
-at a very fast rate. Based on the requirements, these chipsets handle
-memory in a way slightly different to other frame grabber chipsets.
-They have an onchip MMU with a DMA Multiplexer, where the chipset has
-to be allocated with all the relevant memory needed for operation at
-chip initialization time. The allocated memory is 2MB (512 pages long,
-can be contiguous or non-contiguous). There needs to be a minimal of 8
-such buffers. ie, total 16MB each.
-
-The user application can read each 2MB buffer (Scatter Gather list) on
-an IRQ/MSI event. The buffer to be read from (of the 8 buffers) go
-around on a round-robin fashion. I would like to avoid a memcpy of the
-buffers in this application, basically due to the bandwidth in use.
-Initially, I thought about mmap(), where  2 such buffers (where the
-total visible virtual region appears as 4MB long):
-
-
-1.  Init-> Buffer1 mapped into the first half
-2.  Page fault -> Buffer2 mapped into the second half
-3.  Page fault-> Buffer1 unmapped; Buffer3 mapped into first half
-4.  Page fault-> Buffer2 unmapped; Buffer4 mapped into second half
-5.  Page fault-> Buffer3 unmapped; Buffer5 mapped into first half
-6.  Page fault-> Buffer4 unmapped; Buffer6 mapped into second half
-7.  Page fault-> Buffer5 unmapped; Buffer7 mapped into first half
-8.  Page fault-> Buffer6 unmapped; Buffer8 mapped into second half
-9.  Page fault-> Buffer7 unmapped; Buffer1 mapped into first half
-10. Page fault-> Buffer8 unmapped; Buffer2 mapped into second half
-
-
-and the cycle goes on. I was wondering whether there's any option to
-map the buffers in such a way, rather than to do map/allocate a page
-on each page fault ? I really looked many places, but couldn't really
-make out something similar and hence my query.
-
-Ideas and thoughts would be much appreciated.
-
-Thanks,
-Manu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
