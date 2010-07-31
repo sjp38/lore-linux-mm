@@ -1,38 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5897A6B02A8
-	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 01:38:44 -0400 (EDT)
-Subject: Re: [PATCH 0/8] v3 De-couple sysfs memory directories from memory
- sections
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <4C451BF5.50304@austin.ibm.com>
-References: <4C451BF5.50304@austin.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 31 Jul 2010 15:36:24 +1000
-Message-ID: <1280554584.1902.31.camel@pasglop>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 76AE96B02AB
+	for <linux-mm@kvack.org>; Sat, 31 Jul 2010 05:39:27 -0400 (EDT)
+Message-ID: <4C53EF3D.4020403@cs.helsinki.fi>
+Date: Sat, 31 Jul 2010 12:39:09 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [S+Q 09/16] [percpu] make allocpercpu usable during early boot
+References: <20100625212026.810557229@quilx.com> <20100625212106.384650677@quilx.com> <AANLkTikSzWZme6kioKJ7DJbS0nhYqeDTPas1D9rb_LY-@mail.gmail.com> <alpine.DEB.2.00.1006291043070.16135@router.home> <AANLkTiklCoCe8k3CaYHNK0P86t76RLb2rMUYg2xiE1Rm@mail.gmail.com> <alpine.DEB.2.00.1007060926220.3627@router.home>
+In-Reply-To: <alpine.DEB.2.00.1007060926220.3627@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, greg@kroah.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, tj@kernel.org, Nick Piggin <npiggin@suse.de>, Matt Mackall <mpm@selenic.com>, David Rientjes <rientjes@google.com>, torvalds@linux-foundation.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-07-19 at 22:45 -0500, Nathan Fontenot wrote:
-> This set of patches de-couples the idea that there is a single
-> directory in sysfs for each memory section.  The intent of the
-> patches is to reduce the number of sysfs directories created to
-> resolve a boot-time performance issue.  On very large systems
-> boot time are getting very long (as seen on powerpc hardware)
-> due to the enormous number of sysfs directories being created.
-> On a system with 1 TB of memory we create ~63,000 directories.
-> For even larger systems boot times are being measured in hours.
+Christoph Lameter wrote:
+> On Thu, 1 Jul 2010, Pekka Enberg wrote:
+> 
+>>> On Mon, 28 Jun 2010, Pekka Enberg wrote:
+>>>>> +               return kzalloc(size, GFP_KERNEL & gfp_allowed_mask);
+>>>>>        else {
+>>>>>                void *ptr = vmalloc(size);
+>>>>>                if (ptr)
+>>>> This looks wrong to me. All slab allocators should do gfp_allowed_mask
+>>>> magic under the hood. Maybe it's triggering kmalloc_large() path that
+>>>> needs the masking too?
+>> On Tue, Jun 29, 2010 at 6:45 PM, Christoph Lameter
+>> <cl@linux-foundation.org> wrote:
+>>> They do gfp_allowed_mask magic. But the checks at function entry of the
+>>> slabs do not mask the masks so we get false positives without this. All my
+>>> protest against the checks doing it this IMHO broken way were ignored.
+>> Which checks are those? Are they in SLUB proper or are they introduced
+>> in one of the SLEB patches? We definitely don't want to expose
+>> gfp_allowed_mask here.
+> 
+> Argh. The reason for the trouble here is because I moved the
+> masking of the gfp flags out of the hot path.
+> 
+> The masking of the bits adds to the cache footprint of the hotpaths now in
+> all slab allocators. Gosh. Why is there constant contamination of the hot
+> paths with the stuff?
 
-Greg, Kame, how do we proceed with these ? I'm happy to put them in
-powerpc.git with appropriate acks or will you take them ?
+We should definitely move gfp_allowed_mask masking out of fast-paths. I 
+think the ideal solution is to only do it deep in the page allocator.
 
-Cheers,
-Ben.
+> We only need this masking in the hot path if the debugging hooks need it.
+> Otherwise its fine to defer this to the slow paths.
+> 
+> So how do I get that in there? Add "& gfp_allowed_mask" to the gfp mask
+> passed to the debugging hooks?
+> 
+> Or add a debug_hooks_alloc() function and make it empty if no debugging
+> functions are enabled?
 
+I think it's best to have separate debugging hooks that are empty if 
+debugging is disabled, yes.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
