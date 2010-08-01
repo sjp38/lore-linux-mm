@@ -1,57 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CF422600429
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 06:51:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o71Ap7BC021694
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 1 Aug 2010 19:51:08 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96C6A45DE57
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 19:51:07 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FB4B45DE52
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 19:51:07 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DE561DB803F
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 19:51:07 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C24B41DB803C
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 19:51:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: synchronous lumpy reclaim don't call congestion_wait()
-In-Reply-To: <20100801104232.GA17573@localhost>
-References: <20100801180751.4B0E.A69D9226@jp.fujitsu.com> <20100801104232.GA17573@localhost>
-Message-Id: <20100801194520.4B14.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C678D600429
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 07:16:16 -0400 (EDT)
+Date: Sun, 1 Aug 2010 19:15:44 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 6/6] vmscan: Kick flusher threads to clean pages when
+ reclaim is encountering dirty pages
+Message-ID: <20100801111544.GC7515@localhost>
+References: <1280497020-22816-1-git-send-email-mel@csn.ul.ie>
+ <1280497020-22816-7-git-send-email-mel@csn.ul.ie>
+ <20100730150601.199c5618.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sun,  1 Aug 2010 19:51:05 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100730150601.199c5618.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > If the system 512MB memory, DEF_PRIORITY mean 128kB scan and It takes 4096
-> > shrink_page_list() calls to scan 128kB (i.e. 128kB/32=4096) memory.
-> 
-> Err you must forgot the page size.
+> Sigh.  We have sooo many problems with writeback and latency.  Read
+> https://bugzilla.kernel.org/show_bug.cgi?id=12309 and weep.  Everyone's
+> running away from the issue and here we are adding code to solve some
+> alleged stack-overflow problem which seems to be largely a non-problem,
+> by making changes which may worsen our real problems.
 
-page size? DEF_PRIORITY is 12.
+This looks like some vmscan/writeback interaction issue.
 
-512MB >> DEF_PRIORITY
- = 512MB / 4096
- = 128kB
+Firstly, the CFQ io scheduler can already prevent read IO from being
+delayed by lots of ASYNC write IO. See the commits 365722bb/8e2967555
+in late 2009.
 
-128kB scan mean 4096 times shrink_list(). because one shrink_list() scan
-SWAP_CLUSTER_MAX (i.e. 32).
+Reading a big file in an idle system:
+        680897928 bytes (681 MB) copied, 15.8986 s, 42.8 MB/s
 
-> 
-> 128kB means 128kB/4kB=32 pages which fit exactly into one
-> SWAP_CLUSTER_MAX batch. The shrink_page_list() call times
-> has nothing to do DEF_PRIORITY.
+Reading a big file while doing sequential writes to another file:
+        680897928 bytes (681 MB) copied, 27.6007 s, 24.7 MB/s
+        680897928 bytes (681 MB) copied, 25.6592 s, 26.5 MB/s
 
-Umm.. I haven't catch this mention.
+So CFQ offers reasonable read performance under heavy writeback.
+
+Secondly, I can only feel the responsiveness lags when there are
+memory pressures _in addition to_ heavy writeback.
+
+        cp /dev/zero /tmp
+
+No lags.
+
+        usemem 1g --sleep 1000
+
+Still no lags.
+
+        usemem 1g --sleep 1000
+
+Still no lags.
+
+        usemem 1g --sleep 1000
+
+Begin to feel lags at times. My desktop has 4G memory and no swap
+space. So the lags are correlated with page reclaim pressure.
+
+The above symptoms are matched very well by the patches posted by
+KOSAKI and me:
+
+- vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
+- vmscan: synchronous lumpy reclaim don't call congestion_wait()
+
+However kernels as early as 2.6.18 are reported to have the problem,
+so there may be more hidden issues.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
