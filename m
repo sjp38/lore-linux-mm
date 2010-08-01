@@ -1,42 +1,75 @@
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 0/5]  [RFC] transfer ASYNC vmscan writeback IO to the flusher threads
-Date: Thu, 29 Jul 2010 19:51:42 +0800
-Message-ID: <20100729115142.102255590@intel.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1OeS9I-0006WK-94
-	for glkm-linux-mm-2@m.gmane.org; Thu, 29 Jul 2010 14:23:44 +0200
+Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2688C6B02A9
-	for <linux-mm@kvack.org>; Thu, 29 Jul 2010 08:23:27 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id D8EAC6B02BE
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 01:29:09 -0400 (EDT)
+Date: Sun, 1 Aug 2010 13:27:59 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] vmscan: remove wait_on_page_writeback() from pageout()
+Message-ID: <20100801052758.GB7515@localhost>
+References: <20100728183625.4A7F.A69D9226@jp.fujitsu.com>
+ <20100728095058.GF5300@csn.ul.ie>
+ <20100728185457.4A82.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100728185457.4A82.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
-List-Id: linux-mm.kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+List-ID: <linux-mm.kvack.org>
 
-Andrew,
+On Wed, Jul 28, 2010 at 05:59:55PM +0800, KOSAKI Motohiro wrote:
+> > On Wed, Jul 28, 2010 at 06:43:41PM +0900, KOSAKI Motohiro wrote:
+> > > > On Wed, Jul 28, 2010 at 04:46:54PM +0800, Wu Fengguang wrote:
+> > > > > The wait_on_page_writeback() call inside pageout() is virtually dead code.
+> > > > > 
+> > > > >         shrink_inactive_list()
+> > > > >           shrink_page_list(PAGEOUT_IO_ASYNC)
+> > > > >             pageout(PAGEOUT_IO_ASYNC)
+> > > > >           shrink_page_list(PAGEOUT_IO_SYNC)
+> > > > >             pageout(PAGEOUT_IO_SYNC)
+> > > > > 
+> > > > > Because shrink_page_list/pageout(PAGEOUT_IO_SYNC) is always called after
+> > > > > a preceding shrink_page_list/pageout(PAGEOUT_IO_ASYNC), the first
+> > > > > pageout(ASYNC) converts dirty pages into writeback pages, the second
+> > > > > shrink_page_list(SYNC) waits on the clean of writeback pages before
+> > > > > calling pageout(SYNC). The second shrink_page_list(SYNC) can hardly run
+> > > > > into dirty pages for pageout(SYNC) unless in some race conditions.
+> > > > > 
+> > > > 
+> > > > It's possible for the second call to run into dirty pages as there is a
+> > > > congestion_wait() call between the first shrink_page_list() call and the
+> > > > second. That's a big window.
+> > > > 
+> > > > > And the wait page-by-page behavior of pageout(SYNC) will lead to very
+> > > > > long stall time if running into some range of dirty pages.
+> > > > 
+> > > > True, but this is also lumpy reclaim which is depending on a contiguous
+> > > > range of pages. It's better for it to wait on the selected range of pages
+> > > > which is known to contain at least one old page than excessively scan and
+> > > > reclaim newer pages.
+> > > 
+> > > Today, I was successful to reproduce the Andres's issue. and I disagree this
+> > > opinion.
+> > 
+> > Is Andres's issue not covered by the patch "vmscan: raise the bar to
+> > PAGEOUT_IO_SYNC stalls" because wait_on_page_writeback() was the
+> > main problem?
+> 
+> Well, "vmscan: raise the bar to PAGEOUT_IO_SYNC stalls" is completely bandaid and
 
-It's possible to transfer ASYNC vmscan writeback IOs to the flusher threads.
-This simple patchset shows the basic idea. Since it's a big behavior change,
-there are inevitably lots of details to sort out. I don't know where it will
-go after tests and discussions, so the patches are intentionally kept simple.
+No joking. The (DEF_PRIORITY-2) is obviously too permissive and shall be fixed.
 
-sync livelock avoidance (need more to be complete, but this is minimal required for the last two patches)
-	[PATCH 1/5] writeback: introduce wbc.for_sync to cover the two sync stages
-	[PATCH 2/5] writeback: stop periodic/background work on seeing sync works
-	[PATCH 3/5] writeback: prevent sync livelock with the sync_after timestamp
+> much IO under slow USB flash memory device still cause such problem even if the patch is applied.
 
-let the flusher threads do ASYNC writeback for pageout()
-	[PATCH 4/5] writeback: introduce bdi_start_inode_writeback()
-	[PATCH 5/5] vmscan: transfer async file writeback to the flusher
+As for this patch, raising the bar to PAGEOUT_IO_SYNC reduces both
+calls to congestion_wait() and wait_on_page_writeback(). So it
+absolutely helps by itself.
 
-The last two patches are the meats, they depend on the first three patches to
-kick the background writeback work, so that the for_reclaim writeback can be
-serviced timely.
+> But removing wait_on_page_writeback() doesn't solve the issue perfectly because current
+> lumpy reclaim have multiple sick. again, I'm writing explaining mail.....
 
-Comments are welcome!
+Let's submit the two known working fixes first?
 
 Thanks,
 Fengguang
