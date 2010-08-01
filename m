@@ -1,98 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4872F6B02C0
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 04:40:18 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o718eFcN031660
+	by kanga.kvack.org (Postfix) with SMTP id 7D14F600429
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 04:47:13 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o718lAfs032157
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 1 Aug 2010 17:40:15 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E1C7845DE52
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:40:14 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BB82945DE4F
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:40:14 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D5C21DB8014
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:40:14 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EA771DB8012
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:40:14 +0900 (JST)
+	Sun, 1 Aug 2010 17:47:10 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 241D345DE52
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:47:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ECFF745DE4D
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:47:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D85F41DB8057
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:47:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A8F41DB804F
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 17:47:09 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: remove wait_on_page_writeback() from pageout()
-In-Reply-To: <20100801083541.GA14397@localhost>
-References: <20100801172600.4AFF.A69D9226@jp.fujitsu.com> <20100801083541.GA14397@localhost>
-Message-Id: <20100801173942.4B05.A69D9226@jp.fujitsu.com>
+Subject: Re: Why PAGEOUT_IO_SYNC stalls for a long time
+In-Reply-To: <20100730103018.GE3571@csn.ul.ie>
+References: <20100730115222.4AD8.A69D9226@jp.fujitsu.com> <20100730103018.GE3571@csn.ul.ie>
+Message-Id: <20100801174229.4B08.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Sun,  1 Aug 2010 17:40:13 +0900 (JST)
+Date: Sun,  1 Aug 2010 17:47:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan.kim@gmail.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Sun, Aug 01, 2010 at 04:32:01PM +0800, KOSAKI Motohiro wrote:
-> > > On Wed, Jul 28, 2010 at 05:59:55PM +0800, KOSAKI Motohiro wrote:
-> > > > > On Wed, Jul 28, 2010 at 06:43:41PM +0900, KOSAKI Motohiro wrote:
-> > > > > > > On Wed, Jul 28, 2010 at 04:46:54PM +0800, Wu Fengguang wrote:
-> > > > > > > > The wait_on_page_writeback() call inside pageout() is virtually dead code.
-> > > > > > > > 
-> > > > > > > >         shrink_inactive_list()
-> > > > > > > >           shrink_page_list(PAGEOUT_IO_ASYNC)
-> > > > > > > >             pageout(PAGEOUT_IO_ASYNC)
-> > > > > > > >           shrink_page_list(PAGEOUT_IO_SYNC)
-> > > > > > > >             pageout(PAGEOUT_IO_SYNC)
-> > > > > > > > 
-> > > > > > > > Because shrink_page_list/pageout(PAGEOUT_IO_SYNC) is always called after
-> > > > > > > > a preceding shrink_page_list/pageout(PAGEOUT_IO_ASYNC), the first
-> > > > > > > > pageout(ASYNC) converts dirty pages into writeback pages, the second
-> > > > > > > > shrink_page_list(SYNC) waits on the clean of writeback pages before
-> > > > > > > > calling pageout(SYNC). The second shrink_page_list(SYNC) can hardly run
-> > > > > > > > into dirty pages for pageout(SYNC) unless in some race conditions.
-> > > > > > > > 
-> > > > > > > 
-> > > > > > > It's possible for the second call to run into dirty pages as there is a
-> > > > > > > congestion_wait() call between the first shrink_page_list() call and the
-> > > > > > > second. That's a big window.
-> > > > > > > 
-> > > > > > > > And the wait page-by-page behavior of pageout(SYNC) will lead to very
-> > > > > > > > long stall time if running into some range of dirty pages.
-> > > > > > > 
-> > > > > > > True, but this is also lumpy reclaim which is depending on a contiguous
-> > > > > > > range of pages. It's better for it to wait on the selected range of pages
-> > > > > > > which is known to contain at least one old page than excessively scan and
-> > > > > > > reclaim newer pages.
-> > > > > > 
-> > > > > > Today, I was successful to reproduce the Andres's issue. and I disagree this
-> > > > > > opinion.
-> > > > > 
-> > > > > Is Andres's issue not covered by the patch "vmscan: raise the bar to
-> > > > > PAGEOUT_IO_SYNC stalls" because wait_on_page_writeback() was the
-> > > > > main problem?
-> > > > 
-> > > > Well, "vmscan: raise the bar to PAGEOUT_IO_SYNC stalls" is completely bandaid and
-> > > 
-> > > No joking. The (DEF_PRIORITY-2) is obviously too permissive and shall be fixed.
-> > > 
-> > > > much IO under slow USB flash memory device still cause such problem even if the patch is applied.
-> > > 
-> > > As for this patch, raising the bar to PAGEOUT_IO_SYNC reduces both
-> > > calls to congestion_wait() and wait_on_page_writeback(). So it
-> > > absolutely helps by itself.
-> > > 
-> > > > But removing wait_on_page_writeback() doesn't solve the issue perfectly because current
-> > > > lumpy reclaim have multiple sick. again, I'm writing explaining mail.....
-> > > 
-> > > Let's submit the two known working fixes first?
+> > side note: page lock contention is very common case.
 > > 
-> > Definitely, I can't oppose obvious test result (by another your mail) :-)
-> > 
-> > OK, should go!
+> > For case (8), I don't think sleeping is right way. get_page() is used in really various place of
+> > our kernel. so we can't assume it's only temporary reference count increasing.
 > 
-> Great. Shall I go first? My changelog has more background :)
+> In what case is a munlocked pages reference count permanently increased and
+> why is this not a memory leak?
 
-Sure.
+V4L, audio, GEM and/or other multimedia driver?
 
 
 
