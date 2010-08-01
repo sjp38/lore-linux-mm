@@ -1,67 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6F4346B02CC
-	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 09:41:29 -0400 (EDT)
-Received: by pxi7 with SMTP id 7so1248208pxi.14
-        for <linux-mm@kvack.org>; Sun, 01 Aug 2010 06:41:28 -0700 (PDT)
-Date: Sun, 1 Aug 2010 22:41:17 +0900
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C92186B02D9
+	for <linux-mm@kvack.org>; Sun,  1 Aug 2010 11:16:00 -0400 (EDT)
+Received: by pxi7 with SMTP id 7so1265940pxi.14
+        for <linux-mm@kvack.org>; Sun, 01 Aug 2010 08:15:59 -0700 (PDT)
+Date: Mon, 2 Aug 2010 00:15:51 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] vmscan: synchronous lumpy reclaim don't call
- congestion_wait()
-Message-ID: <20100801134117.GA2034@barrios-desktop>
-References: <20100801085134.GA15577@localhost>
- <20100801180751.4B0E.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 4/6] writeback: sync expired inodes first in background
+ writeback
+Message-ID: <20100801151551.GA8158@barrios-desktop>
+References: <20100722050928.653312535@intel.com>
+ <20100722061822.906037624@intel.com>
+ <20100726105736.GM5300@csn.ul.ie>
+ <20100726125635.GC11947@localhost>
+ <20100726125954.GT5300@csn.ul.ie>
+ <20100726131152.GF11947@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100801180751.4B0E.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100726131152.GF11947@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Andreas Mohr <andi@lisas.de>, Bill Davidsen <davidsen@tmr.com>, Ben Gamari <bgamari.foss@gmail.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi KOSAKI, 
+Hi Wu, 
 
-On Sun, Aug 01, 2010 at 06:12:47PM +0900, KOSAKI Motohiro wrote:
-> rebased onto Wu's patch
+> Subject: writeback: sync expired inodes first in background writeback
+> From: Wu Fengguang <fengguang.wu@intel.com>
+> Date: Wed Jul 21 20:11:53 CST 2010
 > 
-> ----------------------------------------------
-> From 35772ad03e202c1c9a2252de3a9d3715e30d180f Mon Sep 17 00:00:00 2001
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Date: Sun, 1 Aug 2010 17:23:41 +0900
-> Subject: [PATCH] vmscan: synchronous lumpy reclaim don't call congestion_wait()
+> A background flush work may run for ever. So it's reasonable for it to
+> mimic the kupdate behavior of syncing old/expired inodes first.
 > 
-> congestion_wait() mean "waiting for number of requests in IO queue is
-> under congestion threshold".
-> That said, if the system have plenty dirty pages, flusher thread push
-> new request to IO queue conteniously. So, IO queue are not cleared
-> congestion status for a long time. thus, congestion_wait(HZ/10) is
-> almostly equivalent schedule_timeout(HZ/10).
-Just a nitpick. 
-Why is it a problem?
-HZ/10 is upper bound we intended.  If is is rahter high, we can low it. 
-But totally I agree on this patch. It would be better to remove it 
-than lowing. 
-
+> The policy is
+> - enqueue all newly expired inodes at each queue_io() time
+> - enqueue all dirty inodes if there are no more expired inodes to sync
 > 
-> If the system 512MB memory, DEF_PRIORITY mean 128kB scan and It takes 4096
-> shrink_page_list() calls to scan 128kB (i.e. 128kB/32=4096) memory.
-> 4096 times 0.1sec stall makes crazy insane long stall. That shouldn't.
-
-128K / (4K * SWAP_CLUSTER_MAX) = 1
-
+> This will help reduce the number of dirty pages encountered by page
+> reclaim, eg. the pageout() calls. Normally older inodes contain older
+> dirty pages, which are more close to the end of the LRU lists. So
+> syncing older inodes first helps reducing the dirty pages reached by
+> the page reclaim code.
 > 
-> In the other hand, this synchronous lumpy reclaim donesn't need this
-> congestion_wait() at all. shrink_page_list(PAGEOUT_IO_SYNC) cause to
-> call wait_on_page_writeback() and it provide sufficient waiting.
-
-Absolutely I agree on you. 
-
+> CC: Jan Kara <jack@suse.cz>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   23 ++++++++++++++++++-----
+>  1 file changed, 18 insertions(+), 5 deletions(-)
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> --- linux-next.orig/fs/fs-writeback.c	2010-07-26 20:19:01.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-07-26 21:10:42.000000000 +0800
+> @@ -217,14 +217,14 @@ static void move_expired_inodes(struct l
+>  				struct writeback_control *wbc)
+>  {
+>  	unsigned long expire_interval = 0;
+> -	unsigned long older_than_this;
+> +	unsigned long older_than_this = 0; /* reset to kill gcc warning */
 
+Maybe I am rather late. 
+
+Nitpick. 
+uninitialized_var is consistent. :)
+
+I haven't followed up this patch series. but his patch series is a fundamental way 
+to go for reducing pageout. 
 -- 
 Kind regards,
 Minchan Kim
