@@ -1,165 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EDE6B600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 06:25:00 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o72AOwBs007202
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 2 Aug 2010 19:24:58 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E57C145DE4F
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 19:24:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A036045DE63
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 19:24:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 000341DB803E
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 19:24:56 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 081101DB8048
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 19:24:56 +0900 (JST)
-Date: Mon, 2 Aug 2010 19:20:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH -mm 5/5] memcg: use spinlock in page_cgroup instead of
- bit_spinlock
-Message-Id: <20100802192006.a395889a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 591D6600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 07:58:31 -0400 (EDT)
+Date: Mon, 2 Aug 2010 19:57:48 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Bug 12309 - Large I/O operations result in poor interactive
+ performance and high iowait times
+Message-ID: <20100802115748.GA5308@localhost>
+References: <20100802003616.5b31ed8b@digital-domain.net>
+ <20100802081253.GA27492@localhost>
+ <20100802171954.4F95.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100802171954.4F95.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Clayton <andrew@digital-domain.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "pvz@pvz.pp.se" <pvz@pvz.pp.se>, "bgamari@gmail.com" <bgamari@gmail.com>, "larppaxyz@gmail.com" <larppaxyz@gmail.com>, "seanj@xyke.com" <seanj@xyke.com>, "kernel-bugs.dev1world@spamgourmet.com" <kernel-bugs.dev1world@spamgourmet.com>, "akatopaz@gmail.com" <akatopaz@gmail.com>, "frankrq2009@gmx.com" <frankrq2009@gmx.com>, "thomas.pi@arcor.de" <thomas.pi@arcor.de>, "spawels13@gmail.com" <spawels13@gmail.com>, "vshader@gmail.com" <vshader@gmail.com>, "rockorequin@hotmail.com" <rockorequin@hotmail.com>, "ylalym@gmail.com" <ylalym@gmail.com>, "theholyettlz@googlemail.com" <theholyettlz@googlemail.com>, "hassium@yandex.ru" <hassium@yandex.ru>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > So swapping is another major cause of responsiveness lags.
+> > 
+> > I just tested the heavy swapping case with the patches to remove
+> > the congestion_wait() and wait_on_page_writeback() stalls on high
+> > order allocations. The patches work as expected. No single stall shows
+> > up with the debug patch posted in http://lkml.org/lkml/2010/8/1/10.
+> > 
+> > However there are still stalls on get_request_wait():
+> > - kswapd trying to pageout anonymous pages
+> > - _any_ process in direct reclaim doing pageout()
+> 
+> Well, not any.
+> 
+> current check is following.
+> 
+> -----------------------------------------------------------
+> static int may_write_to_queue(struct backing_dev_info *bdi)
+> {
+>         if (current->flags & PF_SWAPWRITE)
+>                 return 1;
+>         if (!bdi_write_congested(bdi))
+>                 return 1;
+>         if (bdi == current->backing_dev_info)
+>                 return 1;
+>         return 0;
+> }
+> -----------------------------------------------------------
+> 
+> It mean congestion ignorerance is happend when followings
+>   (1) the task is kswapd
+>   (2) the task is flusher thread
+>   (3) this reclaim is called from zone reclaim (note: I'm thinking this is bug)
+>   (4) this reclaim is called from __generic_file_aio_write()
+> 
+> (4) is root cause of this latency issue. this behavior was introduced
+> by following.
 
-This patch replaces bit_spinlock with spinlock. In general,
-spinlock has good functinality than bit_spin_lock and we should use
-it if we have a room for it. In 64bit arch, we have extra 4bytes.
-Let's use it.
-expected effects:
- - use better codes.
- - ticket lock on x86-64
- - para-vitualization aware lock
-etc..
+Yes and no.
 
-Chagelog: 20090729
- - fixed page_cgroup_is_locked().
+(1)-(4) are good summaries for regular files. However !bdi_write_congested(bdi)
+is now unconditionally true for the swapper_space, which means any process can
+do swap out to a congested queue and block there.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
---
----
- include/linux/page_cgroup.h |   33 ++++++++++++++++++++++++++++++++-
- mm/memcontrol.c             |    2 +-
- mm/page_cgroup.c            |    3 +++
- 3 files changed, 36 insertions(+), 2 deletions(-)
+pageout() has the following comment for the cases:
 
-Index: mmotm-0727/include/linux/page_cgroup.h
-===================================================================
---- mmotm-0727.orig/include/linux/page_cgroup.h
-+++ mmotm-0727/include/linux/page_cgroup.h
-@@ -10,8 +10,14 @@
-  * All page cgroups are allocated at boot or memory hotplug event,
-  * then the page cgroup for pfn always exists.
-  */
-+#ifdef CONFIG_64BIT
-+#define PCG_HAS_SPINLOCK
-+#endif
- struct page_cgroup {
- 	unsigned long flags;
-+#ifdef PCG_HAS_SPINLOCK
-+	spinlock_t	lock;
-+#endif
- 	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
- 	unsigned short blk_cgroup;	/* Not Used..but will be. */
- 	struct page *page;
-@@ -36,7 +42,9 @@ struct page_cgroup *lookup_page_cgroup(s
- 
- enum {
- 	/* flags for mem_cgroup */
--	PCG_LOCK,  /* page cgroup is locked */
-+#ifndef PCG_HAS_SPINLOCK
-+	PCG_LOCK,  /* page cgroup is locked (see below also.)*/
-+#endif
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
- 	PCG_ACCT_LRU, /* page has been accounted for */
-@@ -65,8 +73,6 @@ static inline void ClearPageCgroup##unam
- static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
- 
--TESTPCGFLAG(Locked, LOCK)
--
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- CLEARPCGFLAG(Cache, CACHE)
-@@ -95,6 +101,22 @@ static inline enum zone_type page_cgroup
- 	return page_zonenum(pc->page);
- }
- 
-+#ifdef PCG_HAS_SPINLOCK
-+static inline void lock_page_cgroup(struct page_cgroup *pc)
-+{
-+	spin_lock(&pc->lock);
-+}
-+static inline void unlock_page_cgroup(struct page_cgroup *pc)
-+{
-+	spin_unlock(&pc->lock);
-+}
-+
-+static inline bool page_cgroup_is_locked(struct page_cgroup *pc)
-+{
-+	return spin_is_locked(&pc->lock);
-+}
-+
-+#else
- static inline void lock_page_cgroup(struct page_cgroup *pc)
- {
- 	bit_spin_lock(PCG_LOCK, &pc->flags);
-@@ -105,6 +127,14 @@ static inline void unlock_page_cgroup(st
- 	bit_spin_unlock(PCG_LOCK, &pc->flags);
- }
- 
-+static inline void page_cgroup_is_locked(struct page_cgrou *pc)
-+{
-+	bit_spin_is_locked(PCG_LOCK, &pc->flags);
-+}
-+TESTPCGFLAG(Locked, LOCK)
-+
-+#endif
-+
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct page_cgroup;
- 
-Index: mmotm-0727/mm/page_cgroup.c
-===================================================================
---- mmotm-0727.orig/mm/page_cgroup.c
-+++ mmotm-0727/mm/page_cgroup.c
-@@ -18,6 +18,9 @@ __init_page_cgroup(struct page_cgroup *p
- 	pc->mem_cgroup = 0;
- 	pc->page = pfn_to_page(pfn);
- 	INIT_LIST_HEAD(&pc->lru);
-+#ifdef PCG_HAS_SPINLOCK
-+	spin_lock_init(&pc->lock);
-+#endif
- }
- static unsigned long total_usage;
- 
-Index: mmotm-0727/mm/memcontrol.c
-===================================================================
---- mmotm-0727.orig/mm/memcontrol.c
-+++ mmotm-0727/mm/memcontrol.c
-@@ -1999,7 +1999,7 @@ static void __mem_cgroup_move_account(st
- 	int i;
- 	VM_BUG_ON(from == to);
- 	VM_BUG_ON(PageLRU(pc->page));
--	VM_BUG_ON(!PageCgroupLocked(pc));
-+	VM_BUG_ON(!page_cgroup_is_locked(pc));
- 	VM_BUG_ON(!PageCgroupUsed(pc));
- 	VM_BUG_ON(id_to_memcg(pc->mem_cgroup) != from);
- 
+        /*
+         * If the page is dirty, only perform writeback if that write
+         * will be non-blocking.  To prevent this allocation from being
+         * stalled by pagecache activity.  But note that there may be
+         * stalls if we need to run get_block().  We could test
+         * PagePrivate for that.
+         *
+         * If this process is currently in __generic_file_aio_write() against
+         * this page's queue, we can perform writeback even if that
+         * will block.
+         *
+         * If the page is swapcache, write it back even if that would
+         * block, for some throttling. This happens by accident, because
+         * swap_backing_dev_info is bust: it doesn't reflect the
+         * congestion state of the swapdevs.  Easy to fix, if needed.
+         */
+
+> 
+> -------------------------------------------------------------------
+> commit 94bc3c9279ae182ca996d89dc9a56b66b06d5d8f
+> Author: akpm <akpm>
+> Date:   Mon Sep 23 05:17:02 2002 +0000
+> 
+>     [PATCH] low-latency page reclaim
+> 
+>     Convert the VM to not wait on other people's dirty data.
+> 
+>      - If we find a dirty page and its queue is not congested, do some writeback.
+> 
+>      - If we find a dirty page and its queue _is_ congested then just
+>        refile the page.
+> 
+>      - If we find a PageWriteback page then just refile the page.
+> 
+>      - There is additional throttling for write(2) callers.  Within
+>        generic_file_write(), record their backing queue in ->current.
+>        Within page reclaim, if this tasks encounters a page which is dirty
+>        or under writeback onthis queue, block on it.  This gives some more
+>        writer throttling and reduces the page refiling frequency.
+> 
+>     It's somewhat CPU expensive - under really heavy load we only get a 50%
+>     reclaim rate in pages coming off the tail of the LRU.  This can be
+>     fixed by splitting the inactive list into reclaimable and
+>     non-reclaimable lists.  But the CPU load isn't too bad, and latency is
+>     much, much more important in these situations.
+> 
+>     Example: with `mem=512m', running 4 instances of `dbench 100', 2.5.34
+>     took 35 minutes to compile a kernel.  With this patch, it took three
+>     minutes, 45 seconds.
+> 
+>     I haven't done swapcache or MAP_SHARED pages yet.  If there's tons of
+>     dirty swapcache or mmap data around we still stall heavily in page
+>     reclaim.  That's less important.
+> 
+>     This patch also has a tweak for swapless machines: don't even bother
+>     bringing anon pages onto the inactive list if there is no swap online.
+> 
+>     BKrev: 3d8ea3cekcPCHjOJ65jQtjjrJMyYeA
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index a27d273..9118a57 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1755,6 +1755,9 @@ generic_file_write_nolock(struct file *file, const struct iovec *iov,
+>         if (unlikely(pos < 0))
+>                 return -EINVAL;
+> 
+> +       /* We can write back this queue in page reclaim */
+> +       current->backing_dev_info = mapping->backing_dev_info;
+> +
+>         pagevec_init(&lru_pvec);
+> 
+>         if (unlikely(file->f_error)) {
+> -------------------------------------------------------------------
+> 
+> But is this still necessary? now we have per-hask dirty accounting, the
+> write hog tasks have already got some waiting penalty.
+> 
+> As I said, per-task dirty accounting only makes a penalty to lots writing
+> tasks. but the above makes a penalty to all of write(2) user.
+
+Right. We will be transferring file writeback to the flusher threads,
+the whole may_write_to_queue() test can be removed at that time.
+For one thing, conditional page out is disregarding the LRU age. 
+
+> > 
+> > Since 90% pages are dirty anonymous pages, the chances to stall is high.
+> > kswapd can hardly make smooth progress. The applications end up doing
+> > direct reclaim by themselves, which also ends up stuck in pageout().
+> > They are not explicitly stalled in vmscan code, but implicitly in
+> > get_request_wait() when trying to swapping out the dirty pages.
+> > 
+> > It sure hurts responsiveness with so many applications stalled on
+> > get_request_wait(). But question is, what can we do otherwise? The
+> > system is running short of memory and cannot keep up freeing enough
+> > memory anyway. So page allocations have to be throttled somewhere..
+> > 
+> > But wait.. What if there are only 50% anonymous pages? In this case
+> > applications don't necessarily need to sleep in get_request_wait().
+> > The memory pressure is not really high. The poor man's solution is to
+> > disable swapping totally, as the bug reporters find to be helpful..
+> > 
+> > One easy fix is to skip swap-out when bdi is congested and priority is
+> > close to DEF_PRIORITY. However it would be unfair to selectively
+> > (largely in random) keep some pages and reclaim the others that
+> > actually have the same age.
+> > 
+> > A more complete fix may be to introduce some swap_out LRU list(s).
+> > Pages in it will be swap out as fast as possible by a dedicated
+> > kernel thread. And pageout() can freely add pages to it until it
+> > grows larger than some threshold, eg. 30% reclaimable memory, at which
+> > point pageout() will stall on the list. The basic idea is to switch
+> > the random get_request_wait() stalls to some more global wise stalls.
+> 
+> Yup, I'd prefer this idea. but probably it should retrieve writeback general,
+> not only swapout.
+
+What in my mind is (without any throttling)
+
+        if (PageSwapcache(page)) {
+                if (bdi_write_congested(bdi))
+                        add page to swap_out list for stall-free write
+                else
+                        /* write directly if won't stall, mainly an optimization */
+                        writepage(page);
+        } else
+                bdi_start_inode_writeback(inode, page->index);
+
+I'm not sure if the file/anon page out can be somehow unified though.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
