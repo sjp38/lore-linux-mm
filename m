@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D18600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 14:31:19 -0400 (EDT)
-Date: Mon, 2 Aug 2010 20:31:10 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 6/6] vmscan: Kick flusher threads to clean pages when
- reclaim is encountering dirty pages
-Message-ID: <20100802183109.GJ3278@quack.suse.cz>
-References: <1280497020-22816-1-git-send-email-mel@csn.ul.ie>
- <1280497020-22816-7-git-send-email-mel@csn.ul.ie>
- <20100730150601.199c5618.akpm@linux-foundation.org>
- <20100731103321.GI3571@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100731103321.GI3571@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D9D6E600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 16:22:22 -0400 (EDT)
+From: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+Subject: [PATCH] mm: only build per-node scan_unevictable when NUMA is enabled
+Date: Mon,  2 Aug 2010 17:23:32 -0300
+Message-Id: <1280780612-10548-1-git-send-email-cascardo@holoscopio.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat 31-07-10 11:33:22, Mel Gorman wrote:
-> On Fri, Jul 30, 2010 at 03:06:01PM -0700, Andrew Morton wrote:
-> > Sigh.  We have sooo many problems with writeback and latency.  Read
-> > https://bugzilla.kernel.org/show_bug.cgi?id=12309 and weep.
-> 
-> You aren't joking.
-> 
-> > Everyone's
-> > running away from the issue and here we are adding code to solve some
-> > alleged stack-overflow problem which seems to be largely a non-problem,
-> > by making changes which may worsen our real problems.
-> > 
-> 
-> As it is, filesystems are beginnning to ignore writeback from direct
-> reclaim - such as xfs and btrfs. I'm lead to believe that ext3
-> effectively ignores writeback from direct reclaim although I don't have
-> access to code at the moment to double check (am on the road). So either
-> way, we are going to be facing this problem so the VM might as well be
-> aware of it :/
-  Umm, ext3 should be handling direct reclaim just fine. ext4 does however
-ignore it when a page does not have block already allocated (which is a
-common case with delayed allocation).
+Non-NUMA systems do never create these files anyway, since they are only
+created by driver subsystem when NUMA is configured.
 
-								Honza
+Signed-off-by: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+---
+ include/linux/swap.h |    5 +++++
+ mm/vmscan.c          |    3 ++-
+ 2 files changed, 7 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index ff4acea..3c0876d 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -271,8 +271,13 @@ extern void scan_mapping_unevictable_pages(struct address_space *);
+ extern unsigned long scan_unevictable_pages;
+ extern int scan_unevictable_handler(struct ctl_table *, int,
+ 					void __user *, size_t *, loff_t *);
++#ifdef CONFIG_NUMA
+ extern int scan_unevictable_register_node(struct node *node);
+ extern void scan_unevictable_unregister_node(struct node *node);
++#else
++static inline int scan_unevictable_register_node(struct node *node) {return 0;}
++static inline void scan_unevictable_unregister_node(struct node *node) {}
++#endif
+ 
+ extern int kswapd_run(int nid);
+ extern void kswapd_stop(int nid);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b94fe1b..ba8f6fd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2898,6 +2898,7 @@ int scan_unevictable_handler(struct ctl_table *table, int write,
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_NUMA
+ /*
+  * per node 'scan_unevictable_pages' attribute.  On demand re-scan of
+  * a specified node's per zone unevictable lists for evictable pages.
+@@ -2944,4 +2945,4 @@ void scan_unevictable_unregister_node(struct node *node)
+ {
+ 	sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pages);
+ }
+-
++#endif
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
