@@ -1,69 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D8AD46B0358
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 15:01:33 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC3562012A
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 16:32:53 -0400 (EDT)
+Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
+	by smtp-out.google.com with ESMTP id o73KhLoC016612
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 13:43:23 -0700
+Received: from pxi2 (pxi2.prod.google.com [10.243.27.2])
+	by kpbe20.cbf.corp.google.com with ESMTP id o73KguBK005293
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 13:43:20 -0700
+Received: by pxi2 with SMTP id 2so2158432pxi.38
+        for <linux-mm@kvack.org>; Tue, 03 Aug 2010 13:43:20 -0700 (PDT)
+Date: Tue, 3 Aug 2010 13:43:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
+In-Reply-To: <20100803162738.52858530.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008031337110.12365@chino.kir.corp.google.com>
+References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com> <20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com> <20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1008021742440.9569@chino.kir.corp.google.com> <20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com> <20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021850400.19184@chino.kir.corp.google.com>
+ <20100803110534.e3e7a697.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021953520.27231@chino.kir.corp.google.com> <20100803121146.cf35b7ed.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008022117200.4146@chino.kir.corp.google.com>
+ <20100803133255.deb5c208.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008030016590.20849@chino.kir.corp.google.com> <20100803162111.2f8dfded.kamezawa.hiroyu@jp.fujitsu.com> <20100803162738.52858530.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Message-ID: <af8b0006-0eb7-468a-bbf8-36ecec9bec35@default>
-Date: Tue, 3 Aug 2010 12:09:54 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH V3 0/8] Cleancache: overview
-References: <20100621231809.GA11111%ca-server1.us.oracle.com4C49468B.40307@vflare.org>
- <840b32ff-a303-468e-9d4e-30fc92f629f8@default>
- <20100723140440.GA12423@infradead.org>
- <364c83bd-ccb2-48cc-920d-ffcf9ca7df19@default>
- <a7f4db53-c348-4cff-8762-7ea4031e4813@default
- 22A6238E-0BA4-4AB9-A4FA-28B206A47513@oracle.com>
-In-Reply-To: <22A6238E-0BA4-4AB9-A4FA-28B206A47513@oracle.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andreas Dilger <andreas.dilger@oracle.com>
-Cc: Boaz Harrosh <bharrosh@panasas.com>, Christoph Hellwig <hch@infradead.org>, ngupta@vflare.org, akpm@linux-foundation.org, Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, jeremy@goop.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@suse.de, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Andreas Dilger
-> Sent: Tuesday, August 03, 2010 12:34 PM
-> To: Dan Magenheimer
-> Subject: Re: [PATCH V3 0/8] Cleancache: overview
->=20
-> On 2010-08-03, at 11:35, Dan Magenheimer wrote:
-> > - The FS should be block-device-based (e.g. a ram-based FS
-> >  such as tmpfs should not enable cleancache)
->=20
-> When you say "block device based", does this exclude network
-> filesystems?  It would seem cleancache, like fscache, is actually best
-> suited to high-latency network filesystems.
+On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-I don't think it should exclude network FSs and agree cleancache
-might be well-suited for them.  So if "block device based"
-leaves out the possibility of network FSs, I am just
-displaying my general ignorance of FSs and I/O, and
-welcome clarification from FS developers.  What I really
-meant is: Don't use cleancache for RAM-based filesystems.
-=20
-> > - To ensure coherency/correctness, inode numbers must be unique
-> >  (e.g. no emulating 64-bit inode space on 32-bit inode numbers)
->=20
-> Does it need to be restricted to inode numbers at all (i.e. can it use
-> an opaque internal identifier like the NFS file handle)?  Disallowing
-> cleancache on a filesystem that uses 64-bit (or larger) inodes on a 32-
-> bit system reduces its usefulness.
+> > > Not at all, the user knows what tasks are attached to the memcg and can 
+> > > easily determine which task is going to be killed when it ooms: simply 
+> > > iterate through the memcg tasklist, check /proc/pid/oom_score, and sort.
+> > > 
+> > 
+> > And finds 
+> > 	at system oom,  process A is killed.
+> > 	at memcg oom, process B is killed.
+> > 
+> > funny non-deteministic interace, aha.
+> > 
+> 
+> I said
+> 	- you have beutiful legs. (new logic of oom calculation)
+> 	- but your face is ugly	  (new oom_score_adj)
+> 	then
+> 	- I bought a mask for you (oom_disable for memcg.)
+> 
+> Then, please don't use your time for convince me your face is beutiful.
+> It's waste of time.
+> 
 
-True... Earlier versions of the patch did not use ino_t but
-instead used an opaque always-64-bit-unsigned "object id".
-The patch changed to use ino_t in response to Al Viro's comment
-to "use sane types".
+Haha, I love the analogy :)
 
-The <pool_id,object_id,pg_offset> triple must uniquely
-and permanently (unless explicitly flushed) describe
-exactly one page of FS data.  So if usefulness is increased
-by changing object_id back to an explicit 64-bit value,
-I'm happy to do that.  The only disadvantage I can
-see is that 32-bit systems pass an extra 32 bits on
-every call that may always be zero on most FSs.
+The difference in selection of tasks depending on whether its a memcg or 
+system oom isn't really concerning since /proc/pid/oom_score_adj would 
+have been assigned in a way that reflects its prioritization for kill only 
+in the memcg oom kill scenario.  It would reflect the prioritization 
+system wide if memcg were not used.
 
-Thanks,
-Dan
+The same thing would happen if several tasks in different memcgs were 
+given oom_score_adj of +1000.  This would yield a badness score of 1000 
+for each of those tasks, which translates to "always kill."  Only one 
+would actually be selected for kill in the system wide case, however, to 
+prevent needless killing.  Which one that is happens to be the one that 
+appears in the tasklist first.
+
+The end result is that when using memcg, we don't really care about the 
+prioritization of killing of tasks when the entire system is oom.  That's 
+true because no memcg happens to be oom itself, we've simply run out of 
+RAM.  The same is true of cpusets.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
