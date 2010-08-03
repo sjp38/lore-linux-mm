@@ -1,56 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 0168A6008E4
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 02:30:08 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o736Zc54031400
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 3 Aug 2010 15:35:38 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F80845DE7A
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 15:35:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1773545DE6F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 15:35:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7D781DB8042
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 15:35:37 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AFDA1DB803F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 15:35:37 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Bug 12309 - Large I/O operations result in poor interactive performance and high iowait times
-In-Reply-To: <20100802115748.GA5308@localhost>
-References: <20100802171954.4F95.A69D9226@jp.fujitsu.com> <20100802115748.GA5308@localhost>
-Message-Id: <20100803153420.39FD.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F0C316008E4
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 02:34:20 -0400 (EDT)
+Date: Tue, 3 Aug 2010 14:39:29 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Over-eager swapping
+Message-ID: <20100803063929.GB17955@localhost>
+References: <20100802124734.GI2486@arachsys.com>
+ <AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
+ <20100803033108.GA23117@arachsys.com>
+ <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
+ <20100803042835.GA17377@localhost>
+ <AANLkTimC1z0MwTxUjxED7N1-R4D_YXtvnPSbiKXdR+4W@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  3 Aug 2010 15:35:35 +0900 (JST)
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimC1z0MwTxUjxED7N1-R4D_YXtvnPSbiKXdR+4W@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Clayton <andrew@digital-domain.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "pvz@pvz.pp.se" <pvz@pvz.pp.se>, "bgamari@gmail.com" <bgamari@gmail.com>, "larppaxyz@gmail.com" <larppaxyz@gmail.com>, "seanj@xyke.com" <seanj@xyke.com>, "kernel-bugs.dev1world@spamgourmet.com" <kernel-bugs.dev1world@spamgourmet.com>, "akatopaz@gmail.com" <akatopaz@gmail.com>, "frankrq2009@gmx.com" <frankrq2009@gmx.com>, "thomas.pi@arcor.de" <thomas.pi@arcor.de>, "spawels13@gmail.com" <spawels13@gmail.com>, "vshader@gmail.com" <vshader@gmail.com>, "rockorequin@hotmail.com" <rockorequin@hotmail.com>, "ylalym@gmail.com" <ylalym@gmail.com>, "theholyettlz@googlemail.com" <theholyettlz@googlemail.com>, "hassium@yandex.ru" <hassium@yandex.ru>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Chris Webb <chris@arachsys.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> > It mean congestion ignorerance is happend when followings
-> >   (1) the task is kswapd
-> >   (2) the task is flusher thread
-> >   (3) this reclaim is called from zone reclaim (note: I'm thinking this is bug)
-> >   (4) this reclaim is called from __generic_file_aio_write()
-> > 
-> > (4) is root cause of this latency issue. this behavior was introduced
-> > by following.
+On Tue, Aug 03, 2010 at 12:47:36PM +0800, Minchan Kim wrote:
+> On Tue, Aug 3, 2010 at 1:28 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > On Tue, Aug 03, 2010 at 12:09:18PM +0800, Minchan Kim wrote:
+> >> On Tue, Aug 3, 2010 at 12:31 PM, Chris Webb <chris@arachsys.com> wrote:
+> >> > Minchan Kim <minchan.kim@gmail.com> writes:
+> >> >
+> >> >> Another possibility is _zone_reclaim_ in NUMA.
+> >> >> Your working set has many anonymous page.
+> >> >>
+> >> >> The zone_reclaim set priority to ZONE_RECLAIM_PRIORITY.
+> >> >> It can make reclaim mode to lumpy so it can page out anon pages.
+> >> >>
+> >> >> Could you show me /proc/sys/vm/[zone_reclaim_mode/min_unmapped_ratio] ?
+> >> >
+> >> > Sure, no problem. On the machine with the /proc/meminfo I showed earlier,
+> >> > these are
+> >> >
+> >> > A # cat /proc/sys/vm/zone_reclaim_mode
+> >> > A 0
+> >> > A # cat /proc/sys/vm/min_unmapped_ratio
+> >> > A 1
+> >>
+> >> if zone_reclaim_mode is zero, it doesn't swap out anon_pages.
+> >
+> > If there are lots of order-1 or higher allocations, anonymous pages
+> > will be randomly evicted, regardless of their LRU ages. This is
 > 
-> Yes and no.
+> I thought swapped out page is huge (ie, 3G) even though it enters lumpy mode.
+> But it's possible. :)
 > 
-> (1)-(4) are good summaries for regular files. However !bdi_write_congested(bdi)
-> is now unconditionally true for the swapper_space, which means any process can
-> do swap out to a congested queue and block there.
+> > probably another factor why the users claim. Are there easy ways to
+> > confirm this other than patching the kernel?
+> 
+> cat /proc/buddyinfo can help?
 
-Oops. I missed that. thanks correct me!
+Some high order slab caches may show up there :)
 
+> Off-topic:
+> It would be better to add new vmstat of lumpy entrance.
 
+I think it's a good debug entry. Although convenient, lumpy reclaim
+is accompanied with some bad side effects. When something goes wrong,
+it helps to check the number of lumpy reclaims.
 
+Thanks,
+Fengguang
+
+> Pseudo code.
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 0f9f624..d10ff4e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1641,7 +1641,7 @@ out:
+>         }
+>  }
+> 
+> -static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc)
+> +static void set_lumpy_reclaim_mode(int priority, struct scan_control
+> *sc, struct zone *zone)
+>  {
+>         /*
+>          * If we need a large contiguous chunk of memory, or have
+> @@ -1654,6 +1654,9 @@ static void set_lumpy_reclaim_mode(int priority,
+> struct scan_control *sc)
+>                 sc->lumpy_reclaim_mode = 1;
+>         else
+>                 sc->lumpy_reclaim_mode = 0;
+> +
+> +       if (sc->lumpy_reclaim_mode)
+> +               inc_zone_state(zone, NR_LUMPY);
+>  }
+> 
+>  /*
+> @@ -1670,7 +1673,7 @@ static void shrink_zone(int priority, struct zone *zone,
+> 
+>         get_scan_count(zone, sc, nr, priority);
+> 
+> -       set_lumpy_reclaim_mode(priority, sc);
+> +       set_lumpy_reclaim_mode(priority, sc, zone);
+> 
+>         while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>                                         nr[LRU_INACTIVE_FILE]) {
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
