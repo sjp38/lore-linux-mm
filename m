@@ -1,82 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BDEA600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 22:32:53 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o732YvNp017965
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 20:34:57 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o732aqfK145224
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 20:36:52 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o732apTP010515
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 20:36:52 -0600
-Date: Tue, 3 Aug 2010 08:06:48 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mm 0/5] towards I/O aware memory cgroup v3.
-Message-ID: <20100803023648.GB3863@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8ACFF600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 22:57:32 -0400 (EDT)
+Date: Tue, 3 Aug 2010 11:01:25 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] writeback: stop periodic/background work on seeing
+ sync works
+Message-ID: <20100803030125.GA12070@localhost>
+References: <20100729115142.102255590@intel.com>
+ <20100729121423.332557547@intel.com>
+ <20100729162027.GF12690@quack.suse.cz>
+ <20100730040306.GA5694@localhost>
+ <20100802205152.GL3278@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100802205152.GL3278@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-02 19:11:13]:
+On Tue, Aug 03, 2010 at 04:51:52AM +0800, Jan Kara wrote:
+> On Fri 30-07-10 12:03:06, Wu Fengguang wrote:
+> > On Fri, Jul 30, 2010 at 12:20:27AM +0800, Jan Kara wrote:
+> > > On Thu 29-07-10 19:51:44, Wu Fengguang wrote:
+> > > > The periodic/background writeback can run forever. So when any
+> > > > sync work is enqueued, increase bdi->sync_works to notify the
+> > > > active non-sync works to exit. Non-sync works queued after sync
+> > > > works won't be affected.
+> > >   Hmm, wouldn't it be simpler logic to just make for_kupdate and
+> > > for_background work always yield when there's some other work to do (as
+> > > they are livelockable from the definition of the target they have) and
+> > > make sure any other work isn't livelockable?
+> > 
+> > Good idea!
+> > 
+> > > The only downside is that
+> > > non-livelockable work cannot be "fair" in the sense that we cannot switch
+> > > inodes after writing MAX_WRITEBACK_PAGES.
+> > 
+> > Cannot switch indoes _before_ finish with the current
+> > MAX_WRITEBACK_PAGES batch? 
+>   Well, even after writing all those MAX_WRITEBACK_PAGES. Because what you
+> want to do in a non-livelockable work is: take inode, write it, never look at
+> it again for this work. Because if you later return to the inode, it can
+> have newer dirty pages and thus you cannot really avoid livelock. Of
+> course, this all assumes .nr_to_write isn't set to something small. That
+> avoids the livelock as well.
 
+I do have a poor man's solution that can handle this case.
+https://kerneltrap.org/mailarchive/linux-fsdevel/2009/10/7/6476473/thread
+It may do more extra works, but will stop livelock in theory.
+
+A related question is, what if some for_reclaim works get enqueued?
+Shall we postpone the sync work as well? The global sync is not likely
+to hit the dirty pages in a small memcg, or may take long time. It
+seems not a high priority task though.
+
+> > >   I even had a patch for this but it's already outdated by now. But I
+> > > can refresh it if we decide this is the way to go.
+> > 
+> > I'm very interested in your old patch, would you post it? Let's see
+> > which one is easier to work with :)
+>   OK, attached is the patch. I've rebased it against 2.6.35.
+> 									Honza
+> -- 
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+
+> From a6df0d4db148f983fe756df4791409db28dff459 Mon Sep 17 00:00:00 2001
+> From: Jan Kara <jack@suse.cz>
+> Date: Mon, 2 Aug 2010 22:30:25 +0200
+> Subject: [PATCH] mm: Stop background writeback if there is other work queued for the thread
 > 
-> This is v3. removed terrble garbages from v2 and tested.(no big changes)
+> Background writeback and kupdate-style writeback are easily livelockable
+> (from a definition of their target). This is inconvenient because it can
+> make sync(1) stall forever waiting on its queued work to be finished.
+> Fix the problem by interrupting background and kupdate writeback if there
+> is some other work to do. We can return to them after completing all the
+> queued work.
 > 
-> Now, it's merge-window and I'll have to maintain this in my box for a while.
-> I'll continue to update this. Maybe we can make new progress after LinuxCon.
-> (And I'll be busy for a while.)
->
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  fs/fs-writeback.c |    8 ++++++++
+>  1 files changed, 8 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index d5be169..542471e 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -633,6 +633,14 @@ static long wb_writeback(struct bdi_writeback *wb,
+>  			break;
+>  
+>  		/*
+> +		 * Background writeout and kupdate-style writeback are
+> +		 * easily livelockable. Stop them if there is other work
+> +		 * to do so that e.g. sync can proceed.
+> +		 */
+> +		if ((work->for_background || work->for_kupdate) &&
+> +		    !list_empty(&wb->bdi->work_list))
+> +			break;
+> +		/*
+
+I like it. It's much simpler.
+
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
 
-I was catching up with my inbox, did not realize you had moved onto v3
-and hence reviewed v1 first.
- 
-> This set has 2+1 purposes.
->  1. re-desgin struct page_cgroup and makes room for blocckio-cgroup ID.
->  2. implement quick updating method for memcg's file stat.
->  3. optionally? use spin_lock instead of bit_spinlock.
-> 
-> Plans after this.
-> 
->  1. check influence of Mel's new writeback method.
->     I think we'll see OOM easier. IIUC, memory cgroup needs a thread like kswapd
->     to do background writeback or low-high watermark.
->     (By this, we can control priority of background writeout thread priority
->      by CFS. This is very good.)
-
-Agreed, background watermark based reclaim is something we should look
-at.
-
-> 
->  2. implementing dirty_ratio.
->     Now, Greg Thelen is working on. One of biggest problems of previous trial was
->     update cost of status. I think this patch set can reduce it.
-
-That is good news
-
-> 
->  3. record blockio cgroup's ID.
->     Ikeda posted one. IIUC, it requires some consideration on (swapin)readahead
->     for assigning IDs. But it seemed to be good in general.
-> 
-> Importance is in this order in my mind. But all aboves can be done in parallel.
-> 
-> Beyond that, some guys has problem with file-cache-control. If it need to use
-> account migration, we have to take care of races.
-> 
-
--- 
-	Three Cheers,
-	Balbir
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
