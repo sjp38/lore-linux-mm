@@ -1,100 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5D937600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 23:12:25 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o733GfUB009814
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Aug 2010 12:16:42 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C057245DE50
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 12:16:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C24345DE4F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 12:16:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 758101DB804C
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 12:16:41 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BFB601DB804F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 12:16:37 +0900 (JST)
-Date: Tue, 3 Aug 2010 12:11:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-Message-Id: <20100803121146.cf35b7ed.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1008021953520.27231@chino.kir.corp.google.com>
-References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com>
-	<20100729183809.ca4ed8be.akpm@linux-foundation.org>
-	<20100730195338.4AF6.A69D9226@jp.fujitsu.com>
-	<20100802134312.c0f48615.akpm@linux-foundation.org>
-	<20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com>
-	<20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021742440.9569@chino.kir.corp.google.com>
-	<20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021850400.19184@chino.kir.corp.google.com>
-	<20100803110534.e3e7a697.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021953520.27231@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EC1B6200FA
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 23:18:01 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o733KRoM018565
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 21:20:27 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o733MLmL151102
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 21:22:21 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o733MKnF005949
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 21:22:20 -0600
+Date: Tue, 3 Aug 2010 08:52:16 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mm 1/5] quick lookup memcg by ID
+Message-ID: <20100803032216.GC3863@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100802191304.8e520808.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100802191304.8e520808.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Aug 2010 20:05:18 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-02 19:13:04]:
 
-> On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> > > Sure, a task could be killed with a very low /proc/pid/oom_score, but only 
-> > > if its cpuset is oom, for example, and it has the highest score of all 
-> > > tasks attached to that oom_score.  So /proc/pid/oom_score needs to be 
-> > > considered in the context in which the oom occurs: system-wide, cpuset, 
-> > > mempolicy, or memcg.  That's unchanged from the old oom killer.
-> > > 
-> > 
-> > unchanged ?
-> > 
+> Now, memory cgroup has an ID per cgroup and make use of it at
+>  - hierarchy walk,
+>  - swap recording.
 > 
-> Oh, I meant the fact that a task with a low oom_score compared to other 
-> system tasks may be killed because a cpuset is oom, for instance, is 
-> unchanged because we only kill tasks that are constrained to that cpuset.
+> This patch is for making more use of it. The final purpose is
+> to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
 > 
-> > Assume 2 proceses A, B which has oom_score_adj of 300 and 0
-> > And A uses 200M, B uses 1G of memory under 4G system
-> > 
-> > Under the system. 
-> > 	A's socre = (200M *1000)/4G + 300 = 350
-> > 	B's score = (1G * 1000)/4G = 250.
-> 
-> Right, A is penalized 30% of system memory and its use is ~5%, resulting 
-> in a score of 350, or 35%.  B's use is 25%.
-> 
-> > In the cpuset, it has 2G of memory.
-> > 	A's score = (200M * 1000)/2G + 300 = 400
-> > 	B's socre = (1G * 1000)/2G = 500
-> > 
-> > This priority-inversion don't happen in current system.
-> > 
-> 
-> Yes, but this is what oom_score_adj is intended to do: an oom_score_adj of 
-> 300 means task A should be penalized 30% of available memory.  A positive 
-> oom_score_adj typically means "all other competing tasks should be allowed 
-> 30% more memory, cumulatively, compared to this task."  Task A uses ~10% 
-> of available memory and task B uses 50% of available memory.  That's a 40% 
-> difference, which is greater than task A's penalization of 30%, so B is 
-> killed.
+> This patch caches a pointer of memcg in an array. By this, we
+> don't have to call css_lookup() which requires radix-hash walk.
+> This saves some amount of memory footprint at lookup memcg via id.
 >
 
-This will confuse LXC(Linux Container) guys. oom_score is unusable anymore.
+It is a memory versus speed tradeoff, but if the number of created
+cgroups is low, it might not be all that slow, besides we do that for
+swap_cgroup anyway - no?
+ 
 
-Thanks,
--Kame
-
-
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
