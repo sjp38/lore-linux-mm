@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E11526008E4
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 00:04:40 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so5477723iwn.14
-        for <linux-mm@kvack.org>; Mon, 02 Aug 2010 21:09:18 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 646386008E4
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 00:16:06 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o734KlRk009946
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 21:20:47 -0700
+Received: from pwi2 (pwi2.prod.google.com [10.241.219.2])
+	by hpaq3.eem.corp.google.com with ESMTP id o734K4sP019556
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 21:20:45 -0700
+Received: by pwi2 with SMTP id 2so1543405pwi.4
+        for <linux-mm@kvack.org>; Mon, 02 Aug 2010 21:20:45 -0700 (PDT)
+Date: Mon, 2 Aug 2010 21:20:40 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
+In-Reply-To: <20100803121146.cf35b7ed.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008022117200.4146@chino.kir.corp.google.com>
+References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com> <20100729183809.ca4ed8be.akpm@linux-foundation.org> <20100730195338.4AF6.A69D9226@jp.fujitsu.com> <20100802134312.c0f48615.akpm@linux-foundation.org> <20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com> <20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021742440.9569@chino.kir.corp.google.com> <20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021850400.19184@chino.kir.corp.google.com> <20100803110534.e3e7a697.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021953520.27231@chino.kir.corp.google.com>
+ <20100803121146.cf35b7ed.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100803033108.GA23117@arachsys.com>
-References: <20100802124734.GI2486@arachsys.com>
-	<AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
-	<20100803033108.GA23117@arachsys.com>
-Date: Tue, 3 Aug 2010 13:09:18 +0900
-Message-ID: <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
-Subject: Re: Over-eager swapping
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chris Webb <chris@arachsys.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 3, 2010 at 12:31 PM, Chris Webb <chris@arachsys.com> wrote:
-> Minchan Kim <minchan.kim@gmail.com> writes:
->
->> Another possibility is _zone_reclaim_ in NUMA.
->> Your working set has many anonymous page.
->>
->> The zone_reclaim set priority to ZONE_RECLAIM_PRIORITY.
->> It can make reclaim mode to lumpy so it can page out anon pages.
->>
->> Could you show me /proc/sys/vm/[zone_reclaim_mode/min_unmapped_ratio] ?
->
-> Sure, no problem. On the machine with the /proc/meminfo I showed earlier,
-> these are
->
-> =A0# cat /proc/sys/vm/zone_reclaim_mode
-> =A00
-> =A0# cat /proc/sys/vm/min_unmapped_ratio
-> =A01
+On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-if zone_reclaim_mode is zero, it doesn't swap out anon_pages.
+> > Yes, but this is what oom_score_adj is intended to do: an oom_score_adj of 
+> > 300 means task A should be penalized 30% of available memory.  A positive 
+> > oom_score_adj typically means "all other competing tasks should be allowed 
+> > 30% more memory, cumulatively, compared to this task."  Task A uses ~10% 
+> > of available memory and task B uses 50% of available memory.  That's a 40% 
+> > difference, which is greater than task A's penalization of 30%, so B is 
+> > killed.
+> >
+> 
+> This will confuse LXC(Linux Container) guys. oom_score is unusable anymore.
+> 
 
-1) How does VM reclaim anonymous pages even though vm_swappiness =3D=3D
-zero and has big page cache?
-2) I doubt file pages of your system is fulled by Buffers while Cached
-is almost 10M.
-Why is it remained although anon pages is swapped out and cached page
-are reclaimed?
+>From Documentation/filesystems/proc.txt in 2.6.35:
 
-Hmm. I have no idea. :(
+	3.2 /proc/<pid>/oom_score - Display current oom-killer score
+	-------------------------------------------------------------
 
---=20
-Kind regards,
-Minchan Kim
+	This file can be used to check the current score used by the 
+	oom-killer is for any given <pid>. Use it together with 
+	/proc/<pid>/oom_adj to tune which process should be killed in an 
+	out-of-memory situation.
+
+That is unchanged with the rewrite.  /proc/pid/oom_score still exports the 
+badness() score used by the oom killer to determine which task to kill: 
+the highest score will be killed amongst candidate tasks.  The fact that 
+the score can be influenced by cpuset, memcg, or mempolicy constraint is 
+irrelevant, we cannot assume anything about the badness() heuristic's 
+implementation from the score itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
