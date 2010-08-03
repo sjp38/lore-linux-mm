@@ -1,175 +1,403 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EE2F6B035A
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 17:41:04 -0400 (EDT)
-Date: Tue, 3 Aug 2010 22:49:46 +0100
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: Over-eager swapping
-Message-ID: <20100803214945.GA2326@arachsys.com>
-References: <20100802124734.GI2486@arachsys.com>
- <AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
- <20100803033108.GA23117@arachsys.com>
- <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
- <20100803042835.GA17377@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100803042835.GA17377@localhost>
+	by kanga.kvack.org (Postfix) with ESMTP id 6A3D26B035C
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 18:08:41 -0400 (EDT)
+From: Michael Rubin <mrubin@google.com>
+Subject: [PATCH 2/2] writeback: Adding four read-only files to /proc/sys/vm
+Date: Tue,  3 Aug 2010 15:19:09 -0700
+Message-Id: <1280873949-20460-3-git-send-email-mrubin@google.com>
+In-Reply-To: <1280873949-20460-1-git-send-email-mrubin@google.com>
+References: <1280873949-20460-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang <fengguang.wu@intel.com> writes:
+To help developers and applications gain visibility into writeback
+behaviour adding four read only sysctl files into /proc/sys/vm.
+These files allow user apps to understand writeback behaviour over time
+and learn how it is impacting their performance.
 
-> Chris, what's in your /proc/slabinfo?
+   # cat /proc/sys/vm/pages_dirtied
+   3747
+   # cat /proc/sys/vm/pages_entered_writeback
+   3618
+   # cat /proc/sys/vm/dirty_threshold_kbytes
+   816673
+   # cat /proc/sys/vm/dirty_background_threshold_kbytes
+   408336
 
-Hi. Sorry for the slow reply. The exact machine from which I previously
-extracted that /proc/memstat has unfortunately had swap turned off by a
-colleague while I was away, presumably because its behaviour because too
-bad. However, here is info from another member of the cluster, this time
-with 5GB of buffers and 2GB of swap in use, i.e. the same general problem:
+Documentation/vm.txt has been updated.
 
-# cat /proc/meminfo 
-MemTotal:       33084008 kB
-MemFree:         2291464 kB
-Buffers:         4908468 kB
-Cached:            16056 kB
-SwapCached:      1427480 kB
-Active:         22885508 kB
-Inactive:        5719520 kB
-Active(anon):   20466488 kB
-Inactive(anon):  3215888 kB
-Active(file):    2419020 kB
-Inactive(file):  2503632 kB
-Unevictable:       10688 kB
-Mlocked:           10688 kB
-SwapTotal:      25165816 kB
-SwapFree:       22798248 kB
-Dirty:              2616 kB
-Writeback:             0 kB
-AnonPages:      23410296 kB
-Mapped:             6324 kB
-Shmem:                56 kB
-Slab:             692296 kB
-SReclaimable:     189032 kB
-SUnreclaim:       503264 kB
-KernelStack:        4568 kB
-PageTables:        65588 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    41707820 kB
-Committed_AS:   34859884 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      147616 kB
-VmallocChunk:   34342399496 kB
-HardwareCorrupted:     0 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-DirectMap4k:        5888 kB
-DirectMap2M:     2156544 kB
-DirectMap1G:    31457280 kB
+In order to track the "cleaned" and "dirtied" counts we added two
+vm_stat_items.  Per memory node stats have been added also. So we can
+see per node granularity:
 
-# cat /proc/slabinfo 
-slabinfo - version: 2.1
-# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
-kmalloc_dma-512       32     32    512   32    4 : tunables    0    0    0 : slabdata      1      1      0
-nf_conntrack_expect    312    312    208   39    2 : tunables    0    0    0 : slabdata      8      8      0
-nf_conntrack         240    240    272   30    2 : tunables    0    0    0 : slabdata      8      8      0
-dm_raid1_read_record      0      0   1064   30    8 : tunables    0    0    0 : slabdata      0      0      0
-dm_crypt_io          240    260    152   26    1 : tunables    0    0    0 : slabdata     10     10      0
-kcopyd_job             0      0    368   22    2 : tunables    0    0    0 : slabdata      0      0      0
-dm_uevent              0      0   2608   12    8 : tunables    0    0    0 : slabdata      0      0      0
-dm_rq_target_io        0      0    376   21    2 : tunables    0    0    0 : slabdata      0      0      0
-cfq_queue              0      0    168   24    1 : tunables    0    0    0 : slabdata      0      0      0
-bsg_cmd                0      0    312   26    2 : tunables    0    0    0 : slabdata      0      0      0
-mqueue_inode_cache     36     36    896   36    8 : tunables    0    0    0 : slabdata      1      1      0
-udf_inode_cache        0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
-fuse_request           0      0    632   25    4 : tunables    0    0    0 : slabdata      0      0      0
-fuse_inode             0      0    704   23    4 : tunables    0    0    0 : slabdata      0      0      0
-ntfs_big_inode_cache      0      0    832   39    8 : tunables    0    0    0 : slabdata      0      0      0
-ntfs_inode_cache       0      0    264   31    2 : tunables    0    0    0 : slabdata      0      0      0
-isofs_inode_cache      0      0    616   26    4 : tunables    0    0    0 : slabdata      0      0      0
-fat_inode_cache        0      0    648   25    4 : tunables    0    0    0 : slabdata      0      0      0
-fat_cache              0      0     40  102    1 : tunables    0    0    0 : slabdata      0      0      0
-hugetlbfs_inode_cache     28     28    584   28    4 : tunables    0    0    0 : slabdata      1      1      0
-squashfs_inode_cache      0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
-journal_handle      1360   1360     24  170    1 : tunables    0    0    0 : slabdata      8      8      0
-journal_head         288    288    112   36    1 : tunables    0    0    0 : slabdata      8      8      0
-revoke_table         512    512     16  256    1 : tunables    0    0    0 : slabdata      2      2      0
-revoke_record       1024   1024     32  128    1 : tunables    0    0    0 : slabdata      8      8      0
-ext4_inode_cache       0      0    896   36    8 : tunables    0    0    0 : slabdata      0      0      0
-ext4_free_block_extents      0      0     56   73    1 : tunables    0    0    0 : slabdata      0      0      0
-ext4_alloc_context      0      0    144   28    1 : tunables    0    0    0 : slabdata      0      0      0
-ext4_prealloc_space      0      0    104   39    1 : tunables    0    0    0 : slabdata      0      0      0
-ext4_system_zone       0      0     40  102    1 : tunables    0    0    0 : slabdata      0      0      0
-ext2_inode_cache       0      0    752   21    4 : tunables    0    0    0 : slabdata      0      0      0
-ext3_inode_cache    2371   2457    768   21    4 : tunables    0    0    0 : slabdata    117    117      0
-ext3_xattr             0      0     88   46    1 : tunables    0    0    0 : slabdata      0      0      0
-configfs_dir_cache      0      0     88   46    1 : tunables    0    0    0 : slabdata      0      0      0
-kioctx                 0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
-inotify_inode_mark_entry     36     36    112   36    1 : tunables    0    0    0 : slabdata      1      1      0
-posix_timers_cache    224    224    144   28    1 : tunables    0    0    0 : slabdata      8      8      0
-kvm_vcpu              38     45  10256    3    8 : tunables    0    0    0 : slabdata     15     15      0
-kvm_rmap_desc      19408  21828     40  102    1 : tunables    0    0    0 : slabdata    214    214      0
-kvm_pte_chain      14514  28543     56   73    1 : tunables    0    0    0 : slabdata    391    391      0
-UDP-Lite               0      0    768   21    4 : tunables    0    0    0 : slabdata      0      0      0
-ip_dst_cache         221    231    384   21    2 : tunables    0    0    0 : slabdata     11     11      0
-UDP                  168    168    768   21    4 : tunables    0    0    0 : slabdata      8      8      0
-tw_sock_TCP          256    256    256   32    2 : tunables    0    0    0 : slabdata      8      8      0
-TCP                  191    220   1472   22    8 : tunables    0    0    0 : slabdata     10     10      0
-blkdev_queue         178    210   2128   15    8 : tunables    0    0    0 : slabdata     14     14      0
-blkdev_requests      608    816    336   24    2 : tunables    0    0    0 : slabdata     34     34      0
-fsnotify_event         0      0    104   39    1 : tunables    0    0    0 : slabdata      0      0      0
-sock_inode_cache     250    300    640   25    4 : tunables    0    0    0 : slabdata     12     12      0
-file_lock_cache      176    176    184   22    1 : tunables    0    0    0 : slabdata      8      8      0
-shmem_inode_cache   1617   1827    776   21    4 : tunables    0    0    0 : slabdata     87     87      0
-Acpi-ParseExt       1692   1736     72   56    1 : tunables    0    0    0 : slabdata     31     31      0
-proc_inode_cache    1182   1326    616   26    4 : tunables    0    0    0 : slabdata     51     51      0
-sigqueue             200    200    160   25    1 : tunables    0    0    0 : slabdata      8      8      0
-radix_tree_node    65891  69542    560   29    4 : tunables    0    0    0 : slabdata   2398   2398      0
-bdev_cache           312    312    832   39    8 : tunables    0    0    0 : slabdata      8      8      0
-sysfs_dir_cache    21585  22287     80   51    1 : tunables    0    0    0 : slabdata    437    437      0
-inode_cache         2903   2996    568   28    4 : tunables    0    0    0 : slabdata    107    107      0
-dentry              8532   8631    192   21    1 : tunables    0    0    0 : slabdata    411    411      0
-buffer_head       1227688 1296648    112   36    1 : tunables    0    0    0 : slabdata  36018  36018      0
-vm_area_struct     18494  19389    176   23    1 : tunables    0    0    0 : slabdata    843    843      0
-files_cache          236    322    704   23    4 : tunables    0    0    0 : slabdata     14     14      0
-signal_cache         606    702    832   39    8 : tunables    0    0    0 : slabdata     18     18      0
-sighand_cache        415    480   2112   15    8 : tunables    0    0    0 : slabdata     32     32      0
-task_struct          671    840   1616   20    8 : tunables    0    0    0 : slabdata     42     42      0
-anon_vma            1511   1920     32  128    1 : tunables    0    0    0 : slabdata     15     15      0
-shared_policy_node    255    255     48   85    1 : tunables    0    0    0 : slabdata      3      3      0
-numa_policy        19205  20910     24  170    1 : tunables    0    0    0 : slabdata    123    123      0
-idr_layer_cache      373    390    544   30    4 : tunables    0    0    0 : slabdata     13     13      0
-kmalloc-8192          36     36   8192    4    8 : tunables    0    0    0 : slabdata      9      9      0
-kmalloc-4096        2284   2592   4096    8    8 : tunables    0    0    0 : slabdata    324    324      0
-kmalloc-2048         750    896   2048   16    8 : tunables    0    0    0 : slabdata     56     56      0
-kmalloc-1024        4025   4320   1024   32    8 : tunables    0    0    0 : slabdata    135    135      0
-kmalloc-512         1358   1760    512   32    4 : tunables    0    0    0 : slabdata     55     55      0
-kmalloc-256         1402   1952    256   32    2 : tunables    0    0    0 : slabdata     61     61      0
-kmalloc-128         8625   9280    128   32    1 : tunables    0    0    0 : slabdata    290    290      0
-kmalloc-64        7030122 7455232     64   64    1 : tunables    0    0    0 : slabdata 116488 116488      0
-kmalloc-32         18603  19712     32  128    1 : tunables    0    0    0 : slabdata    154    154      0
-kmalloc-16          8895   9728     16  256    1 : tunables    0    0    0 : slabdata     38     38      0
-kmalloc-8           9047  10752      8  512    1 : tunables    0    0    0 : slabdata     21     21      0
-kmalloc-192         5130   9135    192   21    1 : tunables    0    0    0 : slabdata    435    435      0
-kmalloc-96          1905   2940     96   42    1 : tunables    0    0    0 : slabdata     70     70      0
-kmem_cache_node      196    256     64   64    1 : tunables    0    0    0 : slabdata      4      4      0
+   # cat /sys/devices/system/node/node20/writebackstat
+   Node 20 pages_writeback: 0 times
+   Node 20 pages_dirtied: 0 times
 
-# cat /proc/buddyinfo 
-Node 0, zone      DMA      2      0      2      2      2      2      2      1      2      2      2 
-Node 0, zone    DMA32  61877  10368    111     10      2      3      1      0      0      0      0 
-Node 0, zone   Normal   2036      0     14     12      6      3      3      0      1      0      0 
-Node 1, zone   Normal 483348     15      2      3      7      1      3      1      0      0      0 
+Signed-off-by: Michael Rubin <mrubin@google.com>
+---
+ Documentation/sysctl/vm.txt |   41 +++++++++++++++++++++++++---
+ drivers/base/node.c         |   14 +++++++++
+ include/linux/mmzone.h      |    2 +
+ include/linux/writeback.h   |   17 +++++++++++
+ kernel/sysctl.c             |   28 +++++++++++++++++++
+ mm/page-writeback.c         |   64 +++++++++++++++++++++++++++++++++++++++----
+ mm/vmstat.c                 |    2 +
+ 7 files changed, 158 insertions(+), 10 deletions(-)
+
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 5fdbb61..cfb640d 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -22,9 +22,11 @@ Currently, these files are in /proc/sys/vm:
+ - compact_memory
+ - dirty_background_bytes
+ - dirty_background_ratio
++- dirty_background_threshold_kbytes
+ - dirty_bytes
+ - dirty_expire_centisecs
+ - dirty_ratio
++- dirty_threshold_kbytes
+ - dirty_writeback_centisecs
+ - drop_caches
+ - extfrag_threshold
+@@ -50,6 +52,8 @@ Currently, these files are in /proc/sys/vm:
+ - overcommit_memory
+ - overcommit_ratio
+ - page-cluster
++- pages_dirtied
++- pages_entered_writeback
+ - panic_on_oom
+ - percpu_pagelist_fraction
+ - stat_interval
+@@ -92,6 +96,15 @@ the pdflush background writeback daemon will start writing out dirty data.
  
-Best wishes,
-
-Chris.
+ ==============================================================
+ 
++dirty_background_threshold_kbytes
++
++Contains the exact amount of dirty memory memory in kbytes the kernel
++uses to trigger the background writeout daemon will start writing out
++dirty data. This value depends on memory state, dirty_background_ratio
++and/or dirty_background_bytes. This value is read-only.
++
++==============================================================
++
+ dirty_bytes
+ 
+ Contains the amount of dirty memory at which a process generating disk writes
+@@ -123,6 +136,15 @@ data.
+ 
+ ==============================================================
+ 
++dirty_threshold_kbytes
++
++Contains the exact amount of dirty memory in kilobytes that the kernel
++uses to decide when a process which is generating disk writes will itself
++start writing out data. This value depends on memory state, dirty_ratio
++and/or dirty_bytes. This value is read-only.
++
++==============================================================
++
+ dirty_writeback_centisecs
+ 
+ The pdflush writeback daemons will periodically wake up and write `old' data
+@@ -425,10 +447,7 @@ See Documentation/vm/hugetlbpage.txt
+ nr_pdflush_threads
+ 
+ The current number of pdflush threads.  This value is read-only.
+-The value changes according to the number of dirty pages in the system.
+-
+-When necessary, additional pdflush threads are created, one per second, up to
+-nr_pdflush_threads_max.
++This value is obsolete.
+ 
+ ==============================================================
+ 
+@@ -580,8 +599,22 @@ The default value is three (eight pages at a time).  There may be some
+ small benefits in tuning this to a different value if your workload is
+ swap-intensive.
+ 
++
++=============================================================
++
++pages_dirtied
++
++Number of pages that have ever been dirtied since boot.
++This value is read-only.
++
+ =============================================================
+ 
++pages_entered_writeback
++
++Number of pages that have been moved from dirty to writeback since boot.
++This is only a count of file pages. This value is read-only.
++
++=============================================================
+ panic_on_oom
+ 
+ This enables or disables panic on out-of-memory feature.
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 2bdd8a9..b321d32 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -160,6 +160,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
+ }
+ static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+ 
++static ssize_t node_read_writebackstat(struct sys_device *dev,
++				struct sysdev_attribute *attr, char *buf)
++{
++	int nid = dev->id;
++	return sprintf(buf,
++		"Node %d pages_writeback: %lu times\n"
++		"Node %d pages_dirtied: %lu times\n",
++		nid, node_page_state(nid, NR_PAGES_ENTERED_WRITEBACK),
++		nid, node_page_state(nid, NR_FILE_PAGES_DIRTIED));
++}
++static SYSDEV_ATTR(writebackstat, S_IRUGO, node_read_writebackstat, NULL);
++
+ static ssize_t node_read_distance(struct sys_device * dev,
+ 			struct sysdev_attribute *attr, char * buf)
+ {
+@@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct node *parent)
+ 		sysdev_create_file(&node->sysdev, &attr_meminfo);
+ 		sysdev_create_file(&node->sysdev, &attr_numastat);
+ 		sysdev_create_file(&node->sysdev, &attr_distance);
++		sysdev_create_file(&node->sysdev, &attr_writebackstat);
+ 
+ 		scan_unevictable_register_node(node);
+ 
+@@ -267,6 +280,7 @@ void unregister_node(struct node *node)
+ 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+ 	sysdev_remove_file(&node->sysdev, &attr_numastat);
+ 	sysdev_remove_file(&node->sysdev, &attr_distance);
++	sysdev_remove_file(&node->sysdev, &attr_writebackstat);
+ 
+ 	scan_unevictable_unregister_node(node);
+ 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b4d109e..c0cd2bd 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -112,6 +112,8 @@ enum zone_stat_item {
+ 	NUMA_LOCAL,		/* allocation from local node */
+ 	NUMA_OTHER,		/* allocation from other node */
+ #endif
++	NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter writeback */
++	NR_FILE_PAGES_DIRTIED,    /* number of times pages get dirtied */
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ /*
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index c24eca7..b3b7038 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -99,6 +99,10 @@ extern int dirty_background_ratio;
+ extern unsigned long dirty_background_bytes;
+ extern int vm_dirty_ratio;
+ extern unsigned long vm_dirty_bytes;
++extern unsigned long vm_pages_dirtied;
++extern unsigned long vm_pages_entered_writeback;
++extern unsigned long vm_dirty_threshold;
++extern unsigned long vm_bg_threshold;
+ extern unsigned int dirty_writeback_interval;
+ extern unsigned int dirty_expire_interval;
+ extern int vm_highmem_is_dirtyable;
+@@ -120,6 +124,19 @@ extern int dirty_bytes_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp,
+ 		loff_t *ppos);
+ 
++extern int pages_dirtied_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos);
++extern int pages_entered_writeback_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos);
++extern int dirty_threshold_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos);
++extern int bg_threshold_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos);
++
+ struct ctl_table;
+ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
+ 				      void __user *, size_t *, loff_t *);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index d24f761..8dcec17 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1053,6 +1053,34 @@ static struct ctl_table vm_table[] = {
+ 		.proc_handler	= proc_dointvec,
+ 	},
+ 	{
++		.procname	= "pages_dirtied",
++		.data		= &vm_pages_dirtied,
++		.maxlen		= sizeof(vm_pages_dirtied),
++		.mode		= 0444 /* read-only */,
++		.proc_handler	= pages_dirtied_handler,
++	},
++	{
++		.procname	= "pages_entered_writeback",
++		.data		= &vm_pages_entered_writeback,
++		.maxlen		= sizeof(vm_pages_entered_writeback),
++		.mode		= 0444 /* read-only */,
++		.proc_handler	= pages_entered_writeback_handler,
++	},
++	{
++		.procname	= "dirty_threshold_kbytes",
++		.data		= &vm_dirty_threshold,
++		.maxlen		= sizeof(vm_dirty_threshold),
++		.mode		= 0444 /* read-only */,
++		.proc_handler	= dirty_threshold_handler,
++	},
++	{
++		.procname	= "dirty_background_threshold_kbytes",
++		.data		= &vm_bg_threshold,
++		.maxlen		= sizeof(vm_bg_threshold),
++		.mode		= 0444 /* read-only */,
++		.proc_handler	= bg_threshold_handler,
++	},
++	{
+ 		.procname	= "nr_pdflush_threads",
+ 		.data		= &nr_pdflush_threads,
+ 		.maxlen		= sizeof nr_pdflush_threads,
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index b8e7b3b..84e3e2e 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -95,6 +95,20 @@ unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
+  */
+ unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
+ 
++
++/*
++ * Number of pages dirtied and entered writeback state
++ */
++
++unsigned long vm_pages_dirtied;
++unsigned long vm_pages_entered_writeback;
++
++/*
++ * Dirty thresholds for export
++ */
++unsigned long vm_dirty_threshold;
++unsigned long vm_bg_threshold;
++
+ /*
+  * Flag that makes the machine dump writes/reads and block dirtyings.
+  */
+@@ -196,7 +210,6 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
+ 	return ret;
+ }
+ 
+-
+ int dirty_bytes_handler(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp,
+ 		loff_t *ppos)
+@@ -212,6 +225,45 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
+ 	return ret;
+ }
+ 
++int pages_dirtied_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos)
++{
++	vm_pages_dirtied = global_page_state(NR_FILE_PAGES_DIRTIED);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
++}
++
++int pages_entered_writeback_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos)
++{
++	vm_pages_entered_writeback =
++		global_page_state(NR_PAGES_ENTERED_WRITEBACK);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
++}
++
++#define K(pages) ((pages) << (PAGE_SHIFT - 10))
++
++int dirty_threshold_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos)
++{
++	unsigned long bg_thresh, dirty_thresh;
++	get_dirty_limits(&bg_thresh, &dirty_thresh, NULL, NULL);
++	vm_dirty_threshold = K(dirty_thresh);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
++}
++
++int bg_threshold_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *lenp,
++		loff_t *ppos)
++{
++	unsigned long bg_thresh, dirty_thresh;
++	get_dirty_limits(&bg_thresh, &dirty_thresh, NULL, NULL);
++	vm_bg_threshold = K(bg_thresh);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
++}
++
+ /*
+  * Increment the BDI's writeout completion count and the global writeout
+  * completion count. Called from test_clear_page_writeback().
+@@ -1091,6 +1143,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ {
+ 	if (mapping_cap_account_dirty(mapping)) {
+ 		__inc_zone_page_state(page, NR_FILE_DIRTY);
++		__inc_zone_page_state(page, NR_FILE_PAGES_DIRTIED);
+ 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+ 		task_dirty_inc(current);
+ 		task_io_account_write(PAGE_CACHE_SIZE);
+@@ -1103,15 +1156,15 @@ EXPORT_SYMBOL(account_page_dirtied);
+  * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+  * wrt interrupts.
+  */
+-
+ void account_page_writeback(struct page *page, struct address_space *mapping)
+ {
+-	if (mapping_cap_account_dirty(mapping))
++	if (mapping_cap_account_dirty(mapping)) {
+ 		inc_zone_page_state(page, NR_WRITEBACK);
++		inc_zone_page_state(page, NR_PAGES_ENTERED_WRITEBACK);
++	}
+ }
+ EXPORT_SYMBOL(account_page_writeback);
+ 
+-
+ /*
+  * For address_spaces which do not use buffers.  Just tag the page as dirty in
+  * its radix tree.
+@@ -1347,9 +1400,8 @@ int test_set_page_writeback(struct page *page)
+ 		ret = TestSetPageWriteback(page);
+ 	}
+ 	if (!ret)
+-		inc_zone_page_state(page, NR_WRITEBACK);
++		account_page_writeback(page, mapping);
+ 	return ret;
+-
+ }
+ EXPORT_SYMBOL(test_set_page_writeback);
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7759941..e177a40 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -740,6 +740,8 @@ static const char * const vmstat_text[] = {
+ 	"numa_local",
+ 	"numa_other",
+ #endif
++	"nr_pages_entered_writeback",
++	"nr_file_pages_dirtied",
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	"pgpgin",
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
