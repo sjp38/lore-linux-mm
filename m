@@ -1,90 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 41B096B035D
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 18:08:45 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5014C6B0360
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 18:08:46 -0400 (EDT)
 From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 0/2] Adding four writeback files in /proc/sys/vm
-Date: Tue,  3 Aug 2010 15:19:07 -0700
-Message-Id: <1280873949-20460-1-git-send-email-mrubin@google.com>
+Subject: [PATCH 1/2] mm: helper functions for dirty and writeback accounting
+Date: Tue,  3 Aug 2010 15:19:08 -0700
+Message-Id: <1280873949-20460-2-git-send-email-mrubin@google.com>
+In-Reply-To: <1280873949-20460-1-git-send-email-mrubin@google.com>
+References: <1280873949-20460-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 Cc: jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Patch #1 sets up some helper functions for accounting.
+Exporting account_pages_dirty and adding a symmetric routine
+account_pages_writeback.
 
-Patch #2 adds some writeback files for visibility
+This allows code outside of the mm core to safely manipulate page state
+and not worry about the other accounting. Not using these routines means
+that some code will lose track of the accounting and we get bugs.
 
-To help developers and applications gain visibility into writeback
-behaviour adding four read-only sysctl files into /proc/sys/vm.
-These files allow user apps to understand writeback behaviour over time
-and learn how it is impacting their performance.
+These routines are in use by ceph and nilfs2.
 
-   # cat /proc/sys/vm/pages_dirtied
-   3747
-   # cat /proc/sys/vm/pages_entered_writeback
-   3618
-   # cat /proc/sys/vm/dirty_threshold_kbytes
-   816673
-   # cat /proc/sys/vm/dirty_background_threshold_kbytes
-   408336
+Signed-off-by: Michael Rubin <mrubin@google.com>
+---
+ fs/ceph/addr.c      |    8 ++------
+ fs/nilfs2/segment.c |    2 +-
+ include/linux/mm.h  |    1 +
+ mm/page-writeback.c |   15 +++++++++++++++
+ 4 files changed, 19 insertions(+), 7 deletions(-)
 
-The files fall into two groups.
-
-pages_dirtied and pages_entered_writeback:
-
-These two new files are necessary to give visibility into writeback
-behaviour. We have /proc/diskstats which lets us understand the io in
-the block layer. We have blktrace for more indepth understanding. We have
-e2fsprogs and debugsfs to give insight into the file systems behaviour,
-but we don't offer our users the ability understand what writeback is
-doing. There is no non-debugfs way to know how active it is, if it's
-falling behind or to quantify it's efforts on a system. With these values
-exported users can easily see how much data applications are sending
-through writeback and also at what rates writeback is processing this
-data. Comparing the rates of change between the two allow developers
-to see when writeback is not able to keep up with incoming traffic and
-the rate of dirty memory being sent to the IO back end.  This allows
-folks to understand their io workloads and track kernel issues. Non
-kernel engineers at Google often use these counters to solve puzzling
-performance problems.
-
-dirty_threshold_kbytes and dirty_background_threshold kbytes:
-
-We already expose these thresholds in /proc/sys/vm with
-dirty_background_ratio and background_ratio. What's frustrating about
-the ratio variables and the need for these are that they are not
-honored by the kernel. Instead the kernel may alter the number
-requested without giving the user any indication that is the case.
-An app developer can set the ratio to 2% but end up with 5% as
-get_dirty_limits makes sure it is never lower than 5% when set from
-the ratio. Arguably that can be fixed too but the limits which decide
-whether writeback is invoked to aggressively clean dirty pages is
-dependent on changing page state retrieved in
-determine_dirtyable_memory. It makes understanding when the kernel
-decides to writeback data a moving target that no app can ever
-determine. With these thresholds visible and collected over time it
-gives apps a chance to know why writeback happened, or why it did not.
-As systems get larger and larger RAM developers use the ratios to
-predict when their workloads will see writeback invoked. Today there
-is no way to accurately indicate what the kernel will use to kick off
-writeback. Hence the need for these two new files.
-
-Michael Rubin (2):
-  mm: helper functions for dirty and writeback accounting
-  writeback: Adding four read-only files to /proc/sys/vm
-
- Documentation/sysctl/vm.txt |   41 ++++++++++++++++++++++--
- drivers/base/node.c         |   14 ++++++++
- fs/ceph/addr.c              |    8 +---
- fs/nilfs2/segment.c         |    2 +-
- include/linux/mm.h          |    1 +
- include/linux/mmzone.h      |    2 +
- include/linux/writeback.h   |   17 ++++++++++
- kernel/sysctl.c             |   28 ++++++++++++++++
- mm/page-writeback.c         |   73 +++++++++++++++++++++++++++++++++++++++++--
- mm/vmstat.c                 |    2 +
- 10 files changed, 174 insertions(+), 14 deletions(-)
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index d9c60b8..359aa3a 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -106,12 +106,8 @@ static int ceph_set_page_dirty(struct page *page)
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(!PageUptodate(page));
+ 
+-		if (mapping_cap_account_dirty(mapping)) {
+-			__inc_zone_page_state(page, NR_FILE_DIRTY);
+-			__inc_bdi_stat(mapping->backing_dev_info,
+-					BDI_RECLAIMABLE);
+-			task_io_account_write(PAGE_CACHE_SIZE);
+-		}
++		if (mapping_cap_account_dirty(mapping))
++			account_page_dirtied(page, page->mapping);
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 
+diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+index c920164..967ed7d 100644
+--- a/fs/nilfs2/segment.c
++++ b/fs/nilfs2/segment.c
+@@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
+ 	kunmap_atomic(kaddr, KM_USER0);
+ 
+ 	if (!TestSetPageWriteback(clone_page))
+-		inc_zone_page_state(clone_page, NR_WRITEBACK);
++		account_page_writeback(clone_page, page_mapping(clone_page));
+ 	unlock_page(clone_page);
+ 
+ 	return 0;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a2b4804..b138392 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -855,6 +855,7 @@ int __set_page_dirty_no_writeback(struct page *page);
+ int redirty_page_for_writepage(struct writeback_control *wbc,
+ 				struct page *page);
+ void account_page_dirtied(struct page *page, struct address_space *mapping);
++void account_page_writeback(struct page *page, struct address_space *mapping);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 37498ef..b8e7b3b 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1096,6 +1096,21 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ 		task_io_account_write(PAGE_CACHE_SIZE);
+ 	}
+ }
++EXPORT_SYMBOL(account_page_dirtied);
++
++/*
++ * Helper function for set_page_writeback family.
++ * NOTE: Unlike account_page_dirtied this does not rely on being atomic
++ * wrt interrupts.
++ */
++
++void account_page_writeback(struct page *page, struct address_space *mapping)
++{
++	if (mapping_cap_account_dirty(mapping))
++		inc_zone_page_state(page, NR_WRITEBACK);
++}
++EXPORT_SYMBOL(account_page_writeback);
++
+ 
+ /*
+  * For address_spaces which do not use buffers.  Just tag the page as dirty in
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
