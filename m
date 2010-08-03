@@ -1,114 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id F0C316008E4
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 02:34:20 -0400 (EDT)
-Date: Tue, 3 Aug 2010 14:39:29 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Over-eager swapping
-Message-ID: <20100803063929.GB17955@localhost>
-References: <20100802124734.GI2486@arachsys.com>
- <AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
- <20100803033108.GA23117@arachsys.com>
- <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
- <20100803042835.GA17377@localhost>
- <AANLkTimC1z0MwTxUjxED7N1-R4D_YXtvnPSbiKXdR+4W@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AA76F6008E4
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 03:10:37 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id o737GLT3009005
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 00:16:21 -0700
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by hpaq5.eem.corp.google.com with ESMTP id o737GJQH015550
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 00:16:20 -0700
+Received: by pwi5 with SMTP id 5so1492184pwi.5
+        for <linux-mm@kvack.org>; Tue, 03 Aug 2010 00:16:19 -0700 (PDT)
+Date: Tue, 3 Aug 2010 00:16:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
+In-Reply-To: <20100803114624.5A6F.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008030002500.20849@chino.kir.corp.google.com>
+References: <20100730195338.4AF6.A69D9226@jp.fujitsu.com> <20100802134312.c0f48615.akpm@linux-foundation.org> <20100803114624.5A6F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimC1z0MwTxUjxED7N1-R4D_YXtvnPSbiKXdR+4W@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Chris Webb <chris@arachsys.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 03, 2010 at 12:47:36PM +0800, Minchan Kim wrote:
-> On Tue, Aug 3, 2010 at 1:28 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > On Tue, Aug 03, 2010 at 12:09:18PM +0800, Minchan Kim wrote:
-> >> On Tue, Aug 3, 2010 at 12:31 PM, Chris Webb <chris@arachsys.com> wrote:
-> >> > Minchan Kim <minchan.kim@gmail.com> writes:
-> >> >
-> >> >> Another possibility is _zone_reclaim_ in NUMA.
-> >> >> Your working set has many anonymous page.
-> >> >>
-> >> >> The zone_reclaim set priority to ZONE_RECLAIM_PRIORITY.
-> >> >> It can make reclaim mode to lumpy so it can page out anon pages.
-> >> >>
-> >> >> Could you show me /proc/sys/vm/[zone_reclaim_mode/min_unmapped_ratio] ?
-> >> >
-> >> > Sure, no problem. On the machine with the /proc/meminfo I showed earlier,
-> >> > these are
-> >> >
-> >> > A # cat /proc/sys/vm/zone_reclaim_mode
-> >> > A 0
-> >> > A # cat /proc/sys/vm/min_unmapped_ratio
-> >> > A 1
-> >>
-> >> if zone_reclaim_mode is zero, it doesn't swap out anon_pages.
-> >
-> > If there are lots of order-1 or higher allocations, anonymous pages
-> > will be randomly evicted, regardless of their LRU ages. This is
-> 
-> I thought swapped out page is huge (ie, 3G) even though it enters lumpy mode.
-> But it's possible. :)
-> 
-> > probably another factor why the users claim. Are there easy ways to
-> > confirm this other than patching the kernel?
-> 
-> cat /proc/buddyinfo can help?
+On Tue, 3 Aug 2010, KOSAKI Motohiro wrote:
 
-Some high order slab caches may show up there :)
+> Tue,  8 Jun 2010
+> KOSAKI Motohiro wrote:
+> > Sorry I can't ack this. again and again, I try to explain why this is wrong
+> > (hopefully last)
+> > 
+> > 1) incompatibility
+> >    oom_score is one of ABI. then, we can't change this. from enduser view,
+> >    this change is no merit. In general, an incompatibility is allowed on very
+> >    limited situation such as that an end-user get much benefit than compatibility.
+> >    In other word, old style ABI doesn't works fine from end user view.
+> >    But, in this case, it isn't.
+> > 
 
-> Off-topic:
-> It would be better to add new vmstat of lumpy entrance.
+oom_score is unchanged from its documented purpose, it still reports the 
+value that the oom_badness() function returns to decide which task to 
+kill, and it's unchanged that the greatest score from the set of allowed 
+tasks is the one selected (or its child sacrificed).  The implementation 
+of oom_badness() has never been tied directly to the reporting of 
+/proc/pid/oom_score.  (With the old heuristic, the score also changed 
+based on the cpuset placement and even runtime!)
 
-I think it's a good debug entry. Although convenient, lumpy reclaim
-is accompanied with some bad side effects. When something goes wrong,
-it helps to check the number of lumpy reclaims.
+> > 2) technically incorrect
+> >    this math is not correct math. this is not represented "allowed memory".
+> >    example, 1) this is not accumulated mlocked memory, but it can be freed
+> >    task kill 2) SHM_LOCKED memory freeablility depend on IPC_RMID did or not.
+> >    if not, task killing doesn't free SYSV IPC memory.
+> >    In additon, 3) This normalization doesn't works on asymmetric numa. 
+> >    total pages and oom are not related almostly. 4) scalability. if the 
+> >    system 10TB memory, 1 point oom score mean 10GB memory consumption.
+> >    it seems too rough. generically, a value suppression itself is evil for
+> >    scalability software.
+> > 
 
-Thanks,
-Fengguang
+I responded to this and said that I would change the denominator of the 
+fraction from accounting only anonymous and pagecache to all allowed 
+memory (totalram_pages, memcg limit, or the aggregate of 
+node_spanned_pages).
 
-> Pseudo code.
+> Andrew Morton wrote:
+
+I responded directly to this message that akpm wrote and addressed all his 
+points.  It went unanswered.  For your convenience, my response is 
+archived at http://marc.info/?l=linux-mm&m=127675274612692 from a couple 
+months ago.  Why you would quote his email and not my reply is strange.
+
+> Another summize here, 
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0f9f624..d10ff4e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1641,7 +1641,7 @@ out:
->         }
->  }
+> 1. I pointed out oom_score_adj is too google specific and harmful for
+>    desktop user.
 > 
-> -static void set_lumpy_reclaim_mode(int priority, struct scan_control *sc)
-> +static void set_lumpy_reclaim_mode(int priority, struct scan_control
-> *sc, struct zone *zone)
->  {
->         /*
->          * If we need a large contiguous chunk of memory, or have
-> @@ -1654,6 +1654,9 @@ static void set_lumpy_reclaim_mode(int priority,
-> struct scan_control *sc)
->                 sc->lumpy_reclaim_mode = 1;
->         else
->                 sc->lumpy_reclaim_mode = 0;
-> +
-> +       if (sc->lumpy_reclaim_mode)
-> +               inc_zone_state(zone, NR_LUMPY);
->  }
+
+oom_score_adj does nothing if the desktop user doesn't tune it, so I don't 
+know what you're referring to here.  The desktop user need not know about 
+it.
+
+> I thought he agree to remove desktop regression and back to requirement 
+> analisys and make much better patches. but It didn't happen. I'm sad.
 > 
->  /*
-> @@ -1670,7 +1673,7 @@ static void shrink_zone(int priority, struct zone *zone,
+
+There's no desktop regression.
+
+> Although someone think google usecase is most important in the world, _I_
+> don't think so yet. I still worry about rest almost all user.
 > 
->         get_scan_count(zone, sc, nr, priority);
+
+This isn't specific at all to Google, oom_score_adj is a much more 
+powerful userspace interface that allows the badness heuristic to be 
+influenced in ways that we currently can't.  That's because it actually 
+has a unit and works in a predictable and well-defined way.  Arguing that 
+we must live with a bitshift on the badness score is not in anyone's best 
+interest.
+
+> I didn't say he didn't tested. I'd say, need to confirm test cases
+> match typical use case. About two month ago, David posted previous 
+> patch series. he and you talked about this is well tested. but When
+> I ran, forkbom detection feature of it don't works at all in typical
+> case. That said, google testing/production enviromnnet is a bit
+> differenct from other almost world. I'm worry about this.
 > 
-> -       set_lumpy_reclaim_mode(priority, sc);
-> +       set_lumpy_reclaim_mode(priority, sc, zone);
+
+The forkbomb detector was removed because I found it was too controversial 
+and I didn't want to hold up making progress on this rewrite which is a 
+clear win for both desktop and server users.
+
+> > I think I'll merge it into 2.6.36.  That gives us two months to
+> > continue to review it, to test it and if necessary, to fix it or revert
+> > it.
 > 
->         while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
->                                         nr[LRU_INACTIVE_FILE]) {
+> I have question. Why did you changed your mention? All of your question
+> were solved? if so, can you please share your conclustion and decision
+> reason?
 > 
-> -- 
-> Kind regards,
-> Minchan Kim
+
+Perhaps he was satisfied with my response to his email that I wrote that 
+addressed his concerns either directly or with changes to this most recent 
+revision.  The patch that is now merged in -mm is different from previous 
+versions: the denominator of the fraction was changed (at your request) 
+and the forkbomb detector was removed (at yours and others request).
+
+> So, I would propose minimum oom_score_adj reverting patch here.
+> I don't worry rest parts so much. because they don't have ABI change.
+> so we can revert them later if we've found another issue later.
+> 
+> Thanks.
+> 
+> 
+> 
+> ============================================================
+> Subject: [PATCH] revert oom_score_adj
+> 
+> oom_score_adj bring to a lot of harm than its worth. and It haven't
+> get any concensus. so revert it.
+> 
+
+This is becoming very typical, KOSAKI, and it's getting old.  You're 
+proposing sweeping changes without any reasoning behind them.  If you have 
+a problem with /proc/pid/oom_score_adj, please enumerate them here and now 
+and we can discuss them.  Nobody here is interested in looking at old 
+revisions of this change, looking through hundreds of emails, or trying to 
+infer what you're talking about.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
