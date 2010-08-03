@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CA68F600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 21:46:32 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o731oIhh023209
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:50:18 -0700
-Received: from pxi13 (pxi13.prod.google.com [10.243.27.13])
-	by hpaq2.eem.corp.google.com with ESMTP id o731oGv4019825
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:50:16 -0700
-Received: by pxi13 with SMTP id 13so1725248pxi.36
-        for <linux-mm@kvack.org>; Mon, 02 Aug 2010 18:50:15 -0700 (PDT)
-Date: Mon, 2 Aug 2010 18:50:11 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EE4D600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 21:49:02 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o731qnCE012143
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:52:49 -0700
+Received: from pzk3 (pzk3.prod.google.com [10.243.19.131])
+	by wpaz5.hot.corp.google.com with ESMTP id o731qgqu027631
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:52:48 -0700
+Received: by pzk3 with SMTP id 3so1747345pzk.36
+        for <linux-mm@kvack.org>; Mon, 02 Aug 2010 18:52:42 -0700 (PDT)
+Date: Mon, 2 Aug 2010 18:52:40 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-In-Reply-To: <20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1008021837370.19184@chino.kir.corp.google.com>
+In-Reply-To: <20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008021850400.19184@chino.kir.corp.google.com>
 References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com> <20100729183809.ca4ed8be.akpm@linux-foundation.org> <20100730195338.4AF6.A69D9226@jp.fujitsu.com> <20100802134312.c0f48615.akpm@linux-foundation.org> <20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
  <alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com> <20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008021742440.9569@chino.kir.corp.google.com> <20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,46 +27,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-> Hmm, then, oom_score shows the values for all limitations in array ?
+> > Hmm, then, oom_score shows the values for all limitations in array ?
+> > 
+> Anyway, the fact "oom_score can be changed by the context of OOM" may
+> confuse admins. "OMG, why low oom_score application is killed! Shit!"
+> 
+> Please add additional cares for users if we go this way or remove
+> user visible oom_score file from /proc.
 > 
 
-/proc/pid/oom_score will change if a task's cpuset, memcg, or mempolicy 
-attachment changes or its mems, nodes, or limit changes because it's a 
-proportion of available memory.  /proc/pid/oom_score_adj stays constant 
-such that the oom killing priority of that task relative to other tasks 
-sharing the same constraints and competing for the same memory is the 
-same.  The point is that it doesn't matter how much memory a task has 
-available, but rather what it's priority is with the tasks that compete 
-with it for memory.
-
-You could, of course, do some simple arithmetic to write a memory quantity 
-to oom_score_adj if you really wanted to, but that would force the user to 
-recalculate the value anytime the task's cpuset, mempolicy, or memcg 
-changes.
-
-> > > Usual disto alreay enables it.
-> > > 
-> > 
-> > Yes, I'm well aware of my 40MB of lost memory on my laptop :)
-> > 
-> Very sorry ;)
-> But it's required to track memory usage from init...
-> 
-
-Memcg comes with a cost of ~1% of system memory on x86 since
-struct page_cgroup is ~1% of a 4K page.  That means if we were to deploy 
-memcg on all of our servers and the number of jobs we can run is 
-constrained only by memory, it's equivalent to losing ~1% of our servers.  
-That, for us, is very large.
-
-This is a different topic entirely, but it's a very significant 
-disadvantage and enough that most people who care about oom killing 
-prioritization aren't going to wany to incur such an overhead by enabling 
-memcg or setting up individual memcg for each and every job, because that 
-requires specific knowledge of all those jobs.
-
-I'm not by any means proposing oom_score_adj as being very popular for the 
-usual desktop environments :)
+Sure, a task could be killed with a very low /proc/pid/oom_score, but only 
+if its cpuset is oom, for example, and it has the highest score of all 
+tasks attached to that oom_score.  So /proc/pid/oom_score needs to be 
+considered in the context in which the oom occurs: system-wide, cpuset, 
+mempolicy, or memcg.  That's unchanged from the old oom killer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
