@@ -1,133 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5AA77600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 20:37:37 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o730evra032294
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Aug 2010 09:40:58 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A9A9C45DE57
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:40:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8535A45DE51
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:40:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C9241DB803E
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:40:57 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 05FB11DB803C
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:40:57 +0900 (JST)
-Date: Tue, 3 Aug 2010 09:36:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-Message-Id: <20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com>
-References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com>
-	<20100729183809.ca4ed8be.akpm@linux-foundation.org>
-	<20100730195338.4AF6.A69D9226@jp.fujitsu.com>
-	<20100802134312.c0f48615.akpm@linux-foundation.org>
-	<20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 73DD3600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 20:42:16 -0400 (EDT)
+Date: Tue, 3 Aug 2010 08:45:11 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Bug 12309 - Large I/O operations result in poor interactive
+ performance and high iowait times
+Message-ID: <20100803004511.GB5198@localhost>
+References: <20100802003616.5b31ed8b@digital-domain.net>
+ <20100802081253.GA27492@localhost>
+ <20100802171954.4F95.A69D9226@jp.fujitsu.com>
+ <20100802115748.GA5308@localhost>
+ <AANLkTimPicvVXnfc1qkuWekzmEz18E=t50yhzaxpToae@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTimPicvVXnfc1qkuWekzmEz18E=t50yhzaxpToae@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Clayton <andrew@digital-domain.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, "pvz@pvz.pp.se" <pvz@pvz.pp.se>, "bgamari@gmail.com" <bgamari@gmail.com>, "larppaxyz@gmail.com" <larppaxyz@gmail.com>, "seanj@xyke.com" <seanj@xyke.com>, "kernel-bugs.dev1world@spamgourmet.com" <kernel-bugs.dev1world@spamgourmet.com>, "akatopaz@gmail.com" <akatopaz@gmail.com>, "frankrq2009@gmx.com" <frankrq2009@gmx.com>, "thomas.pi@arcor.de" <thomas.pi@arcor.de>, "spawels13@gmail.com" <spawels13@gmail.com>, "vshader@gmail.com" <vshader@gmail.com>, "rockorequin@hotmail.com" <rockorequin@hotmail.com>, "ylalym@gmail.com" <ylalym@gmail.com>, "theholyettlz@googlemail.com" <theholyettlz@googlemail.com>, "hassium@yandex.ru" <hassium@yandex.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Aug 2010 17:27:13 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
+> > What in my mind is (without any throttling)
+> >
+> > A  A  A  A if (PageSwapcache(page)) {
+> > A  A  A  A  A  A  A  A if (bdi_write_congested(bdi))
 > 
-> > One reason I poitned out is that this new parameter is hard to use for admins and
-> > library writers. 
-> >   old oom_adj was defined as an parameter works as 
-> > 		(memory usage of app)/oom_adj.
+> You mentioned following as.
 > 
-> Where are you getting this definition from?
+> "However !bdi_write_congested(bdi) is now unconditionally true for the
+> swapper_space, which means any process can do swap out to a congested
+> queue and block there."
 > 
-> Disregarding all the other small adjustments in the old heuristic, a 
-> reduced version of the formula was mm->total_vm << oom_adj.  It's a 
-> shift, not a divide.  That has no sensible meaning.
-> 
-yes. that was quite useless.
+> But you used bdi_write_congested in here.
+> Which is right?
 
-
-
-> >   new oom_score_adj was define as
-> > 		(memory usage of app * oom_score_adj)/ system_memory
-> > 
-> 
-> No, it's (rss + swap + oom_score_adj) / bound memory.  It's an addition, 
-> not a multiplication, and it's a proportion of memory the application is 
-> bound to, not the entire system (it could be constrained by cpuset, 
-> mempolicy, or memcg).
-> 
-sorry.
-
-> > Then, an applications' oom_score on a host is quite different from on the other
-> > host. This operation is very new rather than a simple interface updates.
-> > This opinion was rejected.
-> > 
-> 
-> It wasn't rejected, I responded to your comment and you never wrote back.  
-> The idea 
-> 
-I just got tired to write the same thing in many times. And I don't have
-strong opinions. I _know_ your patch fixes X-server problem. That was enough
-for me.
-
-
-> > Anyway, I believe the value other than OOM_DISABLE is useless,
-> 
-> You're right in that OOM_DISABLE fulfills may typical use cases to simply 
-> protect a task by making it immune to the oom killer.  But there are other 
-> use cases for the oom killer that you're perhaps not using where a 
-> sensible userspace tunable does make a difference: the goal of the 
-> heuristic is always to kill the task consuming the most amount of memory 
-> to avoid killing tons of applications for subsequent page allocations.  We 
-> do run important tasks that consume lots of memory, though, and the kernel 
-> can't possibly know about that importance.  So although you may never use 
-> a positive oom_score_adj, although others will, you probably can find a 
-> use case for subtracting a memory quantity from a known memory hogging 
-> task that you consider to be vital in an effort to disregard that quantity 
-> from the score.  I'm sure you'll agree it's a much more powerful (and 
-> fine-grained) interface than oom_adj.
-> 
-Yes, I agree if we can assume the admins are very clever.
-
-> > I have no concerns. I'll use memcg if I want to control this kind of things.
-> > 
-> 
-> That would work if you want to setup individual memcgs for every 
-> application on your system, know what sane limits are for each one, and 
-> want to incur the significant memory expense of enabling 
-> CONFIG_CGROUP_MEM_RES_CTLR for its metadata.
-> 
-Usual disto alreay enables it.
-
-Simply puts all applications to a group and disable oom and set oom_notifier. 
-Then,
- - a "pop-up window" of task list will ask the user "which one do you want to kill ?"
- - send a packet to ask a administlation server system "which one is killable ?"
-   or "increase memory limit" or "memory hot-add ?" 
-
-Possible case will be
-   - send SIGSTOP to all apps at OOM.
-   - rise limit to some extent. or move a killable one to a special group.
-   - wake up a killable one with SIGCONT.
-   - send SIGHUP to stop it safely.
-
-"My application is killed by the system!!, without running safe emeregency code!"
-is the fundamental seeds of disconent.
-
+Ah sorry, I was also cheated by the name.. bdi_write_congested()
+won't work for swap_backing_dev_info.  Anyway you may take it as
+"pseudo" code :)
 
 Thanks,
--Kame
-
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
