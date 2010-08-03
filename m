@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 58824620113
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:24:18 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o73DE9p3009841
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:14:09 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o73DWVNi136996
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:32:31 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o73DWVpu010580
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 10:32:31 -0300
-Message-ID: <4C581A6D.9030908@austin.ibm.com>
-Date: Tue, 03 Aug 2010 08:32:29 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 00704620113
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:28:23 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o73Da0YY016895
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:36:00 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o73Daf6J372060
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:36:41 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o73Daefu025942
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:36:41 -0400
+Message-ID: <4C581B67.1010202@austin.ibm.com>
+Date: Tue, 03 Aug 2010 08:36:39 -0500
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/9] v4  De-couple sysfs memory directories from memory sections
+Subject: [PATCH 1/9] v4  Move the find_memory_block() routine up
+References: <4C581A6D.9030908@austin.ibm.com>
+In-Reply-To: <4C581A6D.9030908@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,48 +25,94 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 Cc: Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This set of patches de-couples the idea that there is a single
-directory in sysfs for each memory section.  The intent of the
-patches is to reduce the number of sysfs directories created to
-resolve a boot-time performance issue.  On very large systems
-boot time are getting very long (as seen on powerpc hardware)
-due to the enormous number of sysfs directories being created.
-On a system with 1 TB of memory we create ~63,000 directories.
-For even larger systems boot times are being measured in hours.
+Move the find_memory_block() routine up to avoid needing a forward
+declaration in subsequent patches.
 
-This set of patches allows for each directory created in sysfs
-to cover more than one memory section.  The default behavior for
-sysfs directory creation is the same, in that each directory
-represents a single memory section.  A new file 'end_phys_index'
-in each directory contains the physical_id of the last memory
-section covered by the directory so that users can easily
-determine the memory section range of a directory.
+Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
+---
+ drivers/base/memory.c |   62 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)
 
-Updates for version 4 of the patchset includes an additional
-patch [4/9] that introduces a new mutex to be taken for any
-add or remove (not hotplug) of memory.  The following updates
-are also included.
+Index: linux-2.6/drivers/base/memory.c
+===================================================================
+--- linux-2.6.orig/drivers/base/memory.c	2010-08-02 13:23:51.000000000 -0500
++++ linux-2.6/drivers/base/memory.c	2010-08-02 13:32:21.000000000 -0500
+@@ -435,6 +435,37 @@ int __weak arch_get_memory_phys_device(u
+ 	return 0;
+ }
  
-Patch 2/9 Add new phys_index properties
-- The start_phys_index property was reverted to the original
-  phys_index name.
-
-Patch 3/9 Add section count to memory_block
-- Use atomic_dec_and_test()
-
-Patch 7/9 Update the node sysfs code
-- Update the inline definition of unregister_mem_sects_under_nodes
-  for !CONFIG_NUMA builds.
-
-Patch 8/9 Define memory_block_size_bytes() for ppc/pseries
-- Use an unsigned long for getting property value.
-
-Patch 9/9 Update memory-hotplug documentation
-- Minor updates for reversion of phys_index property name.
-
-Thanks,
-
-Nathan Fontenot
++/*
++ * For now, we have a linear search to go find the appropriate
++ * memory_block corresponding to a particular phys_index. If
++ * this gets to be a real problem, we can always use a radix
++ * tree or something here.
++ *
++ * This could be made generic for all sysdev classes.
++ */
++struct memory_block *find_memory_block(struct mem_section *section)
++{
++	struct kobject *kobj;
++	struct sys_device *sysdev;
++	struct memory_block *mem;
++	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
++
++	/*
++	 * This only works because we know that section == sysdev->id
++	 * slightly redundant with sysdev_register()
++	 */
++	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
++
++	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
++	if (!kobj)
++		return NULL;
++
++	sysdev = container_of(kobj, struct sys_device, kobj);
++	mem = container_of(sysdev, struct memory_block, sysdev);
++
++	return mem;
++}
++
+ static int add_memory_block(int nid, struct mem_section *section,
+ 			unsigned long state, enum mem_add_context context)
+ {
+@@ -468,37 +499,6 @@ static int add_memory_block(int nid, str
+ 	return ret;
+ }
+ 
+-/*
+- * For now, we have a linear search to go find the appropriate
+- * memory_block corresponding to a particular phys_index. If
+- * this gets to be a real problem, we can always use a radix
+- * tree or something here.
+- *
+- * This could be made generic for all sysdev classes.
+- */
+-struct memory_block *find_memory_block(struct mem_section *section)
+-{
+-	struct kobject *kobj;
+-	struct sys_device *sysdev;
+-	struct memory_block *mem;
+-	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
+-
+-	/*
+-	 * This only works because we know that section == sysdev->id
+-	 * slightly redundant with sysdev_register()
+-	 */
+-	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
+-
+-	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
+-	if (!kobj)
+-		return NULL;
+-
+-	sysdev = container_of(kobj, struct sys_device, kobj);
+-	mem = container_of(sysdev, struct memory_block, sysdev);
+-
+-	return mem;
+-}
+-
+ int remove_memory_block(unsigned long node_id, struct mem_section *section,
+ 		int phys_device)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
