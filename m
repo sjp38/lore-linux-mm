@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CB9D620113
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:35:08 -0400 (EDT)
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o73DevSq032101
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:40:57 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o73DhQKW2236528
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 09:43:26 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o73DhPBv029184
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 10:43:25 -0300
-Message-ID: <4C581CFB.6010306@austin.ibm.com>
-Date: Tue, 03 Aug 2010 08:43:23 -0500
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D76620113
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:36:11 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o73DZxM9004736
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 07:35:59 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o73DiHB8162556
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 07:44:18 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o73DiG7r016637
+	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 07:44:17 -0600
+Message-ID: <4C581D30.60300@austin.ibm.com>
+Date: Tue, 03 Aug 2010 08:44:16 -0500
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 8/9] v4  Define memory_block_size_bytes() for ppc/pseries
+Subject: [PATCH 9/9] v4  Update memory-hotplug documentation
 References: <4C581A6D.9030908@austin.ibm.com>
 In-Reply-To: <4C581A6D.9030908@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -25,109 +25,79 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 Cc: Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Define a version of memory_block_size_bytes() for powerpc/pseries such that
-a memory block spans an entire lmb.
+Update the memory hotplug documentation to reflect the new behaviors of
+memory blocks reflected in sysfs.
 
 Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 ---
- arch/powerpc/platforms/pseries/hotplug-memory.c |   66 +++++++++++++++++++-----
- 1 file changed, 53 insertions(+), 13 deletions(-)
+ Documentation/memory-hotplug.txt |   40 +++++++++++++++++++++++----------------
+ 1 file changed, 24 insertions(+), 16 deletions(-)
 
-Index: linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c
+Index: linux-2.6/Documentation/memory-hotplug.txt
 ===================================================================
---- linux-2.6.orig/arch/powerpc/platforms/pseries/hotplug-memory.c	2010-08-02 13:57:03.000000000 -0500
-+++ linux-2.6/arch/powerpc/platforms/pseries/hotplug-memory.c	2010-08-02 14:09:52.000000000 -0500
-@@ -17,6 +17,54 @@
- #include <asm/pSeries_reconfig.h>
- #include <asm/sparsemem.h>
+--- linux-2.6.orig/Documentation/memory-hotplug.txt	2010-08-02 14:09:28.000000000 -0500
++++ linux-2.6/Documentation/memory-hotplug.txt	2010-08-02 14:10:36.000000000 -0500
+@@ -126,36 +126,44 @@ config options.
+ --------------------------------
+ 4 sysfs files for memory hotplug
+ --------------------------------
+-All sections have their device information under /sys/devices/system/memory as
++All sections have their device information in sysfs.  Each section is part of
++a memory block under /sys/devices/system/memory as
  
-+static u32 get_memblock_size(void)
-+{
-+	struct device_node *np;
-+	unsigned int memblock_size = 0;
-+
-+	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-+	if (np) {
-+		const unsigned long *size;
-+
-+		size = of_get_property(np, "ibm,lmb-size", NULL);
-+		memblock_size = size ? *size : 0;
-+
-+		of_node_put(np);
-+	} else {
-+		unsigned int memzero_size = 0;
-+		const unsigned int *regs;
-+
-+		np = of_find_node_by_path("/memory@0");
-+		if (np) {
-+			regs = of_get_property(np, "reg", NULL);
-+			memzero_size = regs ? regs[3] : 0;
-+			of_node_put(np);
-+		}
-+
-+		if (memzero_size) {
-+			/* We now know the size of memory@0, use this to find
-+			 * the first memoryblock and get its size.
-+			 */
-+			char buf[64];
-+
-+			sprintf(buf, "/memory@%x", memzero_size);
-+			np = of_find_node_by_path(buf);
-+			if (np) {
-+				regs = of_get_property(np, "reg", NULL);
-+				memblock_size = regs ? regs[3] : 0;
-+				of_node_put(np);
-+			}
-+		}
-+	}
-+
-+	return memblock_size;
-+}
-+
-+u32 memory_block_size_bytes(void)
-+{
-+	return get_memblock_size();
-+}
-+
- static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
- {
- 	unsigned long start, start_pfn;
-@@ -127,30 +175,22 @@ static int pseries_add_memory(struct dev
+ /sys/devices/system/memory/memoryXXX
+-(XXX is section id.)
++(XXX is the section id.)
  
- static int pseries_drconf_memory(unsigned long *base, unsigned int action)
- {
--	struct device_node *np;
--	const unsigned long *lmb_size;
-+	unsigned long memblock_size;
- 	int rc;
+-Now, XXX is defined as start_address_of_section / section_size.
++Now, XXX is defined as (start_address_of_section / section_size) of the first
++section contained in the memory block.
  
--	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
--	if (!np)
-+	memblock_size = get_memblock_size();
-+	if (!memblock_size)
- 		return -EINVAL;
+ For example, assume 1GiB section size. A device for a memory starting at
+ 0x100000000 is /sys/device/system/memory/memory4
+ (0x100000000 / 1Gib = 4)
+ This device covers address range [0x100000000 ... 0x140000000)
  
--	lmb_size = of_get_property(np, "ibm,lmb-size", NULL);
--	if (!lmb_size) {
--		of_node_put(np);
--		return -EINVAL;
--	}
--
- 	if (action == PSERIES_DRCONF_MEM_ADD) {
--		rc = memblock_add(*base, *lmb_size);
-+		rc = memblock_add(*base, memblock_size);
- 		rc = (rc < 0) ? -EINVAL : 0;
- 	} else if (action == PSERIES_DRCONF_MEM_REMOVE) {
--		rc = pseries_remove_memblock(*base, *lmb_size);
-+		rc = pseries_remove_memblock(*base, memblock_size);
- 	} else {
- 		rc = -EINVAL;
- 	}
+-Under each section, you can see 4 files.
++Under each section, you can see 5 files.
  
--	of_node_put(np);
- 	return rc;
- }
+-/sys/devices/system/memory/memoryXXX/phys_index
++/sys/devices/system/memory/memoryXXX/start_phys_index
++/sys/devices/system/memory/memoryXXX/end_phys_index
+ /sys/devices/system/memory/memoryXXX/phys_device
+ /sys/devices/system/memory/memoryXXX/state
+ /sys/devices/system/memory/memoryXXX/removable
  
+-'phys_index' : read-only and contains section id, same as XXX.
+-'state'      : read-write
+-               at read:  contains online/offline state of memory.
+-               at write: user can specify "online", "offline" command
+-'phys_device': read-only: designed to show the name of physical memory device.
+-               This is not well implemented now.
+-'removable'  : read-only: contains an integer value indicating
+-               whether the memory section is removable or not
+-               removable.  A value of 1 indicates that the memory
+-               section is removable and a value of 0 indicates that
+-               it is not removable.
++'phys_index'      : read-only and contains section id of the first section
++		    in the memory block, same as XXX.
++'end_phys_index'  : read-only and contains section id of the last section
++		    in the memory block.
++'state'           : read-write
++                    at read:  contains online/offline state of memory.
++                    at write: user can specify "online", "offline" command
++                    which will be performed on al sections in the block.
++'phys_device'     : read-only: designed to show the name of physical memory
++                    device.  This is not well implemented now.
++'removable'       : read-only: contains an integer value indicating
++                    whether the memory block is removable or not
++                    removable.  A value of 1 indicates that the memory
++                    block is removable and a value of 0 indicates that
++                    it is not removable. A memory block is removable only if
++                    every section in the block is removable.
+ 
+ NOTE:
+   These directories/files appear after physical memory hotplug phase.
 
 
 --
