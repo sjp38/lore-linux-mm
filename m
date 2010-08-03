@@ -1,133 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 66230620113
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 09:48:46 -0400 (EDT)
-Date: Tue, 3 Aug 2010 15:56:15 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Transparent Hugepage Support #29
-Message-ID: <20100803135615.GG6071@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A7AB26B02B6
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 10:28:49 -0400 (EDT)
+Date: Tue, 3 Aug 2010 22:36:54 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/5] writeback: stop periodic/background work on seeing
+ sync works
+Message-ID: <20100803143654.GA32335@localhost>
+References: <20100729115142.102255590@intel.com>
+ <20100729121423.332557547@intel.com>
+ <20100729162027.GF12690@quack.suse.cz>
+ <20100730040306.GA5694@localhost>
+ <20100802205152.GL3278@quack.suse.cz>
+ <20100803030125.GA12070@localhost>
+ <20100803105520.GA3322@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20100803105520.GA3322@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
+On Tue, Aug 03, 2010 at 06:55:20PM +0800, Jan Kara wrote:
+> On Tue 03-08-10 11:01:25, Wu Fengguang wrote:
+> > On Tue, Aug 03, 2010 at 04:51:52AM +0800, Jan Kara wrote:
+> > > On Fri 30-07-10 12:03:06, Wu Fengguang wrote:
+> > > > On Fri, Jul 30, 2010 at 12:20:27AM +0800, Jan Kara wrote:
+> > > > > On Thu 29-07-10 19:51:44, Wu Fengguang wrote:
+> > > > > > The periodic/background writeback can run forever. So when any
+> > > > > > sync work is enqueued, increase bdi->sync_works to notify the
+> > > > > > active non-sync works to exit. Non-sync works queued after sync
+> > > > > > works won't be affected.
+> > > > >   Hmm, wouldn't it be simpler logic to just make for_kupdate and
+> > > > > for_background work always yield when there's some other work to do (as
+> > > > > they are livelockable from the definition of the target they have) and
+> > > > > make sure any other work isn't livelockable?
+> > > > 
+> > > > Good idea!
+> > > > 
+> > > > > The only downside is that
+> > > > > non-livelockable work cannot be "fair" in the sense that we cannot switch
+> > > > > inodes after writing MAX_WRITEBACK_PAGES.
+> > > > 
+> > > > Cannot switch indoes _before_ finish with the current
+> > > > MAX_WRITEBACK_PAGES batch? 
+> > >   Well, even after writing all those MAX_WRITEBACK_PAGES. Because what you
+> > > want to do in a non-livelockable work is: take inode, write it, never look at
+> > > it again for this work. Because if you later return to the inode, it can
+> > > have newer dirty pages and thus you cannot really avoid livelock. Of
+> > > course, this all assumes .nr_to_write isn't set to something small. That
+> > > avoids the livelock as well.
+> > 
+> > I do have a poor man's solution that can handle this case.
+> > https://kerneltrap.org/mailarchive/linux-fsdevel/2009/10/7/6476473/thread
+> > It may do more extra works, but will stop livelock in theory.
+>   So I don't think sync work on it's own is a problem. There we can just
+> give up any fairness and just go inode by inode. IMHO it's much simpler that
+> way.
 
-first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-later: git fetch; git checkout -f origin/master
+I would like to reserve my opinion here. IMHO small files should
+better get synced first :)
 
-The tree is rebased and git pull won't work.
+> The remaining types of work we have are "for_reclaim" and then ones
+> triggered by filesystems to get rid of delayed allocated data. These cases
+> can easily have well defined and low nr_to_write so they wouldn't be
+> livelockable either. What do you think?
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.35/transparent_hugepage-29/
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.35/transparent_hugepage-29.gz
+Right. for_reclaim works won't livelock in itself, since it will be
+bounded by either nr_to_write or some range. They may be delayed for a
+while by large sync or nr_pages works though.
 
-Diff #28 -> #29:
+> > A related question is, what if some for_reclaim works get enqueued?
+> > Shall we postpone the sync work as well? The global sync is not likely
+> > to hit the dirty pages in a small memcg, or may take long time. It
+> > seems not a high priority task though.
+>   I see some incentive to do this but the simple thing with for_background
+> and for_kupdate work is that they are essentially state-less and so they
+> can be easily (and automatically) restarted. It would be really hard to
+> implement something like this for sync and still avoid livelocks.
 
- THP-disable-on-small-systems    |   41 ++++++++
+So let's ignore the issue for now.
 
-Disable THP on <500M systems, from Rik.
-
- compaction-kswapd               |  194 ++++++++++++++++++++++++++++++++++++++++
-
-Add a compaction mode for kswapd to fully replace obsolete blind lumpy
-reclaim.
-
- free_pages-count                |   60 ++++++++++++
- free_pages-drain_all_pages      |   62 ++++++++++++
- free_pages-vmstat               |  156 ++++++++++++++++++++++++++++++++
-
-Make free page statistics more accurate from Mel.
-
- ksmd-khugepaged-freeze          |   97 ++++++++++++++++++++
-
-kswapd uses set_freezing, so shall ksmd and khugepaged.
-
- transparent-hugepage-nr_rotated |   36 +++++++
- transparent-hugepage-stat       |  166 ++++++++++++++++++++++++++++++++++
-
-Fix inactive/active stats and nr_rotated, from Rik.
-
- Documentation/vm/transhuge.txt        |  283 ++++
- arch/alpha/include/asm/mman.h         |    2 
- arch/mips/include/asm/mman.h          |    2 
- arch/parisc/include/asm/mman.h        |    2 
- arch/powerpc/mm/gup.c                 |   12 
- arch/x86/include/asm/kvm_host.h       |    1 
- arch/x86/include/asm/paravirt.h       |   23 
- arch/x86/include/asm/paravirt_types.h |    6 
- arch/x86/include/asm/pgtable-2level.h |    9 
- arch/x86/include/asm/pgtable-3level.h |   23 
- arch/x86/include/asm/pgtable.h        |  149 ++
- arch/x86/include/asm/pgtable_64.h     |   28 
- arch/x86/include/asm/pgtable_types.h  |    3 
- arch/x86/kernel/paravirt.c            |    3 
- arch/x86/kernel/vm86_32.c             |    1 
- arch/x86/kvm/mmu.c                    |   68 -
- arch/x86/kvm/paging_tmpl.h            |    6 
- arch/x86/mm/gup.c                     |   28 
- arch/x86/mm/pgtable.c                 |   66 +
- arch/xtensa/include/asm/mman.h        |    2 
- fs/Kconfig                            |    2 
- fs/exec.c                             |   44 
- fs/proc/meminfo.c                     |   14 
- fs/proc/page.c                        |   14 
- include/asm-generic/mman-common.h     |    2 
- include/asm-generic/pgtable.h         |  130 +
- include/linux/compaction.h            |   13 
- include/linux/gfp.h                   |   14 
- include/linux/huge_mm.h               |  151 ++
- include/linux/khugepaged.h            |   66 +
- include/linux/ksm.h                   |   20 
- include/linux/kvm_host.h              |    4 
- include/linux/memory_hotplug.h        |   14 
- include/linux/mm.h                    |  114 +
- include/linux/mm_inline.h             |   19 
- include/linux/mm_types.h              |    3 
- include/linux/mmu_notifier.h          |   66 +
- include/linux/mmzone.h                |    1 
- include/linux/page-flags.h            |   36 
- include/linux/res_counter.h           |   12 
- include/linux/rmap.h                  |   33 
- include/linux/sched.h                 |    1 
- include/linux/swap.h                  |    2 
- include/linux/vmstat.h                |    4 
- kernel/fork.c                         |   12 
- kernel/futex.c                        |   55 
- mm/Kconfig                            |   38 
- mm/Makefile                           |    1 
- mm/compaction.c                       |   48 
- mm/huge_memory.c                      | 2212 ++++++++++++++++++++++++++++++++++
- mm/hugetlb.c                          |   69 -
- mm/ksm.c                              |   86 -
- mm/madvise.c                          |    8 
- mm/memcontrol.c                       |  169 +-
- mm/memory-failure.c                   |    2 
- mm/memory.c                           |  241 +++
- mm/memory_hotplug.c                   |   14 
- mm/mempolicy.c                        |   14 
- mm/migrate.c                          |   22 
- mm/mincore.c                          |    7 
- mm/mmap.c                             |   57 
- mm/mmu_notifier.c                     |   20 
- mm/mprotect.c                         |   20 
- mm/mremap.c                           |    8 
- mm/oom_kill.c                         |    1 
- mm/page_alloc.c                       |   58 
- mm/pagewalk.c                         |    1 
- mm/rmap.c                             |  228 ++-
- mm/sparse.c                           |    4 
- mm/swap.c                             |  117 +
- mm/swap_state.c                       |    6 
- mm/swapfile.c                         |    2 
- mm/vmscan.c                           |  102 -
- mm/vmstat.c                           |   31 
- virt/kvm/iommu.c                      |    2 
- virt/kvm/kvm_main.c                   |   56 
- 76 files changed, 4680 insertions(+), 527 deletions(-)
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
