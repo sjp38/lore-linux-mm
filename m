@@ -1,82 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 12B24600429
-	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 20:24:07 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id o730RKAM002150
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 17:27:20 -0700
-Received: from pwi2 (pwi2.prod.google.com [10.241.219.2])
-	by hpaq14.eem.corp.google.com with ESMTP id o730RHdL008673
-	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 17:27:18 -0700
-Received: by pwi2 with SMTP id 2so1443060pwi.18
-        for <linux-mm@kvack.org>; Mon, 02 Aug 2010 17:27:17 -0700 (PDT)
-Date: Mon, 2 Aug 2010 17:27:13 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-In-Reply-To: <20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com>
-References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com> <20100729183809.ca4ed8be.akpm@linux-foundation.org> <20100730195338.4AF6.A69D9226@jp.fujitsu.com> <20100802134312.c0f48615.akpm@linux-foundation.org>
- <20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED6F600429
+	for <linux-mm@kvack.org>; Mon,  2 Aug 2010 20:24:52 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o730JaCT003502
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:19:36 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o730S8Ig265590
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:28:09 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o730S5WY022136
+	for <linux-mm@kvack.org>; Mon, 2 Aug 2010 18:28:05 -0600
+Subject: Re: VFS scalability git tree
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <20100730091226.GA10437@amd>
+References: <20100722190100.GA22269@amd>  <20100730091226.GA10437@amd>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 02 Aug 2010 17:27:59 -0700
+Message-ID: <1280795279.3966.47.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Nick Piggin <npiggin@kernel.dk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Frank Mayhar <fmayhar@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
-
-> One reason I poitned out is that this new parameter is hard to use for admins and
-> library writers. 
->   old oom_adj was defined as an parameter works as 
-> 		(memory usage of app)/oom_adj.
-
-Where are you getting this definition from?
-
-Disregarding all the other small adjustments in the old heuristic, a 
-reduced version of the formula was mm->total_vm << oom_adj.  It's a 
-shift, not a divide.  That has no sensible meaning.
-
->   new oom_score_adj was define as
-> 		(memory usage of app * oom_score_adj)/ system_memory
+On Fri, 2010-07-30 at 19:12 +1000, Nick Piggin wrote:
+> On Fri, Jul 23, 2010 at 05:01:00AM +1000, Nick Piggin wrote:
+> > I'm pleased to announce I have a git tree up of my vfs scalability work.
+> > 
+> > git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
+> > http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
+> > 
+> > Branch vfs-scale-working
+> > 
+> > The really interesting new item is the store-free path walk, (43fe2b)
+> > which I've re-introduced. It has had a complete redesign, it has much
+> > better performance and scalability in more cases, and is actually sane
+> > code now.
 > 
+> Things are progressing well here with fixes and improvements to the
+> branch.
 
-No, it's (rss + swap + oom_score_adj) / bound memory.  It's an addition, 
-not a multiplication, and it's a proportion of memory the application is 
-bound to, not the entire system (it could be constrained by cpuset, 
-mempolicy, or memcg).
+Hey Nick,
+	Just another minor compile issue with today's vfs-scale-working branch.
 
-> Then, an applications' oom_score on a host is quite different from on the other
-> host. This operation is very new rather than a simple interface updates.
-> This opinion was rejected.
-> 
+fs/fuse/dir.c:231: error: a??fuse_dentry_revalidate_rcua?? undeclared here
+(not in a function)
 
-It wasn't rejected, I responded to your comment and you never wrote back.  
-The idea 
+>From looking at the vfat and ecryptfs changes in
+582c56f032983e9a8e4b4bd6fac58d18811f7d41 it looks like you intended to
+add the following? 
 
-> Anyway, I believe the value other than OOM_DISABLE is useless,
 
-You're right in that OOM_DISABLE fulfills may typical use cases to simply 
-protect a task by making it immune to the oom killer.  But there are other 
-use cases for the oom killer that you're perhaps not using where a 
-sensible userspace tunable does make a difference: the goal of the 
-heuristic is always to kill the task consuming the most amount of memory 
-to avoid killing tons of applications for subsequent page allocations.  We 
-do run important tasks that consume lots of memory, though, and the kernel 
-can't possibly know about that importance.  So although you may never use 
-a positive oom_score_adj, although others will, you probably can find a 
-use case for subtracting a memory quantity from a known memory hogging 
-task that you consider to be vital in an effort to disregard that quantity 
-from the score.  I'm sure you'll agree it's a much more powerful (and 
-fine-grained) interface than oom_adj.
+diff --git a/fs/fuse/dir.c b/fs/fuse/dir.c
+index f0c2479..9ee4c10 100644
+--- a/fs/fuse/dir.c
++++ b/fs/fuse/dir.c
+@@ -154,7 +154,7 @@ u64 fuse_get_attr_version(struct fuse_conn *fc)
+  * the lookup once more.  If the lookup results in the same inode,
+  * then refresh the attributes, timeouts and mark the dentry valid.
+  */
+-static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
++static int fuse_dentry_revalidate_rcu(struct dentry *entry, struct nameidata *nd)
+ {
+ 	struct inode *inode = entry->d_inode;
+ 
 
-> I have no concerns. I'll use memcg if I want to control this kind of things.
-> 
-
-That would work if you want to setup individual memcgs for every 
-application on your system, know what sane limits are for each one, and 
-want to incur the significant memory expense of enabling 
-CONFIG_CGROUP_MEM_RES_CTLR for its metadata.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
