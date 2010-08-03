@@ -1,103 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 90E886008E4
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 00:32:59 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o734bkAJ010546
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D024F6008E4
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 00:37:28 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o734gHuZ013868
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Aug 2010 13:37:46 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A25445DE50
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:37:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6142045DE52
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:37:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D3521DB803B
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:37:46 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D3ED71DB8044
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:37:45 +0900 (JST)
-Date: Tue, 3 Aug 2010 13:32:55 +0900
+	Tue, 3 Aug 2010 13:42:17 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2C23A62C2
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:42:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 44B7D45DE4E
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:42:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CD5B1DB801A
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:42:17 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C773A1DB8015
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 13:42:16 +0900 (JST)
+Date: Tue, 3 Aug 2010 13:37:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch -mm 1/2] oom: badness heuristic rewrite
-Message-Id: <20100803133255.deb5c208.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1008022117200.4146@chino.kir.corp.google.com>
-References: <20100730091125.4AC3.A69D9226@jp.fujitsu.com>
-	<20100729183809.ca4ed8be.akpm@linux-foundation.org>
-	<20100730195338.4AF6.A69D9226@jp.fujitsu.com>
-	<20100802134312.c0f48615.akpm@linux-foundation.org>
-	<20100803090058.48c0a0c9.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021713310.9569@chino.kir.corp.google.com>
-	<20100803093610.f4d30ca7.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021742440.9569@chino.kir.corp.google.com>
-	<20100803100815.11d10519.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100803102423.82415a17.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021850400.19184@chino.kir.corp.google.com>
-	<20100803110534.e3e7a697.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008021953520.27231@chino.kir.corp.google.com>
-	<20100803121146.cf35b7ed.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008022117200.4146@chino.kir.corp.google.com>
+Subject: Re: [PATCH -mm 1/5] quick lookup memcg by ID
+Message-Id: <20100803133723.bb6487a0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100803133109.c0e6f150.nishimura@mxp.nes.nec.co.jp>
+References: <20100802191113.05c982e4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100802191304.8e520808.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100803133109.c0e6f150.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <balbir@in.ibm.com>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, gthelen@google.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Aug 2010 21:20:40 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
+On Tue, 3 Aug 2010 13:31:09 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> On Tue, 3 Aug 2010, KAMEZAWA Hiroyuki wrote:
+> Hi.
 > 
-> > > Yes, but this is what oom_score_adj is intended to do: an oom_score_adj of 
-> > > 300 means task A should be penalized 30% of available memory.  A positive 
-> > > oom_score_adj typically means "all other competing tasks should be allowed 
-> > > 30% more memory, cumulatively, compared to this task."  Task A uses ~10% 
-> > > of available memory and task B uses 50% of available memory.  That's a 40% 
-> > > difference, which is greater than task A's penalization of 30%, so B is 
-> > > killed.
-> > >
+> Thank you for all of your works.
+> 
+> Several comments are inlined.
+> 
+> On Mon, 2 Aug 2010 19:13:04 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > This will confuse LXC(Linux Container) guys. oom_score is unusable anymore.
+> > Now, memory cgroup has an ID per cgroup and make use of it at
+> >  - hierarchy walk,
+> >  - swap recording.
 > > 
-> 
-> From Documentation/filesystems/proc.txt in 2.6.35:
-> 
-> 	3.2 /proc/<pid>/oom_score - Display current oom-killer score
-> 	-------------------------------------------------------------
-> 
-> 	This file can be used to check the current score used by the 
-> 	oom-killer is for any given <pid>. Use it together with 
-> 	/proc/<pid>/oom_adj to tune which process should be killed in an 
-> 	out-of-memory situation.
-> 
-> That is unchanged with the rewrite.  /proc/pid/oom_score still exports the 
-> badness() score used by the oom killer to determine which task to kill: 
-> the highest score will be killed amongst candidate tasks.  The fact that 
-> the score can be influenced by cpuset, memcg, or mempolicy constraint is 
-> irrelevant, we cannot assume anything about the badness() heuristic's 
-> implementation from the score itself.
+> > This patch is for making more use of it. The final purpose is
+> > to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
+> > 
+> > This patch caches a pointer of memcg in an array. By this, we
+> > don't have to call css_lookup() which requires radix-hash walk.
+> > This saves some amount of memory footprint at lookup memcg via id.
+> > 
+> > Changelog: 20100730
+> >  - fixed rcu_read_unlock() placement.
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  init/Kconfig    |   11 +++++++++++
+> >  mm/memcontrol.c |   48 ++++++++++++++++++++++++++++++++++--------------
+> >  2 files changed, 45 insertions(+), 14 deletions(-)
+> > 
+> > Index: mmotm-0727/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-0727.orig/mm/memcontrol.c
+> > +++ mmotm-0727/mm/memcontrol.c
+> > @@ -292,6 +292,30 @@ static bool move_file(void)
+> >  					&mc.to->move_charge_at_immigrate);
+> >  }
+> >  
+> > +/* 0 is unused */
+> > +static atomic_t mem_cgroup_num;
+> > +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> > +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> > +
+> > +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> > +{
+> > +	/*
+> > +	 * This array is set to NULL when mem_cgroup is freed.
+> > +	 * IOW, there are no more references && rcu_synchronized().
+> > +	 * This lookup-caching is safe.
+> > +	 */
+> > +	if (unlikely(!mem_cgroups[id])) {
+> > +		struct cgroup_subsys_state *css;
+> > +
+> > +		rcu_read_lock();
+> > +		css = css_lookup(&mem_cgroup_subsys, id);
+> > +		rcu_read_unlock();
+> > +		if (!css)
+> > +			return NULL;
+> > +		mem_cgroups[id] = container_of(css, struct mem_cgroup, css);
+> > +	}
+> > +	return mem_cgroups[id];
+> > +}
+> id_to_memcg() seems to be called under rcu_read_lock() already, so I think
+> rcu_read_lock()/unlock() would be unnecessary.
 > 
 
-In old behavior, oom_score order is synchronous both in the system and
-container. High-score one will be killed.
-IOW, oom_score have worked as oom_score.
+Maybe. I thought about which is better to add
 
-But, after the patch,  the user (of LXC at el.) can't trust oom_score. 
-Especially with memcg, it just shows a _broken_ value.
+	VM_BUG_ON(!rcu_read_lock_held);
+or
+	rcu_read_lock()
+	..
+	rcu_read_unlock()
 
-And user has to caluculate oom_score by himself as
+Do you like former ? If so, it's ok to remove rcu-read-lock.
 
-real_oom_score = (oom_score - oom_score_adj) *
-	system_memory/container_memory + oom_score_adj.
 
-I'm wrong ? Anyway, I think you should take care of this issue.
-Maybe this breaks google's oom-killer+cpuset system.
+
+> > Index: mmotm-0727/init/Kconfig
+> > ===================================================================
+> > --- mmotm-0727.orig/init/Kconfig
+> > +++ mmotm-0727/init/Kconfig
+> > @@ -594,6 +594,17 @@ config CGROUP_MEM_RES_CTLR_SWAP
+> >  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+> >  	  size is 4096bytes, 512k per 1Gbytes of swap.
+> >  
+> > +config MEM_CGROUP_MAX_GROUPS
+> > +	int "Maximum number of memory cgroups on a system"
+> > +	range 1 65535
+> > +	default 8192 if 64BIT
+> > +	default 2048 if 32BIT
+> > +	help
+> > +	  Memory cgroup has limitation of the number of groups created.
+> > +	  Please select your favorite value. The more you allow, the more
+> > +	  memory will be consumed. This consumes vmalloc() area, so,
+> > +	  this should be small on 32bit arch.
+> > +
+> We don't use vmalloc() area in this version :)
+> 
+Oh. yes. thank you. I'll fix
 
 Thanks,
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
