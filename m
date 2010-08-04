@@ -1,360 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 329CD66002F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 23:10:58 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so6572774iwn.14
-        for <linux-mm@kvack.org>; Tue, 03 Aug 2010 20:10:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100804022148.GA5922@localhost>
-References: <20100802124734.GI2486@arachsys.com>
-	<AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
-	<20100803033108.GA23117@arachsys.com>
-	<AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
-	<20100803042835.GA17377@localhost>
-	<20100803214945.GA2326@arachsys.com>
-	<20100804022148.GA5922@localhost>
-Date: Wed, 4 Aug 2010 12:10:46 +0900
-Message-ID: <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id EE7E166002F
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 23:24:01 -0400 (EDT)
+Date: Wed, 4 Aug 2010 11:24:00 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: Over-eager swapping
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: multipart/mixed; boundary=000325575aeaa59f84048cf6c749
+Message-ID: <20100804032400.GA14141@localhost>
+References: <20100802124734.GI2486@arachsys.com>
+ <AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
+ <20100803033108.GA23117@arachsys.com>
+ <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
+ <20100803042835.GA17377@localhost>
+ <20100803214945.GA2326@arachsys.com>
+ <20100804022148.GA5922@localhost>
+ <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
 Cc: Chris Webb <chris@arachsys.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
---000325575aeaa59f84048cf6c749
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, Aug 4, 2010 at 11:21 AM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> Chris,
+On Wed, Aug 04, 2010 at 11:10:46AM +0800, Minchan Kim wrote:
+> On Wed, Aug 4, 2010 at 11:21 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > Chris,
+> >
+> > Your slabinfo does contain many order 1-3 slab caches, this is a major source
+> > of high order allocations and hence lumpy reclaim. fork() is another.
+> >
+> > In another thread, Pekka Enberg offers a tip:
+> >
+> > A  A  A  A You can pass "slub_debug=o" as a kernel parameter to disable higher
+> > A  A  A  A order allocations if you want to test things.
+> >
+> > Note that the parameter works on a CONFIG_SLUB_DEBUG=y kernel.
+> >
+> > Thanks,
+> > Fengguang
+> 
+> He said following as.
+> "After running swapoff -a, the machine is immediately much healthier. Even
+> while the swap is still being reduced, load goes down and response times in
+> virtual machines are much improved. Once the swap is completely gone, there
+> are still several gigabytes of RAM left free which are used for buffers, and
+> the virtual machines are no longer laggy because they are no longer swapped
+> out.
 >
-> Your slabinfo does contain many order 1-3 slab caches, this is a major so=
-urce
-> of high order allocations and hence lumpy reclaim. fork() is another.
->
-> In another thread, Pekka Enberg offers a tip:
->
-> =A0 =A0 =A0 =A0You can pass "slub_debug=3Do" as a kernel parameter to dis=
-able higher
-> =A0 =A0 =A0 =A0order allocations if you want to test things.
->
-> Note that the parameter works on a CONFIG_SLUB_DEBUG=3Dy kernel.
->
-> Thanks,
-> Fengguang
+> Running swapon -a again, the affected machine waits for about a minute
+> with zero swap in use,
 
-He said following as.
-"After running swapoff -a, the machine is immediately much healthier. Even
-while the swap is still being reduced, load goes down and response times in
-virtual machines are much improved. Once the swap is completely gone, there
-are still several gigabytes of RAM left free which are used for buffers, an=
-d
-the virtual machines are no longer laggy because they are no longer swapped
-out. Running swapon -a again, the affected machine waits for about a minute
-with zero swap in use, before the amount of swap in use very rapidly
-increases to around 2GB and then continues to increase more steadily to 3GB=
-."
+This is interesting. Why is it waiting for 1m here? Are there high CPU
+loads? Would you do a
 
-1. His system works well without swap.
-2. His system increase swap by 2G rapidly and more steadily to 3GB.
+        echo t > /proc/sysrq-trigger
 
-So I thought it isn't likely to relate normal lumpy.
+and show us the dmesg?
 
-Of course, without swap, lumpy can scan more file pages to make
-contiguous page frames. so it could work well, still. But I can't
-understand 2.
+Thanks,
+Fengguang
 
-Hmm, I have no idea. :(
+> before the amount of swap in use very rapidly
+> increases to around 2GB and then continues to increase more steadily to 3GB."
+> 
+> 1. His system works well without swap.
+> 2. His system increase swap by 2G rapidly and more steadily to 3GB.
+> 
+> So I thought it isn't likely to relate normal lumpy.
+> 
+> Of course, without swap, lumpy can scan more file pages to make
+> contiguous page frames. so it could work well, still. But I can't
+> understand 2.
+> 
+> Hmm, I have no idea. :(
+> 
+> Off-Topic:
+> 
+> Hi, Pekka.
+> 
+> Document says.
+> "Debugging options may require the minimum possible slab order to increase as
+> a result of storing the metadata (for example, caches with PAGE_SIZE object
+> sizes). A This has a higher liklihood of resulting in slab allocation errors
+> in low memory situations or if there's high fragmentation of memory. A To
+> switch off debugging for such caches by default, use
+> 
+> A  A  A  A slub_debug=O"
+> 
+> But when I tested it in my machine(2.6.34), A with slub_debug=O, it
+> increase objsize and pagesperslab. Even it increase the number of
+> slab(But I am not sure this part since it might not the same time from
+> booting)
+> What am I missing now?
+> 
+> But SLAB seems to be consumed small pages than SLUB. Hmm.
+> SLAB is more proper than SLUBin small memory system(ex, embedded)?
+> 
+> 
+> --
+> Kind regards,
+> Minchan Kim
 
-Off-Topic:
+> 
+> slabinfo - version: 2.1
+> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+> kvm_vcpu               0      0   9200    3    8 : tunables    0    0    0 : slabdata      0      0      0
+> kmalloc_dma-512       16     16    512   16    2 : tunables    0    0    0 : slabdata      1      1      0
+> RAWv6                 17     17    960   17    4 : tunables    0    0    0 : slabdata      1      1      0
+> UDPLITEv6              0      0    960   17    4 : tunables    0    0    0 : slabdata      0      0      0
+> UDPv6                 51     51    960   17    4 : tunables    0    0    0 : slabdata      3      3      0
+> TCPv6                 72     72   1728   18    8 : tunables    0    0    0 : slabdata      4      4      0
+> nf_conntrack_c10a8540      0      0    280   29    2 : tunables    0    0    0 : slabdata      0      0      0
+> dm_raid1_read_record      0      0   1056   31    8 : tunables    0    0    0 : slabdata      0      0      0
+> dm_uevent              0      0   2464   13    8 : tunables    0    0    0 : slabdata      0      0      0
+> mqueue_inode_cache     18     18    896   18    4 : tunables    0    0    0 : slabdata      1      1      0
+> fuse_request          18     18    432   18    2 : tunables    0    0    0 : slabdata      1      1      0
+> fuse_inode            21     21    768   21    4 : tunables    0    0    0 : slabdata      1      1      0
+> nfsd4_stateowners      0      0    344   23    2 : tunables    0    0    0 : slabdata      0      0      0
+> nfs_read_data         72     72    448   18    2 : tunables    0    0    0 : slabdata      4      4      0
+> nfs_inode_cache        0      0   1040   31    8 : tunables    0    0    0 : slabdata      0      0      0
+> ecryptfs_inode_cache      0      0   1280   25    8 : tunables    0    0    0 : slabdata      0      0      0
+> hugetlbfs_inode_cache     24     24    656   24    4 : tunables    0    0    0 : slabdata      1      1      0
+> ext4_inode_cache       0      0   1128   29    8 : tunables    0    0    0 : slabdata      0      0      0
+> ext2_inode_cache       0      0    944   17    4 : tunables    0    0    0 : slabdata      0      0      0
+> ext3_inode_cache    5032   5032    928   17    4 : tunables    0    0    0 : slabdata    296    296      0
+> rpc_inode_cache       18     18    896   18    4 : tunables    0    0    0 : slabdata      1      1      0
+> UNIX                 532    532    832   19    4 : tunables    0    0    0 : slabdata     28     28      0
+> UDP-Lite               0      0    832   19    4 : tunables    0    0    0 : slabdata      0      0      0
+> UDP                   76     76    832   19    4 : tunables    0    0    0 : slabdata      4      4      0
+> TCP                   60     60   1600   20    8 : tunables    0    0    0 : slabdata      3      3      0
+> sgpool-128            48     48   2560   12    8 : tunables    0    0    0 : slabdata      4      4      0
+> sgpool-64            100    100   1280   25    8 : tunables    0    0    0 : slabdata      4      4      0
+> blkdev_queue          76     76   1688   19    8 : tunables    0    0    0 : slabdata      4      4      0
+> biovec-256            10     10   3072   10    8 : tunables    0    0    0 : slabdata      1      1      0
+> biovec-128            21     21   1536   21    8 : tunables    0    0    0 : slabdata      1      1      0
+> biovec-64             84     84    768   21    4 : tunables    0    0    0 : slabdata      4      4      0
+> bip-256               10     10   3200   10    8 : tunables    0    0    0 : slabdata      1      1      0
+> bip-128                0      0   1664   19    8 : tunables    0    0    0 : slabdata      0      0      0
+> bip-64                 0      0    896   18    4 : tunables    0    0    0 : slabdata      0      0      0
+> bip-16               100    100    320   25    2 : tunables    0    0    0 : slabdata      4      4      0
+> sock_inode_cache     609    609    768   21    4 : tunables    0    0    0 : slabdata     29     29      0
+> skbuff_fclone_cache     84     84    384   21    2 : tunables    0    0    0 : slabdata      4      4      0
+> shmem_inode_cache   1835   1840    784   20    4 : tunables    0    0    0 : slabdata     92     92      0
+> taskstats             96     96    328   24    2 : tunables    0    0    0 : slabdata      4      4      0
+> proc_inode_cache    1584   1584    680   24    4 : tunables    0    0    0 : slabdata     66     66      0
+> bdev_cache            72     72    896   18    4 : tunables    0    0    0 : slabdata      4      4      0
+> inode_cache         7126   7128    656   24    4 : tunables    0    0    0 : slabdata    297    297      0
+> signal_cache         332    350    640   25    4 : tunables    0    0    0 : slabdata     14     14      0
+> sighand_cache        246    253   1408   23    8 : tunables    0    0    0 : slabdata     11     11      0
+> task_xstate          193    196    576   28    4 : tunables    0    0    0 : slabdata      7      7      0
+> task_struct          274    285   5472    5    8 : tunables    0    0    0 : slabdata     57     57      0
+> radix_tree_node     3208   3213    296   27    2 : tunables    0    0    0 : slabdata    119    119      0
+> kmalloc-8192          20     20   8192    4    8 : tunables    0    0    0 : slabdata      5      5      0
+> kmalloc-4096          78     80   4096    8    8 : tunables    0    0    0 : slabdata     10     10      0
+> kmalloc-2048         400    400   2048   16    8 : tunables    0    0    0 : slabdata     25     25      0
+> kmalloc-1024         326    336   1024   16    4 : tunables    0    0    0 : slabdata     21     21      0
+> kmalloc-512          758    784    512   16    2 : tunables    0    0    0 : slabdata     49     49      0
 
-Hi, Pekka.
-
-Document says.
-"Debugging options may require the minimum possible slab order to increase =
-as
-a result of storing the metadata (for example, caches with PAGE_SIZE object
-sizes). =A0This has a higher liklihood of resulting in slab allocation erro=
-rs
-in low memory situations or if there's high fragmentation of memory. =A0To
-switch off debugging for such caches by default, use
-
-=A0 =A0 =A0 =A0slub_debug=3DO"
-
-But when I tested it in my machine(2.6.34), =A0with slub_debug=3DO, it
-increase objsize and pagesperslab. Even it increase the number of
-slab(But I am not sure this part since it might not the same time from
-booting)
-What am I missing now?
-
-But SLAB seems to be consumed small pages than SLUB. Hmm.
-SLAB is more proper than SLUBin small memory system(ex, embedded)?
-
-
---
-Kind regards,
-Minchan Kim
-
---000325575aeaa59f84048cf6c749
-Content-Type: text/x-log; charset=US-ASCII; name="slub_debug.log"
-Content-Disposition: attachment; filename="slub_debug.log"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_gcfktw8t0
-
-CnNsYWJpbmZvIC0gdmVyc2lvbjogMi4xCiMgbmFtZSAgICAgICAgICAgIDxhY3RpdmVfb2Jqcz4g
-PG51bV9vYmpzPiA8b2Jqc2l6ZT4gPG9ianBlcnNsYWI+IDxwYWdlc3BlcnNsYWI+IDogdHVuYWJs
-ZXMgPGxpbWl0PiA8YmF0Y2hjb3VudD4gPHNoYXJlZGZhY3Rvcj4gOiBzbGFiZGF0YSA8YWN0aXZl
-X3NsYWJzPiA8bnVtX3NsYWJzPiA8c2hhcmVkYXZhaWw+Cmt2bV92Y3B1ICAgICAgICAgICAgICAg
-MCAgICAgIDAgICA5MjAwICAgIDMgICAgOCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xh
-YmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKa21hbGxvY19kbWEtNTEyICAgICAgIDE2ICAgICAx
-NiAgICA1MTIgICAxNiAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAg
-ICAgIDEgICAgICAxICAgICAgMApSQVd2NiAgICAgICAgICAgICAgICAgMTcgICAgIDE3ICAgIDk2
-MCAgIDE3ICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMSAg
-ICAgIDEgICAgICAwClVEUExJVEV2NiAgICAgICAgICAgICAgMCAgICAgIDAgICAgOTYwICAgMTcg
-ICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAg
-ICAgIDAKVURQdjYgICAgICAgICAgICAgICAgIDUxICAgICA1MSAgICA5NjAgICAxNyAgICA0IDog
-dHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDMgICAgICAzICAgICAgMApU
-Q1B2NiAgICAgICAgICAgICAgICAgNzIgICAgIDcyICAgMTcyOCAgIDE4ICAgIDggOiB0dW5hYmxl
-cyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwCm5mX2Nvbm50
-cmFja19jMTBhODU0MCAgICAgIDAgICAgICAwICAgIDI4MCAgIDI5ICAgIDIgOiB0dW5hYmxlcyAg
-ICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCmRtX3JhaWQxX3Jl
-YWRfcmVjb3JkICAgICAgMCAgICAgIDAgICAxMDU2ICAgMzEgICAgOCA6IHR1bmFibGVzICAgIDAg
-ICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKZG1fdWV2ZW50ICAgICAg
-ICAgICAgICAwICAgICAgMCAgIDI0NjQgICAxMyAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAg
-IDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMAptcXVldWVfaW5vZGVfY2FjaGUgICAg
-IDE4ICAgICAxOCAgICA4OTYgICAxOCAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBz
-bGFiZGF0YSAgICAgIDEgICAgICAxICAgICAgMApmdXNlX3JlcXVlc3QgICAgICAgICAgMTggICAg
-IDE4ICAgIDQzMiAgIDE4ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRh
-ICAgICAgMSAgICAgIDEgICAgICAwCmZ1c2VfaW5vZGUgICAgICAgICAgICAyMSAgICAgMjEgICAg
-NzY4ICAgMjEgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAx
-ICAgICAgMSAgICAgIDAKbmZzZDRfc3RhdGVvd25lcnMgICAgICAwICAgICAgMCAgICAzNDQgICAy
-MyAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAw
-ICAgICAgMApuZnNfcmVhZF9kYXRhICAgICAgICAgNzIgICAgIDcyICAgIDQ0OCAgIDE4ICAgIDIg
-OiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAw
-Cm5mc19pbm9kZV9jYWNoZSAgICAgICAgMCAgICAgIDAgICAxMDQwICAgMzEgICAgOCA6IHR1bmFi
-bGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKZWNyeXB0
-ZnNfaW5vZGVfY2FjaGUgICAgICAwICAgICAgMCAgIDEyODAgICAyNSAgICA4IDogdHVuYWJsZXMg
-ICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMApodWdldGxiZnNf
-aW5vZGVfY2FjaGUgICAgIDI0ICAgICAyNCAgICA2NTYgICAyNCAgICA0IDogdHVuYWJsZXMgICAg
-MCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDEgICAgICAxICAgICAgMApleHQ0X2lub2RlX2Nh
-Y2hlICAgICAgIDAgICAgICAwICAgMTEyOCAgIDI5ICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAg
-ICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCmV4dDJfaW5vZGVfY2FjaGUgICAg
-ICAgMCAgICAgIDAgICAgOTQ0ICAgMTcgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDog
-c2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKZXh0M19pbm9kZV9jYWNoZSAgICA1MDMyICAg
-NTAzMiAgICA5MjggICAxNyAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0
-YSAgICAyOTYgICAgMjk2ICAgICAgMApycGNfaW5vZGVfY2FjaGUgICAgICAgMTggICAgIDE4ICAg
-IDg5NiAgIDE4ICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAg
-MSAgICAgIDEgICAgICAwClVOSVggICAgICAgICAgICAgICAgIDUzMiAgICA1MzIgICAgODMyICAg
-MTkgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgIDI4ICAgICAy
-OCAgICAgIDAKVURQLUxpdGUgICAgICAgICAgICAgICAwICAgICAgMCAgICA4MzIgICAxOSAgICA0
-IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAg
-MApVRFAgICAgICAgICAgICAgICAgICAgNzYgICAgIDc2ICAgIDgzMiAgIDE5ICAgIDQgOiB0dW5h
-YmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwClRDUCAg
-ICAgICAgICAgICAgICAgICA2MCAgICAgNjAgICAxNjAwICAgMjAgICAgOCA6IHR1bmFibGVzICAg
-IDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAzICAgICAgMyAgICAgIDAKc2dwb29sLTEyOCAg
-ICAgICAgICAgIDQ4ICAgICA0OCAgIDI1NjAgICAxMiAgICA4IDogdHVuYWJsZXMgICAgMCAgICAw
-ICAgIDAgOiBzbGFiZGF0YSAgICAgIDQgICAgICA0ICAgICAgMApzZ3Bvb2wtNjQgICAgICAgICAg
-ICAxMDAgICAgMTAwICAgMTI4MCAgIDI1ICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6
-IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwCmJsa2Rldl9xdWV1ZSAgICAgICAgICA3NiAg
-ICAgNzYgICAxNjg4ICAgMTkgICAgOCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRh
-dGEgICAgICA0ICAgICAgNCAgICAgIDAKYmlvdmVjLTI1NiAgICAgICAgICAgIDEwICAgICAxMCAg
-IDMwNzIgICAxMCAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAg
-IDEgICAgICAxICAgICAgMApiaW92ZWMtMTI4ICAgICAgICAgICAgMjEgICAgIDIxICAgMTUzNiAg
-IDIxICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMSAgICAg
-IDEgICAgICAwCmJpb3ZlYy02NCAgICAgICAgICAgICA4NCAgICAgODQgICAgNzY4ICAgMjEgICAg
-NCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA0ICAgICAgNCAgICAg
-IDAKYmlwLTI1NiAgICAgICAgICAgICAgIDEwICAgICAxMCAgIDMyMDAgICAxMCAgICA4IDogdHVu
-YWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDEgICAgICAxICAgICAgMApiaXAt
-MTI4ICAgICAgICAgICAgICAgIDAgICAgICAwICAgMTY2NCAgIDE5ICAgIDggOiB0dW5hYmxlcyAg
-ICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCmJpcC02NCAgICAg
-ICAgICAgICAgICAgMCAgICAgIDAgICAgODk2ICAgMTggICAgNCA6IHR1bmFibGVzICAgIDAgICAg
-MCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKYmlwLTE2ICAgICAgICAgICAg
-ICAgMTAwICAgIDEwMCAgICAzMjAgICAyNSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAg
-OiBzbGFiZGF0YSAgICAgIDQgICAgICA0ICAgICAgMApzb2NrX2lub2RlX2NhY2hlICAgICA2MDkg
-ICAgNjA5ICAgIDc2OCAgIDIxICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJk
-YXRhICAgICAyOSAgICAgMjkgICAgICAwCnNrYnVmZl9mY2xvbmVfY2FjaGUgICAgIDg0ICAgICA4
-NCAgICAzODQgICAyMSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAg
-ICAgIDQgICAgICA0ICAgICAgMApzaG1lbV9pbm9kZV9jYWNoZSAgIDE4MzUgICAxODQwICAgIDc4
-NCAgIDIwICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICA5MiAg
-ICAgOTIgICAgICAwCnRhc2tzdGF0cyAgICAgICAgICAgICA5NiAgICAgOTYgICAgMzI4ICAgMjQg
-ICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA0ICAgICAgNCAg
-ICAgIDAKcHJvY19pbm9kZV9jYWNoZSAgICAxNTg0ICAgMTU4NCAgICA2ODAgICAyNCAgICA0IDog
-dHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgNjYgICAgIDY2ICAgICAgMApi
-ZGV2X2NhY2hlICAgICAgICAgICAgNzIgICAgIDcyICAgIDg5NiAgIDE4ICAgIDQgOiB0dW5hYmxl
-cyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwCmlub2RlX2Nh
-Y2hlICAgICAgICAgNzEyNiAgIDcxMjggICAgNjU2ICAgMjQgICAgNCA6IHR1bmFibGVzICAgIDAg
-ICAgMCAgICAwIDogc2xhYmRhdGEgICAgMjk3ICAgIDI5NyAgICAgIDAKc2lnbmFsX2NhY2hlICAg
-ICAgICAgMzMyICAgIDM1MCAgICA2NDAgICAyNSAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAg
-IDAgOiBzbGFiZGF0YSAgICAgMTQgICAgIDE0ICAgICAgMApzaWdoYW5kX2NhY2hlICAgICAgICAy
-NDYgICAgMjUzICAgMTQwOCAgIDIzICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNs
-YWJkYXRhICAgICAxMSAgICAgMTEgICAgICAwCnRhc2tfeHN0YXRlICAgICAgICAgIDE5MyAgICAx
-OTYgICAgNTc2ICAgMjggICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEg
-ICAgICA3ICAgICAgNyAgICAgIDAKdGFza19zdHJ1Y3QgICAgICAgICAgMjc0ICAgIDI4NSAgIDU0
-NzIgICAgNSAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgNTcg
-ICAgIDU3ICAgICAgMApyYWRpeF90cmVlX25vZGUgICAgIDMyMDggICAzMjEzICAgIDI5NiAgIDI3
-ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgIDExOSAgICAxMTkg
-ICAgICAwCmttYWxsb2MtODE5MiAgICAgICAgICAyMCAgICAgMjAgICA4MTkyICAgIDQgICAgOCA6
-IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA1ICAgICAgNSAgICAgIDAK
-a21hbGxvYy00MDk2ICAgICAgICAgIDc4ICAgICA4MCAgIDQwOTYgICAgOCAgICA4IDogdHVuYWJs
-ZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgMTAgICAgIDEwICAgICAgMAprbWFsbG9j
-LTIwNDggICAgICAgICA0MDAgICAgNDAwICAgMjA0OCAgIDE2ICAgIDggOiB0dW5hYmxlcyAgICAw
-ICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAyNSAgICAgMjUgICAgICAwCmttYWxsb2MtMTAyNCAg
-ICAgICAgIDMyNiAgICAzMzYgICAxMDI0ICAgMTYgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAg
-ICAwIDogc2xhYmRhdGEgICAgIDIxICAgICAyMSAgICAgIDAKa21hbGxvYy01MTIgICAgICAgICAg
-NzU4ICAgIDc4NCAgICA1MTIgICAxNiAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBz
-bGFiZGF0YSAgICAgNDkgICAgIDQ5ICAgICAgMAo=
---000325575aeaa59f84048cf6c749
-Content-Type: text/x-log; charset=US-ASCII; name="slub_debug_disable.log"
-Content-Disposition: attachment; filename="slub_debug_disable.log"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_gcfkugn31
-
-c2xhYmluZm8gLSB2ZXJzaW9uOiAyLjEKIyBuYW1lICAgICAgICAgICAgPGFjdGl2ZV9vYmpzPiA8
-bnVtX29ianM+IDxvYmpzaXplPiA8b2JqcGVyc2xhYj4gPHBhZ2VzcGVyc2xhYj4gOiB0dW5hYmxl
-cyA8bGltaXQ+IDxiYXRjaGNvdW50PiA8c2hhcmVkZmFjdG9yPiA6IHNsYWJkYXRhIDxhY3RpdmVf
-c2xhYnM+IDxudW1fc2xhYnM+IDxzaGFyZWRhdmFpbD4Ka3ZtX3ZjcHUgICAgICAgICAgICAgICAw
-ICAgICAgMCAgIDkyNDggICAgMyAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFi
-ZGF0YSAgICAgIDAgICAgICAwICAgICAgMAprbWFsbG9jX2RtYS01MTIgICAgICAgMjkgICAgIDI5
-ICAgIDU2MCAgIDI5ICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAg
-ICAgMSAgICAgIDEgICAgICAwCmNsaXBfYXJwX2NhY2hlICAgICAgICAgMCAgICAgIDAgICAgMzIw
-ICAgMjUgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAg
-ICAgMCAgICAgIDAKaXA2X2RzdF9jYWNoZSAgICAgICAgIDI1ICAgICAyNSAgICAzMjAgICAyNSAg
-ICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDEgICAgICAxICAg
-ICAgMApuZGlzY19jYWNoZSAgICAgICAgICAgMjUgICAgIDI1ICAgIDMyMCAgIDI1ICAgIDIgOiB0
-dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMSAgICAgIDEgICAgICAwClJB
-V3Y2ICAgICAgICAgICAgICAgICAxNiAgICAgMTYgICAxMDI0ICAgMTYgICAgNCA6IHR1bmFibGVz
-ICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAxICAgICAgMSAgICAgIDAKVURQTElURXY2
-ICAgICAgICAgICAgICAwICAgICAgMCAgICA5NjAgICAxNyAgICA0IDogdHVuYWJsZXMgICAgMCAg
-ICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMApVRFB2NiAgICAgICAgICAg
-ICAgICAgNjggICAgIDY4ICAgIDk2MCAgIDE3ICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAg
-MCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwCnR3X3NvY2tfVENQdjYgICAgICAgICAg
-MCAgICAgIDAgICAgMzIwICAgMjUgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xh
-YmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKVENQdjYgICAgICAgICAgICAgICAgIDM2ICAgICAz
-NiAgIDE3OTIgICAxOCAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAg
-ICAgIDIgICAgICAyICAgICAgMApuZl9jb25udHJhY2tfYzEwYTg1NDAgICAgICAwICAgICAgMCAg
-ICAzMjAgICAyNSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAg
-IDAgICAgICAwICAgICAgMApkbV9yYWlkMV9yZWFkX3JlY29yZCAgICAgIDAgICAgICAwICAgMTA5
-NiAgIDI5ICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAg
-ICAgIDAgICAgICAwCmtjb3B5ZF9qb2IgICAgICAgICAgICAgMCAgICAgIDAgICAgMzc2ICAgMjEg
-ICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAg
-ICAgIDAKZG1fdWV2ZW50ICAgICAgICAgICAgICAwICAgICAgMCAgIDI1MDQgICAxMyAgICA4IDog
-dHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMApk
-bV9ycV90YXJnZXRfaW8gICAgICAgIDAgICAgICAwICAgIDI3MiAgIDMwICAgIDIgOiB0dW5hYmxl
-cyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCm1xdWV1ZV9p
-bm9kZV9jYWNoZSAgICAgMTcgICAgIDE3ICAgIDk2MCAgIDE3ICAgIDQgOiB0dW5hYmxlcyAgICAw
-ICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMSAgICAgIDEgICAgICAwCmZ1c2VfcmVxdWVzdCAg
-ICAgICAgICAxNyAgICAgMTcgICAgNDgwICAgMTcgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAg
-ICAwIDogc2xhYmRhdGEgICAgICAxICAgICAgMSAgICAgIDAKZnVzZV9pbm9kZSAgICAgICAgICAg
-IDE5ICAgICAxOSAgICA4MzIgICAxOSAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBz
-bGFiZGF0YSAgICAgIDEgICAgICAxICAgICAgMApuZnNkNF9zdGF0ZW93bmVycyAgICAgIDAgICAg
-ICAwICAgIDM5MiAgIDIwICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRh
-ICAgICAgMCAgICAgIDAgICAgICAwCm5mc193cml0ZV9kYXRhICAgICAgICA0OCAgICAgNDggICAg
-NTEyICAgMTYgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAz
-ICAgICAgMyAgICAgIDAKbmZzX3JlYWRfZGF0YSAgICAgICAgIDMyICAgICAzMiAgICA1MTIgICAx
-NiAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDIgICAgICAy
-ICAgICAgMApuZnNfaW5vZGVfY2FjaGUgICAgICAgIDAgICAgICAwICAgMTA4MCAgIDMwICAgIDgg
-OiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAw
-CmVjcnlwdGZzX2tleV9yZWNvcmRfY2FjaGUgICAgICAwICAgICAgMCAgICA1NzYgICAyOCAgICA0
-IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAg
-MAplY3J5cHRmc19zYl9jYWNoZSAgICAgIDAgICAgICAwICAgIDY0MCAgIDI1ICAgIDQgOiB0dW5h
-YmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCmVjcnlw
-dGZzX2lub2RlX2NhY2hlICAgICAgMCAgICAgIDAgICAxMjgwICAgMjUgICAgOCA6IHR1bmFibGVz
-ICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKZWNyeXB0ZnNf
-YXV0aF90b2tfbGlzdF9pdGVtICAgICAgMCAgICAgIDAgICAgODk2ICAgMTggICAgNCA6IHR1bmFi
-bGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKaHVnZXRs
-YmZzX2lub2RlX2NhY2hlICAgICAyMyAgICAgMjMgICAgNjk2ICAgMjMgICAgNCA6IHR1bmFibGVz
-ICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAxICAgICAgMSAgICAgIDAKZXh0NF9pbm9k
-ZV9jYWNoZSAgICAgICAwICAgICAgMCAgIDExNjggICAyOCAgICA4IDogdHVuYWJsZXMgICAgMCAg
-ICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMApleHQyX2lub2RlX2NhY2hl
-ICAgICAgIDAgICAgICAwICAgIDk4NCAgIDE2ICAgIDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAg
-MCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCmV4dDNfaW5vZGVfY2FjaGUgICAgNTM5
-MSAgIDUzOTIgICAgOTY4ICAgMTYgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xh
-YmRhdGEgICAgMzM3ICAgIDMzNyAgICAgIDAKZHF1b3QgICAgICAgICAgICAgICAgICAwICAgICAg
-MCAgICAzMjAgICAyNSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAg
-ICAgIDAgICAgICAwICAgICAgMApraW9jdHggICAgICAgICAgICAgICAgIDAgICAgICAwICAgIDM4
-NCAgIDIxICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMCAg
-ICAgIDAgICAgICAwCnJwY19idWZmZXJzICAgICAgICAgICAzMCAgICAgMzAgICAyMTEyICAgMTUg
-ICAgOCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAyICAgICAgMiAg
-ICAgIDAKcnBjX2lub2RlX2NhY2hlICAgICAgIDE4ICAgICAxOCAgICA4OTYgICAxOCAgICA0IDog
-dHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDEgICAgICAxICAgICAgMApV
-TklYICAgICAgICAgICAgICAgICA1NTYgICAgNTU4ICAgIDg5NiAgIDE4ICAgIDQgOiB0dW5hYmxl
-cyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAzMSAgICAgMzEgICAgICAwClVEUC1MaXRl
-ICAgICAgICAgICAgICAgMCAgICAgIDAgICAgODMyICAgMTkgICAgNCA6IHR1bmFibGVzICAgIDAg
-ICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKaXBfZHN0X2NhY2hlICAg
-ICAgICAgMTI1ICAgIDEyNSAgICAzMjAgICAyNSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAg
-IDAgOiBzbGFiZGF0YSAgICAgIDUgICAgICA1ICAgICAgMAphcnBfY2FjaGUgICAgICAgICAgICAx
-MDAgICAgMTAwICAgIDMyMCAgIDI1ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNs
-YWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwClJBVyAgICAgICAgICAgICAgICAgICAxOSAgICAg
-MTkgICAgODMyICAgMTkgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEg
-ICAgICAxICAgICAgMSAgICAgIDAKVURQICAgICAgICAgICAgICAgICAgIDc2ICAgICA3NiAgICA4
-MzIgICAxOSAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDQg
-ICAgICA0ICAgICAgMApUQ1AgICAgICAgICAgICAgICAgICAgNzYgICAgIDc2ICAgMTY2NCAgIDE5
-ICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQg
-ICAgICAwCnNncG9vbC0xMjggICAgICAgICAgICA0OCAgICAgNDggICAyNjI0ICAgMTIgICAgOCA6
-IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA0ICAgICAgNCAgICAgIDAK
-c2dwb29sLTY0ICAgICAgICAgICAgIDk2ICAgICA5NiAgIDEzNDQgICAyNCAgICA4IDogdHVuYWJs
-ZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDQgICAgICA0ICAgICAgMApzZ3Bvb2wt
-MzIgICAgICAgICAgICAgOTIgICAgIDkyICAgIDcwNCAgIDIzICAgIDQgOiB0dW5hYmxlcyAgICAw
-ICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNCAgICAgIDQgICAgICAwCnNncG9vbC0xNiAgICAg
-ICAgICAgICA4NCAgICAgODQgICAgMzg0ICAgMjEgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAg
-ICAwIDogc2xhYmRhdGEgICAgICA0ICAgICAgNCAgICAgIDAKYmxrZGV2X3F1ZXVlICAgICAgICAg
-IDcyICAgICA3MiAgIDE3MzYgICAxOCAgICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBz
-bGFiZGF0YSAgICAgIDQgICAgICA0ICAgICAgMApiaW92ZWMtMjU2ICAgICAgICAgICAgMTAgICAg
-IDEwICAgMzEzNiAgIDEwICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRh
-ICAgICAgMSAgICAgIDEgICAgICAwCmJpb3ZlYy0xMjggICAgICAgICAgICAyMCAgICAgMjAgICAx
-NjAwICAgMjAgICAgOCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAx
-ICAgICAgMSAgICAgIDAKYmlvdmVjLTY0ICAgICAgICAgICAgIDc2ICAgICA3NiAgICA4MzIgICAx
-OSAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDQgICAgICA0
-ICAgICAgMApiaXAtMjU2ICAgICAgICAgICAgICAgMTAgICAgIDEwICAgMzIwMCAgIDEwICAgIDgg
-OiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgMSAgICAgIDEgICAgICAw
-CmJpcC0xMjggICAgICAgICAgICAgICAgMCAgICAgIDAgICAxNjY0ICAgMTkgICAgOCA6IHR1bmFi
-bGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICAwICAgICAgMCAgICAgIDAKYmlwLTY0
-ICAgICAgICAgICAgICAgICAwICAgICAgMCAgICA4OTYgICAxOCAgICA0IDogdHVuYWJsZXMgICAg
-MCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDAgICAgICAwICAgICAgMApiaXAtMTYgICAgICAg
-ICAgICAgICAgIDAgICAgICAwICAgIDMyMCAgIDI1ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAg
-ICAgMCA6IHNsYWJkYXRhICAgICAgMCAgICAgIDAgICAgICAwCnNvY2tfaW5vZGVfY2FjaGUgICAg
-IDYyOSAgICA2MzAgICAgNzY4ICAgMjEgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDog
-c2xhYmRhdGEgICAgIDMwICAgICAzMCAgICAgIDAKc2tidWZmX2ZjbG9uZV9jYWNoZSAgICAgNzIg
-ICAgIDcyICAgIDQ0OCAgIDE4ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJk
-YXRhICAgICAgNCAgICAgIDQgICAgICAwCnNobWVtX2lub2RlX2NhY2hlICAgMTg2MiAgIDE4NjIg
-ICAgODI0ICAgMTkgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAg
-IDk4ICAgICA5OCAgICAgIDAKdGFza3N0YXRzICAgICAgICAgICAgIDg0ICAgICA4NCAgICAzNzYg
-ICAyMSAgICAyIDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgIDQgICAg
-ICA0ICAgICAgMApwcm9jX2lub2RlX2NhY2hlICAgIDE2MjMgICAxNjUwICAgIDcyMCAgIDIyICAg
-IDQgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICA3NSAgICAgNzUgICAg
-ICAwCmJkZXZfY2FjaGUgICAgICAgICAgICA2OCAgICAgNjggICAgOTYwICAgMTcgICAgNCA6IHR1
-bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA0ICAgICAgNCAgICAgIDAKaW5v
-ZGVfY2FjaGUgICAgICAgICA3MTI1ICAgNzEzMCAgICA2OTYgICAyMyAgICA0IDogdHVuYWJsZXMg
-ICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAzMTAgICAgMzEwICAgICAgMAptbV9zdHJ1Y3Qg
-ICAgICAgICAgICAxMzUgICAgMTM4ICAgIDcwNCAgIDIzICAgIDQgOiB0dW5hYmxlcyAgICAwICAg
-IDAgICAgMCA6IHNsYWJkYXRhICAgICAgNiAgICAgIDYgICAgICAwCmZpbGVzX2NhY2hlICAgICAg
-ICAgIDE0MiAgICAxNTAgICAgMzIwICAgMjUgICAgMiA6IHR1bmFibGVzICAgIDAgICAgMCAgICAw
-IDogc2xhYmRhdGEgICAgICA2ICAgICAgNiAgICAgIDAKc2lnbmFsX2NhY2hlICAgICAgICAgMjI5
-ICAgIDIzMCAgICA3MDQgICAyMyAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFi
-ZGF0YSAgICAgMTAgICAgIDEwICAgICAgMApzaWdoYW5kX2NhY2hlICAgICAgICAyMjggICAgMjMw
-ICAgMTQwOCAgIDIzICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAg
-ICAxMCAgICAgMTAgICAgICAwCnRhc2tfeHN0YXRlICAgICAgICAgIDE5NSAgICAyMDAgICAgNjQw
-ICAgMjUgICAgNCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA4ICAg
-ICAgOCAgICAgIDAKdGFza19zdHJ1Y3QgICAgICAgICAgMjcxICAgIDI4NSAgIDU1MjAgICAgNSAg
-ICA4IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAgICAgNTcgICAgIDU3ICAg
-ICAgMApyYWRpeF90cmVlX25vZGUgICAgIDM0ODQgICAzNTA0ICAgIDMzNiAgIDI0ICAgIDIgOiB0
-dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgIDE0NiAgICAxNDYgICAgICAwCmtt
-YWxsb2MtODE5MiAgICAgICAgICAyMCAgICAgMjAgICA4MTkyICAgIDQgICAgOCA6IHR1bmFibGVz
-ICAgIDAgICAgMCAgICAwIDogc2xhYmRhdGEgICAgICA1ICAgICAgNSAgICAgIDAKa21hbGxvYy00
-MDk2ICAgICAgICAgIDc5ICAgICA4MCAgIDQwOTYgICAgOCAgICA4IDogdHVuYWJsZXMgICAgMCAg
-ICAwICAgIDAgOiBzbGFiZGF0YSAgICAgMTAgICAgIDEwICAgICAgMAprbWFsbG9jLTIwNDggICAg
-ICAgICAzODggICAgMzkwICAgMjA5NiAgIDE1ICAgIDggOiB0dW5hYmxlcyAgICAwICAgIDAgICAg
-MCA6IHNsYWJkYXRhICAgICAyNiAgICAgMjYgICAgICAwCmttYWxsb2MtMTAyNCAgICAgICAgIDM4
-MiAgICAzOTAgICAxMDcyICAgMzAgICAgOCA6IHR1bmFibGVzICAgIDAgICAgMCAgICAwIDogc2xh
-YmRhdGEgICAgIDEzICAgICAxMyAgICAgIDAKa21hbGxvYy01MTIgICAgICAgICAgNzk2ICAgIDgx
-MiAgICA1NjAgICAyOSAgICA0IDogdHVuYWJsZXMgICAgMCAgICAwICAgIDAgOiBzbGFiZGF0YSAg
-ICAgMjggICAgIDI4ICAgICAgMAprbWFsbG9jLTI1NiAgICAgICAgICAxNTMgICAgMTU2ICAgIDMw
-NCAgIDI2ICAgIDIgOiB0dW5hYmxlcyAgICAwICAgIDAgICAgMCA6IHNsYWJkYXRhICAgICAgNiAg
-ICAgIDYgICAgICAwCg==
---000325575aeaa59f84048cf6c749--
+> slabinfo - version: 2.1
+> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+> kvm_vcpu               0      0   9248    3    8 : tunables    0    0    0 : slabdata      0      0      0
+> kmalloc_dma-512       29     29    560   29    4 : tunables    0    0    0 : slabdata      1      1      0
+> clip_arp_cache         0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
+> ip6_dst_cache         25     25    320   25    2 : tunables    0    0    0 : slabdata      1      1      0
+> ndisc_cache           25     25    320   25    2 : tunables    0    0    0 : slabdata      1      1      0
+> RAWv6                 16     16   1024   16    4 : tunables    0    0    0 : slabdata      1      1      0
+> UDPLITEv6              0      0    960   17    4 : tunables    0    0    0 : slabdata      0      0      0
+> UDPv6                 68     68    960   17    4 : tunables    0    0    0 : slabdata      4      4      0
+> tw_sock_TCPv6          0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
+> TCPv6                 36     36   1792   18    8 : tunables    0    0    0 : slabdata      2      2      0
+> nf_conntrack_c10a8540      0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
+> dm_raid1_read_record      0      0   1096   29    8 : tunables    0    0    0 : slabdata      0      0      0
+> kcopyd_job             0      0    376   21    2 : tunables    0    0    0 : slabdata      0      0      0
+> dm_uevent              0      0   2504   13    8 : tunables    0    0    0 : slabdata      0      0      0
+> dm_rq_target_io        0      0    272   30    2 : tunables    0    0    0 : slabdata      0      0      0
+> mqueue_inode_cache     17     17    960   17    4 : tunables    0    0    0 : slabdata      1      1      0
+> fuse_request          17     17    480   17    2 : tunables    0    0    0 : slabdata      1      1      0
+> fuse_inode            19     19    832   19    4 : tunables    0    0    0 : slabdata      1      1      0
+> nfsd4_stateowners      0      0    392   20    2 : tunables    0    0    0 : slabdata      0      0      0
+> nfs_write_data        48     48    512   16    2 : tunables    0    0    0 : slabdata      3      3      0
+> nfs_read_data         32     32    512   16    2 : tunables    0    0    0 : slabdata      2      2      0
+> nfs_inode_cache        0      0   1080   30    8 : tunables    0    0    0 : slabdata      0      0      0
+> ecryptfs_key_record_cache      0      0    576   28    4 : tunables    0    0    0 : slabdata      0      0      0
+> ecryptfs_sb_cache      0      0    640   25    4 : tunables    0    0    0 : slabdata      0      0      0
+> ecryptfs_inode_cache      0      0   1280   25    8 : tunables    0    0    0 : slabdata      0      0      0
+> ecryptfs_auth_tok_list_item      0      0    896   18    4 : tunables    0    0    0 : slabdata      0      0      0
+> hugetlbfs_inode_cache     23     23    696   23    4 : tunables    0    0    0 : slabdata      1      1      0
+> ext4_inode_cache       0      0   1168   28    8 : tunables    0    0    0 : slabdata      0      0      0
+> ext2_inode_cache       0      0    984   16    4 : tunables    0    0    0 : slabdata      0      0      0
+> ext3_inode_cache    5391   5392    968   16    4 : tunables    0    0    0 : slabdata    337    337      0
+> dquot                  0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
+> kioctx                 0      0    384   21    2 : tunables    0    0    0 : slabdata      0      0      0
+> rpc_buffers           30     30   2112   15    8 : tunables    0    0    0 : slabdata      2      2      0
+> rpc_inode_cache       18     18    896   18    4 : tunables    0    0    0 : slabdata      1      1      0
+> UNIX                 556    558    896   18    4 : tunables    0    0    0 : slabdata     31     31      0
+> UDP-Lite               0      0    832   19    4 : tunables    0    0    0 : slabdata      0      0      0
+> ip_dst_cache         125    125    320   25    2 : tunables    0    0    0 : slabdata      5      5      0
+> arp_cache            100    100    320   25    2 : tunables    0    0    0 : slabdata      4      4      0
+> RAW                   19     19    832   19    4 : tunables    0    0    0 : slabdata      1      1      0
+> UDP                   76     76    832   19    4 : tunables    0    0    0 : slabdata      4      4      0
+> TCP                   76     76   1664   19    8 : tunables    0    0    0 : slabdata      4      4      0
+> sgpool-128            48     48   2624   12    8 : tunables    0    0    0 : slabdata      4      4      0
+> sgpool-64             96     96   1344   24    8 : tunables    0    0    0 : slabdata      4      4      0
+> sgpool-32             92     92    704   23    4 : tunables    0    0    0 : slabdata      4      4      0
+> sgpool-16             84     84    384   21    2 : tunables    0    0    0 : slabdata      4      4      0
+> blkdev_queue          72     72   1736   18    8 : tunables    0    0    0 : slabdata      4      4      0
+> biovec-256            10     10   3136   10    8 : tunables    0    0    0 : slabdata      1      1      0
+> biovec-128            20     20   1600   20    8 : tunables    0    0    0 : slabdata      1      1      0
+> biovec-64             76     76    832   19    4 : tunables    0    0    0 : slabdata      4      4      0
+> bip-256               10     10   3200   10    8 : tunables    0    0    0 : slabdata      1      1      0
+> bip-128                0      0   1664   19    8 : tunables    0    0    0 : slabdata      0      0      0
+> bip-64                 0      0    896   18    4 : tunables    0    0    0 : slabdata      0      0      0
+> bip-16                 0      0    320   25    2 : tunables    0    0    0 : slabdata      0      0      0
+> sock_inode_cache     629    630    768   21    4 : tunables    0    0    0 : slabdata     30     30      0
+> skbuff_fclone_cache     72     72    448   18    2 : tunables    0    0    0 : slabdata      4      4      0
+> shmem_inode_cache   1862   1862    824   19    4 : tunables    0    0    0 : slabdata     98     98      0
+> taskstats             84     84    376   21    2 : tunables    0    0    0 : slabdata      4      4      0
+> proc_inode_cache    1623   1650    720   22    4 : tunables    0    0    0 : slabdata     75     75      0
+> bdev_cache            68     68    960   17    4 : tunables    0    0    0 : slabdata      4      4      0
+> inode_cache         7125   7130    696   23    4 : tunables    0    0    0 : slabdata    310    310      0
+> mm_struct            135    138    704   23    4 : tunables    0    0    0 : slabdata      6      6      0
+> files_cache          142    150    320   25    2 : tunables    0    0    0 : slabdata      6      6      0
+> signal_cache         229    230    704   23    4 : tunables    0    0    0 : slabdata     10     10      0
+> sighand_cache        228    230   1408   23    8 : tunables    0    0    0 : slabdata     10     10      0
+> task_xstate          195    200    640   25    4 : tunables    0    0    0 : slabdata      8      8      0
+> task_struct          271    285   5520    5    8 : tunables    0    0    0 : slabdata     57     57      0
+> radix_tree_node     3484   3504    336   24    2 : tunables    0    0    0 : slabdata    146    146      0
+> kmalloc-8192          20     20   8192    4    8 : tunables    0    0    0 : slabdata      5      5      0
+> kmalloc-4096          79     80   4096    8    8 : tunables    0    0    0 : slabdata     10     10      0
+> kmalloc-2048         388    390   2096   15    8 : tunables    0    0    0 : slabdata     26     26      0
+> kmalloc-1024         382    390   1072   30    8 : tunables    0    0    0 : slabdata     13     13      0
+> kmalloc-512          796    812    560   29    4 : tunables    0    0    0 : slabdata     28     28      0
+> kmalloc-256          153    156    304   26    2 : tunables    0    0    0 : slabdata      6      6      0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
