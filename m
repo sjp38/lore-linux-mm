@@ -1,38 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 915DE62012A
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 04:06:53 -0400 (EDT)
-From: "Kleen, Andi" <andi.kleen@intel.com>
-Date: Wed, 4 Aug 2010 09:06:18 +0100
-Subject: RE: scalability investigation: Where can I get your latest patches?
-Message-ID: <F4DF93C7785E2549970341072BC32CD78D8FC0CC@irsmsx503.ger.corp.intel.com>
-References: <1278579387.2096.889.camel@ymzhang.sh.intel.com>
-	 <20100720031201.GC21274@amd>
-	 <1280883843.2125.20.camel@ymzhang.sh.intel.com>
-	 <F4DF93C7785E2549970341072BC32CD78D8FC01B@irsmsx503.ger.corp.intel.com>
- <1280908717.2125.33.camel@ymzhang.sh.intel.com>
-In-Reply-To: <1280908717.2125.33.camel@ymzhang.sh.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9AC8C62012A
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 04:38:13 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so6839036iwn.14
+        for <linux-mm@kvack.org>; Wed, 04 Aug 2010 01:38:12 -0700 (PDT)
 MIME-Version: 1.0
+Date: Wed, 4 Aug 2010 16:38:12 +0800
+Message-ID: <AANLkTi=1DxqLrqVbfRouOBRWg4RHFaHz438X7F1JWL6P@mail.gmail.com>
+Subject: question about CONFIG_BASE_SMALL
+From: Ryan Wang <openspace.wang@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, "Shi, Alex" <alex.shi@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > I believe the latest version of Nick's patchkit has a likely fix for
-> that.
-> >
-> > http://git.kernel.org/?p=3Dlinux/kernel/git/npiggin/linux-
-> npiggin.git;a=3Dcommitdiff;h=3D9edd35f9aeafc8a5e1688b84cf4488a94898ca45
->=20
-> Thanks Andi. The patch has no ext3 part.
+Hi all,
 
-Good point. But perhaps the ext2 patch can be adapted. The ACL code
-should be similar in ext2 and ext3 (and 4)
+      I noticed CONFIG_BASE_SMALL in different parts
+of the kernel code, with ifdef/ifndef.
+      I wonder what does CONFIG_BASE_SMALL mean?
+And how can I configure it, e.g. through make menuconfig?
 
--Andi
+thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
