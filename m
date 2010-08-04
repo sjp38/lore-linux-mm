@@ -1,90 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 68BC0660019
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id A132566001B
 	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 22:45:25 -0400 (EDT)
-Message-Id: <20100804024514.139976032@linux.com>
-Date: Tue, 03 Aug 2010 21:45:14 -0500
+Message-Id: <20100804024524.401853913@linux.com>
+Date: Tue, 03 Aug 2010 21:45:15 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
+Subject: [S+Q3 01/23] percpu: make @dyn_size always mean min dyn_size in first chunk init functions
+References: <20100804024514.139976032@linux.com>
+Content-Disposition: inline; filename=percpu_early_1
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-The following is a first release of an allocator based on SLAB
-and SLUB that integrates the best approaches from both allocators. The
-per cpu queuing is like the two prior releases. The NUMA facilities
-were much improved vs V2. Shared and alien cache support was added to
-track the cache hot state of objects. 
+From: Tejun Heo <tj@kernel.org>
 
-After this patches SLUB will track the cpu cache contents
-like SLAB attemped to. There are a number of architectural differences:
+In pcpu_build_alloc_info() and pcpu_embed_first_chunk(), @dyn_size was
+ssize_t, -1 meant auto-size, 0 forced 0 and positive meant minimum
+size.  There's no use case for forcing 0 and the upcoming early alloc
+support always requires non-zero dynamic size.  Make @dyn_size always
+mean minimum dyn_size.
 
-1. SLUB accurately tracks cpu caches instead of assuming that there
-   is only a single cpu cache per node or system.
+While at it, make pcpu_build_alloc_info() static which doesn't have
+any external caller as suggested by David Rientjes.
 
-2. SLUB object expiration is tied into the page reclaim logic. There
-   is no periodic cache expiration.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
-3. SLUB caches are dynamically configurable via the sysfs filesystem.
+Index: work/include/linux/percpu.h
+===================================================================
+--- work.orig/include/linux/percpu.h
++++ work/include/linux/percpu.h
+@@ -104,16 +104,11 @@ extern struct pcpu_alloc_info * __init p
+ 							     int nr_units);
+ extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
 
-4. There is no per slab page metadata structure to maintain (aside
-   from the object bitmap that usually fits into the page struct).
+-extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
+-				size_t atom_size,
+-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+-
+ extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+ 					 void *base_addr);
 
-5. Keeps all the other good features of SLUB as well.
+ #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+-extern int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++extern int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				pcpu_fc_alloc_fn_t alloc_fn,
+Index: work/mm/percpu.c
+===================================================================
+--- work.orig/mm/percpu.c
++++ work/mm/percpu.c
+@@ -1013,20 +1013,6 @@ phys_addr_t per_cpu_ptr_to_phys(void *ad
+ 		return page_to_phys(pcpu_addr_to_page(addr));
+ }
 
-SLUB+Q is a merging of SLUB with some queuing concepts from SLAB and a
-new way of managing objects in the slabs using bitmaps. It uses a percpu
-queue so that free operations can be properly buffered and a bitmap for
-managing the free/allocated state in the slabs. It is slightly more
-inefficient than SLUB (due to the need to place large bitmaps --sized
-a few words--in some slab pages if there are more than BITS_PER_LONG
-objects in a slab) but in general does not increase space use too much.
+-static inline size_t pcpu_calc_fc_sizes(size_t static_size,
+-					size_t reserved_size,
+-					ssize_t *dyn_sizep)
+-{
+-	size_t size_sum;
+-
+-	size_sum = PFN_ALIGN(static_size + reserved_size +
+-			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
+-	if (*dyn_sizep != 0)
+-		*dyn_sizep = size_sum - static_size - reserved_size;
+-
+-	return size_sum;
+-}
+-
+ /**
+  * pcpu_alloc_alloc_info - allocate percpu allocation info
+  * @nr_groups: the number of groups
+@@ -1085,7 +1071,7 @@ void __init pcpu_free_alloc_info(struct
+ /**
+  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: minimum free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  *
+@@ -1103,8 +1089,8 @@ void __init pcpu_free_alloc_info(struct
+  * On success, pointer to the new allocation_info is returned.  On
+  * failure, ERR_PTR value is returned.
+  */
+-struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+-				size_t reserved_size, ssize_t dyn_size,
++static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
++				size_t reserved_size, size_t dyn_size,
+ 				size_t atom_size,
+ 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
+ {
+@@ -1123,13 +1109,15 @@ struct pcpu_alloc_info * __init pcpu_bui
+ 	memset(group_map, 0, sizeof(group_map));
+ 	memset(group_cnt, 0, sizeof(group_cnt));
 
-The SLAB scheme of not touching the object during management is adopted.
-SLUB+Q can efficiently free and allocate cache cold objects without
-causing cache misses.
++	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
++	dyn_size = size_sum - static_size - reserved_size;
++
+ 	/*
+ 	 * Determine min_unit_size, alloc_size and max_upa such that
+ 	 * alloc_size is multiple of atom_size and is the smallest
+ 	 * which can accomodate 4k aligned segments which are equal to
+ 	 * or larger than min_unit_size.
+ 	 */
+-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
+ 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
 
-I have had limited time for benchmarking this release so far since I
-was more focused on getting SLAB features merged in and making it
-work reliably with all the usual SLUB bells and whistles. The queueing
-scheme from the SLUB+Q V1/V2 releases was not changed so that the basic
-SMP performance is still the same. V1 and V2 did not have NUMA clean
-queues and therefore the performance on NUMA system was not great.
+ 	alloc_size = roundup(min_unit_size, atom_size);
+@@ -1532,7 +1520,7 @@ early_param("percpu_alloc", percpu_alloc
+ /**
+  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
+  * @reserved_size: the size of reserved percpu area in bytes
+- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
++ * @dyn_size: minimum free size for dynamic allocation in bytes
+  * @atom_size: allocation atom size
+  * @cpu_distance_fn: callback to determine distance between cpus, optional
+  * @alloc_fn: function to allocate percpu page
+@@ -1553,10 +1541,7 @@ early_param("percpu_alloc", percpu_alloc
+  * vmalloc space is not orders of magnitude larger than distances
+  * between node memory addresses (ie. 32bit NUMA machines).
+  *
+- * When @dyn_size is positive, dynamic area might be larger than
+- * specified to fill page alignment.  When @dyn_size is auto,
+- * @dyn_size is just big enough to fill page alignment after static
+- * and reserved areas.
++ * @dyn_size specifies the minimum dynamic area size.
+  *
+  * If the needed size is smaller than the minimum or specified unit
+  * size, the leftover is returned using @free_fn.
+@@ -1564,7 +1549,7 @@ early_param("percpu_alloc", percpu_alloc
+  * RETURNS:
+  * 0 on success, -errno on failure.
+  */
+-int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
++int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 				  size_t atom_size,
+ 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
+ 				  pcpu_fc_alloc_fn_t alloc_fn,
+@@ -1695,7 +1680,7 @@ int __init pcpu_page_first_chunk(size_t
 
-Since the basic queueing scheme from SLAB was taken we should be seeing
-similar or better performance on NUMA. But then I am limited to two node
-systems at this point. For those systems the alien caches are allocated
-of similar size than the shared caches. Meaning that more optimizations
-will now be geared to small NUMA systems.
+ 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
-
-
-Patches against 2.6.35
-
-1,2 Some percpu stuff that I hope will independently be merged in the 2.6.36
-	cycle.
-
-3-13 Cleanup patches for SLUB that are general improvements. Some of those
-	are already in the slab tree for 2.6.36.
-
-14-18 Minimal set that realizes per cpu queues without fancy shared or alien
-    queues.  This should be enough to be competitive with SMP against SLAB
-    on modern hardware as the earlier measurements show.
-
-19   NUMA policies applied at the object level. This will cause significantly
-	more processing in the allocator hotpath for the NUMA case on
-	particular slabs so that individual allocations can be redirected
-	to different nodes.
-
-20	Shared caches per cache sibling group between processors.
-
-21	Alien caches per cache sibling group. Just adds a couple of
-	shared caches and uses them for foreign nodes.
-
-22	Cache expiration
-
-23	Expire caches from page reclaim logic in mm/vmscan.c
+-	ai = pcpu_build_alloc_info(reserved_size, -1, PAGE_SIZE, NULL);
++	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
+ 	if (IS_ERR(ai))
+ 		return PTR_ERR(ai);
+ 	BUG_ON(ai->nr_groups != 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
