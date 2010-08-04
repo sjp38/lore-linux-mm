@@ -1,107 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5014C6B0360
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 18:08:46 -0400 (EDT)
-From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 1/2] mm: helper functions for dirty and writeback accounting
-Date: Tue,  3 Aug 2010 15:19:08 -0700
-Message-Id: <1280873949-20460-2-git-send-email-mrubin@google.com>
-In-Reply-To: <1280873949-20460-1-git-send-email-mrubin@google.com>
-References: <1280873949-20460-1-git-send-email-mrubin@google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1772562012A
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 21:01:39 -0400 (EDT)
+Subject: Re: scalability investigation: Where can I get your latest patches?
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <20100720031201.GC21274@amd>
+References: <1278579387.2096.889.camel@ymzhang.sh.intel.com>
+	 <20100720031201.GC21274@amd>
+Content-Type: text/plain; charset="ISO-8859-1"
+Date: Wed, 04 Aug 2010 09:04:03 +0800
+Message-Id: <1280883843.2125.20.camel@ymzhang.sh.intel.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: andi.kleen@intel.com, alexs.shi@intel.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Exporting account_pages_dirty and adding a symmetric routine
-account_pages_writeback.
+On Tue, 2010-07-20 at 13:12 +1000, Nick Piggin wrote:
+> On Thu, Jul 08, 2010 at 04:56:27PM +0800, Zhang, Yanmin wrote:
+> > Nick,
+> > 
+> > I work with Andi Kleen and Tim to investigate some scalability issues.
+> > 
+> > Andi gave me a pointer at:
+> > http://thread.gmane.org/gmane.linux.kernel/1002380/focus=42284
+> > 
+> > Where can I get your latest patches? It's better if I could get patch tarball.
+> > 
+> > Thanks,
+> > Yanmin
+> > 
+> 
+> Hi Yanmin,
+> 
+> Sorry for the delay. I have a git tree now, and it has been through
+> some tress testing.
+> 
+> http://git.kernel.org/?p=linux/kernel/git/npiggin/linux-npiggin.git
+> 
+> I would be very interested to know if you encounter problems or are
+> able to generate any benchmark numbers.
+Nick,
 
-This allows code outside of the mm core to safely manipulate page state
-and not worry about the other accounting. Not using these routines means
-that some code will lose track of the accounting and we get bugs.
+We ran lots of benchmarks on many machines. Below is something to share with you.
 
-These routines are in use by ceph and nilfs2.
+Improvement:
+1) We get about 30% improvement with kbuild workload on Nehalem machines. It's hard
+to improve kbuild performance. Your tree does.
 
-Signed-off-by: Michael Rubin <mrubin@google.com>
----
- fs/ceph/addr.c      |    8 ++------
- fs/nilfs2/segment.c |    2 +-
- include/linux/mm.h  |    1 +
- mm/page-writeback.c |   15 +++++++++++++++
- 4 files changed, 19 insertions(+), 7 deletions(-)
+Issues:
+1) Compiling fails on a couple of file systems, such like CONFIG_ISO9660_FS=y.
+2) dbenchthreads has about 50% regression. We connect a JBOD of 12 disks to
+a machine. Start 4 dbench threads per disk.
+We run the workload under a regular user account. If we run it under root account,
+we get 22% improvement instead of regression.
+The root cause is ACL checking. With your patch, do_path_lookup firstly goes through
+rcu steps which including a exec permission checking. With ACL, the __exec_permission
+always fails. Then a later nameidata_drop_rcu often fails as dentry->d_seq is changed.
 
-diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-index d9c60b8..359aa3a 100644
---- a/fs/ceph/addr.c
-+++ b/fs/ceph/addr.c
-@@ -106,12 +106,8 @@ static int ceph_set_page_dirty(struct page *page)
- 	if (page->mapping) {	/* Race with truncate? */
- 		WARN_ON_ONCE(!PageUptodate(page));
- 
--		if (mapping_cap_account_dirty(mapping)) {
--			__inc_zone_page_state(page, NR_FILE_DIRTY);
--			__inc_bdi_stat(mapping->backing_dev_info,
--					BDI_RECLAIMABLE);
--			task_io_account_write(PAGE_CACHE_SIZE);
--		}
-+		if (mapping_cap_account_dirty(mapping))
-+			account_page_dirtied(page, page->mapping);
- 		radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
- 
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index c920164..967ed7d 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
- 	kunmap_atomic(kaddr, KM_USER0);
- 
- 	if (!TestSetPageWriteback(clone_page))
--		inc_zone_page_state(clone_page, NR_WRITEBACK);
-+		account_page_writeback(clone_page, page_mapping(clone_page));
- 	unlock_page(clone_page);
- 
- 	return 0;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a2b4804..b138392 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -855,6 +855,7 @@ int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- void account_page_dirtied(struct page *page, struct address_space *mapping);
-+void account_page_writeback(struct page *page, struct address_space *mapping);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 37498ef..b8e7b3b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1096,6 +1096,21 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		task_io_account_write(PAGE_CACHE_SIZE);
- 	}
- }
-+EXPORT_SYMBOL(account_page_dirtied);
-+
-+/*
-+ * Helper function for set_page_writeback family.
-+ * NOTE: Unlike account_page_dirtied this does not rely on being atomic
-+ * wrt interrupts.
-+ */
-+
-+void account_page_writeback(struct page *page, struct address_space *mapping)
-+{
-+	if (mapping_cap_account_dirty(mapping))
-+		inc_zone_page_state(page, NR_WRITEBACK);
-+}
-+EXPORT_SYMBOL(account_page_writeback);
-+
- 
- /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
--- 
-1.7.1
+With root account, it doesn't happen. We mount the working devices under /mnt/stp/XXX.
+/mnt is of root user. So the exec permission check is ok.
+
+I remount all file systems on the testing path with noacl option, and get the similar
+results like under root account.
+
+3) aim7 has about 40% regression on Nehalem EX 4-socket machine. The root cause is the
+same thing like 2).
+
+Other benchmarks' results have no improvement or regression.
+
+Yanmin
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
