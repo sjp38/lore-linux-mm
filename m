@@ -1,67 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3D47D6B02A4
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 15:19:20 -0400 (EDT)
-Received: by gwj16 with SMTP id 16so2763016gwj.14
-        for <linux-mm@kvack.org>; Wed, 04 Aug 2010 12:19:19 -0700 (PDT)
-MIME-Version: 1.0
-Date: Wed, 4 Aug 2010 22:19:14 +0300
-Message-ID: <AANLkTimHvrwQgq8dwc8oYYTjrv603DXRM_Ggy-JJ56VF@mail.gmail.com>
-Subject: [GIT PULL] SLAB updates for 2.6.36-rc0
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CAEA26B02A4
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 18:05:13 -0400 (EDT)
+Date: Wed, 4 Aug 2010 15:04:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] Adding four writeback files in /proc/sys/vm
+Message-Id: <20100804150422.c52b308e.akpm@linux-foundation.org>
+In-Reply-To: <1280873949-20460-1-git-send-email-mrubin@google.com>
+References: <1280873949-20460-1-git-send-email-mrubin@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: torvalds@linux-foundation.org
-Cc: cl@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Nick Piggin <npiggin@suse.de>
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+On Tue,  3 Aug 2010 15:19:07 -0700
+Michael Rubin <mrubin@google.com> wrote:
 
-There's dramatic queued up for this merge window for SLAB. Bulk of the
-changes are straight-forward SLUB cleanups from Christoph Lameter's
-recent SLAB/SLUB unification patch series but there's also few SLAB
-and SLOB fixes thrown into the mix.
+> Patch #1 sets up some helper functions for accounting.
+> 
+> Patch #2 adds some writeback files for visibility
+> 
+> To help developers and applications gain visibility into writeback
+> behaviour adding four read-only sysctl files into /proc/sys/vm.
+> These files allow user apps to understand writeback behaviour over time
+> and learn how it is impacting their performance.
+> 
+>    # cat /proc/sys/vm/pages_dirtied
+>    3747
+>    # cat /proc/sys/vm/pages_entered_writeback
+>    3618
+>    # cat /proc/sys/vm/dirty_threshold_kbytes
+>    816673
+>    # cat /proc/sys/vm/dirty_background_threshold_kbytes
+>    408336
+> 
+> The files fall into two groups.
+> 
+> pages_dirtied and pages_entered_writeback:
+> 
+> These two new files are necessary to give visibility into writeback
+> behaviour. We have /proc/diskstats which lets us understand the io in
+> the block layer. We have blktrace for more indepth understanding. We have
+> e2fsprogs and debugsfs to give insight into the file systems behaviour,
+> but we don't offer our users the ability understand what writeback is
+> doing. There is no non-debugfs way to know how active it is,
 
-                        Pekka
+I see what you did there!
 
-The following changes since commit 9fe6206f400646a2322096b56c59891d530e8d51:
-  Linus Torvalds (1):
-        Linux 2.6.35
+So is there a debugfs-based way of getting this info?  If so, that
+should be sufficient.
 
-are available in the git repository at:
+> if it's
+> falling behind or to quantify it's efforts on a system. With these values
+> exported users can easily see how much data applications are sending
+> through writeback and also at what rates writeback is processing this
+> data. Comparing the rates of change between the two allow developers
+> to see when writeback is not able to keep up with incoming traffic and
+> the rate of dirty memory being sent to the IO back end.  This allows
+> folks to understand their io workloads and track kernel issues. Non
+> kernel engineers at Google often use these counters to solve puzzling
+> performance problems.
+> 
+> dirty_threshold_kbytes and dirty_background_threshold kbytes:
+> 
+> We already expose these thresholds in /proc/sys/vm with
+> dirty_background_ratio and background_ratio. What's frustrating about
+> the ratio variables and the need for these are that they are not
+> honored by the kernel. Instead the kernel may alter the number
+> requested without giving the user any indication that is the case.
+> An app developer can set the ratio to 2% but end up with 5% as
+> get_dirty_limits makes sure it is never lower than 5% when set from
+> the ratio. Arguably that can be fixed too but the limits which decide
+> whether writeback is invoked to aggressively clean dirty pages is
+> dependent on changing page state retrieved in
+> determine_dirtyable_memory. It makes understanding when the kernel
+> decides to writeback data a moving target that no app can ever
+> determine. With these thresholds visible and collected over time it
+> gives apps a chance to know why writeback happened, or why it did not.
+> As systems get larger and larger RAM developers use the ratios to
+> predict when their workloads will see writeback invoked. Today there
+> is no way to accurately indicate what the kernel will use to kick off
+> writeback. Hence the need for these two new files.
+> 
 
-  ssh://master.kernel.org/pub/scm/linux/kernel/git/penberg/slab-2.6.git
-for-linus
+We should be very reluctant to add files to /proc which are tied to any
+particular internal implementation.  Because when we change that
+implementation (and boy does writeback need changing!), we have to
+somehow make those files still contain meaningful values.
 
-Arjan van de Ven (1):
-      slab: use deferable timers for its periodic housekeeping
+For pages_dirtied and pages_entered_writeback: it's hard to see how any
+reimplementation of writeback would have any problem implementing
+these, so OK.
 
-Bob Liu (1):
-      SLOB: Free objects to their own list
-
-Christoph Lameter (7):
-      slub: Use a constant for a unspecified node.
-      SLUB: Constants need UL
-      slub: Check kasprintf results in kmem_cache_init()
-      slub: Allow removal of slab caches during boot
-      slub: Use kmem_cache flags to detect if slab is in debugging mode.
-      slub numa: Fix rare allocation from unexpected node
-      slub: Allow removal of slab caches during boot
-
-Pekka Enberg (2):
-      Revert "slub: Allow removal of slab caches during boot"
-      Merge branches 'slab/fixes', 'slob/fixes', 'slub/cleanups' and
-'slub/fixes' into for-linus
-
-Xiaotian Feng (1):
-      slab: fix caller tracking on !CONFIG_DEBUG_SLAB && CONFIG_TRACING
-
- include/linux/page-flags.h |    2 -
- include/linux/slab.h       |    6 ++-
- mm/slab.c                  |    2 +-
- mm/slob.c                  |    9 ++++-
- mm/slub.c                  |   86 ++++++++++++++++++++++----------------------
- 5 files changed, 56 insertions(+), 49 deletions(-)
+But dirty_threshold_kbytes and dirty_background_threshold_kbytes are
+closely tied to the implementation-of-the-day and so I don't think they
+should be presented in /proc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
