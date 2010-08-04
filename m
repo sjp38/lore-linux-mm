@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED68620138
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 08:06:36 -0400 (EDT)
-Date: Wed, 4 Aug 2010 13:04:32 +0100
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: Over-eager swapping
-Message-ID: <20100804120430.GB23551@arachsys.com>
-References: <AANLkTinnWQA-K6r_+Y+giEC9zs-MbY6GFs8dWadSq0kh@mail.gmail.com>
- <20100803033108.GA23117@arachsys.com>
- <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
- <20100803042835.GA17377@localhost>
- <20100803214945.GA2326@arachsys.com>
- <20100804022148.GA5922@localhost>
- <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
- <20100804032400.GA14141@localhost>
- <20100804095811.GC2326@arachsys.com>
- <20100804114933.GA13527@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100804114933.GA13527@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3359960020C
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 10:38:26 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [RFC PATCH 0/2] Prioritise inodes and zones for writeback required by page reclaim
+Date: Wed,  4 Aug 2010 15:38:29 +0100
+Message-Id: <1280932711-23696-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang <fengguang.wu@intel.com> writes:
+Commenting on the series "Reduce writeback from page reclaim context V6"
+Andrew Morton noted;
 
-> Maybe turn off KSM? It helps to isolate problems. It's a relative new
-> and complex feature after all.
+  direct-reclaim wants to write a dirty page because that page is in the
+  zone which the caller wants to allocate from!  Telling the flusher threads
+  to perform generic writeback will sometimes cause them to just gum the
+  disk up with pages from different zones, making it even harder/slower to
+  allocate a page from the zones we're interested in, no?
 
-Good idea! I'll give that a go on one of the machines without swap at the
-moment, re-add the swap with ksm turned off, and see what happens.
+On the machines used to test the series, there were relatively few zones
+and only one BDI so the scenario describes is a possibility. This series is
+a very early prototype series aimed at mitigating the problem.
 
-> > However, your suggestion is right that the CPU loads on these machines are
-> > typically quite high. The large number of kvm virtual machines they run mean
-> > thatl oads of eight or even sixteen in /proc/loadavg are not unusual, and
-> > these are higher when there's swap than after it has been removed. I assume
-> > this is mostly because of increased IO wait, as this number increases
-> > significantly in top.
-> 
-> iowait = CPU (idle) waiting for disk IO
-> 
-> So iowait means not CPU load, but somehow disk load :)
+Patch 1 adds wakeup_flusher_threads_pages() which takes a list of pages
+from page reclaim. Each inode belonging to a page on the list is marked
+I_DIRTY_RECLAIM. When the flusher thread wakes, inodes with this tag are
+unconditionally moved to the wb->b_io list for writing.
 
-Sorry, yes, I wrote very unclearly here. What I should have written is that
-the load numbers are fairly high even without swap, when the IO wait figure
-is pretty small. This is presumably normal CPU load from the guests.
+Patch 2 notes that writing back inodes does not necessarily write back
+pages belonging to the zone page reclaim is concerned with. In response, it
+adds a zone and counter to wb_writeback_work. As pages from the target zone
+are written, the zone-specific counter is updated. When the flusher thread
+then checks the zone counters if a specific zone is being targeted. While
+more pages may be written than necessary, the assumption is that the pages
+need cleaning eventually, the inode must be relatively old to have pages at
+the end of the LRU, the IO will be relatively efficient due to less random
+seeks and that pages from the target zone will still be cleaned.
 
-The load average rises significantly when swap is added, but I think that
-rise is due to an increase in processes waiting for IO (io wait %age
-increases considerably) rather than extra CPU work. Presumably this is the
-IO from swapping.
+Testing did not show any significant differences in terms of reducing dirty
+file pages being written back but the lack of multiple BDIs and NUMA nodes in
+the test rig is a problem. Maybe someone else has access to a more suitable
+test rig.
 
-Cheers,
+Any comment as to the suitability for such a direction?
 
-Chris.
+ fs/fs-writeback.c         |   83 +++++++++++++++++++++++++++++++++++++++++---
+ include/linux/fs.h        |    5 ++-
+ include/linux/writeback.h |    5 +++
+ mm/page-writeback.c       |   12 ++++++-
+ mm/vmscan.c               |   11 ++++--
+ 5 files changed, 103 insertions(+), 13 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
