@@ -1,103 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CAEA26B02A4
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 18:05:13 -0400 (EDT)
-Date: Wed, 4 Aug 2010 15:04:22 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 704386B02A4
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 18:57:55 -0400 (EDT)
+Date: Wed, 4 Aug 2010 15:56:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] Adding four writeback files in /proc/sys/vm
-Message-Id: <20100804150422.c52b308e.akpm@linux-foundation.org>
-In-Reply-To: <1280873949-20460-1-git-send-email-mrubin@google.com>
-References: <1280873949-20460-1-git-send-email-mrubin@google.com>
+Subject: Re: [RFC PATCH 0/2] Prioritise inodes and zones for writeback
+ required by page reclaim
+Message-Id: <20100804155610.2a0d5e1f.akpm@linux-foundation.org>
+In-Reply-To: <1280932711-23696-1-git-send-email-mel@csn.ul.ie>
+References: <1280932711-23696-1-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  3 Aug 2010 15:19:07 -0700
-Michael Rubin <mrubin@google.com> wrote:
+On Wed,  4 Aug 2010 15:38:29 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> Patch #1 sets up some helper functions for accounting.
+> Commenting on the series "Reduce writeback from page reclaim context V6"
+> Andrew Morton noted;
 > 
-> Patch #2 adds some writeback files for visibility
+>   direct-reclaim wants to write a dirty page because that page is in the
+>   zone which the caller wants to allocate from!  Telling the flusher threads
+>   to perform generic writeback will sometimes cause them to just gum the
+>   disk up with pages from different zones, making it even harder/slower to
+>   allocate a page from the zones we're interested in, no?
 > 
-> To help developers and applications gain visibility into writeback
-> behaviour adding four read-only sysctl files into /proc/sys/vm.
-> These files allow user apps to understand writeback behaviour over time
-> and learn how it is impacting their performance.
+> On the machines used to test the series, there were relatively few zones
+> and only one BDI so the scenario describes is a possibility. This series is
+> a very early prototype series aimed at mitigating the problem.
 > 
->    # cat /proc/sys/vm/pages_dirtied
->    3747
->    # cat /proc/sys/vm/pages_entered_writeback
->    3618
->    # cat /proc/sys/vm/dirty_threshold_kbytes
->    816673
->    # cat /proc/sys/vm/dirty_background_threshold_kbytes
->    408336
+> Patch 1 adds wakeup_flusher_threads_pages() which takes a list of pages
+> from page reclaim. Each inode belonging to a page on the list is marked
+> I_DIRTY_RECLAIM. When the flusher thread wakes, inodes with this tag are
+> unconditionally moved to the wb->b_io list for writing.
 > 
-> The files fall into two groups.
+> Patch 2 notes that writing back inodes does not necessarily write back
+> pages belonging to the zone page reclaim is concerned with. In response, it
+> adds a zone and counter to wb_writeback_work. As pages from the target zone
+> are written, the zone-specific counter is updated. When the flusher thread
+> then checks the zone counters if a specific zone is being targeted. While
+> more pages may be written than necessary, the assumption is that the pages
+> need cleaning eventually, the inode must be relatively old to have pages at
+> the end of the LRU, the IO will be relatively efficient due to less random
+> seeks and that pages from the target zone will still be cleaned.
 > 
-> pages_dirtied and pages_entered_writeback:
+> Testing did not show any significant differences in terms of reducing dirty
+> file pages being written back but the lack of multiple BDIs and NUMA nodes in
+> the test rig is a problem. Maybe someone else has access to a more suitable
+> test rig.
 > 
-> These two new files are necessary to give visibility into writeback
-> behaviour. We have /proc/diskstats which lets us understand the io in
-> the block layer. We have blktrace for more indepth understanding. We have
-> e2fsprogs and debugsfs to give insight into the file systems behaviour,
-> but we don't offer our users the ability understand what writeback is
-> doing. There is no non-debugfs way to know how active it is,
+> Any comment as to the suitability for such a direction?
 
-I see what you did there!
+um.  Might work.  Isn't pretty though.
 
-So is there a debugfs-based way of getting this info?  If so, that
-should be sufficient.
-
-> if it's
-> falling behind or to quantify it's efforts on a system. With these values
-> exported users can easily see how much data applications are sending
-> through writeback and also at what rates writeback is processing this
-> data. Comparing the rates of change between the two allow developers
-> to see when writeback is not able to keep up with incoming traffic and
-> the rate of dirty memory being sent to the IO back end.  This allows
-> folks to understand their io workloads and track kernel issues. Non
-> kernel engineers at Google often use these counters to solve puzzling
-> performance problems.
-> 
-> dirty_threshold_kbytes and dirty_background_threshold kbytes:
-> 
-> We already expose these thresholds in /proc/sys/vm with
-> dirty_background_ratio and background_ratio. What's frustrating about
-> the ratio variables and the need for these are that they are not
-> honored by the kernel. Instead the kernel may alter the number
-> requested without giving the user any indication that is the case.
-> An app developer can set the ratio to 2% but end up with 5% as
-> get_dirty_limits makes sure it is never lower than 5% when set from
-> the ratio. Arguably that can be fixed too but the limits which decide
-> whether writeback is invoked to aggressively clean dirty pages is
-> dependent on changing page state retrieved in
-> determine_dirtyable_memory. It makes understanding when the kernel
-> decides to writeback data a moving target that no app can ever
-> determine. With these thresholds visible and collected over time it
-> gives apps a chance to know why writeback happened, or why it did not.
-> As systems get larger and larger RAM developers use the ratios to
-> predict when their workloads will see writeback invoked. Today there
-> is no way to accurately indicate what the kernel will use to kick off
-> writeback. Hence the need for these two new files.
-> 
-
-We should be very reluctant to add files to /proc which are tied to any
-particular internal implementation.  Because when we change that
-implementation (and boy does writeback need changing!), we have to
-somehow make those files still contain meaningful values.
-
-For pages_dirtied and pages_entered_writeback: it's hard to see how any
-reimplementation of writeback would have any problem implementing
-these, so OK.
-
-But dirty_threshold_kbytes and dirty_background_threshold_kbytes are
-closely tied to the implementation-of-the-day and so I don't think they
-should be presented in /proc.
+But until we can demonstrate the problem or someone reports it, we
+probably have more important issues to be looking at ;) I think that a
+better approach is to try to trigger this problem as we develop and
+test reclaim.  And if we _can't_ demonstrate it, work out why the heck
+not - either the code's smarter than we thought it was or the test is
+no good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
