@@ -1,417 +1,532 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DABD466002F
-	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 22:45:37 -0400 (EDT)
-Message-Id: <20100804024536.477394860@linux.com>
-Date: Tue, 03 Aug 2010 21:45:36 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 11FF6660030
+	for <linux-mm@kvack.org>; Tue,  3 Aug 2010 22:45:39 -0400 (EDT)
+Message-Id: <20100804024535.909930848@linux.com>
+Date: Tue, 03 Aug 2010 21:45:35 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q3 22/23] slub: Cached object expiration
+Subject: [S+Q3 21/23] slub: Support Alien Caches
 References: <20100804024514.139976032@linux.com>
-Content-Disposition: inline; filename=unified_expire
+Content-Disposition: inline; filename=unified_alien_cache
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Provides a variety of functions that allow expiring objects from slabs.
+Alien caches are essential to track cachelines from a foreign node that are
+present in a local cpu cache. They are therefore a form of the prior
+introduced shared cache. Alien caches of the number of nodes minus one are
+allocated for *each* lowest level shared cpu cache.
 
-kmem_cache_expire(struct kmem_cache ,int node)
-	Expire objects of a specific slab.
+SLABs problem in this area is that the cpu caches are not properly tracked.
+If there are multiple cpu caches on the same node then SLAB may not
+properly track cache hotness of objects.
 
-kmem_cache_expire_all(int node)
-	Walk through all caches and expire objects.
+Alien caches are sizes differently than shared caches but are allocated
+in the same contiguous memory area. The shared cache pointer is used
+to reach the alien caches too. At positive offsets we fine shared cache
+objects. At negative objects the alien caches are placed.
 
-Functions return the number of bytes reclaimed.
+Alien caches can be switched off and configured on a cache by cache
+basis using files in /sys/kernel/slab/<cache>/alien_queue_size.
 
-Object expiration works by gradually expiring more or less performance
-sensitive cached data. Expiration can be called multiple times and will
-then gradually touch more and more performance sensitive cached data.
+Alien status is available in /sys/kernel/slab/<cache>/alien_caches.
 
-Levels of expiration
-
-first		Empty partial slabs
-		Alien caches
-		Shared caches
-last		Cpu caches
-
-Manual expiration may be done by using the sysfs filesytem.
-
-	/sys/kernel/slab/<cache>/expire
-
-can take a node number or -1 for global expiration.
-
-A cat will display the number of bytes reclaimed for a given
-expiration run.
-
-SLAB performs a scan of all its slabs every 2 seconds.
-The  approach here means that the user (or the kernel) has more
-control over the expiration of cached data and thereby control over
-the time when the OS can disturb the application by extensive
-processing.
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/slab.h     |    3 
  include/linux/slub_def.h |    1 
- mm/slub.c                |  283 ++++++++++++++++++++++++++++++++++++++---------
- 3 files changed, 238 insertions(+), 49 deletions(-)
+ mm/slub.c                |  339 +++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 327 insertions(+), 13 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-08-03 21:19:00.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-08-03 21:19:00.000000000 -0500
-@@ -3320,6 +3320,213 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
+--- linux-2.6.orig/mm/slub.c	2010-08-03 15:58:51.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-03 15:58:53.000000000 -0500
+@@ -31,8 +31,10 @@
  
-+static struct list_head *alloc_slabs_by_inuse(struct kmem_cache *s)
-+{
-+	int objects = oo_objects(s->max);
-+	struct list_head *h =
-+		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
-+
-+	return h;
-+
-+}
-+
-+static int shrink_partial_list(struct kmem_cache *s, int node,
-+				struct list_head *slabs_by_inuse)
-+{
-+	int i;
-+	struct kmem_cache_node *n = get_node(s, node);
-+	struct page *page;
-+	struct page *t;
-+	int reclaimed = 0;
-+	unsigned long flags;
-+	int objects = oo_objects(s->max);
-+
-+	if (!n->nr_partial)
-+		return 0;
-+
-+	for (i = 0; i < objects; i++)
-+		INIT_LIST_HEAD(slabs_by_inuse + i);
-+
-+	spin_lock_irqsave(&n->list_lock, flags);
-+
-+	/*
-+	 * Build lists indexed by the items in use in each slab.
-+	 *
-+	 * Note that concurrent frees may occur while we hold the
-+	 * list_lock. page->inuse here is the upper limit.
-+	 */
-+	list_for_each_entry_safe(page, t, &n->partial, lru) {
-+		if (all_objects_available(page) && slab_trylock(page)) {
-+			/*
-+			 * Must hold slab lock here because slab_free
-+			 * may have freed the last object and be
-+			 * waiting to release the slab.
-+			 */
-+			list_del(&page->lru);
-+			n->nr_partial--;
-+			slab_unlock(page);
-+			discard_slab(s, page);
-+			reclaimed++;
-+		} else {
-+			list_move(&page->lru,
-+			slabs_by_inuse + inuse(page));
-+		}
-+	}
-+
-+	/*
-+	 * Rebuild the partial list with the slabs filled up most
-+	 * first and the least used slabs at the end.
-+	 * This will cause the partial list to be shrunk during
-+	 * allocations and memory to be freed up when more objects
-+	 * are freed in pages at the tail.
-+	 */
-+	for (i = objects - 1; i >= 0; i--)
-+		list_splice(slabs_by_inuse + i, n->partial.prev);
-+
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+	return reclaimed;
-+}
-+
-+static int expire_cache(struct kmem_cache *s, struct kmem_cache_cpu *c,
-+		struct kmem_cache_queue *q, int lock)
-+{
-+	unsigned long flags = 0;
-+	int n;
-+
-+	if (queue_empty(q))
-+		return 0;
-+
-+	if (lock)
-+		spin_lock(&q->lock);
-+	else
-+		local_irq_save(flags);
-+
-+	n = drain_queue(s, q, s->batch);
-+
-+	if (lock)
-+		spin_unlock(&q->lock);
-+	else
-+		local_irq_restore(flags);
-+
-+	return n;
-+}
-+
-+/*
-+ * Cache expiration is called when the kernel is low on memory in a node
-+ * or globally (specify node == NUMA_NO_NODE).
+ /*
+  * Lock order:
+- *   1. slab_lock(page)
+- *   2. slab->list_lock
 + *
-+ * Cache expiration works by reducing caching memory used by the allocator.
-+ * It starts with caches that are not that important for performance.
-+ * If it cannot retrieve memory in a low importance cache then it will
-+ * start expiring data from more important caches.
-+ * The function returns 0 when all caches have been expired and no
-+ * objects are cached anymore.
-+ *
-+ * low impact	 	Dropping of empty partial list slabs
-+ *			Drop a batch from the alien caches
-+ *                      Drop a batch from the shared caches
-+ * high impact		Drop a batch from the cpu caches
-+ */
++ *   1. alien kmem_cache_cpu->lock lock
++ *   2. slab_lock(page)
++ *   3. kmem_cache_node->list_lock
+  *
+  *   The slab_lock protects operations on the object of a particular
+  *   slab and its metadata in the page struct. If the slab lock
+@@ -148,6 +150,16 @@ static inline int kmem_cache_debug(struc
+ /* Internal SLUB flags */
+ #define __OBJECT_POISON		0x80000000UL /* Poison object */
+ #define __SYSFS_ADD_DEFERRED	0x40000000UL /* Not yet visible via sysfs */
++#define __ALIEN_CACHE		0x20000000UL /* Slab has alien caches */
 +
-+unsigned long kmem_cache_expire(struct kmem_cache *s, int node)
++static inline int aliens(struct kmem_cache *s)
 +{
-+	struct list_head *slabs_by_inuse = alloc_slabs_by_inuse(s);
-+	int reclaimed = 0;
-+	int cpu;
-+	cpumask_var_t saved_mask;
-+
-+	if (!slabs_by_inuse)
-+		return -ENOMEM;
-+
-+	if (node != NUMA_NO_NODE)
-+		reclaimed = shrink_partial_list(s, node, slabs_by_inuse);
-+	else {
-+		int n;
-+
-+		for_each_node_state(n, N_NORMAL_MEMORY)
-+			reclaimed +=
-+				shrink_partial_list(s, n, slabs_by_inuse)
-+					* PAGE_SHIFT << oo_order(s->oo);
-+	}
-+
-+	kfree(slabs_by_inuse);
-+
-+	if (reclaimed)
-+		return reclaimed;
 +#ifdef CONFIG_NUMA
-+	if (aliens(s))
-+	    for_each_online_cpu(cpu) {
-+		struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu, cpu);
-+
-+		if (!c->q.shared)
-+			continue;
-+
-+		if (node == NUMA_NO_NODE) {
-+			int x;
-+
-+			for_each_online_node(x)
-+				reclaimed += expire_cache(s, c,
-+					alien_cache(s, c, x), 1) * s->size;
-+
-+		} else
-+		if (c->node != node)
-+			reclaimed += expire_cache(s, c,
-+				alien_cache(s, c, node), 1) * s->size;
-+	}
-+
-+	if (reclaimed)
-+		return reclaimed;
++	return (s->flags & __ALIEN_CACHE) != 0;
++#else
++	return 0;
 +#endif
-+
-+	for_each_online_cpu(cpu) {
-+		struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu, cpu);
-+
-+		if (!c->q.shared)
-+			continue;
-+
-+		if (node != NUMA_NO_NODE && c->node != node)
-+			continue;
-+
-+		reclaimed += expire_cache(s, c, c->q.shared, 1) * s->size;
-+	}
-+
-+	if (reclaimed)
-+		return reclaimed;
-+
-+	if (alloc_cpumask_var(&saved_mask, GFP_KERNEL)) {
-+		cpumask_copy(saved_mask, &current->cpus_allowed);
-+		for_each_online_cpu(cpu) {
-+			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu, cpu);
-+
-+			if (node != NUMA_NO_NODE && c->node != node)
-+				continue;
-+
-+			/*
-+			 * Switch affinity to the target cpu to allow access
-+			 * to the cpu cache
-+			 */
-+			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-+			reclaimed += expire_cache(s, c, &c->q, 0) * s->size;
-+		}
-+		set_cpus_allowed_ptr(current, saved_mask);
-+		free_cpumask_var(saved_mask);
-+	}
-+
-+	return reclaimed;
 +}
-+
-+unsigned long kmem_cache_expire_all(int node)
-+{
-+	struct kmem_cache *s;
-+	unsigned long n = 0;
-+
-+	down_read(&slub_lock);
-+	list_for_each_entry(s, &slab_caches, list)
-+		n += kmem_cache_expire(s, node);
-+	up_read(&slub_lock);
-+	return n;
-+}
+ 
+ static int kmem_size = sizeof(struct kmem_cache);
+ 
+@@ -1587,6 +1599,9 @@ static inline int drain_shared_cache(str
+ 	return n;
+ }
+ 
++static void drain_alien_caches(struct kmem_cache *s,
++				struct kmem_cache_cpu *c);
 +
  /*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-@@ -3333,62 +3540,16 @@ EXPORT_SYMBOL(kfree);
- int kmem_cache_shrink(struct kmem_cache *s)
- {
- 	int node;
--	int i;
--	struct kmem_cache_node *n;
--	struct page *page;
--	struct page *t;
--	int objects = oo_objects(s->max);
--	struct list_head *slabs_by_inuse =
--		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
--	unsigned long flags;
-+	struct list_head *slabs_by_inuse = alloc_slabs_by_inuse(s);
+  * Drain all objects from a per cpu queue
+  */
+@@ -1596,6 +1611,7 @@ static void flush_cpu_objects(struct kme
  
- 	if (!slabs_by_inuse)
- 		return -ENOMEM;
- 
- 	flush_all(s);
--	for_each_node_state(node, N_NORMAL_MEMORY) {
--		n = get_node(s, node);
--
--		if (!n->nr_partial)
--			continue;
--
--		for (i = 0; i < objects; i++)
--			INIT_LIST_HEAD(slabs_by_inuse + i);
--
--		spin_lock_irqsave(&n->list_lock, flags);
- 
--		/*
--		 * Build lists indexed by the items in use in each slab.
--		 *
--		 * Note that concurrent frees may occur while we hold the
--		 * list_lock. page->inuse here is the upper limit.
--		 */
--		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			if (all_objects_available(page) && slab_trylock(page)) {
--				/*
--				 * Must hold slab lock here because slab_free
--				 * may have freed the last object and be
--				 * waiting to release the slab.
--				 */
--				list_del(&page->lru);
--				n->nr_partial--;
--				slab_unlock(page);
--				discard_slab(s, page);
--			} else {
--				list_move(&page->lru,
--				slabs_by_inuse + inuse(page));
--			}
--		}
-+	for_each_node_state(node, N_NORMAL_MEMORY)
-+		shrink_partial_list(s, node, slabs_by_inuse);
- 
--		/*
--		 * Rebuild the partial list with the slabs filled up most
--		 * first and the least used slabs at the end.
--		 */
--		for (i = objects - 1; i >= 0; i--)
--			list_splice(slabs_by_inuse + i, n->partial.prev);
--
--		spin_unlock_irqrestore(&n->list_lock, flags);
--	}
- 
- 	kfree(slabs_by_inuse);
- 	return 0;
-@@ -4867,6 +5028,29 @@ static ssize_t shrink_store(struct kmem_
+ 	drain_queue(s, q, q->objects);
+ 	drain_shared_cache(s, q->shared);
++	drain_alien_caches(s, c);
+  	stat(s, QUEUE_FLUSH);
  }
- SLAB_ATTR(shrink);
  
-+static ssize_t expire_show(struct kmem_cache *s, char *buf)
+@@ -1739,6 +1755,53 @@ struct kmem_cache_queue **shared_caches(
+ }
+ 
+ /*
++ * Alien caches which are also shared caches
++ */
++
++#ifdef CONFIG_NUMA
++/* Given an allocation context determine the alien queue to use */
++static inline struct kmem_cache_queue *alien_cache(struct kmem_cache *s,
++		struct kmem_cache_cpu *c, int node)
 +{
-+	return sprintf(buf, "%lu\n", s->last_expired_bytes);
++	void *p = c->q.shared;
++
++	/* If the cache does not have any alien caches return NULL */
++	if (!aliens(s) || !p || node == c->node)
++		return NULL;
++
++	/*
++	 * Map [0..(c->node - 1)] -> [1..c->node].
++	 *
++	 * This effectively removes the current node (which is serviced by
++	 * the shared cachei) from the list and avoids hitting 0 (which would
++	 * result in accessing the shared queue used for the cpu cache).
++	 */
++	if (node < c->node)
++		node++;
++
++	p -= (node << s->alien_shift);
++
++	return (struct kmem_cache_queue *)p;
 +}
 +
-+static ssize_t expire_store(struct kmem_cache *s,
-+			const char *buf, size_t length)
++static inline void drain_alien_caches(struct kmem_cache *s,
++					 struct kmem_cache_cpu *c)
 +{
-+	long node;
-+	int err;
++	int node;
 +
-+	err = strict_strtol(buf, 10, &node);
++	for_each_node(node)
++		if (node != c->node);
++			drain_shared_cache(s, alien_cache(s, c, node));
++}
++
++#else
++static inline void drain_alien_caches(struct kmem_cache *s,
++				 struct kmem_cache_cpu *c) {}
++#endif
++
++static struct kmem_cache *get_slab(size_t size, gfp_t flags);
++
++/*
+  * Allocate shared cpu caches.
+  * A shared cache is allocated for each series of cpus sharing a single cache
+  */
+@@ -1748,23 +1811,30 @@ static void alloc_shared_caches(struct k
+ 	int max;
+ 	int size;
+ 	void *p;
++	int alien_max = 0;
++	int alien_size = 0;
+ 
+ 	if (slab_state < SYSFS || s->shared_queue_sysfs == 0)
+ 		return;
+ 
++	if (aliens(s)) {
++		alien_size = (nr_node_ids - 1) << s->alien_shift;
++		alien_max = shared_cache_capacity(1 << s->alien_shift);
++	}
++
+ 	/*
+ 	 * Determine the size. Round it up to the size that a kmalloc cache
+ 	 * supporting that size has. This will often align the size to a
+ 	 * power of 2 especially on machines that have large kmalloc
+ 	 * alignment requirements.
+ 	 */
+-	size = shared_cache_size(s->shared_queue_sysfs);
++	size = shared_cache_size(s->shared_queue_sysfs) + alien_size;
+ 	if (size < PAGE_SIZE / 2)
+ 		size = get_slab(size, GFP_KERNEL)->objsize;
+ 	else
+ 		size = PAGE_SHIFT << get_order(size);
+ 
+-	max = shared_cache_capacity(size);
++	max = shared_cache_capacity(size - alien_size);
+ 
+ 	for_each_online_cpu(cpu) {
+ 		struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu, cpu);
+@@ -1786,8 +1856,26 @@ static void alloc_shared_caches(struct k
+ 			continue;
+ 		}
+ 
+-		l = p;
++		l = p + alien_size;
+ 		init_shared_cache(l, max);
++#ifdef CONFIG_NUMA
++		/* And initialize the alien caches now */
++		if (aliens(s)) {
++			int node;
++
++			for (node = 0; node < nr_node_ids - 1; node++) {
++				struct kmem_cache_queue *a =
++					p + (node << s->alien_shift);
++
++				init_shared_cache(a, alien_max);
++			}
++		}
++		if (cpumask_weight(map) < 2)  {
++			printk_once(KERN_WARNING "SLUB: Unusable processor"
++				" cache topology. Shared cache per numa node.\n");
++			map = cpumask_of_node(c->node);
++		}
++#endif
+ 
+ 		if (cpumask_weight(map) < 2) {
+ 
+@@ -1827,6 +1915,7 @@ static void __remove_shared_cache(void *
+ 
+ 	c->q.shared = NULL;
+ 	drain_shared_cache(s, q);
++	drain_alien_caches(s, c);
+ }
+ 
+ 
+@@ -1845,6 +1934,9 @@ static int remove_shared_caches(struct k
+ 	for(i = 0; i < s->nr_shared; i++) {
+ 		void *p = caches[i];
+ 
++		if (aliens(s))
++			p -= (nr_node_ids - 1) << s->alien_shift;
++
+ 		kfree(p);
+ 	}
+ 
+@@ -2039,11 +2131,23 @@ static void *slab_alloc_node(struct kmem
+ 						gfp_t gfpflags, int node)
+ {
+ #ifdef CONFIG_NUMA
+-	struct kmem_cache_node *n = get_node(s, node);
++	struct kmem_cache_queue *a = alien_cache(s, c, node);
+ 	struct page *page;
+ 	void *object;
+ 
+-	page = get_partial_node(n);
++	if (a) {
++redo:
++		spin_lock(&a->lock);
++		if (likely(!queue_empty(a))) {
++			object = queue_get(a);
++			spin_unlock(&a->lock);
++			return object;
++		}
++		spin_unlock(&a->lock);
++	}
++
++	/* Cross node allocation and lock taking ! */
++	page = get_partial_node(s->node[node]);
+ 	if (!page) {
+ 		gfpflags &= gfp_allowed_mask;
+ 
+@@ -2061,10 +2165,19 @@ static void *slab_alloc_node(struct kmem
+ 		slab_lock(page);
+  	}
+ 
+-	retrieve_objects(s, page, &object, 1);
++	if (a) {
++		spin_lock(&a->lock);
++		refill_queue(s, a, page, available(page));
++		spin_unlock(&a->lock);
++	} else
++		retrieve_objects(s, page, &object, 1);
+ 
+ 	to_lists(s, page, 0);
+ 	slab_unlock(page);
++
++	if (a)
++		goto redo;
++
+ 	return object;
+ #else
+ 	return NULL;
+@@ -2075,8 +2188,17 @@ static void slab_free_alien(struct kmem_
+ 	struct kmem_cache_cpu *c, struct page *page, void *object, int node)
+ {
+ #ifdef CONFIG_NUMA
+-	/* Direct free to the slab */
+-	drain_objects(s, &object, 1);
++	struct kmem_cache_queue *a = alien_cache(s, c, node);
++
++	if (a) {
++		spin_lock(&a->lock);
++		while (unlikely(queue_full(a)))
++			drain_queue(s, a, s->batch);
++		queue_put(a, object);
++		spin_unlock(&a->lock);
++	} else
++		/* Direct free to the slab */
++		drain_objects(s, &object, 1);
+ #endif
+ }
+ 
+@@ -2741,15 +2863,53 @@ static int kmem_cache_open(struct kmem_c
+ 	 */
+ 	set_min_partial(s, ilog2(s->size));
+ 	s->refcount = 1;
+-#ifdef CONFIG_NUMA
+-	s->remote_node_defrag_ratio = 1000;
+-#endif
+ 	if (!init_kmem_cache_nodes(s))
+ 		goto error;
+ 
+ 	s->queue = initial_queue_size(s->size);
+ 	s->batch = (s->queue + 1) / 2;
+ 
++#ifdef CONFIG_NUMA
++	s->remote_node_defrag_ratio = 1000;
++	if (nr_node_ids > 1) {
++		/*
++		 * Alien cache configuration. The more NUMA nodes we have the
++		 * smaller the alien caches become since the penalties in terms
++		 * of space and latency increase. The user will have code for
++		 * locality on these boxes anyways since a large portion of
++		 * memory will be distant to the processor.
++		 *
++		 * A set of alien caches is allocated for each lowest level
++		 * cpu cache. The alien set covers all nodes except the node
++		 * that is nearest to the processor.
++		 *
++		 * Create large alien cache for small node configuration so
++		 * that these can work like shared caches do to preserve the
++		 * cpu cache hot state of objects.
++		 */
++		int lines = fls(ALIGN(shared_cache_size(s->queue),
++						cache_line_size()) -1);
++		int min = fls(cache_line_size() - 1);
++
++		/* Limit the sizes of the alien caches to some sane values */
++		if (nr_node_ids <= 4)
++			/*
++			 * Keep the sizes roughly the same as the shared cache
++			 * unless it gets too huge.
++			 */
++			s->alien_shift = min(PAGE_SHIFT - 1, lines);
++
++		else if (nr_node_ids <= 32)
++			/* Maximum of 4 cachelines */
++			s->alien_shift = min(2 + min, lines);
++		else
++			/* Clamp down to one cacheline */
++			s->alien_shift = min;
++
++		s->flags |= __ALIEN_CACHE;
++	}
++#endif
++
+ 	if (alloc_kmem_cache_cpus(s)) {
+ 		s->shared_queue_sysfs = s->queue;
+ 		alloc_shared_caches(s);
+@@ -4745,6 +4905,157 @@ static ssize_t remote_node_defrag_ratio_
+ 	return length;
+ }
+ SLAB_ATTR(remote_node_defrag_ratio);
++
++static ssize_t alien_queue_size_show(struct kmem_cache *s, char *buf)
++{
++	if (aliens(s))
++		return sprintf(buf, "%lu %u\n",
++			((1 << s->alien_shift)
++				- sizeof(struct kmem_cache_queue)) /
++				sizeof(void *), s->alien_shift);
++	else
++		return sprintf(buf, "0\n");
++}
++
++static ssize_t alien_queue_size_store(struct kmem_cache *s,
++			 const char *buf, size_t length)
++{
++	unsigned long queue;
++	int err;
++	int oldshift;
++
++	if (nr_node_ids == 1)
++		return -ENOSYS;
++
++	oldshift = s->alien_shift;
++
++	err = strict_strtoul(buf, 10, &queue);
 +	if (err)
 +		return err;
 +
-+	if (node > nr_node_ids || node < -1)
++	if (queue < 0 && queue > 65535)
 +		return -EINVAL;
 +
-+	s->last_expired_bytes = kmem_cache_expire(s, node);
-+	return length;
++	if (queue == 0) {
++		s->flags &= ~__ALIEN_CACHE;
++		s->alien_shift = 0;
++	} else {
++		unsigned long size;
++
++		s->flags |= __ALIEN_CACHE;
++
++		size = max_t(unsigned long, cache_line_size(),
++			 sizeof(struct kmem_cache_queue)
++				+ queue * sizeof(void *));
++		size = ALIGN(size, cache_line_size());
++		s->alien_shift = fls(size + (size -1)) - 1;
++	}
++
++	if (oldshift != s->alien_shift) {
++		down_write(&slub_lock);
++		err = remove_shared_caches(s);
++		if (!err)
++			alloc_shared_caches(s);
++		up_write(&slub_lock);
++	}
++	return err ? err : length;
 +}
-+SLAB_ATTR(expire);
++SLAB_ATTR(alien_queue_size);
 +
- static ssize_t alloc_calls_show(struct kmem_cache *s, char *buf)
- {
- 	if (!(s->flags & SLAB_STORE_USER))
-@@ -5158,6 +5342,7 @@ static struct attribute *slab_attrs[] = 
- 	&store_user_attr.attr,
- 	&validate_attr.attr,
- 	&shrink_attr.attr,
-+	&expire_attr.attr,
- 	&alloc_calls_attr.attr,
- 	&free_calls_attr.attr,
- #ifdef CONFIG_ZONE_DMA
-Index: linux-2.6/include/linux/slab.h
-===================================================================
---- linux-2.6.orig/include/linux/slab.h	2010-08-03 21:18:41.000000000 -0500
-+++ linux-2.6/include/linux/slab.h	2010-08-03 21:19:00.000000000 -0500
-@@ -103,12 +103,15 @@ struct kmem_cache *kmem_cache_create(con
- 			void (*)(void *));
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
-+unsigned long kmem_cache_expire(struct kmem_cache *, int);
- void kmem_cache_free(struct kmem_cache *, void *);
- unsigned int kmem_cache_size(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
- int kern_ptr_validate(const void *ptr, unsigned long size);
- int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++static ssize_t alien_caches_show(struct kmem_cache *s, char *buf)
++{
++	unsigned long total;
++	int x;
++	int n;
++	int cpu, node;
++	struct kmem_cache_queue **caches;
++
++	if (!(s->flags & __ALIEN_CACHE) || s->alien_shift == 0)
++		return -ENOSYS;
++
++	down_read(&slub_lock);
++	caches = shared_caches(s);
++	if (!caches) {
++		up_read(&slub_lock);
++		return -ENOMEM;
++	}
++
++	total = 0;
++	for (n = 0; n < s->nr_shared; n++) {
++		struct kmem_cache_queue *q = caches[n];
++
++		for (n = 1; n < nr_node_ids; n++) {
++			struct kmem_cache_queue *a =
++				(void *)q - (n << s->alien_shift);
++
++			total += a->objects;
++		}
++	}
++	x = sprintf(buf, "%lu", total);
++
++	for (n = 0; n < s->nr_shared; n++) {
++		struct kmem_cache_queue *q = caches[n];
++		struct kmem_cache_queue *a;
++		struct kmem_cache_cpu *c = NULL;
++		int first;
++
++		x += sprintf(buf + x, " C");
++		first = 1;
++		/* Find cpus using the shared cache */
++		for_each_online_cpu(cpu) {
++			struct kmem_cache_cpu *z = per_cpu_ptr(s->cpu, cpu);
++
++			if (q != z->q.shared)
++				continue;
++
++			if (z)
++				c = z;
++
++			if (first)
++				first = 0;
++			else
++				x += sprintf(buf + x, ",");
++
++			x += sprintf(buf + x, "%d", cpu);
++		}
++
++		if (!c) {
++			x += sprintf(buf +x, "=<none>");
++			continue;
++		}
++
++		/* The total of objects for a particular shared cache */
++		total = 0;
++		for_each_online_node(node) {
++			struct kmem_cache_queue *a =
++				alien_cache(s, c, node);
++
++			if (a)
++				total += a->objects;
++		}
++		x += sprintf(buf +x, "=%lu[", total);
++
++		first = 1;
++		for_each_online_node(node) {
++			a = alien_cache(s, c, node);
++
++			if (a) {
++				if (first)
++					first = 0;
++				else
++					x += sprintf(buf + x, ":");
++
++				x += sprintf(buf + x, "N%d=%d/%d",
++						node, a->objects, a->max);
++			}
++		}
++		x += sprintf(buf + x, "]");
++	}
++	up_read(&slub_lock);
++	kfree(caches);
++	return x + sprintf(buf + x, "\n");
++}
++SLAB_ATTR_RO(alien_caches);
+ #endif
  
-+unsigned long kmem_cache_expire_all(int node);
-+
- /*
-  * Please use this macro to create slab caches. Simply specify the
-  * name of the structure and maybe some flags that are listed above.
+ #ifdef CONFIG_SLUB_STATS
+@@ -4854,6 +5165,8 @@ static struct attribute *slab_attrs[] = 
+ #endif
+ #ifdef CONFIG_NUMA
+ 	&remote_node_defrag_ratio_attr.attr,
++	&alien_caches_attr.attr,
++	&alien_queue_size_attr.attr,
+ #endif
+ #ifdef CONFIG_SLUB_STATS
+ 	&alloc_fastpath_attr.attr,
 Index: linux-2.6/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2010-08-03 21:19:00.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2010-08-03 21:19:00.000000000 -0500
-@@ -101,6 +101,7 @@ struct kmem_cache {
- 	struct list_head list;	/* List of slab caches */
- #ifdef CONFIG_SLUB_DEBUG
- 	struct kobject kobj;	/* For sysfs */
-+	unsigned long last_expired_bytes;
- #endif
- 	int shared_queue_sysfs;	/* Desired shared queue size */
+--- linux-2.6.orig/include/linux/slub_def.h	2010-08-03 15:58:51.000000000 -0500
++++ linux-2.6/include/linux/slub_def.h	2010-08-03 15:58:52.000000000 -0500
+@@ -82,6 +82,7 @@ struct kmem_cache {
+ 	int objsize;		/* The size of an object without meta data */
+ 	struct kmem_cache_order_objects oo;
+ 	int batch;		/* batch size */
++	int alien_shift;	/* Shift to size alien caches */
  
+ 	/* Allocation and freeing of slabs */
+ 	struct kmem_cache_order_objects max;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
