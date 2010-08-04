@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF8D6B0316
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 00:39:12 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id o744dD1V029434
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 21:39:13 -0700
-Received: from pwj9 (pwj9.prod.google.com [10.241.219.73])
-	by wpaz21.hot.corp.google.com with ESMTP id o744dBwe013171
-	for <linux-mm@kvack.org>; Tue, 3 Aug 2010 21:39:12 -0700
-Received: by pwj9 with SMTP id 9so2526301pwj.27
-        for <linux-mm@kvack.org>; Tue, 03 Aug 2010 21:39:11 -0700 (PDT)
-Date: Tue, 3 Aug 2010 21:39:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
-In-Reply-To: <20100804024514.139976032@linux.com>
-Message-ID: <alpine.DEB.2.00.1008032138160.20049@chino.kir.corp.google.com>
-References: <20100804024514.139976032@linux.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9BA2762012A
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 03:21:53 -0400 (EDT)
+From: "Kleen, Andi" <andi.kleen@intel.com>
+Date: Wed, 4 Aug 2010 08:21:30 +0100
+Subject: RE: scalability investigation: Where can I get your latest patches?
+Message-ID: <F4DF93C7785E2549970341072BC32CD78D8FC01B@irsmsx503.ger.corp.intel.com>
+References: <1278579387.2096.889.camel@ymzhang.sh.intel.com>
+	 <20100720031201.GC21274@amd> <1280883843.2125.20.camel@ymzhang.sh.intel.com>
+In-Reply-To: <1280883843.2125.20.camel@ymzhang.sh.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Nick Piggin <npiggin@suse.de>
+Cc: "alexs.shi@intel.com" <alexs.shi@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Aug 2010, Christoph Lameter wrote:
+> Issues:
+> 1) Compiling fails on a couple of file systems, such like
+> CONFIG_ISO9660_FS=3Dy.
+> 2) dbenchthreads has about 50% regression. We connect a JBOD of 12
+> disks to
+> a machine. Start 4 dbench threads per disk.
+> We run the workload under a regular user account. If we run it under
+> root account,
+> we get 22% improvement instead of regression.
+> The root cause is ACL checking. With your patch, do_path_lookup firstly
+> goes through
+> rcu steps which including a exec permission checking. With ACL, the
+> __exec_permission
+> always fails. Then a later nameidata_drop_rcu often fails as dentry-
+> >d_seq is changed.
 
-> The following is a first release of an allocator based on SLAB
-> and SLUB that integrates the best approaches from both allocators. The
-> per cpu queuing is like the two prior releases. The NUMA facilities
-> were much improved vs V2. Shared and alien cache support was added to
-> track the cache hot state of objects. 
-> 
+I believe the latest version of Nick's patchkit has a likely fix for that.
 
-This insta-reboots on my netperf benchmarking servers (but works with 
-numa=off), so I'll have to wait until I can hook up a serial before 
-benchmarking this series.
+http://git.kernel.org/?p=3Dlinux/kernel/git/npiggin/linux-npiggin.git;a=3Dc=
+ommitdiff;h=3D9edd35f9aeafc8a5e1688b84cf4488a94898ca45
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
