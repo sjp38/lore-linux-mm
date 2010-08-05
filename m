@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 632206B02B2
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 16:24:48 -0400 (EDT)
-Date: Thu, 5 Aug 2010 13:24:33 -0700
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 558736B02B2
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 17:07:42 -0400 (EDT)
+Date: Thu, 5 Aug 2010 14:07:55 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and
- pages_entered_writeback
-Message-Id: <20100805132433.d1d7927b.akpm@linux-foundation.org>
-In-Reply-To: <1280969004-29530-3-git-send-email-mrubin@google.com>
-References: <1280969004-29530-1-git-send-email-mrubin@google.com>
-	<1280969004-29530-3-git-send-email-mrubin@google.com>
+Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
+Message-Id: <20100805140755.501af8a7.akpm@linux-foundation.org>
+In-Reply-To: <20100726050827.GA24047@sli10-desk.sh.intel.com>
+References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
+	<20100723234938.88EB.A69D9226@jp.fujitsu.com>
+	<20100726050827.GA24047@sli10-desk.sh.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  4 Aug 2010 17:43:24 -0700
-Michael Rubin <mrubin@google.com> wrote:
+On Mon, 26 Jul 2010 13:08:27 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
-> To help developers and applications gain visibility into writeback
-> behaviour adding four read only sysctl files into /proc/sys/vm.
-> These files allow user apps to understand writeback behaviour over time
-> and learn how it is impacting their performance.
+> The zone->lru_lock is heavily contented in workload where activate_page()
+> is frequently used. We could do batch activate_page() to reduce the lock
+> contention. The batched pages will be added into zone list when the pool
+> is full or page reclaim is trying to drain them.
 > 
->    # cat /proc/sys/vm/pages_dirtied
->    3747
->    # cat /proc/sys/vm/pages_entered_writeback
->    3618
-> 
-> Documentation/vm.txt has been updated.
-> 
-> In order to track the "cleaned" and "dirtied" counts we added two
-> vm_stat_items.  Per memory node stats have been added also. So we can
-> see per node granularity:
-> 
->    # cat /sys/devices/system/node/node20/writebackstat
->    Node 20 pages_writeback: 0 times
->    Node 20 pages_dirtied: 0 times
-> 
-> ...
->
-> @@ -1091,6 +1115,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
->  {
->  	if (mapping_cap_account_dirty(mapping)) {
->  		__inc_zone_page_state(page, NR_FILE_DIRTY);
-> +		__inc_zone_page_state(page, NR_FILE_PAGES_DIRTIED);
->  		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
->  		task_dirty_inc(current);
->  		task_io_account_write(PAGE_CACHE_SIZE);
+> For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
+> processes shared map to the file. Each process read access the whole file and
+> then exit. The process exit will do unmap_vmas() and cause a lot of
+> activate_page() call. In such workload, we saw about 58% total time reduction
+> with below patch.
 
-I hope the utility of this change is worth the overhead :(
+What happened to the 2% regression that earlier changelogs mentioned?
 
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -740,6 +740,8 @@ static const char * const vmstat_text[] = {
->  	"numa_local",
->  	"numa_other",
->  #endif
-> +	"nr_pages_entered_writeback",
-> +	"nr_file_pages_dirtied",
->  
+afacit the patch optimises the rare munmap() case.  But what effect
+does it have upon the common case?  How do we know that it is a net
+benefit?
 
-Wait.  These counters appear in /proc/vmstat.  So why create standalone
-/proc/sys/vm files as well?
+Because the impact on kernel footprint is awful.  x86_64 allmodconfig:
+
+   text    data     bss     dec     hex filename
+   5857    1426    1712    8995    2323 mm/swap.o
+   6245    1587    1840    9672    25c8 mm/swap.o
+
+and look at x86_64 allnoconfig:
+
+   text    data     bss     dec     hex filename
+   2344     768       4    3116     c2c mm/swap.o
+   2632     896       4    3532     dcc mm/swap.o
+
+that's a uniprocessor kernel where none of this was of any use!
+
+Looking at the patch, I'm not sure where all this bloat came from.  But
+the SMP=n case is pretty bad and needs fixing, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
