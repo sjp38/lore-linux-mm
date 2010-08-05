@@ -1,94 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 27DFE6B02AB
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:00:44 -0400 (EDT)
-Date: Thu, 5 Aug 2010 19:00:16 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 12/13] writeback: try more writeback as long as
- something was written
-Message-ID: <20100805170016.GE3535@quack.suse.cz>
-References: <20100805161051.501816677@intel.com>
- <20100805162434.385571675@intel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B390E6B02A9
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:33:03 -0400 (EDT)
+Date: Thu, 5 Aug 2010 12:33:22 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
+In-Reply-To: <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1008051231400.6787@router.home>
+References: <20100804024514.139976032@linux.com> <alpine.DEB.2.00.1008032138160.20049@chino.kir.corp.google.com> <alpine.DEB.2.00.1008041115500.11084@router.home> <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100805162434.385571675@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri 06-08-10 00:11:03, Wu Fengguang wrote:
-> writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
-> they only populate b_io when necessary at entrance time. When the queued
-> set of inodes are all synced, they just return, possibly with
-> wbc.nr_to_write > 0.
-> 
-> For kupdate and background writeback, there may be more eligible inodes
-> sitting in b_dirty when the current set of b_io inodes are completed. So
-> it is necessary to try another round of writeback as long as we made some
-> progress in this round. When there are no more eligible inodes, no more
-> inodes will be enqueued in queue_io(), hence nothing could/will be
-> synced and we may safely bail.
-  This looks like a sane thing to do. Just one comment below...
- 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c |   19 +++++++++++--------
->  1 file changed, 11 insertions(+), 8 deletions(-)
-> 
-> --- linux-next.orig/fs/fs-writeback.c	2010-08-05 23:30:27.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-08-05 23:30:45.000000000 +0800
-> @@ -654,20 +654,23 @@ static long wb_writeback(struct bdi_writ
->  		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
->  
->  		/*
-> -		 * If we consumed everything, see if we have more
-> +		 * Did we write something? Try for more
-> +		 *
-> +		 * This is needed _before_ the b_more_io test because the
-> +		 * background writeback moves inodes to b_io and works on
-  Well, this applies generally to any writeback, not just a background one
-right? Whenever we process all inodes from b_io list and move them
-somewhere else than b_more_io, then this applies. Some new dirty data could
-have arrived while we were doing the write... I'm just afraid that in some
-pathological cases this could result in bad writeback pattern - like if
-there is some process which manages to dirty just a few pages while we are
-doing writeout, this looping could result in writing just a few pages in
-each round which is bad for fragmentation etc.
-  Actually, this comment probably also applies to your patch where you
-change the queueing logic in writeback_single_inode(), doesn't it?
+On Thu, 5 Aug 2010, David Rientjes wrote:
 
-								Honza
+> I bisected this to patch 8 but still don't have a bootlog.  I'm assuming
+> in the meantime that something is kmallocing DMA memory on this machine
+> prior to kmem_cache_init_late() and get_slab() is returning a NULL
+> pointer.
 
-> +		 * them in batches (in order to sync old pages first).  The
-> +		 * completion of the current batch does not necessarily mean
-> +		 * the overall work is done.
->  		 */
-> -		if (wbc.nr_to_write <= 0)
-> +		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
->  			continue;
-> +
->  		/*
-> -		 * Didn't write everything and we don't have more IO, bail
-> +		 * Nothing written and no more inodes for IO, bail
->  		 */
->  		if (list_empty(&wb->b_more_io))
->  			break;
-> -		/*
-> -		 * Did we write something? Try for more
-> -		 */
-> -		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
-> -			continue;
-> +
->  		/*
->  		 * Nothing written. Wait for some inode to
->  		 * become available for writeback. Otherwise
-> 
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+There is a kernel option "earlyprintk=..." that allows you to see early
+boot messages.
+
+If this indeed is a problem with the DMA caches then try the following
+patch:
+
+
+
+Subject: slub: Move dma cache initialization up
+
+Do dma kmalloc initialization in kmem_cache_init and not in kmem_cache_init_late()
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ mm/slub.c |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-08-05 12:24:21.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-05 12:28:58.000000000 -0500
+@@ -3866,13 +3866,8 @@ void __init kmem_cache_init(void)
+ #ifdef CONFIG_SMP
+ 	register_cpu_notifier(&slab_notifier);
+ #endif
+-}
+
+-void __init kmem_cache_init_late(void)
+-{
+ #ifdef CONFIG_ZONE_DMA
+-	int i;
+-
+ 	/* Create the dma kmalloc array and make it operational */
+ 	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
+ 		struct kmem_cache *s = kmalloc_caches[i];
+@@ -3891,6 +3886,10 @@ void __init kmem_cache_init_late(void)
+ #endif
+ }
+
++void __init kmem_cache_init_late(void)
++{
++}
++
+ /*
+  * Find a mergeable slab cache
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
