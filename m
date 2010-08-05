@@ -1,201 +1,83 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 02/13] writeback: avoid unnecessary calculation of bdi dirty thresholds
-Date: Fri, 06 Aug 2010 00:10:53 +0800
-Message-ID: <20100805162432.963007535@intel.com>
+Subject: [PATCH 03/13] writeback: add comment to the dirty limits functions
+Date: Fri, 06 Aug 2010 00:10:54 +0800
+Message-ID: <20100805162433.105093335@intel.com>
 References: <20100805161051.501816677@intel.com>
 Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Content-Disposition: inline; filename=writeback-less-bdi-calc.patch
+Content-Disposition: inline; filename=dirty-limits-comment.patch
 Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-Split get_dirty_limits() into global_dirty_limits()+bdi_dirty_limit(),
-so that the latter can be avoided when under global dirty background
-threshold (which is the normal state for most systems).
+Document global_dirty_limits(), bdi_dirty_limit() and task_dirty_limit().
 
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c         |    2 
- include/linux/writeback.h |    5 +-
- mm/backing-dev.c          |    3 -
- mm/page-writeback.c       |   75 ++++++++++++++++++------------------
- 4 files changed, 44 insertions(+), 41 deletions(-)
+ mm/page-writeback.c |   31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)
 
---- linux-next.orig/mm/page-writeback.c	2010-07-29 14:34:34.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-03 23:14:19.000000000 +0800
-@@ -267,10 +267,11 @@ static inline void task_dirties_fraction
-  *
-  *   dirty -= (dirty/8) * p_{t}
-  */
--static void task_dirty_limit(struct task_struct *tsk, unsigned long *pdirty)
-+static unsigned long task_dirty_limit(struct task_struct *tsk,
-+				       unsigned long bdi_dirty)
- {
- 	long numerator, denominator;
--	unsigned long dirty = *pdirty;
-+	unsigned long dirty = bdi_dirty;
- 	u64 inv = dirty >> 3;
- 
- 	task_dirties_fraction(tsk, &numerator, &denominator);
-@@ -278,10 +279,8 @@ static void task_dirty_limit(struct task
- 	do_div(inv, denominator);
- 
- 	dirty -= inv;
--	if (dirty < *pdirty/2)
--		dirty = *pdirty/2;
- 
--	*pdirty = dirty;
-+	return max(dirty, bdi_dirty/2);
+--- linux-next.orig/mm/page-writeback.c	2010-08-03 23:14:19.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-05 00:37:17.000000000 +0800
+@@ -261,11 +261,18 @@ static inline void task_dirties_fraction
  }
  
  /*
-@@ -391,9 +390,7 @@ unsigned long determine_dirtyable_memory
+- * scale the dirty limit
++ * task_dirty_limit - scale down dirty throttling threshold for one task
+  *
+  * task specific dirty limit:
+  *
+  *   dirty -= (dirty/8) * p_{t}
++ *
++ * To protect light/slow dirtying tasks from heavier/fast ones, we start
++ * throttling individual tasks before reaching the bdi dirty limit.
++ * Relatively low thresholds will be allocated to heavy dirtiers. So when
++ * dirty pages grow large, heavy dirtiers will be throttled first, which will
++ * effectively curb the growth of dirty pages. Light dirtiers with high enough
++ * dirty threshold may never get throttled.
+  */
+ static unsigned long task_dirty_limit(struct task_struct *tsk,
+ 				       unsigned long bdi_dirty)
+@@ -390,6 +397,15 @@ unsigned long determine_dirtyable_memory
  	return x + 1;	/* Ensure that we never return 0 */
  }
  
--void
--get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,
--		 unsigned long *pbdi_dirty, struct backing_dev_info *bdi)
-+void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
++/**
++ * global_dirty_limits - background-writeback and dirty-throttling thresholds
++ *
++ * Calculate the dirty thresholds based on sysctl parameters
++ * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
++ * - vm.dirty_ratio             or  vm.dirty_bytes
++ * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
++ * runtime tasks.
++ */
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
  {
  	unsigned long background;
- 	unsigned long dirty;
-@@ -425,26 +422,28 @@ get_dirty_limits(unsigned long *pbackgro
- 	}
- 	*pbackground = background;
+@@ -424,8 +440,17 @@ void global_dirty_limits(unsigned long *
  	*pdirty = dirty;
-+}
- 
--	if (bdi) {
--		u64 bdi_dirty;
--		long numerator, denominator;
-+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-+			       unsigned long dirty)
-+{
-+	u64 bdi_dirty;
-+	long numerator, denominator;
- 
--		/*
--		 * Calculate this BDI's share of the dirty ratio.
--		 */
--		bdi_writeout_fraction(bdi, &numerator, &denominator);
-+	/*
-+	 * Calculate this BDI's share of the dirty ratio.
-+	 */
-+	bdi_writeout_fraction(bdi, &numerator, &denominator);
- 
--		bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
--		bdi_dirty *= numerator;
--		do_div(bdi_dirty, denominator);
--		bdi_dirty += (dirty * bdi->min_ratio) / 100;
--		if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
--			bdi_dirty = dirty * bdi->max_ratio / 100;
-+	bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
-+	bdi_dirty *= numerator;
-+	do_div(bdi_dirty, denominator);
- 
--		*pbdi_dirty = bdi_dirty;
--		task_dirty_limit(current, pbdi_dirty);
--	}
-+	bdi_dirty += (dirty * bdi->min_ratio) / 100;
-+	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
-+		bdi_dirty = dirty * bdi->max_ratio / 100;
-+
-+	return bdi_dirty;
  }
  
- /*
-@@ -475,13 +474,24 @@ static void balance_dirty_pages(struct a
- 			.range_cyclic	= 1,
- 		};
- 
--		get_dirty_limits(&background_thresh, &dirty_thresh,
--				&bdi_thresh, bdi);
--
- 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
- 					global_page_state(NR_UNSTABLE_NFS);
- 		nr_writeback = global_page_state(NR_WRITEBACK);
- 
-+		global_dirty_limits(&background_thresh, &dirty_thresh);
-+
-+		/*
-+		 * Throttle it only when the background writeback cannot
-+		 * catch-up. This avoids (excessively) small writeouts
-+		 * when the bdi limits are ramping up.
-+		 */
-+		if (nr_reclaimable + nr_writeback <
-+				(background_thresh + dirty_thresh) / 2)
-+			break;
-+
-+		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
-+		bdi_thresh = task_dirty_limit(current, bdi_thresh);
-+
- 		/*
- 		 * In order to avoid the stacked BDI deadlock we need
- 		 * to ensure we accurately count the 'dirty' pages when
-@@ -513,15 +523,6 @@ static void balance_dirty_pages(struct a
- 		if (!dirty_exceeded)
- 			break;
- 
--		/*
--		 * Throttle it only when the background writeback cannot
--		 * catch-up. This avoids (excessively) small writeouts
--		 * when the bdi limits are ramping up.
--		 */
--		if (nr_reclaimable + nr_writeback <
--				(background_thresh + dirty_thresh) / 2)
--			break;
--
- 		if (!bdi->dirty_exceeded)
- 			bdi->dirty_exceeded = 1;
- 
-@@ -634,7 +635,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
- 	unsigned long dirty_thresh;
- 
-         for ( ; ; ) {
--		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
-+		global_dirty_limits(&background_thresh, &dirty_thresh);
- 
-                 /*
-                  * Boost the allowable dirty threshold a bit for page
---- linux-next.orig/fs/fs-writeback.c	2010-07-29 14:34:34.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-08-03 23:11:12.000000000 +0800
-@@ -594,7 +594,7 @@ static inline bool over_bground_thresh(v
+-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+-			       unsigned long dirty)
++/**
++ * bdi_dirty_limit - @bdi's share of dirty throttling threshold
++ *
++ * Allocate high/low dirty limits to fast/slow devices, in order to prevent
++ * - starving fast devices
++ * - piling up dirty pages (that will take long time to sync) on slow devices
++ *
++ * The bdi's share of dirty limit will be adapting to its throughput and
++ * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
++ */
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
  {
- 	unsigned long background_thresh, dirty_thresh;
- 
--	get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
-+	global_dirty_limits(&background_thresh, &dirty_thresh);
- 
- 	return (global_page_state(NR_FILE_DIRTY) +
- 		global_page_state(NR_UNSTABLE_NFS) >= background_thresh);
---- linux-next.orig/mm/backing-dev.c	2010-07-29 14:34:34.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-08-03 23:11:10.000000000 +0800
-@@ -83,7 +83,8 @@ static int bdi_debug_stats_show(struct s
- 		nr_more_io++;
- 	spin_unlock(&inode_lock);
- 
--	get_dirty_limits(&background_thresh, &dirty_thresh, &bdi_thresh, bdi);
-+	global_dirty_limits(&background_thresh, &dirty_thresh);
-+	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
- 
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- 	seq_printf(m,
---- linux-next.orig/include/linux/writeback.h	2010-07-29 14:34:34.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-08-03 23:11:10.000000000 +0800
-@@ -124,8 +124,9 @@ struct ctl_table;
- int dirty_writeback_centisecs_handler(struct ctl_table *, int,
- 				      void __user *, size_t *, loff_t *);
- 
--void get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,
--		      unsigned long *pbdi_dirty, struct backing_dev_info *bdi);
-+void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
-+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-+			       unsigned long dirty);
- 
- void page_writeback_init(void);
- void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+ 	u64 bdi_dirty;
+ 	long numerator, denominator;
 
 
