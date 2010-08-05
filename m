@@ -1,208 +1,128 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/13] writeback: the kupdate expire timestamp should be a moving target
-Date: Fri, 06 Aug 2010 00:11:00 +0800
-Message-ID: <20100805162433.949062884@intel.com>
+Subject: [PATCH 06/13] writeback: merge for_kupdate and !for_kupdate cases
+Date: Fri, 06 Aug 2010 00:10:57 +0800
+Message-ID: <20100805162433.536198393@intel.com>
 References: <20100805161051.501816677@intel.com>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Oh3Jx-00031G-UI
-	for glkm-linux-mm-2@m.gmane.org; Thu, 05 Aug 2010 18:29:30 +0200
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 45ACB6B02B0
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 12:28:39 -0400 (EDT)
-Content-Disposition: inline; filename=writeback-remove-older_than_this.patch
+	id 1Oh3Ju-0002zj-Ur
+	for glkm-linux-mm-2@m.gmane.org; Thu, 05 Aug 2010 18:29:27 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 56F9F6B02AC
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 12:28:38 -0400 (EDT)
+Content-Disposition: inline; filename=writeback-merge-kupdate-cases.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Itaru Kitayama <kitayama@cl.bb4u.ne.jp>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-Dynamically compute the dirty expire timestamp at queue_io() time.
-Also remove writeback_control.older_than_this which is no longer used.
+Unify the logic for kupdate and non-kupdate cases.
+There won't be starvation because the inodes requeued into b_more_io
+will later be spliced _after_ the remaining inodes in b_io, hence won't
+stand in the way of other inodes in the next run.
 
-writeback_control.older_than_this used to be determined at entrance to
-the kupdate writeback work. This _static_ timestamp may go stale if the
-kupdate work runs on and on. The flusher may then stuck with some old
-busy inodes, never considering newly expired inodes thereafter.
+It avoids unnecessary redirty_tail() calls, hence the update of
+i_dirtied_when. The timestamp update is undesirable because it could
+later delay the inode's periodic writeback, or may exclude the inode
+from the data integrity sync operation (which checks timestamp to
+avoid extra work and livelock).
 
-This has two possible problems:
+===
+How the redirty_tail() comes about:
 
-- It is unfair for a large dirty inode to delay (for a long time) the
-  writeback of small dirty inodes.
+It was a long story.. This redirty_tail() was introduced with
+wbc.more_io.  The initial patch for more_io actually does not have the
+redirty_tail(), and when it's merged, several 100% iowait bug reports
+arised:
 
-- As time goes by, the large and busy dirty inode may contain only
-  _freshly_ dirtied pages. Ignoring newly expired dirty inodes risks
-  delaying the expired dirty pages to the end of LRU lists, triggering
-  the evil pageout(). Nevertheless this patch merely addresses part
-  of the problem.
+reiserfs:
+        http://lkml.org/lkml/2007/10/23/93
 
-[kitayama@cl.bb4u.ne.jp] fix btrfs and ext4 references
+jfs:    
+        commit 29a424f28390752a4ca2349633aaacc6be494db5
+        JFS: clear PAGECACHE_TAG_DIRTY for no-write pages
+        
+ext2:   
+        http://www.spinics.net/linux/lists/linux-ext4/msg04762.html
 
-Acked-by: Jan Kara <jack@suse.cz>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Itaru Kitayama <kitayama@cl.bb4u.ne.jp>
+They are all old bugs hidden in various filesystems that become
+"visible" with the more_io patch. At the time, the ext2 bug is thought
+to be "trivial", so not fixed. Instead the following updated more_io
+patch with redirty_tail() is merged: 
+
+	http://www.spinics.net/linux/lists/linux-ext4/msg04507.html
+
+This will in general prevent 100% on ext2 and possibly other unknown FS bugs.
+
+CC: Dave Chinner <david@fromorbit.com>
+Cc: Martin Bligh <mbligh@google.com>
+Cc: Michael Rubin <mrubin@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/btrfs/extent_io.c             |    2 --
- fs/fs-writeback.c                |   24 +++++++++---------------
- include/linux/writeback.h        |    2 --
- include/trace/events/writeback.h |    6 +-----
- mm/backing-dev.c                 |    1 -
- mm/page-writeback.c              |    1 -
- 6 files changed, 10 insertions(+), 26 deletions(-)
+ fs/fs-writeback.c |   43 ++++++++++---------------------------------
+ 1 file changed, 10 insertions(+), 33 deletions(-)
 
---- linux-next.orig/fs/fs-writeback.c	2010-08-05 23:28:29.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-08-05 23:28:29.000000000 +0800
-@@ -216,16 +216,23 @@ static void move_expired_inodes(struct l
- 				struct list_head *dispatch_queue,
- 				struct writeback_control *wbc)
- {
-+	unsigned long expire_interval = 0;
-+	unsigned long older_than_this;
- 	LIST_HEAD(tmp);
- 	struct list_head *pos, *node;
- 	struct super_block *sb = NULL;
- 	struct inode *inode;
- 	int do_sb_sort = 0;
- 
-+	if (wbc->for_kupdate) {
-+		expire_interval = msecs_to_jiffies(dirty_expire_interval * 10);
-+		older_than_this = jiffies - expire_interval;
-+	}
-+
- 	while (!list_empty(delaying_queue)) {
- 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
--		if (wbc->older_than_this &&
--		    inode_dirtied_after(inode, *wbc->older_than_this))
-+		if (expire_interval &&
-+		    inode_dirtied_after(inode, older_than_this))
- 			break;
- 		if (sb && sb != inode->i_sb)
- 			do_sb_sort = 1;
-@@ -592,29 +599,19 @@ static inline bool over_bground_thresh(v
-  * Try to run once per dirty_writeback_interval.  But if a writeback event
-  * takes longer than a dirty_writeback_interval interval, then leave a
-  * one-second gap.
-- *
-- * older_than_this takes precedence over nr_to_write.  So we'll only write back
-- * all dirty pages if they are all attached to "old" mappings.
-  */
- static long wb_writeback(struct bdi_writeback *wb,
- 			 struct wb_writeback_work *work)
- {
- 	struct writeback_control wbc = {
- 		.sync_mode		= work->sync_mode,
--		.older_than_this	= NULL,
- 		.for_kupdate		= work->for_kupdate,
- 		.for_background		= work->for_background,
- 		.range_cyclic		= work->range_cyclic,
- 	};
--	unsigned long oldest_jif;
- 	long wrote = 0;
- 	struct inode *inode;
- 
--	if (wbc.for_kupdate) {
--		wbc.older_than_this = &oldest_jif;
--		oldest_jif = jiffies -
--				msecs_to_jiffies(dirty_expire_interval * 10);
--	}
- 	if (!wbc.range_cyclic) {
- 		wbc.range_start = 0;
- 		wbc.range_end = LLONG_MAX;
-@@ -1007,9 +1004,6 @@ EXPORT_SYMBOL(__mark_inode_dirty);
-  * Write out a superblock's list of dirty inodes.  A wait will be performed
-  * upon no inodes, all inodes or the final one, depending upon sync_mode.
-  *
-- * If older_than_this is non-NULL, then only write out inodes which
-- * had their first dirtying at a time earlier than *older_than_this.
-- *
-  * If `bdi' is non-zero then we're being asked to writeback a specific queue.
-  * This function assumes that the blockdev superblock's inodes are backed by
-  * a variety of queues, so all inodes are searched.  For other superblocks,
---- linux-next.orig/include/linux/writeback.h	2010-08-05 23:28:29.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-08-05 23:28:29.000000000 +0800
-@@ -28,8 +28,6 @@ enum writeback_sync_modes {
-  */
- struct writeback_control {
- 	enum writeback_sync_modes sync_mode;
--	unsigned long *older_than_this;	/* If !NULL, only write back inodes
--					   older than this */
- 	unsigned long wb_start;         /* Time writeback_inodes_wb was
- 					   called. This is needed to avoid
- 					   extra jobs and livelock */
---- linux-next.orig/include/trace/events/writeback.h	2010-08-05 23:28:17.000000000 +0800
-+++ linux-next/include/trace/events/writeback.h	2010-08-05 23:28:29.000000000 +0800
-@@ -101,7 +101,6 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__field(int, for_reclaim)
- 		__field(int, range_cyclic)
- 		__field(int, more_io)
--		__field(unsigned long, older_than_this)
- 		__field(long, range_start)
- 		__field(long, range_end)
- 	),
-@@ -116,14 +115,12 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__entry->for_reclaim	= wbc->for_reclaim;
- 		__entry->range_cyclic	= wbc->range_cyclic;
- 		__entry->more_io	= wbc->more_io;
--		__entry->older_than_this = wbc->older_than_this ?
--						*wbc->older_than_this : 0;
- 		__entry->range_start	= (long)wbc->range_start;
- 		__entry->range_end	= (long)wbc->range_end;
- 	),
- 
- 	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
--		"bgrd=%d reclm=%d cyclic=%d more=%d older=0x%lx "
-+		"bgrd=%d reclm=%d cyclic=%d more=%d "
- 		"start=0x%lx end=0x%lx",
- 		__entry->name,
- 		__entry->nr_to_write,
-@@ -134,7 +131,6 @@ DECLARE_EVENT_CLASS(wbc_class,
- 		__entry->for_reclaim,
- 		__entry->range_cyclic,
- 		__entry->more_io,
--		__entry->older_than_this,
- 		__entry->range_start,
- 		__entry->range_end)
- )
---- linux-next.orig/mm/page-writeback.c	2010-08-05 23:28:29.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-05 23:28:29.000000000 +0800
-@@ -488,7 +488,6 @@ static void balance_dirty_pages(struct a
- 	for (;;) {
- 		struct writeback_control wbc = {
- 			.sync_mode	= WB_SYNC_NONE,
--			.older_than_this = NULL,
- 			.nr_to_write	= write_chunk,
- 			.range_cyclic	= 1,
- 		};
---- linux-next.orig/mm/backing-dev.c	2010-08-05 23:28:29.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-08-05 23:28:29.000000000 +0800
-@@ -271,7 +271,6 @@ static void bdi_flush_io(struct backing_
- {
- 	struct writeback_control wbc = {
- 		.sync_mode		= WB_SYNC_NONE,
--		.older_than_this	= NULL,
- 		.range_cyclic		= 1,
- 		.nr_to_write		= 1024,
- 	};
---- linux-next.orig/fs/btrfs/extent_io.c	2010-08-05 23:28:17.000000000 +0800
-+++ linux-next/fs/btrfs/extent_io.c	2010-08-05 23:28:29.000000000 +0800
-@@ -2595,7 +2595,6 @@ int extent_write_full_page(struct extent
- 	};
- 	struct writeback_control wbc_writepages = {
- 		.sync_mode	= wbc->sync_mode,
--		.older_than_this = NULL,
- 		.nr_to_write	= 64,
- 		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,
- 		.range_end	= (loff_t)-1,
-@@ -2628,7 +2627,6 @@ int extent_write_locked_range(struct ext
- 	};
- 	struct writeback_control wbc_writepages = {
- 		.sync_mode	= mode,
--		.older_than_this = NULL,
- 		.nr_to_write	= nr_pages * 2,
- 		.range_start	= start,
- 		.range_end	= end + 1,
+--- linux-next.orig/fs/fs-writeback.c	2010-08-05 23:21:43.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-08-05 23:22:02.000000000 +0800
+@@ -378,45 +378,22 @@ writeback_single_inode(struct inode *ino
+ 		if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+ 			/*
+ 			 * We didn't write back all the pages.  nfs_writepages()
+-			 * sometimes bales out without doing anything. Redirty
+-			 * the inode; Move it from b_io onto b_more_io/b_dirty.
++			 * sometimes bales out without doing anything.
+ 			 */
+-			/*
+-			 * akpm: if the caller was the kupdate function we put
+-			 * this inode at the head of b_dirty so it gets first
+-			 * consideration.  Otherwise, move it to the tail, for
+-			 * the reasons described there.  I'm not really sure
+-			 * how much sense this makes.  Presumably I had a good
+-			 * reasons for doing it this way, and I'd rather not
+-			 * muck with it at present.
+-			 */
+-			if (wbc->for_kupdate) {
++			inode->i_state |= I_DIRTY_PAGES;
++			if (wbc->nr_to_write <= 0) {
+ 				/*
+-				 * For the kupdate function we move the inode
+-				 * to b_more_io so it will get more writeout as
+-				 * soon as the queue becomes uncongested.
++				 * slice used up: queue for next turn
+ 				 */
+-				inode->i_state |= I_DIRTY_PAGES;
+-				if (wbc->nr_to_write <= 0) {
+-					/*
+-					 * slice used up: queue for next turn
+-					 */
+-					requeue_io(inode);
+-				} else {
+-					/*
+-					 * somehow blocked: retry later
+-					 */
+-					redirty_tail(inode);
+-				}
++				requeue_io(inode);
+ 			} else {
+ 				/*
+-				 * Otherwise fully redirty the inode so that
+-				 * other inodes on this superblock will get some
+-				 * writeout.  Otherwise heavy writing to one
+-				 * file would indefinitely suspend writeout of
+-				 * all the other files.
++				 * Writeback blocked by something other than
++				 * congestion. Delay the inode for some time to
++				 * avoid spinning on the CPU (100% iowait)
++				 * retrying writeback of the dirty page/inode
++				 * that cannot be performed immediately.
+ 				 */
+-				inode->i_state |= I_DIRTY_PAGES;
+ 				redirty_tail(inode);
+ 			}
+ 		} else if (inode->i_state & I_DIRTY) {
 
 
 --
