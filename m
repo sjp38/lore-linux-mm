@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 704386B02A4
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 18:57:55 -0400 (EDT)
-Date: Wed, 4 Aug 2010 15:56:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/2] Prioritise inodes and zones for writeback
- required by page reclaim
-Message-Id: <20100804155610.2a0d5e1f.akpm@linux-foundation.org>
-In-Reply-To: <1280932711-23696-1-git-send-email-mel@csn.ul.ie>
-References: <1280932711-23696-1-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE006B02A4
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 20:19:11 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o750J8m5012421
+	for <linux-mm@kvack.org>; Wed, 4 Aug 2010 17:19:08 -0700
+Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
+	by hpaq1.eem.corp.google.com with ESMTP id o750IidR011025
+	for <linux-mm@kvack.org>; Wed, 4 Aug 2010 17:19:07 -0700
+Received: by pvf33 with SMTP id 33so2575745pvf.36
+        for <linux-mm@kvack.org>; Wed, 04 Aug 2010 17:19:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100804150422.c52b308e.akpm@linux-foundation.org>
+References: <1280873949-20460-1-git-send-email-mrubin@google.com>
+	<20100804150422.c52b308e.akpm@linux-foundation.org>
+From: Michael Rubin <mrubin@google.com>
+Date: Wed, 4 Aug 2010 17:18:46 -0700
+Message-ID: <AANLkTikXWJCde+rQ6W7v8N_HhT62p0wa50Ca+Xez4EoV@mail.gmail.com>
+Subject: Re: [PATCH 0/2] Adding four writeback files in /proc/sys/vm
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  4 Aug 2010 15:38:29 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, Aug 4, 2010 at 3:04 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> For pages_dirtied and pages_entered_writeback: it's hard to see how any
+> reimplementation of writeback would have any problem implementing
+> these, so OK.
 
-> Commenting on the series "Reduce writeback from page reclaim context V6"
-> Andrew Morton noted;
-> 
->   direct-reclaim wants to write a dirty page because that page is in the
->   zone which the caller wants to allocate from!  Telling the flusher threads
->   to perform generic writeback will sometimes cause them to just gum the
->   disk up with pages from different zones, making it even harder/slower to
->   allocate a page from the zones we're interested in, no?
-> 
-> On the machines used to test the series, there were relatively few zones
-> and only one BDI so the scenario describes is a possibility. This series is
-> a very early prototype series aimed at mitigating the problem.
-> 
-> Patch 1 adds wakeup_flusher_threads_pages() which takes a list of pages
-> from page reclaim. Each inode belonging to a page on the list is marked
-> I_DIRTY_RECLAIM. When the flusher thread wakes, inodes with this tag are
-> unconditionally moved to the wb->b_io list for writing.
-> 
-> Patch 2 notes that writing back inodes does not necessarily write back
-> pages belonging to the zone page reclaim is concerned with. In response, it
-> adds a zone and counter to wb_writeback_work. As pages from the target zone
-> are written, the zone-specific counter is updated. When the flusher thread
-> then checks the zone counters if a specific zone is being targeted. While
-> more pages may be written than necessary, the assumption is that the pages
-> need cleaning eventually, the inode must be relatively old to have pages at
-> the end of the LRU, the IO will be relatively efficient due to less random
-> seeks and that pages from the target zone will still be cleaned.
-> 
-> Testing did not show any significant differences in terms of reducing dirty
-> file pages being written back but the lack of multiple BDIs and NUMA nodes in
-> the test rig is a problem. Maybe someone else has access to a more suitable
-> test rig.
-> 
-> Any comment as to the suitability for such a direction?
+>
+> But dirty_threshold_kbytes and dirty_background_threshold_kbytes are
+> closely tied to the implementation-of-the-day and so I don't think they
+> should be presented in /proc.
 
-um.  Might work.  Isn't pretty though.
+OK I will resend patch without threshold and then look for the write
+place in debugfs to put them in a subsequent patch.
 
-But until we can demonstrate the problem or someone reports it, we
-probably have more important issues to be looking at ;) I think that a
-better approach is to try to trigger this problem as we develop and
-test reclaim.  And if we _can't_ demonstrate it, work out why the heck
-not - either the code's smarter than we thought it was or the test is
-no good.
+Thanks,
+
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
