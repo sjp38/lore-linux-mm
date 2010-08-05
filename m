@@ -1,59 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 558736B02B2
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 17:07:42 -0400 (EDT)
-Date: Thu, 5 Aug 2010 14:07:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
-Message-Id: <20100805140755.501af8a7.akpm@linux-foundation.org>
-In-Reply-To: <20100726050827.GA24047@sli10-desk.sh.intel.com>
-References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
-	<20100723234938.88EB.A69D9226@jp.fujitsu.com>
-	<20100726050827.GA24047@sli10-desk.sh.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 018706B02AC
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 18:05:08 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id o75M6LNK001063
+	for <linux-mm@kvack.org>; Thu, 5 Aug 2010 15:06:21 -0700
+Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
+	by wpaz13.hot.corp.google.com with ESMTP id o75M6HaU010458
+	for <linux-mm@kvack.org>; Thu, 5 Aug 2010 15:06:20 -0700
+Received: by pwj8 with SMTP id 8so290656pwj.39
+        for <linux-mm@kvack.org>; Thu, 05 Aug 2010 15:06:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100805132433.d1d7927b.akpm@linux-foundation.org>
+References: <1280969004-29530-1-git-send-email-mrubin@google.com>
+	<1280969004-29530-3-git-send-email-mrubin@google.com> <20100805132433.d1d7927b.akpm@linux-foundation.org>
+From: Michael Rubin <mrubin@google.com>
+Date: Thu, 5 Aug 2010 15:05:57 -0700
+Message-ID: <AANLkTik9AMf1pmsguB843UC9Qq6KxBcWiN_qyeiDPp1O@mail.gmail.com>
+Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and
+	pages_entered_writeback
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, minchan.kim@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 26 Jul 2010 13:08:27 +0800
-Shaohua Li <shaohua.li@intel.com> wrote:
+On Thu, Aug 5, 2010 at 1:24 PM, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+> On Wed, =A04 Aug 2010 17:43:24 -0700
+> Michael Rubin <mrubin@google.com> wrote:
+> Wait. =A0These counters appear in /proc/vmstat. =A0So why create standalo=
+ne
+> /proc/sys/vm files as well?
 
-> The zone->lru_lock is heavily contented in workload where activate_page()
-> is frequently used. We could do batch activate_page() to reduce the lock
-> contention. The batched pages will be added into zone list when the pool
-> is full or page reclaim is trying to drain them.
-> 
-> For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-> processes shared map to the file. Each process read access the whole file and
-> then exit. The process exit will do unmap_vmas() and cause a lot of
-> activate_page() call. In such workload, we saw about 58% total time reduction
-> with below patch.
+I did not know they would show up in /proc/vmstat.
 
-What happened to the 2% regression that earlier changelogs mentioned?
+I thought it made sense to put them in /proc/sys/vm since the other
+writeback controls are there.
+but have no problems just adding them to /prov/vmstat if that makes more se=
+nse.
 
-afacit the patch optimises the rare munmap() case.  But what effect
-does it have upon the common case?  How do we know that it is a net
-benefit?
-
-Because the impact on kernel footprint is awful.  x86_64 allmodconfig:
-
-   text    data     bss     dec     hex filename
-   5857    1426    1712    8995    2323 mm/swap.o
-   6245    1587    1840    9672    25c8 mm/swap.o
-
-and look at x86_64 allnoconfig:
-
-   text    data     bss     dec     hex filename
-   2344     768       4    3116     c2c mm/swap.o
-   2632     896       4    3532     dcc mm/swap.o
-
-that's a uniprocessor kernel where none of this was of any use!
-
-Looking at the patch, I'm not sure where all this bloat came from.  But
-the SMP=n case is pretty bad and needs fixing, IMO.
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
