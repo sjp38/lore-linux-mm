@@ -1,38 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F08A76B02AC
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 11:26:52 -0400 (EDT)
-Date: Thu, 5 Aug 2010 23:26:46 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/6] writeback: kill writeback_control.more_io
-Message-ID: <20100805152646.GA10385@localhost>
-References: <20100722050928.653312535@intel.com>
- <20100722061822.763629019@intel.com>
- <20100801153424.GA8204@barrios-desktop>
- <20100805145053.GA6161@localhost>
- <20100805145606.GA3083@barrios-desktop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6773B60020C
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 11:26:53 -0400 (EDT)
+Message-ID: <4C5AD823.8020004@redhat.com>
+Date: Thu, 05 Aug 2010 11:26:27 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100805145606.GA3083@barrios-desktop>
+Subject: Re: [PATCH 3/7] vmscan: synchrounous lumpy reclaim use lock_page()
+ instead trylock_page()
+References: <20100805150624.31B7.A69D9226@jp.fujitsu.com> <20100805151304.31C0.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100805151304.31C0.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 05, 2010 at 10:56:06PM +0800, Minchan Kim wrote:
-> On Thu, Aug 05, 2010 at 10:50:53PM +0800, Wu Fengguang wrote:
-> > > include/trace/events/ext4.h also have more_io field. 
-> > 
-> > I didn't find it in linux-next. What's your kernel version?
-> 
-> I used mmotm-07-29. 
+On 08/05/2010 02:13 AM, KOSAKI Motohiro wrote:
+> When synchrounous lumpy reclaim, there is no reason to give up to
+> reclaim pages even if page is locked. We use lock_page() instead
+> trylock_page() in this case.
+>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 
-Heh it's in linux-next too -- I didn't find the field because the
-chunk to remove it slipped into a previous patch..
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Thanks,
-Fengguang
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
