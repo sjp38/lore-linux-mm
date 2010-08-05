@@ -1,80 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id AF2BE6B02A6
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 21:10:02 -0400 (EDT)
-Received: by qwk4 with SMTP id 4so4343122qwk.14
-        for <linux-mm@kvack.org>; Wed, 04 Aug 2010 18:10:22 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTimejYX3OEk9j+L+nWKyBuf7=rJbAOvQGhxJNPxN@mail.gmail.com>
-References: <AANLkTi=1DxqLrqVbfRouOBRWg4RHFaHz438X7F1JWL6P@mail.gmail.com>
-	<AANLkTimejYX3OEk9j+L+nWKyBuf7=rJbAOvQGhxJNPxN@mail.gmail.com>
-Date: Thu, 5 Aug 2010 09:10:21 +0800
-Message-ID: <AANLkTi=5Ks0jmnGgUzH_gPEt36KPK7mwfdMscw8yTPmc@mail.gmail.com>
-Subject: Re: question about CONFIG_BASE_SMALL
-From: Pei Lin <telent997@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 883CD6B02A4
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 00:48:28 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o754p2Ar007685
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 5 Aug 2010 13:51:03 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EE9145DE51
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:51:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6297C45DE53
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:51:02 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 447511DB8020
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:51:02 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id BD0581DB801B
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:51:01 +0900 (JST)
+Date: Thu, 5 Aug 2010 13:45:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/9] v4  Move the find_memory_block() routine up
+Message-Id: <20100805134546.fa8f2f96.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4C581B67.1010202@austin.ibm.com>
+References: <4C581A6D.9030908@austin.ibm.com>
+	<4C581B67.1010202@austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mulyadi Santosa <mulyadi.santosa@gmail.com>
-Cc: Ryan Wang <openspace.wang@gmail.com>, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-2010/8/4 Mulyadi Santosa <mulyadi.santosa@gmail.com>:
-> Hi...
->
-> On Wed, Aug 4, 2010 at 15:38, Ryan Wang <openspace.wang@gmail.com> wrote:
->> Hi all,
->>
->> =A0 =A0 =A0I noticed CONFIG_BASE_SMALL in different parts
->> of the kernel code, with ifdef/ifndef.
->> =A0 =A0 =A0I wonder what does CONFIG_BASE_SMALL mean?
->> And how can I configure it, e.g. through make menuconfig?
->
-> Reply on top of my head: IIRC it means to disable certain things...or
-> possibly enabling things that might reduce memory footprints.
->
-> The goal....to make Linux kernel running more suitable for embedded
-> system and low level specification machine...
->
-FYI.
+On Tue, 03 Aug 2010 08:36:39 -0500
+Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-Date:	Mon, 31 Jan 2005 01:25:51 -0600
-To: Andrew Morton <akpm@osdl.org>
+> Move the find_memory_block() routine up to avoid needing a forward
+> declaration in subsequent patches.
+> 
+> Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
-This patch series introduced a new pair of CONFIG_EMBEDDED options call
-CONFIG_BASE_FULL/CONFIG_BASE_SMALL. Disabling CONFIG_BASE_FULL sets
-the boolean CONFIG_BASE_SMALL to 1 and it is used to shrink a number
-of core data structures. The space savings for the current batch is
-around 14k.
--
-
-For example , look at the file "Linux/include/linux/udp.h"
-http://lxr.free-electrons.com/source/include/linux/udp.h
-
-#define UDP_HTABLE_SIZE_MIN             (CONFIG_BASE_SMALL ? 128 : 256)
-
-
-> --
-> regards,
->
-> Mulyadi Santosa
-> Freelance Linux trainer and consultant
->
-> blog: the-hydra.blogspot.com
-> training: mulyaditraining.blogspot.com
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at =A0http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at =A0http://www.tux.org/lkml/
->
-
-
-
---=20
-Best Regards
-Lin
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
