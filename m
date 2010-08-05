@@ -1,45 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE006B02A4
-	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 20:19:11 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o750J8m5012421
-	for <linux-mm@kvack.org>; Wed, 4 Aug 2010 17:19:08 -0700
-Received: from pvf33 (pvf33.prod.google.com [10.241.210.97])
-	by hpaq1.eem.corp.google.com with ESMTP id o750IidR011025
-	for <linux-mm@kvack.org>; Wed, 4 Aug 2010 17:19:07 -0700
-Received: by pvf33 with SMTP id 33so2575745pvf.36
-        for <linux-mm@kvack.org>; Wed, 04 Aug 2010 17:19:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100804150422.c52b308e.akpm@linux-foundation.org>
-References: <1280873949-20460-1-git-send-email-mrubin@google.com>
-	<20100804150422.c52b308e.akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7425A6B02A4
+	for <linux-mm@kvack.org>; Wed,  4 Aug 2010 20:43:34 -0400 (EDT)
 From: Michael Rubin <mrubin@google.com>
-Date: Wed, 4 Aug 2010 17:18:46 -0700
-Message-ID: <AANLkTikXWJCde+rQ6W7v8N_HhT62p0wa50Ca+Xez4EoV@mail.gmail.com>
-Subject: Re: [PATCH 0/2] Adding four writeback files in /proc/sys/vm
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH 0/2] Adding two writeback files in /proc/sys/vm
+Date: Wed,  4 Aug 2010 17:43:22 -0700
+Message-Id: <1280969004-29530-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: jack@suse.cz, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 4, 2010 at 3:04 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> For pages_dirtied and pages_entered_writeback: it's hard to see how any
-> reimplementation of writeback would have any problem implementing
-> these, so OK.
+Patch #1 sets up some helper functions for accounting.
 
->
-> But dirty_threshold_kbytes and dirty_background_threshold_kbytes are
-> closely tied to the implementation-of-the-day and so I don't think they
-> should be presented in /proc.
+Patch #2 adds writeback files for visibility
 
-OK I will resend patch without threshold and then look for the write
-place in debugfs to put them in a subsequent patch.
+To help developers and applications gain visibility into writeback
+behaviour adding two read-only sysctl files into /proc/sys/vm.
+These files allow user apps to understand writeback behaviour over time
+and learn how it is impacting their performance.
 
-Thanks,
+  # cat /proc/sys/vm/pages_dirtied
+  3747
+  # cat /proc/sys/vm/pages_entered_writeback
+  3618
 
-mrubin
+These two new files are necessary to give visibility into writeback
+behaviour. We have /proc/diskstats which lets us understand the io in
+the block layer. We have blktrace for more in depth understanding. We have
+e2fsprogs and debugsfs to give insight into the file systems behaviour,
+but we don't offer our users the ability understand what writeback is
+doing. There is no way to know how active it is over the whole system,
+if it's falling behind or to quantify it's efforts. With these values
+exported users can easily see how much data applications are sending
+through writeback and also at what rates writeback is processing this
+data. Comparing the rates of change between the two allow developers
+to see when writeback is not able to keep up with incoming traffic and
+the rate of dirty memory being sent to the IO back end. This allows
+folks to understand their io workloads and track kernel issues. Non
+kernel engineers at Google often use these counters to solve puzzling
+performance problems.
+
+
+Michael Rubin (2):
+  mm: helper functions for dirty and writeback accounting
+  writeback: Adding pages_dirtied and pages_entered_writeback
+
+ Documentation/sysctl/vm.txt |   20 +++++++++++++++---
+ drivers/base/node.c         |   14 +++++++++++++
+ fs/ceph/addr.c              |    8 +-----
+ fs/nilfs2/segment.c         |    2 +-
+ include/linux/mm.h          |    1 +
+ include/linux/mmzone.h      |    2 +
+ include/linux/writeback.h   |    9 ++++++++
+ kernel/sysctl.c             |   14 +++++++++++++
+ mm/page-writeback.c         |   45 ++++++++++++++++++++++++++++++++++++++++--
+ mm/vmstat.c                 |    2 +
+ 10 files changed, 103 insertions(+), 14 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
