@@ -1,80 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 099E56B02A5
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 12:03:26 -0400 (EDT)
-Date: Fri, 6 Aug 2010 00:01:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 6/6] writeback: merge for_kupdate and !for_kupdate cases
-Message-ID: <20100805160124.GA17939@localhost>
-References: <20100711020656.340075560@intel.com>
- <20100711021749.303817848@intel.com>
- <20100712020842.GC25335@dastard>
- <20100712155239.GC30222@localhost>
- <20100712152254.2071ba5f.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 27DFE6B02AB
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:00:44 -0400 (EDT)
+Date: Thu, 5 Aug 2010 19:00:16 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 12/13] writeback: try more writeback as long as
+ something was written
+Message-ID: <20100805170016.GE3535@quack.suse.cz>
+References: <20100805161051.501816677@intel.com>
+ <20100805162434.385571675@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100712152254.2071ba5f.akpm@linux-foundation.org>
+In-Reply-To: <20100805162434.385571675@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Martin Bligh <mbligh@google.com>, Michael Rubin <mrubin@google.com>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 13, 2010 at 06:22:54AM +0800, Andrew Morton wrote:
-> On Mon, 12 Jul 2010 23:52:39 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Fri 06-08-10 00:11:03, Wu Fengguang wrote:
+> writeback_inodes_wb()/__writeback_inodes_sb() are not aggressive in that
+> they only populate b_io when necessary at entrance time. When the queued
+> set of inodes are all synced, they just return, possibly with
+> wbc.nr_to_write > 0.
 > 
-> > > Also, I'd prefer that the
-> > > comments remain somewhat more descriptive of the circumstances that
-> > > we are operating under. Comments like "retry later to avoid blocking
-> > > writeback of other inodes" is far, far better than "retry later"
-> > > because it has "why" component that explains the reason for the
-> > > logic. You may remember why, but I sure won't in a few months time....
+> For kupdate and background writeback, there may be more eligible inodes
+> sitting in b_dirty when the current set of b_io inodes are completed. So
+> it is necessary to try another round of writeback as long as we made some
+> progress in this round. When there are no more eligible inodes, no more
+> inodes will be enqueued in queue_io(), hence nothing could/will be
+> synced and we may safely bail.
+  This looks like a sane thing to do. Just one comment below...
+ 
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  fs/fs-writeback.c |   19 +++++++++++--------
+>  1 file changed, 11 insertions(+), 8 deletions(-)
 > 
-> me2 (of course).  This code is waaaay too complex to be scrimping on comments.
+> --- linux-next.orig/fs/fs-writeback.c	2010-08-05 23:30:27.000000000 +0800
+> +++ linux-next/fs/fs-writeback.c	2010-08-05 23:30:45.000000000 +0800
+> @@ -654,20 +654,23 @@ static long wb_writeback(struct bdi_writ
+>  		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
+>  
+>  		/*
+> -		 * If we consumed everything, see if we have more
+> +		 * Did we write something? Try for more
+> +		 *
+> +		 * This is needed _before_ the b_more_io test because the
+> +		 * background writeback moves inodes to b_io and works on
+  Well, this applies generally to any writeback, not just a background one
+right? Whenever we process all inodes from b_io list and move them
+somewhere else than b_more_io, then this applies. Some new dirty data could
+have arrived while we were doing the write... I'm just afraid that in some
+pathological cases this could result in bad writeback pattern - like if
+there is some process which manages to dirty just a few pages while we are
+doing writeout, this looping could result in writing just a few pages in
+each round which is bad for fragmentation etc.
+  Actually, this comment probably also applies to your patch where you
+change the queueing logic in writeback_single_inode(), doesn't it?
+
+								Honza
+
+> +		 * them in batches (in order to sync old pages first).  The
+> +		 * completion of the current batch does not necessarily mean
+> +		 * the overall work is done.
+>  		 */
+> -		if (wbc.nr_to_write <= 0)
+> +		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+>  			continue;
+> +
+>  		/*
+> -		 * Didn't write everything and we don't have more IO, bail
+> +		 * Nothing written and no more inodes for IO, bail
+>  		 */
+>  		if (list_empty(&wb->b_more_io))
+>  			break;
+> -		/*
+> -		 * Did we write something? Try for more
+> -		 */
+> -		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+> -			continue;
+> +
+>  		/*
+>  		 * Nothing written. Wait for some inode to
+>  		 * become available for writeback. Otherwise
 > 
-> > Ah yes the comment is too simple. However the redirty_tail() is not to
-> > avoid blocking writeback of other inodes, but to avoid eating 100% CPU
-> > on busy retrying a dirty inode/page that cannot perform writeback for
-> > a while. (In theory redirty_tail() can still busy retry though, when
-> > there is only one single dirty inode.) So how about
-> > 
-> >         /*
-> >          * somehow blocked: avoid busy retrying
-> >          */
 > 
-> That's much too short.  Expand on the "somehow" - provide an example,
-> describe the common/expected cause.  Fully explain what the "busy"
-> retry _is_ and how it can come about.
-
-It was a long story.. This redirty_tail() was introduced when more_io
-is introduced. The initial patch for more_io does not have the
-redirty_tail(), and when it's merged, several 100% iowait bug reports
-arises:
-
-reiserfs:
-        http://lkml.org/lkml/2007/10/23/93
-
-jfs:
-        commit 29a424f28390752a4ca2349633aaacc6be494db5
-        JFS: clear PAGECACHE_TAG_DIRTY for no-write pages
-
-ext2:
-        http://www.spinics.net/linux/lists/linux-ext4/msg04762.html
-
-They are all old bugs hidden in various filesystems that become
-"obvious" with the more_io patch. At the time, the ext2 bug is thought
-to be "trivial", so you didn't merge that fix. Instead the following
-patch with redirty_tail() is merged:
-
-http://www.spinics.net/linux/lists/linux-ext4/msg04507.html
-
-This will in general prevent 100% on ext2 and other possibly unknown FS bugs.
-
-I'll take David's comments and note the above in changelog.
-
-Thanks,
-Fengguang
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
