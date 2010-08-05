@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B390E6B02A9
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 13:33:03 -0400 (EDT)
-Date: Thu, 5 Aug 2010 12:33:22 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
-In-Reply-To: <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008051231400.6787@router.home>
-References: <20100804024514.139976032@linux.com> <alpine.DEB.2.00.1008032138160.20049@chino.kir.corp.google.com> <alpine.DEB.2.00.1008041115500.11084@router.home> <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 632206B02B2
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 16:24:48 -0400 (EDT)
+Date: Thu, 5 Aug 2010 13:24:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and
+ pages_entered_writeback
+Message-Id: <20100805132433.d1d7927b.akpm@linux-foundation.org>
+In-Reply-To: <1280969004-29530-3-git-send-email-mrubin@google.com>
+References: <1280969004-29530-1-git-send-email-mrubin@google.com>
+	<1280969004-29530-3-git-send-email-mrubin@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Aug 2010, David Rientjes wrote:
+On Wed,  4 Aug 2010 17:43:24 -0700
+Michael Rubin <mrubin@google.com> wrote:
 
-> I bisected this to patch 8 but still don't have a bootlog.  I'm assuming
-> in the meantime that something is kmallocing DMA memory on this machine
-> prior to kmem_cache_init_late() and get_slab() is returning a NULL
-> pointer.
+> To help developers and applications gain visibility into writeback
+> behaviour adding four read only sysctl files into /proc/sys/vm.
+> These files allow user apps to understand writeback behaviour over time
+> and learn how it is impacting their performance.
+> 
+>    # cat /proc/sys/vm/pages_dirtied
+>    3747
+>    # cat /proc/sys/vm/pages_entered_writeback
+>    3618
+> 
+> Documentation/vm.txt has been updated.
+> 
+> In order to track the "cleaned" and "dirtied" counts we added two
+> vm_stat_items.  Per memory node stats have been added also. So we can
+> see per node granularity:
+> 
+>    # cat /sys/devices/system/node/node20/writebackstat
+>    Node 20 pages_writeback: 0 times
+>    Node 20 pages_dirtied: 0 times
+> 
+> ...
+>
+> @@ -1091,6 +1115,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+>  {
+>  	if (mapping_cap_account_dirty(mapping)) {
+>  		__inc_zone_page_state(page, NR_FILE_DIRTY);
+> +		__inc_zone_page_state(page, NR_FILE_PAGES_DIRTIED);
+>  		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+>  		task_dirty_inc(current);
+>  		task_io_account_write(PAGE_CACHE_SIZE);
 
-There is a kernel option "earlyprintk=..." that allows you to see early
-boot messages.
+I hope the utility of this change is worth the overhead :(
 
-If this indeed is a problem with the DMA caches then try the following
-patch:
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -740,6 +740,8 @@ static const char * const vmstat_text[] = {
+>  	"numa_local",
+>  	"numa_other",
+>  #endif
+> +	"nr_pages_entered_writeback",
+> +	"nr_file_pages_dirtied",
+>  
 
-
-
-Subject: slub: Move dma cache initialization up
-
-Do dma kmalloc initialization in kmem_cache_init and not in kmem_cache_init_late()
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
----
- mm/slub.c |    9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-08-05 12:24:21.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-08-05 12:28:58.000000000 -0500
-@@ -3866,13 +3866,8 @@ void __init kmem_cache_init(void)
- #ifdef CONFIG_SMP
- 	register_cpu_notifier(&slab_notifier);
- #endif
--}
-
--void __init kmem_cache_init_late(void)
--{
- #ifdef CONFIG_ZONE_DMA
--	int i;
--
- 	/* Create the dma kmalloc array and make it operational */
- 	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
- 		struct kmem_cache *s = kmalloc_caches[i];
-@@ -3891,6 +3886,10 @@ void __init kmem_cache_init_late(void)
- #endif
- }
-
-+void __init kmem_cache_init_late(void)
-+{
-+}
-+
- /*
-  * Find a mergeable slab cache
-  */
+Wait.  These counters appear in /proc/vmstat.  So why create standalone
+/proc/sys/vm files as well?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
