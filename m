@@ -1,89 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E67136B02AA
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 09:42:02 -0400 (EDT)
-Date: Thu, 5 Aug 2010 14:42:23 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 0/2] Prioritise inodes and zones for writeback
-	required by page reclaim
-Message-ID: <20100805134223.GB25688@csn.ul.ie>
-References: <1280932711-23696-1-git-send-email-mel@csn.ul.ie> <20100804155610.2a0d5e1f.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9CAA36B02AC
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 09:54:31 -0400 (EDT)
+Received: by pwj7 with SMTP id 7so67914pwj.14
+        for <linux-mm@kvack.org>; Thu, 05 Aug 2010 06:55:13 -0700 (PDT)
+Date: Thu, 5 Aug 2010 22:55:04 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 2/7] vmscan: synchronous lumpy reclaim don't call
+ congestion_wait()
+Message-ID: <20100805135504.GA2985@barrios-desktop>
+References: <20100805150624.31B7.A69D9226@jp.fujitsu.com>
+ <20100805151229.31BD.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100804155610.2a0d5e1f.akpm@linux-foundation.org>
+In-Reply-To: <20100805151229.31BD.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Hellwig <hch@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 04, 2010 at 03:56:10PM -0700, Andrew Morton wrote:
-> On Wed,  4 Aug 2010 15:38:29 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Thu, Aug 05, 2010 at 03:13:03PM +0900, KOSAKI Motohiro wrote:
+> congestion_wait() mean "waiting quueue congestion is cleared".
+> That said, if the system have plenty dirty pages and flusher thread push
+> new request to IO queue conteniously, IO queue are not cleared
+> congestion status for long time. thus, congestion_wait(HZ/10) become
+> almostly equivalent schedule_timeout(HZ/10).
 > 
-> > Commenting on the series "Reduce writeback from page reclaim context V6"
-> > Andrew Morton noted;
-> > 
-> >   direct-reclaim wants to write a dirty page because that page is in the
-> >   zone which the caller wants to allocate from!  Telling the flusher threads
-> >   to perform generic writeback will sometimes cause them to just gum the
-> >   disk up with pages from different zones, making it even harder/slower to
-> >   allocate a page from the zones we're interested in, no?
-> > 
-> > On the machines used to test the series, there were relatively few zones
-> > and only one BDI so the scenario describes is a possibility. This series is
-> > a very early prototype series aimed at mitigating the problem.
-> > 
-> > Patch 1 adds wakeup_flusher_threads_pages() which takes a list of pages
-> > from page reclaim. Each inode belonging to a page on the list is marked
-> > I_DIRTY_RECLAIM. When the flusher thread wakes, inodes with this tag are
-> > unconditionally moved to the wb->b_io list for writing.
-> > 
-> > Patch 2 notes that writing back inodes does not necessarily write back
-> > pages belonging to the zone page reclaim is concerned with. In response, it
-> > adds a zone and counter to wb_writeback_work. As pages from the target zone
-> > are written, the zone-specific counter is updated. When the flusher thread
-> > then checks the zone counters if a specific zone is being targeted. While
-> > more pages may be written than necessary, the assumption is that the pages
-> > need cleaning eventually, the inode must be relatively old to have pages at
-> > the end of the LRU, the IO will be relatively efficient due to less random
-> > seeks and that pages from the target zone will still be cleaned.
-> > 
-> > Testing did not show any significant differences in terms of reducing dirty
-> > file pages being written back but the lack of multiple BDIs and NUMA nodes in
-> > the test rig is a problem. Maybe someone else has access to a more suitable
-> > test rig.
-> > 
-> > Any comment as to the suitability for such a direction?
+> However, synchronous lumpy reclaim donesn't need this
+> congestion_wait() at all. shrink_page_list(PAGEOUT_IO_SYNC) are
+> using wait_on_page_writeback() and it provide sufficient waiting.
 > 
-> um.  Might work.  Isn't pretty though.
-> 
-
-No, it's not.
-
-> But until we can demonstrate the problem or someone reports it, we
-> probably have more important issues to be looking at ;) I think that a
-> better approach is to try to trigger this problem as we develop and
-> test reclaim. 
-
-That's a reasonable plan as we'll know for sure if this is the right direction
-or not. I'll put the patches on the back-burner for now and hopefully someone
-will remember them if a bug is reported about large stalls under memory
-pressure but that is specific to a machine with many nodes and many disks.
-
-> And if we _can't_ demonstrate it, work out why the heck
-> not - either the code's smarter than we thought it was or the test is
-> no good.
-> 
-
-It's always possible that we won't be able to demonstrate it because the
-right file pages are getting cleaned more often than not by the time
-reclaim happens :/
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
