@@ -1,83 +1,201 @@
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
-Date: Fri, 06 Aug 2010 00:10:58 +0800
-Message-ID: <20100805162433.673243074@intel.com>
+Subject: [PATCH 02/13] writeback: avoid unnecessary calculation of bdi dirty thresholds
+Date: Fri, 06 Aug 2010 00:10:53 +0800
+Message-ID: <20100805162432.963007535@intel.com>
 References: <20100805161051.501816677@intel.com>
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by lo.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Oh3Jo-0002sQ-8g
-	for glkm-linux-mm-2@m.gmane.org; Thu, 05 Aug 2010 18:29:20 +0200
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 41BCD6B02B0
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 12:28:36 -0400 (EDT)
-Content-Disposition: inline; filename=min-dirty-ratio.patch
-Sender: owner-linux-mm@kvack.org
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+Content-Disposition: inline; filename=writeback-less-bdi-calc.patch
+Sender: linux-fsdevel-owner@vger.kernel.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-Force a user visible low bound of 5% for the vm.dirty_ratio interface.
-
-Currently global_dirty_limits() applies a low bound of 5% for
-vm_dirty_ratio.  This is not very user visible -- if the user sets
-vm.dirty_ratio=1, the operation seems to succeed but will be rounded up
-to 5% when used.
-
-Another problem is inconsistency: calc_period_shift() uses the plain
-vm_dirty_ratio value, which may be a problem when vm.dirty_ratio is set
-to < 5 by the user.
+Split get_dirty_limits() into global_dirty_limits()+bdi_dirty_limit(),
+so that the latter can be avoided when under global dirty background
+threshold (which is the normal state for most systems).
 
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/sysctl.c     |    3 ++-
- mm/page-writeback.c |   10 ++--------
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ fs/fs-writeback.c         |    2 
+ include/linux/writeback.h |    5 +-
+ mm/backing-dev.c          |    3 -
+ mm/page-writeback.c       |   75 ++++++++++++++++++------------------
+ 4 files changed, 44 insertions(+), 41 deletions(-)
 
---- linux-next.orig/kernel/sysctl.c	2010-08-05 22:48:34.000000000 +0800
-+++ linux-next/kernel/sysctl.c	2010-08-05 22:48:47.000000000 +0800
-@@ -126,6 +126,7 @@ static int ten_thousand = 10000;
+--- linux-next.orig/mm/page-writeback.c	2010-07-29 14:34:34.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-03 23:14:19.000000000 +0800
+@@ -267,10 +267,11 @@ static inline void task_dirties_fraction
+  *
+  *   dirty -= (dirty/8) * p_{t}
+  */
+-static void task_dirty_limit(struct task_struct *tsk, unsigned long *pdirty)
++static unsigned long task_dirty_limit(struct task_struct *tsk,
++				       unsigned long bdi_dirty)
+ {
+ 	long numerator, denominator;
+-	unsigned long dirty = *pdirty;
++	unsigned long dirty = bdi_dirty;
+ 	u64 inv = dirty >> 3;
  
- /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
- static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
-+static int dirty_ratio_min = 5;
+ 	task_dirties_fraction(tsk, &numerator, &denominator);
+@@ -278,10 +279,8 @@ static void task_dirty_limit(struct task
+ 	do_div(inv, denominator);
  
- /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
- static int maxolduid = 65535;
-@@ -1031,7 +1032,7 @@ static struct ctl_table vm_table[] = {
- 		.maxlen		= sizeof(vm_dirty_ratio),
- 		.mode		= 0644,
- 		.proc_handler	= dirty_ratio_handler,
--		.extra1		= &zero,
-+		.extra1		= &dirty_ratio_min,
- 		.extra2		= &one_hundred,
- 	},
- 	{
---- linux-next.orig/mm/page-writeback.c	2010-08-05 22:48:42.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-05 22:48:47.000000000 +0800
-@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 	dirty -= inv;
+-	if (dirty < *pdirty/2)
+-		dirty = *pdirty/2;
  
- 	if (vm_dirty_bytes)
- 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
--	else {
--		int dirty_ratio;
--
--		dirty_ratio = vm_dirty_ratio;
--		if (dirty_ratio < 5)
--			dirty_ratio = 5;
--		dirty = (dirty_ratio * available_memory) / 100;
+-	*pdirty = dirty;
++	return max(dirty, bdi_dirty/2);
+ }
+ 
+ /*
+@@ -391,9 +390,7 @@ unsigned long determine_dirtyable_memory
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
+ 
+-void
+-get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,
+-		 unsigned long *pbdi_dirty, struct backing_dev_info *bdi)
++void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ {
+ 	unsigned long background;
+ 	unsigned long dirty;
+@@ -425,26 +422,28 @@ get_dirty_limits(unsigned long *pbackgro
+ 	}
+ 	*pbackground = background;
+ 	*pdirty = dirty;
++}
+ 
+-	if (bdi) {
+-		u64 bdi_dirty;
+-		long numerator, denominator;
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
++			       unsigned long dirty)
++{
++	u64 bdi_dirty;
++	long numerator, denominator;
+ 
+-		/*
+-		 * Calculate this BDI's share of the dirty ratio.
+-		 */
+-		bdi_writeout_fraction(bdi, &numerator, &denominator);
++	/*
++	 * Calculate this BDI's share of the dirty ratio.
++	 */
++	bdi_writeout_fraction(bdi, &numerator, &denominator);
+ 
+-		bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
+-		bdi_dirty *= numerator;
+-		do_div(bdi_dirty, denominator);
+-		bdi_dirty += (dirty * bdi->min_ratio) / 100;
+-		if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+-			bdi_dirty = dirty * bdi->max_ratio / 100;
++	bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
++	bdi_dirty *= numerator;
++	do_div(bdi_dirty, denominator);
+ 
+-		*pbdi_dirty = bdi_dirty;
+-		task_dirty_limit(current, pbdi_dirty);
 -	}
-+	else
-+		dirty = (vm_dirty_ratio * available_memory) / 100;
++	bdi_dirty += (dirty * bdi->min_ratio) / 100;
++	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
++		bdi_dirty = dirty * bdi->max_ratio / 100;
++
++	return bdi_dirty;
+ }
  
- 	if (dirty_background_bytes)
- 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+ /*
+@@ -475,13 +474,24 @@ static void balance_dirty_pages(struct a
+ 			.range_cyclic	= 1,
+ 		};
+ 
+-		get_dirty_limits(&background_thresh, &dirty_thresh,
+-				&bdi_thresh, bdi);
+-
+ 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+ 					global_page_state(NR_UNSTABLE_NFS);
+ 		nr_writeback = global_page_state(NR_WRITEBACK);
+ 
++		global_dirty_limits(&background_thresh, &dirty_thresh);
++
++		/*
++		 * Throttle it only when the background writeback cannot
++		 * catch-up. This avoids (excessively) small writeouts
++		 * when the bdi limits are ramping up.
++		 */
++		if (nr_reclaimable + nr_writeback <
++				(background_thresh + dirty_thresh) / 2)
++			break;
++
++		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
++		bdi_thresh = task_dirty_limit(current, bdi_thresh);
++
+ 		/*
+ 		 * In order to avoid the stacked BDI deadlock we need
+ 		 * to ensure we accurately count the 'dirty' pages when
+@@ -513,15 +523,6 @@ static void balance_dirty_pages(struct a
+ 		if (!dirty_exceeded)
+ 			break;
+ 
+-		/*
+-		 * Throttle it only when the background writeback cannot
+-		 * catch-up. This avoids (excessively) small writeouts
+-		 * when the bdi limits are ramping up.
+-		 */
+-		if (nr_reclaimable + nr_writeback <
+-				(background_thresh + dirty_thresh) / 2)
+-			break;
+-
+ 		if (!bdi->dirty_exceeded)
+ 			bdi->dirty_exceeded = 1;
+ 
+@@ -634,7 +635,7 @@ void throttle_vm_writeout(gfp_t gfp_mask
+ 	unsigned long dirty_thresh;
+ 
+         for ( ; ; ) {
+-		get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
++		global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+                 /*
+                  * Boost the allowable dirty threshold a bit for page
+--- linux-next.orig/fs/fs-writeback.c	2010-07-29 14:34:34.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-08-03 23:11:12.000000000 +0800
+@@ -594,7 +594,7 @@ static inline bool over_bground_thresh(v
+ {
+ 	unsigned long background_thresh, dirty_thresh;
+ 
+-	get_dirty_limits(&background_thresh, &dirty_thresh, NULL, NULL);
++	global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+ 	return (global_page_state(NR_FILE_DIRTY) +
+ 		global_page_state(NR_UNSTABLE_NFS) >= background_thresh);
+--- linux-next.orig/mm/backing-dev.c	2010-07-29 14:34:34.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-08-03 23:11:10.000000000 +0800
+@@ -83,7 +83,8 @@ static int bdi_debug_stats_show(struct s
+ 		nr_more_io++;
+ 	spin_unlock(&inode_lock);
+ 
+-	get_dirty_limits(&background_thresh, &dirty_thresh, &bdi_thresh, bdi);
++	global_dirty_limits(&background_thresh, &dirty_thresh);
++	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+ 
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
+ 	seq_printf(m,
+--- linux-next.orig/include/linux/writeback.h	2010-07-29 14:34:34.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-08-03 23:11:10.000000000 +0800
+@@ -124,8 +124,9 @@ struct ctl_table;
+ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
+ 				      void __user *, size_t *, loff_t *);
+ 
+-void get_dirty_limits(unsigned long *pbackground, unsigned long *pdirty,
+-		      unsigned long *pbdi_dirty, struct backing_dev_info *bdi);
++void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
++			       unsigned long dirty);
+ 
+ void page_writeback_init(void);
+ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
