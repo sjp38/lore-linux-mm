@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E553A6B02A7
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 20:44:56 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o760iufl011280
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 6 Aug 2010 09:44:56 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6316F45DE79
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:44:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E04E45DE60
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:44:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CC2A1DB803A
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:44:56 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CD3A71DB8040
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:44:52 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and  pages_entered_writeback
-In-Reply-To: <20100805172711.87c802ca.akpm@linux-foundation.org>
-References: <20100806091548.31ED.A69D9226@jp.fujitsu.com> <20100805172711.87c802ca.akpm@linux-foundation.org>
-Message-Id: <20100806093312.31F9.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 092206B02A7
+	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 20:52:34 -0400 (EDT)
+Received: by iwn10 with SMTP id 10so787407iwn.14
+        for <linux-mm@kvack.org>; Thu, 05 Aug 2010 17:52:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  6 Aug 2010 09:44:52 +0900 (JST)
+In-Reply-To: <20100805141706.GB2985@barrios-desktop>
+References: <20100805150624.31B7.A69D9226@jp.fujitsu.com>
+	<20100805151304.31C0.A69D9226@jp.fujitsu.com>
+	<20100805141706.GB2985@barrios-desktop>
+Date: Fri, 6 Aug 2010 09:52:37 +0900
+Message-ID: <AANLkTimYxERF5Gj300tKyF-DANQ4dae-wHpadf2putyh@mail.gmail.com>
+Subject: Re: [PATCH 3/7] vmscan: synchrounous lumpy reclaim use lock_page()
+	instead trylock_page()
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Michael Rubin <mrubin@google.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Fri,  6 Aug 2010 09:18:59 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > On Thu, Aug 5, 2010 at 4:56 PM, KOSAKI Motohiro
-> > > <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > > > /proc/vmstat already have both.
-> > > >
-> > > > cat /proc/vmstat |grep nr_dirty
-> > > > cat /proc/vmstat |grep nr_writeback
-> > > >
-> > > > Also, /sys/devices/system/node/node0/meminfo show per-node stat.
-> > > >
-> > > > Perhaps, I'm missing your point.
-> > > 
-> > > These only show the number of dirty pages present in the system at the
-> > > point they are queried.
-> > > The counter I am trying to add are increasing over time. They allow
-> > > developers to see rates of pages being dirtied and entering writeback.
-> > > Which is very helpful.
-> > 
-> > Usually administrators get the data two times and subtract them. Isn't it sufficient?
-> > 
-> 
-> Nope.  The existing nr_dirty is "number of pages dirtied since boot"
-> minus "number of pages cleaned since boot".  If you do the
-> wait-one-second-then-subtract thing on nr_dirty, the result is
-> dirtying-bandwidth minus cleaning-bandwidth, and can't be used to
-> determine dirtying-bandwidth.
+On Thu, Aug 5, 2010 at 11:17 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> On Thu, Aug 05, 2010 at 03:13:39PM +0900, KOSAKI Motohiro wrote:
+>> When synchrounous lumpy reclaim, there is no reason to give up to
+>> reclaim pages even if page is locked. We use lock_page() instead
+>> trylock_page() in this case.
+>>
+>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> ---
+>> =A0mm/vmscan.c | =A0 =A04 +++-
+>> =A01 files changed, 3 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 1cdc3db..833b6ad 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -665,7 +665,9 @@ static unsigned long shrink_page_list(struct list_he=
+ad *page_list,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 page =3D lru_to_page(page_list);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&page->lru);
+>>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 if (!trylock_page(page))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (sync_writeback =3D=3D PAGEOUT_IO_SYNC)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 lock_page(page);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 else if (!trylock_page(page))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto keep;
+>>
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 VM_BUG_ON(PageActive(page));
+>> --
+>> 1.6.5.2
+>>
+>>
+>>
+>
+> Hmm. We can make sure lumpy already doesn't select the page locked?
+> I mean below scenario.
+>
+> LRU head -> page A -> page B -> LRU tail
+>
+> lock_page(page A)
+> some_function()
+> direct reclaim
+> select victim page B
+> enter lumpy mode
+> select victim page A as well as page B
+> shrink_page_list
+> lock_page(page A)
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
-Technically, yes. I meant, _now_, typical administrators are using the 
-subtraction.
-Do you mean this is wrong? or do you mean you have another use case?
+Ignore above comment.
+lock_page doesn't have a deadlock problem. My bad.
 
-Just curious.
-
-
-> I can see that a graph of dirtying events versus time could be an
-> interesting thing.  I don't see how it could be obtained using the
-> existing instrumentation.  tracepoints, probably..
-
-I think it depend on frequency of the usecase. If the usecase is enouth
-major, convenience way (e.g. /proc/vmstat) is very helpful.
-
-probably, I haven't understand the usecase of this feature.
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
 
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
