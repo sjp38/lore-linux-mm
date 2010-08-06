@@ -1,172 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B22A36B02A4
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:20:59 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FWjr013746
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FWcq1638560
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FVs8026915
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 15/43] memblock: Remove nid_range argument, arch provides memblock_nid_range() instead
-Date: Fri,  6 Aug 2010 15:14:56 +1000
-Message-Id: <1281071724-28740-16-git-send-email-benh@kernel.crashing.org>
-In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
-References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 84B746007FD
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 03:19:22 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o767JMHS026178
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 00:19:22 -0700
+Received: from gwj18 (gwj18.prod.google.com [10.200.10.18])
+	by wpaz5.hot.corp.google.com with ESMTP id o767JK73007109
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 00:19:21 -0700
+Received: by gwj18 with SMTP id 18so2725572gwj.30
+        for <linux-mm@kvack.org>; Fri, 06 Aug 2010 00:19:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <AANLkTik9AMf1pmsguB843UC9Qq6KxBcWiN_qyeiDPp1O@mail.gmail.com>
+References: <1280969004-29530-1-git-send-email-mrubin@google.com>
+	<1280969004-29530-3-git-send-email-mrubin@google.com> <20100805132433.d1d7927b.akpm@linux-foundation.org>
+	<AANLkTik9AMf1pmsguB843UC9Qq6KxBcWiN_qyeiDPp1O@mail.gmail.com>
+From: Michael Rubin <mrubin@google.com>
+Date: Fri, 6 Aug 2010 00:19:00 -0700
+Message-ID: <AANLkTikFM9J9On85N9k6hKPfUz0w4LxZai6xfsHQz+-D@mail.gmail.com>
+Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and
+	pages_entered_writeback
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
- arch/sparc/mm/init_64.c  |   16 ++++++----------
- include/linux/memblock.h |    7 +++++--
- mm/memblock.c            |   13 ++++++++-----
- 3 files changed, 19 insertions(+), 17 deletions(-)
+On Thu, Aug 5, 2010 at 1:24 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> Wait.  These counters appear in /proc/vmstat.  So why create standalone
+> /proc/sys/vm files as well?
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index dd68025..0883113 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -785,8 +785,7 @@ static int find_node(unsigned long addr)
- 	return -1;
- }
- 
--static unsigned long long nid_range(unsigned long long start,
--				    unsigned long long end, int *nid)
-+u64 memblock_nid_range(u64 start, u64 end, int *nid)
- {
- 	*nid = find_node(start);
- 	start += PAGE_SIZE;
-@@ -804,8 +803,7 @@ static unsigned long long nid_range(unsigned long long start,
- 	return start;
- }
- #else
--static unsigned long long nid_range(unsigned long long start,
--				    unsigned long long end, int *nid)
-+u64 memblock_nid_range(u64 start, u64 end, int *nid)
- {
- 	*nid = 0;
- 	return end;
-@@ -822,8 +820,7 @@ static void __init allocate_node_data(int nid)
- 	struct pglist_data *p;
- 
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	paddr = memblock_alloc_nid(sizeof(struct pglist_data),
--			      SMP_CACHE_BYTES, nid, nid_range);
-+	paddr = memblock_alloc_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
- 	if (!paddr) {
- 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
- 		prom_halt();
-@@ -843,8 +840,7 @@ static void __init allocate_node_data(int nid)
- 	if (p->node_spanned_pages) {
- 		num_pages = bootmem_bootmap_pages(p->node_spanned_pages);
- 
--		paddr = memblock_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid,
--				      nid_range);
-+		paddr = memblock_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid);
- 		if (!paddr) {
- 			prom_printf("Cannot allocate bootmap for nid[%d]\n",
- 				  nid);
-@@ -984,7 +980,7 @@ static void __init add_node_ranges(void)
- 			unsigned long this_end;
- 			int nid;
- 
--			this_end = nid_range(start, end, &nid);
-+			this_end = memblock_nid_range(start, end, &nid);
- 
- 			numadbg("Adding active range nid[%d] "
- 				"start[%lx] end[%lx]\n",
-@@ -1317,7 +1313,7 @@ static void __init reserve_range_in_node(int nid, unsigned long start,
- 		unsigned long this_end;
- 		int n;
- 
--		this_end = nid_range(start, end, &n);
-+		this_end = memblock_nid_range(start, end, &n);
- 		if (n == nid) {
- 			numadbg("      MATCH reserving range [%lx:%lx]\n",
- 				start, this_end);
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 776c7d9..367dea6 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -46,8 +46,7 @@ extern long memblock_add(u64 base, u64 size);
- extern long memblock_remove(u64 base, u64 size);
- extern long __init memblock_free(u64 base, u64 size);
- extern long __init memblock_reserve(u64 base, u64 size);
--extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
--				u64 (*nid_range)(u64, u64, int *));
-+extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid);
- extern u64 __init memblock_alloc(u64 size, u64 align);
- extern u64 __init memblock_alloc_base(u64 size,
- 		u64, u64 max_addr);
-@@ -63,6 +62,10 @@ extern int memblock_is_region_reserved(u64 base, u64 size);
- 
- extern void memblock_dump_all(void);
- 
-+/* Provided by the architecture */
-+extern u64 memblock_nid_range(u64 start, u64 end, int *nid);
-+
-+
- /*
-  * pfn conversion functions
-  *
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 8a118b7..13807f2 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -319,7 +319,6 @@ static u64 __init memblock_alloc_nid_unreserved(u64 start, u64 end,
- }
- 
- static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
--				       u64 (*nid_range)(u64, u64, int *),
- 				       u64 size, u64 align, int nid)
- {
- 	u64 start, end;
-@@ -332,7 +331,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
- 		u64 this_end;
- 		int this_nid;
- 
--		this_end = nid_range(start, end, &this_nid);
-+		this_end = memblock_nid_range(start, end, &this_nid);
- 		if (this_nid == nid) {
- 			u64 ret = memblock_alloc_nid_unreserved(start, this_end,
- 							   size, align);
-@@ -345,8 +344,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
- 	return ~(u64)0;
- }
- 
--u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
--			 u64 (*nid_range)(u64 start, u64 end, int *nid))
-+u64 __init memblock_alloc_nid(u64 size, u64 align, int nid)
- {
- 	struct memblock_type *mem = &memblock.memory;
- 	int i;
-@@ -357,7 +355,6 @@ u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
- 
- 	for (i = 0; i < mem->cnt; i++) {
- 		u64 ret = memblock_alloc_nid_region(&mem->regions[i],
--					       nid_range,
- 					       size, align, nid);
- 		if (ret != ~(u64)0)
- 			return ret;
-@@ -531,3 +528,9 @@ int memblock_is_region_reserved(u64 base, u64 size)
- 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
- }
- 
-+u64 __weak memblock_nid_range(u64 start, u64 end, int *nid)
-+{
-+	*nid = 0;
-+
-+	return end;
-+}
--- 
-1.7.0.4
+Andrew I was thinking about this today. And I think there is a case
+for keeping the proc files.
+Christoph was the one who pointed out to me that is their proper home
+and I think he's right. Most if not all the tunables for writeback are
+there. When one is trying to find the state of the system's writeback
+activity that's the directory. Only having these variables in
+/proc/vmstat to me feels like a way to make sure that users who would
+need them won't find them unless they are reading source. And these
+are folks who aren't reading source.
+
+/proc/vmstat _does_ look like a good place to put the thresholds as it
+already has similar values as the thresholds suck as
+kswapd_low_wmark_hit_quickly.
+
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
