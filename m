@@ -1,53 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E5C1E6007FC
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:29:29 -0400 (EDT)
-Received: from eu_spt2 (mailout1.w1.samsung.com [210.118.77.11])
- by mailout1.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0L6Q00FBPG515M@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 06 Aug 2010 14:29:25 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L6Q003C3G50ZQ@spt2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Aug 2010 14:29:25 +0100 (BST)
-Date: Fri, 06 Aug 2010 15:31:00 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCHv2 2/4] mm: cma: Contiguous Memory Allocator added
-In-reply-to: <201008030919.36575.hverkuil@xs4all.nl>
-Message-id: <op.vg0qhyki7p4s8u@pikus>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Content-transfer-encoding: Quoted-Printable
-References: <cover.1280151963.git.m.nazarewicz@samsung.com>
- <201008011526.13566.hverkuil@xs4all.nl> <op.vgticdzj7p4s8u@pikus>
- <201008030919.36575.hverkuil@xs4all.nl>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id AA6FF6B02AD
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 12:18:10 -0400 (EDT)
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate4.uk.ibm.com (8.13.1/8.13.1) with ESMTP id o76GI6bJ016757
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 16:18:06 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o76GI1Gh868476
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 17:18:05 +0100
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id o76GI0AA013769
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 17:18:01 +0100
+Subject: PATCH: fix slab object alignment
+From: Carsten Otte <cotte@de.ibm.com>
+Reply-To: cotte@de.ibm.com
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 06 Aug 2010 18:19:22 +0200
+Message-ID: <1281111562.4843.11.camel@titan.boeblingen.de.ibm.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hans Verkuil <hverkuil@xs4all.nl>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, 'Daniel Walker' <dwalker@codeaurora.org>, 'Jonathan Corbet' <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, 'Mark Brown' <broonie@opensource.wolfsonmicro.com>, linux-kernel@vger.kernel.org, 'Hiremath Vaibhav' <hvaibhav@ti.com>, 'FUJITA Tomonori' <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Zach Pfeffer' <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+Cc: schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, arnd@arndb.de, ursula.braun@de.ibm.comUrsula Braun <ursula.braun@de.ibm.com>, Frank Blaschka <blaschka@linux.vnet.ibm.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Hans,
+This patch fixes alignment of slab objects in case CONFIG_DEBUG_PAGEALLOC is
+active.
+Before this spot in kmem_cache_create, we have this situation:
+- align contains the required alignment of the object
+- cachep->obj_offset is 0 or equals align in case of CONFIG_DEBUG_SLAB
+- size equals the size of the object, or object plus trailing redzone in case
+  of CONFIG_DEBUG_SLAB
 
-I've just posted updated patchset.  It changes the way regions are
-reserved somehow so our discussion is not entirely applicable to a
-new version I think.
+This spot tries to fill one page per object if the object is in certain size
+limits, however setting obj_offset to PAGE_SIZE - size does break the object
+alignment since size may not be aligned with the required alignment.
+This patch simply adds an ALIGN(size, align) to the equation and fixes the
+object size detection accordingly.
 
-I preserved the original "map" there.  I came to a conclusion that
-your approach is not that different from what I had in mind but I
-noticed that with your syntax it's impossible to specify the order
-of regions to try. For instance that driver should first try region
-"foo" and then region "bar" and not the other way around.
+This code in drivers/s390/cio/qdio_setup_init has lead to incorrectly aligned
+slab objects (sizeof(struct qdio_q) equals 1792):
+	qdio_q_cache = kmem_cache_create("qdio_q", sizeof(struct qdio_q),
+					 256, 0, NULL);
 
-I'm looking forward to hearing your comments on the newest version
-of CMA.
+Signed-off-by: Carsten Otte <cotte@de.ibm.com>
+---
+ mm/slab.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
--- =
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2331,8 +2331,8 @@ kmem_cache_create (const char *name, siz
+ 	}
+ #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
+ 	if (size >= malloc_sizes[INDEX_L3 + 1].cs_size
+-	    && cachep->obj_size > cache_line_size() && size < PAGE_SIZE) {
+-		cachep->obj_offset += PAGE_SIZE - size;
++	    && cachep->obj_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
++		cachep->obj_offset += PAGE_SIZE - ALIGN(size, align);
+ 		size = PAGE_SIZE;
+ 	}
+ #endif
 
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
