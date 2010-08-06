@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D373B6007FF
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CF9EB6007FD
 	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:37 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765Fac9025923
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:36 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765BqSw013153
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:11:52 +1000
 Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FZHM1155108
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:35 +1000
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FYew1818740
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:34 +1000
 Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FZpc017141
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:35 +1000
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FYeH017095
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:34 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 43/43] memblock: Add memblock_find_in_range()
-Date: Fri,  6 Aug 2010 15:15:24 +1000
-Message-Id: <1281071724-28740-44-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 38/43] memblock: Improve debug output when resizing the reserve array
+Date: Fri,  6 Aug 2010 15:15:19 +1000
+Message-Id: <1281071724-28740-39-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,49 +24,48 @@ List-ID: <linux-mm.kvack.org>
 
 From: Yinghai Lu <yinghai@kernel.org>
 
-This is a wrapper for memblock_find_base() using slightly different
-arguments (start,end instead of start,size for example) in order to
-make it easier to convert existing arch/x86 code.
+Print out the location info in addition to which array is being
+resized. Also use memblocK_dbg() to put that under control of
+the memblock_debug flag.
 
 Signed-off-by: Yinghai Lu <yinghai@kernel.org>
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |    8 ++++++++
- 2 files changed, 10 insertions(+), 0 deletions(-)
+ mm/memblock.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 3978e6a..4df09bd 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -47,6 +47,8 @@ extern int memblock_can_resize;
- #define memblock_dbg(fmt, ...) \
- 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
- 
-+u64 memblock_find_in_range(u64 start, u64 end, u64 size, u64 align);
-+
- extern void __init memblock_init(void);
- extern void __init memblock_analyze(void);
- extern long memblock_add(phys_addr_t base, phys_addr_t size);
 diff --git a/mm/memblock.c b/mm/memblock.c
-index a17faea..b7ab10a 100644
+index 5499ab1..c3703ab 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -162,6 +162,14 @@ static phys_addr_t __init memblock_find_base(phys_addr_t size, phys_addr_t align
- 	return MEMBLOCK_ERROR;
- }
+@@ -192,8 +192,6 @@ static int memblock_double_array(struct memblock_type *type)
+ 	if (!memblock_can_resize)
+ 		return -1;
  
-+/*
-+ * Find a free area with specified alignment in a specific range.
-+ */
-+u64 __init_memblock memblock_find_in_range(u64 start, u64 end, u64 size, u64 align)
-+{
-+	return memblock_find_base(size, align, start, end);
-+}
+-	pr_debug("memblock: %s array full, doubling...", memblock_type_name(type));
+-
+ 	/* Calculate new doubled size */
+ 	old_size = type->max * sizeof(struct memblock_region);
+ 	new_size = old_size << 1;
+@@ -221,6 +219,9 @@ static int memblock_double_array(struct memblock_type *type)
+ 	}
+ 	new_array = __va(addr);
+ 
++	memblock_dbg("memblock: %s array is doubled to %ld at [%#010llx-%#010llx]",
++		 memblock_type_name(type), type->max * 2, (u64)addr, (u64)addr + new_size - 1);
 +
- static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
- {
- 	unsigned long i;
+ 	/* Found space, we now need to move the array over before
+ 	 * we add the reserved region since it may be our reserved
+ 	 * array itself that is full.
+@@ -672,7 +673,7 @@ static void memblock_dump(struct memblock_type *region, char *name)
+ 		base = region->regions[i].base;
+ 		size = region->regions[i].size;
+ 
+-		pr_info(" %s[0x%x]\t0x%016llx - 0x%016llx, 0x%llx bytes\n",
++		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes\n",
+ 		    name, i, base, base + size - 1, size);
+ 	}
+ }
 -- 
 1.7.0.4
 
