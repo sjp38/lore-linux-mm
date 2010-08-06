@@ -1,147 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 9447760020C
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EADA6B02A7
 	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:35 -0400 (EDT)
 Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FXHE013751
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:33 +1000
+	by e23smtp03.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765Bobu013124
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:11:50 +1000
 Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FWbe1896542
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FWAk1466514
 	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
 Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FWMr021052
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FVb7021042
 	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 16/43] memblock: Factor the lowest level alloc function
-Date: Fri,  6 Aug 2010 15:14:57 +1000
-Message-Id: <1281071724-28740-17-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 10/43] memblock/sparc: Use new accessors
+Date: Fri,  6 Aug 2010 15:14:51 +1000
+Message-Id: <1281071724-28740-11-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "David S. Miller" <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
+CC: David S. Miller <davem@davemloft.net>
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- mm/memblock.c |   59 ++++++++++++++++++++++++++------------------------------
- 1 files changed, 27 insertions(+), 32 deletions(-)
+ arch/sparc/mm/init_64.c |   30 ++++++++++++------------------
+ 1 files changed, 12 insertions(+), 18 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 13807f2..e264e8c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -294,8 +294,8 @@ static u64 memblock_align_up(u64 addr, u64 size)
- 	return (addr + (size - 1)) & ~(size - 1);
- }
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 16d8bee..dd68025 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -972,13 +972,13 @@ int of_node_to_nid(struct device_node *dp)
  
--static u64 __init memblock_alloc_nid_unreserved(u64 start, u64 end,
--					   u64 size, u64 align)
-+static u64 __init memblock_alloc_region(u64 start, u64 end,
-+				   u64 size, u64 align)
+ static void __init add_node_ranges(void)
  {
- 	u64 base, res_base;
- 	long j;
-@@ -318,6 +318,13 @@ static u64 __init memblock_alloc_nid_unreserved(u64 start, u64 end,
- 	return ~(u64)0;
- }
+-	int i;
++	struct memblock_region *reg;
  
-+u64 __weak __init memblock_nid_range(u64 start, u64 end, int *nid)
-+{
-+	*nid = 0;
-+
-+	return end;
-+}
-+
- static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
- 				       u64 size, u64 align, int nid)
+-	for (i = 0; i < memblock.memory.cnt; i++) {
+-		unsigned long size = memblock_size_bytes(&memblock.memory, i);
++	for_each_memblock(memory, reg) {
++		unsigned long size = reg->size;
+ 		unsigned long start, end;
+ 
+-		start = memblock.memory.regions[i].base;
++		start = reg->base;
+ 		end = start + size;
+ 		while (start < end) {
+ 			unsigned long this_end;
+@@ -1281,7 +1281,7 @@ static void __init bootmem_init_nonnuma(void)
  {
-@@ -333,8 +340,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
+ 	unsigned long top_of_ram = memblock_end_of_DRAM();
+ 	unsigned long total_ram = memblock_phys_mem_size();
+-	unsigned int i;
++	struct memblock_region *reg;
  
- 		this_end = memblock_nid_range(start, end, &this_nid);
- 		if (this_nid == nid) {
--			u64 ret = memblock_alloc_nid_unreserved(start, this_end,
--							   size, align);
-+			u64 ret = memblock_alloc_region(start, this_end, size, align);
- 			if (ret != ~(u64)0)
- 				return ret;
- 		}
-@@ -351,6 +357,10 @@ u64 __init memblock_alloc_nid(u64 size, u64 align, int nid)
+ 	numadbg("bootmem_init_nonnuma()\n");
  
- 	BUG_ON(0 == size);
+@@ -1292,15 +1292,14 @@ static void __init bootmem_init_nonnuma(void)
  
-+	/* We do a bottom-up search for a region with the right
-+	 * nid since that's easier considering how memblock_nid_range()
-+	 * works
-+	 */
- 	size = memblock_align_up(size, align);
+ 	init_node_masks_nonnuma();
  
- 	for (i = 0; i < mem->cnt; i++) {
-@@ -383,7 +393,7 @@ u64 __init memblock_alloc_base(u64 size, u64 align, u64 max_addr)
+-	for (i = 0; i < memblock.memory.cnt; i++) {
+-		unsigned long size = memblock_size_bytes(&memblock.memory, i);
++	for_each_memblock(memory, reg) {
+ 		unsigned long start_pfn, end_pfn;
  
- u64 __init __memblock_alloc_base(u64 size, u64 align, u64 max_addr)
- {
--	long i, j;
-+	long i;
- 	u64 base = 0;
- 	u64 res_base;
- 
-@@ -396,33 +406,24 @@ u64 __init __memblock_alloc_base(u64 size, u64 align, u64 max_addr)
- 	if (max_addr == MEMBLOCK_ALLOC_ANYWHERE)
- 		max_addr = MEMBLOCK_REAL_LIMIT;
- 
-+	/* Pump up max_addr */
-+	if (max_addr == MEMBLOCK_ALLOC_ANYWHERE)
-+		max_addr = ~(u64)0;
-+
-+	/* We do a top-down search, this tends to limit memory
-+	 * fragmentation by keeping early boot allocs near the
-+	 * top of memory
-+	 */
- 	for (i = memblock.memory.cnt - 1; i >= 0; i--) {
- 		u64 memblockbase = memblock.memory.regions[i].base;
- 		u64 memblocksize = memblock.memory.regions[i].size;
- 
- 		if (memblocksize < size)
+-		if (!size)
++		if (!reg->size)
  			continue;
--		if (max_addr == MEMBLOCK_ALLOC_ANYWHERE)
--			base = memblock_align_down(memblockbase + memblocksize - size, align);
--		else if (memblockbase < max_addr) {
--			base = min(memblockbase + memblocksize, max_addr);
--			base = memblock_align_down(base - size, align);
--		} else
--			continue;
--
--		while (base && memblockbase <= base) {
--			j = memblock_overlaps_region(&memblock.reserved, base, size);
--			if (j < 0) {
--				/* this area isn't reserved, take it */
--				if (memblock_add_region(&memblock.reserved, base, size) < 0)
--					return 0;
--				return base;
--			}
--			res_base = memblock.reserved.regions[j].base;
--			if (res_base < size)
--				break;
--			base = memblock_align_down(res_base - size, align);
--		}
-+		base = min(memblockbase + memblocksize, max_addr);
-+		res_base = memblock_alloc_region(memblockbase, base, size, align);
-+		if (res_base != ~(u64)0)
-+			return res_base;
+ 
+-		start_pfn = memblock.memory.regions[i].base >> PAGE_SHIFT;
+-		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
++		start_pfn = memblock_region_base_pfn(reg);
++		end_pfn = memblock_region_end_pfn(reg);
+ 		add_active_range(0, start_pfn, end_pfn);
  	}
- 	return 0;
- }
-@@ -528,9 +529,3 @@ int memblock_is_region_reserved(u64 base, u64 size)
- 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
+ 
+@@ -1334,17 +1333,12 @@ static void __init reserve_range_in_node(int nid, unsigned long start,
+ 
+ static void __init trim_reserved_in_node(int nid)
+ {
+-	int i;
++	struct memblock_region *reg;
+ 
+ 	numadbg("  trim_reserved_in_node(%d)\n", nid);
+ 
+-	for (i = 0; i < memblock.reserved.cnt; i++) {
+-		unsigned long start = memblock.reserved.regions[i].base;
+-		unsigned long size = memblock_size_bytes(&memblock.reserved, i);
+-		unsigned long end = start + size;
+-
+-		reserve_range_in_node(nid, start, end);
+-	}
++	for_each_memblock(reserved, reg)
++		reserve_range_in_node(nid, reg->base, reg->base + reg->size);
  }
  
--u64 __weak memblock_nid_range(u64 start, u64 end, int *nid)
--{
--	*nid = 0;
--
--	return end;
--}
+ static void __init bootmem_init_one_node(int nid)
 -- 
 1.7.0.4
 
