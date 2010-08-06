@@ -1,274 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 326EB6B02A4
-	for <linux-mm@kvack.org>; Thu,  5 Aug 2010 23:08:07 -0400 (EDT)
-Date: Fri, 6 Aug 2010 11:08:05 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
-Message-ID: <20100806030805.GA10038@sli10-desk.sh.intel.com>
-References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
- <20100723234938.88EB.A69D9226@jp.fujitsu.com>
- <20100726050827.GA24047@sli10-desk.sh.intel.com>
- <20100805140755.501af8a7.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9096B02A4
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 00:13:01 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 1/4 -mm][memcg] quick ID lookup in memcg
+References: <20100805184434.3a29c0f9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100805185713.4d09339e.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 05 Aug 2010 21:12:50 -0700
+In-Reply-To: <20100805185713.4d09339e.kamezawa.hiroyu@jp.fujitsu.com>
+	(KAMEZAWA Hiroyuki's message of "Thu, 5 Aug 2010 18:57:13 +0900")
+Message-ID: <xr93zkx0z8e5.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100805140755.501af8a7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, vgoyal@redhat.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 06, 2010 at 05:07:55AM +0800, Andrew Morton wrote:
-> On Mon, 26 Jul 2010 13:08:27 +0800
-> Shaohua Li <shaohua.li@intel.com> wrote:
-> 
-> > The zone->lru_lock is heavily contented in workload where activate_page()
-> > is frequently used. We could do batch activate_page() to reduce the lock
-> > contention. The batched pages will be added into zone list when the pool
-> > is full or page reclaim is trying to drain them.
-> > 
-> > For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-> > processes shared map to the file. Each process read access the whole file and
-> > then exit. The process exit will do unmap_vmas() and cause a lot of
-> > activate_page() call. In such workload, we saw about 58% total time reduction
-> > with below patch.
-> 
-> What happened to the 2% regression that earlier changelogs mentioned?
-The 2% regression tend to be a noise. I did a bunch of test later, and the regression
-isn't stable and sometimes there is improvement and sometimes there is regression.
-so I removed that changelog. I mentioned this in previous mail too.
- 
-> afacit the patch optimises the rare munmap() case.  But what effect
-> does it have upon the common case?  How do we know that it is a net
-> benefit?
-Not just munmap() case. There are a lot of workloads lru_lock is heavilly contented
-in activate_page(), for example some file io workloads.
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
-> Because the impact on kernel footprint is awful.  x86_64 allmodconfig:
-> 
->    text    data     bss     dec     hex filename
->    5857    1426    1712    8995    2323 mm/swap.o
->    6245    1587    1840    9672    25c8 mm/swap.o
-> 
-> and look at x86_64 allnoconfig:
-> 
->    text    data     bss     dec     hex filename
->    2344     768       4    3116     c2c mm/swap.o
->    2632     896       4    3532     dcc mm/swap.o
-> 
-> that's a uniprocessor kernel where none of this was of any use!
-> 
-> Looking at the patch, I'm not sure where all this bloat came from.  But
-> the SMP=n case is pretty bad and needs fixing, IMO.
-updated the patch, which reduce the footprint a little bit for SMP=n
-2472     768       4    3244     cac ../tmp/mm/swap.o
-2600     768       4    3372     d2c ../tmp/mm/swap.o
-we unified lru_add and activate_page, which adds a little footprint.
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Now, memory cgroup has an ID per cgroup and make use of it at
+>  - hierarchy walk,
+>  - swap recording.
+>
+> This patch is for making more use of it. The final purpose is
+> to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
+>
+> This patch caches a pointer of memcg in an array. By this, we
+> don't have to call css_lookup() which requires radix-hash walk.
+> This saves some amount of memory footprint at lookup memcg via id.
+>
+> Changelog: 20100804
+>  - fixed description in init/Kconfig
+>
+> Changelog: 20100730
+>  - fixed rcu_read_unlock() placement.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  init/Kconfig    |   10 ++++++++++
+>  mm/memcontrol.c |   48 ++++++++++++++++++++++++++++++++++--------------
+>  2 files changed, 44 insertions(+), 14 deletions(-)
+>
+> Index: mmotm-0727/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0727.orig/mm/memcontrol.c
+> +++ mmotm-0727/mm/memcontrol.c
+> @@ -292,6 +292,30 @@ static bool move_file(void)
+>  					&mc.to->move_charge_at_immigrate);
+>  }
+>  
+> +/* 0 is unused */
+> +static atomic_t mem_cgroup_num;
+> +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> +
+> +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> +{
+> +	/*
+> +	 * This array is set to NULL when mem_cgroup is freed.
+> +	 * IOW, there are no more references && rcu_synchronized().
+> +	 * This lookup-caching is safe.
+> +	 */
+> +	if (unlikely(!mem_cgroups[id])) {
+> +		struct cgroup_subsys_state *css;
+> +
+> +		rcu_read_lock();
+> +		css = css_lookup(&mem_cgroup_subsys, id);
+> +		rcu_read_unlock();
+> +		if (!css)
+> +			return NULL;
+> +		mem_cgroups[id] = container_of(css, struct mem_cgroup, css);
+> +	}
+> +	return mem_cgroups[id];
+> +}
 
-Thanks,
-Shaohua
+I am worried that id may be larger than CONFIG_MEM_CGROUP_MAX_GROUPS and
+cause an illegal array index.  I see that
+mem_cgroup_uncharge_swapcache() uses css_id() to compute 'id'.
+mem_cgroup_num ensures that there are never more than
+CONFIG_MEM_CGROUP_MAX_GROUPS memcg active.  But do we have guarantee
+that the that all of the css_id of each active memcg are less than
+NR_MEMCG_GROUPS?
 
+>  /*
+>   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+>   * limit reclaim to prevent infinite loops, if they ever occur.
+> @@ -1824,18 +1848,7 @@ static void mem_cgroup_cancel_charge(str
+>   * it's concern. (dropping refcnt from swap can be called against removed
+>   * memcg.)
+>   */
+> -static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+> -{
+> -	struct cgroup_subsys_state *css;
+>  
+> -	/* ID 0 is unused ID */
+> -	if (!id)
+> -		return NULL;
+> -	css = css_lookup(&mem_cgroup_subsys, id);
+> -	if (!css)
+> -		return NULL;
+> -	return container_of(css, struct mem_cgroup, css);
+> -}
+>  
+>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  {
+> @@ -1856,7 +1869,7 @@ struct mem_cgroup *try_get_mem_cgroup_fr
+>  		ent.val = page_private(page);
+>  		id = lookup_swap_cgroup(ent);
+>  		rcu_read_lock();
+> -		mem = mem_cgroup_lookup(id);
+> +		mem = id_to_memcg(id);
+>  		if (mem && !css_tryget(&mem->css))
+>  			mem = NULL;
+>  		rcu_read_unlock();
+> @@ -2208,7 +2221,7 @@ __mem_cgroup_commit_charge_swapin(struct
+>  
+>  		id = swap_cgroup_record(ent, 0);
+>  		rcu_read_lock();
+> -		memcg = mem_cgroup_lookup(id);
+> +		memcg = id_to_memcg(id);
+>  		if (memcg) {
+>  			/*
+>  			 * This recorded memcg can be obsolete one. So, avoid
+> @@ -2472,7 +2485,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
+>  
+>  	id = swap_cgroup_record(ent, 0);
+>  	rcu_read_lock();
+> -	memcg = mem_cgroup_lookup(id);
+> +	memcg = id_to_memcg(id);
+>  	if (memcg) {
+>  		/*
+>  		 * We uncharge this because swap is freed.
+> @@ -3988,6 +4001,9 @@ static struct mem_cgroup *mem_cgroup_all
+>  	struct mem_cgroup *mem;
+>  	int size = sizeof(struct mem_cgroup);
+>  
+> +	if (atomic_read(&mem_cgroup_num) == NR_MEMCG_GROUPS)
+> +		return NULL;
+> +
 
+I think that multiple tasks to be simultaneously running
+mem_cgroup_create().  Therefore more than NR_MEMCG_GROUPS memcg may be
+created.
 
-Subject: mm: batch activate_page() to reduce lock contention
-
-The zone->lru_lock is heavily contented in workload where activate_page()
-is frequently used. We could do batch activate_page() to reduce the lock
-contention. The batched pages will be added into zone list when the pool
-is full or page reclaim is trying to drain them.
-
-For example, in a 4 socket 64 CPU system, create a sparse file and 64 processes,
-processes shared map to the file. Each process read access the whole file and
-then exit. The process exit will do unmap_vmas() and cause a lot of
-activate_page() call. In such workload, we saw about 58% total time reduction
-with below patch.
-
-Signed-off-by: Shaohua Li <shaohua.li@intel.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 3ce7bc3..744883f 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -172,28 +172,93 @@ static void update_page_reclaim_stat(struct zone *zone, struct page *page,
- 		memcg_reclaim_stat->recent_rotated[file]++;
- }
- 
--/*
-- * FIXME: speed this up?
-- */
--void activate_page(struct page *page)
-+static void __activate_page(struct page *page, void *arg)
- {
--	struct zone *zone = page_zone(page);
--
--	spin_lock_irq(&zone->lru_lock);
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-+		struct zone *zone = page_zone(page);
- 		int file = page_is_file_cache(page);
- 		int lru = page_lru_base_type(page);
-+
- 		del_page_from_lru_list(zone, page, lru);
- 
- 		SetPageActive(page);
- 		lru += LRU_ACTIVE;
- 		add_page_to_lru_list(zone, page, lru);
--		__count_vm_event(PGACTIVATE);
- 
-+		__count_vm_event(PGACTIVATE);
- 		update_page_reclaim_stat(zone, page, file, 1);
- 	}
-+}
-+
-+static void pagevec_lru_move_fn(struct pagevec *pvec,
-+				void (*move_fn)(struct page *page, void *arg),
-+				void *arg)
-+{
-+	struct zone *last_zone = NULL;
-+	int i, j;
-+	DECLARE_BITMAP(pages_done, PAGEVEC_SIZE);
-+
-+	bitmap_zero(pages_done, PAGEVEC_SIZE);
-+	for (i = 0; i < pagevec_count(pvec); i++) {
-+		if (test_bit(i, pages_done))
-+			continue;
-+
-+		if (last_zone)
-+			spin_unlock_irq(&last_zone->lru_lock);
-+		last_zone = page_zone(pvec->pages[i]);
-+		spin_lock_irq(&last_zone->lru_lock);
-+
-+		for (j = i; j < pagevec_count(pvec); j++) {
-+			struct page *page = pvec->pages[j];
-+
-+			if (last_zone != page_zone(page))
-+				continue;
-+			(*move_fn)(page, arg);
-+			__set_bit(j, pages_done);
-+		}
-+	}
-+	if (last_zone)
-+		spin_unlock_irq(&last_zone->lru_lock);
-+	release_pages(pvec->pages, pagevec_count(pvec), pvec->cold);
-+	pagevec_reinit(pvec);
-+}
-+
-+#ifdef CONFIG_SMP
-+static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
-+
-+static void activate_page_drain(int cpu)
-+{
-+	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
-+
-+	if (pagevec_count(pvec))
-+		pagevec_lru_move_fn(pvec, __activate_page, NULL);
-+}
-+
-+void activate_page(struct page *page)
-+{
-+	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
-+		struct pagevec *pvec = &get_cpu_var(activate_page_pvecs);
-+
-+		page_cache_get(page);
-+		if (!pagevec_add(pvec, page))
-+			pagevec_lru_move_fn(pvec, __activate_page, NULL);
-+		put_cpu_var(activate_page_pvecs);
-+	}
-+}
-+#else
-+static void inline activate_page_drain(int cpu)
-+{
-+}
-+
-+void activate_page(struct page *page)
-+{
-+	struct zone *zone = page_zone(page);
-+
-+	spin_lock_irq(&zone->lru_lock);
-+	__activate_page(page, NULL);
- 	spin_unlock_irq(&zone->lru_lock);
- }
-+#endif
- 
- /*
-  * Mark a page as having seen activity.
-@@ -292,6 +357,8 @@ static void drain_cpu_pagevecs(int cpu)
- 		pagevec_move_tail(pvec);
- 		local_irq_restore(flags);
- 	}
-+
-+	activate_page_drain(cpu);
- }
- 
- void lru_add_drain(void)
-@@ -398,46 +465,34 @@ void __pagevec_release(struct pagevec *pvec)
- 
- EXPORT_SYMBOL(__pagevec_release);
- 
-+static void ____pagevec_lru_add_fn(struct page *page, void *arg)
-+{
-+	enum lru_list lru = (enum lru_list)arg;
-+	struct zone *zone = page_zone(page);
-+	int file = is_file_lru(lru);
-+	int active = is_active_lru(lru);
-+
-+	VM_BUG_ON(PageActive(page));
-+	VM_BUG_ON(PageUnevictable(page));
-+	VM_BUG_ON(PageLRU(page));
-+
-+	SetPageLRU(page);
-+	if (active)
-+		SetPageActive(page);
-+	update_page_reclaim_stat(zone, page, file, active);
-+	add_page_to_lru_list(zone, page, lru);
-+}
-+
- /*
-  * Add the passed pages to the LRU, then drop the caller's refcount
-  * on them.  Reinitialises the caller's pagevec.
-  */
- void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
- {
--	int i;
--	struct zone *zone = NULL;
--
- 	VM_BUG_ON(is_unevictable_lru(lru));
- 
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
--		int file;
--		int active;
--
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
--		VM_BUG_ON(PageActive(page));
--		VM_BUG_ON(PageUnevictable(page));
--		VM_BUG_ON(PageLRU(page));
--		SetPageLRU(page);
--		active = is_active_lru(lru);
--		file = is_file_lru(lru);
--		if (active)
--			SetPageActive(page);
--		update_page_reclaim_stat(zone, page, file, active);
--		add_page_to_lru_list(zone, page, lru);
--	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
--	release_pages(pvec->pages, pvec->nr, pvec->cold);
--	pagevec_reinit(pvec);
-+	pagevec_lru_move_fn(pvec, ____pagevec_lru_add_fn, (void *)lru);
- }
--
- EXPORT_SYMBOL(____pagevec_lru_add);
- 
- /*
+>  	/* Can be very big if MAX_NUMNODES is very big */
+>  	if (size < PAGE_SIZE)
+>  		mem = kmalloc(size, GFP_KERNEL);
+> @@ -4025,7 +4041,10 @@ static void __mem_cgroup_free(struct mem
+>  	int node;
+>  
+>  	mem_cgroup_remove_from_trees(mem);
+> +	/* No more lookup against this ID */
+> +	mem_cgroups[css_id(&mem->css)] = NULL;
+>  	free_css_id(&mem_cgroup_subsys, &mem->css);
+> +	atomic_dec(&mem_cgroup_num);
+>  
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		free_mem_cgroup_per_zone_info(mem, node);
+> @@ -4162,6 +4181,7 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	atomic_set(&mem->refcnt, 1);
+>  	mem->move_charge_at_immigrate = 0;
+>  	mutex_init(&mem->thresholds_lock);
+> +	atomic_inc(&mem_cgroup_num);
+>  	return &mem->css;
+>  free_out:
+>  	__mem_cgroup_free(mem);
+> Index: mmotm-0727/init/Kconfig
+> ===================================================================
+> --- mmotm-0727.orig/init/Kconfig
+> +++ mmotm-0727/init/Kconfig
+> @@ -594,6 +594,16 @@ config CGROUP_MEM_RES_CTLR_SWAP
+>  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+>  	  size is 4096bytes, 512k per 1Gbytes of swap.
+>  
+> +config MEM_CGROUP_MAX_GROUPS
+> +	int "Maximum number of memory cgroups on a system"
+> +	range 1 65535
+> +	default 8192 if 64BIT
+> +	default 2048 if 32BIT
+> +	help
+> +	  Memory cgroup has limitation of the number of groups created.
+> +	  Please select your favorite value. The more you allow, the more
+> +	  memory(a pointer per group) will be consumed.
+> +
+>  menuconfig CGROUP_SCHED
+>  	bool "Group CPU scheduler"
+>  	depends on EXPERIMENTAL && CGROUPS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
