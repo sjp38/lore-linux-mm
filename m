@@ -1,147 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 280586B02A9
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 18:50:53 -0400 (EDT)
-Subject: Re: [PATCH 08/43] memblock/microblaze: Use new accessors
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <4C5BCD41.3040501@monstr.eu>
-References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
-	 <1281071724-28740-9-git-send-email-benh@kernel.crashing.org>
-	 <4C5BCD41.3040501@monstr.eu>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 07 Aug 2010 08:50:46 +1000
-Message-ID: <1281135046.2168.40.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BAC906B02A4
+	for <linux-mm@kvack.org>; Sat,  7 Aug 2010 12:30:58 -0400 (EDT)
+Date: Fri, 6 Aug 2010 20:44:52 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
+Message-ID: <20100806124452.GC4717@localhost>
+References: <20100805161051.501816677@intel.com>
+ <20100805162433.673243074@intel.com>
+ <20100805163401.e9754032.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100805163401.e9754032.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: monstr@monstr.eu
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-08-06 at 10:52 +0200, Michal Simek wrote:
-> Benjamin Herrenschmidt wrote:
-> > CC: Michal Simek <monstr@monstr.eu>
-> > Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+On Fri, Aug 06, 2010 at 07:34:01AM +0800, Andrew Morton wrote:
+> On Fri, 06 Aug 2010 00:10:58 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> This patch remove bug which I reported but there is another place which 
-> needs to be changed.
-> 
-> I am not sure if my patch is correct but at least point you on places 
-> which is causing compilation errors.
-> 
-> I tested your memblock branch with this fix and microblaze can boot.
-
-Ok, that's missing in my initial rename patch. I'll fix it up. Thanks.
-
-Cheers,
-Ben.
-
-> Thanks,
-> Michal
-> 
->    CC      arch/microblaze/mm/init.o
-> arch/microblaze/mm/init.c: In function 'mm_cmdline_setup':
-> arch/microblaze/mm/init.c:236: error: 'struct memblock_type' has no 
-> member named 'region'
-> arch/microblaze/mm/init.c: In function 'mmu_init':
-> arch/microblaze/mm/init.c:279: error: 'struct memblock_type' has no 
-> member named 'region'
-> arch/microblaze/mm/init.c:284: error: 'struct memblock_type' has no 
-> member named 'region'
-> arch/microblaze/mm/init.c:285: error: 'struct memblock_type' has no 
-> member named 'region'
-> arch/microblaze/mm/init.c:286: error: 'struct memblock_type' has no 
-> member named 'region'
-> make[1]: *** [arch/microblaze/mm/init.o] Error 1
-> make: *** [arch/microblaze/mm] Error 2
-> 
-> 
-> diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-> index 32a702b..a9d7b9b 100644
-> --- a/arch/microblaze/mm/init.c
-> +++ b/arch/microblaze/mm/init.c
-> @@ -233,7 +233,7 @@ static void mm_cmdline_setup(void)
->                  if (maxmem && memory_size > maxmem) {
->                          memory_size = maxmem;
->                          memory_end = memory_start + memory_size;
-> -                       memblock.memory.region[0].size = memory_size;
-> +                       memblock.memory.regions[0].size = memory_size;
->                  }
->          }
->   }
-> @@ -276,14 +276,14 @@ asmlinkage void __init mmu_init(void)
->                  machine_restart(NULL);
->          }
-> 
-> -       if ((u32) memblock.memory.region[0].size < 0x1000000) {
-> +       if ((u32) memblock.memory.regions[0].size < 0x1000000) {
->                  printk(KERN_EMERG "Memory must be greater than 16MB\n");
->                  machine_restart(NULL);
->          }
->          /* Find main memory where the kernel is */
-> -       memory_start = (u32) memblock.memory.region[0].base;
-> -       memory_end = (u32) memblock.memory.region[0].base +
-> -                               (u32) memblock.memory.region[0].size;
-> +       memory_start = (u32) memblock.memory.regions[0].base;
-> +       memory_end = (u32) memblock.memory.regions[0].base +
-> +                               (u32) memblock.memory.regions[0].size;
->          memory_size = memory_end - memory_start;
-> 
->          mm_cmdline_setup(); /* FIXME parse args from command line - not 
-> used */
-> 
-> 
-> 
-> > ---
-> >  arch/microblaze/mm/init.c |   20 +++++++++-----------
-> >  1 files changed, 9 insertions(+), 11 deletions(-)
+> > Force a user visible low bound of 5% for the vm.dirty_ratio interface.
 > > 
-> > diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-> > index afd6494..32a702b 100644
-> > --- a/arch/microblaze/mm/init.c
-> > +++ b/arch/microblaze/mm/init.c
-> > @@ -70,16 +70,16 @@ static void __init paging_init(void)
-> >  
-> >  void __init setup_memory(void)
-> >  {
-> > -	int i;
-> >  	unsigned long map_size;
-> > +	struct memblock_region *reg;
-> > +
-> >  #ifndef CONFIG_MMU
-> >  	u32 kernel_align_start, kernel_align_size;
-> >  
-> >  	/* Find main memory where is the kernel */
-> > -	for (i = 0; i < memblock.memory.cnt; i++) {
-> > -		memory_start = (u32) memblock.memory.regions[i].base;
-> > -		memory_end = (u32) memblock.memory.regions[i].base
-> > -				+ (u32) memblock.memory.region[i].size;
-> > +	for_each_memblock(memory, reg) {
-> > +		memory_start = (u32)reg->base;
-> > +		memory_end = (u32) reg->base + reg->size;
-> >  		if ((memory_start <= (u32)_text) &&
-> >  					((u32)_text <= memory_end)) {
-> >  			memory_size = memory_end - memory_start;
-> > @@ -147,12 +147,10 @@ void __init setup_memory(void)
-> >  	free_bootmem(memory_start, memory_size);
-> >  
-> >  	/* reserve allocate blocks */
-> > -	for (i = 0; i < memblock.reserved.cnt; i++) {
-> > -		pr_debug("reserved %d - 0x%08x-0x%08x\n", i,
-> > -			(u32) memblock.reserved.region[i].base,
-> > -			(u32) memblock_size_bytes(&memblock.reserved, i));
-> > -		reserve_bootmem(memblock.reserved.region[i].base,
-> > -			memblock_size_bytes(&memblock.reserved, i) - 1, BOOTMEM_DEFAULT);
-> > +	for_each_memblock(reserved, reg) {
-> > +		pr_debug("reserved - 0x%08x-0x%08x\n",
-> > +			 (u32) reg->base, (u32) reg->size);
-> > +		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-> >  	}
-> >  #ifdef CONFIG_MMU
-> >  	init_bootmem_done = 1;
+> > Currently global_dirty_limits() applies a low bound of 5% for
+> > vm_dirty_ratio.  This is not very user visible -- if the user sets
+> > vm.dirty_ratio=1, the operation seems to succeed but will be rounded up
+> > to 5% when used.
+> > 
+> > Another problem is inconsistency: calc_period_shift() uses the plain
+> > vm_dirty_ratio value, which may be a problem when vm.dirty_ratio is set
+> > to < 5 by the user.
 > 
-> 
+> The changelog describes the old behaviour but doesn't describe the
+> proposed new behaviour.
 
+Yeah, fixed below.
+
+> > --- linux-next.orig/kernel/sysctl.c	2010-08-05 22:48:34.000000000 +0800
+> > +++ linux-next/kernel/sysctl.c	2010-08-05 22:48:47.000000000 +0800
+> > @@ -126,6 +126,7 @@ static int ten_thousand = 10000;
+> >  
+> >  /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+> >  static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
+> > +static int dirty_ratio_min = 5;
+> >  
+> >  /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+> >  static int maxolduid = 65535;
+> > @@ -1031,7 +1032,7 @@ static struct ctl_table vm_table[] = {
+> >  		.maxlen		= sizeof(vm_dirty_ratio),
+> >  		.mode		= 0644,
+> >  		.proc_handler	= dirty_ratio_handler,
+> > -		.extra1		= &zero,
+> > +		.extra1		= &dirty_ratio_min,
+> >  		.extra2		= &one_hundred,
+> >  	},
+> 
+> I forget how the procfs core handles this.  Presumably the write will
+> now fail with -EINVAL or something?
+
+Right.
+         # echo 111 > /proc/sys/vm/dirty_ratio
+         echo: write error: invalid argument
+
+> So people's scripts will now error out and their space shuttles will
+> crash?
+
+Looks like a serious problem. I'm now much more reserved on pushing
+this patch :)
+
+> All of which illustrates why it's important to fully describe changes
+> in the changelog!  So people can consider and discuss the end-user
+> implications of a change.
+
+Good point. Here is the patch with updated changelog.
+
+Thanks,
+Fengguang
+---
+Subject: writeback: explicit low bound for vm.dirty_ratio
+From: Wu Fengguang <fengguang.wu@intel.com>
+Date: Thu Jul 15 10:28:57 CST 2010
+
+Force a user visible low bound of 5% for the vm.dirty_ratio interface.
+
+This is an interface change. When doing
+
+	echo N > /proc/sys/vm/dirty_ratio
+
+where N < 5, the old behavior is pretend to accept the value, while
+the new behavior is to reject it explicitly with -EINVAL.  This will
+possibly break user space if they checks the return value.
+
+Currently global_dirty_limits() applies a low bound of 5% for
+vm_dirty_ratio.  This is not very user visible -- if the user sets
+vm.dirty_ratio=1, the operation seems to succeed but will be rounded up
+to 5% when used.
+
+Another problem is inconsistency: calc_period_shift() uses the plain
+vm_dirty_ratio value, which may be a problem when vm.dirty_ratio is set
+to < 5 by the user.
+
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ kernel/sysctl.c     |    3 ++-
+ mm/page-writeback.c |   10 ++--------
+ 2 files changed, 4 insertions(+), 9 deletions(-)
+
+--- linux-next.orig/kernel/sysctl.c	2010-08-05 22:48:34.000000000 +0800
++++ linux-next/kernel/sysctl.c	2010-08-05 22:48:47.000000000 +0800
+@@ -126,6 +126,7 @@ static int ten_thousand = 10000;
+ 
+ /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+ static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
++static int dirty_ratio_min = 5;
+ 
+ /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+ static int maxolduid = 65535;
+@@ -1031,7 +1032,7 @@ static struct ctl_table vm_table[] = {
+ 		.maxlen		= sizeof(vm_dirty_ratio),
+ 		.mode		= 0644,
+ 		.proc_handler	= dirty_ratio_handler,
+-		.extra1		= &zero,
++		.extra1		= &dirty_ratio_min,
+ 		.extra2		= &one_hundred,
+ 	},
+ 	{
+--- linux-next.orig/mm/page-writeback.c	2010-08-05 22:48:42.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-05 22:48:47.000000000 +0800
+@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else {
+-		int dirty_ratio;
+-
+-		dirty_ratio = vm_dirty_ratio;
+-		if (dirty_ratio < 5)
+-			dirty_ratio = 5;
+-		dirty = (dirty_ratio * available_memory) / 100;
+-	}
++	else
++		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+ 	if (dirty_background_bytes)
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
