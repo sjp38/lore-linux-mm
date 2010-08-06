@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 340F76B02B6
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 517126B02B9
 	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:37 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp06.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FQav029517
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:26 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FXsm1286350
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:33 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FXQU021125
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:33 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp07.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FWEi025864
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FWep1220682
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FWYp016387
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 26/43] memblock: Define MEMBLOCK_ERROR internally instead of using ~(phys_addr_t)0
-Date: Fri,  6 Aug 2010 15:15:07 +1000
-Message-Id: <1281071724-28740-27-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 17/43] memblock: Expose MEMBLOCK_ALLOC_ANYWHERE
+Date: Fri,  6 Aug 2010 15:14:58 +1000
+Message-Id: <1281071724-28740-18-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,66 +24,49 @@ List-ID: <linux-mm.kvack.org>
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- mm/memblock.c |   12 +++++++-----
- 1 files changed, 7 insertions(+), 5 deletions(-)
+ arch/powerpc/mm/hash_utils_64.c |    2 +-
+ include/linux/memblock.h        |    1 +
+ mm/memblock.c                   |    2 --
+ 3 files changed, 2 insertions(+), 3 deletions(-)
 
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index 4072b87..a542ff5 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -625,7 +625,7 @@ static void __init htab_initialize(void)
+ 		if (machine_is(cell))
+ 			limit = 0x80000000;
+ 		else
+-			limit = 0;
++			limit = MEMBLOCK_ALLOC_ANYWHERE;
+ 
+ 		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes, limit);
+ 
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 367dea6..3cf3304 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -50,6 +50,7 @@ extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid);
+ extern u64 __init memblock_alloc(u64 size, u64 align);
+ extern u64 __init memblock_alloc_base(u64 size,
+ 		u64, u64 max_addr);
++#define MEMBLOCK_ALLOC_ANYWHERE	0
+ extern u64 __init __memblock_alloc_base(u64 size,
+ 		u64 align, u64 max_addr);
+ extern u64 __init memblock_phys_mem_size(void);
 diff --git a/mm/memblock.c b/mm/memblock.c
-index c1d2060..fc7f97b 100644
+index e264e8c..0131684 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -22,6 +22,8 @@ static int memblock_debug;
- static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS + 1];
- static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS + 1];
+@@ -15,8 +15,6 @@
+ #include <linux/bitops.h>
+ #include <linux/memblock.h>
  
-+#define MEMBLOCK_ERROR	(~(phys_addr_t)0)
-+
- static int __init early_memblock(char *p)
- {
- 	if (p && strstr(p, "debug"))
-@@ -326,7 +328,7 @@ static phys_addr_t __init memblock_find_region(phys_addr_t start, phys_addr_t en
- 		base = memblock_align_down(res_base - size, align);
- 	}
+-#define MEMBLOCK_ALLOC_ANYWHERE	0
+-
+ struct memblock memblock;
  
--	return ~(phys_addr_t)0;
-+	return MEMBLOCK_ERROR;
- }
- 
- phys_addr_t __weak __init memblock_nid_range(phys_addr_t start, phys_addr_t end, int *nid)
-@@ -353,14 +355,14 @@ static phys_addr_t __init memblock_alloc_nid_region(struct memblock_region *mp,
- 		this_end = memblock_nid_range(start, end, &this_nid);
- 		if (this_nid == nid) {
- 			phys_addr_t ret = memblock_find_region(start, this_end, size, align);
--			if (ret != ~(phys_addr_t)0 &&
-+			if (ret != MEMBLOCK_ERROR &&
- 			    memblock_add_region(&memblock.reserved, ret, size) >= 0)
- 				return ret;
- 		}
- 		start = this_end;
- 	}
- 
--	return ~(phys_addr_t)0;
-+	return MEMBLOCK_ERROR;
- }
- 
- phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
-@@ -379,7 +381,7 @@ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int n
- 	for (i = 0; i < mem->cnt; i++) {
- 		phys_addr_t ret = memblock_alloc_nid_region(&mem->regions[i],
- 					       size, align, nid);
--		if (ret != ~(phys_addr_t)0)
-+		if (ret != MEMBLOCK_ERROR)
- 			return ret;
- 	}
- 
-@@ -430,7 +432,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
- 			continue;
- 		base = min(memblockbase + memblocksize, max_addr);
- 		res_base = memblock_find_region(memblockbase, base, size, align);
--		if (res_base != ~(phys_addr_t)0 &&
-+		if (res_base != MEMBLOCK_ERROR &&
- 		    memblock_add_region(&memblock.reserved, res_base, size) >= 0)
- 			return res_base;
- 	}
+ static int memblock_debug;
 -- 
 1.7.0.4
 
