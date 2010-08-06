@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D1E66200ED
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:45 -0400 (EDT)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
-	by e23smtp01.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765Clxa010339
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:12:47 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FX7S1220690
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:33 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FXXW021106
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:33 +1000
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B22A36B02A4
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:20:59 -0400 (EDT)
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FWjr013746
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FWcq1638560
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FVs8026915
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:32 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 22/43] memblock: Remove memblock_type.size and add memblock.memory_size instead
-Date: Fri,  6 Aug 2010 15:15:03 +1000
-Message-Id: <1281071724-28740-23-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 15/43] memblock: Remove nid_range argument, arch provides memblock_nid_range() instead
+Date: Fri,  6 Aug 2010 15:14:56 +1000
+Message-Id: <1281071724-28740-16-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,85 +22,149 @@ To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-Right now, both the "memory" and "reserved" memblock_type structures have
-a "size" member. It represents the calculated memory size in the former
-case and is unused in the latter.
-
-This moves it out to the main memblock structure instead
-
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- arch/powerpc/mm/mem.c    |    2 +-
- include/linux/memblock.h |    2 +-
- mm/memblock.c            |    8 ++++----
- 3 files changed, 6 insertions(+), 6 deletions(-)
+ arch/sparc/mm/init_64.c  |   16 ++++++----------
+ include/linux/memblock.h |    7 +++++--
+ mm/memblock.c            |   13 ++++++++-----
+ 3 files changed, 19 insertions(+), 17 deletions(-)
 
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 52df542..f661f6c 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -301,7 +301,7 @@ void __init mem_init(void)
- 		swiotlb_init(1);
- #endif
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index dd68025..0883113 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -785,8 +785,7 @@ static int find_node(unsigned long addr)
+ 	return -1;
+ }
  
--	num_physpages = memblock.memory.size >> PAGE_SHIFT;
-+	num_physpages = memblock_phys_mem_size() >> PAGE_SHIFT;
- 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
+-static unsigned long long nid_range(unsigned long long start,
+-				    unsigned long long end, int *nid)
++u64 memblock_nid_range(u64 start, u64 end, int *nid)
+ {
+ 	*nid = find_node(start);
+ 	start += PAGE_SIZE;
+@@ -804,8 +803,7 @@ static unsigned long long nid_range(unsigned long long start,
+ 	return start;
+ }
+ #else
+-static unsigned long long nid_range(unsigned long long start,
+-				    unsigned long long end, int *nid)
++u64 memblock_nid_range(u64 start, u64 end, int *nid)
+ {
+ 	*nid = 0;
+ 	return end;
+@@ -822,8 +820,7 @@ static void __init allocate_node_data(int nid)
+ 	struct pglist_data *p;
  
  #ifdef CONFIG_NEED_MULTIPLE_NODES
+-	paddr = memblock_alloc_nid(sizeof(struct pglist_data),
+-			      SMP_CACHE_BYTES, nid, nid_range);
++	paddr = memblock_alloc_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
+ 	if (!paddr) {
+ 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
+ 		prom_halt();
+@@ -843,8 +840,7 @@ static void __init allocate_node_data(int nid)
+ 	if (p->node_spanned_pages) {
+ 		num_pages = bootmem_bootmap_pages(p->node_spanned_pages);
+ 
+-		paddr = memblock_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid,
+-				      nid_range);
++		paddr = memblock_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid);
+ 		if (!paddr) {
+ 			prom_printf("Cannot allocate bootmap for nid[%d]\n",
+ 				  nid);
+@@ -984,7 +980,7 @@ static void __init add_node_ranges(void)
+ 			unsigned long this_end;
+ 			int nid;
+ 
+-			this_end = nid_range(start, end, &nid);
++			this_end = memblock_nid_range(start, end, &nid);
+ 
+ 			numadbg("Adding active range nid[%d] "
+ 				"start[%lx] end[%lx]\n",
+@@ -1317,7 +1313,7 @@ static void __init reserve_range_in_node(int nid, unsigned long start,
+ 		unsigned long this_end;
+ 		int n;
+ 
+-		this_end = nid_range(start, end, &n);
++		this_end = memblock_nid_range(start, end, &n);
+ 		if (n == nid) {
+ 			numadbg("      MATCH reserving range [%lx:%lx]\n",
+ 				start, this_end);
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 0fe6dd5..c9c7b0f 100644
+index 776c7d9..367dea6 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -27,12 +27,12 @@ struct memblock_region {
+@@ -46,8 +46,7 @@ extern long memblock_add(u64 base, u64 size);
+ extern long memblock_remove(u64 base, u64 size);
+ extern long __init memblock_free(u64 base, u64 size);
+ extern long __init memblock_reserve(u64 base, u64 size);
+-extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
+-				u64 (*nid_range)(u64, u64, int *));
++extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid);
+ extern u64 __init memblock_alloc(u64 size, u64 align);
+ extern u64 __init memblock_alloc_base(u64 size,
+ 		u64, u64 max_addr);
+@@ -63,6 +62,10 @@ extern int memblock_is_region_reserved(u64 base, u64 size);
  
- struct memblock_type {
- 	unsigned long cnt;
--	phys_addr_t size;
- 	struct memblock_region regions[MAX_MEMBLOCK_REGIONS+1];
- };
+ extern void memblock_dump_all(void);
  
- struct memblock {
- 	phys_addr_t current_limit;
-+	phys_addr_t memory_size;	/* Updated by memblock_analyze() */
- 	struct memblock_type memory;
- 	struct memblock_type reserved;
- };
++/* Provided by the architecture */
++extern u64 memblock_nid_range(u64 start, u64 end, int *nid);
++
++
+ /*
+  * pfn conversion functions
+  *
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 81da635..5ae413e 100644
+index 8a118b7..13807f2 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -49,7 +49,7 @@ void memblock_dump_all(void)
- 		return;
+@@ -319,7 +319,6 @@ static u64 __init memblock_alloc_nid_unreserved(u64 start, u64 end,
+ }
  
- 	pr_info("MEMBLOCK configuration:\n");
--	pr_info(" memory.size = 0x%llx\n", (unsigned long long)memblock.memory.size);
-+	pr_info(" memory size = 0x%llx\n", (unsigned long long)memblock.memory_size);
- 
- 	memblock_dump(&memblock.memory, "memory");
- 	memblock_dump(&memblock.reserved, "reserved");
-@@ -123,10 +123,10 @@ void __init memblock_analyze(void)
+ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
+-				       u64 (*nid_range)(u64, u64, int *),
+ 				       u64 size, u64 align, int nid)
  {
+ 	u64 start, end;
+@@ -332,7 +331,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
+ 		u64 this_end;
+ 		int this_nid;
+ 
+-		this_end = nid_range(start, end, &this_nid);
++		this_end = memblock_nid_range(start, end, &this_nid);
+ 		if (this_nid == nid) {
+ 			u64 ret = memblock_alloc_nid_unreserved(start, this_end,
+ 							   size, align);
+@@ -345,8 +344,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
+ 	return ~(u64)0;
+ }
+ 
+-u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
+-			 u64 (*nid_range)(u64 start, u64 end, int *nid))
++u64 __init memblock_alloc_nid(u64 size, u64 align, int nid)
+ {
+ 	struct memblock_type *mem = &memblock.memory;
  	int i;
+@@ -357,7 +355,6 @@ u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
  
--	memblock.memory.size = 0;
-+	memblock.memory_size = 0;
- 
- 	for (i = 0; i < memblock.memory.cnt; i++)
--		memblock.memory.size += memblock.memory.regions[i].size;
-+		memblock.memory_size += memblock.memory.regions[i].size;
+ 	for (i = 0; i < mem->cnt; i++) {
+ 		u64 ret = memblock_alloc_nid_region(&mem->regions[i],
+-					       nid_range,
+ 					       size, align, nid);
+ 		if (ret != ~(u64)0)
+ 			return ret;
+@@ -531,3 +528,9 @@ int memblock_is_region_reserved(u64 base, u64 size)
+ 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
  }
  
- static long memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
-@@ -423,7 +423,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
- /* You must call memblock_analyze() before this. */
- phys_addr_t __init memblock_phys_mem_size(void)
- {
--	return memblock.memory.size;
-+	return memblock.memory_size;
- }
- 
- phys_addr_t memblock_end_of_DRAM(void)
++u64 __weak memblock_nid_range(u64 start, u64 end, int *nid)
++{
++	*nid = 0;
++
++	return end;
++}
 -- 
 1.7.0.4
 
