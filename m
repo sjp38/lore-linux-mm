@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 02416600801
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:38 -0400 (EDT)
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [202.81.31.247])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FZjM013800
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:35 +1000
+	by kanga.kvack.org (Postfix) with ESMTP id 218C8600802
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:39 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp06.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FSYi029563
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:28 +1000
 Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FZ1c606284
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FZCH1806422
 	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:35 +1000
 Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FYC1021199
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:34 +1000
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FYMv021228
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:35 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 34/43] memblock: Separate memblock_alloc_nid() and memblock_alloc_try_nid()
-Date: Fri,  6 Aug 2010 15:15:15 +1000
-Message-Id: <1281071724-28740-35-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 40/43] memblock: Make MEMBLOCK_ERROR be 0
+Date: Fri,  6 Aug 2010 15:15:21 +1000
+Message-Id: <1281071724-28740-41-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,84 +22,45 @@ To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-The former is now strict, it will fail if it cannot honor the allocation
-within the node, while the later implements the previous semantic which
-falls back to allocating anywhere.
+And ensure we don't hand out 0 as a valid allocation. We put the
+low limit at PAGE_SIZE arbitrarily.
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- arch/sparc/mm/init_64.c  |    4 ++--
- include/linux/memblock.h |    6 +++++-
- mm/memblock.c            |   14 ++++++++++++++
- 3 files changed, 21 insertions(+), 3 deletions(-)
+ include/linux/memblock.h |    2 +-
+ mm/memblock.c            |    6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletions(-)
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 0883113..dc584d2 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -820,7 +820,7 @@ static void __init allocate_node_data(int nid)
- 	struct pglist_data *p;
- 
- #ifdef CONFIG_NEED_MULTIPLE_NODES
--	paddr = memblock_alloc_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
-+	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
- 	if (!paddr) {
- 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
- 		prom_halt();
-@@ -840,7 +840,7 @@ static void __init allocate_node_data(int nid)
- 	if (p->node_spanned_pages) {
- 		num_pages = bootmem_bootmap_pages(p->node_spanned_pages);
- 
--		paddr = memblock_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid);
-+		paddr = memblock_alloc_try_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid);
- 		if (!paddr) {
- 			prom_printf("Cannot allocate bootmap for nid[%d]\n",
- 				  nid);
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 82b0302..c8da03e 100644
+index 1a9c29c..dfa6449 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -50,7 +50,11 @@ extern long __init memblock_reserve(phys_addr_t base, phys_addr_t size);
- /* The numa aware allocator is only available if
-  * CONFIG_ARCH_POPULATES_NODE_MAP is set
-  */
--extern phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
-+extern phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align,
-+					int nid);
-+extern phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
-+					    int nid);
-+
- extern phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align);
+@@ -19,7 +19,7 @@
+ #include <asm/memblock.h>
  
- /* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
+ #define INIT_MEMBLOCK_REGIONS	128
+-#define MEMBLOCK_ERROR		(~(phys_addr_t)0)
++#define MEMBLOCK_ERROR		0
+ 
+ struct memblock_region {
+ 	phys_addr_t base;
 diff --git a/mm/memblock.c b/mm/memblock.c
-index af7e4d9..1802d97 100644
+index 85cfa1d..cb520df 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -537,9 +537,23 @@ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int n
- 			return ret;
- 	}
+@@ -105,6 +105,12 @@ static phys_addr_t __init memblock_find_region(phys_addr_t start, phys_addr_t en
+ 	phys_addr_t base, res_base;
+ 	long j;
  
-+	return 0;
-+}
++	/* Prevent allocations returning 0 as it's also used to
++	 * indicate an allocation failure
++	 */
++	if (start == 0)
++		start = PAGE_SIZE;
 +
-+phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
-+{
-+	phys_addr_t res = memblock_alloc_nid(size, align, nid);
-+
-+	if (res)
-+		return res;
- 	return memblock_alloc(size, align);
- }
- 
-+
-+/*
-+ * Remaining API functions
-+ */
-+
- /* You must call memblock_analyze() before this. */
- phys_addr_t __init memblock_phys_mem_size(void)
- {
+ 	base = memblock_align_down((end - size), align);
+ 	while (start <= base) {
+ 		j = memblock_overlaps_region(&memblock.reserved, base, size);
 -- 
 1.7.0.4
 
