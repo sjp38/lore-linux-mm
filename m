@@ -1,39 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 78D2D6B02BE
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 08:04:37 -0400 (EDT)
-Subject: Re: [PATCH] GSoC 2010 - Memory hotplug support for Xen guests -
- second fully working version - once again
-From: Vasiliy G Tolstov <v.tolstov@selfip.ru>
-Reply-To: v.tolstov@selfip.ru
-In-Reply-To: <20100806111147.GA31683@router-fw-old.local.net-space.pl>
-References: <20100806111147.GA31683@router-fw-old.local.net-space.pl>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 06 Aug 2010 16:03:18 +0400
-Message-ID: <1281096198.27692.6.camel@vase.work>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8513A6B02BD
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 09:20:47 -0400 (EDT)
+Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L6Q00LKTFQKNV@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 06 Aug 2010 14:20:44 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L6Q00FHBFQJCP@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Aug 2010 14:20:43 +0100 (BST)
+Date: Fri, 06 Aug 2010 15:22:07 +0200
+From: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Subject: [PATCH/RFCv3 1/6] lib: rbtree: rb_root_init() function added
+In-reply-to: <cover.1281100495.git.m.nazarewicz@samsung.com>
+Message-id: 
+ <743102607e2c5fb20e3c0676fadbcb93d501a78e.1281100495.git.m.nazarewicz@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
+References: <cover.1281100495.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: jeremy@goop.org, konrad.wilk@oracle.com, stefano.stabellini@eu.citrix.com, linux-mm@kvack.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Hans Verkuil <hverkuil@xs4all.nl>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Walker <dwalker@codeaurora.org>, Jonathan Corbet <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Hiremath Vaibhav <hvaibhav@ti.com>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, jaeryul.oh@samsung.com, kgene.kim@samsung.com, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-kernel@vger.kernel.org, Michal Nazarewicz <m.nazarewicz@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-D? D?N?D 1/2 , 06/08/2010 D2 13:11 +0200, Daniel Kiper D?D,N?DuN?:
-> Hi,
-> 
-> I am sending this e-mail once again because it probably
-> has been lost in abyss of Xen-devel/LKLM list.
-> 
-> Here is the second version of memory hotplug support
-> for Xen guests patch. This one cleanly applies to
-> git://git.kernel.org/pub/scm/linux/kernel/git/jeremy/xen.git
-> repository, xen/memory-hotplug head.
+Added a rb_root_init() function which initialises a rb_root
+structure as a red-black tree with at most one element.  The
+rationale is that using rb_root_init(root, node) is more
+straightforward and cleaner then first initialising and
+empty tree followed by an insert operation.
 
-Testing on sles 11 sp1 and opensuse 11.3. On results - send e-mail..
+Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ include/linux/rbtree.h |   11 +++++++++++
+ 1 files changed, 11 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/rbtree.h b/include/linux/rbtree.h
+index 7066acb..5b6dc66 100644
+--- a/include/linux/rbtree.h
++++ b/include/linux/rbtree.h
+@@ -130,6 +130,17 @@ static inline void rb_set_color(struct rb_node *rb, int color)
+ }
+ 
+ #define RB_ROOT	(struct rb_root) { NULL, }
++
++static inline void rb_root_init(struct rb_root *root, struct rb_node *node)
++{
++	root->rb_node = node;
++	if (node) {
++		node->rb_parent_color = RB_BLACK; /* black, no parent */
++		node->rb_left  = NULL;
++		node->rb_right = NULL;
++	}
++}
++
+ #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
+ 
+ #define RB_EMPTY_ROOT(root)	((root)->rb_node == NULL)
 -- 
-Vasiliy G Tolstov <v.tolstov@selfip.ru>
-Selfip.Ru
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
