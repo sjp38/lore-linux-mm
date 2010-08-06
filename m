@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B8F6B02A5
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F06886B02AB
 	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 01:15:34 -0400 (EDT)
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
-	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765FVL1013725
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp05.au.ibm.com (8.14.4/8.13.1) with ESMTP id o765B9XI011475
+	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:11:09 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FVCX1851574
 	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:31 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o765FV0l1294358
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:31 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FVQf020979
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o765FV3x026881
 	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 15:15:31 +1000
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: [PATCH 04/43] memblock: Implement memblock_is_memory and memblock_is_region_memory
-Date: Fri,  6 Aug 2010 15:14:45 +1000
-Message-Id: <1281071724-28740-5-git-send-email-benh@kernel.crashing.org>
+Subject: [PATCH 05/43] memblock/arm: pfn_valid uses memblock_is_memory()
+Date: Fri,  6 Aug 2010 15:14:46 +1000
+Message-Id: <1281071724-28740-6-git-send-email-benh@kernel.crashing.org>
 In-Reply-To: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,85 +22,44 @@ To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-To make it fast, we steal ARM's binary search for memblock_is_memory()
-and we use that to also the replace existing implementation of
-memblock_is_reserved().
+The implementation is pretty much similar. There is a -small- added
+overhead by having another function call and the address shift.
+
+If that becomes a concern, I suppose we could actually have memblock
+itself expose a memblock_pfn_valid() which then ARM can use directly
+with an appropriate #define...
 
 Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 ---
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |   42 ++++++++++++++++++++++++++++++++++--------
- 2 files changed, 36 insertions(+), 8 deletions(-)
+ arch/arm/mm/init.c |   15 +--------------
+ 1 files changed, 1 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 4b69313..47bceb1 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -56,6 +56,8 @@ extern u64 __init __memblock_alloc_base(u64 size,
- extern u64 __init memblock_phys_mem_size(void);
- extern u64 memblock_end_of_DRAM(void);
- extern void __init memblock_enforce_memory_limit(u64 memory_limit);
-+extern int memblock_is_memory(u64 addr);
-+extern int memblock_is_region_memory(u64 base, u64 size);
- extern int __init memblock_is_reserved(u64 addr);
- extern int memblock_is_region_reserved(u64 base, u64 size);
- extern int memblock_find(struct memblock_region *res);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 6f407cc..aa88c62 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -487,17 +487,43 @@ void __init memblock_enforce_memory_limit(u64 memory_limit)
- 	}
- }
- 
-+static int memblock_search(struct memblock_type *type, u64 addr)
-+{
-+	unsigned int left = 0, right = type->cnt;
-+
-+	do {
-+		unsigned int mid = (right + left) / 2;
-+
-+		if (addr < type->regions[mid].base)
-+			right = mid;
-+		else if (addr >= (type->regions[mid].base +
-+				  type->regions[mid].size))
-+			left = mid + 1;
-+		else
-+			return mid;
-+	} while (left < right);
-+	return -1;
-+}
-+
- int __init memblock_is_reserved(u64 addr)
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index d1496e6..e739223 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -237,20 +237,7 @@ static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
+ #ifndef CONFIG_SPARSEMEM
+ int pfn_valid(unsigned long pfn)
  {
--	int i;
-+	return memblock_search(&memblock.reserved, addr) != -1;
-+}
- 
--	for (i = 0; i < memblock.reserved.cnt; i++) {
--		u64 upper = memblock.reserved.regions[i].base +
--			memblock.reserved.regions[i].size - 1;
--		if ((addr >= memblock.reserved.regions[i].base) && (addr <= upper))
+-	struct memblock_type *mem = &memblock.memory;
+-	unsigned int left = 0, right = mem->cnt;
+-
+-	do {
+-		unsigned int mid = (right + left) / 2;
+-
+-		if (pfn < memblock_start_pfn(mem, mid))
+-			right = mid;
+-		else if (pfn >= memblock_end_pfn(mem, mid))
+-			left = mid + 1;
+-		else
 -			return 1;
--	}
+-	} while (left < right);
 -	return 0;
-+int memblock_is_memory(u64 addr)
-+{
-+	return memblock_search(&memblock.memory, addr) != -1;
-+}
-+
-+int memblock_is_region_memory(u64 base, u64 size)
-+{
-+	int idx = memblock_search(&memblock.reserved, base);
-+
-+	if (idx == -1)
-+		return 0;
-+	return memblock.reserved.regions[idx].base <= base &&
-+		(memblock.reserved.regions[idx].base +
-+		 memblock.reserved.regions[idx].size) >= (base + size);
++	return memblock_is_memory(pfn << PAGE_SHIFT);
  }
+ EXPORT_SYMBOL(pfn_valid);
  
- int memblock_is_region_reserved(u64 base, u64 size)
 -- 
 1.7.0.4
 
