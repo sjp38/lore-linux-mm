@@ -1,50 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B746007FD
-	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 03:19:22 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o767JMHS026178
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 00:19:22 -0700
-Received: from gwj18 (gwj18.prod.google.com [10.200.10.18])
-	by wpaz5.hot.corp.google.com with ESMTP id o767JK73007109
-	for <linux-mm@kvack.org>; Fri, 6 Aug 2010 00:19:21 -0700
-Received: by gwj18 with SMTP id 18so2725572gwj.30
-        for <linux-mm@kvack.org>; Fri, 06 Aug 2010 00:19:20 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8677C6B02B5
+	for <linux-mm@kvack.org>; Fri,  6 Aug 2010 04:52:21 -0400 (EDT)
+Received: by wyg36 with SMTP id 36so8854548wyg.14
+        for <linux-mm@kvack.org>; Fri, 06 Aug 2010 01:52:22 -0700 (PDT)
+Message-ID: <4C5BCD41.3040501@monstr.eu>
+Date: Fri, 06 Aug 2010 10:52:17 +0200
+From: Michal Simek <monstr@monstr.eu>
+Reply-To: monstr@monstr.eu
 MIME-Version: 1.0
-In-Reply-To: <AANLkTik9AMf1pmsguB843UC9Qq6KxBcWiN_qyeiDPp1O@mail.gmail.com>
-References: <1280969004-29530-1-git-send-email-mrubin@google.com>
-	<1280969004-29530-3-git-send-email-mrubin@google.com> <20100805132433.d1d7927b.akpm@linux-foundation.org>
-	<AANLkTik9AMf1pmsguB843UC9Qq6KxBcWiN_qyeiDPp1O@mail.gmail.com>
-From: Michael Rubin <mrubin@google.com>
-Date: Fri, 6 Aug 2010 00:19:00 -0700
-Message-ID: <AANLkTikFM9J9On85N9k6hKPfUz0w4LxZai6xfsHQz+-D@mail.gmail.com>
-Subject: Re: [PATCH 2/2] writeback: Adding pages_dirtied and
-	pages_entered_writeback
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 08/43] memblock/microblaze: Use new accessors
+References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org> <1281071724-28740-9-git-send-email-benh@kernel.crashing.org>
+In-Reply-To: <1281071724-28740-9-git-send-email-benh@kernel.crashing.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 5, 2010 at 1:24 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> Wait.  These counters appear in /proc/vmstat.  So why create standalone
-> /proc/sys/vm files as well?
+Benjamin Herrenschmidt wrote:
+> CC: Michal Simek <monstr@monstr.eu>
+> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Andrew I was thinking about this today. And I think there is a case
-for keeping the proc files.
-Christoph was the one who pointed out to me that is their proper home
-and I think he's right. Most if not all the tunables for writeback are
-there. When one is trying to find the state of the system's writeback
-activity that's the directory. Only having these variables in
-/proc/vmstat to me feels like a way to make sure that users who would
-need them won't find them unless they are reading source. And these
-are folks who aren't reading source.
+This patch remove bug which I reported but there is another place which 
+needs to be changed.
 
-/proc/vmstat _does_ look like a good place to put the thresholds as it
-already has similar values as the thresholds suck as
-kswapd_low_wmark_hit_quickly.
+I am not sure if my patch is correct but at least point you on places 
+which is causing compilation errors.
 
-mrubin
+I tested your memblock branch with this fix and microblaze can boot.
+
+Thanks,
+Michal
+
+   CC      arch/microblaze/mm/init.o
+arch/microblaze/mm/init.c: In function 'mm_cmdline_setup':
+arch/microblaze/mm/init.c:236: error: 'struct memblock_type' has no 
+member named 'region'
+arch/microblaze/mm/init.c: In function 'mmu_init':
+arch/microblaze/mm/init.c:279: error: 'struct memblock_type' has no 
+member named 'region'
+arch/microblaze/mm/init.c:284: error: 'struct memblock_type' has no 
+member named 'region'
+arch/microblaze/mm/init.c:285: error: 'struct memblock_type' has no 
+member named 'region'
+arch/microblaze/mm/init.c:286: error: 'struct memblock_type' has no 
+member named 'region'
+make[1]: *** [arch/microblaze/mm/init.o] Error 1
+make: *** [arch/microblaze/mm] Error 2
+
+
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index 32a702b..a9d7b9b 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -233,7 +233,7 @@ static void mm_cmdline_setup(void)
+                 if (maxmem && memory_size > maxmem) {
+                         memory_size = maxmem;
+                         memory_end = memory_start + memory_size;
+-                       memblock.memory.region[0].size = memory_size;
++                       memblock.memory.regions[0].size = memory_size;
+                 }
+         }
+  }
+@@ -276,14 +276,14 @@ asmlinkage void __init mmu_init(void)
+                 machine_restart(NULL);
+         }
+
+-       if ((u32) memblock.memory.region[0].size < 0x1000000) {
++       if ((u32) memblock.memory.regions[0].size < 0x1000000) {
+                 printk(KERN_EMERG "Memory must be greater than 16MB\n");
+                 machine_restart(NULL);
+         }
+         /* Find main memory where the kernel is */
+-       memory_start = (u32) memblock.memory.region[0].base;
+-       memory_end = (u32) memblock.memory.region[0].base +
+-                               (u32) memblock.memory.region[0].size;
++       memory_start = (u32) memblock.memory.regions[0].base;
++       memory_end = (u32) memblock.memory.regions[0].base +
++                               (u32) memblock.memory.regions[0].size;
+         memory_size = memory_end - memory_start;
+
+         mm_cmdline_setup(); /* FIXME parse args from command line - not 
+used */
+
+
+
+> ---
+>  arch/microblaze/mm/init.c |   20 +++++++++-----------
+>  1 files changed, 9 insertions(+), 11 deletions(-)
+> 
+> diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+> index afd6494..32a702b 100644
+> --- a/arch/microblaze/mm/init.c
+> +++ b/arch/microblaze/mm/init.c
+> @@ -70,16 +70,16 @@ static void __init paging_init(void)
+>  
+>  void __init setup_memory(void)
+>  {
+> -	int i;
+>  	unsigned long map_size;
+> +	struct memblock_region *reg;
+> +
+>  #ifndef CONFIG_MMU
+>  	u32 kernel_align_start, kernel_align_size;
+>  
+>  	/* Find main memory where is the kernel */
+> -	for (i = 0; i < memblock.memory.cnt; i++) {
+> -		memory_start = (u32) memblock.memory.regions[i].base;
+> -		memory_end = (u32) memblock.memory.regions[i].base
+> -				+ (u32) memblock.memory.region[i].size;
+> +	for_each_memblock(memory, reg) {
+> +		memory_start = (u32)reg->base;
+> +		memory_end = (u32) reg->base + reg->size;
+>  		if ((memory_start <= (u32)_text) &&
+>  					((u32)_text <= memory_end)) {
+>  			memory_size = memory_end - memory_start;
+> @@ -147,12 +147,10 @@ void __init setup_memory(void)
+>  	free_bootmem(memory_start, memory_size);
+>  
+>  	/* reserve allocate blocks */
+> -	for (i = 0; i < memblock.reserved.cnt; i++) {
+> -		pr_debug("reserved %d - 0x%08x-0x%08x\n", i,
+> -			(u32) memblock.reserved.region[i].base,
+> -			(u32) memblock_size_bytes(&memblock.reserved, i));
+> -		reserve_bootmem(memblock.reserved.region[i].base,
+> -			memblock_size_bytes(&memblock.reserved, i) - 1, BOOTMEM_DEFAULT);
+> +	for_each_memblock(reserved, reg) {
+> +		pr_debug("reserved - 0x%08x-0x%08x\n",
+> +			 (u32) reg->base, (u32) reg->size);
+> +		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
+>  	}
+>  #ifdef CONFIG_MMU
+>  	init_bootmem_done = 1;
+
+
+-- 
+Michal Simek, Ing. (M.Eng)
+w: www.monstr.eu p: +42-0-721842854
+Maintainer of Linux kernel 2.6 Microblaze Linux - http://www.monstr.eu/fdt/
+Microblaze U-BOOT custodian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
