@@ -1,152 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BAC906B02A4
-	for <linux-mm@kvack.org>; Sat,  7 Aug 2010 12:30:58 -0400 (EDT)
-Date: Fri, 6 Aug 2010 20:44:52 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6A5926B02A5
+	for <linux-mm@kvack.org>; Sat,  7 Aug 2010 12:47:40 -0400 (EDT)
+Date: Sun, 8 Aug 2010 00:47:33 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
-Message-ID: <20100806124452.GC4717@localhost>
+Subject: Re: [PATCH 03/13] writeback: add comment to the dirty limits
+ functions
+Message-ID: <20100807164733.GB7109@localhost>
 References: <20100805161051.501816677@intel.com>
- <20100805162433.673243074@intel.com>
- <20100805163401.e9754032.akpm@linux-foundation.org>
+ <20100805162433.105093335@intel.com>
+ <1281089846.1947.411.camel@laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100805163401.e9754032.akpm@linux-foundation.org>
+In-Reply-To: <1281089846.1947.411.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 06, 2010 at 07:34:01AM +0800, Andrew Morton wrote:
-> On Fri, 06 Aug 2010 00:10:58 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Fri, Aug 06, 2010 at 06:17:26PM +0800, Peter Zijlstra wrote:
+> On Fri, 2010-08-06 at 00:10 +0800, Wu Fengguang wrote:
 > 
-> > Force a user visible low bound of 5% for the vm.dirty_ratio interface.
-> > 
-> > Currently global_dirty_limits() applies a low bound of 5% for
-> > vm_dirty_ratio.  This is not very user visible -- if the user sets
-> > vm.dirty_ratio=1, the operation seems to succeed but will be rounded up
-> > to 5% when used.
-> > 
-> > Another problem is inconsistency: calc_period_shift() uses the plain
-> > vm_dirty_ratio value, which may be a problem when vm.dirty_ratio is set
-> > to < 5 by the user.
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > 
-> The changelog describes the old behaviour but doesn't describe the
-> proposed new behaviour.
-
-Yeah, fixed below.
-
-> > --- linux-next.orig/kernel/sysctl.c	2010-08-05 22:48:34.000000000 +0800
-> > +++ linux-next/kernel/sysctl.c	2010-08-05 22:48:47.000000000 +0800
-> > @@ -126,6 +126,7 @@ static int ten_thousand = 10000;
-> >  
-> >  /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
-> >  static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
-> > +static int dirty_ratio_min = 5;
-> >  
-> >  /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
-> >  static int maxolduid = 65535;
-> > @@ -1031,7 +1032,7 @@ static struct ctl_table vm_table[] = {
-> >  		.maxlen		= sizeof(vm_dirty_ratio),
-> >  		.mode		= 0644,
-> >  		.proc_handler	= dirty_ratio_handler,
-> > -		.extra1		= &zero,
-> > +		.extra1		= &dirty_ratio_min,
-> >  		.extra2		= &one_hundred,
-> >  	},
+> > +/**
+> > + * bdi_dirty_limit - @bdi's share of dirty throttling threshold
+> > + *
+> > + * Allocate high/low dirty limits to fast/slow devices, in order to prevent
+> > + * - starving fast devices
+> > + * - piling up dirty pages (that will take long time to sync) on slow devices
+> > + *
+> > + * The bdi's share of dirty limit will be adapting to its throughput and
+> > + * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
+> > + */ 
 > 
-> I forget how the procfs core handles this.  Presumably the write will
-> now fail with -EINVAL or something?
+> Another thing solved by the introduction of per-bdi dirty limits (and
+> now per-bdi flushing) is the whole stacked-bdi writeout deadlock.
+> 
+> Although I'm not sure we want/need to mention that here.
 
-Right.
-         # echo 111 > /proc/sys/vm/dirty_ratio
-         echo: write error: invalid argument
-
-> So people's scripts will now error out and their space shuttles will
-> crash?
-
-Looks like a serious problem. I'm now much more reserved on pushing
-this patch :)
-
-> All of which illustrates why it's important to fully describe changes
-> in the changelog!  So people can consider and discuss the end-user
-> implications of a change.
-
-Good point. Here is the patch with updated changelog.
+The changelog looks like a suitable place :)
 
 Thanks,
 Fengguang
 ---
-Subject: writeback: explicit low bound for vm.dirty_ratio
+Subject: writeback: add comment to the dirty limits functions
 From: Wu Fengguang <fengguang.wu@intel.com>
-Date: Thu Jul 15 10:28:57 CST 2010
+Date: Thu Jul 15 09:54:25 CST 2010
 
-Force a user visible low bound of 5% for the vm.dirty_ratio interface.
+Document global_dirty_limits(), bdi_dirty_limit() and task_dirty_limit().
 
-This is an interface change. When doing
+Note that another thing solved by the introduction of per-bdi dirty
+limits (and now per-bdi flushing) is the whole stacked-bdi writeout
+deadlock.						-- Peter
 
-	echo N > /proc/sys/vm/dirty_ratio
-
-where N < 5, the old behavior is pretend to accept the value, while
-the new behavior is to reject it explicitly with -EINVAL.  This will
-possibly break user space if they checks the return value.
-
-Currently global_dirty_limits() applies a low bound of 5% for
-vm_dirty_ratio.  This is not very user visible -- if the user sets
-vm.dirty_ratio=1, the operation seems to succeed but will be rounded up
-to 5% when used.
-
-Another problem is inconsistency: calc_period_shift() uses the plain
-vm_dirty_ratio value, which may be a problem when vm.dirty_ratio is set
-to < 5 by the user.
-
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- kernel/sysctl.c     |    3 ++-
- mm/page-writeback.c |   10 ++--------
- 2 files changed, 4 insertions(+), 9 deletions(-)
+ mm/page-writeback.c |   31 ++++++++++++++++++++++++++++---
+ 1 file changed, 28 insertions(+), 3 deletions(-)
 
---- linux-next.orig/kernel/sysctl.c	2010-08-05 22:48:34.000000000 +0800
-+++ linux-next/kernel/sysctl.c	2010-08-05 22:48:47.000000000 +0800
-@@ -126,6 +126,7 @@ static int ten_thousand = 10000;
+--- linux-next.orig/mm/page-writeback.c	2010-08-03 23:14:19.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-05 00:37:17.000000000 +0800
+@@ -261,11 +261,18 @@ static inline void task_dirties_fraction
+ }
  
- /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
- static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
-+static int dirty_ratio_min = 5;
+ /*
+- * scale the dirty limit
++ * task_dirty_limit - scale down dirty throttling threshold for one task
+  *
+  * task specific dirty limit:
+  *
+  *   dirty -= (dirty/8) * p_{t}
++ *
++ * To protect light/slow dirtying tasks from heavier/fast ones, we start
++ * throttling individual tasks before reaching the bdi dirty limit.
++ * Relatively low thresholds will be allocated to heavy dirtiers. So when
++ * dirty pages grow large, heavy dirtiers will be throttled first, which will
++ * effectively curb the growth of dirty pages. Light dirtiers with high enough
++ * dirty threshold may never get throttled.
+  */
+ static unsigned long task_dirty_limit(struct task_struct *tsk,
+ 				       unsigned long bdi_dirty)
+@@ -390,6 +397,15 @@ unsigned long determine_dirtyable_memory
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
  
- /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
- static int maxolduid = 65535;
-@@ -1031,7 +1032,7 @@ static struct ctl_table vm_table[] = {
- 		.maxlen		= sizeof(vm_dirty_ratio),
- 		.mode		= 0644,
- 		.proc_handler	= dirty_ratio_handler,
--		.extra1		= &zero,
-+		.extra1		= &dirty_ratio_min,
- 		.extra2		= &one_hundred,
- 	},
- 	{
---- linux-next.orig/mm/page-writeback.c	2010-08-05 22:48:42.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-05 22:48:47.000000000 +0800
-@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
++/**
++ * global_dirty_limits - background-writeback and dirty-throttling thresholds
++ *
++ * Calculate the dirty thresholds based on sysctl parameters
++ * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
++ * - vm.dirty_ratio             or  vm.dirty_bytes
++ * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
++ * runtime tasks.
++ */
+ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ {
+ 	unsigned long background;
+@@ -424,8 +440,17 @@ void global_dirty_limits(unsigned long *
+ 	*pdirty = dirty;
+ }
  
- 	if (vm_dirty_bytes)
- 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
--	else {
--		int dirty_ratio;
--
--		dirty_ratio = vm_dirty_ratio;
--		if (dirty_ratio < 5)
--			dirty_ratio = 5;
--		dirty = (dirty_ratio * available_memory) / 100;
--	}
-+	else
-+		dirty = (vm_dirty_ratio * available_memory) / 100;
- 
- 	if (dirty_background_bytes)
- 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
+-			       unsigned long dirty)
++/**
++ * bdi_dirty_limit - @bdi's share of dirty throttling threshold
++ *
++ * Allocate high/low dirty limits to fast/slow devices, in order to prevent
++ * - starving fast devices
++ * - piling up dirty pages (that will take long time to sync) on slow devices
++ *
++ * The bdi's share of dirty limit will be adapting to its throughput and
++ * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
++ */
++unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
+ {
+ 	u64 bdi_dirty;
+ 	long numerator, denominator;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
