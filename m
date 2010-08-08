@@ -1,31 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 6ABEE6B02A5
-	for <linux-mm@kvack.org>; Sun,  8 Aug 2010 02:42:45 -0400 (EDT)
-Date: Sun, 8 Aug 2010 15:42:03 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
-In-Reply-To: <20100805150232.GE25688@csn.ul.ie>
-References: <20100805151125.31BA.A69D9226@jp.fujitsu.com> <20100805150232.GE25688@csn.ul.ie>
-Message-Id: <20100808153750.5AC6.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4D83F6B02A5
+	for <linux-mm@kvack.org>; Sun,  8 Aug 2010 05:50:24 -0400 (EDT)
+Received: by pxi12 with SMTP id 12so825245pxi.14
+        for <linux-mm@kvack.org>; Sun, 08 Aug 2010 02:50:23 -0700 (PDT)
+From: Huang Shijie <shijie8@gmail.com>
+Subject: [PATCH] percpu : fix the memory leak
+Date: Sun,  8 Aug 2010 17:53:17 +0800
+Message-Id: <1281261197-8816-1-git-send-email-shijie8@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
+To: akpm@linux-foundation.org
+Cc: tj@kernel.org, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> This patch (as well as most of the series) will reject against current mmotm
-> because of other reclaim-related patches already in there. The resolutions
-> are not too hard but bear it in mind.
+	The origin code did not free the old map.
+The patch fixes it.
 
-I was working on latest published mmotm. but yes, current akpm private mmotm
-incluse your reclaim related change.
+Signed-off-by: Huang Shijie <shijie8@gmail.com>
+---
+ mm/percpu.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-That said, I need to rework them later.
-
-
+diff --git a/mm/percpu.c b/mm/percpu.c
+index e61dc2c..d1c94e3 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -393,6 +393,7 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
+ 		goto out_unlock;
+ 
+ 	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
++	old	 = chunk->map;
+ 	memcpy(new, chunk->map, old_size);
+ 
+ 	chunk->map_alloc = new_alloc;
+-- 
+1.6.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
