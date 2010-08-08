@@ -1,127 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6A5926B02A5
-	for <linux-mm@kvack.org>; Sat,  7 Aug 2010 12:47:40 -0400 (EDT)
-Date: Sun, 8 Aug 2010 00:47:33 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 03/13] writeback: add comment to the dirty limits
- functions
-Message-ID: <20100807164733.GB7109@localhost>
-References: <20100805161051.501816677@intel.com>
- <20100805162433.105093335@intel.com>
- <1281089846.1947.411.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6ABEE6B02A5
+	for <linux-mm@kvack.org>; Sun,  8 Aug 2010 02:42:45 -0400 (EDT)
+Date: Sun, 8 Aug 2010 15:42:03 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/7] vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
+In-Reply-To: <20100805150232.GE25688@csn.ul.ie>
+References: <20100805151125.31BA.A69D9226@jp.fujitsu.com> <20100805150232.GE25688@csn.ul.ie>
+Message-Id: <20100808153750.5AC6.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1281089846.1947.411.camel@laptop>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 06, 2010 at 06:17:26PM +0800, Peter Zijlstra wrote:
-> On Fri, 2010-08-06 at 00:10 +0800, Wu Fengguang wrote:
-> 
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> 
-> > +/**
-> > + * bdi_dirty_limit - @bdi's share of dirty throttling threshold
-> > + *
-> > + * Allocate high/low dirty limits to fast/slow devices, in order to prevent
-> > + * - starving fast devices
-> > + * - piling up dirty pages (that will take long time to sync) on slow devices
-> > + *
-> > + * The bdi's share of dirty limit will be adapting to its throughput and
-> > + * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
-> > + */ 
-> 
-> Another thing solved by the introduction of per-bdi dirty limits (and
-> now per-bdi flushing) is the whole stacked-bdi writeout deadlock.
-> 
-> Although I'm not sure we want/need to mention that here.
+> This patch (as well as most of the series) will reject against current mmotm
+> because of other reclaim-related patches already in there. The resolutions
+> are not too hard but bear it in mind.
 
-The changelog looks like a suitable place :)
+I was working on latest published mmotm. but yes, current akpm private mmotm
+incluse your reclaim related change.
 
-Thanks,
-Fengguang
----
-Subject: writeback: add comment to the dirty limits functions
-From: Wu Fengguang <fengguang.wu@intel.com>
-Date: Thu Jul 15 09:54:25 CST 2010
+That said, I need to rework them later.
 
-Document global_dirty_limits(), bdi_dirty_limit() and task_dirty_limit().
 
-Note that another thing solved by the introduction of per-bdi dirty
-limits (and now per-bdi flushing) is the whole stacked-bdi writeout
-deadlock.						-- Peter
-
-Cc: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |   31 ++++++++++++++++++++++++++++---
- 1 file changed, 28 insertions(+), 3 deletions(-)
-
---- linux-next.orig/mm/page-writeback.c	2010-08-03 23:14:19.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-05 00:37:17.000000000 +0800
-@@ -261,11 +261,18 @@ static inline void task_dirties_fraction
- }
- 
- /*
-- * scale the dirty limit
-+ * task_dirty_limit - scale down dirty throttling threshold for one task
-  *
-  * task specific dirty limit:
-  *
-  *   dirty -= (dirty/8) * p_{t}
-+ *
-+ * To protect light/slow dirtying tasks from heavier/fast ones, we start
-+ * throttling individual tasks before reaching the bdi dirty limit.
-+ * Relatively low thresholds will be allocated to heavy dirtiers. So when
-+ * dirty pages grow large, heavy dirtiers will be throttled first, which will
-+ * effectively curb the growth of dirty pages. Light dirtiers with high enough
-+ * dirty threshold may never get throttled.
-  */
- static unsigned long task_dirty_limit(struct task_struct *tsk,
- 				       unsigned long bdi_dirty)
-@@ -390,6 +397,15 @@ unsigned long determine_dirtyable_memory
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
-+/**
-+ * global_dirty_limits - background-writeback and dirty-throttling thresholds
-+ *
-+ * Calculate the dirty thresholds based on sysctl parameters
-+ * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
-+ * - vm.dirty_ratio             or  vm.dirty_bytes
-+ * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
-+ * runtime tasks.
-+ */
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
- 	unsigned long background;
-@@ -424,8 +440,17 @@ void global_dirty_limits(unsigned long *
- 	*pdirty = dirty;
- }
- 
--unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
--			       unsigned long dirty)
-+/**
-+ * bdi_dirty_limit - @bdi's share of dirty throttling threshold
-+ *
-+ * Allocate high/low dirty limits to fast/slow devices, in order to prevent
-+ * - starving fast devices
-+ * - piling up dirty pages (that will take long time to sync) on slow devices
-+ *
-+ * The bdi's share of dirty limit will be adapting to its throughput and
-+ * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
-+ */
-+unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
- {
- 	u64 bdi_dirty;
- 	long numerator, denominator;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
