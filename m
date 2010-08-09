@@ -1,56 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC376007FD
-	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 13:53:13 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o79HYU6Z026391
-	for <linux-mm@kvack.org>; Mon, 9 Aug 2010 13:34:30 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o79Hr3Dw1228876
-	for <linux-mm@kvack.org>; Mon, 9 Aug 2010 13:53:03 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o79Hr2kq030947
-	for <linux-mm@kvack.org>; Mon, 9 Aug 2010 14:53:03 -0300
-Message-ID: <4C60407C.2080608@austin.ibm.com>
-Date: Mon, 09 Aug 2010 12:53:00 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5C49C6B02B9
+	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 14:32:12 -0400 (EDT)
+Received: by gwj16 with SMTP id 16so4568592gwj.14
+        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 11:32:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH 0/8] v5 De-couple sysfs memory directories from memory sections
+In-Reply-To: <1281374816-904-8-git-send-email-ngupta@vflare.org>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	<1281374816-904-8-git-send-email-ngupta@vflare.org>
+Date: Mon, 9 Aug 2010 21:32:11 +0300
+Message-ID: <AANLkTikwN08QsfRNwa-4=qOu8mKkGoEUHdxUC5n8u3Ve@mail.gmail.com>
+Subject: Re: [PATCH 07/10] Increase compressed page size threshold
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This set of patches de-couples the idea that there is a single
-directory in sysfs for each memory section.  The intent of the
-patches is to reduce the number of sysfs directories created to
-resolve a boot-time performance issue.  On very large systems
-boot time are getting very long (as seen on powerpc hardware)
-due to the enormous number of sysfs directories being created.
-On a system with 1 TB of memory we create ~63,000 directories.
-For even larger systems boot times are being measured in hours.
+Hi Nitin,
 
-This set of patches allows for each directory created in sysfs
-to cover more than one memory section.  The default behavior for
-sysfs directory creation is the same, in that each directory
-represents a single memory section.  A new file 'end_phys_index'
-in each directory contains the physical_id of the last memory
-section covered by the directory so that users can easily
-determine the memory section range of a directory.
+On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
+> Compression takes much more time than decompression. So, its quite
+> wasteful in terms of both CPU cycles and memory usage to have a very
+> low compressed page size threshold and thereby storing such not-so-well
+> compressible pages as-is (uncompressed). So, increasing it from
+> PAGE_SIZE/2 to PAGE_SIZE/8*7. A low threshold was useful when we had
+> "backing swap" support where we could forward such pages to the backing
+> device (applicable only when zram was used as swap disk).
+>
+> It is not yet configurable through sysfs but may be exported in future,
+> along with threshold for average compression ratio.
+>
+> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
-Updates for version 5 of the patchset include the following:
+The description makes sense but lacks any real data. What kind of
+workloads did you test this with? Where does it help most? How much?
 
-Patch 4/8 Add mutex for add/remove of memory blocks
-- Define the mutex using DEFINE_MUTEX macro.
-
-Patch 8/8 Update memory-hotplug documentation
-- Add information concerning memory holes in phys_index..end_phys_index.
- 
-Thanks,
-
-Nathan Fontenot
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
