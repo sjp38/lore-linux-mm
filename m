@@ -1,43 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5C49C6B02B9
-	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 14:32:12 -0400 (EDT)
-Received: by gwj16 with SMTP id 16so4568592gwj.14
-        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 11:32:11 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6C99C6B02BA
+	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 14:34:50 -0400 (EDT)
+Received: by gwj16 with SMTP id 16so4570001gwj.14
+        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 11:34:49 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1281374816-904-8-git-send-email-ngupta@vflare.org>
+In-Reply-To: <1281374816-904-2-git-send-email-ngupta@vflare.org>
 References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
-	<1281374816-904-8-git-send-email-ngupta@vflare.org>
-Date: Mon, 9 Aug 2010 21:32:11 +0300
-Message-ID: <AANLkTikwN08QsfRNwa-4=qOu8mKkGoEUHdxUC5n8u3Ve@mail.gmail.com>
-Subject: Re: [PATCH 07/10] Increase compressed page size threshold
+	<1281374816-904-2-git-send-email-ngupta@vflare.org>
+Date: Mon, 9 Aug 2010 21:34:48 +0300
+Message-ID: <AANLkTimuPK=1+xNMKfV=G1sSG60+=fa7eA3142JJZZ6p@mail.gmail.com>
+Subject: Re: [PATCH 01/10] Replace ioctls with sysfs interface
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Nitin Gupta <ngupta@vflare.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nitin,
-
 On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
-> Compression takes much more time than decompression. So, its quite
-> wasteful in terms of both CPU cycles and memory usage to have a very
-> low compressed page size threshold and thereby storing such not-so-well
-> compressible pages as-is (uncompressed). So, increasing it from
-> PAGE_SIZE/2 to PAGE_SIZE/8*7. A low threshold was useful when we had
-> "backing swap" support where we could forward such pages to the backing
-> device (applicable only when zram was used as swap disk).
+> Creates per-device sysfs nodes in /sys/block/zram<id>/
+> Currently following stats are exported:
+> =A0- disksize
+> =A0- num_reads
+> =A0- num_writes
+> =A0- invalid_io
+> =A0- zero_pages
+> =A0- orig_data_size
+> =A0- compr_data_size
+> =A0- mem_used_total
 >
-> It is not yet configurable through sysfs but may be exported in future,
-> along with threshold for average compression ratio.
+> By default, disksize is set to 0. So, to start using
+> a zram device, fist write a disksize value and then
+> initialize device by writing any positive value to
+> initstate. For example:
+>
+> =A0 =A0 =A0 =A0# initialize /dev/zram0 with 50MB disksize
+> =A0 =A0 =A0 =A0echo 50*1024*1024 | bc > /sys/block/zram0/disksize
+> =A0 =A0 =A0 =A0echo 1 > /sys/block/zram0/initstate
+>
+> When done using a disk, issue reset to free its memory
+> by writing any positive value to reset node:
+>
+> =A0 =A0 =A0 =A0echo 1 > /sys/block/zram0/reset
+>
+> This change also obviates the need for 'rzscontrol' utility.
 >
 > Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 
-The description makes sense but lacks any real data. What kind of
-workloads did you test this with? Where does it help most? How much?
+Looks good to me (but I'm not a sysfs guy).
 
-                        Pekka
+Acked-by: Pekka Enberg <penberg@kernel.org>
+
+> =A0/* Module params (documentation at end) */
+> -static unsigned int num_devices;
+> +unsigned int num_devices;
+> +
+> +static void zram_stat_inc(u32 *v)
+> +{
+> + =A0 =A0 =A0 *v =3D *v + 1;
+> +}
+> +
+> +static void zram_stat_dec(u32 *v)
+> +{
+> + =A0 =A0 =A0 *v =3D *v - 1;
+> +}
+> +
+> +static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
+> +{
+> + =A0 =A0 =A0 spin_lock(&zram->stat64_lock);
+> + =A0 =A0 =A0 *v =3D *v + inc;
+> + =A0 =A0 =A0 spin_unlock(&zram->stat64_lock);
+> +}
+> +
+> +static void zram_stat64_sub(struct zram *zram, u64 *v, u64 dec)
+> +{
+> + =A0 =A0 =A0 spin_lock(&zram->stat64_lock);
+> + =A0 =A0 =A0 *v =3D *v - dec;
+> + =A0 =A0 =A0 spin_unlock(&zram->stat64_lock);
+> +}
+> +
+> +static void zram_stat64_inc(struct zram *zram, u64 *v)
+> +{
+> + =A0 =A0 =A0 zram_stat64_add(zram, v, 1);
+> +}
+
+These could probably use atomic_inc(), atomic64_inc(), and friends, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
