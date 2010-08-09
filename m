@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3EF84600044
-	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 13:27:34 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id C02E1600044
+	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 13:27:39 -0400 (EDT)
 Received: by mail-fx0-f41.google.com with SMTP id 3so191513fxm.14
-        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 10:27:32 -0700 (PDT)
+        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 10:27:38 -0700 (PDT)
 From: Nitin Gupta <ngupta@vflare.org>
-Subject: [PATCH 08/10] Some cleanups
-Date: Mon,  9 Aug 2010 22:56:54 +0530
-Message-Id: <1281374816-904-9-git-send-email-ngupta@vflare.org>
+Subject: [PATCH 09/10] Update zram documentation
+Date: Mon,  9 Aug 2010 22:56:55 +0530
+Message-Id: <1281374816-904-10-git-send-email-ngupta@vflare.org>
 In-Reply-To: <1281374816-904-1-git-send-email-ngupta@vflare.org>
 References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,270 +15,106 @@ To: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, 
 Cc: Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
- - xvmalloc: Remove unnecessary stat_{inc,dec} and increment
-   pages_stored directly
- - xvmalloc: Initialize pointers with NULL instead of 0
- - zram: Remove verbose message when use sets insane disksize
- - zram: Mark some messages as pr_debug
- - zram: Refine some comments
+Update zram documentation to reflect transition form
+ioctl to sysfs interface.
 
 Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 ---
- drivers/staging/zram/xvmalloc.c |   22 ++++-------------
- drivers/staging/zram/zram_drv.c |   49 +++++++++++++-------------------------
- drivers/staging/zram/zram_drv.h |   26 ++++----------------
- 3 files changed, 28 insertions(+), 69 deletions(-)
+ drivers/staging/zram/zram.txt |   58 +++++++++++++++++++++++++---------------
+ 1 files changed, 36 insertions(+), 22 deletions(-)
 
-diff --git a/drivers/staging/zram/xvmalloc.c b/drivers/staging/zram/xvmalloc.c
-index 3fdbb8a..6268f65 100644
---- a/drivers/staging/zram/xvmalloc.c
-+++ b/drivers/staging/zram/xvmalloc.c
-@@ -20,16 +20,6 @@
- #include "xvmalloc.h"
- #include "xvmalloc_int.h"
+diff --git a/drivers/staging/zram/zram.txt b/drivers/staging/zram/zram.txt
+index 520edc1..5f75d29 100644
+--- a/drivers/staging/zram/zram.txt
++++ b/drivers/staging/zram/zram.txt
+@@ -5,33 +5,35 @@ Project home: http://compcache.googlecode.com/
  
--static void stat_inc(u64 *value)
--{
--	*value = *value + 1;
--}
+ * Introduction
+ 
+-The zram module creates RAM based block devices: /dev/ramX (X = 0, 1, ...).
+-Pages written to these disks are compressed and stored in memory itself.
+-These disks allow very fast I/O and compression provides good amounts of
+-memory savings.
++The zram module creates RAM based block devices named /dev/zram<id>
++(<id> = 0, 1, ...). Pages written to these disks are compressed and stored
++in memory itself. These disks allow very fast I/O and compression provides
++good amounts of memory savings. Some of the usecases include /tmp storage,
++use as swap disks, various caches under /var and maybe many more :)
+ 
+-See project home for use cases, performance numbers and a lot more.
 -
--static void stat_dec(u64 *value)
--{
--	*value = *value - 1;
--}
--
- static int test_flag(struct block_header *block, enum blockflags flag)
- {
- 	return block->prev & BIT(flag);
-@@ -187,7 +177,7 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
- 	slindex = get_index_for_insert(block->size);
- 	flindex = slindex / BITS_PER_LONG;
+-Individual zram devices are configured and initialized using zramconfig
+-userspace utility as shown in examples below. See zramconfig man page for
+-more details.
++Statistics for individual zram devices are exported through sysfs nodes at
++/sys/block/zram<id>/
  
--	block->link.prev_page = 0;
-+	block->link.prev_page = NULL;
- 	block->link.prev_offset = 0;
- 	block->link.next_page = pool->freelist[slindex].page;
- 	block->link.next_offset = pool->freelist[slindex].offset;
-@@ -217,7 +207,7 @@ static void remove_block_head(struct xv_pool *pool,
+ * Usage
  
- 	pool->freelist[slindex].page = block->link.next_page;
- 	pool->freelist[slindex].offset = block->link.next_offset;
--	block->link.prev_page = 0;
-+	block->link.prev_page = NULL;
- 	block->link.prev_offset = 0;
+ Following shows a typical sequence of steps for using zram.
  
- 	if (!pool->freelist[slindex].page) {
-@@ -232,7 +222,7 @@ static void remove_block_head(struct xv_pool *pool,
- 		 */
- 		tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
- 				pool->freelist[slindex].offset, KM_USER1);
--		tmpblock->link.prev_page = 0;
-+		tmpblock->link.prev_page = NULL;
- 		tmpblock->link.prev_offset = 0;
- 		put_ptr_atomic(tmpblock, KM_USER1);
- 	}
-@@ -284,7 +274,7 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
- 	if (unlikely(!page))
- 		return -ENOMEM;
+-1) Load Modules:
++1) Load Module:
+ 	modprobe zram num_devices=4
+-	This creates 4 (uninitialized) devices: /dev/zram{0,1,2,3}
++	This creates 4 devices: /dev/zram{0,1,2,3}
+ 	(num_devices parameter is optional. Default: 1)
  
--	stat_inc(&pool->total_pages);
-+	pool->total_pages++;
+-2) Initialize:
+-	Use zramconfig utility to configure and initialize individual
+-	zram devices. For example:
+-	zramconfig /dev/zram0 --init # uses default value of disksize_kb
+-	zramconfig /dev/zram1 --disksize_kb=102400 # 100MB /dev/zram1
++2) Set Disksize (Optional):
++	Set disk size by writing the value to sysfs node 'disksize'
++	(in bytes). If disksize is not given, default value of 25%
++	of RAM is used.
++
++	# Initialize /dev/zram0 with 50MB disksize
++	echo $((50*1024*1024)) > /sys/block/zram0/disksize
  
- 	spin_lock(&pool->lock);
- 	block = get_ptr_atomic(page, 0, KM_USER0);
-@@ -361,8 +351,6 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
+-	*See zramconfig man page for more details and examples*
++	NOTE: disksize cannot be changed if the disk contains any
++	data. So, for such a disk, you need to issue 'reset' (see below)
++	before you can change its disksize.
  
- 	if (!*page) {
- 		spin_unlock(&pool->lock);
--		if (flags & GFP_NOWAIT)
--			return -ENOMEM;
- 		error = grow_pool(pool, flags);
- 		if (unlikely(error))
- 			return error;
-@@ -472,7 +460,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
- 		spin_unlock(&pool->lock);
+ 3) Activate:
+ 	mkswap /dev/zram0
+@@ -41,17 +43,29 @@ Following shows a typical sequence of steps for using zram.
+ 	mount /dev/zram1 /tmp
  
- 		__free_page(page);
--		stat_dec(&pool->total_pages);
-+		pool->total_pages--;
- 		return;
- 	}
+ 4) Stats:
+-	zramconfig /dev/zram0 --stats
+-	zramconfig /dev/zram1 --stats
++	Per-device statistics are exported as various nodes under
++	/sys/block/zram<id>/
++		disksize
++		num_reads
++		num_writes
++		invalid_io
++		notify_free
++		discard
++		zero_pages
++		orig_data_size
++		compr_data_size
++		mem_used_total
  
-diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-index 0f9785f..42aa271 100644
---- a/drivers/staging/zram/zram_drv.c
-+++ b/drivers/staging/zram/zram_drv.c
-@@ -9,7 +9,7 @@
-  * Released under the terms of 3-clause BSD License
-  * Released under the terms of GNU General Public License Version 2.0
-  *
-- * Project home: http://compcache.googlecode.com
-+ * Project home: http://compcache.googlecode.com/
-  */
+ 5) Deactivate:
+ 	swapoff /dev/zram0
+ 	umount /dev/zram1
  
- #define KMSG_COMPONENT "zram"
-@@ -130,33 +130,15 @@ static void zram_insert_obj(struct zram *zram, u32 index, struct page *page,
- 	zram->table[index].addr = addr;
- }
+ 6) Reset:
+-	zramconfig /dev/zram0 --reset
+-	zramconfig /dev/zram1 --reset
+-	(This frees memory allocated for the given device).
++	Write any positive value to 'reset' sysfs node
++	echo 1 > /sys/block/zram0/reset
++	echo 1 > /sys/block/zram1/reset
++
++	(This frees all the memory allocated for the given device).
  
--static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
-+static u64 zram_default_disksize(void)
- {
--	if (!zram->disksize) {
--		pr_info(
--		"disk size not provided. You can use disksize_kb module "
--		"param to specify size.\nUsing default: (%u%% of RAM).\n",
--		default_disksize_perc_ram
--		);
--		zram->disksize = default_disksize_perc_ram *
--					(totalram_bytes / 100);
--	}
-+	u64 disksize;
  
--	if (zram->disksize > 2 * (totalram_bytes)) {
--		pr_info(
--		"There is little point creating a zram of greater than "
--		"twice the size of memory since we expect a 2:1 compression "
--		"ratio. Note that zram uses about 0.1%% of the size of "
--		"the disk when not in use so a huge zram is "
--		"wasteful.\n"
--		"\tMemory Size: %zu kB\n"
--		"\tSize you selected: %llu kB\n"
--		"Continuing anyway ...\n",
--		totalram_bytes >> 10, zram->disksize
--		);
--	}
-+	disksize = default_disksize_perc_ram *
-+			(totalram_pages / 100);
-+	disksize = (disksize << PAGE_SHIFT) & PAGE_MASK;
- 
--	zram->disksize &= PAGE_MASK;
-+	return disksize;
- }
- 
- static void zram_free_page(struct zram *zram, size_t index)
-@@ -459,7 +441,7 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
- 	int ret = 0;
- 	struct zram *zram = queue->queuedata;
- 
--	if (!valid_io_request(zram, bio)) {
-+	if (unlikely(!valid_io_request(zram, bio))) {
- 		zram_inc_stat(zram, ZRAM_STAT_INVALID_IO);
- 		bio_io_error(bio);
- 		return 0;
-@@ -504,7 +486,7 @@ void zram_reset_device(struct zram *zram)
- 	/* Reset stats */
- 	memset(&zram->stats, 0, sizeof(zram->stats));
- 
--	zram->disksize = 0;
-+	zram->disksize = zram_default_disksize();
- 	mutex_unlock(&zram->init_lock);
- }
- 
-@@ -520,7 +502,8 @@ int zram_init_device(struct zram *zram)
- 		return 0;
- 	}
- 
--	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
-+	if (!zram->disksize)
-+		zram->disksize = zram_default_disksize();
- 
- 	num_pages = zram->disksize >> PAGE_SHIFT;
- 	zram->table = vmalloc(num_pages * sizeof(*zram->table));
-@@ -566,7 +549,8 @@ fail:
- 	return ret;
- }
- 
--void zram_slot_free_notify(struct block_device *bdev, unsigned long index)
-+static void zram_slot_free_notify(struct block_device *bdev,
-+				unsigned long index)
- {
- 	struct zram *zram;
- 
-@@ -614,8 +598,9 @@ static int create_device(struct zram *zram, int device_id)
- 	zram->disk->private_data = zram;
- 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
- 
--	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
--	set_capacity(zram->disk, 0);
-+	/* Custom size can be set using syfs (/sys/block/zram<id>/disksize) */
-+	zram->disksize = zram_default_disksize();
-+	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
- 
- 	/*
- 	 * To ensure that we always get PAGE_SIZE aligned
-@@ -739,7 +724,7 @@ static int __init zram_init(void)
- 	}
- 
- 	/* Allocate the device array and initialize each one */
--	pr_info("Creating %u devices ...\n", num_devices);
-+	pr_debug("Creating %u devices ...\n", num_devices);
- 	devices = kzalloc(num_devices * sizeof(struct zram), GFP_KERNEL);
- 	if (!devices) {
- 		ret = -ENOMEM;
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index bcc51ea..2cf36db 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -9,7 +9,7 @@
-  * Released under the terms of 3-clause BSD License
-  * Released under the terms of GNU General Public License Version 2.0
-  *
-- * Project home: http://compcache.googlecode.com
-+ * Project home: http://compcache.googlecode.com/
-  */
- 
- #ifndef _ZRAM_DRV_H_
-@@ -26,18 +26,6 @@
-  */
- static const unsigned max_num_devices = 32;
- 
--/*
-- * Stored at beginning of each compressed object.
-- *
-- * It stores back-reference to table entry which points to this
-- * object. This is required to support memory defragmentation.
-- */
--struct zobj_header {
--#if 0
--	u32 table_idx;
--#endif
--};
--
- /*-- Configurable parameters */
- 
- /* Default zram disk size: 25% of total RAM */
-@@ -50,8 +38,7 @@ static const unsigned default_disksize_perc_ram = 25;
- static const unsigned max_zpage_size = PAGE_SIZE / 8 * 7;
- 
- /*
-- * NOTE: max_zpage_size must be less than or equal to:
-- *   XV_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
-+ * NOTE: max_zpage_size must be less than or equal to XV_MAX_ALLOC_SIZE
-  * otherwise, xv_malloc() would always return failure.
-  */
- 
-@@ -92,16 +79,15 @@ struct zram {
- 	struct table *table;
- 	struct request_queue *queue;
- 	struct gendisk *disk;
--	int init_done;
-+	unsigned int init_done;
- 	/* Prevent concurrent execution of device init and reset */
- 	struct mutex init_lock;
- 	/*
- 	 * This is the limit on amount of *uncompressed* worth of data
--	 * we can store in a disk.
-+	 * we can store in a disk (in bytes).
- 	 */
--	u64 disksize;	/* bytes */
--
--	struct zram_stats_cpu *stats;
-+	u64 disksize;
-+	struct zram_stats_cpu *stats;	/* percpu stats */
- };
- 
- extern struct zram *devices;
+ Please report any problems at:
 -- 
 1.7.2.1
 
