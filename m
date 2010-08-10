@@ -1,50 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4C883600044
-	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 00:47:10 -0400 (EDT)
-Received: by gwj16 with SMTP id 16so4747811gwj.14
-        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 21:47:09 -0700 (PDT)
-Message-ID: <4C60D9E6.3050700@vflare.org>
-Date: Tue, 10 Aug 2010 10:17:34 +0530
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id DB291600044
+	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 00:54:33 -0400 (EDT)
+Received: by gyb11 with SMTP id 11so4791552gyb.14
+        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 21:54:33 -0700 (PDT)
+Message-ID: <4C60DBA1.5070507@vflare.org>
+Date: Tue, 10 Aug 2010 10:24:57 +0530
 From: Nitin Gupta <ngupta@vflare.org>
 Reply-To: ngupta@vflare.org
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/10] Use percpu buffers
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>	<1281374816-904-5-git-send-email-ngupta@vflare.org> <AANLkTin7_fKxTzE2rngh1Ew5Ss8F_Aw0s9Gz6ySug6SX@mail.gmail.com>
-In-Reply-To: <AANLkTin7_fKxTzE2rngh1Ew5Ss8F_Aw0s9Gz6ySug6SX@mail.gmail.com>
+Subject: Re: [PATCH 06/10] Block discard support
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>	<1281374816-904-7-git-send-email-ngupta@vflare.org> <AANLkTimtdLb4Mk81fmCwksPR0GbTEaGZbo888OFefjXK@mail.gmail.com> <4C60B82B.5020905@fusionio.com>
+In-Reply-To: <4C60B82B.5020905@fusionio.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Jens Axboe <jaxboe@fusionio.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 08/10/2010 12:27 AM, Pekka Enberg wrote:
-> On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->> @@ -303,38 +307,41 @@ static int zram_write(struct zram *zram, struct bio *bio)
->>                                zram_test_flag(zram, index, ZRAM_ZERO))
->>                        zram_free_page(zram, index);
+On 08/10/2010 07:53 AM, Jens Axboe wrote:
+> On 08/09/2010 03:03 PM, Pekka Enberg wrote:
+>> On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
+>>> The 'discard' bio discard request provides information to
+>>> zram disks regarding blocks which are no longer in use by
+>>> filesystem. This allows freeing memory allocated for such
+>>> blocks.
+>>>
+>>> When zram devices are used as swap disks, we already have
+>>> a callback (block_device_operations->swap_slot_free_notify).
+>>> So, the discard support is useful only when used as generic
+>>> (non-swap) disk.
+>>>
+>>> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
 >>
->> -               mutex_lock(&zram->lock);
->> +               preempt_disable();
->> +               zbuffer = __get_cpu_var(compress_buffer);
->> +               zworkmem = __get_cpu_var(compress_workmem);
->> +               if (unlikely(!zbuffer || !zworkmem)) {
->> +                       preempt_enable();
->> +                       goto out;
->> +               }
+>> Lets CC fsdevel and Jens for this.
 > 
-> The per-CPU buffer thing with this preempt_disable() trickery looks
-> overkill to me. Most block device drivers seem to use mempool_alloc()
-> for this sort of thing. Is there some reason you can't use that here?
+> Looks OK from a quick look. One comment, though:
+> 
+>>> +static void zram_discard(struct zram *zram, struct bio *bio)
+>>> +{
+>>> +       size_t bytes = bio->bi_size;
+>>> +       sector_t sector = bio->bi_sector;
+>>> +
+>>> +       while (bytes >= PAGE_SIZE) {
+>>> +               zram_free_page(zram, sector >> SECTORS_PER_PAGE_SHIFT);
+>>> +               sector += PAGE_SIZE >> SECTOR_SHIFT;
+>>> +               bytes -= PAGE_SIZE;
+>>> +       }
+>>> +
+>>> +       bio_endio(bio, 0);
+>>> +}
+>>> +
+> 
+> So freeing the page here will guarantee zeroed return on read?
+
+For reads on freed/unwritten sectors, it simply returns success and
+does not touch the bio page. Is it better to zero the page in such
+cases?
+
+> And since you set PAGE_SIZE as the discard granularity, the above loop
+> could be coded more readable with the knowledge that ->bi_size is always
+> a multiple of the page size.
 > 
 
-Other block drivers are allocating relatively small structs using
-mempool_alloc(). However, in case of zram, these buffers are quite
-large (compress_workmem is 64K!). So, allocating them on every write
-would probably be much slower than using a pre-allocated per-cpu buffer.
+Ok, I will cleanup it up.
 
-Thanks,
+Thanks for comments.
 Nitin
 
 --
