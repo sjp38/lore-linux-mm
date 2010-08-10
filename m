@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 54F6060080E
-	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 11:54:32 -0400 (EDT)
-Message-ID: <4C61763B.5050500@fusionio.com>
-Date: Tue, 10 Aug 2010 11:54:35 -0400
-From: Jens Axboe <jaxboe@fusionio.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 342286B02EE
+	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 14:11:42 -0400 (EDT)
+Date: Wed, 11 Aug 2010 02:06:26 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
+Message-ID: <20100810180625.GA4887@localhost>
+References: <20100805163401.e9754032.akpm@linux-foundation.org>
+ <20100806124452.GC4717@localhost>
+ <20100809235652.7113.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/10] Block discard support
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>	<1281374816-904-7-git-send-email-ngupta@vflare.org> <AANLkTimtdLb4Mk81fmCwksPR0GbTEaGZbo888OFefjXK@mail.gmail.com> <4C60B82B.5020905@fusionio.com> <4C60DBA1.5070507@vflare.org>
-In-Reply-To: <4C60DBA1.5070507@vflare.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100809235652.7113.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "ngupta@vflare.org" <ngupta@vflare.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On 08/10/2010 12:54 AM, Nitin Gupta wrote:
-> On 08/10/2010 07:53 AM, Jens Axboe wrote:
->> On 08/09/2010 03:03 PM, Pekka Enberg wrote:
->>> On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->>>> The 'discard' bio discard request provides information to
->>>> zram disks regarding blocks which are no longer in use by
->>>> filesystem. This allows freeing memory allocated for such
->>>> blocks.
->>>>
->>>> When zram devices are used as swap disks, we already have
->>>> a callback (block_device_operations->swap_slot_free_notify).
->>>> So, the discard support is useful only when used as generic
->>>> (non-swap) disk.
->>>>
->>>> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
->>>
->>> Lets CC fsdevel and Jens for this.
->>
->> Looks OK from a quick look. One comment, though:
->>
->>>> +static void zram_discard(struct zram *zram, struct bio *bio)
->>>> +{
->>>> +       size_t bytes = bio->bi_size;
->>>> +       sector_t sector = bio->bi_sector;
->>>> +
->>>> +       while (bytes >= PAGE_SIZE) {
->>>> +               zram_free_page(zram, sector >> SECTORS_PER_PAGE_SHIFT);
->>>> +               sector += PAGE_SIZE >> SECTOR_SHIFT;
->>>> +               bytes -= PAGE_SIZE;
->>>> +       }
->>>> +
->>>> +       bio_endio(bio, 0);
->>>> +}
->>>> +
->>
->> So freeing the page here will guarantee zeroed return on read?
+On Tue, Aug 10, 2010 at 11:12:06AM +0800, KOSAKI Motohiro wrote:
+> > Subject: writeback: explicit low bound for vm.dirty_ratio
+> > From: Wu Fengguang <fengguang.wu@intel.com>
+> > Date: Thu Jul 15 10:28:57 CST 2010
+> > 
+> > Force a user visible low bound of 5% for the vm.dirty_ratio interface.
+> > 
+> > This is an interface change. When doing
+> > 
+> > 	echo N > /proc/sys/vm/dirty_ratio
+> > 
+> > where N < 5, the old behavior is pretend to accept the value, while
+> > the new behavior is to reject it explicitly with -EINVAL.  This will
+> > possibly break user space if they checks the return value.
 > 
-> For reads on freed/unwritten sectors, it simply returns success and
-> does not touch the bio page. Is it better to zero the page in such
-> cases?
+> Umm.. I dislike this change. Is there any good reason to refuse explicit 
+> admin's will? Why 1-4% is so bad? Internal clipping can be changed later
+> but explicit error behavior is hard to change later.
+> 
+> personally I prefer to
+>  - accept all value, or
+>  - clipping value in dirty_ratio_handler 
+> 
+> Both don't have explicit ABI change.
 
-Well, you told the kernel that you return zeroes on discarded ranges:
+Good point. Sorry for being ignorance. Neil is right that there is no
+reason to impose some low bound. So the first option looks good.
 
-        zram->disk->queue->limits.discard_zeroes_data = 1;
-
-So yes, if you intend to keep that, then you need to zero the
-incoming pages that have been explicitly trimmed by a discard.
-
--- 
-Jens Axboe
-
-
-Confidentiality Notice: This e-mail message, its contents and any attachments to it are confidential to the intended recipient, and may contain information that is privileged and/or exempt from disclosure under applicable law. If you are not the intended recipient, please immediately notify the sender and destroy the original e-mail message and any attachments (and any copies that may have been made) from your system or otherwise. Any unauthorized use, copying, disclosure or distribution of this information is strictly prohibited.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
