@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7091A600044
-	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 23:06:08 -0400 (EDT)
-Received: by vws16 with SMTP id 16so8557270vws.14
-        for <linux-mm@kvack.org>; Mon, 09 Aug 2010 20:06:08 -0700 (PDT)
-Message-ID: <4C60C236.4000509@vflare.org>
-Date: Tue, 10 Aug 2010 08:36:30 +0530
-From: Nitin Gupta <ngupta@vflare.org>
-Reply-To: ngupta@vflare.org
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C0CDF600044
+	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 23:12:56 -0400 (EDT)
+Date: Tue, 10 Aug 2010 12:12:06 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
+In-Reply-To: <20100806124452.GC4717@localhost>
+References: <20100805163401.e9754032.akpm@linux-foundation.org> <20100806124452.GC4717@localhost>
+Message-Id: <20100809235652.7113.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] Replace ioctls with sysfs interface
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>	<1281374816-904-2-git-send-email-ngupta@vflare.org> <AANLkTimuPK=1+xNMKfV=G1sSG60+=fa7eA3142JJZZ6p@mail.gmail.com>
-In-Reply-To: <AANLkTimuPK=1+xNMKfV=G1sSG60+=fa7eA3142JJZZ6p@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 08/10/2010 12:04 AM, Pekka Enberg wrote:
-> On Mon, Aug 9, 2010 at 8:26 PM, Nitin Gupta <ngupta@vflare.org> wrote:
->> Creates per-device sysfs nodes in /sys/block/zram<id>/
->> Currently following stats are exported:
->>  - disksize
->>  - num_reads
->>  - num_writes
->>  - invalid_io
->>  - zero_pages
->>  - orig_data_size
->>  - compr_data_size
->>  - mem_used_total
->>
-<snip>
->>
->> Signed-off-by: Nitin Gupta <ngupta@vflare.org>
+> Subject: writeback: explicit low bound for vm.dirty_ratio
+> From: Wu Fengguang <fengguang.wu@intel.com>
+> Date: Thu Jul 15 10:28:57 CST 2010
 > 
-> Looks good to me (but I'm not a sysfs guy).
+> Force a user visible low bound of 5% for the vm.dirty_ratio interface.
 > 
-> Acked-by: Pekka Enberg <penberg@kernel.org>
+> This is an interface change. When doing
 > 
+> 	echo N > /proc/sys/vm/dirty_ratio
+> 
+> where N < 5, the old behavior is pretend to accept the value, while
+> the new behavior is to reject it explicitly with -EINVAL.  This will
+> possibly break user space if they checks the return value.
 
-Thanks!
+Umm.. I dislike this change. Is there any good reason to refuse explicit 
+admin's will? Why 1-4% is so bad? Internal clipping can be changed later
+but explicit error behavior is hard to change later.
 
->>  /* Module params (documentation at end) */
->> -static unsigned int num_devices;
->> +unsigned int num_devices;
->> +
->> +static void zram_stat_inc(u32 *v)
->> +{
->> +       *v = *v + 1;
->> +}
->> +
->> +static void zram_stat_dec(u32 *v)
->> +{
->> +       *v = *v - 1;
->> +}
->> +
->> +static void zram_stat64_add(struct zram *zram, u64 *v, u64 inc)
->> +{
->> +       spin_lock(&zram->stat64_lock);
->> +       *v = *v + inc;
->> +       spin_unlock(&zram->stat64_lock);
->> +}
->> +
->> +static void zram_stat64_sub(struct zram *zram, u64 *v, u64 dec)
->> +{
->> +       spin_lock(&zram->stat64_lock);
->> +       *v = *v - dec;
->> +       spin_unlock(&zram->stat64_lock);
->> +}
->> +
->> +static void zram_stat64_inc(struct zram *zram, u64 *v)
->> +{
->> +       zram_stat64_add(zram, v, 1);
->> +}
-> 
-> These could probably use atomic_inc(), atomic64_inc(), and friends, no?
-> 
+personally I prefer to
+ - accept all value, or
+ - clipping value in dirty_ratio_handler 
 
-Yes, I think we could use them. Anyways, they are replaced by percpu stats in
-patch 3, so probably this can be left as-is.
+Both don't have explicit ABI change.
 
-Thanks,
-Nitin
+Thanks.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
