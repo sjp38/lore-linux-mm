@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 34CD86B02BE
-	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 05:32:48 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 00FF26B02BF
+	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 05:32:57 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 5/9] hugetlb: hugepage migration core
-Date: Tue, 10 Aug 2010 18:27:40 +0900
-Message-Id: <1281432464-14833-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 6/9] HWPOISON, hugetlb: soft offlining for hugepage
+Date: Tue, 10 Aug 2010 18:27:41 +0900
+Message-Id: <1281432464-14833-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,401 +13,236 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch extends page migration code to support hugepage migration.
-One of the potential users of this feature is soft offlining which
-is triggered by memory corrected errors (added by the next patch.)
-
-Todo: there are other users of page migration such as memory policy,
-memory hotplug and memocy compaction.
-They are not ready for hugepage support for now.
+This patch extends soft offlining framework to support hugepage.
+When memory corrected errors occur repeatedly on a hugepage,
+we can choose to stop using it by migrating data onto another hugepage
+and disabling the original (maybe half-broken) one.
 
 ChangeLog since v1:
-- divide migration code path for hugepage
-- define routine checking migration swap entry for hugetlb
-- replace "goto" with "if/else" in remove_migration_pte()
+- add double check in isolating hwpoisoned hugepage
+- define free/non-free checker for hugepage
+- postpone calling put_page() for hugepage in soft_offline_page()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- fs/hugetlbfs/inode.c    |   15 ++++
- include/linux/migrate.h |   12 +++
- mm/hugetlb.c            |   18 ++++-
- mm/migrate.c            |  196 ++++++++++++++++++++++++++++++++++++++++++-----
- 4 files changed, 220 insertions(+), 21 deletions(-)
+ include/linux/hugetlb.h |    2 +
+ mm/hugetlb.c            |   26 +++++++++++++++++
+ mm/memory-failure.c     |   70 ++++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 82 insertions(+), 16 deletions(-)
 
-diff --git linux-mce-hwpoison/fs/hugetlbfs/inode.c linux-mce-hwpoison/fs/hugetlbfs/inode.c
-index a4e9a7e..fee99e8 100644
---- linux-mce-hwpoison/fs/hugetlbfs/inode.c
-+++ linux-mce-hwpoison/fs/hugetlbfs/inode.c
-@@ -31,6 +31,7 @@
- #include <linux/statfs.h>
- #include <linux/security.h>
- #include <linux/magic.h>
-+#include <linux/migrate.h>
+diff --git linux-mce-hwpoison/include/linux/hugetlb.h linux-mce-hwpoison/include/linux/hugetlb.h
+index f77d2ba..2b7de04 100644
+--- linux-mce-hwpoison/include/linux/hugetlb.h
++++ linux-mce-hwpoison/include/linux/hugetlb.h
+@@ -44,6 +44,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+ 						int acctflags);
+ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+ void __isolate_hwpoisoned_huge_page(struct page *page);
++void isolate_hwpoisoned_huge_page(struct page *page);
+ void copy_huge_page(struct page *dst, struct page *src);
  
- #include <asm/uaccess.h>
+ extern unsigned long hugepages_treat_as_movable;
+@@ -103,6 +104,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
+ #define huge_pte_offset(mm, address)	0
+ #define __isolate_hwpoisoned_huge_page(page)	0
++#define isolate_hwpoisoned_huge_page(page)	0
+ #define copy_huge_page(dst, src)	NULL
  
-@@ -589,6 +590,19 @@ static int hugetlbfs_set_page_dirty(struct page *page)
- 	return 0;
- }
- 
-+static int hugetlbfs_migrate_page(struct address_space *mapping,
-+				struct page *newpage, struct page *page)
-+{
-+	int rc;
-+
-+	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
-+	if (rc)
-+		return rc;
-+	migrate_page_copy(newpage, page);
-+
-+	return 0;
-+}
-+
- static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
- {
- 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
-@@ -675,6 +689,7 @@ static const struct address_space_operations hugetlbfs_aops = {
- 	.write_begin	= hugetlbfs_write_begin,
- 	.write_end	= hugetlbfs_write_end,
- 	.set_page_dirty	= hugetlbfs_set_page_dirty,
-+	.migratepage    = hugetlbfs_migrate_page,
- };
- 
- 
-diff --git linux-mce-hwpoison/include/linux/migrate.h linux-mce-hwpoison/include/linux/migrate.h
-index 7238231..f4c15ff 100644
---- linux-mce-hwpoison/include/linux/migrate.h
-+++ linux-mce-hwpoison/include/linux/migrate.h
-@@ -23,6 +23,9 @@ extern int migrate_prep_local(void);
- extern int migrate_vmas(struct mm_struct *mm,
- 		const nodemask_t *from, const nodemask_t *to,
- 		unsigned long flags);
-+extern void migrate_page_copy(struct page *newpage, struct page *page);
-+extern int migrate_huge_page_move_mapping(struct address_space *mapping,
-+				  struct page *newpage, struct page *page);
- #else
- #define PAGE_MIGRATION 0
- 
-@@ -40,6 +43,15 @@ static inline int migrate_vmas(struct mm_struct *mm,
- 	return -ENOSYS;
- }
- 
-+static inline void migrate_page_copy(struct page *newpage,
-+				     struct page *page) {}
-+
-+extern int migrate_huge_page_move_mapping(struct address_space *mapping,
-+				  struct page *newpage, struct page *page)
-+{
-+	return -ENOSYS;
-+}
-+
- /* Possible settings for the migrate_page() method in address_operations */
- #define migrate_page NULL
- #define fail_migrate_page NULL
+ #define hugetlb_change_protection(vma, address, end, newprot)
 diff --git linux-mce-hwpoison/mm/hugetlb.c linux-mce-hwpoison/mm/hugetlb.c
-index 2fb8679..0805524 100644
+index 0805524..2a61a8f 100644
 --- linux-mce-hwpoison/mm/hugetlb.c
 +++ linux-mce-hwpoison/mm/hugetlb.c
-@@ -2239,6 +2239,19 @@ nomem:
- 	return -ENOMEM;
+@@ -2995,3 +2995,29 @@ void __isolate_hwpoisoned_huge_page(struct page *hpage)
+ 	h->free_huge_pages_node[nid]--;
+ 	spin_unlock(&hugetlb_lock);
  }
- 
-+static int is_hugetlb_entry_migration(pte_t pte)
++
++static int is_hugepage_on_freelist(struct page *hpage)
 +{
-+	swp_entry_t swp;
++	struct page *page;
++	struct page *tmp;
++	struct hstate *h = page_hstate(hpage);
++	int nid = page_to_nid(hpage);
 +
-+	if (huge_pte_none(pte) || pte_present(pte))
-+		return 0;
-+	swp = pte_to_swp_entry(pte);
-+	if (non_swap_entry(swp) && is_migration_entry(swp)) {
-+		return 1;
-+	} else
-+		return 0;
-+}
-+
- static int is_hugetlb_entry_hwpoisoned(pte_t pte)
- {
- 	swp_entry_t swp;
-@@ -2678,7 +2691,10 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	ptep = huge_pte_offset(mm, address);
- 	if (ptep) {
- 		entry = huge_ptep_get(ptep);
--		if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
-+		if (unlikely(is_hugetlb_entry_migration(entry))) {
-+			migration_entry_wait(mm, (pmd_t *)ptep, address);
-+			return 0;
-+		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
- 			return VM_FAULT_HWPOISON;
- 	}
- 
-diff --git linux-mce-hwpoison/mm/migrate.c linux-mce-hwpoison/mm/migrate.c
-index 4205b1d..7f9a37c 100644
---- linux-mce-hwpoison/mm/migrate.c
-+++ linux-mce-hwpoison/mm/migrate.c
-@@ -32,6 +32,7 @@
- #include <linux/security.h>
- #include <linux/memcontrol.h>
- #include <linux/syscalls.h>
-+#include <linux/hugetlb.h>
- #include <linux/gfp.h>
- 
- #include "internal.h"
-@@ -95,26 +96,34 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 	pte_t *ptep, pte;
-  	spinlock_t *ptl;
- 
-- 	pgd = pgd_offset(mm, addr);
--	if (!pgd_present(*pgd))
--		goto out;
-+	if (unlikely(PageHuge(new))) {
-+		ptep = huge_pte_offset(mm, addr);
-+		if (!ptep)
-+			goto out;
-+		ptl = &mm->page_table_lock;
-+	} else {
-+		pgd = pgd_offset(mm, addr);
-+		if (!pgd_present(*pgd))
-+			goto out;
- 
--	pud = pud_offset(pgd, addr);
--	if (!pud_present(*pud))
--		goto out;
-+		pud = pud_offset(pgd, addr);
-+		if (!pud_present(*pud))
-+			goto out;
- 
--	pmd = pmd_offset(pud, addr);
--	if (!pmd_present(*pmd))
--		goto out;
-+		pmd = pmd_offset(pud, addr);
-+		if (!pmd_present(*pmd))
-+			goto out;
- 
--	ptep = pte_offset_map(pmd, addr);
-+		ptep = pte_offset_map(pmd, addr);
- 
--	if (!is_swap_pte(*ptep)) {
--		pte_unmap(ptep);
--		goto out;
-- 	}
-+		if (!is_swap_pte(*ptep)) {
-+			pte_unmap(ptep);
-+			goto out;
++	spin_lock(&hugetlb_lock);
++	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru) {
++		if (page == hpage) {
++			spin_unlock(&hugetlb_lock);
++			return 1;
 +		}
-+
-+		ptl = pte_lockptr(mm, pmd);
 +	}
- 
-- 	ptl = pte_lockptr(mm, pmd);
-  	spin_lock(ptl);
- 	pte = *ptep;
- 	if (!is_swap_pte(pte))
-@@ -130,10 +139,17 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
- 	if (is_write_migration_entry(entry))
- 		pte = pte_mkwrite(pte);
-+	if (PageHuge(new))
-+		pte = pte_mkhuge(pte);
- 	flush_cache_page(vma, addr, pte_pfn(pte));
- 	set_pte_at(mm, addr, ptep, pte);
- 
--	if (PageAnon(new))
-+	if (PageHuge(new)) {
-+		if (PageAnon(new))
-+			hugepage_add_anon_rmap(new, vma, addr);
-+		else
-+			page_dup_rmap(new);
-+	} else if (PageAnon(new))
- 		page_add_anon_rmap(new, vma, addr);
- 	else
- 		page_add_file_rmap(new);
-@@ -276,11 +292,59 @@ static int migrate_page_move_mapping(struct address_space *mapping,
- }
- 
- /*
-+ * The expected number of remaining references is the same as that
-+ * of migrate_page_move_mapping().
-+ */
-+int migrate_huge_page_move_mapping(struct address_space *mapping,
-+				   struct page *newpage, struct page *page)
-+{
-+	int expected_count;
-+	void **pslot;
-+
-+	if (!mapping) {
-+		if (page_count(page) != 1)
-+			return -EAGAIN;
-+		return 0;
-+	}
-+
-+	spin_lock_irq(&mapping->tree_lock);
-+
-+	pslot = radix_tree_lookup_slot(&mapping->page_tree,
-+					page_index(page));
-+
-+	expected_count = 2 + page_has_private(page);
-+	if (page_count(page) != expected_count ||
-+	    (struct page *)radix_tree_deref_slot(pslot) != page) {
-+		spin_unlock_irq(&mapping->tree_lock);
-+		return -EAGAIN;
-+	}
-+
-+	if (!page_freeze_refs(page, expected_count)) {
-+		spin_unlock_irq(&mapping->tree_lock);
-+		return -EAGAIN;
-+	}
-+
-+	get_page(newpage);
-+
-+	radix_tree_replace_slot(pslot, newpage);
-+
-+	page_unfreeze_refs(page, expected_count);
-+
-+	__put_page(page);
-+
-+	spin_unlock_irq(&mapping->tree_lock);
++	spin_unlock(&hugetlb_lock);
 +	return 0;
 +}
 +
-+/*
-  * Copy the page to its new location
-  */
--static void migrate_page_copy(struct page *newpage, struct page *page)
-+void migrate_page_copy(struct page *newpage, struct page *page)
++void isolate_hwpoisoned_huge_page(struct page *hpage)
++{
++	lock_page(hpage);
++	if (is_hugepage_on_freelist(hpage))
++		__isolate_hwpoisoned_huge_page(hpage);
++	unlock_page(hpage);
++}
+diff --git linux-mce-hwpoison/mm/memory-failure.c linux-mce-hwpoison/mm/memory-failure.c
+index d0b420a..0bfe5b3 100644
+--- linux-mce-hwpoison/mm/memory-failure.c
++++ linux-mce-hwpoison/mm/memory-failure.c
+@@ -1186,7 +1186,11 @@ EXPORT_SYMBOL(unpoison_memory);
+ static struct page *new_page(struct page *p, unsigned long private, int **x)
  {
--	copy_highpage(newpage, page);
-+	if (PageHuge(page))
-+		copy_huge_page(newpage, page);
+ 	int nid = page_to_nid(p);
+-	return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
++	if (PageHuge(p))
++		return alloc_huge_page_node(page_hstate(compound_head(p)),
++						   nid);
 +	else
-+		copy_highpage(newpage, page);
- 
- 	if (PageError(page))
- 		SetPageError(newpage);
-@@ -728,6 +792,86 @@ move_newpage:
++		return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
  }
  
  /*
-+ * Counterpart of unmap_and_move_page() for hugepage migration.
-+ *
-+ * This function doesn't wait the completion of hugepage I/O
-+ * because there is no race between I/O and migration for hugepage.
-+ * Note that currently hugepage I/O occurs only in direct I/O
-+ * where no lock is held and PG_writeback is irrelevant,
-+ * and writeback status of all subpages are counted in the reference
-+ * count of the head page (i.e. if all subpages of a 2MB hugepage are
-+ * under direct I/O, the reference of the head page is 512 and a bit more.)
-+ * This means that when we try to migrate hugepage whose subpages are
-+ * doing direct I/O, some references remain after try_to_unmap() and
-+ * hugepage migration fails without data corruption.
-+ */
-+static int unmap_and_move_huge_page(new_page_t get_new_page,
-+				unsigned long private, struct page *hpage,
-+				int force, int offlining)
-+{
-+	int rc = 0;
-+	int *result = NULL;
-+	struct page *new_hpage = get_new_page(hpage, private, &result);
-+	int rcu_locked = 0;
-+	struct anon_vma *anon_vma = NULL;
-+
-+	if (!new_hpage)
-+		return -ENOMEM;
-+
-+	rc = -EAGAIN;
-+
-+	if (!trylock_page(hpage)) {
-+		if (!force)
-+			goto out;
-+		lock_page(hpage);
-+	}
-+
-+	if (PageAnon(hpage)) {
-+		rcu_read_lock();
-+		rcu_locked = 1;
-+
-+		if (page_mapped(hpage)) {
-+			anon_vma = page_anon_vma(hpage);
-+			atomic_inc(&anon_vma->external_refcount);
-+		}
-+	}
-+
-+	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+
-+	if (!page_mapped(hpage))
-+		rc = move_to_new_page(new_hpage, hpage, 1);
-+
-+	if (rc)
-+		remove_migration_ptes(hpage, hpage);
-+
-+	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount,
-+					    &anon_vma->lock)) {
-+		int empty = list_empty(&anon_vma->head);
-+		spin_unlock(&anon_vma->lock);
-+		if (empty)
-+			anon_vma_free(anon_vma);
-+	}
-+
-+	if (rcu_locked)
-+		rcu_read_unlock();
-+out:
+@@ -1214,8 +1218,16 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+ 	 * was free.
+ 	 */
+ 	set_migratetype_isolate(p);
++	/*
++	 * When the target page is a free hugepage, just remove it
++	 * from free hugepage list.
++	 */
+ 	if (!get_page_unless_zero(compound_head(p))) {
+-		if (is_free_buddy_page(p)) {
++		if (PageHuge(p)) {
++			pr_debug("get_any_page: %#lx free huge page\n", pfn);
++			ret = 0;
++			SetPageHWPoison(compound_head(p));
++		} else if (is_free_buddy_page(p)) {
+ 			pr_debug("get_any_page: %#lx free buddy page\n", pfn);
+ 			/* Set hwpoison bit while page is still isolated */
+ 			SetPageHWPoison(p);
+@@ -1260,6 +1272,7 @@ int soft_offline_page(struct page *page, int flags)
+ {
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
++	struct page *hpage = compound_head(page);
+ 
+ 	ret = get_any_page(page, pfn, flags);
+ 	if (ret < 0)
+@@ -1270,7 +1283,7 @@ int soft_offline_page(struct page *page, int flags)
+ 	/*
+ 	 * Page cache page we can handle?
+ 	 */
+-	if (!PageLRU(page)) {
++	if (!PageLRU(page) && !PageHuge(page)) {
+ 		/*
+ 		 * Try to free it.
+ 		 */
+@@ -1286,21 +1299,21 @@ int soft_offline_page(struct page *page, int flags)
+ 		if (ret == 0)
+ 			goto done;
+ 	}
+-	if (!PageLRU(page)) {
++	if (!PageLRU(page) && !PageHuge(page)) {
+ 		pr_debug("soft_offline: %#lx: unknown non LRU page type %lx\n",
+ 				pfn, page->flags);
+ 		return -EIO;
+ 	}
+ 
+-	lock_page(page);
+-	wait_on_page_writeback(page);
++	lock_page(hpage);
++	wait_on_page_writeback(hpage);
+ 
+ 	/*
+ 	 * Synchronized using the page lock with memory_failure()
+ 	 */
+-	if (PageHWPoison(page)) {
+-		unlock_page(page);
+-		put_page(page);
++	if (PageHWPoison(hpage)) {
++		unlock_page(hpage);
++		put_page(hpage);
+ 		pr_debug("soft offline: %#lx page already poisoned\n", pfn);
+ 		return -EBUSY;
+ 	}
+@@ -1310,7 +1323,7 @@ int soft_offline_page(struct page *page, int flags)
+ 	 * non dirty unmapped page cache pages.
+ 	 */
+ 	ret = invalidate_inode_page(page);
+-	unlock_page(page);
 +	unlock_page(hpage);
-+
-+	if (rc != -EAGAIN)
+ 
+ 	/*
+ 	 * Drop count because page migration doesn't like raised
+@@ -1318,8 +1331,13 @@ int soft_offline_page(struct page *page, int flags)
+ 	 * LRU the isolation will just fail.
+ 	 * RED-PEN would be better to keep it isolated here, but we
+ 	 * would need to fix isolation locking first.
++	 *
++	 * Postpone dropping count for hugepage until migration completes,
++	 * because otherwise old hugepage will be freed before copying.
+ 	 */
+-	put_page(page);
++	if (!PageHuge(hpage))
 +		put_page(hpage);
 +
-+	put_page(new_hpage);
+ 	if (ret == 1) {
+ 		ret = 0;
+ 		pr_debug("soft_offline: %#lx: invalidated\n", pfn);
+@@ -1330,19 +1348,33 @@ int soft_offline_page(struct page *page, int flags)
+ 	 * Simple invalidation didn't work.
+ 	 * Try to migrate to a new page instead. migrate.c
+ 	 * handles a large number of cases for us.
++	 *
++	 * Hugepage has no link to LRU list, so just skip this.
+ 	 */
+-	ret = isolate_lru_page(page);
++	if (PageHuge(page))
++		ret = 0;
++	else
++		ret = isolate_lru_page(page);
 +
-+	if (result) {
-+		if (rc)
-+			*result = rc;
-+		else
-+			*result = page_to_nid(new_hpage);
-+	}
-+	return rc;
-+}
-+
-+/*
-  * migrate_pages
-  *
-  * The function takes one list of pages to migrate and a function
-@@ -751,6 +895,7 @@ int migrate_pages(struct list_head *from,
- 	struct page *page2;
- 	int swapwrite = current->flags & PF_SWAPWRITE;
- 	int rc;
-+	int putback_lru = 1;
+ 	if (!ret) {
+ 		LIST_HEAD(pagelist);
  
- 	if (!swapwrite)
- 		current->flags |= PF_SWAPWRITE;
-@@ -761,7 +906,17 @@ int migrate_pages(struct list_head *from,
- 		list_for_each_entry_safe(page, page2, from, lru) {
- 			cond_resched();
- 
--			rc = unmap_and_move(get_new_page, private,
+-		list_add(&page->lru, &pagelist);
++		list_add(&hpage->lru, &pagelist);
+ 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+ 		if (ret) {
+ 			pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+ 				pfn, ret, page->flags);
+ 			if (ret > 0)
+ 				ret = -EIO;
 +			/*
-+			 * Hugepage should be handled differently from
-+			 * non-hugepage because it's not linked to LRU list
-+			 * and reference counting policy is different.
++			 * When hugepage migration succeeded, the old hugepage
++			 * should already be freed, so we put it only
++			 * in the failure path.
 +			 */
-+			if (PageHuge(page)) {
-+				rc = unmap_and_move_huge_page(get_new_page,
-+					private, page, pass > 2, offlining);
-+				putback_lru = 0;
-+			} else
-+				rc = unmap_and_move(get_new_page, private,
- 						page, pass > 2, offlining);
++			if (PageHuge(hpage))
++				put_page(hpage);
+ 		}
++
+ 	} else {
+ 		pr_debug("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+ 				pfn, ret, page_count(page), page->flags);
+@@ -1351,8 +1383,14 @@ int soft_offline_page(struct page *page, int flags)
+ 		return ret;
  
- 			switch(rc) {
-@@ -784,7 +939,8 @@ out:
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
- 
--	putback_lru_pages(from);
-+	if (putback_lru)
-+		putback_lru_pages(from);
- 
- 	if (rc)
- 		return rc;
+ done:
+-	atomic_long_add(1, &mce_bad_pages);
+-	SetPageHWPoison(page);
+-	/* keep elevated page count for bad page */
++	if (!PageHWPoison(hpage))
++		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
++	if (PageHuge(hpage)) {
++		set_page_hwpoison_huge_page(hpage);
++		isolate_hwpoisoned_huge_page(hpage);
++	} else {
++		SetPageHWPoison(page);
++		/* keep elevated page count for bad page */
++	}
+ 	return ret;
+ }
 -- 
 1.7.2.1
 
