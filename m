@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 570EF600044
-	for <linux-mm@kvack.org>; Mon,  9 Aug 2010 23:57:29 -0400 (EDT)
-Date: Tue, 10 Aug 2010 13:57:12 +1000
-From: Neil Brown <neilb@suse.de>
-Subject: Re: [PATCH 07/13] writeback: explicit low bound for vm.dirty_ratio
-Message-ID: <20100810135712.0eb34759@notabene>
-In-Reply-To: <20100809235652.7113.A69D9226@jp.fujitsu.com>
-References: <20100805163401.e9754032.akpm@linux-foundation.org>
-	<20100806124452.GC4717@localhost>
-	<20100809235652.7113.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA5E600044
+	for <linux-mm@kvack.org>; Tue, 10 Aug 2010 00:33:08 -0400 (EDT)
+Date: Mon, 9 Aug 2010 21:34:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 03/10] Use percpu stats
+Message-Id: <20100809213431.d7699d46.akpm@linux-foundation.org>
+In-Reply-To: <1281374816-904-4-git-send-email-ngupta@vflare.org>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	<1281374816-904-4-git-send-email-ngupta@vflare.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, Mel Gorman <mel@csn.ul.ie>, Chris Mason <chris.mason@oracle.com>, Jens Axboe <axboe@kernel.dk>, Jan Kara <jack@suse.cz>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Aug 2010 12:12:06 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon,  9 Aug 2010 22:56:49 +0530 Nitin Gupta <ngupta@vflare.org> wrote:
 
-> > Subject: writeback: explicit low bound for vm.dirty_ratio
-> > From: Wu Fengguang <fengguang.wu@intel.com>
-> > Date: Thu Jul 15 10:28:57 CST 2010
-> > 
-> > Force a user visible low bound of 5% for the vm.dirty_ratio interface.
-> > 
-> > This is an interface change. When doing
-> > 
-> > 	echo N > /proc/sys/vm/dirty_ratio
-> > 
-> > where N < 5, the old behavior is pretend to accept the value, while
-> > the new behavior is to reject it explicitly with -EINVAL.  This will
-> > possibly break user space if they checks the return value.
-> 
-> Umm.. I dislike this change. Is there any good reason to refuse explicit 
-> admin's will? Why 1-4% is so bad? Internal clipping can be changed later
-> but explicit error behavior is hard to change later.
+> +/*
+> + * Individual percpu values can go negative but the sum across all CPUs
+> + * must always be positive (we store various counts). So, return sum as
+> + * unsigned value.
+> + */
+> +static u64 zram_get_stat(struct zram *zram, enum zram_stats_index idx)
+>  {
+> -	u64 val;
+> -
+> -	spin_lock(&zram->stat64_lock);
+> -	val = *v;
+> -	spin_unlock(&zram->stat64_lock);
+> +	int cpu;
+> +	s64 val = 0;
+> +
+> +	for_each_possible_cpu(cpu) {
+> +		s64 temp;
+> +		unsigned int start;
+> +		struct zram_stats_cpu *stats;
+> +
+> +		stats = per_cpu_ptr(zram->stats, cpu);
+> +		do {
+> +			start = u64_stats_fetch_begin(&stats->syncp);
+> +			temp = stats->count[idx];
+> +		} while (u64_stats_fetch_retry(&stats->syncp, start));
+> +		val += temp;
+> +	}
+>  
+> +	WARN_ON(val < 0);
+>  	return val;
+>  }
 
-As a data-point, I had a situation a while back where I needed a value below
-1 to get desired behaviour.  The system had lots of RAM and fairly slow
-write-back (over NFS) so a 'sync' could take minutes.
+That reimplements include/linux/percpu_counter.h, poorly.
 
-So I would much prefer allowing not only 1-4, but also fraction values!!!
-
-I can see no justification at all for setting a lower bound of 5.  Even zero
-can be useful - for testing purposes mostly.
-
-NeilBrown
-
-> personally I prefer to
->  - accept all value, or
->  - clipping value in dirty_ratio_handler 
-> 
-> Both don't have explicit ABI change.
-> 
-> Thanks.
-> 
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please see the June discussion "[PATCH v2 1/2] tmpfs: Quick token
+library to allow scalable retrieval of tokens from token jar" for some
+discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
