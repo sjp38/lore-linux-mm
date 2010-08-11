@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 790A46B02A4
-	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 09:10:05 -0400 (EDT)
-Date: Wed, 11 Aug 2010 08:09:59 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 0/9] Hugepage migration (v2)
-In-Reply-To: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.00.1008110806070.673@router.home>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A62786B02A5
+	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 11:19:35 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7BF40VW008219
+	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 11:04:00 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7BFJ1OJ385140
+	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 11:19:01 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7BFIsZo025170
+	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 09:18:54 -0600
+Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
+ sections
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4C60407C.2080608@austin.ibm.com>
+References: <4C60407C.2080608@austin.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Wed, 11 Aug 2010 08:18:52 -0700
+Message-ID: <1281539932.6988.39.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Aug 2010, Naoya Horiguchi wrote:
+On Mon, 2010-08-09 at 12:53 -0500, Nathan Fontenot wrote:
+> This set of patches de-couples the idea that there is a single
+> directory in sysfs for each memory section.  The intent of the
+> patches is to reduce the number of sysfs directories created to
+> resolve a boot-time performance issue.  On very large systems
+> boot time are getting very long (as seen on powerpc hardware)
+> due to the enormous number of sysfs directories being created.
+> On a system with 1 TB of memory we create ~63,000 directories.
+> For even larger systems boot times are being measured in hours. 
 
-> There were two points of issue.
->
-> * Dividing hugepage migration functions from original migration code.
->   This is to avoid complexity.
->   In present version, some high level migration routines are defined to handle
->   hugepage, but some low level routines (such as migrate_copy_page() etc.)
->   are shared with original migration code in order not to increase duplication.
+Hi Nathan,
 
-I hoped that we can avoid the branching for taking stuff off the lru and
-put pages back later to the lru. Seems that we still do that. Can be
-refactor the code in such a way that the lru handling cleanly isolates?
-There are now multiple use cases for migration that could avoid LRU
-handling even for PAGE_SIZE pages.
+The set is looking pretty good to me.  We _might_ want to up the ante in
+the future and allow it to be even more dynamic than this, but this
+looks like a good start to me.
 
-> * Locking problem between direct I/O and hugepage migration
->   As a result of digging the race between hugepage I/O and hugepage migration,
->   (where hugepage I/O can be seen only in direct I/O,)
->   I noticed that without additional locking we can avoid this race condition
->   because in direct I/O we can get whether some subpages are under I/O or not
->   from reference count of the head page and hugepage migration safely fails
->   if some references remain.  So no data lost should occurs on the migration
->   concurrent with direct I/O.
+BTW, have you taken a look at what the hotplug events look like if only
+a single section (not filling up a whole block) is added?  
 
-Can you also avoid refcounts being increased during migration? The page
-lock is taken for the PAGE_SIZEd migration case. Can direct I/O be stopped
-by taking the page lock on the head page? If not then races can still
-occur.
+Feel free to add my:
+
+Acked-by: Dave Hansen <dave@linux.vnet.ibm.com>
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
