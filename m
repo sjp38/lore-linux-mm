@@ -1,97 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EFAD36B02A6
-	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 13:17:24 -0400 (EDT)
-Date: Wed, 11 Aug 2010 10:18:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 03/10] Use percpu stats
-Message-Id: <20100811101854.1dc3a510.akpm@linux-foundation.org>
-In-Reply-To: <4C62D241.2040208@vflare.org>
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
-	<1281374816-904-4-git-send-email-ngupta@vflare.org>
-	<20100809213431.d7699d46.akpm@linux-foundation.org>
-	<4C62D241.2040208@vflare.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D600A6B02A5
+	for <linux-mm@kvack.org>; Wed, 11 Aug 2010 16:13:49 -0400 (EDT)
+Date: Wed, 11 Aug 2010 22:13:45 +0200
+From: Helge Deller <deller@gmx.de>
+Subject: [PATCH] ipc/shm.c: add RSS and swap size information to
+ /proc/sysvipc/shm
+Message-ID: <20100811201345.GA11304@p100.box>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: ngupta@vflare.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Aug 2010 22:09:29 +0530 Nitin Gupta <ngupta@vflare.org> wrote:
+The kernel currently provides no functionality to analyze the RSS
+and swap space usage of each individual sysvipc shared memory segment.
 
-> On 08/10/2010 10:04 AM, Andrew Morton wrote:
-> > On Mon,  9 Aug 2010 22:56:49 +0530 Nitin Gupta <ngupta@vflare.org> wrote:
-> > 
-> >> +/*
-> >> + * Individual percpu values can go negative but the sum across all CPUs
-> >> + * must always be positive (we store various counts). So, return sum as
-> >> + * unsigned value.
-> >> + */
-> >> +static u64 zram_get_stat(struct zram *zram, enum zram_stats_index idx)
-> >>  {
-> >> -	u64 val;
-> >> -
-> >> -	spin_lock(&zram->stat64_lock);
-> >> -	val = *v;
-> >> -	spin_unlock(&zram->stat64_lock);
-> >> +	int cpu;
-> >> +	s64 val = 0;
-> >> +
-> >> +	for_each_possible_cpu(cpu) {
-> >> +		s64 temp;
-> >> +		unsigned int start;
-> >> +		struct zram_stats_cpu *stats;
-> >> +
-> >> +		stats = per_cpu_ptr(zram->stats, cpu);
-> >> +		do {
-> >> +			start = u64_stats_fetch_begin(&stats->syncp);
-> >> +			temp = stats->count[idx];
-> >> +		} while (u64_stats_fetch_retry(&stats->syncp, start));
-> >> +		val += temp;
-> >> +	}
-> >>  
-> >> +	WARN_ON(val < 0);
-> >>  	return val;
-> >>  }
-> > 
-> > That reimplements include/linux/percpu_counter.h, poorly.
-> > 
-> > Please see the June discussion "[PATCH v2 1/2] tmpfs: Quick token
-> > library to allow scalable retrieval of tokens from token jar" for some
-> > discussion.
-> > 
-> > 
-> 
-> I read the discussion you pointed out but still fail to see how percpu_counters,
-> with all their overhead,
+This patch add this info for each existing shm segment by extending
+the output of /proc/sysvipc/shm by two columns for RSS and swap.
 
-What overhead?  Send numbers.  Then extrapolate those numbers to a
-machine which has 128 possible CPUs and 4 present CPUs.
+Since shmctl(SHM_INFO) already provides a similiar calculation (it
+currently sums up all RSS/swap info for all segments), I did split
+out a static function which is now used by the /proc/sysvipc/shm 
+output and shmctl(SHM_INFO).
 
-> are better than simple pcpu variable used in current
-> version. What is the advantage?
+Tested on x86-64 and parisc (32- and 64bit). 
 
-Firstly, they'd have saved all the time you spent duplicating them.
+Signed-off-by: Helge Deller <deller@gmx.de>
 
-Secondly, getting additional users of the standard facility results in
-more testing and perhaps enhancement of that facility, thus benefiting
-other users too.
+---
 
-Thirdly, using the standard facility permits your code to leverage
-enhancements which others add. 
-
-Fourthly, they would result in a smaller kernel.
-
-You didn't really need me to teach you the benefits of code reuse did
-you?
+ shm.c |   63 ++++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 42 insertions(+), 21 deletions(-)
 
 
-Please do not merge this code unless there is a good reason to do so
-and it has been shown that the standard facility cannot be suitably
-fixed or enhanced to address the deficiency.
-
+diff --git a/ipc/shm.c b/ipc/shm.c
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -108,7 +108,11 @@ void __init shm_init (void)
+ {
+ 	shm_init_ns(&init_ipc_ns);
+ 	ipc_init_proc_interface("sysvipc/shm",
+-				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime\n",
++#if BITS_PER_LONG <= 32
++				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime        RSS       swap\n",
++#else
++				"       key      shmid perms                  size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime                   RSS                  swap\n",
++#endif
+ 				IPC_SHM_IDS, sysvipc_shm_proc_show);
+ }
+ 
+@@ -542,6 +546,34 @@ static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminf
+ }
+ 
+ /*
++ * Calculate and add used RSS and swap pages of a shm.
++ * Called with shm_ids.rw_mutex held as a reader
++ */
++static void shm_add_rss_swap(struct shmid_kernel *shp,
++	unsigned long *rss_add, unsigned long *swp_add)
++{
++	struct inode *inode;
++
++	inode = shp->shm_file->f_path.dentry->d_inode;
++
++	if (is_file_hugepages(shp->shm_file)) {
++		struct address_space *mapping = inode->i_mapping;
++		struct hstate *h = hstate_file(shp->shm_file);
++		*rss_add += pages_per_huge_page(h) * mapping->nrpages;
++	} else {
++#ifdef CONFIG_SHMEM
++		struct shmem_inode_info *info = SHMEM_I(inode);
++		spin_lock(&info->lock);
++		*rss_add += inode->i_mapping->nrpages;
++		*swp_add += info->swapped;
++		spin_unlock(&info->lock);
++#else
++		*rss_add += inode->i_mapping->nrpages;
++#endif
++	}
++}
++
++/*
+  * Called with shm_ids.rw_mutex held as a reader
+  */
+ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
+@@ -558,30 +590,13 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
+ 	for (total = 0, next_id = 0; total < in_use; next_id++) {
+ 		struct kern_ipc_perm *ipc;
+ 		struct shmid_kernel *shp;
+-		struct inode *inode;
+ 
+ 		ipc = idr_find(&shm_ids(ns).ipcs_idr, next_id);
+ 		if (ipc == NULL)
+ 			continue;
+ 		shp = container_of(ipc, struct shmid_kernel, shm_perm);
+ 
+-		inode = shp->shm_file->f_path.dentry->d_inode;
+-
+-		if (is_file_hugepages(shp->shm_file)) {
+-			struct address_space *mapping = inode->i_mapping;
+-			struct hstate *h = hstate_file(shp->shm_file);
+-			*rss += pages_per_huge_page(h) * mapping->nrpages;
+-		} else {
+-#ifdef CONFIG_SHMEM
+-			struct shmem_inode_info *info = SHMEM_I(inode);
+-			spin_lock(&info->lock);
+-			*rss += inode->i_mapping->nrpages;
+-			*swp += info->swapped;
+-			spin_unlock(&info->lock);
+-#else
+-			*rss += inode->i_mapping->nrpages;
+-#endif
+-		}
++		shm_add_rss_swap(shp, rss, swp);
+ 
+ 		total++;
+ 	}
+@@ -1070,6 +1085,9 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
+ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
+ {
+ 	struct shmid_kernel *shp = it;
++	unsigned long rss = 0, swp = 0;
++
++	shm_add_rss_swap(shp, &rss, &swp);
+ 
+ #if BITS_PER_LONG <= 32
+ #define SIZE_SPEC "%10lu"
+@@ -1079,7 +1097,8 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
+ 
+ 	return seq_printf(s,
+ 			  "%10d %10d  %4o " SIZE_SPEC " %5u %5u  "
+-			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu\n",
++			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu "
++			  SIZE_SPEC " " SIZE_SPEC "\n",
+ 			  shp->shm_perm.key,
+ 			  shp->shm_perm.id,
+ 			  shp->shm_perm.mode,
+@@ -1093,6 +1112,8 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
+ 			  shp->shm_perm.cgid,
+ 			  shp->shm_atim,
+ 			  shp->shm_dtim,
+-			  shp->shm_ctim);
++			  shp->shm_ctim,
++			  rss * PAGE_SIZE,
++			  swp * PAGE_SIZE);
+ }
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
