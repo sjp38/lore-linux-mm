@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3781C6B02A5
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:23 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7CK6cu7006147
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:06:42 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7CK76no400904
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:10 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7CK75dn017001
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:06 -0400
-Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
- sections
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20100812120816.e97d8b9e.akpm@linux-foundation.org>
-References: <4C60407C.2080608@austin.ibm.com>
-	 <20100812120816.e97d8b9e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Thu, 12 Aug 2010 13:07:03 -0700
-Message-ID: <1281643623.6772.78.camel@nimitz>
+	by kanga.kvack.org (Postfix) with ESMTP id EF0E56B02A7
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:11:49 -0400 (EDT)
+Date: Thu, 12 Aug 2010 13:10:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ipc/shm.c: add RSS and swap size information to
+ /proc/sysvipc/shm
+Message-Id: <20100812131005.e466a9fd.akpm@linux-foundation.org>
+In-Reply-To: <20100811201345.GA11304@p100.box>
+References: <20100811201345.GA11304@p100.box>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg KH <greg@kroah.com>
+To: Helge Deller <deller@gmx.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Manfred Spraul <manfred@colorfullife.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-08-12 at 12:08 -0700, Andrew Morton wrote:
-> > This set of patches allows for each directory created in sysfs
-> > to cover more than one memory section.  The default behavior for
-> > sysfs directory creation is the same, in that each directory
-> > represents a single memory section.  A new file 'end_phys_index'
-> > in each directory contains the physical_id of the last memory
-> > section covered by the directory so that users can easily
-> > determine the memory section range of a directory.
+On Wed, 11 Aug 2010 22:13:45 +0200
+Helge Deller <deller@gmx.de> wrote:
+
+> The kernel currently provides no functionality to analyze the RSS
+> and swap space usage of each individual sysvipc shared memory segment.
 > 
-> What you're proposing appears to be a non-back-compatible
-> userspace-visible change.  This is a big issue! 
+> This patch add this info for each existing shm segment by extending
+> the output of /proc/sysvipc/shm by two columns for RSS and swap.
+> 
+> Since shmctl(SHM_INFO) already provides a similiar calculation (it
+> currently sums up all RSS/swap info for all segments), I did split
+> out a static function which is now used by the /proc/sysvipc/shm 
+> output and shmctl(SHM_INFO).
+> 
 
-Nathan, one thought to get around this at the moment would be to bump up
-the size that we export in /sys/devices/system/memory/block_size_bytes.
-I think you have already done most of the hard work to accomplish
-this.  
+I suppose that could be useful, although it would be most interesting
+to hear why _you_ consider it useful?
 
-You can still add the end_phys_index stuff.  But, for now, it would
-always be equal to start_phys_index.
+But is it useful enough to risk breaking existing code which parses
+that file?  The risk is not great, but it's there.
 
--- Dave
+> 
+> ---
+> 
+>  shm.c |   63 ++++++++++++++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 42 insertions(+), 21 deletions(-)
+> 
+> 
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -108,7 +108,11 @@ void __init shm_init (void)
+>  {
+>  	shm_init_ns(&init_ipc_ns);
+>  	ipc_init_proc_interface("sysvipc/shm",
+> -				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime\n",
+> +#if BITS_PER_LONG <= 32
+> +				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime        RSS       swap\n",
+> +#else
+> +				"       key      shmid perms                  size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime                   RSS                  swap\n",
+
+This adds 11 new spaces between "perms" and "size", only on 64-bit
+machines.  That was unchangelogged and adds another (smaller) risk of
+breaking things.  Please explain.
+
+This interface is really old and crufty and horrid, but I guess that
+there's not a lot we can do about that :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
