@@ -1,82 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8434A6B02A5
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 14:35:58 -0400 (EDT)
-Date: Thu, 12 Aug 2010 14:35:47 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
- page tagging
-Message-ID: <20100812183547.GA2294@infradead.org>
-References: <1275677231-15662-1-git-send-email-jack@suse.cz>
- <1275677231-15662-3-git-send-email-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1275677231-15662-3-git-send-email-jack@suse.cz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C69A66B02A5
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 15:08:27 -0400 (EDT)
+Date: Thu, 12 Aug 2010 12:08:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
+ sections
+Message-Id: <20100812120816.e97d8b9e.akpm@linux-foundation.org>
+In-Reply-To: <4C60407C.2080608@austin.ibm.com>
+References: <4C60407C.2080608@austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-I have an oops with current Linus' tree in xfstests 217 that looks
-like it was caused by this patch:
+On Mon, 09 Aug 2010 12:53:00 -0500
+Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-217 149s ...[ 5105.342605] XFS mounting filesystem vdb6
-[ 5105.373481] Ending clean XFS mount for filesystem: vdb6
-[ 5115.405061] XFS mounting filesystem loop0
-[ 5115.548654] Ending clean XFS mount for filesystem: loop0
-[ 5115.588067] BUG: unable to handle kernel paging request at f7f14000
-[ 5115.588067] IP: [<c07224fd>]
-radix_tree_range_tag_if_tagged+0x15d/0x1c0
-[ 5115.588067] *pde = 00007067 *pte = 00000000 
-[ 5115.588067] Oops: 0000 [#1] SMP 
-[ 5115.588067] last sysfs file:
-/sys/devices/virtual/block/loop0/removable
+> This set of patches de-couples the idea that there is a single
+> directory in sysfs for each memory section.  The intent of the
+> patches is to reduce the number of sysfs directories created to
+> resolve a boot-time performance issue.  On very large systems
+> boot time are getting very long (as seen on powerpc hardware)
+> due to the enormous number of sysfs directories being created.
+> On a system with 1 TB of memory we create ~63,000 directories.
+> For even larger systems boot times are being measured in hours.
 
-Entering kdb (current=0xf7868100, pid 15675) on processor 0 Oops: (null) due to oops @ 0xc07224fd
-<d>Modules linked in:
-<c>
-<d>Pid: 15675, comm: mkfs.xfs Not tainted 2.6.35+ #305 /Bochs
-<d>EIP: 0060:[<c07224fd>] EFLAGS: 00010002 CPU: 0
-EIP is at radix_tree_range_tag_if_tagged+0x15d/0x1c0
-<d>EAX: f7f14000 EBX: 00000000 ECX: 482bb4f8 EDX: 0c0748d4
-<d>ESI: 2031756d EDI: 00000000 EBP: c7d41d10 ESP: c7d41cb0
-<d> DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-<0>Process mkfs.xfs (pid: 15675, ti=c7d40000 task=f7868100
-task.ti=c7d40000)
-<0>Stack: ffffffff f774a1d8 f774a598 f774aa98 cfd9c598 e7c89458 00000001 00000000
-<0> c01e0caf c01e0caf 00000046 00000010 00000000 e7c89568 c7d41d28 c355ad50
-<0> ffffffff 00000208 00000007 c7d41cb0 00000003 ffffffff c355ad5c ffffffff
-<0>Call Trace:
-<0> [<c01e0caf>] ? tag_pages_for_writeback+0x1f/0xc0
-<0> [<c01e0caf>] ? tag_pages_for_writeback+0x1f/0xc0
-<0> [<c01e0cd3>] ? tag_pages_for_writeback+0x43/0xc0
-<0> [<c01e172b>] ? write_cache_pages+0x23b/0x370
-<0> [<c01e0980>] ? __writepage+0x0/0x30
-<0> [<c0528979>] ? xfs_vm_writepages+0x29/0x50
-[0]more> 
-Only 'q' or 'Q' are processed at more prompt, input ignored
-<0> [<c0528979>] ? xfs_vm_writepages+0x29/0x50
-<0> [<c05296e0>] ? xfs_vm_writepage+0x0/0x630
-<0> [<c01e187f>] ? generic_writepages+0x1f/0x30
-<0> [<c0528992>] ? xfs_vm_writepages+0x42/0x50
-<0> [<c01e18a7>] ? do_writepages+0x17/0x30
-<0> [<c01da57c>] ? __filemap_fdatawrite_range+0x5c/0x70
-<0> [<c01da8a6>] ? filemap_fdatawrite+0x26/0x30
-<0> [<c01da8dd>] ? filemap_write_and_wait+0x2d/0x50
-<0> [<c052e812>] ? xfs_flushinval_pages+0x72/0xe0
-<0> [<c0506c9c>] ? xfs_ilock+0x7c/0xd0
-<0> [<c052d7d7>] ? xfs_file_aio_read+0x307/0x340
-<0> [<c020e69c>] ? do_sync_read+0x9c/0xd0
-<0> [<c0189636>] ? up_read+0x16/0x30
-<0> [<c020e957>] ? vfs_read+0x97/0x140
-<0> [<c020e600>] ? do_sync_read+0x0/0xd0
-<0> [<c0181c18>] ? __task_pid_nr_ns+0x88/0xd0
-<0> [<c020f1c3>] ? sys_pread64+0x63/0x80
-<0> [<c09cb7ed>] ? syscall_call+0x7/0xb
-<0>Code: f0 83 c3 01 d3 e3 39 5d e0 72 51 8b 45 08 39 45 e4 73 49 89 d8
-d3 e8 a8 3f 0f 85 47 ff ff ff 8b 75 ec 8d 04 96 90 83 c1 06 89 df <8b>
-30 d3 ef 83 c2 01 83 c0 04 83 e7 3f 74 ec e9 27 ff ff ff 8b 
+And those "hours" are mainly due to this problem, I assume.
+
+> This set of patches allows for each directory created in sysfs
+> to cover more than one memory section.  The default behavior for
+> sysfs directory creation is the same, in that each directory
+> represents a single memory section.  A new file 'end_phys_index'
+> in each directory contains the physical_id of the last memory
+> section covered by the directory so that users can easily
+> determine the memory section range of a directory.
+
+What you're proposing appears to be a non-back-compatible
+userspace-visible change.  This is a big issue!
+
+It's not an unresolvable issue, as this is a must-fix problem.  But you
+should tell us what your proposal is to prevent breakage of existing
+installations.  A Kconfig option would be good, but a boot-time kernel
+command line option which selects the new format would be much better.
+
+However you didn't mention this issue at all, and it's the most
+important one.
+
+
+> Updates for version 5 of the patchset include the following:
+> 
+> Patch 4/8 Add mutex for add/remove of memory blocks
+> - Define the mutex using DEFINE_MUTEX macro.
+> 
+> Patch 8/8 Update memory-hotplug documentation
+> - Add information concerning memory holes in phys_index..end_phys_index.
+
+And you forgot to tell us how long those machines boot with the
+patchset applied, which is the entire point of the patchset!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
