@@ -1,108 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C00F6B02A5
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 17:44:40 -0400 (EDT)
-Date: Thu, 12 Aug 2010 14:44:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] ipc/shm.c: add RSS and swap size information to
- /proc/sysvipc/shm
-Message-Id: <20100812144430.23eb8149.akpm@linux-foundation.org>
-In-Reply-To: <4C6468A9.7090503@gmx.de>
-References: <20100811201345.GA11304@p100.box>
-	<20100812131005.e466a9fd.akpm@linux-foundation.org>
-	<4C6468A9.7090503@gmx.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 852EC6B02A5
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 18:29:39 -0400 (EDT)
+Date: Fri, 13 Aug 2010 00:28:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
+ page tagging
+Message-ID: <20100812222857.GC3665@quack.suse.cz>
+References: <1275677231-15662-1-git-send-email-jack@suse.cz>
+ <1275677231-15662-3-git-send-email-jack@suse.cz>
+ <20100812183547.GA2294@infradead.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="k+w/mQv8wyuph6w0"
+Content-Disposition: inline
+In-Reply-To: <20100812183547.GA2294@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Helge Deller <deller@gmx.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Manfred Spraul <manfred@colorfullife.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Aug 2010 23:33:29 +0200
-Helge Deller <deller@gmx.de> wrote:
 
-> On 08/12/2010 10:10 PM, Andrew Morton wrote:
-> > On Wed, 11 Aug 2010 22:13:45 +0200
-> > Helge Deller<deller@gmx.de>  wrote:
-> >
-> >> The kernel currently provides no functionality to analyze the RSS
-> >> and swap space usage of each individual sysvipc shared memory segment.
-> >>
-> >> This patch add this info for each existing shm segment by extending
-> >> the output of /proc/sysvipc/shm by two columns for RSS and swap.
-> >>
-> >> Since shmctl(SHM_INFO) already provides a similiar calculation (it
-> >> currently sums up all RSS/swap info for all segments), I did split
-> >> out a static function which is now used by the /proc/sysvipc/shm
-> >> output and shmctl(SHM_INFO).
-> >>
-> >
-> > I suppose that could be useful, although it would be most interesting
-> > to hear why _you_ consider it useful?
-> 
-> A reasonable question, and I really should have explained when I did 
-> send this patch.
-> 
-> In my job I do work for SAP in the SAP LinuxLab 
-> (http://www.sap.com/linux) and take care of the SAP ERP enterprise 
-> software on Linux.
-> SAP products (esp. the SAP Netweaver ABAP Kernel) uses lots of big 
-> shared memory segments (we often have Linux systems with >= 16GB shm 
-> usage). Sometimes we get customer reports about "slow" system responses 
-> and while looking into their configurations we often find massive 
-> swapping activity on the system. With this patch it's now easy to see 
-> from the command line if and which shm segments gets swapped out (and 
-> how much) and can more easily give recommendations for system tuning.
-> Without the patch it's currently not possible to do such shm analysis at 
-> all.
+--k+w/mQv8wyuph6w0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-OK, thanks.  copied-n-pasted into changelog ;)
+On Thu 12-08-10 14:35:47, Christoph Hellwig wrote:
+> I have an oops with current Linus' tree in xfstests 217 that looks
+> like it was caused by this patch:
+  Thanks for report!
 
-> So, my patch actually does fix a real-world problem.
-> 
-> By the way - I found another bug/issue in /proc/<pid>/smaps as well. The 
-> kernel currently does not adds swapped-out shm pages to the swap size 
-> value correctly. The swap size value always stays zero for shm pages. 
-> I'm currently preparing a small patch to fix that, which I will send to 
-> linux-mm for review soon.
-> 
-> > But is it useful enough to risk breaking existing code which parses
-> > that file?  The risk is not great, but it's there.
-> 
-> Sure. The only positive argument is maybe, that I added the new info to 
-> the end of the lines. IMHO existing applications which parse /proc files 
-> should always take into account, that more text could follow with newer 
-> Linux kernels...?
+> 217 149s ...[ 5105.342605] XFS mounting filesystem vdb6
+> [ 5105.373481] Ending clean XFS mount for filesystem: vdb6
+> [ 5115.405061] XFS mounting filesystem loop0
+> [ 5115.548654] Ending clean XFS mount for filesystem: loop0
+> [ 5115.588067] BUG: unable to handle kernel paging request at f7f14000
+> [ 5115.588067] IP: [<c07224fd>] radix_tree_range_tag_if_tagged+0x15d/0x1c0
+> [ 5115.588067] *pde = 00007067 *pte = 00000000 
+> [ 5115.588067] Oops: 0000 [#1] SMP 
+> [ 5115.588067] last sysfs file:
+> /sys/devices/virtual/block/loop0/removable
+  We seem to oops at:
+                while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
+                        /*
+                         * We've fully scanned this node. Go up. Because
+                         * last_index is guaranteed to be in the tree, what
+                         * we do below cannot wander astray.
+                         */
+>>>>>                   slot = open_slots[height];
+                        height++;
+                        shift += RADIX_TREE_MAP_SHIFT;
+                }
 
-Yeah, they'd be pretty dumb if they failed because new columns appear
-in later kernels.
+> Entering kdb (current=0xf7868100, pid 15675) on processor 0 Oops: (null) due to oops @ 0xc07224fd
+> <d>Modules linked in:
+> <c>
+> <d>Pid: 15675, comm: mkfs.xfs Not tainted 2.6.35+ #305 /Bochs
+> <d>EIP: 0060:[<c07224fd>] EFLAGS: 00010002 CPU: 0
+> EIP is at radix_tree_range_tag_if_tagged+0x15d/0x1c0
+> <d>EAX: f7f14000 EBX: 00000000 ECX: 482bb4f8 EDX: 0c0748d4
+> <d>ESI: 2031756d EDI: 00000000 EBP: c7d41d10 ESP: c7d41cb0
+  And from the values in registers the loop seems to have went astray
+because "index" was zero at the point we entered the loop... looking
+around...  Ah, I see, you create files with 16TB size which creates
+radix tree of such height that radix_tree_maxindex(height) == ~0UL and
+if write_cache_pages() passes in ~0UL as end, we can overflow the index.
+Hmm, I haven't realized that is possible.
+  OK, attached is a patch that should fix the issue. There is just still an
+issue that *first_indexp will overflow in this case as well and thus we
+could in theory loop indefinitely. I'll have to think how to best handle
+this overflow - checking in caller is kind of prone to errors...
 
-But there's some pretty dumb code out there.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
-> > This adds 11 new spaces between "perms" and "size", only on 64-bit
-> > machines.  That was unchangelogged and adds another (smaller) risk of
-> > breaking things.  Please explain.
-> 
-> Yes, I did added some spaces in front of the "size" field for 64bit 
-> kernels to get the columns correct if you cat the contents of the file.
-> In sysvipc_shm_proc_show() the kernel prints the size value in 
-> "SPEC_SIZE" format, which is defined like this:
-> 
-> #if BITS_PER_LONG <= 32
-> #define SIZE_SPEC "%10lu"
-> #else
-> #define SIZE_SPEC "%21lu"
-> #endif
-> 
-> So, if the header is not adjusted, the columns are not correctly 
-> aligned. I actually tested this on 32- and 64-bit and it seems correct now.
-
-<copy, paste>
+--k+w/mQv8wyuph6w0
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-Fix-overflow-in-radix_tree_range_tag_if_tagged.patch"
 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--k+w/mQv8wyuph6w0--
