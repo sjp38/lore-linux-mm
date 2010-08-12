@@ -1,66 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C69A66B02A5
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 15:08:27 -0400 (EDT)
-Date: Thu, 12 Aug 2010 12:08:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3781C6B02A5
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:23 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7CK6cu7006147
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:06:42 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7CK76no400904
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:10 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7CK75dn017001
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 16:07:06 -0400
 Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
  sections
-Message-Id: <20100812120816.e97d8b9e.akpm@linux-foundation.org>
-In-Reply-To: <4C60407C.2080608@austin.ibm.com>
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100812120816.e97d8b9e.akpm@linux-foundation.org>
 References: <4C60407C.2080608@austin.ibm.com>
+	 <20100812120816.e97d8b9e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Thu, 12 Aug 2010 13:07:03 -0700
+Message-ID: <1281643623.6772.78.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg KH <greg@kroah.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 09 Aug 2010 12:53:00 -0500
-Nathan Fontenot <nfont@austin.ibm.com> wrote:
-
-> This set of patches de-couples the idea that there is a single
-> directory in sysfs for each memory section.  The intent of the
-> patches is to reduce the number of sysfs directories created to
-> resolve a boot-time performance issue.  On very large systems
-> boot time are getting very long (as seen on powerpc hardware)
-> due to the enormous number of sysfs directories being created.
-> On a system with 1 TB of memory we create ~63,000 directories.
-> For even larger systems boot times are being measured in hours.
-
-And those "hours" are mainly due to this problem, I assume.
-
-> This set of patches allows for each directory created in sysfs
-> to cover more than one memory section.  The default behavior for
-> sysfs directory creation is the same, in that each directory
-> represents a single memory section.  A new file 'end_phys_index'
-> in each directory contains the physical_id of the last memory
-> section covered by the directory so that users can easily
-> determine the memory section range of a directory.
-
-What you're proposing appears to be a non-back-compatible
-userspace-visible change.  This is a big issue!
-
-It's not an unresolvable issue, as this is a must-fix problem.  But you
-should tell us what your proposal is to prevent breakage of existing
-installations.  A Kconfig option would be good, but a boot-time kernel
-command line option which selects the new format would be much better.
-
-However you didn't mention this issue at all, and it's the most
-important one.
-
-
-> Updates for version 5 of the patchset include the following:
+On Thu, 2010-08-12 at 12:08 -0700, Andrew Morton wrote:
+> > This set of patches allows for each directory created in sysfs
+> > to cover more than one memory section.  The default behavior for
+> > sysfs directory creation is the same, in that each directory
+> > represents a single memory section.  A new file 'end_phys_index'
+> > in each directory contains the physical_id of the last memory
+> > section covered by the directory so that users can easily
+> > determine the memory section range of a directory.
 > 
-> Patch 4/8 Add mutex for add/remove of memory blocks
-> - Define the mutex using DEFINE_MUTEX macro.
-> 
-> Patch 8/8 Update memory-hotplug documentation
-> - Add information concerning memory holes in phys_index..end_phys_index.
+> What you're proposing appears to be a non-back-compatible
+> userspace-visible change.  This is a big issue! 
 
-And you forgot to tell us how long those machines boot with the
-patchset applied, which is the entire point of the patchset!
+Nathan, one thought to get around this at the moment would be to bump up
+the size that we export in /sys/devices/system/memory/block_size_bytes.
+I think you have already done most of the hard work to accomplish
+this.  
+
+You can still add the end_phys_index stuff.  But, for now, it would
+always be equal to start_phys_index.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
