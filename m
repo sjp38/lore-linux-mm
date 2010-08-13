@@ -1,35 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F7C6B01F0
-	for <linux-mm@kvack.org>; Fri, 13 Aug 2010 03:51:08 -0400 (EDT)
-Date: Fri, 13 Aug 2010 03:50:59 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
- page tagging
-Message-ID: <20100813075059.GA4122@infradead.org>
-References: <1275677231-15662-1-git-send-email-jack@suse.cz>
- <1275677231-15662-3-git-send-email-jack@suse.cz>
- <20100812183547.GA2294@infradead.org>
- <20100812222857.GC3665@quack.suse.cz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1BCE06B01F0
+	for <linux-mm@kvack.org>; Fri, 13 Aug 2010 08:47:25 -0400 (EDT)
+Date: Fri, 13 Aug 2010 07:47:21 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 0/9] Hugepage migration (v2)
+In-Reply-To: <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
+Message-ID: <alpine.DEB.2.00.1008130744550.27542@router.home>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.DEB.2.00.1008110806070.673@router.home> <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100812222857.GC3665@quack.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 13, 2010 at 12:28:58AM +0200, Jan Kara wrote:
->   And from the values in registers the loop seems to have went astray
-> because "index" was zero at the point we entered the loop... looking
-> around...  Ah, I see, you create files with 16TB size which creates
-> radix tree of such height that radix_tree_maxindex(height) == ~0UL and
-> if write_cache_pages() passes in ~0UL as end, we can overflow the index.
-> Hmm, I haven't realized that is possible.
->   OK, attached is a patch that should fix the issue.
+On Thu, 12 Aug 2010, Naoya Horiguchi wrote:
 
-This seems to fix the case for me.
+> > Can you also avoid refcounts being increased during migration?
+>
+> Yes. I think this will be done in above-mentioned refactoring.
+
+Thats not what I meant. Can you avoid other processors increasing
+refcounts (direct I/O etc?) on any page struct of the huge page while
+migration is running?
+
+> This patch only handles migration under direct I/O.
+> For the opposite (direct I/O under migration) it's not true.
+> I wrote additional patches (later I'll reply to this email)
+> for solving locking problem. Could you review them?
+
+Sure.
+
+> (Maybe these patches are beyond the scope of hugepage migration patch,
+> so is it better to propose them separately?)
+
+Migration with known races is really not what we want in the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
