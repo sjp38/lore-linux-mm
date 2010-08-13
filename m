@@ -1,124 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D4EF26B02A7
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 18:40:19 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id o7CMeGMD002373
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 15:40:16 -0700
-Received: from pzk28 (pzk28.prod.google.com [10.243.19.156])
-	by hpaq6.eem.corp.google.com with ESMTP id o7CMeErx020616
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 15:40:15 -0700
-Received: by pzk28 with SMTP id 28so844977pzk.37
-        for <linux-mm@kvack.org>; Thu, 12 Aug 2010 15:40:13 -0700 (PDT)
-Date: Thu, 12 Aug 2010 15:40:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] ipc/shm.c: add RSS and swap size information to
- /proc/sysvipc/shm
-In-Reply-To: <4C6468A9.7090503@gmx.de>
-Message-ID: <alpine.DEB.1.00.1008121522150.9966@tigran.mtv.corp.google.com>
-References: <20100811201345.GA11304@p100.box> <20100812131005.e466a9fd.akpm@linux-foundation.org> <4C6468A9.7090503@gmx.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 49A226B02A5
+	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 20:43:37 -0400 (EDT)
+Message-ID: <4C649535.8050800@goop.org>
+Date: Thu, 12 Aug 2010 17:43:33 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] GSoC 2010 - Memory hotplug support for Xen guests - third
+ fully working version
+References: <20100812012224.GA16479@router-fw-old.local.net-space.pl>
+In-Reply-To: <20100812012224.GA16479@router-fw-old.local.net-space.pl>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Helge Deller <deller@gmx.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Manfred Spraul <manfred@colorfullife.com>
+To: Daniel Kiper <dkiper@net-space.pl>
+Cc: konrad.wilk@oracle.com, stefano.stabellini@eu.citrix.com, linux-mm@kvack.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, v.tolstov@selfip.ru
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Aug 2010, Helge Deller wrote:
-> On 08/12/2010 10:10 PM, Andrew Morton wrote:
-> > On Wed, 11 Aug 2010 22:13:45 +0200
-> > Helge Deller<deller@gmx.de>  wrote:
-> > 
-> > > The kernel currently provides no functionality to analyze the RSS
-> > > and swap space usage of each individual sysvipc shared memory segment.
-> > > 
-> > > This patch add this info for each existing shm segment by extending
-> > > the output of /proc/sysvipc/shm by two columns for RSS and swap.
-> > > 
-> > > Since shmctl(SHM_INFO) already provides a similiar calculation (it
-> > > currently sums up all RSS/swap info for all segments), I did split
-> > > out a static function which is now used by the /proc/sysvipc/shm
-> > > output and shmctl(SHM_INFO).
-> > > 
-> > 
-> > I suppose that could be useful, although it would be most interesting
-> > to hear why _you_ consider it useful?
-> 
-> A reasonable question, and I really should have explained when I did send this
-> patch.
-> 
-> In my job I do work for SAP in the SAP LinuxLab (http://www.sap.com/linux) and
-> take care of the SAP ERP enterprise software on Linux.
-> SAP products (esp. the SAP Netweaver ABAP Kernel) uses lots of big shared
-> memory segments (we often have Linux systems with >= 16GB shm usage).
-> Sometimes we get customer reports about "slow" system responses and while
-> looking into their configurations we often find massive swapping activity on
-> the system. With this patch it's now easy to see from the command line if and
-> which shm segments gets swapped out (and how much) and can more easily give
-> recommendations for system tuning.
-> Without the patch it's currently not possible to do such shm analysis at all.
-> 
-> So, my patch actually does fix a real-world problem.
+  On 08/11/2010 06:22 PM, Daniel Kiper wrote:
+>> Overall, this looks much better.  The next step is to split this into at
+>> least two patches: one for the core code, and one for the Xen bits.
+>> Each patch should do just one logical operation, so if you have several
+>> distinct changes to the core code, put them in separate patches.
+> I will do that if this patch will be accepted.
 
-That's good justification, thanks.
+First step is to post it to lkml for discussion, cc:ing the relevant 
+maintainers. (I'm not really sure who that is at the moment.  It will 
+take some digging around in the history.)
 
-> 
-> By the way - I found another bug/issue in /proc/<pid>/smaps as well. The
-> kernel currently does not adds swapped-out shm pages to the swap size value
-> correctly. The swap size value always stays zero for shm pages. I'm currently
-> preparing a small patch to fix that, which I will send to linux-mm for review
-> soon.
+>>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>>> index 38434da..beb1aa7 100644
+>>> --- a/arch/x86/Kconfig
+>>> +++ b/arch/x86/Kconfig
+>>> @@ -1273,7 +1273,7 @@ config ARCH_SELECT_MEMORY_MODEL
+>>>   	depends on ARCH_SPARSEMEM_ENABLE
+>>>
+>>>   config ARCH_MEMORY_PROBE
+>>> -	def_bool y
+>>> +	def_bool X86_64&&   !XEN
+>>>   	depends on MEMORY_HOTPLUG
+>> The trouble with making anything statically depend on Xen at config time
+>> is that you lose it even if you're not running under Xen.  A pvops
+>> kernel can run on bare hardware as well, and we don't want to lose
+>> functionality (assume that CONFIG_XEN is always set, since distros do
+>> always set it).
+>>
+>> Can you find a clean way to prevent/disable ARCH_MEMORY_PROBE at runtime
+>> when in a Xen context?
+> There is no simple way to do that. It requiers to do some
+> changes in drivers/base/memory.c code. I think it should
+> be done as kernel boot option (on by default to not break
+> things using this interface now). If it be useful for maintainers
+> of mm/memory_hotplug.c and drivers/base/memory.c code then
+> I could do that. Currently original arch/x86/Kconfig version
+> is restored.
 
-I certainly wouldn't call smaps's present behaviour on it a bug: but given
-your justification above, I can see that it would be more useful to you,
-and probably to others, for it to be changed in the way that you suggest,
-to reveal the underlying swap.
+I think adding a global flag which the Xen balloon driver can disable 
+should be sufficient.  There's no need to make an separate user-settable 
+control.
 
-Hmm, I wonder what that patch is going to look like...
+>>> +/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
+>>> */
+>>> +static int __ref xen_add_memory(int nid, u64 start, u64 size)
+>> Could this be __meminit too then?
+> Good question. I looked throught the code and could
+> not find any simple explanation why mm/memory_hotplug.c
+> authors used __ref instead __meminit. Could you (mm/memory_hotplug.c
+> authors/maintainers) tell us why ???
 
-> 
-> > But is it useful enough to risk breaking existing code which parses
-> > that file?  The risk is not great, but it's there.
-> 
-> Sure. The only positive argument is maybe, that I added the new info to the
-> end of the lines. IMHO existing applications which parse /proc files should
-> always take into account, that more text could follow with newer Linux
-> kernels...?
+Quite possibly a left-over from something else.  You could just try 
+making it __meminit, then compile with, erm, the option which shows you 
+section conflicts (it shows the number of conflicts at the end of the 
+kernel build by default, and tells you how to explicitly list them).
 
-I hope so too.  And agree you're right to correct the 64-bit header
-alignment, and to show the new fields in bytes rather than pages.
-But one little thing in your patch upsets me greatly...
+>>> +{
+>>> +	pg_data_t *pgdat = NULL;
+>>> +	int new_pgdat = 0, ret;
+>>> +
+>>> +	lock_system_sleep();
+>> What's this for?  I see all its other users are in the memory hotplug
+>> code, but presumably they're concerned about a real S3 suspend.  Do we
+>> care about that here?
+> Yes, because as I know S3 state is supported by Xen guests.
 
-> 
-> > > ---
-> > > 
-> > >   shm.c |   63
-> > > ++++++++++++++++++++++++++++++++++++++++++---------------------
-> > >   1 file changed, 42 insertions(+), 21 deletions(-)
-> > > 
-> > > 
-> > > diff --git a/ipc/shm.c b/ipc/shm.c
-> > > --- a/ipc/shm.c
-> > > +++ b/ipc/shm.c
-> > > @@ -108,7 +108,11 @@ void __init shm_init (void)
-> > >   {
-> > >   	shm_init_ns(&init_ipc_ns);
-> > >   	ipc_init_proc_interface("sysvipc/shm",
-> > > -				"       key      shmid perms       size  cpid
-> > > lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime\n",
-> > > +#if BITS_PER_LONG<= 32
-> > > +				"       key      shmid perms       size  cpid
-> > > lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime
-> > > RSS       swap\n",
-> > > +#else
-> > > +				"       key      shmid perms
-> > > size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime
-> > > ctime                   RSS                  swap\n",
+Yes, but I'm assuming the interaction between S3 and ACPI hotplug memory 
+isn't something that concerns a Xen guest; our hotplug mechanism is 
+completely different.
 
-... why oh why do you write "RSS" in uppercase, when every other field
-is named in lowercase?  Please change that to "rss" and then
+>>> +		r->name = "System RAM";
+>> How about making it clear its Xen hotplug RAM?  Or do things care about
+>> the "System RAM" name?
+> As I know no however as I saw anybody do not differentiate between
+> normal and hotplugged memory. I thought about that ealier however
+> stated that this soultion does not give us any real gain. That is why
+> I decided to use standard name for hotplugged memory.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+Its cosmetic, but it would be useful to see what's going on.
+
+I'll send more detailed comments on the whole patch in a separate mail.
+
+     J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
