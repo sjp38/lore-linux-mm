@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id D6C176B02A5
-	for <linux-mm@kvack.org>; Thu, 12 Aug 2010 20:48:24 -0400 (EDT)
-Message-ID: <4C649655.8070009@goop.org>
-Date: Thu, 12 Aug 2010 17:48:21 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 19F7C6B01F0
+	for <linux-mm@kvack.org>; Fri, 13 Aug 2010 03:51:08 -0400 (EDT)
+Date: Fri, 13 Aug 2010 03:50:59 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/2] mm: Implement writeback livelock avoidance using
+ page tagging
+Message-ID: <20100813075059.GA4122@infradead.org>
+References: <1275677231-15662-1-git-send-email-jack@suse.cz>
+ <1275677231-15662-3-git-send-email-jack@suse.cz>
+ <20100812183547.GA2294@infradead.org>
+ <20100812222857.GC3665@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [Xen-devel] Re: [PATCH] GSoC 2010 - Memory hotplug support for
- Xen guests - third fully working version
-References: <20100812012224.GA16479@router-fw-old.local.net-space.pl> <4C6495DC.4030005@goop.org>
-In-Reply-To: <4C6495DC.4030005@goop.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100812222857.GC3665@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Kiper <dkiper@net-space.pl>
-Cc: xen-devel@lists.xensource.com, stefano.stabellini@eu.citrix.com, konrad.wilk@oracle.com, linux-kernel@vger.kernel.org, v.tolstov@selfip.ru, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, david@fromorbit.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  On 08/12/2010 05:46 PM, Jeremy Fitzhardinge wrote:
->> diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig index 
->> fad3df2..4f35eaf 100644 --- a/drivers/xen/Kconfig +++ 
->> b/drivers/xen/Kconfig @@ -9,6 +9,16 @@ config XEN_BALLOON the system 
->> to expand the domain's memory allocation, or alternatively return 
->> unneeded memory to the system. +config XEN_BALLOON_MEMORY_HOTPLUG + 
->> bool "Xen memory balloon driver with memory hotplug support" + 
->> default n + depends on XEN_BALLOON && MEMORY_HOTPLUG + help + Xen 
->> memory balloon driver with memory hotplug support allows expanding + 
->> memory available for the system above limit declared at system 
->> startup. + It is very useful on critical systems which require long 
->> run without + rebooting. + config XEN_SCRUB_PAGES bool "Scrub pages 
->> before returning them to system" depends on XEN_BALLOON diff --git 
->> a/drivers/xen/balloon.c b/drivers/xen/balloon.c index 
+On Fri, Aug 13, 2010 at 12:28:58AM +0200, Jan Kara wrote:
+>   And from the values in registers the loop seems to have went astray
+> because "index" was zero at the point we entered the loop... looking
+> around...  Ah, I see, you create files with 16TB size which creates
+> radix tree of such height that radix_tree_maxindex(height) == ~0UL and
+> if write_cache_pages() passes in ~0UL as end, we can overflow the index.
+> Hmm, I haven't realized that is possible.
+>   OK, attached is a patch that should fix the issue.
 
-Gah, what a mess.  Will repost later.
-
-     J
+This seems to fix the case for me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
