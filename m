@@ -1,101 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 997866B01F3
-	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 00:31:05 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o7F4V3B8007533
-	for <linux-mm@kvack.org>; Sat, 14 Aug 2010 21:31:04 -0700
-Received: from pvg3 (pvg3.prod.google.com [10.241.210.131])
-	by kpbe11.cbf.corp.google.com with ESMTP id o7F4UfAM009022
-	for <linux-mm@kvack.org>; Sat, 14 Aug 2010 21:31:02 -0700
-Received: by pvg3 with SMTP id 3so1605327pvg.21
-        for <linux-mm@kvack.org>; Sat, 14 Aug 2010 21:31:02 -0700 (PDT)
-Date: Sat, 14 Aug 2010 21:31:00 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] oom: kill all threads sharing oom killed task's mm
-In-Reply-To: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008142130260.31510@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id F2BEE6B01F5
+	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 11:21:06 -0400 (EDT)
+Date: Sun, 15 Aug 2010 17:18:19 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [patch 1/2] oom: avoid killing a task if a thread sharing its
+	mm cannot be killed
+Message-ID: <20100815151819.GA3531@redhat.com>
 References: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It's necessary to kill all threads that share an oom killed task's mm if
-the goal is to lead to future memory freeing.
+Well. I shouldn't try to comment this patch because I do not know
+the state of the current code (and I do not understand the changelog).
+Still, it looks a bit strange to me.
 
-This patch reintroduces the code removed in 8c5cd6f3 (oom: oom_kill
-doesn't kill vfork parent (or child)) since it is obsoleted.
+On 08/14, David Rientjes wrote:
+>
+> + * Determines whether an mm is unfreeable since a user thread attached to
+> + * it cannot be killed.  Kthreads only temporarily assume a thread's mm,
+> + * so they are not considered.
+> + *
+> + * mm need not be protected by task_lock() since it will not be
+> + * dereferened.
+> + */
+> +static bool is_mm_unfreeable(struct mm_struct *mm)
+> +{
+> +	struct task_struct *g, *q;
+> +
+> +	do_each_thread(g, q) {
+> +		if (q->mm == mm && !(q->flags & PF_KTHREAD) &&
+> +		    q->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> +			return true;
+> +	} while_each_thread(g, q);
 
-It's now guaranteed that any task passed to oom_kill_task() does not
-share an mm with any thread that is unkillable.  Thus, we're safe to
-issue a SIGKILL to any thread sharing the same mm.
+do_each_thread() doesn't look good. All sub-threads have the same ->mm.
 
-This is especially necessary to solve an mm->mmap_sem livelock issue
-whereas an oom killed thread must acquire the lock in the exit path while
-another thread is holding it in the page allocator while trying to
-allocate memory itself (and will preempt the oom killer since a task was
-already killed).  Since tasks with pending fatal signals are now granted
-access to memory reserves, the thread holding the lock may quickly
-allocate and release the lock so that the oom killed task may exit.
+	for_each_process(p) {
+		if (p->flags && PF_KTHREAD)
+			continue;
+		do {
+			if (!t->mm)
+				continue;
+			if (t->mm != mm)
+				break;
+			if (t->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+				return true;
+		} while_each_thread(p, t);
+	}
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |   22 +++++++++++++++++++++-
- 1 files changed, 21 insertions(+), 1 deletions(-)
+	return false;
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -416,18 +416,24 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- #define K(x) ((x) << (PAGE_SHIFT-10))
- static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- {
-+	struct task_struct *g, *q;
-+	struct mm_struct *mm;
-+
- 	p = find_lock_task_mm(p);
- 	if (!p) {
- 		task_unlock(p);
- 		return 1;
- 	}
-+
-+	/* mm cannot be safely dereferenced after task_unlock(p) */
-+	mm = p->mm;
-+
- 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
- 		task_pid_nr(p), p->comm, K(p->mm->total_vm),
- 		K(get_mm_counter(p->mm, MM_ANONPAGES)),
- 		K(get_mm_counter(p->mm, MM_FILEPAGES)));
- 	task_unlock(p);
- 
--
- 	set_tsk_thread_flag(p, TIF_MEMDIE);
- 	force_sig(SIGKILL, p);
- 
-@@ -438,6 +444,20 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- 	 */
- 	boost_dying_task_prio(p, mem);
- 
-+	/*
-+	 * Kill all threads sharing p->mm in other thread groups, if any.  They
-+	 * don't get access to memory reserves or a higher scheduler priority,
-+	 * though, to avoid depletion of all memory or task starvation.  This
-+	 * prevents mm->mmap_sem livelock when an oom killed task cannot exit
-+	 * because it requires the semaphore and its contended by another
-+	 * thread trying to allocate memory itself.  That thread will now get
-+	 * access to memory reserves since it has a pending fatal signal.
-+	 */
-+	do_each_thread(g, q) {
-+		if (q->mm == mm && !same_thread_group(q, p))
-+			force_sig(SIGKILL, q);
-+	} while_each_thread(g, q);
-+
- 	return 0;
- }
- #undef K
+However, even if is_mm_unfreeable() uses for_each_process(),
+
+> @@ -160,12 +181,7 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+>  	p = find_lock_task_mm(p);
+>  	if (!p)
+>  		return 0;
+> -
+> -	/*
+> -	 * Shortcut check for OOM_SCORE_ADJ_MIN so the entire heuristic doesn't
+> -	 * need to be executed for something that cannot be killed.
+> -	 */
+> -	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> +	if (is_mm_unfreeable(p->mm)) {
+
+oom_badness() becomes O(n**2), not good.
+
+And, more importantly. This patch makes me think ->oom_score_adj should
+be moved from ->signal to ->mm.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
