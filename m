@@ -1,178 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A60B6B01F1
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 05:44:07 -0400 (EDT)
-Date: Mon, 16 Aug 2010 10:43:50 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
-	NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100816094350.GH19797@csn.ul.ie>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE696B01F3
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 06:56:18 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id o7GAuF8f024711
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:15 -0700
+Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
+	by hpaq12.eem.corp.google.com with ESMTP id o7GAuAs1026692
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:13 -0700
+Received: by pwj8 with SMTP id 8so2956134pwj.15
+        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:10 -0700 (PDT)
+Date: Mon, 16 Aug 2010 03:56:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] oom: avoid killing a task if a thread sharing its
+ mm cannot be killed
+In-Reply-To: <20100816055204.GA9498@redhat.com>
+Message-ID: <alpine.DEB.2.00.1008160350110.5305@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com> <20100815151819.GA3531@redhat.com> <alpine.DEB.2.00.1008151409020.8727@chino.kir.corp.google.com> <20100816055204.GA9498@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 16, 2010 at 10:42:12AM +0100, Mel Gorman wrote:
-> Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-> it is cheaper than scanning a number of lists. To avoid synchronization
-> overhead, counter deltas are maintained on a per-cpu basis and drained both
-> periodically and when the delta is above a threshold. On large CPU systems,
-> the difference between the estimated and real value of NR_FREE_PAGES can be
-> very high. If the system is under both load and low memory, it's possible
-> for watermarks to be breached. In extreme cases, the number of free pages
-> can drop to 0 leading to the possibility of system livelock.
+On Mon, 16 Aug 2010, Oleg Nesterov wrote:
+
+> > There's no other way to detect threads in other thread groups that share
+> > the same mm since subthreads of a process can have an oom_score_adj that
+> > differ from that process, this includes the possibility of
+> > OOM_SCORE_ADJ_MIN that we're interested in here.
 > 
-> This patch introduces zone_nr_free_pages() to take a slightly more accurate
-> estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-> and may result in cache line bounces but is expected to be lighter than the
-> IPI calls necessary to continually drain the per-cpu counters while kswapd
-> is awake.
+> Yes, you are right. Still, at least you can do
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> 	for_each_process(p) {
+> 		if (p->mm != mm)
+> 			continue;
+> 		...
+> 
+> to quickly skip the thread group which doesn't share the same ->mm.
+> 
 
-And the second I sent this, I realised I had sent a slightly old version
-that missed a compile-fix :(
+Right, thanks.  I'll make that optimization and send out a second version 
+of this series with the other changes you suggested.
 
-==== CUT HERE ====
-mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+> > > > -	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> > > > +	if (is_mm_unfreeable(p->mm)) {
+> > >
+> > > oom_badness() becomes O(n**2), not good.
+> > >
+> >
+> > No, oom_badness() becomes O(n) from O(1); select_bad_process() becomes
+> > slower for eligible tasks.
+> 
+> I meant, select_bad_process() becomes O(n^2). oom_badness() is O(n), yes.
+> 
 
-Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-it is cheaper than scanning a number of lists. To avoid synchronization
-overhead, counter deltas are maintained on a per-cpu basis and drained both
-periodically and when the delta is above a threshold. On large CPU systems,
-the difference between the estimated and real value of NR_FREE_PAGES can be
-very high. If the system is under both load and low memory, it's possible
-for watermarks to be breached. In extreme cases, the number of free pages
-can drop to 0 leading to the possibility of system livelock.
+I'll follow my own suggestion for deferring this check to 
+oom_kill_process() since it's certainly an unusual case if the tasks are 
+sharing memory.  It'll require a second entire tasklist scan when it 
+occurs, but definitely speeds up the common case.
 
-This patch introduces zone_nr_free_pages() to take a slightly more accurate
-estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-and may result in cache line bounces but is expected to be lighter than the
-IPI calls necessary to continually drain the per-cpu counters while kswapd
-is awake.
+> > > And, more importantly. This patch makes me think ->oom_score_adj should
+> > > be moved from ->signal to ->mm.
+> > >
+> >
+> > I did that several months ago but people were unhappy with how a parent's
+> > oom_score_adj value would change if it did a vfork() and the child's
+> > oom_score_adj value was changed prior to execve().
+> 
+> I see. But this patch in essence moves OOM_SCORE_ADJ_MIN from ->signal
+> to ->mm (and btw personally I think this makes sense).
+> 
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/mmzone.h |    9 +++++++++
- mm/mmzone.c            |   27 +++++++++++++++++++++++++++
- mm/page_alloc.c        |    4 ++--
- mm/vmstat.c            |    5 ++++-
- 4 files changed, 42 insertions(+), 3 deletions(-)
+Yes, and I still would have liked to embed it in struct mm_struct like I 
+originally proposed, but I understand how some people didn't care much for 
+the vfork() inheritance problem.  There are applications in the wild such 
+as job schedulers that are OOM_DISABLE themselves and fork children and 
+then reset their oom_adj value prior to exec.  So they do vfork() -> 
+change child's oom_adj -> execve().  That currently works since the 
+child's ->signal isn't shared (and before that, oom_adj was embedded in 
+struct task_struct) and we can't change that behavior to also change the 
+parent's oom_adj value at the same time because it shares an ->mm out from 
+under them.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b4d109e..1df3c43 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -284,6 +284,13 @@ struct zone {
- 	unsigned long watermark[NR_WMARK];
- 
- 	/*
-+	 * When free pages are below this point, additional steps are taken
-+	 * when reading the number of free pages to avoid per-cpu counter
-+	 * drift allowing watermarks to be breached
-+	 */
-+	unsigned long percpu_drift_mark;
-+
-+	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
- 	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-@@ -456,6 +463,8 @@ static inline int zone_is_oom_locked(const struct zone *zone)
- 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
- }
- 
-+unsigned long zone_nr_free_pages(struct zone *zone);
-+
- /*
-  * The "priority" of VM scanning is how much of the queues we will scan in one
-  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index f5b7d17..056e374 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -87,3 +87,30 @@ int memmap_valid_within(unsigned long pfn,
- 	return 1;
- }
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
-+
-+/* Called when a more accurate view of NR_FREE_PAGES is needed */
-+unsigned long zone_nr_free_pages(struct zone *zone)
-+{
-+	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-+
-+	/*
-+	 * While kswapd is awake, it is considered the zone is under some
-+	 * memory pressure. Under pressure, there is a risk that
-+	 * er-cpu-counter-drift will allow the min watermark to be breached
-+	 * potentially causing a live-lock. While kswapd is awake and
-+	 * free pages are low, get a better estimate for free pages
-+	 */
-+	if (nr_free_pages < zone->percpu_drift_mark &&
-+			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
-+		int cpu;
-+
-+		for_each_online_cpu(cpu) {
-+			struct per_cpu_pageset *pset;
-+
-+			pset = per_cpu_ptr(zone->pageset, cpu);
-+			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
-+		}
-+	}
-+
-+	return nr_free_pages;
-+}
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c2407a4..67a2ed0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
--	long free_pages = zone_page_state(z, NR_FREE_PAGES) - (1 << order) + 1;
-+	long free_pages = zone_nr_free_pages(z) - (1 << order) + 1;
- 	int o;
- 
- 	if (alloc_flags & ALLOC_HIGH)
-@@ -2413,7 +2413,7 @@ void show_free_areas(void)
- 			" all_unreclaimable? %s"
- 			"\n",
- 			zone->name,
--			K(zone_page_state(zone, NR_FREE_PAGES)),
-+			K(zone_nr_free_pages(zone)),
- 			K(min_wmark_pages(zone)),
- 			K(low_wmark_pages(zone)),
- 			K(high_wmark_pages(zone)),
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7759941..c95a159 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
- 		for_each_online_cpu(cpu)
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
- 							= threshold;
-+
-+		zone->percpu_drift_mark = high_wmark_pages(zone) +
-+					num_online_cpus() * threshold;
- 	}
- }
- 
-@@ -813,7 +816,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 		   "\n        scanned  %lu"
- 		   "\n        spanned  %lu"
- 		   "\n        present  %lu",
--		   zone_page_state(zone, NR_FREE_PAGES),
-+		   zone_nr_free_pages(zone),
- 		   min_wmark_pages(zone),
- 		   low_wmark_pages(zone),
- 		   high_wmark_pages(zone),
--- 
-1.7.1
+Thanks for reviewing the patches Oleg!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
