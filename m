@@ -1,90 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE696B01F3
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 06:56:18 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id o7GAuF8f024711
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:15 -0700
-Received: from pwj8 (pwj8.prod.google.com [10.241.219.72])
-	by hpaq12.eem.corp.google.com with ESMTP id o7GAuAs1026692
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:13 -0700
-Received: by pwj8 with SMTP id 8so2956134pwj.15
-        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 03:56:10 -0700 (PDT)
-Date: Mon, 16 Aug 2010 03:56:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] oom: avoid killing a task if a thread sharing its
- mm cannot be killed
-In-Reply-To: <20100816055204.GA9498@redhat.com>
-Message-ID: <alpine.DEB.2.00.1008160350110.5305@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com> <20100815151819.GA3531@redhat.com> <alpine.DEB.2.00.1008151409020.8727@chino.kir.corp.google.com> <20100816055204.GA9498@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A7D76B01F3
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 07:05:51 -0400 (EDT)
+Subject: Re: [RFC][PATCH] Per file dirty limit throttling
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <201008160949.51512.knikanth@suse.de>
+References: <201008160949.51512.knikanth@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Mon, 16 Aug 2010 13:05:42 +0200
+Message-ID: <1281956742.1926.1217.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Aug 2010, Oleg Nesterov wrote:
+On Mon, 2010-08-16 at 09:49 +0530, Nikanth Karthikesan wrote:
+> When the total dirty pages exceed vm_dirty_ratio, the dirtier is made to =
+do
+> the writeback. But this dirtier may not be the one who took the system to=
+ this
+> state. Instead, if we can track the dirty count per-file, we could thrott=
+le
+> the dirtier of a file, when the file's dirty pages exceed a certain limit=
+.
+> Even though this dirtier may not be the one who dirtied the other pages o=
+f
+> this file, it is fair to throttle this process, as it uses that file.
+>=20
+> This patch
+> 1. Adds dirty page accounting per-file.
+> 2. Exports the number of pages of this file in cache and no of pages dirt=
+y via
+> proc-fdinfo.
+> 3. Adds a new tunable, /proc/sys/vm/file_dirty_bytes. When a files dirty =
+data
+> exceeds this limit, the writeback of that inode is done by the current
+> dirtier.
+>=20
+> This certainly will affect the throughput of certain heavy-dirtying workl=
+oads,
+> but should help for interactive systems.
 
-> > There's no other way to detect threads in other thread groups that share
-> > the same mm since subthreads of a process can have an oom_score_adj that
-> > differ from that process, this includes the possibility of
-> > OOM_SCORE_ADJ_MIN that we're interested in here.
-> 
-> Yes, you are right. Still, at least you can do
-> 
-> 	for_each_process(p) {
-> 		if (p->mm != mm)
-> 			continue;
-> 		...
-> 
-> to quickly skip the thread group which doesn't share the same ->mm.
-> 
+I'm not really charmed by this.. it adds another random variable to prod
+at. Nor does it really tell me why you're wanting to do this. We already
+have per-task invluence on the dirty limits, a task that sporadically
+dirties pages (your vi) will already end up with a higher dirty limit
+than a task that only dirties pages (your dd).
 
-Right, thanks.  I'll make that optimization and send out a second version 
-of this series with the other changes you suggested.
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index b606c2c..4f8bc06 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -133,6 +133,15 @@ Setting this to zero disables periodic writeback alt=
+ogether.
+> =20
+>  =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> =20
+> +file_dirty_bytes
+> +
+> +When a files total dirty data exceeds file_dirty_bytes, the current gene=
+rator
+> +of dirty data would be made to do the writeback of dirty pages of that f=
+ile.
+> +
+> +0 disables this behaviour.
+> +
+> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> +
+>  drop_caches
+> =20
+>  Writing to this will cause the kernel to drop clean caches, dentries and
 
-> > > > -	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> > > > +	if (is_mm_unfreeable(p->mm)) {
-> > >
-> > > oom_badness() becomes O(n**2), not good.
-> > >
-> >
-> > No, oom_badness() becomes O(n) from O(1); select_bad_process() becomes
-> > slower for eligible tasks.
-> 
-> I meant, select_bad_process() becomes O(n^2). oom_badness() is O(n), yes.
-> 
+> diff --git a/fs/read_write.c b/fs/read_write.c
+> index 74e3658..8881b7d 100644
+> --- a/fs/read_write.c
+> +++ b/fs/read_write.c
+> @@ -16,6 +16,8 @@
+>  #include <linux/syscalls.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/splice.h>
+> +#include <linux/buffer_head.h>
+> +#include <linux/writeback.h>
+>  #include "read_write.h"
+> =20
+>  #include <asm/uaccess.h>
+> @@ -414,9 +416,19 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char =
+__user *, buf,
+> =20
+>  	file =3D fget_light(fd, &fput_needed);
+>  	if (file) {
+> +		struct address_space *as =3D file->f_mapping;
+> +		unsigned long file_dirty_pages;
+>  		loff_t pos =3D file_pos_read(file);
+> +
+>  		ret =3D vfs_write(file, buf, count, &pos);
+>  		file_pos_write(file, pos);
+> +		/* Start write-out ? */
+> +		if (file_dirty_bytes) {
+> +			file_dirty_pages =3D file_dirty_bytes / PAGE_SIZE;
+> +			if (as->nrdirty > file_dirty_pages)
+> +				write_inode_now(as->host, 0);
+> +		}
+> +
+>  		fput_light(file, fput_needed);
+>  	}
 
-I'll follow my own suggestion for deferring this check to 
-oom_kill_process() since it's certainly an unusual case if the tasks are 
-sharing memory.  It'll require a second entire tasklist scan when it 
-occurs, but definitely speeds up the common case.
 
-> > > And, more importantly. This patch makes me think ->oom_score_adj should
-> > > be moved from ->signal to ->mm.
-> > >
-> >
-> > I did that several months ago but people were unhappy with how a parent's
-> > oom_score_adj value would change if it did a vfork() and the child's
-> > oom_score_adj value was changed prior to execve().
-> 
-> I see. But this patch in essence moves OOM_SCORE_ADJ_MIN from ->signal
-> to ->mm (and btw personally I think this makes sense).
-> 
+This seems wrong, wth are you doing it here and not in the generic
+balance_dirty_pages thing called by set_page_dirty()?
 
-Yes, and I still would have liked to embed it in struct mm_struct like I 
-originally proposed, but I understand how some people didn't care much for 
-the vfork() inheritance problem.  There are applications in the wild such 
-as job schedulers that are OOM_DISABLE themselves and fork children and 
-then reset their oom_adj value prior to exec.  So they do vfork() -> 
-change child's oom_adj -> execve().  That currently works since the 
-child's ->signal isn't shared (and before that, oom_adj was embedded in 
-struct task_struct) and we can't change that behavior to also change the 
-parent's oom_adj value at the same time because it shares an ->mm out from 
-under them.
 
-Thanks for reviewing the patches Oleg!
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 9606ceb..0961f70 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2873,6 +2873,7 @@ static int __do_fault(struct mm_struct *mm, struct =
+vm_area_struct *vma,
+>  	struct vm_fault vmf;
+>  	int ret;
+>  	int page_mkwrite =3D 0;
+> +	unsigned long file_dirty_pages;
+> =20
+>  	vmf.virtual_address =3D (void __user *)(address & PAGE_MASK);
+>  	vmf.pgoff =3D pgoff;
+> @@ -3024,6 +3025,13 @@ out:
+>  		/* file_update_time outside page_lock */
+>  		if (vma->vm_file)
+>  			file_update_time(vma->vm_file);
+> +
+> +		/* Start write-back ? */
+> +		if (mapping && file_dirty_bytes) {
+> +			file_dirty_pages =3D file_dirty_bytes / PAGE_SIZE;
+> +			if (mapping->nrdirty > file_dirty_pages)
+> +				write_inode_now(mapping->host, 0);
+> +		}
+>  	} else {
+>  		unlock_page(vmf.page);
+>  		if (anon)
+
+Idem, replicating that code at every site that can dirty a page is just
+wrong, hook into the regular set_page_dirty()->balance_dirty_pages()
+code.
+
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 20890d8..1cabd7f 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -87,6 +87,13 @@ int vm_dirty_ratio =3D 20;
+>  unsigned long vm_dirty_bytes;
+> =20
+>  /*
+> + * When a files total dirty data exceeds file_dirty_bytes, the current g=
+enerator
+> + * of dirty data would be made to do the writeback of dirty pages of tha=
+t file.
+> + * 0 disables this behaviour.
+> + */
+> +unsigned long file_dirty_bytes =3D 0;
+
+So you're adding a extra cacheline to dirty even though its not used by
+default, that seems like suckage..
+
+
+> @@ -1126,6 +1137,7 @@ void account_page_dirtied(struct page *page, struct=
+ address_space *mapping)
+>  {
+>  	if (mapping_cap_account_dirty(mapping)) {
+>  		__inc_zone_page_state(page, NR_FILE_DIRTY);
+> +		mapping->nrdirty++;
+>  		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+>  		task_dirty_inc(current);
+>  		task_io_account_write(PAGE_CACHE_SIZE);
+> @@ -1301,6 +1313,7 @@ int clear_page_dirty_for_io(struct page *page)
+>  		 */
+>  		if (TestClearPageDirty(page)) {
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+> +			mapping->nrdirty--;
+>  			dec_bdi_stat(mapping->backing_dev_info,
+>  					BDI_RECLAIMABLE);
+>  			return 1;
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index ba887bf..5846d6a 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -75,6 +75,7 @@ void cancel_dirty_page(struct page *page, unsigned int =
+account_size)
+>  		struct address_space *mapping =3D page->mapping;
+>  		if (mapping && mapping_cap_account_dirty(mapping)) {
+>  			dec_zone_page_state(page, NR_FILE_DIRTY);
+> +			mapping->nrdirty--;
+>  			dec_bdi_stat(mapping->backing_dev_info,
+>  					BDI_RECLAIMABLE);
+>  			if (account_size)
+
+
+Preferably we don't add any extra fields under tree_lock so that we can
+easily split it up if/when we decide to use a fine-grain locked radix
+tree.
+
+Also, like mentioned, you just added a whole new cacheline to dirty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
