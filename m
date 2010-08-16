@@ -1,147 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F5846B01F3
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 12:08:29 -0400 (EDT)
-Date: Mon, 16 Aug 2010 18:06:23 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100816160623.GB15103@cmpxchg.org>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie> <20100816094350.GH19797@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100816094350.GH19797@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 58AFF6B01F1
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 12:52:59 -0400 (EDT)
+Message-ID: <4C696CFD.7070003@tmr.com>
+Date: Mon, 16 Aug 2010 12:53:17 -0400
+From: Bill Davidsen <davidsen@tmr.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] Per file dirty limit throttling
+References: <201008160949.51512.knikanth@suse.de>
+In-Reply-To: <201008160949.51512.knikanth@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-[npiggin@suse.de bounces, switched to yahoo address]
-
-On Mon, Aug 16, 2010 at 10:43:50AM +0100, Mel Gorman wrote:
-> On Mon, Aug 16, 2010 at 10:42:12AM +0100, Mel Gorman wrote:
-> > Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-> > it is cheaper than scanning a number of lists. To avoid synchronization
-> > overhead, counter deltas are maintained on a per-cpu basis and drained both
-> > periodically and when the delta is above a threshold. On large CPU systems,
-> > the difference between the estimated and real value of NR_FREE_PAGES can be
-> > very high. If the system is under both load and low memory, it's possible
-> > for watermarks to be breached. In extreme cases, the number of free pages
-> > can drop to 0 leading to the possibility of system livelock.
-> > 
-> > This patch introduces zone_nr_free_pages() to take a slightly more accurate
-> > estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-> > and may result in cache line bounces but is expected to be lighter than the
-> > IPI calls necessary to continually drain the per-cpu counters while kswapd
-> > is awake.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Nikanth Karthikesan wrote:
+> When the total dirty pages exceed vm_dirty_ratio, the dirtier is made to do
+> the writeback. But this dirtier may not be the one who took the system to this
+> state. Instead, if we can track the dirty count per-file, we could throttle
+> the dirtier of a file, when the file's dirty pages exceed a certain limit.
+> Even though this dirtier may not be the one who dirtied the other pages of
+> this file, it is fair to throttle this process, as it uses that file.
 > 
-> And the second I sent this, I realised I had sent a slightly old version
-> that missed a compile-fix :(
+I agree with your problem description, a single program which writes a single 
+large file can make an interactive system suck. Creating a 25+GB Blu-Ray image 
+will often saturate the buffer space. I played with per-fd limiting during 
+2.5.xx development and I had an app writing 5-10GB files. While I wanted to get 
+something to submit while the kernel was changing, I kept hitting cornet cases.
+
+> This patch
+> 1. Adds dirty page accounting per-file.
+> 2. Exports the number of pages of this file in cache and no of pages dirty via
+> proc-fdinfo.
+> 3. Adds a new tunable, /proc/sys/vm/file_dirty_bytes. When a files dirty data
+> exceeds this limit, the writeback of that inode is done by the current
+> dirtier.
 > 
-> ==== CUT HERE ====
-> mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+I think you have this in the wrong place, can't it go in balance_dirty_pages?
+
+> This certainly will affect the throughput of certain heavy-dirtying workloads,
+> but should help for interactive systems.
 > 
-> Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-> it is cheaper than scanning a number of lists. To avoid synchronization
-> overhead, counter deltas are maintained on a per-cpu basis and drained both
-> periodically and when the delta is above a threshold. On large CPU systems,
-> the difference between the estimated and real value of NR_FREE_PAGES can be
-> very high. If the system is under both load and low memory, it's possible
-> for watermarks to be breached. In extreme cases, the number of free pages
-> can drop to 0 leading to the possibility of system livelock.
-> 
-> This patch introduces zone_nr_free_pages() to take a slightly more accurate
-> estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-> and may result in cache line bounces but is expected to be lighter than the
-> IPI calls necessary to continually drain the per-cpu counters while kswapd
-> is awake.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+I found that the effect was about the same as forcing the application to use 
+O_DIRECT, and since it was our application I could do that. Not all 
+badly-behaved programs are open source, so that addressed my issue but not the 
+general case.
 
-[...]
+I think you really need to track by process, not file, as you said "Even though 
+this dirtier may not be the one who dirtied the other pages of this file..." 
+that doesn't work, you block a process which is contributing minimally to the 
+problem while letting the real problem process continue. Ex: a log file, with 
+one process spewing error messages while others write a few lines/min. You have 
+to get it right, I think.
 
-> --- a/mm/mmzone.c
-> +++ b/mm/mmzone.c
-> @@ -87,3 +87,30 @@ int memmap_valid_within(unsigned long pfn,
->  	return 1;
->  }
->  #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
-> +
-> +/* Called when a more accurate view of NR_FREE_PAGES is needed */
-> +unsigned long zone_nr_free_pages(struct zone *zone)
-> +{
-> +	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-> +
-> +	/*
-> +	 * While kswapd is awake, it is considered the zone is under some
-> +	 * memory pressure. Under pressure, there is a risk that
-> +	 * er-cpu-counter-drift will allow the min watermark to be breached
-
-Missing `p'.
-
-> +	 * potentially causing a live-lock. While kswapd is awake and
-> +	 * free pages are low, get a better estimate for free pages
-> +	 */
-> +	if (nr_free_pages < zone->percpu_drift_mark &&
-> +			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
-> +		int cpu;
-> +
-> +		for_each_online_cpu(cpu) {
-> +			struct per_cpu_pageset *pset;
-> +
-> +			pset = per_cpu_ptr(zone->pageset, cpu);
-> +			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
-> +		}
-> +	}
-> +
-> +	return nr_free_pages;
-> +}
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c2407a4..67a2ed0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->  {
->  	/* free_pages my go negative - that's OK */
->  	long min = mark;
-> -	long free_pages = zone_page_state(z, NR_FREE_PAGES) - (1 << order) + 1;
-> +	long free_pages = zone_nr_free_pages(z) - (1 << order) + 1;
->  	int o;
->  
->  	if (alloc_flags & ALLOC_HIGH)
-> @@ -2413,7 +2413,7 @@ void show_free_areas(void)
->  			" all_unreclaimable? %s"
->  			"\n",
->  			zone->name,
-> -			K(zone_page_state(zone, NR_FREE_PAGES)),
-> +			K(zone_nr_free_pages(zone)),
->  			K(min_wmark_pages(zone)),
->  			K(low_wmark_pages(zone)),
->  			K(high_wmark_pages(zone)),
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 7759941..c95a159 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
->  		for_each_online_cpu(cpu)
->  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
->  							= threshold;
-> +
-> +		zone->percpu_drift_mark = high_wmark_pages(zone) +
-> +					num_online_cpus() * threshold;
->  	}
->  }
-
-Hm, this one I don't quite get (might be the jetlag, though): we have
-_at least_ NR_FREE_PAGES free pages, there may just be more lurking in
-the pcp counters.
-
-So shouldn't we only collect the pcp deltas in case the high watermark
-is breached?  Above this point, we should be fine or better, no?
-
-	Hannes
+-- 
+Bill Davidsen <davidsen@tmr.com>
+   "We have more to fear from the bungling of the incompetent than from
+the machinations of the wicked."  - from Slashdot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
