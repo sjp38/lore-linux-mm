@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD8B6B01F1
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 05:42:16 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 742196B01F3
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 05:42:17 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/3] mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
-Date: Mon, 16 Aug 2010 10:42:12 +0100
-Message-Id: <1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 1/3] mm: page allocator: Update free page counters after pages are placed on the free list
+Date: Mon, 16 Aug 2010 10:42:11 +0100
+Message-Id: <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
 References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,136 +13,63 @@ To: linux-mm@kvack.org
 Cc: Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-it is cheaper than scanning a number of lists. To avoid synchronization
-overhead, counter deltas are maintained on a per-cpu basis and drained both
-periodically and when the delta is above a threshold. On large CPU systems,
-the difference between the estimated and real value of NR_FREE_PAGES can be
-very high. If the system is under both load and low memory, it's possible
-for watermarks to be breached. In extreme cases, the number of free pages
-can drop to 0 leading to the possibility of system livelock.
+When allocating a page, the system uses NR_FREE_PAGES counters to determine
+if watermarks would remain intact after the allocation was made. This
+check is made without interrupts disabled or the zone lock held and so is
+race-prone by nature. Unfortunately, when pages are being freed in batch,
+the counters are updated before the pages are added on the list. During this
+window, the counters are misleading as the pages do not exist yet. When
+under significant pressure on systems with large numbers of CPUs, it's
+possible for processes to make progress even though they should have been
+stalled. This is particularly problematic if a number of the processes are
+using GFP_ATOMIC as the min watermark can be accidentally breached and in
+extreme cases, the system can livelock.
 
-This patch introduces zone_nr_free_pages() to take a slightly more accurate
-estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-and may result in cache line bounces but is expected to be lighter than the
-IPI calls necessary to continually drain the per-cpu counters while kswapd
-is awake.
+This patch updates the counters after the pages have been added to the
+list. This makes the allocator more cautious with respect to preserving
+the watermarks and mitigates livelock possibilities.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/mmzone.h |    9 +++++++++
- mm/mmzone.c            |   27 +++++++++++++++++++++++++++
- mm/page_alloc.c        |    4 ++--
- mm/vmstat.c            |    5 ++++-
- 4 files changed, 42 insertions(+), 3 deletions(-)
+ mm/page_alloc.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b4d109e..1df3c43 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -284,6 +284,13 @@ struct zone {
- 	unsigned long watermark[NR_WMARK];
- 
- 	/*
-+	 * When free pages are below this point, additional steps are taken
-+	 * when reading the number of free pages to avoid per-cpu counter
-+	 * drift allowing watermarks to be breached
-+	 */
-+	unsigned long percpu_drift_mark;
-+
-+	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
- 	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-@@ -456,6 +463,8 @@ static inline int zone_is_oom_locked(const struct zone *zone)
- 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
- }
- 
-+unsigned long zone_nr_free_pages(struct zone *zone);
-+
- /*
-  * The "priority" of VM scanning is how much of the queues we will scan in one
-  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index f5b7d17..89842ec 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -87,3 +87,30 @@ int memmap_valid_within(unsigned long pfn,
- 	return 1;
- }
- #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
-+
-+/* Called when a more accurate view of NR_FREE_PAGES is needed */
-+unsigned long zone_nr_free_pages(struct zone *zone)
-+{
-+	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-+
-+	/*
-+	 * While kswapd is awake, it is considered the zone is under some
-+	 * memory pressure. Under pressure, there is a risk that
-+	 * er-cpu-counter-drift will allow the min watermark to be breached
-+	 * potentially causing a live-lock. While kswapd is awake and
-+	 * free pages are low, get a better estimate for free pages
-+	 */
-+	if (free < zone->percpu_drift_mark &&
-+			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
-+		int cpu;
-+
-+		for_each_online_cpu(cpu) {
-+			struct per_cpu_pageset *pset;
-+
-+			pset = per_cpu_ptr(zone->pageset, cpu);
-+			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
-+		}
-+	}
-+
-+	return nr_free_pages;
-+}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c2407a4..67a2ed0 100644
+index 9bd339e..c2407a4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+@@ -588,12 +588,12 @@ static void free_pcppages_bulk(struct zone *zone, int count,
  {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
--	long free_pages = zone_page_state(z, NR_FREE_PAGES) - (1 << order) + 1;
-+	long free_pages = zone_nr_free_pages(z) - (1 << order) + 1;
- 	int o;
+ 	int migratetype = 0;
+ 	int batch_free = 0;
++	int freed = count;
  
- 	if (alloc_flags & ALLOC_HIGH)
-@@ -2413,7 +2413,7 @@ void show_free_areas(void)
- 			" all_unreclaimable? %s"
- 			"\n",
- 			zone->name,
--			K(zone_page_state(zone, NR_FREE_PAGES)),
-+			K(zone_nr_free_pages(zone)),
- 			K(min_wmark_pages(zone)),
- 			K(low_wmark_pages(zone)),
- 			K(high_wmark_pages(zone)),
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7759941..c95a159 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
- 		for_each_online_cpu(cpu)
- 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
- 							= threshold;
-+
-+		zone->percpu_drift_mark = high_wmark_pages(zone) +
-+					num_online_cpus() * threshold;
+ 	spin_lock(&zone->lock);
+ 	zone->all_unreclaimable = 0;
+ 	zone->pages_scanned = 0;
+ 
+-	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
+ 	while (count) {
+ 		struct page *page;
+ 		struct list_head *list;
+@@ -621,6 +621,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+ 		} while (--count && --batch_free && !list_empty(list));
  	}
++	__mod_zone_page_state(zone, NR_FREE_PAGES, freed);
+ 	spin_unlock(&zone->lock);
  }
  
-@@ -813,7 +816,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 		   "\n        scanned  %lu"
- 		   "\n        spanned  %lu"
- 		   "\n        present  %lu",
--		   zone_page_state(zone, NR_FREE_PAGES),
-+		   zone_nr_free_pages(zone),
- 		   min_wmark_pages(zone),
- 		   low_wmark_pages(zone),
- 		   high_wmark_pages(zone),
+@@ -631,8 +632,8 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+ 	zone->all_unreclaimable = 0;
+ 	zone->pages_scanned = 0;
+ 
+-	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+ 	__free_one_page(page, zone, order, migratetype);
++	__mod_zone_page_state(zone, NR_FREE_PAGES, 1 << order);
+ 	spin_unlock(&zone->lock);
+ }
+ 
 -- 
 1.7.1
 
