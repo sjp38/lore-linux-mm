@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4FD8A6B01F2
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 10:51:16 -0400 (EDT)
-Message-ID: <4C695046.9000703@redhat.com>
-Date: Mon, 16 Aug 2010 10:50:46 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after direct
- reclaim allocation fails
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-4-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1281951733-29466-4-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCD06B01F1
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 11:29:07 -0400 (EDT)
+Date: Mon, 16 Aug 2010 17:26:48 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters after pages are placed on the free list
+Message-ID: <20100816152648.GA15103@cmpxchg.org>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 08/16/2010 05:42 AM, Mel Gorman wrote:
-> When under significant memory pressure, a process enters direct reclaim
-> and immediately afterwards tries to allocate a page. If it fails and no
-> further progress is made, it's possible the system will go OOM. However,
-> on systems with large amounts of memory, it's possible that a significant
-> number of pages are on per-cpu lists and inaccessible to the calling
-> process. This leads to a process entering direct reclaim more often than
-> it should increasing the pressure on the system and compounding the problem.
->
-> This patch notes that if direct reclaim is making progress but
-> allocations are still failing that the system is already under heavy
-> pressure. In this case, it drains the per-cpu lists and tries the
-> allocation a second time before continuing.
->
-> Signed-off-by: Mel Gorman<mel@csn.ul.ie>
+On Mon, Aug 16, 2010 at 10:42:11AM +0100, Mel Gorman wrote:
+> When allocating a page, the system uses NR_FREE_PAGES counters to determine
+> if watermarks would remain intact after the allocation was made. This
+> check is made without interrupts disabled or the zone lock held and so is
+> race-prone by nature. Unfortunately, when pages are being freed in batch,
+> the counters are updated before the pages are added on the list. During this
+> window, the counters are misleading as the pages do not exist yet. When
+> under significant pressure on systems with large numbers of CPUs, it's
+> possible for processes to make progress even though they should have been
+> stalled. This is particularly problematic if a number of the processes are
+> using GFP_ATOMIC as the min watermark can be accidentally breached and in
+> extreme cases, the system can livelock.
+> 
+> This patch updates the counters after the pages have been added to the
+> list. This makes the allocator more cautious with respect to preserving
+> the watermarks and mitigates livelock possibilities.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
