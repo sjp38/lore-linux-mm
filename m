@@ -1,96 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 536A16B01F1
-	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 17:28:25 -0400 (EDT)
-Received: from kpbe14.cbf.corp.google.com (kpbe14.cbf.corp.google.com [172.25.105.78])
-	by smtp-out.google.com with ESMTP id o7FLSMVG030985
-	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 14:28:22 -0700
-Received: from pwj3 (pwj3.prod.google.com [10.241.219.67])
-	by kpbe14.cbf.corp.google.com with ESMTP id o7FLSLpd020758
-	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 14:28:21 -0700
-Received: by pwj3 with SMTP id 3so1824916pwj.9
-        for <linux-mm@kvack.org>; Sun, 15 Aug 2010 14:28:21 -0700 (PDT)
-Date: Sun, 15 Aug 2010 14:28:18 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/2] oom: kill all threads sharing oom killed task's mm
-In-Reply-To: <20100815154531.GB3531@redhat.com>
-Message-ID: <alpine.DEB.2.00.1008151425271.8727@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008142128050.31510@chino.kir.corp.google.com> <alpine.DEB.2.00.1008142130260.31510@chino.kir.corp.google.com> <20100815154531.GB3531@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9E06B01F1
+	for <linux-mm@kvack.org>; Sun, 15 Aug 2010 22:08:57 -0400 (EDT)
+Date: Mon, 16 Aug 2010 11:07:37 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC] [PATCH 2/4] dio: add page locking for direct I/O
+Message-ID: <20100816020737.GA19531@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.00.1008110806070.673@router.home>
+ <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
+ <20100812075941.GD6112@spritzera.linux.bs1.fc.nec.co.jp>
+ <x49aaos3q2q.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <x49aaos3q2q.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Aug 2010, Oleg Nesterov wrote:
+Hi,
 
-> Again, I do not know how the code looks without the patch, but
+On Thu, Aug 12, 2010 at 09:42:21AM -0400, Jeff Moyer wrote:
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 > 
+> > Basically it is user's responsibility to take care of race condition
+> > related to direct I/O, but some events which are out of user's control
+> > (such as memory failure) can happen at any time. So we need to lock and
+> > set/clear PG_writeback flags in dierct I/O code to protect from data loss.
+> 
+> Did you do any performance testing of this?  If not, please do and
+> report back.  I'm betting users won't be pleased with the results.
 
-Why not?  This series is based on Linus' tree.
+Here is the result of my direct I/O benchmarck, which mesures the time
+it takes to do direct I/O for 20000 pages on 2MB buffer for four types
+of I/O. Each I/O is issued for one page unit and each number below is
+the average of 25 runs.
 
-> >  static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-> >  {
-> > +	struct task_struct *g, *q;
-> > +	struct mm_struct *mm;
-> > +
-> >  	p = find_lock_task_mm(p);
-> >  	if (!p) {
-> >  		task_unlock(p);
-> >  		return 1;
-> >  	}
-> > +
-> > +	/* mm cannot be safely dereferenced after task_unlock(p) */
-> 
-> Yes. But also we can't trust this pointer, see below.
-> 
-> > +	mm = p->mm;
-> > +
-> >  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
-> >  		task_pid_nr(p), p->comm, K(p->mm->total_vm),
-> >  		K(get_mm_counter(p->mm, MM_ANONPAGES)),
-> >  		K(get_mm_counter(p->mm, MM_FILEPAGES)));
-> >  	task_unlock(p);
-> >
-> > -
-> >  	set_tsk_thread_flag(p, TIF_MEMDIE);
-> >  	force_sig(SIGKILL, p);
-> 
-> So, we killed this process. It is very possible it was the only user
-> of this ->mm. exit_mm() can free this mmemory. After that another task
-> execs, exec_mmap() can allocate the same memory again.
-> 
+                                  with patchset          2.6.35-rc3
+   Buffer      I/O type        average(s)  STD(s)   average(s)  STD(s)   diff(s)
+  hugepage   Sequential Read      3.87      0.16       3.88      0.20    -0.01
+             Sequential Write     7.69      0.43       7.69      0.43     0.00
+             Random Read          5.93      1.58       6.49      1.45    -0.55
+             Random Write        13.50      0.28      13.41      0.30     0.09
+  anonymous  Sequential Read      3.88      0.21       3.89      0.23    -0.01
+             Sequential Write     7.86      0.39       7.80      0.34     0.05
+             Random Read          7.67      1.60       6.86      1.27     0.80
+             Random Write        13.50      0.25      13.52      0.31    -0.01
 
-Right, this was a race in the original code as well before it was removed 
-in 8c5cd6f3 and existed for years.
+>From this result, although fluctuation is relatively large for random read,
+differences between vanilla kernel and patched one are within the deviations and
+it seems that adding direct I/O lock makes little or no impact on performance.
 
-> > @@ -438,6 +444,20 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
-> >  	 */
-> >  	boost_dying_task_prio(p, mem);
-> >
-> > +	/*
-> > +	 * Kill all threads sharing p->mm in other thread groups, if any.  They
-> > +	 * don't get access to memory reserves or a higher scheduler priority,
-> > +	 * though, to avoid depletion of all memory or task starvation.  This
-> > +	 * prevents mm->mmap_sem livelock when an oom killed task cannot exit
-> > +	 * because it requires the semaphore and its contended by another
-> > +	 * thread trying to allocate memory itself.  That thread will now get
-> > +	 * access to memory reserves since it has a pending fatal signal.
-> > +	 */
-> > +	do_each_thread(g, q) {
-> > +		if (q->mm == mm && !same_thread_group(q, p))
-> > +			force_sig(SIGKILL, q);
-> > +	} while_each_thread(g, q);
-> 
-> We can kill the wrong task. "q->mm == mm" doesn't necessarily mean
-> we found the task which shares ->mm with p (see above).
-> 
-> This needs atomic_inc(mm_users). And please do not use do_each_thread.
-> 
+And I know the workload of this benchmark can be too simple,
+so please let me know if you think we have another workload to be looked into.
 
-Instead of using mm_users to pin the mm, we could simply do this iteration 
-with for_each_process() before sending the SIGKILL to p.
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
