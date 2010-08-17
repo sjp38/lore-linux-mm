@@ -1,43 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 420F96B01F0
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 05:40:12 -0400 (EDT)
-Date: Tue, 17 Aug 2010 11:40:08 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/9] Hugepage migration (v2)
-Message-ID: <20100817094007.GA18161@basil.fritz.box>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.00.1008110806070.673@router.home>
- <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
- <alpine.DEB.2.00.1008130744550.27542@router.home>
- <20100816091935.GB3388@spritzera.linux.bs1.fc.nec.co.jp>
- <alpine.DEB.2.00.1008160707420.11420@router.home>
- <20100817023719.GC12736@spritzera.linux.bs1.fc.nec.co.jp>
- <20100817081817.GA28969@spritzera.linux.bs1.fc.nec.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 709B36B01F0
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 05:59:33 -0400 (EDT)
+Date: Tue, 17 Aug 2010 10:59:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters
+	after pages are placed on the free list
+Message-ID: <20100817095917.GM19797@csn.ul.ie>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-2-git-send-email-mel@csn.ul.ie> <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100817081817.GA28969@spritzera.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> When get_user_pages_fast() is called before try_to_unmap(),
-> direct I/O code increments refcount on the target page.
-> Because this refcount is not associated to the mapping,
-> migration code will find remaining refcounts after try_to_unmap()
-> unmaps all mappings. Then refcount check decides migration to fail,
-> so direct I/O is continued safely.
+On Tue, Aug 17, 2010 at 11:21:15AM +0900, Minchan Kim wrote:
+> Hi, Mel.
+> 
+> On Mon, Aug 16, 2010 at 6:42 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > When allocating a page, the system uses NR_FREE_PAGES counters to determine
+> > if watermarks would remain intact after the allocation was made. This
+> > check is made without interrupts disabled or the zone lock held and so is
+> > race-prone by nature. Unfortunately, when pages are being freed in batch,
+> > the counters are updated before the pages are added on the list. During this
+> > window, the counters are misleading as the pages do not exist yet. When
+> > under significant pressure on systems with large numbers of CPUs, it's
+> > possible for processes to make progress even though they should have been
+> > stalled. This is particularly problematic if a number of the processes are
+> > using GFP_ATOMIC as the min watermark can be accidentally breached and in
+> > extreme cases, the system can livelock.
+> >
+> > This patch updates the counters after the pages have been added to the
+> > list. This makes the allocator more cautious with respect to preserving
+> > the watermarks and mitigates livelock possibilities.
+> >
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> 
+> Page free path looks good by your patch.
+> 
 
-This would imply that direct IO can make migration fail arbitarily.
-Also not good. Should we add some retries, at least for the soft offline
-case?
+Thanks
 
--Andi
+> Now allocation path decrease NR_FREE_PAGES _after_ it remove pages from buddy.
+> It can make that actually we don't have enough pages in buddy but
+> pretend to have enough pages.
+> It could make same situation with free path which is your concern.
+> So I think it can confuse watermark check in extreme case.
+> 
+> So don't we need to consider _allocation_ path with conservative?
+> 
+
+I considered it and it would be desirable. The downside was that the
+paths became more complicated. Take rmqueue_bulk() for example. It could
+start by modifying the counters but there then needs to be a recovery
+path if all the requested pages were not allocated.
+
+It'd be nice to see if these patches on their own were enough to
+alleviate the worst of the per-cpu-counter drift before adding new
+branches to the allocation path.
+
+Does that make sense?
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
