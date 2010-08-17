@@ -1,58 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4B5416B01F0
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:21:16 -0400 (EDT)
-Received: by vws16 with SMTP id 16so4780859vws.14
-        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 19:21:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 97A896B01F0
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:26:08 -0400 (EDT)
+Received: by vws16 with SMTP id 16so4784634vws.14
+        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 19:26:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <20100816160623.GB15103@cmpxchg.org>
 References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
-	<1281951733-29466-2-git-send-email-mel@csn.ul.ie>
-Date: Tue, 17 Aug 2010 11:21:15 +0900
-Message-ID: <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters after
- pages are placed on the free list
+	<1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+	<20100816094350.GH19797@csn.ul.ie>
+	<20100816160623.GB15103@cmpxchg.org>
+Date: Tue, 17 Aug 2010 11:26:05 +0900
+Message-ID: <AANLkTikWzkUkkghJcPBcuPsquyw-CodbH5z1DLbOiWP9@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Mel.
-
-On Mon, Aug 16, 2010 at 6:42 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> When allocating a page, the system uses NR_FREE_PAGES counters to determine
-> if watermarks would remain intact after the allocation was made. This
-> check is made without interrupts disabled or the zone lock held and so is
-> race-prone by nature. Unfortunately, when pages are being freed in batch,
-> the counters are updated before the pages are added on the list. During this
-> window, the counters are misleading as the pages do not exist yet. When
-> under significant pressure on systems with large numbers of CPUs, it's
-> possible for processes to make progress even though they should have been
-> stalled. This is particularly problematic if a number of the processes are
-> using GFP_ATOMIC as the min watermark can be accidentally breached and in
-> extreme cases, the system can livelock.
+On Tue, Aug 17, 2010 at 1:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
+:
+> [npiggin@suse.de bounces, switched to yahoo address]
 >
-> This patch updates the counters after the pages have been added to the
-> list. This makes the allocator more cautious with respect to preserving
-> the watermarks and mitigates livelock possibilities.
+> On Mon, Aug 16, 2010 at 10:43:50AM +0100, Mel Gorman wrote:
+
+<snip>
+
+>> + =A0 =A0 =A0* potentially causing a live-lock. While kswapd is awake an=
+d
+>> + =A0 =A0 =A0* free pages are low, get a better estimate for free pages
+>> + =A0 =A0 =A0*/
+>> + =A0 =A0 if (nr_free_pages < zone->percpu_drift_mark &&
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 !waitqueue_active(&zone->zone_=
+pgdat->kswapd_wait)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 int cpu;
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct per_cpu_pageset *pset;
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pset =3D per_cpu_ptr(zone->pag=
+eset, cpu);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_free_pages +=3D pset->vm_st=
+at_diff[NR_FREE_PAGES];
+
+We need to consider CONFIG_SMP.
+
+>> + =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 }
+>> +
+>> + =A0 =A0 return nr_free_pages;
+>> +}
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index c2407a4..67a2ed0 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, u=
+nsigned long mark,
+>> =A0{
+>> =A0 =A0 =A0 /* free_pages my go negative - that's OK */
+>> =A0 =A0 =A0 long min =3D mark;
+>> - =A0 =A0 long free_pages =3D zone_page_state(z, NR_FREE_PAGES) - (1 << =
+order) + 1;
+>> + =A0 =A0 long free_pages =3D zone_nr_free_pages(z) - (1 << order) + 1;
+>> =A0 =A0 =A0 int o;
+>>
+>> =A0 =A0 =A0 if (alloc_flags & ALLOC_HIGH)
+>> @@ -2413,7 +2413,7 @@ void show_free_areas(void)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 " all_unreclaimable? %s"
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 "\n",
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->name,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(zone_page_state(zone, NR_FRE=
+E_PAGES)),
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(zone_nr_free_pages(zone)),
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(min_wmark_pages(zone)),
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(low_wmark_pages(zone)),
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(high_wmark_pages(zone)),
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 7759941..c95a159 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 per_cpu_ptr(zone->pageset, c=
+pu)->stat_threshold
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =3D threshold;
+>> +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 zone->percpu_drift_mark =3D high_wmark_pages(z=
+one) +
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 num_online_cpus() * threshold;
+>> =A0 =A0 =A0 }
+>> =A0}
 >
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Hm, this one I don't quite get (might be the jetlag, though): we have
+> _at least_ NR_FREE_PAGES free pages, there may just be more lurking in
 
-Page free path looks good by your patch.
+We can't make sure it.
+As I said previous mail, current allocation path decreases
+NR_FREE_PAGES after it removes pages from buddy list.
 
-Now allocation path decrease NR_FREE_PAGES _after_ it remove pages from buddy.
-It can make that actually we don't have enough pages in buddy but
-pretend to have enough pages.
-It could make same situation with free path which is your concern.
-So I think it can confuse watermark check in extreme case.
+> the pcp counters.
+>
+> So shouldn't we only collect the pcp deltas in case the high watermark
+> is breached? =A0Above this point, we should be fine or better, no?
 
-So don't we need to consider _allocation_ path with conservative?
+If we don't consider allocation path, I agree on Hannes's opinion.
+At least, we need to listen why Mel determine the threshold. :)
 
 
--- 
+
+--=20
 Kind regards,
 Minchan Kim
 
