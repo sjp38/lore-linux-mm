@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C191C6B01F4
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 10:21:49 -0400 (EDT)
-Date: Tue, 17 Aug 2010 16:21:44 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC] [PATCH 2/4] dio: add page locking for direct I/O
-Message-ID: <20100817142144.GB18161@basil.fritz.box>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.00.1008110806070.673@router.home>
- <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
- <20100812075941.GD6112@spritzera.linux.bs1.fc.nec.co.jp>
- <x49aaos3q2q.fsf@segfault.boston.devel.redhat.com>
- <20100816020737.GA19531@spritzera.linux.bs1.fc.nec.co.jp>
- <x49aaomheyi.fsf@segfault.boston.devel.redhat.com>
- <20100817081753.GA28762@spritzera.linux.bs1.fc.nec.co.jp>
- <x4939uduzan.fsf@segfault.boston.devel.redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BAF7D6B01F2
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 10:25:54 -0400 (EDT)
+Received: by pxi5 with SMTP id 5so2710839pxi.14
+        for <linux-mm@kvack.org>; Tue, 17 Aug 2010 07:25:53 -0700 (PDT)
+Date: Tue, 17 Aug 2010 23:25:45 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters
+ after pages are placed on the free list
+Message-ID: <20100817142545.GB3884@barrios-desktop>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
+ <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
+ <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
+ <20100817095917.GM19797@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <x4939uduzan.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <20100817095917.GM19797@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 17, 2010 at 09:46:56AM -0400, Jeff Moyer wrote:
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+On Tue, Aug 17, 2010 at 10:59:18AM +0100, Mel Gorman wrote:
+> On Tue, Aug 17, 2010 at 11:21:15AM +0900, Minchan Kim wrote:
+> > Now allocation path decrease NR_FREE_PAGES _after_ it remove pages from buddy.
+> > It can make that actually we don't have enough pages in buddy but
+> > pretend to have enough pages.
+> > It could make same situation with free path which is your concern.
+> > So I think it can confuse watermark check in extreme case.
+> > 
+> > So don't we need to consider _allocation_ path with conservative?
+> > 
 > 
-> > BTW, from the discussion with Christoph I noticed my misunderstanding
-> > about the necessity of additional page locking. It would seem that
-> > without page locking there is no danger of racing between direct I/O and
-> > page migration. So I retract this additional locking patch-set.
+> I considered it and it would be desirable. The downside was that the
+> paths became more complicated. Take rmqueue_bulk() for example. It could
+> start by modifying the counters but there then needs to be a recovery
+> path if all the requested pages were not allocated.
 > 
-> OK, great!  ;-)
+> It'd be nice to see if these patches on their own were enough to
+> alleviate the worst of the per-cpu-counter drift before adding new
+> branches to the allocation path.
+> 
+> Does that make sense?
 
-Well it sounds like we still may need something. It isn't good if O_DIRECT
-can starve (or DoS) migration.
+No problem. It was a usecase of big machine. 
+I also hope we don't add unnecessary overhead in normal machine due to unlikely problem.
+Let's consider it by further step if it isn't enough.
 
--Andi
+Thanks, Mel.
+
+> 
+> -- 
+> Mel Gorman
+> Part-time Phd Student                          Linux Technology Center
+> University of Limerick                         IBM Dublin Software Lab
+
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
