@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 641C26B01F0
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 04:25:06 -0400 (EDT)
-Subject: Re: [RFC][PATCH] Per file dirty limit throttling
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <201008171039.23701.knikanth@suse.de>
-References: <201008160949.51512.knikanth@suse.de>
-	 <1281956742.1926.1217.camel@laptop>  <201008171039.23701.knikanth@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Tue, 17 Aug 2010 10:24:35 +0200
-Message-ID: <1282033475.1926.2093.camel@laptop>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 420F96B01F0
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 05:40:12 -0400 (EDT)
+Date: Tue, 17 Aug 2010 11:40:08 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/9] Hugepage migration (v2)
+Message-ID: <20100817094007.GA18161@basil.fritz.box>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.00.1008110806070.673@router.home>
+ <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
+ <alpine.DEB.2.00.1008130744550.27542@router.home>
+ <20100816091935.GB3388@spritzera.linux.bs1.fc.nec.co.jp>
+ <alpine.DEB.2.00.1008160707420.11420@router.home>
+ <20100817023719.GC12736@spritzera.linux.bs1.fc.nec.co.jp>
+ <20100817081817.GA28969@spritzera.linux.bs1.fc.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100817081817.GA28969@spritzera.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Nikanth Karthikesan <knikanth@suse.de>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-08-17 at 10:39 +0530, Nikanth Karthikesan wrote:
-> Oh, nice.  Per-task limit is an elegant solution, which should help durin=
-g=20
-> most of the common cases.
->=20
-> But I just wonder what happens, when
-> 1. The dirtier is multiple co-operating processes
-> 2. Some app like a shell script, that repeatedly calls dd with seek and s=
-kip?=20
-> People do this for data deduplication, sparse skipping etc..
-> 3. The app dies and comes back again. Like a VM that is rebooted, and=20
-> continues writing to a disk backed by a file on the host.
->=20
-> Do you think, in those cases this might still be useful?=20
+> When get_user_pages_fast() is called before try_to_unmap(),
+> direct I/O code increments refcount on the target page.
+> Because this refcount is not associated to the mapping,
+> migration code will find remaining refcounts after try_to_unmap()
+> unmaps all mappings. Then refcount check decides migration to fail,
+> so direct I/O is continued safely.
 
-Those cases do indeed defeat the current per-task-limit, however I think
-the solution to that is to limit the amount of writeback done by each
-blocked process.
+This would imply that direct IO can make migration fail arbitarily.
+Also not good. Should we add some retries, at least for the soft offline
+case?
 
-Jan Kara had some good ideas in that department.
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
