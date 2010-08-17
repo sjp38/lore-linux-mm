@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id CDA886B01F2
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:11:37 -0400 (EDT)
-Message-Id: <20100817211134.949705983@linux.com>
-Date: Tue, 17 Aug 2010 16:11:19 -0500
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 07BC36B01F3
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:11:38 -0400 (EDT)
+Message-Id: <20100817211136.091336874@linux.com>
+Date: Tue, 17 Aug 2010 16:11:21 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q Cleanup 1/6] Slub: Force no inlining of debug functions
+Subject: [S+Q Cleanup 3/6] slub: Remove static kmem_cache_cpu array for boot
 References: <20100817211118.958108012@linux.com>
-Content-Disposition: inline; filename=slub_nolinline
+Content-Disposition: inline; filename=maybe_remove_static
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Compiler folds the debgging functions into the critical paths.
-Avoid that by adding noinline to the functions that check for
-problems.
+The percpu allocator can now handle allocations during early boot.
+So drop the static kmem_cache_cpu array.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Cc: Tejun Heo <tj@kernel.org>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/slub.c |   17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-07-29 18:32:26.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-07-29 18:32:33.000000000 -0500
-@@ -857,7 +857,7 @@ static void setup_object_debug(struct km
- 	init_tracking(s, object);
+--- linux-2.6.orig/mm/slub.c	2010-08-13 10:32:45.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-13 10:32:50.000000000 -0500
+@@ -2062,23 +2062,14 @@ init_kmem_cache_node(struct kmem_cache_n
+ #endif
  }
  
--static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
-+static noinline int alloc_debug_processing(struct kmem_cache *s, struct page *page,
- 					void *object, unsigned long addr)
+-static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+-
+ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
  {
- 	if (!check_slab(s, page))
-@@ -897,8 +897,8 @@ bad:
- 	return 0;
+-	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+-		/*
+-		 * Boot time creation of the kmalloc array. Use static per cpu data
+-		 * since the per cpu allocator is not available yet.
+-		 */
+-		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
+-	else
+-		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
++	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
++			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache));
+ 
+-	if (!s->cpu_slab)
+-		return 0;
++	s->cpu_slab = alloc_percpu(struct kmem_cache_cpu);
+ 
+-	return 1;
++	return s->cpu_slab != NULL;
  }
  
--static int free_debug_processing(struct kmem_cache *s, struct page *page,
--					void *object, unsigned long addr)
-+static noinline int free_debug_processing(struct kmem_cache *s,
-+		 struct page *page, void *object, unsigned long addr)
- {
- 	if (!check_slab(s, page))
- 		goto fail;
+ #ifdef CONFIG_NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
