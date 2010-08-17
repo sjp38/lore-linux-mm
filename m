@@ -1,54 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6EF036B01F2
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 14:50:28 -0400 (EDT)
-Date: Tue, 17 Aug 2010 13:50:29 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q3 20/23] slub: Shared cache to exploit cross cpu caching
- abilities.
-In-Reply-To: <alpine.DEB.2.00.1008171137030.6486@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008171348220.13665@router.home>
-References: <20100804024514.139976032@linux.com> <20100804024535.338543724@linux.com> <alpine.DEB.2.00.1008162246500.26781@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171234130.12188@router.home>
- <alpine.DEB.2.00.1008171137030.6486@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 820006B01F2
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 14:54:41 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id o7HIsdwV006533
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 11:54:39 -0700
+Received: from pxi14 (pxi14.prod.google.com [10.243.27.14])
+	by wpaz17.hot.corp.google.com with ESMTP id o7HIrv4P013466
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 11:54:38 -0700
+Received: by pxi14 with SMTP id 14so3409087pxi.24
+        for <linux-mm@kvack.org>; Tue, 17 Aug 2010 11:54:38 -0700 (PDT)
+Date: Tue, 17 Aug 2010 11:54:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
+In-Reply-To: <alpine.DEB.2.00.1008171346530.13665@router.home>
+Message-ID: <alpine.DEB.2.00.1008171153490.21770@chino.kir.corp.google.com>
+References: <20100804024514.139976032@linux.com> <alpine.DEB.2.00.1008032138160.20049@chino.kir.corp.google.com> <alpine.DEB.2.00.1008041115500.11084@router.home> <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com> <alpine.DEB.2.00.1008051231400.6787@router.home>
+ <alpine.DEB.2.00.1008151627450.27137@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171217440.11915@router.home> <alpine.DEB.2.00.1008171052500.6486@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171346530.13665@router.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@kernel.dk>, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Aug 2010, David Rientjes wrote:
+On Tue, 17 Aug 2010, Christoph Lameter wrote:
 
-> On Tue, 17 Aug 2010, Christoph Lameter wrote:
->
-> > > This explodes on the memset() in slab_alloc() because of __GFP_ZERO on my
-> > > system:
-> >
-> > Well that seems to be because __kmalloc_node returned invalid address. Run
-> > with full debugging please?
-> >
->
-> Lots of data, so I trimmed it down to something reasonable by eliminating
-> reports that were very similar.  (It also looks like some metadata is
-> getting displayed incorrectly such as negative pid's and 10-digit cpu
-> numbers.)
+> > I didn't know if that was a debugging patch for me or if you wanted to
+> > push that as part of your series, I'm not sure if you actually need to
+> > move it to kmem_cache_init() now that slub_state is protected by
+> > slub_lock.  I'm not sure if we want to allocate DMA objects between
+> > kmem_cache_init() and kmem_cache_init_late().
+> 
+> Drivers may allocate dma buffers during initialization.
+> 
 
-Well yes I guess that is the result of large scale corruption that is
-reaching into the debug fields of the object.
-
-> [   15.752467]
-> [   15.752467] INFO: 0xffff880c7e5f3ec0-0xffff880c7e5f3ec7. First byte 0x30 instead of 0xbb
-> [   15.752467] INFO: Allocated in 0xffff88087e4f11e0 age=131909211166235 cpu=2119111312 pid=-30712
-> [   15.752467] INFO: Freed in 0xffff88087e4f13f0 age=131909211165707 cpu=2119111840 pid=-30712
-> [   15.752467] INFO: Slab 0xffffea002bba4d28 objects=51 new=3 fp=0x0007000000000000 flags=0xa00000000000080
-> [   15.752467] INFO: Object 0xffff880c7e5f3eb0 @offset=3760
-> [   15.752467]
-> [   15.752467] Bytes b4 0xffff880c7e5f3ea0:  18 00 00 00 7e 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ....~...ZZZZZZZZ
-> [   15.752467]   Object 0xffff880c7e5f3eb0:  d0 0f 4f 7e 08 88 ff ff 80 10 4f 7e 08 88 ff ff .O~....O~..
-> [   15.752467]  Redzone 0xffff880c7e5f3ec0:  30 11 4f 7e 08 88 ff ff                         0.O~..
-> [   15.752467]  Padding 0xffff880c7e5f3ef8:  00 16 4f 7e 08 88 ff ff                         ..O~..
-
-16 bytes allocated and a pointer array much larger than that is used.
+Ok, I moved the DMA cache creation from kmem_cache_init_late() to 
+kmem_cache_init().  Note: the kasprintf() will need to use GFP_NOWAIT and 
+not GFP_KERNEL now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
