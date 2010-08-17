@@ -1,69 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 709B36B01F0
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 05:59:33 -0400 (EDT)
-Date: Tue, 17 Aug 2010 10:59:18 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 401C56B01F0
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 06:17:11 -0400 (EDT)
+Date: Tue, 17 Aug 2010 11:16:55 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters
-	after pages are placed on the free list
-Message-ID: <20100817095917.GM19797@csn.ul.ie>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-2-git-send-email-mel@csn.ul.ie> <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+	NR_FREE_PAGES when memory is low and kswapd is awake
+Message-ID: <20100817101655.GN19797@csn.ul.ie>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie> <20100816094350.GH19797@csn.ul.ie> <20100816160623.GB15103@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <AANLkTi=wtAAaW4HoU7Oee=gNuM_t1hvf9sAK7RGRJ1AQ@mail.gmail.com>
+In-Reply-To: <20100816160623.GB15103@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 17, 2010 at 11:21:15AM +0900, Minchan Kim wrote:
-> Hi, Mel.
+On Mon, Aug 16, 2010 at 06:06:23PM +0200, Johannes Weiner wrote:
+> [npiggin@suse.de bounces, switched to yahoo address]
 > 
-> On Mon, Aug 16, 2010 at 6:42 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> > When allocating a page, the system uses NR_FREE_PAGES counters to determine
-> > if watermarks would remain intact after the allocation was made. This
-> > check is made without interrupts disabled or the zone lock held and so is
-> > race-prone by nature. Unfortunately, when pages are being freed in batch,
-> > the counters are updated before the pages are added on the list. During this
-> > window, the counters are misleading as the pages do not exist yet. When
-> > under significant pressure on systems with large numbers of CPUs, it's
-> > possible for processes to make progress even though they should have been
-> > stalled. This is particularly problematic if a number of the processes are
-> > using GFP_ATOMIC as the min watermark can be accidentally breached and in
-> > extreme cases, the system can livelock.
-> >
-> > This patch updates the counters after the pages have been added to the
-> > list. This makes the allocator more cautious with respect to preserving
-> > the watermarks and mitigates livelock possibilities.
-> >
+> On Mon, Aug 16, 2010 at 10:43:50AM +0100, Mel Gorman wrote:
+> > On Mon, Aug 16, 2010 at 10:42:12AM +0100, Mel Gorman wrote:
+> > > Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
+> > > it is cheaper than scanning a number of lists. To avoid synchronization
+> > > overhead, counter deltas are maintained on a per-cpu basis and drained both
+> > > periodically and when the delta is above a threshold. On large CPU systems,
+> > > the difference between the estimated and real value of NR_FREE_PAGES can be
+> > > very high. If the system is under both load and low memory, it's possible
+> > > for watermarks to be breached. In extreme cases, the number of free pages
+> > > can drop to 0 leading to the possibility of system livelock.
+> > > 
+> > > This patch introduces zone_nr_free_pages() to take a slightly more accurate
+> > > estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
+> > > and may result in cache line bounces but is expected to be lighter than the
+> > > IPI calls necessary to continually drain the per-cpu counters while kswapd
+> > > is awake.
+> > > 
+> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > 
+> > And the second I sent this, I realised I had sent a slightly old version
+> > that missed a compile-fix :(
+> > 
+> > ==== CUT HERE ====
+> > mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+> > 
+> > Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
+> > it is cheaper than scanning a number of lists. To avoid synchronization
+> > overhead, counter deltas are maintained on a per-cpu basis and drained both
+> > periodically and when the delta is above a threshold. On large CPU systems,
+> > the difference between the estimated and real value of NR_FREE_PAGES can be
+> > very high. If the system is under both load and low memory, it's possible
+> > for watermarks to be breached. In extreme cases, the number of free pages
+> > can drop to 0 leading to the possibility of system livelock.
+> > 
+> > This patch introduces zone_nr_free_pages() to take a slightly more accurate
+> > estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
+> > and may result in cache line bounces but is expected to be lighter than the
+> > IPI calls necessary to continually drain the per-cpu counters while kswapd
+> > is awake.
+> > 
 > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 > 
-> Page free path looks good by your patch.
+> [...]
+> 
+> > --- a/mm/mmzone.c
+> > +++ b/mm/mmzone.c
+> > @@ -87,3 +87,30 @@ int memmap_valid_within(unsigned long pfn,
+> >  	return 1;
+> >  }
+> >  #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
+> > +
+> > +/* Called when a more accurate view of NR_FREE_PAGES is needed */
+> > +unsigned long zone_nr_free_pages(struct zone *zone)
+> > +{
+> > +	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
+> > +
+> > +	/*
+> > +	 * While kswapd is awake, it is considered the zone is under some
+> > +	 * memory pressure. Under pressure, there is a risk that
+> > +	 * er-cpu-counter-drift will allow the min watermark to be breached
+> 
+> Missing `p'.
 > 
 
-Thanks
+D'oh. Fixed
 
-> Now allocation path decrease NR_FREE_PAGES _after_ it remove pages from buddy.
-> It can make that actually we don't have enough pages in buddy but
-> pretend to have enough pages.
-> It could make same situation with free path which is your concern.
-> So I think it can confuse watermark check in extreme case.
+> > +	 * potentially causing a live-lock. While kswapd is awake and
+> > +	 * free pages are low, get a better estimate for free pages
+> > +	 */
+> > +	if (nr_free_pages < zone->percpu_drift_mark &&
+> > +			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
+> > +		int cpu;
+> > +
+> > +		for_each_online_cpu(cpu) {
+> > +			struct per_cpu_pageset *pset;
+> > +
+> > +			pset = per_cpu_ptr(zone->pageset, cpu);
+> > +			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
+> > +		}
+> > +	}
+> > +
+> > +	return nr_free_pages;
+> > +}
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index c2407a4..67a2ed0 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> >  {
+> >  	/* free_pages my go negative - that's OK */
+> >  	long min = mark;
+> > -	long free_pages = zone_page_state(z, NR_FREE_PAGES) - (1 << order) + 1;
+> > +	long free_pages = zone_nr_free_pages(z) - (1 << order) + 1;
+> >  	int o;
+> >  
+> >  	if (alloc_flags & ALLOC_HIGH)
+> > @@ -2413,7 +2413,7 @@ void show_free_areas(void)
+> >  			" all_unreclaimable? %s"
+> >  			"\n",
+> >  			zone->name,
+> > -			K(zone_page_state(zone, NR_FREE_PAGES)),
+> > +			K(zone_nr_free_pages(zone)),
+> >  			K(min_wmark_pages(zone)),
+> >  			K(low_wmark_pages(zone)),
+> >  			K(high_wmark_pages(zone)),
+> > diff --git a/mm/vmstat.c b/mm/vmstat.c
+> > index 7759941..c95a159 100644
+> > --- a/mm/vmstat.c
+> > +++ b/mm/vmstat.c
+> > @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
+> >  		for_each_online_cpu(cpu)
+> >  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+> >  							= threshold;
+> > +
+> > +		zone->percpu_drift_mark = high_wmark_pages(zone) +
+> > +					num_online_cpus() * threshold;
+> >  	}
+> >  }
 > 
-> So don't we need to consider _allocation_ path with conservative?
+> Hm, this one I don't quite get (might be the jetlag, though): we have
+> _at least_ NR_FREE_PAGES free pages, there may just be more lurking in
+> the pcp counters.
 > 
 
-I considered it and it would be desirable. The downside was that the
-paths became more complicated. Take rmqueue_bulk() for example. It could
-start by modifying the counters but there then needs to be a recovery
-path if all the requested pages were not allocated.
+Well, the drift can be either direction because drift can be due to pages
+being either freed or allocated. e.g. it could be something like
 
-It'd be nice to see if these patches on their own were enough to
-alleviate the worst of the per-cpu-counter drift before adding new
-branches to the allocation path.
+NR_FREE_PAGES		CPU 0			CPU 1		Actual Free
+128			-32			 +64		   160
 
-Does that make sense?
+Because CPU 0 was allocating pages while CPU 1 was freeing them but that
+is not what is important here. At any given time, the NR_FREE_PAGES can be
+wrong by as much as
+
+num_online_cpus * (threshold - 1)
+
+As kswapd goes back to sleep when the high watermark is reached, it's important
+that it has actually reached the watermark before sleeping.  Similarly,
+if an allocator is checking the low watermark, it needs an accurate count.
+Hence a more careful accounting for NR_FREE_PAGES should happen when the
+number of free pages is within
+
+high_watermark + (num_online_cpus * (threshold - 1))
+
+Only checking when kswapd is awake still leaves a window between the low
+and min watermark when we could breach the watermark but I'm expecting it
+can only happen for at worst one allocation. After that, kswapd wakes
+and the count becomes accurate again.
+
+> So shouldn't we only collect the pcp deltas in case the high watermark
+> is breached?  Above this point, we should be fine or better, no?
+> 
+
+Is that not what is happening in zone_nr_free_pages with this check?
+
+        /*
+         * While kswapd is awake, it is considered the zone is under some
+         * memory pressure. Under pressure, there is a risk that
+         * per-cpu-counter-drift will allow the min watermark to be breached
+         * potentially causing a live-lock. While kswapd is awake and
+         * free pages are low, get a better estimate for free pages
+         */
+        if (nr_free_pages < zone->percpu_drift_mark &&
+                        !waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
+
+Maybe I'm misunderstanding your question.
 
 -- 
 Mel Gorman
