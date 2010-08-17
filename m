@@ -1,122 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 64D956B01F2
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 01:06:56 -0400 (EDT)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: [PATCH] Export mlock information via smaps
-Date: Tue, 17 Aug 2010 10:39:31 +0530
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1DF6B01F0
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 01:52:47 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o7H5qkW2008366
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:52:46 -0700
+Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
+	by hpaq1.eem.corp.google.com with ESMTP id o7H5qimm023239
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:52:45 -0700
+Received: by pxi5 with SMTP id 5so3953172pxi.0
+        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:52:44 -0700 (PDT)
+Date: Mon, 16 Aug 2010 22:52:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q3 20/23] slub: Shared cache to exploit cross cpu caching
+ abilities.
+In-Reply-To: <20100804024535.338543724@linux.com>
+Message-ID: <alpine.DEB.2.00.1008162246500.26781@chino.kir.corp.google.com>
+References: <20100804024514.139976032@linux.com> <20100804024535.338543724@linux.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201008171039.31070.knikanth@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Currently there is no way to find whether a process has locked its pages in
-memory or not. And which of the memory regions are locked in memory.
+On Tue, 3 Aug 2010, Christoph Lameter wrote:
 
-Add a new field to perms field 'l' to export this information. The informat=
-ion
-exported via maps file is not changed.
+> Strictly a performance enhancement by better tracking of objects
+> that are likely in the lowest cpu caches of processors.
+> 
+> SLAB uses one shared cache per NUMA node or one globally. However, that
+> is not satifactory for contemporary cpus. Those may have multiple
+> independent cpu caches per node. SLAB in these situation treats
+> cache cold objects like cache hot objects.
+> 
+> The shared caches of slub are per physical cpu cache for all cpus using
+> that cache. Shared cache content will not cross physical caches.
+> 
+> The shared cache can be dynamically configured via
+> /sys/kernel/slab/<cache>/shared_queue
+> 
+> The current shared cache state is available via
+> cat /sys/kernel/slab/<cache/<shared_caches>
+> 
+> Shared caches are always allocated in the sizes available in the kmalloc
+> array. Cache sizes are rounded up to the sizes available.
+> 
+> F.e. on my Dell with 8 cpus in 2 packages in which each 2 cpus shared
+> an l2 cache I get:
+> 
+> christoph@:/sys/kernel/slab$ cat kmalloc-64/shared_caches
+> 384 C0,2=66/126 C1,3=126/126 C4,6=126/126 C5,7=66/126
+> christoph@:/sys/kernel/slab$ cat kmalloc-64/per_cpu_caches
+> 617 C0=54/125 C1=37/125 C2=102/125 C3=76/125 C4=81/125 C5=108/125 C6=72/125 C7=87/125
+> 
 
-Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+This explodes on the memset() in slab_alloc() because of __GFP_ZERO on my 
+system:
 
-=2D--
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems=
-/proc.txt
-index a6aca87..c6a9694 100644
-=2D-- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -374,13 +374,18 @@ Swap:                  0 kB
- KernelPageSize:        4 kB
- MMUPageSize:           4 kB
-=20
-=2DThe first  of these lines shows  the same information  as is displayed f=
-or the
-=2Dmapping in /proc/PID/maps.  The remaining lines show  the size of the ma=
-pping,
-=2Dthe amount of the mapping that is currently resident in RAM, the "propor=
-tional
-=2Dset size=E2=80=9D (divide each shared page by the number of processes sh=
-aring it), the
-=2Dnumber of clean and dirty shared pages in the mapping, and the number of=
- clean
-=2Dand dirty private pages in the mapping.  The "Referenced" indicates the =
-amount
-=2Dof memory currently marked as referenced or accessed.
-+The first of these lines shows the same information as is displayed for the
-+mapping in /proc/PID/maps, except for "perms", which includes an additional
-+field to denote whether a mapping is locked in memory or not.
-+
-+ l =3D locked
-+
-+The remaining lines show  the size of the mapping, the amount of the mappi=
-ng
-+that is currently resident in RAM, the "proportional set size=E2=80=9D (di=
-vide each
-+shared page by the number of processes sharing it), the number of clean and
-+dirty shared pages in the mapping, and the number of clean and dirty priva=
-te
-+pages in the mapping.  The "Referenced" indicates the amount of memory cur=
-rently
-+marked as referenced or accessed.
-=20
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index aea1d3f..5f8f344 100644
-=2D-- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -203,7 +203,8 @@ static int do_maps_open(struct inode *inode, struct fil=
-e *file,
- 	return ret;
- }
-=20
-=2Dstatic void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
-+static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma,
-+							int show_lock)
- {
- 	struct mm_struct *mm =3D vma->vm_mm;
- 	struct file *file =3D vma->vm_file;
-@@ -220,13 +221,14 @@ static void show_map_vma(struct seq_file *m, struct v=
-m_area_struct *vma)
- 		pgoff =3D ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
- 	}
-=20
-=2D	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
-+	seq_printf(m, "%08lx-%08lx %c%c%c%c%s %08llx %02x:%02x %lu %n",
- 			vma->vm_start,
- 			vma->vm_end,
- 			flags & VM_READ ? 'r' : '-',
- 			flags & VM_WRITE ? 'w' : '-',
- 			flags & VM_EXEC ? 'x' : '-',
- 			flags & VM_MAYSHARE ? 's' : 'p',
-+			show_lock ? (flags & VM_LOCKED ? "l" : "-") : "",
- 			pgoff,
- 			MAJOR(dev), MINOR(dev), ino, &len);
-=20
-@@ -266,7 +268,7 @@ static int show_map(struct seq_file *m, void *v)
- 	struct proc_maps_private *priv =3D m->private;
- 	struct task_struct *task =3D priv->task;
-=20
-=2D	show_map_vma(m, vma);
-+	show_map_vma(m, vma, 0);
-=20
- 	if (m->count < m->size)  /* vma is copied successfully */
- 		m->version =3D (vma !=3D get_gate_vma(task))? vma->vm_start: 0;
-@@ -392,7 +394,7 @@ static int show_smap(struct seq_file *m, void *v)
- 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
- 		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
-=20
-=2D	show_map_vma(m, vma);
-+	show_map_vma(m, vma, 1);
-=20
- 	seq_printf(m,
- 		   "Size:           %8lu kB\n"
+[    1.922641] BUG: unable to handle kernel paging request at 0000007e7e581f70
+[    1.923625] IP: [<ffffffff811053ee>] slab_alloc+0x549/0x590
+[    1.923625] PGD 0 
+[    1.923625] Oops: 0002 [#1] SMP 
+[    1.923625] last sysfs file: 
+[    1.923625] CPU 12 
+[    1.923625] Modules linked in:
+[    1.923625] 
+[    1.923625] Pid: 1, comm: swapper Not tainted 2.6.35-slubq #1
+[    1.923625] RIP: 0010:[<ffffffff811053ee>]  [<ffffffff811053ee>] slab_alloc+0x549/0x590
+[    1.923625] RSP: 0000:ffff88047e09dd30  EFLAGS: 00010246
+[    1.923625] RAX: 0000000000000000 RBX: ffff88047fc04500 RCX: 0000000000000010
+[    1.923625] RDX: 0000000000000003 RSI: 0000000000000348 RDI: 0000007e7e581f70
+[    1.923625] RBP: ffff88047e09dde0 R08: ffff88048e200000 R09: ffffffff81ad2c70
+[    1.923625] R10: ffff88107e51fd20 R11: 0000000000000000 R12: 0000007e7e581f70
+[    1.923625] R13: 0000000000000001 R14: ffff880c7e54eb28 R15: 00000000000080d0
+[    1.923625] FS:  0000000000000000(0000) GS:ffff880c8e200000(0000) knlGS:0000000000000000
+[    1.923625] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[    1.923625] CR2: 0000007e7e581f70 CR3: 0000000001a04000 CR4: 00000000000006e0
+[    1.923625] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[    1.923625] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[    1.923625] Process swapper (pid: 1, threadinfo ffff88047e09c000, task ffff88107e468000)
+[    1.923625] Stack:
+[    1.923625]  ffff88047e09dd60 ffffffff81162c4d 0000000000000008 ffff88087dd5f870
+[    1.923625] <0> ffff88047e09dfd8 ffffffff81106e14 ffff88047e09dd80 ffff88107e468670
+[    1.923625] <0> ffff88107e468670 ffff88107e468000 ffff88047e09ddd0 ffff88107e468000
+[    1.923625] Call Trace:
+[    1.923625]  [<ffffffff81162c4d>] ? sysfs_find_dirent+0x3f/0x58
+[    1.923625]  [<ffffffff81106e14>] ? alloc_shared_caches+0x10f/0x277
+[    1.923625]  [<ffffffff811060f8>] __kmalloc_node+0x78/0xa3
+[    1.923625]  [<ffffffff81106e14>] alloc_shared_caches+0x10f/0x277
+[    1.923625]  [<ffffffff811065e8>] ? kfree+0x85/0x8d
+[    1.923625]  [<ffffffff81b09661>] slab_sysfs_init+0x96/0x10a
+[    1.923625]  [<ffffffff81b095cb>] ? slab_sysfs_init+0x0/0x10a
+[    1.923625]  [<ffffffff810001f9>] do_one_initcall+0x5e/0x14e
+[    1.923625]  [<ffffffff81aec6bb>] kernel_init+0x178/0x202
+[    1.923625]  [<ffffffff81030954>] kernel_thread_helper+0x4/0x10
+[    1.923625]  [<ffffffff81aec543>] ? kernel_init+0x0/0x202
+[    1.923625]  [<ffffffff81030950>] ? kernel_thread_helper+0x0/0x10
+[    1.923625] Code: 95 78 ff ff ff 4c 89 e6 48 89 df e8 13 f4 ff ff 85 c0 0f 84 44 fb ff ff ff 75 b0 9d 66 45 85 ff 79 3b 48 63 4b 14 31 c0 4c 89 e7 <f3> aa eb 2e ff 75 b0 9d 41 f7 c7 00 02 00 00 75 1e 48 c7 c7 10 
+[    1.923625] RIP  [<ffffffff811053ee>] slab_alloc+0x549/0x590
+[    1.923625]  RSP <ffff88047e09dd30>
+[    1.923625] CR2: 0000007e7e581f70
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
