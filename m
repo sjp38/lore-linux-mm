@@ -1,133 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0826B01F0
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 00:56:46 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id o7H4ujRF011388
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 21:56:45 -0700
-Received: from pvg4 (pvg4.prod.google.com [10.241.210.132])
-	by wpaz33.hot.corp.google.com with ESMTP id o7H4ufkQ028850
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 21:56:43 -0700
-Received: by pvg4 with SMTP id 4so4985958pvg.2
-        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 21:56:41 -0700 (PDT)
-Date: Mon, 16 Aug 2010 21:56:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q3 00/23] SLUB: The Unified slab allocator (V3)
-In-Reply-To: <alpine.DEB.2.00.1008051231400.6787@router.home>
-Message-ID: <alpine.DEB.2.00.1008151627450.27137@chino.kir.corp.google.com>
-References: <20100804024514.139976032@linux.com> <alpine.DEB.2.00.1008032138160.20049@chino.kir.corp.google.com> <alpine.DEB.2.00.1008041115500.11084@router.home> <alpine.DEB.2.00.1008050136340.30889@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1008051231400.6787@router.home>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A316B01F0
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 01:06:53 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: Re: [RFC][PATCH] Per file dirty limit throttling
+Date: Tue, 17 Aug 2010 10:39:23 +0530
+References: <201008160949.51512.knikanth@suse.de> <1281956742.1926.1217.camel@laptop>
+In-Reply-To: <1281956742.1926.1217.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201008171039.23701.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Tejun Heo <tj@kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>, Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Aug 2010, Christoph Lameter wrote:
-
-> > I bisected this to patch 8 but still don't have a bootlog.  I'm assuming
-> > in the meantime that something is kmallocing DMA memory on this machine
-> > prior to kmem_cache_init_late() and get_slab() is returning a NULL
-> > pointer.
+On Monday 16 August 2010 16:35:42 Peter Zijlstra wrote:
+> On Mon, 2010-08-16 at 09:49 +0530, Nikanth Karthikesan wrote:
+> > When the total dirty pages exceed vm_dirty_ratio, the dirtier is made to
+> > do the writeback. But this dirtier may not be the one who took the system
+> > to this state. Instead, if we can track the dirty count per-file, we
+> > could throttle the dirtier of a file, when the file's dirty pages exceed
+> > a certain limit. Even though this dirtier may not be the one who dirtied
+> > the other pages of this file, it is fair to throttle this process, as it
+> > uses that file.
+> >
+> > This patch
+> > 1. Adds dirty page accounting per-file.
+> > 2. Exports the number of pages of this file in cache and no of pages
+> > dirty via proc-fdinfo.
+> > 3. Adds a new tunable, /proc/sys/vm/file_dirty_bytes. When a files dirty
+> > data exceeds this limit, the writeback of that inode is done by the
+> > current dirtier.
+> >
+> > This certainly will affect the throughput of certain heavy-dirtying
+> > workloads, but should help for interactive systems.
 > 
-> There is a kernel option "earlyprintk=..." that allows you to see early
-> boot messages.
+> I'm not really charmed by this.. it adds another random variable to prod
+> at. Nor does it really tell me why you're wanting to do this. We already
+> have per-task invluence on the dirty limits, a task that sporadically
+> dirties pages (your vi) will already end up with a higher dirty limit
+> than a task that only dirties pages (your dd).
 > 
 
-Ok, so this is panicking because of the error handling when trying to 
-create sysfs directories with the same name (in this case, :dt-0000064).  
-I'll look into while this isn't failing gracefully later, but I isolated 
-this to the new code that statically allocates the DMA caches in 
-kmem_cache_init_late().
+Oh, nice.  Per-task limit is an elegant solution, which should help during 
+most of the common cases.
 
-The iteration runs from 0 to SLUB_PAGE_SHIFT; that's actually incorrect 
-since the kmem_cache_node cache occupies the first spot in the 
-kmalloc_caches array and has a size, 64 bytes, equal to a power of two 
-that is duplicated later.  So this patch tries creating two DMA kmalloc 
-caches with 64 byte object size which triggers a BUG_ON() during 
-kmem_cache_release() in the error handling later.
+But I just wonder what happens, when
+1. The dirtier is multiple co-operating processes
+2. Some app like a shell script, that repeatedly calls dd with seek and skip? 
+People do this for data deduplication, sparse skipping etc..
+3. The app dies and comes back again. Like a VM that is rebooted, and 
+continues writing to a disk backed by a file on the host.
 
-The fix is to start the iteration at 1 instead of 0 so that all other 
-caches have their equivalent DMA caches created and the special-case 
-kmem_cache_node cache is excluded (see below).
+Do you think, in those cases this might still be useful?
 
-I'm really curious why nobody else ran into this problem before, 
-especially if they have CONFIG_SLUB_DEBUG enabled so 
-struct kmem_cache_node has the same size.  Perhaps my early bug report 
-caused people not to test the series...
+> > diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> > index b606c2c..4f8bc06 100644
+> > --- a/Documentation/sysctl/vm.txt
+> > +++ b/Documentation/sysctl/vm.txt
+> > @@ -133,6 +133,15 @@ Setting this to zero disables periodic writeback
+> > altogether.
+> >
+> >  ==============================================================
+> >
+> > +file_dirty_bytes
+> > +
+> > +When a files total dirty data exceeds file_dirty_bytes, the current
+> > generator +of dirty data would be made to do the writeback of dirty pages
+> > of that file. +
+> > +0 disables this behaviour.
+> > +
+> > +==============================================================
+> > +
+> >  drop_caches
+> >
+> >  Writing to this will cause the kernel to drop clean caches, dentries and
+> >
+> > diff --git a/fs/read_write.c b/fs/read_write.c
+> > index 74e3658..8881b7d 100644
+> > --- a/fs/read_write.c
+> > +++ b/fs/read_write.c
+> > @@ -16,6 +16,8 @@
+> >  #include <linux/syscalls.h>
+> >  #include <linux/pagemap.h>
+> >  #include <linux/splice.h>
+> > +#include <linux/buffer_head.h>
+> > +#include <linux/writeback.h>
+> >  #include "read_write.h"
+> >
+> >  #include <asm/uaccess.h>
+> > @@ -414,9 +416,19 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char
+> > __user *, buf,
+> >
+> >  	file = fget_light(fd, &fput_needed);
+> >  	if (file) {
+> > +		struct address_space *as = file->f_mapping;
+> > +		unsigned long file_dirty_pages;
+> >  		loff_t pos = file_pos_read(file);
+> > +
+> >  		ret = vfs_write(file, buf, count, &pos);
+> >  		file_pos_write(file, pos);
+> > +		/* Start write-out ? */
+> > +		if (file_dirty_bytes) {
+> > +			file_dirty_pages = file_dirty_bytes / PAGE_SIZE;
+> > +			if (as->nrdirty > file_dirty_pages)
+> > +				write_inode_now(as->host, 0);
+> > +		}
+> > +
+> >  		fput_light(file, fput_needed);
+> >  	}
+> 
+> This seems wrong, wth are you doing it here and not in the generic
+> balance_dirty_pages thing called by set_page_dirty()?
+> 
 
-I'm adding Tejun Heo to the cc because of another thing that may be 
-problematic: alloc_percpu() allocates GFP_KERNEL memory, so when we try to 
-allocate kmem_cache_cpu for a DMA cache we may be returning memory from a 
-node that doesn't include lowmem so there will be no affinity between the 
-struct and the slab.  I'm wondering if it would be better for the percpu 
-allocator to be extended for kzalloc_node(), or vmalloc_node(), when 
-allocating memory after the slab layer is up.
+Yes, this should be moved to the single site, inside generic 
+balance_dirty_pages().
 
-There're a couple more issues with the patch as well:
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 9606ceb..0961f70 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2873,6 +2873,7 @@ static int __do_fault(struct mm_struct *mm, struct
+> > vm_area_struct *vma, struct vm_fault vmf;
+> >  	int ret;
+> >  	int page_mkwrite = 0;
+> > +	unsigned long file_dirty_pages;
+> >
+> >  	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
+> >  	vmf.pgoff = pgoff;
+> > @@ -3024,6 +3025,13 @@ out:
+> >  		/* file_update_time outside page_lock */
+> >  		if (vma->vm_file)
+> >  			file_update_time(vma->vm_file);
+> > +
+> > +		/* Start write-back ? */
+> > +		if (mapping && file_dirty_bytes) {
+> > +			file_dirty_pages = file_dirty_bytes / PAGE_SIZE;
+> > +			if (mapping->nrdirty > file_dirty_pages)
+> > +				write_inode_now(mapping->host, 0);
+> > +		}
+> >  	} else {
+> >  		unlock_page(vmf.page);
+> >  		if (anon)
+> 
+> Idem, replicating that code at every site that can dirty a page is just
+> wrong, hook into the regular set_page_dirty()->balance_dirty_pages()
+> code.
+> 
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index 20890d8..1cabd7f 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -87,6 +87,13 @@ int vm_dirty_ratio = 20;
+> >  unsigned long vm_dirty_bytes;
+> >
+> >  /*
+> > + * When a files total dirty data exceeds file_dirty_bytes, the current
+> > generator + * of dirty data would be made to do the writeback of dirty
+> > pages of that file. + * 0 disables this behaviour.
+> > + */
+> > +unsigned long file_dirty_bytes = 0;
+> 
+> So you're adding a extra cacheline to dirty even though its not used by
+> default, that seems like suckage..
+> 
 
- - the entire iteration in kmem_cache_init_late() needs to be protected by 
-   slub_lock.  The comment in create_kmalloc_cache() should be revised 
-   since you're no longer calling it only with irqs disabled.  
-   kmem_cache_init_late() has irqs enabled and, thus, slab_caches must be 
-   protected.
+Right, this could be avoided. Some f(vm_dirty_ratio) should be used. I just 
+wanted to provide a way to disable this behaviour at run-time.
 
- - a BUG_ON(!name) needs to be added in kmem_cache_init_late() when 
-   kasprintf() returns NULL.  This isn't checked in kmem_cache_open() so 
-   it'll only encounter a problem in the sysfs layer.  Adding a BUG_ON() 
-   will help track those down.
+Thanks
+Nikanth
 
-Otherwise, I didn't find any problem with removing the dynamic DMA cache 
-allocation on my machines.
-
-Please fold this into patch 8.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2552,13 +2552,12 @@ static int __init setup_slub_nomerge(char *str)
- 
- __setup("slub_nomerge", setup_slub_nomerge);
- 
-+/*
-+ * Requires slub_lock if called when irqs are enabled after early boot.
-+ */
- static void create_kmalloc_cache(struct kmem_cache *s,
- 		const char *name, int size, unsigned int flags)
- {
--	/*
--	 * This function is called with IRQs disabled during early-boot on
--	 * single CPU so there's no need to take slub_lock here.
--	 */
- 	if (!kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
- 								flags, NULL))
- 		goto panic;
-@@ -3063,17 +3062,20 @@ void __init kmem_cache_init_late(void)
- #ifdef CONFIG_ZONE_DMA
- 	int i;
- 
--	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
-+	down_write(&slub_lock);
-+	for (i = 1; i < SLUB_PAGE_SHIFT; i++) {
- 		struct kmem_cache *s = &kmalloc_caches[i];
- 
--		if (s && s->size) {
-+		if (s->size) {
- 			char *name = kasprintf(GFP_KERNEL,
- 				 "dma-kmalloc-%d", s->objsize);
- 
-+			BUG_ON(!name);
- 			create_kmalloc_cache(&kmalloc_dma_caches[i],
- 				name, s->objsize, SLAB_CACHE_DMA);
- 		}
- 	}
-+	up_write(&slub_lock);
- #endif
- }
- 
+> > @@ -1126,6 +1137,7 @@ void account_page_dirtied(struct page *page, struct
+> > address_space *mapping) {
+> >  	if (mapping_cap_account_dirty(mapping)) {
+> >  		__inc_zone_page_state(page, NR_FILE_DIRTY);
+> > +		mapping->nrdirty++;
+> >  		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+> >  		task_dirty_inc(current);
+> >  		task_io_account_write(PAGE_CACHE_SIZE);
+> > @@ -1301,6 +1313,7 @@ int clear_page_dirty_for_io(struct page *page)
+> >  		 */
+> >  		if (TestClearPageDirty(page)) {
+> >  			dec_zone_page_state(page, NR_FILE_DIRTY);
+> > +			mapping->nrdirty--;
+> >  			dec_bdi_stat(mapping->backing_dev_info,
+> >  					BDI_RECLAIMABLE);
+> >  			return 1;
+> > diff --git a/mm/truncate.c b/mm/truncate.c
+> > index ba887bf..5846d6a 100644
+> > --- a/mm/truncate.c
+> > +++ b/mm/truncate.c
+> > @@ -75,6 +75,7 @@ void cancel_dirty_page(struct page *page, unsigned int
+> > account_size) struct address_space *mapping = page->mapping;
+> >  		if (mapping && mapping_cap_account_dirty(mapping)) {
+> >  			dec_zone_page_state(page, NR_FILE_DIRTY);
+> > +			mapping->nrdirty--;
+> >  			dec_bdi_stat(mapping->backing_dev_info,
+> >  					BDI_RECLAIMABLE);
+> >  			if (account_size)
+> 
+> Preferably we don't add any extra fields under tree_lock so that we can
+> easily split it up if/when we decide to use a fine-grain locked radix
+> tree.
+> 
+> Also, like mentioned, you just added a whole new cacheline to dirty.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
