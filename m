@@ -1,122 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 97A896B01F0
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:26:08 -0400 (EDT)
-Received: by vws16 with SMTP id 16so4784634vws.14
-        for <linux-mm@kvack.org>; Mon, 16 Aug 2010 19:26:06 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BA8776B01F2
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2010 22:41:35 -0400 (EDT)
+Date: Tue, 17 Aug 2010 11:37:19 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 0/9] Hugepage migration (v2)
+Message-ID: <20100817023719.GC12736@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.DEB.2.00.1008110806070.673@router.home>
+ <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
+ <alpine.DEB.2.00.1008130744550.27542@router.home>
+ <20100816091935.GB3388@spritzera.linux.bs1.fc.nec.co.jp>
+ <alpine.DEB.2.00.1008160707420.11420@router.home>
 MIME-Version: 1.0
-In-Reply-To: <20100816160623.GB15103@cmpxchg.org>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
-	<1281951733-29466-3-git-send-email-mel@csn.ul.ie>
-	<20100816094350.GH19797@csn.ul.ie>
-	<20100816160623.GB15103@cmpxchg.org>
-Date: Tue, 17 Aug 2010 11:26:05 +0900
-Message-ID: <AANLkTikWzkUkkghJcPBcuPsquyw-CodbH5z1DLbOiWP9@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
- NR_FREE_PAGES when memory is low and kswapd is awake
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1008160707420.11420@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 17, 2010 at 1:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> [npiggin@suse.de bounces, switched to yahoo address]
->
-> On Mon, Aug 16, 2010 at 10:43:50AM +0100, Mel Gorman wrote:
+On Mon, Aug 16, 2010 at 07:19:58AM -0500, Christoph Lameter wrote:
+> On Mon, 16 Aug 2010, Naoya Horiguchi wrote:
+> 
+> > In my understanding, in current code "other processors increasing refcount
+> > during migration" can happen both in non-hugepage direct I/O and in hugepage
+> > direct I/O in the similar way (i.e. get_user_pages_fast() from dio_refill_pages()).
+> > So I think there is no specific problem to hugepage.
+> > Or am I missing your point?
+> 
+> With a single page there is the check of the refcount during migration
+> after all the references have been removed (at that point the page is no
+> longer mapped by any process and direct iO can no longer be
+> initiated without a page fault.
 
-<snip>
+The same checking mechanism works for hugeapge.
 
->> + =A0 =A0 =A0* potentially causing a live-lock. While kswapd is awake an=
-d
->> + =A0 =A0 =A0* free pages are low, get a better estimate for free pages
->> + =A0 =A0 =A0*/
->> + =A0 =A0 if (nr_free_pages < zone->percpu_drift_mark &&
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 !waitqueue_active(&zone->zone_=
-pgdat->kswapd_wait)) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 int cpu;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu) {
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct per_cpu_pageset *pset;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pset =3D per_cpu_ptr(zone->pag=
-eset, cpu);
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 nr_free_pages +=3D pset->vm_st=
-at_diff[NR_FREE_PAGES];
+> 
+> I see that you are running try_to_unmap() from unmap_and_move_huge_page().
 
-We need to consider CONFIG_SMP.
+Yes, that's right.
 
->> + =A0 =A0 =A0 =A0 =A0 =A0 }
->> + =A0 =A0 }
->> +
->> + =A0 =A0 return nr_free_pages;
->> +}
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index c2407a4..67a2ed0 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -1462,7 +1462,7 @@ int zone_watermark_ok(struct zone *z, int order, u=
-nsigned long mark,
->> =A0{
->> =A0 =A0 =A0 /* free_pages my go negative - that's OK */
->> =A0 =A0 =A0 long min =3D mark;
->> - =A0 =A0 long free_pages =3D zone_page_state(z, NR_FREE_PAGES) - (1 << =
-order) + 1;
->> + =A0 =A0 long free_pages =3D zone_nr_free_pages(z) - (1 << order) + 1;
->> =A0 =A0 =A0 int o;
->>
->> =A0 =A0 =A0 if (alloc_flags & ALLOC_HIGH)
->> @@ -2413,7 +2413,7 @@ void show_free_areas(void)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 " all_unreclaimable? %s"
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 "\n",
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone->name,
->> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(zone_page_state(zone, NR_FRE=
-E_PAGES)),
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(zone_nr_free_pages(zone)),
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(min_wmark_pages(zone)),
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(low_wmark_pages(zone)),
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 K(high_wmark_pages(zone)),
->> diff --git a/mm/vmstat.c b/mm/vmstat.c
->> index 7759941..c95a159 100644
->> --- a/mm/vmstat.c
->> +++ b/mm/vmstat.c
->> @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 for_each_online_cpu(cpu)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 per_cpu_ptr(zone->pageset, c=
-pu)->stat_threshold
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =3D threshold;
->> +
->> + =A0 =A0 =A0 =A0 =A0 =A0 zone->percpu_drift_mark =3D high_wmark_pages(z=
-one) +
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 num_online_cpus() * threshold;
->> =A0 =A0 =A0 }
->> =A0}
->
-> Hm, this one I don't quite get (might be the jetlag, though): we have
-> _at least_ NR_FREE_PAGES free pages, there may just be more lurking in
+> 
+> I dont see a patch adding huge page support to try_to_unmap though. How
+> does this work?
 
-We can't make sure it.
-As I said previous mail, current allocation path decreases
-NR_FREE_PAGES after it removes pages from buddy list.
+I previously posted "hugetlb, rmap: add reverse mapping for hugepage" patch
+which enables try_to_unmap() to work on hugepage by enabling to handle
+anon_vma and mapcount for hugepage. For details refer to the following commit:
 
-> the pcp counters.
->
-> So shouldn't we only collect the pcp deltas in case the high watermark
-> is breached? =A0Above this point, we should be fine or better, no?
+  commit 0fe6e20b9c4c53b3e97096ee73a0857f60aad43f
+  Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+  Date:   Fri May 28 09:29:16 2010 +0900
+  hugetlb, rmap: add reverse mapping for hugepage
 
-If we don't consider allocation path, I agree on Hannes's opinion.
-At least, we need to listen why Mel determine the threshold. :)
+(Current "Hugepage migration" patchset is based on 2.6.35-rc3.
+So I'll rebase it onto the latest release in the next post.)
 
-
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
