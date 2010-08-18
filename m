@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F03D16B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 03:46:31 -0400 (EDT)
-Date: Wed, 18 Aug 2010 09:46:23 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/9] Hugepage migration (v2)
-Message-ID: <20100818074623.GA6866@basil.fritz.box>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.00.1008110806070.673@router.home>
- <20100812075323.GA6112@spritzera.linux.bs1.fc.nec.co.jp>
- <alpine.DEB.2.00.1008130744550.27542@router.home>
- <20100816091935.GB3388@spritzera.linux.bs1.fc.nec.co.jp>
- <alpine.DEB.2.00.1008160707420.11420@router.home>
- <20100817023719.GC12736@spritzera.linux.bs1.fc.nec.co.jp>
- <20100817081817.GA28969@spritzera.linux.bs1.fc.nec.co.jp>
- <20100817094007.GA18161@basil.fritz.box>
- <20100818073234.GA28961@spritzera.linux.bs1.fc.nec.co.jp>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 4362D6B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 04:12:12 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id o7I8C94N004257
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:09 -0700
+Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
+	by hpaq5.eem.corp.google.com with ESMTP id o7I8C39q004595
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:08 -0700
+Received: by pxi7 with SMTP id 7so185201pxi.11
+        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:02 -0700 (PDT)
+Date: Wed, 18 Aug 2010 01:11:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2 1/2] oom: avoid killing a task if a thread sharing
+ its mm cannot be killed
+In-Reply-To: <20100818125501.90db0770.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008180109450.7425@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1008161810420.26680@chino.kir.corp.google.com> <20100818110746.5c030b34.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008171925250.2823@chino.kir.corp.google.com> <20100818121137.20192c31.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1008172038140.11263@chino.kir.corp.google.com> <20100818125501.90db0770.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100818073234.GA28961@spritzera.linux.bs1.fc.nec.co.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 18, 2010 at 04:32:34PM +0900, Naoya Horiguchi wrote:
-> On Tue, Aug 17, 2010 at 11:40:08AM +0200, Andi Kleen wrote:
-> > > When get_user_pages_fast() is called before try_to_unmap(),
-> > > direct I/O code increments refcount on the target page.
-> > > Because this refcount is not associated to the mapping,
-> > > migration code will find remaining refcounts after try_to_unmap()
-> > > unmaps all mappings. Then refcount check decides migration to fail,
-> > > so direct I/O is continued safely.
+On Wed, 18 Aug 2010, KAMEZAWA Hiroyuki wrote:
+
+> > Is it worth adding
 > > 
-> > This would imply that direct IO can make migration fail arbitarily.
-> > Also not good. Should we add some retries, at least for the soft offline
-> > case?
+> > 	if (unlikely(current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN))
+> > 		atomic_dec(&current->mm->oom_disable_count);
+> > 
+> > to exit_mm() under task_lock() to avoid the O(n^2) select_bad_process() on 
+> > oom?  Or do you think that's too expensive?
+> > 
 > 
-> Soft offline is kicked from userspace, so the retry logic can be implemented
-> in userspace. However, currently we can't distinguish migration failure from
+> Hmm, if this coutner is changed only under down_write(mmap_sem),
+> simple 'int' counter is enough quick. 
+> 
 
-I don't think user space is the right place for retry logic.
-It doesn't really have enough information to make a good decision when
-to reply.
-
-Also I would consider requiring user space to work around kernel problems like
-that bad design.
-
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
+task->mm->oom_disable_count would be protected by task_lock(task) to pin 
+the ->mm, which we already take in exit_mm() to set task->mm to NULL.  We 
+can take task_lock() in the proc handler, oom killer, and exec() paths 
+where we're interested in the accounting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
