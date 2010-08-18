@@ -1,111 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7A4D56B01F2
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 12:26:42 -0400 (EDT)
-Message-Id: <20100818162638.772506283@linux.com>
-Date: Wed, 18 Aug 2010 11:25:44 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 449A06B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 12:32:56 -0400 (EDT)
+Message-Id: <20100818162539.281413425@linux.com>
+Date: Wed, 18 Aug 2010 11:25:39 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q Cleanup2 5/6] slub: Extract hooks for memory checkers from hotpaths
-References: <20100818162539.281413425@linux.com>
-Content-Disposition: inline; filename=slub_extract
+Subject: [S+Q Cleanup2 0/6] SLUB: Cleanups V2
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Extract the code that memory checkers and other verification tools use from
-the hotpaths. Makes it easier to add new ones and reduces the disturbances
-of the hotpaths.
+V1->V2: Fixes as discussed with David.
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+These are just the 6 remaining cleanup patches (after the 2.6.36 merge
+got the other in) in preparation for the Unified patches.
 
----
- mm/slub.c |   49 ++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 38 insertions(+), 11 deletions(-)
+I think it may be best to first try to merge these and make sure that
+they are fine before we go step by step through the unification patches.
+I hope they can go into -next.
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-08-13 10:33:05.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-08-13 10:33:09.000000000 -0500
-@@ -792,6 +792,37 @@ static void trace(struct kmem_cache *s, 
- }
- 
- /*
-+ * Hooks for other subsystems that check memory allocations. In a typical
-+ * production configuration these hooks all should produce no code at all.
-+ */
-+static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
-+{
-+	lockdep_trace_alloc(flags);
-+	might_sleep_if(flags & __GFP_WAIT);
-+
-+	return should_failslab(s->objsize, flags, s->flags);
-+}
-+
-+static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
-+{
-+	kmemcheck_slab_alloc(s, flags, object, s->objsize);
-+	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
-+}
-+
-+static inline void slab_free_hook(struct kmem_cache *s, void *x)
-+{
-+	kmemleak_free_recursive(x, s->flags);
-+}
-+
-+static inline void slab_free_hook_irq(struct kmem_cache *s, void *object)
-+{
-+	kmemcheck_slab_free(s, object, s->objsize);
-+	debug_check_no_locks_freed(object, s->objsize);
-+	if (!(s->flags & SLAB_DEBUG_OBJECTS))
-+		debug_check_no_obj_freed(object, s->objsize);
-+}
-+
-+/*
-  * Tracking of fully allocated slabs for debugging purposes.
-  */
- static void add_full(struct kmem_cache_node *n, struct page *page)
-@@ -1697,10 +1728,7 @@ static __always_inline void *slab_alloc(
- 
- 	gfpflags &= gfp_allowed_mask;
- 
--	lockdep_trace_alloc(gfpflags);
--	might_sleep_if(gfpflags & __GFP_WAIT);
--
--	if (should_failslab(s->objsize, gfpflags, s->flags))
-+	if (!slab_pre_alloc_hook(s, gfpflags))
- 		return NULL;
- 
- 	local_irq_save(flags);
-@@ -1719,8 +1747,7 @@ static __always_inline void *slab_alloc(
- 	if (unlikely(gfpflags & __GFP_ZERO) && object)
- 		memset(object, 0, s->objsize);
- 
--	kmemcheck_slab_alloc(s, gfpflags, object, s->objsize);
--	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, gfpflags);
-+	slab_post_alloc_hook(s, gfpflags, object);
- 
- 	return object;
- }
-@@ -1850,13 +1877,13 @@ static __always_inline void slab_free(st
- 	struct kmem_cache_cpu *c;
- 	unsigned long flags;
- 
--	kmemleak_free_recursive(x, s->flags);
-+	slab_free_hook(s, x);
-+
- 	local_irq_save(flags);
- 	c = __this_cpu_ptr(s->cpu_slab);
--	kmemcheck_slab_free(s, object, s->objsize);
--	debug_check_no_locks_freed(object, s->objsize);
--	if (!(s->flags & SLAB_DEBUG_OBJECTS))
--		debug_check_no_obj_freed(object, s->objsize);
-+
-+	slab_free_hook_irq(s, x);
-+
- 	if (likely(page == c->page && c->node >= 0)) {
- 		set_freepointer(s, object, c->freelist);
- 		c->freelist = object;
+Patch 1
+
+Uninline debug functions in hot paths. There is no point of the compiler
+folding them in because they are typically unused.
+
+Patch 2
+
+Remove dynamic creation of DMA caches and create them statically
+(will be turned dynamic by patch 4 but will then always be preallocated
+on boot and not from the hotpath)
+
+Patch 3
+
+Remove static allocation of kmem_cache_cpu array and rely on the
+percpu allocator to allocate memory for the array on bootup.
+
+Patch 4
+
+Remove static allocation of kmem_cache structure for kmalloc and friends.
+
+Patch 5
+
+Extract hooks for memory checkers.
+
+Patch 6
+
+Move gfpflag masking out of the allocator hotpath
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
