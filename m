@@ -1,73 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 107696B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:09:11 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7IE5M4s018869
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 08:05:22 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7IE94F9088458
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 08:09:04 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7IE92xe006423
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 08:09:04 -0600
-Date: Wed, 18 Aug 2010 19:38:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] Per file dirty limit throttling
-Message-ID: <20100818140856.GE28417@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <201008160949.51512.knikanth@suse.de>
- <201008171039.23701.knikanth@suse.de>
- <1282033475.1926.2093.camel@laptop>
- <201008181452.05047.knikanth@suse.de>
- <1282125536.1926.3675.camel@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F4446B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:15:15 -0400 (EDT)
+Date: Wed, 18 Aug 2010 16:13:08 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [TESTCASE] Clean pages clogging the VM
+Message-ID: <20100818141308.GD1779@cmpxchg.org>
+References: <20100809133000.GB6981@wil.cx> <20100817195001.GA18817@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1282125536.1926.3675.camel@laptop>
+In-Reply-To: <20100817195001.GA18817@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2010-08-18 11:58:56]:
+Hi Matthew,
 
-> On Wed, 2010-08-18 at 14:52 +0530, Nikanth Karthikesan wrote:
-> > On Tuesday 17 August 2010 13:54:35 Peter Zijlstra wrote:
-> > > On Tue, 2010-08-17 at 10:39 +0530, Nikanth Karthikesan wrote:
-> > > > Oh, nice.  Per-task limit is an elegant solution, which should help
-> > > > during most of the common cases.
-> > > >
-> > > > But I just wonder what happens, when
-> > > > 1. The dirtier is multiple co-operating processes
-> > > > 2. Some app like a shell script, that repeatedly calls dd with seek and
-> > > > skip? People do this for data deduplication, sparse skipping etc..
-> > > > 3. The app dies and comes back again. Like a VM that is rebooted, and
-> > > > continues writing to a disk backed by a file on the host.
-> > > >
-> > > > Do you think, in those cases this might still be useful?
-> > > 
-> > > Those cases do indeed defeat the current per-task-limit, however I think
-> > > the solution to that is to limit the amount of writeback done by each
-> > > blocked process.
-> > > 
-> > 
-> > Blocked on what? Sorry, I do not understand.
+On Tue, Aug 17, 2010 at 03:50:01PM -0400, Matthew Wilcox wrote:
 > 
-> balance_dirty_pages(), by limiting the work done there (or actually, the
-> amount of page writeback completions you wait for -- starting IO isn't
-> that expensive), you can also affect the time it takes, and therefore
-> influence the impact.
->
+> No comment on this?  Was it just that I posted it during the VM summit?
 
-There is an ongoing effort to look at per-cgroup dirty limits and I
-honestly think it would be nice to do it at that level first. We need
-it there as a part of the overall I/O controller. As a specialized
-need it could handle your case as well. 
+I have not forgotten about it.  I just have a hard time reproducing
+those extreme stalls you observed.
 
--- 
-	Three Cheers,
-	Balbir
+Running that test on a 2.5GHz machine with 2G of memory gives me
+stalls of up to half a second.  The patchset I am experimenting with
+gets me down to peaks of 70ms, but it needs further work.
+
+Mapped file pages get two rounds on the LRU list, so once the VM
+starts scanning, it has to go through all of them twice and can only
+reclaim them on the second encounter.
+
+At that point, since we scan without making progress, we start waiting
+for IO, which is not happening in this case, so we sit there until a
+timeout expires.
+
+This stupid-waiting can be improved, and I am working on that.  But
+since I can not reproduce your observations, I don't know if this is
+the (sole) source of the problem.  Can I send you patches?
+
+> On Mon, Aug 09, 2010 at 09:30:00AM -0400, Matthew Wilcox wrote:
+> > 
+> > This testcase shows some odd behaviour from the Linux VM.
+> > 
+> > It creates a 1TB sparse file, mmaps it, and randomly reads locations 
+> > in it.  Due to the file being entirely sparse, the VM allocates new pages
+> > and zeroes them.  Initially, it runs very fast, taking on the order of
+> > 2.7 to 4us per page fault.  Eventually, the VM runs out of free pages,
+> > and starts doing huge amounts of work trying to figure out which of
+> > these clean pages to throw away.
+
+This is similar to one of my test cases for:
+
+	6457474 vmscan: detect mapped file pages used only once
+	31c0569 vmscan: drop page_mapping_inuse()
+	dfc8d63 vmscan: factor out page reference checks
+
+because the situation was even worse before (see the series
+description in dfc8d63).  Maybe asking the obvious, but the kernel you
+tested on did include those commits, right?
+
+And just to be sure, I sent you a test-patch to disable the used-once
+detection on IRC the other day.  Did you have time to run it yet?
+Here it is again:
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c7e57c..c757bba 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -584,6 +584,7 @@ static enum page_references page_check_references(struct page *page,
+ 		return PAGEREF_RECLAIM;
+ 
+ 	if (referenced_ptes) {
++		return PAGEREF_ACTIVATE;
+ 		if (PageAnon(page))
+ 			return PAGEREF_ACTIVATE;
+ 		/*
+
+
+> > In my testing with a 6GB machine and 2.9GHz CPU, one in every
+> > 15,000 page faults takes over a second, and one in every 40,000
+> > page faults take over seven seconds!
+> > 
+> > This test-case demonstrates a problem that occurs with a read-mostly 
+> > mmap of a file on very fast media.  I wouldn't like to see a solution
+> > that special-cases zeroed pages.  I think userspace has done its part
+> > to tell the kernel what's it's doing by calling madvise(MADV_RANDOM).
+> > This ought to be enough to hint to the kernel that it should be eagerly
+> > throwing away pages in this VMA.
+
+We can probably do something like the following, but I am not sure
+this is a good fix, either.  How many applications are using
+madvise()?
+
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -495,7 +495,7 @@ int page_referenced_one(struct page *pag
+ 		 * mapping is already gone, the unmap path will have
+ 		 * set PG_referenced or activated the page.
+ 		 */
+-		if (likely(!VM_SequentialReadHint(vma)))
++		if (likely(!(vma->vm_flags & (VM_SEQ_READ|VM_RAND_READ))))
+ 			referenced++;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
