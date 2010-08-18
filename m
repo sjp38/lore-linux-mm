@@ -1,74 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ECE16B01F1
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 20:35:16 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o7I0Z8uU032099
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:35:14 -0700
-Received: from pzk6 (pzk6.prod.google.com [10.243.19.134])
-	by wpaz37.hot.corp.google.com with ESMTP id o7I0Z6QT006211
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:35:07 -0700
-Received: by pzk6 with SMTP id 6so2578147pzk.3
-        for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:35:06 -0700 (PDT)
-Date: Tue, 17 Aug 2010 17:35:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup 6/6] slub: Move gfpflag masking out of the
- hotpath
-In-Reply-To: <20100817211137.816192692@linux.com>
-Message-ID: <alpine.DEB.2.00.1008171734150.21514@chino.kir.corp.google.com>
-References: <20100817211118.958108012@linux.com> <20100817211137.816192692@linux.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id AC3366B01F1
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 22:07:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7I275MU005963
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 18 Aug 2010 11:07:05 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0920545DE53
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:07:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 864A645DE4D
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:07:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 183DC1DB8044
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:07:03 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 720BFE18005
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:07:02 +0900 (JST)
+Date: Wed, 18 Aug 2010 11:02:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: code improvement of check_stack_guard_page
+Message-Id: <20100818110200.ff5b5615.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTinfgXOzbqgrRY4oCGXFtKtEyJO_rvQeeEEeEZz7@mail.gmail.com>
+References: <AANLkTinfgXOzbqgrRY4oCGXFtKtEyJO_rvQeeEEeEZz7@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: jovi zhang <bookjovi@gmail.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, minchan.kim@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Aug 2010, Christoph Lameter wrote:
+On Sun, 15 Aug 2010 13:07:56 +0800
+jovi zhang <bookjovi@gmail.com> wrote:
 
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c	2010-08-13 10:33:09.000000000 -0500
-> +++ linux-2.6/mm/slub.c	2010-08-13 10:33:13.000000000 -0500
-> @@ -797,6 +797,7 @@ static void trace(struct kmem_cache *s, 
+> little code improvement of check_stack_guard_page function.
+> this commit is on top of commit "mm: keep a guard page below a grow-down
+> stack segment" of linus.
+> 
+
+Hmm. difference in binary code finally ?
+
+-Kame
+
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 9b3b73f..643b112 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2768,13 +2768,15 @@ out_release:
 >   */
->  static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
+>  static inline int check_stack_guard_page(struct vm_area_struct *vma,
+> unsigned long address)
 >  {
-> +	flags &= gfp_allowed_mask;
->  	lockdep_trace_alloc(flags);
->  	might_sleep_if(flags & __GFP_WAIT);
->  
-> @@ -805,6 +806,7 @@ static inline int slab_pre_alloc_hook(st
->  
->  static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
->  {
-> +	flags &= gfp_allowed_mask;
->  	kmemcheck_slab_alloc(s, flags, object, s->objsize);
->  	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
->  }
-> @@ -1678,6 +1680,7 @@ new_slab:
->  		goto load_freelist;
->  	}
->  
-> +	gfpflags &= gfp_allowed_mask;
->  	if (gfpflags & __GFP_WAIT)
->  		local_irq_enable();
->  
-
-Couldn't this include the masking of __GFP_ZERO at the beginning of 
-__slab_alloc()?
-
-> @@ -1726,8 +1729,6 @@ static __always_inline void *slab_alloc(
->  	struct kmem_cache_cpu *c;
->  	unsigned long flags;
->  
-> -	gfpflags &= gfp_allowed_mask;
+> -       address &= PAGE_MASK;
+> -       if ((vma->vm_flags & VM_GROWSDOWN) && address == vma->vm_start) {
+> -               address -= PAGE_SIZE;
+> -               if (find_vma(vma->vm_mm, address) != vma)
+> -                       return -ENOMEM;
 > -
->  	if (!slab_pre_alloc_hook(s, gfpflags))
->  		return NULL;
->  
-> 
-> 
+> -               expand_stack(vma, address);
+> +       if (vma->vm_flags & VM_GROWSDOWN) {
+> +               address &= PAGE_MASK;
+> +               if(address == vma->vm_start) {
+> +                       address -= PAGE_SIZE;
+> +                       if (unlikely(find_vma(vma->vm_mm, address) != vma))
+> +                               return -ENOMEM;
+> +
+> +                       expand_stack(vma, address);
+> +               }
+>         }
+>         return 0;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
