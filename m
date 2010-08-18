@@ -1,36 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C966B01F5
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:17:42 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o7ILHcc2029543
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:39 -0700
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by kpbe17.cbf.corp.google.com with ESMTP id o7ILHZkm008096
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:37 -0700
-Received: by pwj6 with SMTP id 6so552265pwj.30
-        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:37 -0700 (PDT)
-Date: Wed, 18 Aug 2010 14:17:34 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id F3BBF6B01F7
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:18:02 -0400 (EDT)
+Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
+	by smtp-out.google.com with ESMTP id o7ILI0x1015177
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:18:00 -0700
+Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
+	by hpaq1.eem.corp.google.com with ESMTP id o7ILHwOI017657
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:59 -0700
+Received: by pxi7 with SMTP id 7so637427pxi.11
+        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:58 -0700 (PDT)
+Date: Wed, 18 Aug 2010 14:17:55 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup2 2/6] slub: remove dynamic dma slab allocation
-In-Reply-To: <20100818162637.055888444@linux.com>
-Message-ID: <alpine.DEB.2.00.1008181417170.28227@chino.kir.corp.google.com>
-References: <20100818162539.281413425@linux.com> <20100818162637.055888444@linux.com>
+Subject: Re: [S+Q Cleanup2 3/6] slub: Remove static kmem_cache_cpu array for
+ boot
+In-Reply-To: <20100818162637.630543318@linux.com>
+Message-ID: <alpine.DEB.2.00.1008181417400.28227@chino.kir.corp.google.com>
+References: <20100818162539.281413425@linux.com> <20100818162637.630543318@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 18 Aug 2010, Christoph Lameter wrote:
 
-> Remove the dynamic dma slab allocation since this causes too many issues with
-> nested locks etc etc. The change avoids passing gfpflags into many functions.
+> The percpu allocator can now handle allocations during early boot.
+> So drop the static kmem_cache_cpu array.
 > 
-> V3->V4:
-> - Create dma caches in kmem_cache_init() instead of kmem_cache_init_late().
-> 
+> Cc: Tejun Heo <tj@kernel.org>
 > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 Acked-by: David Rientjes <rientjes@google.com>
