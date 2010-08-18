@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA456B01F2
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:49:23 -0400 (EDT)
-Date: Wed, 18 Aug 2010 15:46:59 +0100
-From: Chris Webb <chris@arachsys.com>
-Subject: Re: Over-eager swapping
-Message-ID: <20100818144655.GX2370@arachsys.com>
-References: <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
- <20100803042835.GA17377@localhost>
- <20100803214945.GA2326@arachsys.com>
- <20100804022148.GA5922@localhost>
- <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
- <20100804032400.GA14141@localhost>
- <20100804095811.GC2326@arachsys.com>
- <20100804114933.GA13527@localhost>
- <20100804120430.GB23551@arachsys.com>
- <20100818143801.GA9086@localhost>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4EF326B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:54:41 -0400 (EDT)
+Date: Wed, 18 Aug 2010 09:54:36 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q Cleanup 3/6] slub: Remove static kmem_cache_cpu array for
+ boot
+In-Reply-To: <alpine.DEB.2.00.1008171638160.31928@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1008180953420.4025@router.home>
+References: <20100817211118.958108012@linux.com> <20100817211136.091336874@linux.com> <alpine.DEB.2.00.1008171638160.31928@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100818143801.GA9086@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang <fengguang.wu@intel.com> writes:
+On Tue, 17 Aug 2010, David Rientjes wrote:
 
-> Did you enable any NUMA policy? That could start swapping even if
-> there are lots of free pages in some nodes.
+> On Tue, 17 Aug 2010, Christoph Lameter wrote:
+>
+> > Index: linux-2.6/mm/slub.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/slub.c	2010-08-13 10:32:45.000000000 -0500
+> > +++ linux-2.6/mm/slub.c	2010-08-13 10:32:50.000000000 -0500
+> > @@ -2062,23 +2062,14 @@ init_kmem_cache_node(struct kmem_cache_n
+> >  #endif
+> >  }
+> >
+> > -static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
+> > -
+> >  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+> >  {
+> > -	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
+> > -		/*
+> > -		 * Boot time creation of the kmalloc array. Use static per cpu data
+> > -		 * since the per cpu allocator is not available yet.
+> > -		 */
+> > -		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
+> > -	else
+> > -		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
+> > +	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
+> > +			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache));
+>
+> This fails with CONFIG_NODES_SHIFT=10 on x86_64, which means it will fail
+> the ia64 defconfig as well.  struct kmem_cache stores nodemask pointers up
+> to MAX_NUMNODES, which makes the conditional fail.
 
-Hi. Thanks for the follow-up. We haven't done any configuration or tuning of
-NUMA behaviour, but NUMA support is definitely compiled into the kernel:
-
-  # zgrep NUMA /proc/config.gz 
-  CONFIG_NUMA_IRQ_DESC=y
-  CONFIG_NUMA=y
-  CONFIG_K8_NUMA=y
-  CONFIG_X86_64_ACPI_NUMA=y
-  # CONFIG_NUMA_EMU is not set
-  CONFIG_ACPI_NUMA=y
-  # grep -i numa /var/log/dmesg.boot 
-  NUMe: Allocated memnodemap from b000 - 1b540
-  NUMA: Using 20 for the hash shift.
-
-> Are your free pages equally distributed over the nodes? Or limited to
-> some of the nodes? Try this command:
-> 
->         grep MemFree /sys/devices/system/node/node*/meminfo
-
-My worst-case machines current have swap completely turned off to make them
-usable for clients, but I have one machine which is about 3GB into swap with
-8GB of buffers and 3GB free. This shows
-
-  # grep MemFree /sys/devices/system/node/node*/meminfo
-  /sys/devices/system/node/node0/meminfo:Node 0 MemFree:          954500 kB
-  /sys/devices/system/node/node1/meminfo:Node 1 MemFree:         2374528 kB
-
-I could definitely imagine that one of the nodes could have dipped down to
-zero in the past. I'll try enabling swap on one of our machines with the bad
-problem late tonight and repeat the experiment. The node meminfo on this box
-currently looks like
-
-  # grep MemFree /sys/devices/system/node/node*/meminfo
-  /sys/devices/system/node/node0/meminfo:Node 0 MemFree:           82732 kB
-  /sys/devices/system/node/node1/meminfo:Node 1 MemFree:         1723896 kB
-
-Best wishes,
-
-Chris.
+Hmmm... Wrong struct name. This needs to be struct kmem_cache_cpu not
+struct kmem_cache. struct kmem_cache_cpu is sufficiently small.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
