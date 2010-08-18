@@ -1,112 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 10BCF6B01F1
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 20:19:08 -0400 (EDT)
-Date: Wed, 18 Aug 2010 08:18:42 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/9] HWPOISON, hugetlb: move PG_HWPoison bit check
-Message-ID: <20100818001842.GC6928@localhost>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1281432464-14833-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	by kanga.kvack.org (Postfix) with ESMTP id B4E366B01F1
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 20:29:09 -0400 (EDT)
+Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
+	by smtp-out.google.com with ESMTP id o7I0T6hf020263
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:29:06 -0700
+Received: from pxi14 (pxi14.prod.google.com [10.243.27.14])
+	by hpaq2.eem.corp.google.com with ESMTP id o7I0T477006314
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:29:05 -0700
+Received: by pxi14 with SMTP id 14so3225202pxi.38
+        for <linux-mm@kvack.org>; Tue, 17 Aug 2010 17:29:04 -0700 (PDT)
+Date: Tue, 17 Aug 2010 17:28:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q Cleanup 5/6] slub: Extract hooks for memory checkers from
+ hotpaths
+In-Reply-To: <20100817211137.241962968@linux.com>
+Message-ID: <alpine.DEB.2.00.1008171726210.21514@chino.kir.corp.google.com>
+References: <20100817211118.958108012@linux.com> <20100817211137.241962968@linux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1281432464-14833-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 10, 2010 at 05:27:36PM +0800, Naoya Horiguchi wrote:
-> In order to handle metadatum correctly, we should check whether the hugepage
-> we are going to access is HWPOISONed *before* incrementing mapcount,
-> adding the hugepage into pagecache or constructing anon_vma.
-> This patch also adds retry code when there is a race between
-> alloc_huge_page() and memory failure.
+On Tue, 17 Aug 2010, Christoph Lameter wrote:
 
-This duplicates the PageHWPoison() test into 3 places without really
-address any problem. For example, there are still _unavoidable_ races
-between PageHWPoison() and add_to_page_cache().
-
-What's the problem you are trying to resolve here? If there are
-data structure corruption, we may need to do it in some other ways.
-
-Thanks,
-Fengguang
-
-
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-> ---
->  mm/hugetlb.c |   34 +++++++++++++++++++++-------------
->  1 files changed, 21 insertions(+), 13 deletions(-)
-> 
-> diff --git linux-mce-hwpoison/mm/hugetlb.c linux-mce-hwpoison/mm/hugetlb.c
-> index a26c24a..5c77a73 100644
-> --- linux-mce-hwpoison/mm/hugetlb.c
-> +++ linux-mce-hwpoison/mm/hugetlb.c
-> @@ -2490,8 +2490,15 @@ retry:
->  			int err;
->  			struct inode *inode = mapping->host;
+> Index: linux-2.6/mm/slub.c
+> ===================================================================
+> --- linux-2.6.orig/mm/slub.c	2010-08-13 10:33:05.000000000 -0500
+> +++ linux-2.6/mm/slub.c	2010-08-13 10:33:09.000000000 -0500
+> @@ -792,6 +792,37 @@ static void trace(struct kmem_cache *s, 
+>  }
 >  
-> -			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-> +			lock_page(page);
-> +			if (unlikely(PageHWPoison(page))) {
-> +				unlock_page(page);
-> +				goto retry;
-> +			}
-> +			err = add_to_page_cache_locked(page, mapping,
-> +						       idx, GFP_KERNEL);
->  			if (err) {
-> +				unlock_page(page);
->  				put_page(page);
->  				if (err == -EEXIST)
->  					goto retry;
-> @@ -2504,6 +2511,10 @@ retry:
->  			page_dup_rmap(page);
->  		} else {
->  			lock_page(page);
-> +			if (unlikely(PageHWPoison(page))) {
-> +				unlock_page(page);
-> +				goto retry;
-> +			}
->  			if (unlikely(anon_vma_prepare(vma))) {
->  				ret = VM_FAULT_OOM;
->  				goto backout_unlocked;
-> @@ -2511,22 +2522,19 @@ retry:
->  			hugepage_add_new_anon_rmap(page, vma, address);
->  		}
->  	} else {
-> +		/*
-> +		 * If memory error occurs between mmap() and fault, some process
-> +		 * don't have hwpoisoned swap entry for errored virtual address.
-> +		 * So we need to block hugepage fault by PG_hwpoison bit check.
-> +		 */
-> +		if (unlikely(PageHWPoison(page))) {
-> +			ret = VM_FAULT_HWPOISON;
-> +			goto backout_unlocked;
-> +		}
->  		page_dup_rmap(page);
->  	}
+>  /*
+> + * Hooks for other subsystems that check memory allocations. In a typical
+> + * production configuration these hooks all should produce no code at all.
+> + */
+> +static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
+> +{
+> +	lockdep_trace_alloc(flags);
+> +	might_sleep_if(flags & __GFP_WAIT);
+> +
+> +	return should_failslab(s->objsize, flags, s->flags);
+> +}
+> +
+> +static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
+> +{
+> +	kmemcheck_slab_alloc(s, flags, object, s->objsize);
+> +	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
+> +}
+> +
+> +static inline void slab_free_hook(struct kmem_cache *s, void *x)
+> +{
+> +	kmemleak_free_recursive(x, s->flags);
+> +}
+> +
+> +static inline void slab_free_hook_irq(struct kmem_cache *s, void *object)
+> +{
+> +	kmemcheck_slab_free(s, object, s->objsize);
+> +	debug_check_no_locks_freed(object, s->objsize);
+> +	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+> +		debug_check_no_obj_freed(object, s->objsize);
+> +}
+> +
+> +/*
+>   * Tracking of fully allocated slabs for debugging purposes.
+>   */
+>  static void add_full(struct kmem_cache_node *n, struct page *page)
+> @@ -1697,10 +1728,7 @@ static __always_inline void *slab_alloc(
 >  
->  	/*
-> -	 * Since memory error handler replaces pte into hwpoison swap entry
-> -	 * at the time of error handling, a process which reserved but not have
-> -	 * the mapping to the error hugepage does not have hwpoison swap entry.
-> -	 * So we need to block accesses from such a process by checking
-> -	 * PG_hwpoison bit here.
-> -	 */
-> -	if (unlikely(PageHWPoison(page))) {
-> -		ret = VM_FAULT_HWPOISON;
-> -		goto backout_unlocked;
-> -	}
+>  	gfpflags &= gfp_allowed_mask;
+>  
+> -	lockdep_trace_alloc(gfpflags);
+> -	might_sleep_if(gfpflags & __GFP_WAIT);
 > -
-> -	/*
->  	 * If we are going to COW a private mapping later, we examine the
->  	 * pending reservations for this page now. This will ensure that
->  	 * any allocations necessary to record that reservation occur outside
-> -- 
-> 1.7.2.1
+> -	if (should_failslab(s->objsize, gfpflags, s->flags))
+> +	if (!slab_pre_alloc_hook(s, gfpflags))
+
+That's inverted, it should be slab_pre_alloc_hook()?
+
+>  		return NULL;
+>  
+>  	local_irq_save(flags);
+> @@ -1719,8 +1747,7 @@ static __always_inline void *slab_alloc(
+>  	if (unlikely(gfpflags & __GFP_ZERO) && object)
+>  		memset(object, 0, s->objsize);
+>  
+> -	kmemcheck_slab_alloc(s, gfpflags, object, s->objsize);
+> -	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, gfpflags);
+> +	slab_post_alloc_hook(s, gfpflags, object);
+>  
+>  	return object;
+>  }
+> @@ -1850,13 +1877,13 @@ static __always_inline void slab_free(st
+>  	struct kmem_cache_cpu *c;
+>  	unsigned long flags;
+>  
+> -	kmemleak_free_recursive(x, s->flags);
+> +	slab_free_hook(s, x);
+> +
+>  	local_irq_save(flags);
+>  	c = __this_cpu_ptr(s->cpu_slab);
+> -	kmemcheck_slab_free(s, object, s->objsize);
+> -	debug_check_no_locks_freed(object, s->objsize);
+> -	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+> -		debug_check_no_obj_freed(object, s->objsize);
+> +
+> +	slab_free_hook_irq(s, x);
+> +
+>  	if (likely(page == c->page && c->node >= 0)) {
+>  		set_freepointer(s, object, c->freelist);
+>  		c->freelist = object;
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
