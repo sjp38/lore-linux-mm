@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 201E26B01F1
-	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 22:26:04 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7I2Q2VY014246
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 18 Aug 2010 11:26:02 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EC2963A62C2
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:26:00 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B2E441EF084
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:26:00 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 172D31DB8018
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:25:59 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D9B7B1DB8012
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:25:57 +0900 (JST)
-Date: Wed, 18 Aug 2010 11:21:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters after
- pages are placed on the free list
-Message-Id: <20100818112106.3c4e7564.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1281951733-29466-2-git-send-email-mel@csn.ul.ie>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
-	<1281951733-29466-2-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E728A6B01F1
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 22:36:10 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o7I2a8GP001828
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 19:36:08 -0700
+Received: from pwi5 (pwi5.prod.google.com [10.241.219.5])
+	by kpbe12.cbf.corp.google.com with ESMTP id o7I2a6bj018061
+	for <linux-mm@kvack.org>; Tue, 17 Aug 2010 19:36:07 -0700
+Received: by pwi5 with SMTP id 5so140248pwi.26
+        for <linux-mm@kvack.org>; Tue, 17 Aug 2010 19:36:06 -0700 (PDT)
+Date: Tue, 17 Aug 2010 19:36:02 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2 1/2] oom: avoid killing a task if a thread sharing
+ its mm cannot be killed
+In-Reply-To: <20100818110746.5c030b34.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008171925250.2823@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1008161810420.26680@chino.kir.corp.google.com> <20100818110746.5c030b34.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Aug 2010 10:42:11 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, 18 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-> When allocating a page, the system uses NR_FREE_PAGES counters to determine
-> if watermarks would remain intact after the allocation was made. This
-> check is made without interrupts disabled or the zone lock held and so is
-> race-prone by nature. Unfortunately, when pages are being freed in batch,
-> the counters are updated before the pages are added on the list. During this
-> window, the counters are misleading as the pages do not exist yet. When
-> under significant pressure on systems with large numbers of CPUs, it's
-> possible for processes to make progress even though they should have been
-> stalled. This is particularly problematic if a number of the processes are
-> using GFP_ATOMIC as the min watermark can be accidentally breached and in
-> extreme cases, the system can livelock.
+> > The oom killer's goal is to kill a memory-hogging task so that it may
+> > exit, free its memory, and allow the current context to allocate the
+> > memory that triggered it in the first place.  Thus, killing a task is
+> > pointless if other threads sharing its mm cannot be killed because of its
+> > /proc/pid/oom_adj or /proc/pid/oom_score_adj value.
+> > 
+> > This patch checks all user threads on the system to determine whether
+> > oom_badness(p) should return 0 for p, which means it should not be killed.
+> > If a thread shares p's mm and is unkillable, p is considered to be
+> > unkillable as well.
+> > 
+> > Kthreads are not considered toward this rule since they only temporarily
+> > assume a task's mm via use_mm().
+> > 
+> > Signed-off-by: David Rientjes <rientjes@google.com>
 > 
-> This patch updates the counters after the pages have been added to the
-> list. This makes the allocator more cautious with respect to preserving
-> the watermarks and mitigates livelock possibilities.
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Thanks!
+
+> Thank you. BTW, do you have good idea for speed-up ?
+> This code seems terribly slow when a system has many processes.
+> 
+
+I was thinking about adding an "unsinged long oom_kill_disable_count" to 
+struct mm_struct that would atomically increment anytime a task attached 
+to it had a signal->oom_score_adj of OOM_SCORE_ADJ_MIN.
+
+The proc handler when changing /proc/pid/oom_score_adj would inc or dec 
+the counter depending on the new value, and exit_mm() would dec the 
+counter if current->signal->oom_score_adj is OOM_SCORE_ADJ_MIN.
+
+What do you think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
