@@ -1,34 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BF04A6B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:46:25 -0400 (EDT)
-Date: Wed, 18 Aug 2010 10:46:22 -0500 (CDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 907896B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:55:58 -0400 (EDT)
+Date: Wed, 18 Aug 2010 10:55:53 -0500 (CDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q Cleanup 6/6] slub: Move gfpflag masking out of the
- hotpath
-In-Reply-To: <alpine.DEB.2.00.1008171734150.21514@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008180958420.4025@router.home>
-References: <20100817211118.958108012@linux.com> <20100817211137.816192692@linux.com> <alpine.DEB.2.00.1008171734150.21514@chino.kir.corp.google.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+In-Reply-To: <20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008181050230.4025@router.home>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie> <20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Aug 2010, David Rientjes wrote:
+On Wed, 18 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-> > +	gfpflags &= gfp_allowed_mask;
-> >  	if (gfpflags & __GFP_WAIT)
-> >  		local_irq_enable();
-> >
+> BTW, a nitpick.
 >
-> Couldn't this include the masking of __GFP_ZERO at the beginning of
-> __slab_alloc()?
+> > @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
+> >  		for_each_online_cpu(cpu)
+> >  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+> >  							= threshold;
+> > +
+> > +		zone->percpu_drift_mark = high_wmark_pages(zone) +
+> > +					num_online_cpus() * threshold;
+> >  	}
+> >  }
+>
+> This function is now called only at CPU_DEAD. IOW, not called at CPU_UP_PREPARE
 
-We could move it together but then the masking of GFP_ZERO has never done
-anything and AFAICT is there because some people felt unsafe with the
-masking already done nearer to the page alloc functions.
+calculate_threshold() does its calculation based on the number of online
+cpus. Therefore the threshold may change if a cpu is brought down.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
