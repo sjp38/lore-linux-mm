@@ -1,92 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0800D6B01F2
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 15:31:45 -0400 (EDT)
-Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-In-Reply-To: <AANLkTi=WkoxjwZbt6Vd0VhbuA7_k2WM-NUXZnrmzOOPy@mail.gmail.com>
-References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
-	 <AANLkTi=WkoxjwZbt6Vd0VhbuA7_k2WM-NUXZnrmzOOPy@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Wed, 18 Aug 2010 15:31:12 -0400
-Message-ID: <1282159872.8540.96.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0C0E16B01F7
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 15:32:09 -0400 (EDT)
+Date: Wed, 18 Aug 2010 14:32:01 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q3 20/23] slub: Shared cache to exploit cross cpu caching
+ abilities.
+In-Reply-To: <alpine.DEB.2.00.1008171431590.14588@router.home>
+Message-ID: <alpine.DEB.2.00.1008181431100.9566@router.home>
+References: <20100804024514.139976032@linux.com> <20100804024535.338543724@linux.com> <alpine.DEB.2.00.1008162246500.26781@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171234130.12188@router.home> <alpine.DEB.2.00.1008171137030.6486@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1008171348220.13665@router.home> <alpine.DEB.2.00.1008171158530.21770@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171431590.14588@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ram Pai <ram.n.pai@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2010-08-18 at 12:24 -0700, Ram Pai wrote:
->=20
->=20
-> On Wed, Aug 18, 2010 at 12:04 PM, Trond Myklebust
-> <Trond.Myklebust@netapp.com> wrote:
->         From: Trond Myklebust <Trond.Myklebust@netapp.com>
->        =20
->         Allowing kswapd to do GFP_KERNEL memory allocations (or any
->         blocking memory
->         allocations) is wrong and can cause deadlocks in
->         try_to_release_page(), as
->         the filesystem believes it is safe to allocate new memory and
->         block,
->         whereas kswapd is there specifically to clear a low-memory
->         situation...
->        =20
->         Set the gfp_mask to GFP_IOFS instead.
->        =20
->         Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
->         ---
->        =20
->          mm/vmscan.c |    2 +-
->          1 files changed, 1 insertions(+), 1 deletions(-)
->        =20
->        =20
->         diff --git a/mm/vmscan.c b/mm/vmscan.c
->         index ec5ddcc..716dd16 100644
->         --- a/mm/vmscan.c
->         +++ b/mm/vmscan.c
->         @@ -2095,7 +2095,7 @@ static unsigned long
->         balance_pgdat(pg_data_t *pgdat, int order)
->                unsigned long total_scanned;
->                struct reclaim_state *reclaim_state =3D
->         current->reclaim_state;
->                struct scan_control sc =3D {
->         -               .gfp_mask =3D GFP_KERNEL,
->         +               .gfp_mask =3D GFP_IOFS,
->                        .may_unmap =3D 1,
->                        .may_swap =3D 1,
->                        /*
->=20
-> Trond,
->=20
->            Has anyone hit this issue? Or is this based on code
-> inspection? =20
->=20
->            The reason I  ask is we are seeing a problem, similar to
-> the symptom described, on RH based kernel but have not been able to
-> reproduce on 2.6.35.
+On Tue, 17 Aug 2010, Christoph Lameter wrote:
 
-Hi Ram,
+> > >
+> > > > [   15.752467]
+> > > > [   15.752467] INFO: 0xffff880c7e5f3ec0-0xffff880c7e5f3ec7. First byte 0x30 instead of 0xbb
+> > > > [   15.752467] INFO: Allocated in 0xffff88087e4f11e0 age=131909211166235 cpu=2119111312 pid=-30712
+> > > > [   15.752467] INFO: Freed in 0xffff88087e4f13f0 age=131909211165707 cpu=2119111840 pid=-30712
+> > > > [   15.752467] INFO: Slab 0xffffea002bba4d28 objects=51 new=3 fp=0x0007000000000000 flags=0xa00000000000080
+> > > > [   15.752467] INFO: Object 0xffff880c7e5f3eb0 @offset=3760
+> > > > [   15.752467]
+> > > > [   15.752467] Bytes b4 0xffff880c7e5f3ea0:  18 00 00 00 7e 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ....~...ZZZZZZZZ
+> > > > [   15.752467]   Object 0xffff880c7e5f3eb0:  d0 0f 4f 7e 08 88 ff ff 80 10 4f 7e 08 88 ff ff .O~....O~..
+> > > > [   15.752467]  Redzone 0xffff880c7e5f3ec0:  30 11 4f 7e 08 88 ff ff                         0.O~..
+> > > > [   15.752467]  Padding 0xffff880c7e5f3ef8:  00 16 4f 7e 08 88 ff ff                         ..O~..
+> > >
+> > > 16 bytes allocated and a pointer array much larger than that is used.
+> > >
+> >
+> > Since the problem persists with and without CONFIG_SLUB_DEBUG_ON, I'd
+> > speculate that this is a problem with node scalability on my 4-node system
+> > if this boots fine for you.
+>
+> Looking at it. I have a fakenuma setup here that does not trigger it.
+> Guess I need something more real.
 
-I was seeing it on NFS until I put in the following kswapd-specific hack
-into nfs_release_page():
-
-	/* Only do I/O if gfp is a superset of GFP_KERNEL */
-	if (mapping && (gfp & GFP_KERNEL) =3D=3D GFP_KERNEL) {
-		int how =3D FLUSH_SYNC;
-
-		/* Don't let kswapd deadlock waiting for OOM RPC calls */
-		if (current_is_kswapd())
-			how =3D 0;
-		nfs_commit_inode(mapping->host, how);
-	}
-
-Remove the 'if (current_is_kswapd())' line, and run an mmap() write
-intensive workload, and it should hang pretty much every time.
-
-Cheers
-  Trond
+Cannot reproduce it on my real 2 node numa system either.
+Trouble is that results in only one alien cache per cpu caching domain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
