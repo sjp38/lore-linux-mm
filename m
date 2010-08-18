@@ -1,32 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 06CC56B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 07:47:15 -0400 (EDT)
-Message-ID: <20100818114718.67877.qmail@web4201.mail.ogk.yahoo.co.jp>
-Date: Wed, 18 Aug 2010 20:47:15 +0900 (JST)
-From: Round Robinjp <roundrobinjp@yahoo.co.jp>
-Subject: set mem=xxx and then ioremap
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 399646B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 08:49:19 -0400 (EDT)
+Message-ID: <224067.72201.qm@web120305.mail.ne1.yahoo.com>
+Date: Wed, 18 Aug 2010 05:49:16 -0700 (PDT)
+From: Ten Up <tenuppunet@yahoo.com>
+Subject: maximum size that can be allocated by kmalloc and friends
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/alternative; boundary="0-47221208-1282135756=:72201"
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I need to allocate 30M of contiguous memory in my driver.
+I think kmalloc, get_free_pages and friends can allocate 4M at maximum.
+Is there any other API that can allocate more than this?
 
-If I specify mem=xxx and then ioremap the remaining memory,
-and then iounmap it, is that memory returned back to the system?
-
-By the way, is there any limit on the size that can be mapped
-by ioremap?
-
-Thanks
-RR
-
---------------------------------------
-GyaO! - Anime, Dramas, Movies, and Music videos [FREE]
-http://pr.mail.yahoo.co.jp/gyao/
+---
+tenuppunet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
