@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3795B6B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:17:15 -0400 (EDT)
-Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
-	by smtp-out.google.com with ESMTP id o7ILHC35021381
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:12 -0700
-Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
-	by hpaq12.eem.corp.google.com with ESMTP id o7ILHAwV020359
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:11 -0700
-Received: by pwi3 with SMTP id 3so784509pwi.0
-        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:10 -0700 (PDT)
-Date: Wed, 18 Aug 2010 14:17:05 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 15C966B01F5
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:17:42 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id o7ILHcc2029543
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:39 -0700
+Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
+	by kpbe17.cbf.corp.google.com with ESMTP id o7ILHZkm008096
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:37 -0700
+Received: by pwj6 with SMTP id 6so552265pwj.30
+        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:37 -0700 (PDT)
+Date: Wed, 18 Aug 2010 14:17:34 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup2 6/6] slub: Move gfpflag masking out of the
- hotpath
-In-Reply-To: <alpine.DEB.2.00.1008181205260.7416@router.home>
-Message-ID: <alpine.DEB.2.00.1008181416190.28227@chino.kir.corp.google.com>
-References: <20100818162539.281413425@linux.com> <20100818162639.402753062@linux.com> <alpine.DEB.2.00.1008181205260.7416@router.home>
+Subject: Re: [S+Q Cleanup2 2/6] slub: remove dynamic dma slab allocation
+In-Reply-To: <20100818162637.055888444@linux.com>
+Message-ID: <alpine.DEB.2.00.1008181417170.28227@chino.kir.corp.google.com>
+References: <20100818162539.281413425@linux.com> <20100818162637.055888444@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,13 +25,13 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 18 Aug 2010, Christoph Lameter wrote:
 
-> Subject: Missing hunk
+> Remove the dynamic dma slab allocation since this causes too many issues with
+> nested locks etc etc. The change avoids passing gfpflags into many functions.
 > 
-> The following hung was missing from the patch
+> V3->V4:
+> - Create dma caches in kmem_cache_init() instead of kmem_cache_init_late().
 > 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-
-When folded into patch 6/6:
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 Acked-by: David Rientjes <rientjes@google.com>
 
