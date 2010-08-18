@@ -1,38 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BBF6B01F7
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:18:02 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o7ILI0x1015177
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:18:00 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by hpaq1.eem.corp.google.com with ESMTP id o7ILHwOI017657
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:59 -0700
-Received: by pxi7 with SMTP id 7so637427pxi.11
-        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 14:17:58 -0700 (PDT)
-Date: Wed, 18 Aug 2010 14:17:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup2 3/6] slub: Remove static kmem_cache_cpu array for
- boot
-In-Reply-To: <20100818162637.630543318@linux.com>
-Message-ID: <alpine.DEB.2.00.1008181417400.28227@chino.kir.corp.google.com>
-References: <20100818162539.281413425@linux.com> <20100818162637.630543318@linux.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4C9526B01F2
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:26:19 -0400 (EDT)
+Date: Thu, 19 Aug 2010 05:26:13 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [TESTCASE] Clean pages clogging the VM
+Message-ID: <20100818212613.GA7366@localhost>
+References: <20100809133000.GB6981@wil.cx>
+ <20100817195001.GA18817@linux.intel.com>
+ <20100818141308.GD1779@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100818141308.GD1779@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Shaohua <shaohua.li@intel.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Aug 2010, Christoph Lameter wrote:
+> Mapped file pages get two rounds on the LRU list, so once the VM
+> starts scanning, it has to go through all of them twice and can only
+> reclaim them on the second encounter.
 
-> The percpu allocator can now handle allocations during early boot.
-> So drop the static kmem_cache_cpu array.
-> 
-> Cc: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+This can be fixed gracefully based on Rik's refault-distance patch :)
+With the distance info we can safely drop the use-once mapped file pages.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
