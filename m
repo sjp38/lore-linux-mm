@@ -1,49 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0E16B01F7
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 15:32:09 -0400 (EDT)
-Date: Wed, 18 Aug 2010 14:32:01 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q3 20/23] slub: Shared cache to exploit cross cpu caching
- abilities.
-In-Reply-To: <alpine.DEB.2.00.1008171431590.14588@router.home>
-Message-ID: <alpine.DEB.2.00.1008181431100.9566@router.home>
-References: <20100804024514.139976032@linux.com> <20100804024535.338543724@linux.com> <alpine.DEB.2.00.1008162246500.26781@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171234130.12188@router.home> <alpine.DEB.2.00.1008171137030.6486@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1008171348220.13665@router.home> <alpine.DEB.2.00.1008171158530.21770@chino.kir.corp.google.com> <alpine.DEB.2.00.1008171431590.14588@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BE21B6B01F9
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 15:34:56 -0400 (EDT)
+Date: Wed, 18 Aug 2010 15:34:40 -0400
+From: Chris Mason <chris.mason@oracle.com>
+Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
+Message-ID: <20100818193440.GZ5854@think>
+References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282158241.8540.85.camel@heimdal.trondhjem.org>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@kernel.dk>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Aug 2010, Christoph Lameter wrote:
+On Wed, Aug 18, 2010 at 03:04:01PM -0400, Trond Myklebust wrote:
+> From: Trond Myklebust <Trond.Myklebust@netapp.com>
+> 
+> Allowing kswapd to do GFP_KERNEL memory allocations (or any blocking memory
+> allocations) is wrong and can cause deadlocks in try_to_release_page(), as
+> the filesystem believes it is safe to allocate new memory and block,
+> whereas kswapd is there specifically to clear a low-memory situation...
+> 
+> Set the gfp_mask to GFP_IOFS instead.
 
-> > >
-> > > > [   15.752467]
-> > > > [   15.752467] INFO: 0xffff880c7e5f3ec0-0xffff880c7e5f3ec7. First byte 0x30 instead of 0xbb
-> > > > [   15.752467] INFO: Allocated in 0xffff88087e4f11e0 age=131909211166235 cpu=2119111312 pid=-30712
-> > > > [   15.752467] INFO: Freed in 0xffff88087e4f13f0 age=131909211165707 cpu=2119111840 pid=-30712
-> > > > [   15.752467] INFO: Slab 0xffffea002bba4d28 objects=51 new=3 fp=0x0007000000000000 flags=0xa00000000000080
-> > > > [   15.752467] INFO: Object 0xffff880c7e5f3eb0 @offset=3760
-> > > > [   15.752467]
-> > > > [   15.752467] Bytes b4 0xffff880c7e5f3ea0:  18 00 00 00 7e 00 00 00 5a 5a 5a 5a 5a 5a 5a 5a ....~...ZZZZZZZZ
-> > > > [   15.752467]   Object 0xffff880c7e5f3eb0:  d0 0f 4f 7e 08 88 ff ff 80 10 4f 7e 08 88 ff ff .O~....O~..
-> > > > [   15.752467]  Redzone 0xffff880c7e5f3ec0:  30 11 4f 7e 08 88 ff ff                         0.O~..
-> > > > [   15.752467]  Padding 0xffff880c7e5f3ef8:  00 16 4f 7e 08 88 ff ff                         ..O~..
-> > >
-> > > 16 bytes allocated and a pointer array much larger than that is used.
-> > >
-> >
-> > Since the problem persists with and without CONFIG_SLUB_DEBUG_ON, I'd
-> > speculate that this is a problem with node scalability on my 4-node system
-> > if this boots fine for you.
->
-> Looking at it. I have a fakenuma setup here that does not trigger it.
-> Guess I need something more real.
+I always thought releasepage was supposed to do almost zero work.  It
+could release an instantly freeable page but it wasn't supposed to dive
+in and solve world hunger or anything.
 
-Cannot reproduce it on my real 2 node numa system either.
-Trouble is that results in only one alien cache per cpu caching domain.
+I thought the VM would be using writepage for that.
+
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
