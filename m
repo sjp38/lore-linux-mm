@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 342F06B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:48:18 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7IEgB9t008310
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:42:11 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7IEmEq0131572
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:48:14 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7IEmDUG016305
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:48:14 -0300
-Date: Wed, 18 Aug 2010 20:18:09 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] Per file dirty limit throttling
-Message-ID: <20100818144809.GF28417@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <201008160949.51512.knikanth@suse.de>
- <201008171039.23701.knikanth@suse.de>
- <1282033475.1926.2093.camel@laptop>
- <201008181452.05047.knikanth@suse.de>
- <1282125536.1926.3675.camel@laptop>
- <20100818140856.GE28417@balbir.in.ibm.com>
- <1282141518.1926.4048.camel@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA456B01F2
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:49:23 -0400 (EDT)
+Date: Wed, 18 Aug 2010 15:46:59 +0100
+From: Chris Webb <chris@arachsys.com>
+Subject: Re: Over-eager swapping
+Message-ID: <20100818144655.GX2370@arachsys.com>
+References: <AANLkTinjmZOOaq7FgwJOZ=UNGS8x8KtQWZg6nv7fqJMe@mail.gmail.com>
+ <20100803042835.GA17377@localhost>
+ <20100803214945.GA2326@arachsys.com>
+ <20100804022148.GA5922@localhost>
+ <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
+ <20100804032400.GA14141@localhost>
+ <20100804095811.GC2326@arachsys.com>
+ <20100804114933.GA13527@localhost>
+ <20100804120430.GB23551@arachsys.com>
+ <20100818143801.GA9086@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1282141518.1926.4048.camel@laptop>
+In-Reply-To: <20100818143801.GA9086@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-* Peter Zijlstra <peterz@infradead.org> [2010-08-18 16:25:18]:
+Wu Fengguang <fengguang.wu@intel.com> writes:
 
-> On Wed, 2010-08-18 at 19:38 +0530, Balbir Singh wrote:
-> 
-> > There is an ongoing effort to look at per-cgroup dirty limits and I
-> > honestly think it would be nice to do it at that level first. We need
-> > it there as a part of the overall I/O controller. As a specialized
-> > need it could handle your case as well. 
-> 
-> Well, it would be good to isolate that to the cgroup code. Also from
-> what I understood, the plan was to simply mark dirty inodes with a
-> cgroup and use that from writeout_inodes() to write out inodes
-> specifically used by that cgroup.
-> 
-> That is, on top of what Andrea Righi already proposed, which would
-> provide the actual per cgroup dirty limit (although the per-bdi
-> proportions applied to a cgroup limit aren't strictly correct, but that
-> seems to be something you'll have to live with, a per-bdi-per-cgroup
-> proportion would simply be accounting insanity).
-> 
-> That is a totally different thing than what was proposed.
+> Did you enable any NUMA policy? That could start swapping even if
+> there are lots of free pages in some nodes.
 
-Understood, I was indirectly trying to get Nikanth to look at cgroups
-since he was interested in the dirtier (as in task).
+Hi. Thanks for the follow-up. We haven't done any configuration or tuning of
+NUMA behaviour, but NUMA support is definitely compiled into the kernel:
 
+  # zgrep NUMA /proc/config.gz 
+  CONFIG_NUMA_IRQ_DESC=y
+  CONFIG_NUMA=y
+  CONFIG_K8_NUMA=y
+  CONFIG_X86_64_ACPI_NUMA=y
+  # CONFIG_NUMA_EMU is not set
+  CONFIG_ACPI_NUMA=y
+  # grep -i numa /var/log/dmesg.boot 
+  NUMe: Allocated memnodemap from b000 - 1b540
+  NUMA: Using 20 for the hash shift.
 
--- 
-	Three Cheers,
-	Balbir
+> Are your free pages equally distributed over the nodes? Or limited to
+> some of the nodes? Try this command:
+> 
+>         grep MemFree /sys/devices/system/node/node*/meminfo
+
+My worst-case machines current have swap completely turned off to make them
+usable for clients, but I have one machine which is about 3GB into swap with
+8GB of buffers and 3GB free. This shows
+
+  # grep MemFree /sys/devices/system/node/node*/meminfo
+  /sys/devices/system/node/node0/meminfo:Node 0 MemFree:          954500 kB
+  /sys/devices/system/node/node1/meminfo:Node 1 MemFree:         2374528 kB
+
+I could definitely imagine that one of the nodes could have dipped down to
+zero in the past. I'll try enabling swap on one of our machines with the bad
+problem late tonight and repeat the experiment. The node meminfo on this box
+currently looks like
+
+  # grep MemFree /sys/devices/system/node/node*/meminfo
+  /sys/devices/system/node/node0/meminfo:Node 0 MemFree:           82732 kB
+  /sys/devices/system/node/node1/meminfo:Node 1 MemFree:         1723896 kB
+
+Best wishes,
+
+Chris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
