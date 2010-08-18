@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4362D6B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 04:12:12 -0400 (EDT)
-Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
-	by smtp-out.google.com with ESMTP id o7I8C94N004257
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:09 -0700
-Received: from pxi7 (pxi7.prod.google.com [10.243.27.7])
-	by hpaq5.eem.corp.google.com with ESMTP id o7I8C39q004595
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:08 -0700
-Received: by pxi7 with SMTP id 7so185201pxi.11
-        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 01:12:02 -0700 (PDT)
-Date: Wed, 18 Aug 2010 01:11:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 1/2] oom: avoid killing a task if a thread sharing
- its mm cannot be killed
-In-Reply-To: <20100818125501.90db0770.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1008180109450.7425@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008161810420.26680@chino.kir.corp.google.com> <20100818110746.5c030b34.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008171925250.2823@chino.kir.corp.google.com> <20100818121137.20192c31.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.2.00.1008172038140.11263@chino.kir.corp.google.com> <20100818125501.90db0770.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id E36986B01F2
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 04:15:04 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7I8F1L8006473
+	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
+	Wed, 18 Aug 2010 17:15:01 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AB1945DE51
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:15:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DE50E45DE4F
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:15:00 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C6C641DB8038
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:15:00 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ABEA1DB803B
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:14:57 +0900 (JST)
+Message-ID: <4385155269B445AEAF27DC8639A953D7@rainbow>
+From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
+References: <325E0A25FE724BA18190186F058FF37E@rainbow> <20100817111018.GQ19797@csn.ul.ie>
+Subject: Re: compaction: trying to understand the code
+Date: Wed, 18 Aug 2010 17:19:21 +0900
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-15";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Aug 2010, KAMEZAWA Hiroyuki wrote:
-
-> > Is it worth adding
-> > 
-> > 	if (unlikely(current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN))
-> > 		atomic_dec(&current->mm->oom_disable_count);
-> > 
-> > to exit_mm() under task_lock() to avoid the O(n^2) select_bad_process() on 
-> > oom?  Or do you think that's too expensive?
-> > 
+>> In other words, what is it that is supposed to increase the "inactive"
+>> or decrease the "isolated" so that isolated > inactive becomes false?
+>>
 > 
-> Hmm, if this coutner is changed only under down_write(mmap_sem),
-> simple 'int' counter is enough quick. 
-> 
+> See places that update the NR_ISOLATED_ANON and NR_ISOLATED_FILE
+> counters.
 
-task->mm->oom_disable_count would be protected by task_lock(task) to pin 
-the ->mm, which we already take in exit_mm() to set task->mm to NULL.  We 
-can take task_lock() in the proc handler, oom killer, and exec() paths 
-where we're interested in the accounting.
+Many thanks for the advice.
+So far as I understand, to come out of the loop, somehow NR_ISOLATED_*
+has to be decremented. And the code that decrements it is called here:
+mm/migrate.c migrate_pages() -> unmap_and_move()
+
+In compaction.c, migrate_pages() is called only after returning from 
+isolate_migratepages().
+So if it is looping inside isolate_migratepages() function, migrate_pages()
+will not be called and hence there is no chance for NR_ISOLATED_*
+to be decremented. Am I wrong?
+
+Best regards
+Iram
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
