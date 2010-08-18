@@ -1,49 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C9AA06B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:46:29 -0400 (EDT)
-Date: Wed, 18 Aug 2010 09:46:26 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [S+Q Cleanup 2/6] slub: remove dynamic dma slab allocation
-In-Reply-To: <alpine.DEB.2.00.1008171615050.1563@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008180919490.4025@router.home>
-References: <20100817211118.958108012@linux.com> <20100817211135.529953112@linux.com> <alpine.DEB.2.00.1008171615050.1563@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 342F06B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:48:18 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7IEgB9t008310
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:42:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7IEmEq0131572
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 10:48:14 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7IEmDUG016305
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 11:48:14 -0300
+Date: Wed, 18 Aug 2010 20:18:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH] Per file dirty limit throttling
+Message-ID: <20100818144809.GF28417@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <201008160949.51512.knikanth@suse.de>
+ <201008171039.23701.knikanth@suse.de>
+ <1282033475.1926.2093.camel@laptop>
+ <201008181452.05047.knikanth@suse.de>
+ <1282125536.1926.3675.camel@laptop>
+ <20100818140856.GE28417@balbir.in.ibm.com>
+ <1282141518.1926.4048.camel@laptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1282141518.1926.4048.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Nikanth Karthikesan <knikanth@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Aug 2010, David Rientjes wrote:
+* Peter Zijlstra <peterz@infradead.org> [2010-08-18 16:25:18]:
 
-> > -	page = new_slab(kmalloc_caches, gfpflags, node);
-> > +	page = new_slab(kmalloc_caches, GFP_KERNEL, node);
-> >
-> >  	BUG_ON(!page);
-> >  	if (page_to_nid(page) != node) {
->
-> early_kmem_cache_node_alloc() is called when we don't have a
-> gfp_allowed_mask, so this is actually GFP_NOWAIT.
+> On Wed, 2010-08-18 at 19:38 +0530, Balbir Singh wrote:
+> 
+> > There is an ongoing effort to look at per-cgroup dirty limits and I
+> > honestly think it would be nice to do it at that level first. We need
+> > it there as a part of the overall I/O controller. As a specialized
+> > need it could handle your case as well. 
+> 
+> Well, it would be good to isolate that to the cgroup code. Also from
+> what I understood, the plan was to simply mark dirty inodes with a
+> cgroup and use that from writeout_inodes() to write out inodes
+> specifically used by that cgroup.
+> 
+> That is, on top of what Andrea Righi already proposed, which would
+> provide the actual per cgroup dirty limit (although the per-bdi
+> proportions applied to a cgroup limit aren't strictly correct, but that
+> seems to be something you'll have to live with, a per-bdi-per-cgroup
+> proportion would simply be accounting insanity).
+> 
+> That is a totally different thing than what was proposed.
 
-The page allocator will do the conversion anyway but I will update it. We
-cannot do this consistenly for code sections that can be run both at boot
-time and later though.
+Understood, I was indirectly trying to get Nikanth to look at cgroups
+since he was interested in the dirtier (as in task).
 
-> > +	for (i = 1; i < SLUB_PAGE_SHIFT; i++) {
-> > +		struct kmem_cache *s = &kmalloc_caches[i];
-> > +
-> > +		if (s->size) {
-> > +			char *name = kasprintf(GFP_KERNEL,
-> > +				 "dma-kmalloc-%d", s->objsize);
->
-> Same for this, it's GFP_NOWAIT.
->
-> There's no actual bug with either of those since the bits get masked off,
-> but the code is clearer if the allocation context is known to be during
-> early boot.
 
-Ok.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
