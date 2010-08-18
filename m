@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 084996B01F3
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 12:20:52 -0400 (EDT)
-Date: Thu, 19 Aug 2010 00:13:46 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Over-eager swapping
-Message-ID: <20100818161346.GA12932@localhost>
-References: <AANLkTi=wRPXY9BTuoCe_sDCwhnRjmmwtAf_bjDKG3kXQ@mail.gmail.com>
- <20100804032400.GA14141@localhost>
- <20100804095811.GC2326@arachsys.com>
- <20100804114933.GA13527@localhost>
- <20100804120430.GB23551@arachsys.com>
- <20100818143801.GA9086@localhost>
- <20100818144655.GX2370@arachsys.com>
- <20100818152103.GA11268@localhost>
- <1282147034.77481.33.camel@useless.localdomain>
- <20100818155825.GA2370@arachsys.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100818155825.GA2370@arachsys.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0E6816B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 12:26:38 -0400 (EDT)
+Message-Id: <20100818162636.474141291@linux.com>
+Date: Wed, 18 Aug 2010 11:25:40 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: [S+Q Cleanup2 1/6] Slub: Force no inlining of debug functions
+References: <20100818162539.281413425@linux.com>
+Content-Disposition: inline; filename=slub_nolinline
 Sender: owner-linux-mm@kvack.org
-To: Chris Webb <chris@arachsys.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 18, 2010 at 11:58:25PM +0800, Chris Webb wrote:
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> writes:
-> 
-> > On Wed, 2010-08-18 at 23:21 +0800, Wu Fengguang wrote:
-> > > Andi, Christoph and Lee:
-> > > 
-> > > This looks like an "unbalanced NUMA memory usage leading to premature
-> > > swapping" problem.
-> > 
-> > What is the value of the vm.zone_reclaim_mode sysctl?  If it is !0, the
-> > system will go into zone reclaim before allocating off-node pages.
-> > However, it shouldn't "swap" in this case unless (zone_reclaim_mode & 4)
-> > != 0.  And even then, zone reclaim should only reclaim file pages, not
-> > anon.  In theory...
-> 
-> Hi. This is zero on all our machines:
-> 
-> # sysctl vm.zone_reclaim_mode
-> vm.zone_reclaim_mode = 0
+Compiler folds the debgging functions into the critical paths.
+Avoid that by adding noinline to the functions that check for
+problems.
 
-Chris, can you post /proc/vmstat on the problem machines?
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Thanks,
-Fengguang
+---
+ mm/slub.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-07-29 18:32:26.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-07-29 18:32:33.000000000 -0500
+@@ -857,7 +857,7 @@ static void setup_object_debug(struct km
+ 	init_tracking(s, object);
+ }
+ 
+-static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
++static noinline int alloc_debug_processing(struct kmem_cache *s, struct page *page,
+ 					void *object, unsigned long addr)
+ {
+ 	if (!check_slab(s, page))
+@@ -897,8 +897,8 @@ bad:
+ 	return 0;
+ }
+ 
+-static int free_debug_processing(struct kmem_cache *s, struct page *page,
+-					void *object, unsigned long addr)
++static noinline int free_debug_processing(struct kmem_cache *s,
++		 struct page *page, void *object, unsigned long addr)
+ {
+ 	if (!check_slab(s, page))
+ 		goto fail;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
