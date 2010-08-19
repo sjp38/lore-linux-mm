@@ -1,87 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E48A06B01F1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:06:54 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7JD6pmg002296
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 19 Aug 2010 22:06:51 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D913145DE53
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:06:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA2D145DE50
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:06:50 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CA451DB8049
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:06:50 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 30E6B1DB804C
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:06:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: oom: __task_cred() need rcu_read_lock()
-Message-Id: <20100819220338.5FD5.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4D2B26B01F2
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 10:02:00 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so808444pvc.14
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 07:01:58 -0700 (PDT)
+Date: Thu, 19 Aug 2010 23:01:50 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+Message-ID: <20100819140150.GA6805@barrios-desktop>
+References: <1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+ <20100816094350.GH19797@csn.ul.ie>
+ <20100816160623.GB15103@cmpxchg.org>
+ <20100817101655.GN19797@csn.ul.ie>
+ <20100817142040.GA3884@barrios-desktop>
+ <20100818085123.GU19797@csn.ul.ie>
+ <20100818145725.GA5744@barrios-desktop>
+ <20100819080624.GX19797@csn.ul.ie>
+ <AANLkTi=Mtc_7b5WG4nmwbFYg8yijyMSG1AUTzy+QTwoy@mail.gmail.com>
+ <20100819103839.GZ19797@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 19 Aug 2010 22:06:49 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20100819103839.GZ19797@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-dump_tasks() can call __task_cred() safely because we are holding
-tasklist_lock. but rcu lock validator don't have enough knowledge and
-it makes following annoying warning.
+On Thu, Aug 19, 2010 at 11:38:39AM +0100, Mel Gorman wrote:
+> On Thu, Aug 19, 2010 at 07:33:57PM +0900, Minchan Kim wrote:
+> > On Thu, Aug 19, 2010 at 5:06 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> > > On Wed, Aug 18, 2010 at 11:57:26PM +0900, Minchan Kim wrote:
+> > >> On Wed, Aug 18, 2010 at 09:51:23AM +0100, Mel Gorman wrote:
+> > >> > > What's a window low and min wmark? Maybe I can miss your point.
+> > >> > >
+> > >> >
+> > >> > The window is due to the fact kswapd is not awake yet. The window is because
+> > >> > kswapd might not be awake as NR_FREE_PAGES is higher than it should be. The
+> > >> > system is really somewhere between the low and min watermark but we are not
+> > >> > taking the accurate measure until kswapd gets woken up. The first allocation
+> > >> > to notice we are below the low watermark (be it due to vmstat refreshing or
+> > >> > that NR_FREE_PAGES happens to report we are below the watermark regardless of
+> > >> > any drift) wakes kswapd and other callers then take an accurate count hence
+> > >> > "we could breach the watermark but I'm expecting it can only happen for at
+> > >> > worst one allocation".
+> > >>
+> > >> Right. I misunderstood your word.
+> > >> One more question.
+> > >>
+> > >> Could you explain live lock scenario?
+> > >>
+> > >
+> > > Lets say
+> > >
+> > > NR_FREE_PAGES     = 256
+> > > Actual free pages = 8
+> > >
+> > > The PCP lists get refilled in patch taking all 8 pages. Now there are
+> > > zero free pages. Reclaim kicks in but to reclaim any pages it needs to
+> > > clean something but all the pages are on a network-backed filesystem. To
+> > > clean them, it must transmit on the network so it tries to allocate some
+> > > buffers.
+> > >
+> > > The livelock is that to free some memory, an allocation must succeed but
+> > > for an allocation to succeed, some memory must be freed. The system
+> > 
+> > Yes. I understood this as livelock but at last VM will kill victim
+> > process then it can allocate free pages.
+> 
+> And if the exit path for the OOM kill needs to allocate a page what
+> should it do?
 
-Then, this patch change to call rcu_read_lock() explicitly.
+Yeah. It might be livelock. 
+Then, let's rethink the problem. 
+
+The problem is following as. 
+
+1. Process A try to allocate the page
+2. VM try to reclaim the page for process A
+3. VM reclaims some pages but it remains on PCP so can't allocate pages for A
+4. VM try to kill process B
+5. The exit path need new pages for exiting process B
+6. Livelock happens(I am not sure but we need any warning if it really happens at least)
+
+If OOM kills process B successfully, there ins't the livelock problem. 
+So then How about this?
+
+We need to retry allocation of new page with draining free pages just before OOM.
+It doesn't have any overhead before going OOM and it's not frequent. 
+
+This patch can't handle your problem?
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1bb327a..113bea9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2045,6 +2045,15 @@ rebalance:
+         * running out of options and have to consider going OOM
+         */
+        if (!did_some_progress) {
++
++               /* Ther are some free pages on PCP */
++               drain_all_pages();
++               page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
++                               high_zoneidx, alloc_flags &~ALLOCX_NO_WATERMARKS,
++                               preferred_zone, migratetype);
++               if (page)
++                       goto got_pg;
++
+                if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+                        if (oom_killer_disabled)
+                                goto nopage;
 
 
-	===================================================
-	[ INFO: suspicious rcu_dereference_check() usage. ]
-	---------------------------------------------------
-	mm/oom_kill.c:410 invoked rcu_dereference_check() without protection!
 
-	other info that might help us debug this:
-
-	rcu_scheduler_active = 1, debug_locks = 1
-	4 locks held by kworker/1:2/651:
-	 #0:  (events){+.+.+.}, at: [<ffffffff8106aae7>]
-	process_one_work+0x137/0x4a0
-	 #1:  (moom_work){+.+...}, at: [<ffffffff8106aae7>]
-	process_one_work+0x137/0x4a0
-	 #2:  (tasklist_lock){.+.+..}, at: [<ffffffff810fafd4>]
-	out_of_memory+0x164/0x3f0
-	 #3:  (&(&p->alloc_lock)->rlock){+.+...}, at: [<ffffffff810fa48e>]
-	find_lock_task_mm+0x2e/0x70
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/oom_kill.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index c48c5ef..57c05f7 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -371,11 +371,13 @@ static void dump_tasks(const struct mem_cgroup *mem)
- 			continue;
- 		}
- 
-+		rcu_read_lock();
- 		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
- 			task->pid, __task_cred(task)->uid, task->tgid,
- 			task->mm->total_vm, get_mm_rss(task->mm),
- 			task_cpu(task), task->signal->oom_adj,
- 			task->signal->oom_score_adj, task->comm);
-+		rcu_read_unlock();
- 		task_unlock(task);
- 	}
- }
 -- 
-1.6.5.2
-
-
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
