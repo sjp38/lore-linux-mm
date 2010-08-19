@@ -1,319 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 384FC6B0201
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 16:34:35 -0400 (EDT)
-Message-Id: <20100819203437.605042117@linux.com>
-Date: Thu, 19 Aug 2010 15:33:26 -0500
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 126826B0202
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 16:34:36 -0400 (EDT)
+Message-Id: <20100819203439.351107542@linux.com>
+Date: Thu, 19 Aug 2010 15:33:29 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [S+Q Cleanup3 2/6] slub: remove dynamic dma slab allocation
+Subject: [S+Q Cleanup3 5/6] slub: Extract hooks for memory checkers from hotpaths
 References: <20100819203324.549566024@linux.com>
-Content-Disposition: inline; filename=slub_remove_dynamic_dma
+Content-Disposition: inline; filename=slub_extract
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Remove the dynamic dma slab allocation since this causes too many issues with
-nested locks etc etc. The change avoids passing gfpflags into many functions.
+Extract the code that memory checkers and other verification tools use from
+the hotpaths. Makes it easier to add new ones and reduces the disturbances
+of the hotpaths.
 
-V3->V4:
-- Create dma caches in kmem_cache_init() instead of kmem_cache_init_late().
-
-Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
 ---
- mm/slub.c |  150 ++++++++++++++++----------------------------------------------
- 1 file changed, 39 insertions(+), 111 deletions(-)
+ mm/slub.c |   49 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 38 insertions(+), 11 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-08-18 09:40:14.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-08-18 09:41:00.000000000 -0500
-@@ -2064,7 +2064,7 @@ init_kmem_cache_node(struct kmem_cache_n
- 
- static DEFINE_PER_CPU(struct kmem_cache_cpu, kmalloc_percpu[KMALLOC_CACHES]);
- 
--static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
-+static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
- {
- 	if (s < kmalloc_caches + KMALLOC_CACHES && s >= kmalloc_caches)
- 		/*
-@@ -2091,7 +2091,7 @@ static inline int alloc_kmem_cache_cpus(
-  * when allocating for the kmalloc_node_cache. This is used for bootstrapping
-  * memory on a fresh node that has no slab structures yet.
-  */
--static void early_kmem_cache_node_alloc(gfp_t gfpflags, int node)
-+static void early_kmem_cache_node_alloc(int node)
- {
- 	struct page *page;
- 	struct kmem_cache_node *n;
-@@ -2099,7 +2099,7 @@ static void early_kmem_cache_node_alloc(
- 
- 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
- 
--	page = new_slab(kmalloc_caches, gfpflags, node);
-+	page = new_slab(kmalloc_caches, GFP_NOWAIT, node);
- 
- 	BUG_ON(!page);
- 	if (page_to_nid(page) != node) {
-@@ -2143,7 +2143,7 @@ static void free_kmem_cache_nodes(struct
- 	}
+--- linux-2.6.orig/mm/slub.c	2010-08-18 09:56:55.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-18 12:38:26.000000000 -0500
+@@ -792,6 +792,37 @@ static void trace(struct kmem_cache *s, 
  }
  
--static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
-+static int init_kmem_cache_nodes(struct kmem_cache *s)
- {
- 	int node;
- 
-@@ -2151,11 +2151,11 @@ static int init_kmem_cache_nodes(struct 
- 		struct kmem_cache_node *n;
- 
- 		if (slab_state == DOWN) {
--			early_kmem_cache_node_alloc(gfpflags, node);
-+			early_kmem_cache_node_alloc(node);
- 			continue;
- 		}
- 		n = kmem_cache_alloc_node(kmalloc_caches,
--						gfpflags, node);
-+						GFP_KERNEL, node);
- 
- 		if (!n) {
- 			free_kmem_cache_nodes(s);
-@@ -2172,7 +2172,7 @@ static void free_kmem_cache_nodes(struct
- {
- }
- 
--static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
-+static int init_kmem_cache_nodes(struct kmem_cache *s)
- {
- 	init_kmem_cache_node(&s->local_node, s);
- 	return 1;
-@@ -2312,7 +2312,7 @@ static int calculate_sizes(struct kmem_c
- 
- }
- 
--static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
-+static int kmem_cache_open(struct kmem_cache *s,
- 		const char *name, size_t size,
- 		size_t align, unsigned long flags,
- 		void (*ctor)(void *))
-@@ -2348,10 +2348,10 @@ static int kmem_cache_open(struct kmem_c
- #ifdef CONFIG_NUMA
- 	s->remote_node_defrag_ratio = 1000;
- #endif
--	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
-+	if (!init_kmem_cache_nodes(s))
- 		goto error;
- 
--	if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
-+	if (alloc_kmem_cache_cpus(s))
- 		return 1;
- 
- 	free_kmem_cache_nodes(s);
-@@ -2510,6 +2510,10 @@ EXPORT_SYMBOL(kmem_cache_destroy);
- struct kmem_cache kmalloc_caches[KMALLOC_CACHES] __cacheline_aligned;
- EXPORT_SYMBOL(kmalloc_caches);
- 
-+#ifdef CONFIG_ZONE_DMA
-+static struct kmem_cache kmalloc_dma_caches[SLUB_PAGE_SHIFT];
-+#endif
-+
- static int __init setup_slub_min_order(char *str)
- {
- 	get_option(&str, &slub_min_order);
-@@ -2546,116 +2550,26 @@ static int __init setup_slub_nomerge(cha
- 
- __setup("slub_nomerge", setup_slub_nomerge);
- 
--static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
--		const char *name, int size, gfp_t gfp_flags)
-+static void create_kmalloc_cache(struct kmem_cache *s,
-+		const char *name, int size, unsigned int flags)
- {
--	unsigned int flags = 0;
--
--	if (gfp_flags & SLUB_DMA)
--		flags = SLAB_CACHE_DMA;
--
- 	/*
- 	 * This function is called with IRQs disabled during early-boot on
- 	 * single CPU so there's no need to take slub_lock here.
- 	 */
--	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
-+	if (!kmem_cache_open(s, name, size, ARCH_KMALLOC_MINALIGN,
- 								flags, NULL))
- 		goto panic;
- 
- 	list_add(&s->list, &slab_caches);
- 
--	if (sysfs_slab_add(s))
--		goto panic;
--	return s;
-+	if (!sysfs_slab_add(s))
-+		return;
- 
- panic:
- 	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
- }
- 
--#ifdef CONFIG_ZONE_DMA
--static struct kmem_cache *kmalloc_caches_dma[SLUB_PAGE_SHIFT];
--
--static void sysfs_add_func(struct work_struct *w)
--{
--	struct kmem_cache *s;
--
--	down_write(&slub_lock);
--	list_for_each_entry(s, &slab_caches, list) {
--		if (s->flags & __SYSFS_ADD_DEFERRED) {
--			s->flags &= ~__SYSFS_ADD_DEFERRED;
--			sysfs_slab_add(s);
--		}
--	}
--	up_write(&slub_lock);
--}
--
--static DECLARE_WORK(sysfs_add_work, sysfs_add_func);
--
--static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
--{
--	struct kmem_cache *s;
--	char *text;
--	size_t realsize;
--	unsigned long slabflags;
--	int i;
--
--	s = kmalloc_caches_dma[index];
--	if (s)
--		return s;
--
--	/* Dynamically create dma cache */
--	if (flags & __GFP_WAIT)
--		down_write(&slub_lock);
--	else {
--		if (!down_write_trylock(&slub_lock))
--			goto out;
--	}
--
--	if (kmalloc_caches_dma[index])
--		goto unlock_out;
--
--	realsize = kmalloc_caches[index].objsize;
--	text = kasprintf(flags & ~SLUB_DMA, "kmalloc_dma-%d",
--			 (unsigned int)realsize);
--
--	s = NULL;
--	for (i = 0; i < KMALLOC_CACHES; i++)
--		if (!kmalloc_caches[i].size)
--			break;
--
--	BUG_ON(i >= KMALLOC_CACHES);
--	s = kmalloc_caches + i;
--
--	/*
--	 * Must defer sysfs creation to a workqueue because we don't know
--	 * what context we are called from. Before sysfs comes up, we don't
--	 * need to do anything because our sysfs initcall will start by
--	 * adding all existing slabs to sysfs.
--	 */
--	slabflags = SLAB_CACHE_DMA|SLAB_NOTRACK;
--	if (slab_state >= SYSFS)
--		slabflags |= __SYSFS_ADD_DEFERRED;
--
--	if (!text || !kmem_cache_open(s, flags, text,
--			realsize, ARCH_KMALLOC_MINALIGN, slabflags, NULL)) {
--		s->size = 0;
--		kfree(text);
--		goto unlock_out;
--	}
--
--	list_add(&s->list, &slab_caches);
--	kmalloc_caches_dma[index] = s;
--
--	if (slab_state >= SYSFS)
--		schedule_work(&sysfs_add_work);
--
--unlock_out:
--	up_write(&slub_lock);
--out:
--	return kmalloc_caches_dma[index];
--}
--#endif
--
  /*
-  * Conversion table for small slabs sizes / 8 to the index in the
-  * kmalloc array. This is necessary for slabs < 192 since we have non power
-@@ -2708,7 +2622,7 @@ static struct kmem_cache *get_slab(size_
- 
- #ifdef CONFIG_ZONE_DMA
- 	if (unlikely((flags & SLUB_DMA)))
--		return dma_kmalloc_cache(index, flags);
-+		return &kmalloc_dma_caches[index];
- 
- #endif
- 	return &kmalloc_caches[index];
-@@ -3047,7 +2961,7 @@ void __init kmem_cache_init(void)
- 	 * kmem_cache_open for slab_state == DOWN.
- 	 */
- 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
--		sizeof(struct kmem_cache_node), GFP_NOWAIT);
-+		sizeof(struct kmem_cache_node), 0);
- 	kmalloc_caches[0].refcount = -1;
- 	caches++;
- 
-@@ -3060,18 +2974,18 @@ void __init kmem_cache_init(void)
- 	/* Caches that are not of the two-to-the-power-of size */
- 	if (KMALLOC_MIN_SIZE <= 32) {
- 		create_kmalloc_cache(&kmalloc_caches[1],
--				"kmalloc-96", 96, GFP_NOWAIT);
-+				"kmalloc-96", 96, 0);
- 		caches++;
- 	}
- 	if (KMALLOC_MIN_SIZE <= 64) {
- 		create_kmalloc_cache(&kmalloc_caches[2],
--				"kmalloc-192", 192, GFP_NOWAIT);
-+				"kmalloc-192", 192, 0);
- 		caches++;
- 	}
- 
- 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
- 		create_kmalloc_cache(&kmalloc_caches[i],
--			"kmalloc", 1 << i, GFP_NOWAIT);
-+			"kmalloc", 1 << i, 0);
- 		caches++;
- 	}
- 
-@@ -3134,6 +3048,20 @@ void __init kmem_cache_init(void)
- 	kmem_size = sizeof(struct kmem_cache);
- #endif
- 
-+#ifdef CONFIG_ZONE_DMA
-+	for (i = 1; i < SLUB_PAGE_SHIFT; i++) {
-+		struct kmem_cache *s = &kmalloc_caches[i];
++ * Hooks for other subsystems that check memory allocations. In a typical
++ * production configuration these hooks all should produce no code at all.
++ */
++static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
++{
++	lockdep_trace_alloc(flags);
++	might_sleep_if(flags & __GFP_WAIT);
 +
-+		if (s->size) {
-+			char *name = kasprintf(GFP_NOWAIT,
-+				 "dma-kmalloc-%d", s->objsize);
++	return should_failslab(s->objsize, flags, s->flags);
++}
 +
-+			BUG_ON(!name);
-+			create_kmalloc_cache(&kmalloc_dma_caches[i],
-+				name, s->objsize, SLAB_CACHE_DMA);
-+		}
-+	}
-+#endif
- 	printk(KERN_INFO
- 		"SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
- 		" CPUs=%d, Nodes=%d\n",
-@@ -3236,7 +3164,7 @@ struct kmem_cache *kmem_cache_create(con
++static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags, void *object)
++{
++	kmemcheck_slab_alloc(s, flags, object, s->objsize);
++	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, flags);
++}
++
++static inline void slab_free_hook(struct kmem_cache *s, void *x)
++{
++	kmemleak_free_recursive(x, s->flags);
++}
++
++static inline void slab_free_hook_irq(struct kmem_cache *s, void *object)
++{
++	kmemcheck_slab_free(s, object, s->objsize);
++	debug_check_no_locks_freed(object, s->objsize);
++	if (!(s->flags & SLAB_DEBUG_OBJECTS))
++		debug_check_no_obj_freed(object, s->objsize);
++}
++
++/*
+  * Tracking of fully allocated slabs for debugging purposes.
+  */
+ static void add_full(struct kmem_cache_node *n, struct page *page)
+@@ -1697,10 +1728,7 @@ static __always_inline void *slab_alloc(
  
- 	s = kmalloc(kmem_size, GFP_KERNEL);
- 	if (s) {
--		if (kmem_cache_open(s, GFP_KERNEL, name,
-+		if (kmem_cache_open(s, name,
- 				size, align, flags, ctor)) {
- 			list_add(&s->list, &slab_caches);
- 			if (sysfs_slab_add(s)) {
+ 	gfpflags &= gfp_allowed_mask;
+ 
+-	lockdep_trace_alloc(gfpflags);
+-	might_sleep_if(gfpflags & __GFP_WAIT);
+-
+-	if (should_failslab(s->objsize, gfpflags, s->flags))
++	if (slab_pre_alloc_hook(s, gfpflags))
+ 		return NULL;
+ 
+ 	local_irq_save(flags);
+@@ -1719,8 +1747,7 @@ static __always_inline void *slab_alloc(
+ 	if (unlikely(gfpflags & __GFP_ZERO) && object)
+ 		memset(object, 0, s->objsize);
+ 
+-	kmemcheck_slab_alloc(s, gfpflags, object, s->objsize);
+-	kmemleak_alloc_recursive(object, s->objsize, 1, s->flags, gfpflags);
++	slab_post_alloc_hook(s, gfpflags, object);
+ 
+ 	return object;
+ }
+@@ -1850,13 +1877,13 @@ static __always_inline void slab_free(st
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long flags;
+ 
+-	kmemleak_free_recursive(x, s->flags);
++	slab_free_hook(s, x);
++
+ 	local_irq_save(flags);
+ 	c = __this_cpu_ptr(s->cpu_slab);
+-	kmemcheck_slab_free(s, object, s->objsize);
+-	debug_check_no_locks_freed(object, s->objsize);
+-	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+-		debug_check_no_obj_freed(object, s->objsize);
++
++	slab_free_hook_irq(s, x);
++
+ 	if (likely(page == c->page && c->node >= 0)) {
+ 		set_freepointer(s, object, c->freelist);
+ 		c->freelist = object;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
