@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5AB466B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 21:53:47 -0400 (EDT)
-Received: by iwn2 with SMTP id 2so1094447iwn.14
-        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 18:53:45 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 45E826B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 21:57:57 -0400 (EDT)
+Date: Thu, 19 Aug 2010 09:57:52 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 9/9] hugetlb: add corrupted hugepage counter
+Message-ID: <20100819015752.GB5762@localhost>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1281432464-14833-10-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <AANLkTinjKK_jKm04BNmTRwq5uW8ainDcJHOXCGCmOXuD@mail.gmail.com>
-References: <20100818151857.GA6188@barrios-desktop>
-	<20100818172627.7e38969f@varda>
-	<AANLkTimxbJQ7+cJ20x1Bcm=1xk_JgMANUQDFn-pJ9jZa@mail.gmail.com>
-	<AANLkTimqzQHtSo5f41ze4JEznGCjMNTC_1DPgc21JYT0@mail.gmail.com>
-	<AANLkTinjKK_jKm04BNmTRwq5uW8ainDcJHOXCGCmOXuD@mail.gmail.com>
-Date: Thu, 19 Aug 2010 10:53:45 +0900
-Message-ID: <AANLkTingyhdHQUF4zp-xr_RMD1AJTid6m4kMUuOEH9M3@mail.gmail.com>
-Subject: Re: android-kernel memory reclaim x20 boost?
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1281432464-14833-10-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: San Mehat <san@google.com>
-Cc: =?ISO-8859-1?Q?Arve_Hj=F8nnev=E5g?= <arve@android.com>, =?ISO-8859-1?Q?Alejandro_Riveira_Fern=E1ndez?= <ariveira@gmail.com>, swetland@google.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 10:04 AM, San Mehat <san@google.com> wrote:
-> On Wed, Aug 18, 2010 at 6:01 PM, Arve Hj=F8nnev=E5g <arve@android.com> wr=
-ote:
->> On Wed, Aug 18, 2010 at 5:54 PM, Minchan Kim <minchan.kim@gmail.com> wro=
-te:
->>> On Thu, Aug 19, 2010 at 12:26 AM, Alejandro Riveira Fern=E1ndez
->>> <ariveira@gmail.com> wrote:
->>>> El Thu, 19 Aug 2010 00:18:57 +0900
->>>> Minchan Kim <minchan.kim@gmail.com> escribi=F3:
->>>>
->>>>> Hello Android forks,
->>>> [ ... ]
->>>>>
->>>>> I saw the advertisement phrase in this[1].
->>>>>
->>>>> "Kernel Memory Management Boost: Improved memory reclaim by up to 20x=
-,
->>>>> which results in faster app switching and smoother performance
->>>>> on memory-constrained devices."
->>>>>
->>>>> But I can't find any code for it in android kernel git tree.
->>>>
->>>> =A0Maybe the enhancements are on the Dalvik VM (shooting in the dark h=
-ere)
->>>
->>> Thanks.
->>> Android guys! Could you confirm this?
->>>
->>
->> It is more likely referring to this change:
->>
->
-> There are other changes after the one mentioned that remove the
-> requirement for CONFIG_PROFILING
-> (and the subsequent task_struct leak that was caused by it)
->
-> -san
+> +void increment_corrupted_huge_page(struct page *page);
+> +void decrement_corrupted_huge_page(struct page *page);
 
-It seems to be not a issue of mainline but only one of android lowmemkiller=
-.
-Thanks for the information, Android forks.
+nitpick: increment/decrement are not verbs.
+
+> +void increment_corrupted_huge_page(struct page *hpage)
+> +{
+> +	struct hstate *h = page_hstate(hpage);
+> +	spin_lock(&hugetlb_lock);
+> +	h->corrupted_huge_pages++;
+> +	spin_unlock(&hugetlb_lock);
+> +}
+> +
+> +void decrement_corrupted_huge_page(struct page *hpage)
+> +{
+> +	struct hstate *h = page_hstate(hpage);
+> +	spin_lock(&hugetlb_lock);
+> +	BUG_ON(!h->corrupted_huge_pages);
+
+There is no point to have BUG_ON() here:
+
+/*
+ * Don't use BUG() or BUG_ON() unless there's really no way out; one
+ * example might be detecting data structure corruption in the middle
+ * of an operation that can't be backed out of.  If the (sub)system
+ * can somehow continue operating, perhaps with reduced functionality,
+ * it's probably not BUG-worthy.
+ *
+ * If you're tempted to BUG(), think again:  is completely giving up
+ * really the *only* solution?  There are usually better options, where
+ * users don't need to reboot ASAP and can mostly shut down cleanly.
+ */
 
 
---=20
-Kind regards,
-Minchan Kim
+And there is a race case that (corrupted_huge_pages==0)!
+Suppose the user space calls unpoison_memory() on a good pfn, and the page
+happen to be hwpoisoned between lock_page() and TestClearPageHWPoison(),
+corrupted_huge_pages will go negative.
+
+Thanks,
+Fengguang
+
+> +	h->corrupted_huge_pages--;
+> +	spin_unlock(&hugetlb_lock);
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
