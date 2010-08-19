@@ -1,45 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 968DA6B02C6
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 15:03:34 -0400 (EDT)
-Date: Thu, 19 Aug 2010 14:03:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: Over-eager swapping
-In-Reply-To: <20100819102055.GK2370@arachsys.com>
-Message-ID: <alpine.DEB.2.00.1008191402050.1839@router.home>
-References: <20100804032400.GA14141@localhost> <20100804095811.GC2326@arachsys.com> <20100804114933.GA13527@localhost> <20100804120430.GB23551@arachsys.com> <20100818143801.GA9086@localhost> <20100818144655.GX2370@arachsys.com> <20100818152103.GA11268@localhost>
- <1282147034.77481.33.camel@useless.localdomain> <20100818155825.GA2370@arachsys.com> <alpine.DEB.2.00.1008181112510.6294@router.home> <20100819102055.GK2370@arachsys.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id AC4396B02C7
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 15:16:12 -0400 (EDT)
+Date: Thu, 19 Aug 2010 15:16:18 -0400
+From: Jeff Layton <jlayton@redhat.com>
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+Message-ID: <20100819151618.5f769dc9@tlielax.poochiereds.net>
+In-Reply-To: <1282229905.6199.19.camel@heimdal.trondhjem.org>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+	<20100819143710.GA4752@infradead.org>
+	<1282229905.6199.19.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Webb <chris@arachsys.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Christoph Hellwig <hch@infradead.org>, fengguang.wu@gmail.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010, Chris Webb wrote:
+On Thu, 19 Aug 2010 10:58:25 -0400
+Trond Myklebust <trond.myklebust@fys.uio.no> wrote:
 
-> I tried this on a handful of the problem hosts before re-adding their swap.
-> One of them now runs without dipping into swap. The other three I tried had
-> the same behaviour of sitting at zero swap usage for a while, before
-> suddenly spiralling up with %wait going through the roof. I had to swapoff
-> on them to bring them back into a sane state. So it looks like it helps a
-> bit, but doesn't cure the problem.
->
-> I could definitely believe an explanation that we're swapping in preference
-> to allocating remote zone pages somehow, given the imbalance in free memory
-> between the nodes which we saw. However, I read the documentation for
-> vm.zone_reclaim_mode, which suggests to me that when it was set to zero,
-> pages from remote zones should be allocated automatically in preference to
-> swap given that zone_reclaim_mode & 4 == 0?
+> On Thu, 2010-08-19 at 10:37 -0400, Christoph Hellwig wrote:
+> > On Thu, Aug 19, 2010 at 10:15:25AM -0400, Jeff Layton wrote:
+> > > I'm looking at backporting some upstream changes to earlier kernels,
+> > > and ran across something I don't quite understand...
+> > > 
+> > > In nfs_commit_unstable_pages, we set the flags to FLUSH_SYNC. We then
+> > > zero out the flags if wbc->nonblocking or wbc->for_background is set.
+> > > 
+> > > Shouldn't we also clear it out if wbc->sync_mode == WB_SYNC_NONE ?
+> > > WB_SYNC_NONE means "don't wait on anything", so shouldn't that include
+> > > not waiting on the COMMIT to complete?
+> > 
+> > I've been trying to figure out what the nonblocking flag is supposed
+> > to mean for a while now.
+> > 
+> > It basically disappeared in commit 0d99519efef15fd0cf84a849492c7b1deee1e4b7
+> > 
+> > 	"writeback: remove unused nonblocking and congestion checks"
+> > 
+> > from Wu.  What's left these days is a couple of places in local copies
+> > of write_cache_pages (afs, cifs), and a couple of checks in random
+> > writepages instances (afs, block_write_full_page, ceph, nfs, reiserfs, xfs)
+> > and the use in nfs_write_inode.  It's only actually set for memory
+> > migration and pageout, that is VM writeback.
+> > 
+> > To me it really doesn't make much sense, but maybe someone has a better
+> > idea what it is for.
+> > 
+> > > +	if (wbc->nonblocking || wbc->for_background ||
+> > > +	    wbc->sync_mode == WB_SYNC_NONE)
+> > 
+> > You could remove the nonblocking and for_background checks as
+> > these impliy WB_SYNC_NONE.
+> 
+> To me that sounds fine. I've also been trying to wrap my head around the
+> differences between 'nonblocking', 'for_background', 'for_reclaim' and
+> 'for_kupdate' and how the filesystem is supposed to treat them.
+> 
+> Aside from the above, I've used 'for_reclaim', 'for_kupdate' and
+> 'for_background' in order to adjust the RPC request's queuing priority
+> (high in the case of 'for_reclaim' and low for the other two).
+> 
 
-If zone reclaim is off then pages from other nodes will be allocated if a
-node is filled up with page cache.
+Here's a lightly tested patch that turns the check for the two flags
+into a check for WB_SYNC_NONE. It seems to do the right thing, but I
+don't have a clear testcase for it. Does this look reasonable?
 
-zone reclaim typically only evicts clean page cache pages in order to keep
-the additional overhead down. Enabling swapping allows a more aggressive
-form of recovering memory in preference of going off line.
+------------------[snip]------------------------
 
-The VM should work fine even without zone reclaim.
+NFS: don't use FLUSH_SYNC on WB_SYNC_NONE COMMIT calls
+
+WB_SYNC_NONE is supposed to mean "don't wait on anything". That should
+also include not waiting for COMMIT calls to complete.
+
+WB_SYNC_NONE is also implied when wbc->nonblocking or
+wbc->for_background are set, so we can replace those checks in
+nfs_commit_unstable_pages with a check for WB_SYNC_NONE.
+
+Signed-off-by: Jeff Layton <jlayton@redhat.com>
+---
+ fs/nfs/write.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index 874972d..35bd7d0 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -1436,12 +1436,12 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
+ 	/* Don't commit yet if this is a non-blocking flush and there are
+ 	 * lots of outstanding writes for this mapping.
+ 	 */
+-	if (wbc->sync_mode == WB_SYNC_NONE &&
+-	    nfsi->ncommit <= (nfsi->npages >> 1))
+-		goto out_mark_dirty;
+-
+-	if (wbc->nonblocking || wbc->for_background)
++	if (wbc->sync_mode == WB_SYNC_NONE) {
++		if (nfsi->ncommit <= (nfsi->npages >> 1))
++			goto out_mark_dirty;
+ 		flags = 0;
++	}
++
+ 	ret = nfs_commit_inode(inode, flags);
+ 	if (ret >= 0) {
+ 		if (wbc->sync_mode == WB_SYNC_NONE) {
+
+-- 
+1.5.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
