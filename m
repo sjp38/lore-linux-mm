@@ -1,24 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 3E55E6B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 09:06:03 -0400 (EDT)
-Message-ID: <412190.73886.qm@web120303.mail.ne1.yahoo.com>
-Date: Wed, 18 Aug 2010 06:05:58 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 75C6D6B02BF
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 12:51:09 -0400 (EDT)
+Message-ID: <558000.85152.qm@web120308.mail.ne1.yahoo.com>
+Date: Thu, 19 Aug 2010 09:51:23 -0700 (PDT)
 From: Ten Up <tenuppunet@yahoo.com>
-Subject: min_free_kbytes: how does it work
+Subject: allocating very big contiguous memory
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="0-1838486885-1282136758=:73886"
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I came to know that min_free_kbytes can be used to
-ensure the availability of contiguous memory.
-I want to know how actually it works?
-Particularly why is this memory not fragmented?
-
-----
-tenuppunet
+I need to allocate 30M of contiguous memory in my driver.
+I think kmalloc, get_free_pages and friends can allocate 4M at maximum.
+Is there any other API that can allocate more than this?
 
 
 
