@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1029C6B01F2
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 05:18:21 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7J9IJSZ004351
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 19 Aug 2010 18:18:19 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F36D45DE57
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 18:18:19 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F310345DE4E
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 18:18:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DE0F91DB803C
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 18:18:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EB8B1DB803A
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 18:18:18 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [TESTCASE] Clean pages clogging the VM
-In-Reply-To: <20100818141308.GD1779@cmpxchg.org>
-References: <20100817195001.GA18817@linux.intel.com> <20100818141308.GD1779@cmpxchg.org>
-Message-Id: <20100819181447.5FBA.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A296E6B01F2
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 05:27:58 -0400 (EDT)
+Date: Thu, 19 Aug 2010 10:25:36 +0100
+From: Chris Webb <chris@arachsys.com>
+Subject: Re: Over-eager swapping
+Message-ID: <20100819092536.GH2370@arachsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 19 Aug 2010 18:18:17 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100819051339.GH28417@balbir.in.ibm.com>
+ <20100818164539.GG28417@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> Hi Matthew,
-> 
-> On Tue, Aug 17, 2010 at 03:50:01PM -0400, Matthew Wilcox wrote:
-> > 
-> > No comment on this?  Was it just that I posted it during the VM summit?
-> 
-> I have not forgotten about it.  I just have a hard time reproducing
-> those extreme stalls you observed.
+Balbir Singh <balbir@linux.vnet.ibm.com> writes:
 
-me too.
-I never forgot this one, but...
+> Can you give an idea of what the meminfo inside the guest looks like.
 
-I'll trying this again at next week.
+Sorry for the slow reply here. Unfortunately not, as these guests are run on
+behalf of customers. They install them with operating systems of their
+choice, and run them on our service.
 
-Thanks.
+> Have you looked at
+> http://kerneltrap.org/mailarchive/linux-kernel/2010/6/8/4580772
 
+Yes, I've been watching this discussions with interest. Our application is
+one where we have little to no control over what goes on inside the guests,
+but these sorts of things definitely make sense where the two are under the
+same administrative control.
 
+> Do we have reason to believe the problem can be solved entirely in the
+> host?
+
+It's not clear to me why this should be difficult, given that the total size
+of vm allocated to guests (and system processes) is always strictly less
+than the total amount of RAM available in the host. I do understand that it
+won't allow for as impressive overcommit (except by ksm) or be as efficient,
+because file-backed guest pages won't get evicted by pressure in the host as
+they are indistinguishable from anonymous pages.
+
+After all, a solution that isn't ideal, but does work, is to turn off swap
+completely! This is what we've been doing to date. The only problem with
+this is that we can't dip into swap in an emergency if there's no swap there
+at all.
+
+Best wishes,
+
+Chris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
