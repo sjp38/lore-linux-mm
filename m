@@ -1,80 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6CD3E6B0208
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:11:33 -0400 (EDT)
-Date: Thu, 19 Aug 2010 11:11:22 -0400
-From: Jeff Layton <jlayton@redhat.com>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100819111122.562763d2@barsoom.rdu.redhat.com>
-In-Reply-To: <1282229905.6199.19.camel@heimdal.trondhjem.org>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
-	<20100819143710.GA4752@infradead.org>
-	<1282229905.6199.19.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA606B020A
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:14:27 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7JF0cOY003309
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:00:38 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7JFELw4123742
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:14:21 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7JFEK7p024825
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:14:20 -0400
+Date: Thu, 19 Aug 2010 20:43:51 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: Over-eager swapping
+Message-ID: <20100819151351.GA23611@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100819051339.GH28417@balbir.in.ibm.com>
+ <20100818164539.GG28417@balbir.in.ibm.com>
+ <20100819092536.GH2370@arachsys.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100819092536.GH2370@arachsys.com>
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Christoph Hellwig <hch@infradead.org>, fengguang.wu@gmail.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Webb <chris@arachsys.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010 10:58:25 -0400
-Trond Myklebust <trond.myklebust@fys.uio.no> wrote:
+* Chris Webb <chris@arachsys.com> [2010-08-19 10:25:36]:
 
-> On Thu, 2010-08-19 at 10:37 -0400, Christoph Hellwig wrote:
-> > On Thu, Aug 19, 2010 at 10:15:25AM -0400, Jeff Layton wrote:
-> > > I'm looking at backporting some upstream changes to earlier kernels,
-> > > and ran across something I don't quite understand...
-> > > 
-> > > In nfs_commit_unstable_pages, we set the flags to FLUSH_SYNC. We then
-> > > zero out the flags if wbc->nonblocking or wbc->for_background is set.
-> > > 
-> > > Shouldn't we also clear it out if wbc->sync_mode == WB_SYNC_NONE ?
-> > > WB_SYNC_NONE means "don't wait on anything", so shouldn't that include
-> > > not waiting on the COMMIT to complete?
-> > 
-> > I've been trying to figure out what the nonblocking flag is supposed
-> > to mean for a while now.
-> > 
-> > It basically disappeared in commit 0d99519efef15fd0cf84a849492c7b1deee1e4b7
-> > 
-> > 	"writeback: remove unused nonblocking and congestion checks"
-> > 
-> > from Wu.  What's left these days is a couple of places in local copies
-> > of write_cache_pages (afs, cifs), and a couple of checks in random
-> > writepages instances (afs, block_write_full_page, ceph, nfs, reiserfs, xfs)
-> > and the use in nfs_write_inode.  It's only actually set for memory
-> > migration and pageout, that is VM writeback.
-> > 
-> > To me it really doesn't make much sense, but maybe someone has a better
-> > idea what it is for.
-> > 
-> > > +	if (wbc->nonblocking || wbc->for_background ||
-> > > +	    wbc->sync_mode == WB_SYNC_NONE)
-> > 
-> > You could remove the nonblocking and for_background checks as
-> > these impliy WB_SYNC_NONE.
+> Balbir Singh <balbir@linux.vnet.ibm.com> writes:
 > 
-> To me that sounds fine. I've also been trying to wrap my head around the
-> differences between 'nonblocking', 'for_background', 'for_reclaim' and
-> 'for_kupdate' and how the filesystem is supposed to treat them.
+> > Can you give an idea of what the meminfo inside the guest looks like.
 > 
-> Aside from the above, I've used 'for_reclaim', 'for_kupdate' and
-> 'for_background' in order to adjust the RPC request's queuing priority
-> (high in the case of 'for_reclaim' and low for the other two).
+> Sorry for the slow reply here. Unfortunately not, as these guests are run on
+> behalf of customers. They install them with operating systems of their
+> choice, and run them on our service.
+>
+
+Thanks for clarifying.
+ 
+> > Have you looked at
+> > http://kerneltrap.org/mailarchive/linux-kernel/2010/6/8/4580772
 > 
+> Yes, I've been watching this discussions with interest. Our application is
+> one where we have little to no control over what goes on inside the guests,
+> but these sorts of things definitely make sense where the two are under the
+> same administrative control.
+>
 
-Ok, I don't really have a great way to test the above change though
-aside from sticking it into the backport I'm working on for RHEL5
-(2.6.18).
+Not necessarily, in some cases you can use a guest that uses lesser
+page cache, but that might not matter in your case at the moment.
+ 
+> > Do we have reason to believe the problem can be solved entirely in the
+> > host?
+> 
+> It's not clear to me why this should be difficult, given that the total size
+> of vm allocated to guests (and system processes) is always strictly less
+> than the total amount of RAM available in the host. I do understand that it
+> won't allow for as impressive overcommit (except by ksm) or be as efficient,
+> because file-backed guest pages won't get evicted by pressure in the host as
+> they are indistinguishable from anonymous pages.
+>
+> After all, a solution that isn't ideal, but does work, is to turn off swap
+> completely! This is what we've been doing to date. The only problem with
+> this is that we can't dip into swap in an emergency if there's no swap there
+> at all.
 
-I suspect that the existing flag checks probably cover a lot of the
-WB_SYNC_NONE cases already. Changing it to a check for WB_SYNC_NONE
-would help me as RHEL5 doesn't have the for_background flag...
+If you are not overcommitting it should work, in my experiments I've
+seen a lot of memory used by the host as page cache on behalf of the
+guest. I've done my experiments using cgroups to identify accurate
+usage.
 
-Cheers,
 -- 
-Jeff Layton <jlayton@redhat.com>
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
