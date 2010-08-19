@@ -1,119 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4F85F6B01F1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 01:31:20 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7J5VHNI023703
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 19 Aug 2010 14:31:17 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 50B9B45DE64
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:31:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1771545DE51
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:31:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D84CF1DB803C
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:31:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 474751DB8044
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:31:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch v2 2/2] oom: kill all threads sharing oom killed task's mm
-In-Reply-To: <alpine.DEB.2.00.1008161814450.26680@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008161810420.26680@chino.kir.corp.google.com> <alpine.DEB.2.00.1008161814450.26680@chino.kir.corp.google.com>
-Message-Id: <20100819142444.5F91.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3DAD56B01F1
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 02:05:21 -0400 (EDT)
+Date: Thu, 19 Aug 2010 14:05:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: "vmscan: raise the bar to PAGEOUT_IO_SYNC stalls" to stable?
+Message-ID: <20100819060516.GA14221@localhost>
+References: <4C639E87.3050805@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 19 Aug 2010 14:31:15 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C639E87.3050805@suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: "stable@kernel.org" <stable@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pedro Ribeiro <pedrib@gmail.com>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> It's necessary to kill all threads that share an oom killed task's mm if
-> the goal is to lead to future memory freeing.
+Hi Jiri,
+
+On Thu, Aug 12, 2010 at 03:11:03PM +0800, Jiri Slaby wrote:
+> Hi Wu,
 > 
-> This patch reintroduces the code removed in 8c5cd6f3 (oom: oom_kill
-> doesn't kill vfork parent (or child)) since it is obsoleted.
+> maybe you've already sent a backported version of e31f3698cd34 for
+> 2.6.34 stable. If you haven't yet, I'm attaching my version in case you
+> don't want to duplicate work. There is a change where lumpy_reclaim is
+> passed as a parameter, since struct scan_control doesn't contain that
+> yet in 2.6.34.
+
+This patch for -stable looks good, thank you!
+
+Greg, this patch has received pretty positive feedbacks from some users.
+(others feel no changes: there are more sources of responsiveness stalls)
+KOSAKI and me think it's important and safe enough for -stable kernels.
+The patch looks large, however it's mainly cleanups. The real change
+is merely about raising (DEF_PRIORITY-2) to (DEF_PRIORITY/3) in the
+test condition.
+
+Thanks,
+Fengguang
+
+> From e31f3698cd3499e676f6b0ea12e3528f569c4fa3 Mon Sep 17 00:00:00 2001
+> From: Wu Fengguang <fengguang.wu@intel.com>
+> Date: Mon, 9 Aug 2010 17:20:01 -0700
+> Subject: vmscan: raise the bar to PAGEOUT_IO_SYNC stalls
 > 
-> It's now guaranteed that any task passed to oom_kill_task() does not
-> share an mm with any thread that is unkillable.  Thus, we're safe to
-> issue a SIGKILL to any thread sharing the same mm.
-
-correct.
-
+> Fix "system goes unresponsive under memory pressure and lots of
+> dirty/writeback pages" bug.
 > 
-> This is especially necessary to solve an mm->mmap_sem livelock issue
-> whereas an oom killed thread must acquire the lock in the exit path while
-> another thread is holding it in the page allocator while trying to
-> allocate memory itself (and will preempt the oom killer since a task was
-> already killed).  Since tasks with pending fatal signals are now granted
-> access to memory reserves, the thread holding the lock may quickly
-> allocate and release the lock so that the oom killed task may exit.
-
-I can't understand this sentence. mm sharing is happen when vfork, That
-said, parent process is always sleeping. why do we need to worry that parent
-process is holding mmap_sem?
-
-Your change seems to don't change multi threading behavior. it only change
-vfork() process behavior.
-
-
+> 	http://lkml.org/lkml/2010/4/4/86
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> In the above thread, Andreas Mohr described that
+> 
+> 	Invoking any command locked up for minutes (note that I'm
+> 	talking about attempted additional I/O to the _other_,
+> 	_unaffected_ main system HDD - such as loading some shell
+> 	binaries -, NOT the external SSD18M!!).
+> 
+> This happens when the two conditions are both meet:
+> - under memory pressure
+> - writing heavily to a slow device
+> 
+> OOM also happens in Andreas' system.  The OOM trace shows that 3 processes
+> are stuck in wait_on_page_writeback() in the direct reclaim path.  One in
+> do_fork() and the other two in unix_stream_sendmsg().  They are blocked on
+> this condition:
+> 
+> 	(sc->order && priority < DEF_PRIORITY - 2)
+> 
+> which was introduced in commit 78dc583d (vmscan: low order lumpy reclaim
+> also should use PAGEOUT_IO_SYNC) one year ago.  That condition may be too
+> permissive.  In Andreas' case, 512MB/1024 = 512KB.  If the direct reclaim
+> for the order-1 fork() allocation runs into a range of 512KB
+> hard-to-reclaim LRU pages, it will be stalled.
+> 
+> It's a severe problem in three ways.
+> 
+> Firstly, it can easily happen in daily desktop usage.  vmscan priority can
+> easily go below (DEF_PRIORITY - 2) on _local_ memory pressure.  Even if
+> the system has 50% globally reclaimable pages, it still has good
+> opportunity to have 0.1% sized hard-to-reclaim ranges.  For example, a
+> simple dd can easily create a big range (up to 20%) of dirty pages in the
+> LRU lists.  And order-1 to order-3 allocations are more than common with
+> SLUB.  Try "grep -v '1 :' /proc/slabinfo" to get the list of high order
+> slab caches.  For example, the order-1 radix_tree_node slab cache may
+> stall applications at swap-in time; the order-3 inode cache on most
+> filesystems may stall applications when trying to read some file; the
+> order-2 proc_inode_cache may stall applications when trying to open a
+> /proc file.
+> 
+> Secondly, once triggered, it will stall unrelated processes (not doing IO
+> at all) in the system.  This "one slow USB device stalls the whole system"
+> avalanching effect is very bad.
+> 
+> Thirdly, once stalled, the stall time could be intolerable long for the
+> users.  When there are 20MB queued writeback pages and USB 1.1 is writing
+> them in 1MB/s, wait_on_page_writeback() will stuck for up to 20 seconds.
+> Not to mention it may be called multiple times.
+> 
+> So raise the bar to only enable PAGEOUT_IO_SYNC when priority goes below
+> DEF_PRIORITY/3, or 6.25% LRU size.  As the default dirty throttle ratio is
+> 20%, it will hardly be triggered by pure dirty pages.  We'd better treat
+> PAGEOUT_IO_SYNC as some last resort workaround -- its stall time is so
+> uncomfortably long (easily goes beyond 1s).
+> 
+> The bar is only raised for (order < PAGE_ALLOC_COSTLY_ORDER) allocations,
+> which are easy to satisfy in 1TB memory boxes.  So, although 6.25% of
+> memory could be an awful lot of pages to scan on a system with 1TB of
+> memory, it won't really have to busy scan that much.
+> 
+> Andreas tested an older version of this patch and reported that it mostly
+> fixed his problem.  Mel Gorman helped improve it and KOSAKI Motohiro will
+> fix it further in the next patch.
+> 
+> Reported-by: Andreas Mohr <andi@lisas.de>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
 > ---
->  v2: kill all threads in other thread groups before killing p to ensure
->      it doesn't preemptively exit while still iterating through the
->      tasklist and comparing unprotected mm pointers, as suggested by Oleg.
+>  mm/vmscan.c |   53 +++++++++++++++++++++++++++++++++++++++++++++--------
+>  1 file changed, 45 insertions(+), 8 deletions(-)
 > 
->  mm/oom_kill.c |   20 ++++++++++++++++++++
->  1 files changed, 20 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -414,17 +414,37 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
->  #define K(x) ((x) << (PAGE_SHIFT-10))
->  static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
->  {
-> +	struct task_struct *q;
-> +	struct mm_struct *mm;
-> +
->  	p = find_lock_task_mm(p);
->  	if (!p) {
->  		task_unlock(p);
->  		return 1;
->  	}
-> +
-> +	/* mm cannot be safely dereferenced after task_unlock(p) */
-> +	mm = p->mm;
-> +
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
->  		task_pid_nr(p), p->comm, K(p->mm->total_vm),
->  		K(get_mm_counter(p->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(p->mm, MM_FILEPAGES)));
->  	task_unlock(p);
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1118,6 +1118,48 @@ static int too_many_isolated(struct zone
+>  }
 >  
+>  /*
+> + * Returns true if the caller should wait to clean dirty/writeback pages.
+> + *
+> + * If we are direct reclaiming for contiguous pages and we do not reclaim
+> + * everything in the list, try again and wait for writeback IO to complete.
+> + * This will stall high-order allocations noticeably. Only do that when really
+> + * need to free the pages under high memory pressure.
+> + */
+> +static inline bool should_reclaim_stall(unsigned long nr_taken,
+> +					unsigned long nr_freed,
+> +					int priority,
+> +					int lumpy_reclaim,
+> +					struct scan_control *sc)
+> +{
+> +	int lumpy_stall_priority;
+> +
+> +	/* kswapd should not stall on sync IO */
+> +	if (current_is_kswapd())
+> +		return false;
+> +
+> +	/* Only stall on lumpy reclaim */
+> +	if (!lumpy_reclaim)
+> +		return false;
+> +
+> +	/* If we have relaimed everything on the isolated list, no stall */
+> +	if (nr_freed == nr_taken)
+> +		return false;
+> +
 > +	/*
-> +	 * Kill all processes sharing p->mm in other thread groups, if any.
-> +	 * They don't get access to memory reserves or a higher scheduler
-> +	 * priority, though, to avoid depletion of all memory or task
-> +	 * starvation.  This prevents mm->mmap_sem livelock when an oom killed
-> +	 * task cannot exit because it requires the semaphore and its contended
-> +	 * by another thread trying to allocate memory itself.  That thread will
-> +	 * now get access to memory reserves since it has a pending fatal
-> +	 * signal.
+> +	 * For high-order allocations, there are two stall thresholds.
+> +	 * High-cost allocations stall immediately where as lower
+> +	 * order allocations such as stacks require the scanning
+> +	 * priority to be much higher before stalling.
 > +	 */
-> +	for_each_process(q)
-> +		if (q->mm == mm && !same_thread_group(q, p))
-> +			force_sig(SIGKILL, q);
-
-This makes silent process kill when vfork() is used. right?
-If so, it is wrong idea. instead, can you please write "which process was killed" log
-on each process?
-
+> +	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> +		lumpy_stall_priority = DEF_PRIORITY;
+> +	else
+> +		lumpy_stall_priority = DEF_PRIORITY / 3;
+> +
+> +	return priority <= lumpy_stall_priority;
+> +}
+> +
+> +/*
+>   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+>   * of reclaimed pages
+>   */
+> @@ -1209,14 +1251,9 @@ static unsigned long shrink_inactive_lis
+>  		nr_scanned += nr_scan;
+>  		nr_freed = shrink_page_list(&page_list, sc, PAGEOUT_IO_ASYNC);
+>  
+> -		/*
+> -		 * If we are direct reclaiming for contiguous pages and we do
+> -		 * not reclaim everything in the list, try again and wait
+> -		 * for IO to complete. This will stall high-order allocations
+> -		 * but that should be acceptable to the caller
+> -		 */
+> -		if (nr_freed < nr_taken && !current_is_kswapd() &&
+> -		    lumpy_reclaim) {
+> +		/* Check if we should syncronously wait for writeback */
+> +		if (should_reclaim_stall(nr_taken, nr_freed, priority,
+> +					lumpy_reclaim, sc)) {
+>  			congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  
+>  			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
