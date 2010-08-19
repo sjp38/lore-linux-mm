@@ -1,88 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CFFF6B02B3
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:59:38 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7JFj0SM010569
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:45:00 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7JFp4Q9135710
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:51:04 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7JFp4hr025015
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:51:04 -0400
-Date: Thu, 19 Aug 2010 08:51:03 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] oom: __task_cred() need rcu_read_lock()
-Message-ID: <20100819155103.GB2425@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D7CF66B02B5
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 12:00:12 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so905397pzk.14
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:00:13 -0700 (PDT)
+Date: Fri, 20 Aug 2010 01:00:07 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: compaction: trying to understand the code
+Message-ID: <20100819160006.GG6805@barrios-desktop>
+References: <325E0A25FE724BA18190186F058FF37E@rainbow>
+ <20100817111018.GQ19797@csn.ul.ie>
+ <4385155269B445AEAF27DC8639A953D7@rainbow>
+ <20100818154130.GC9431@localhost>
+ <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
+In-Reply-To: <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: torvalds@osdl.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 04:26:18PM +0100, David Howells wrote:
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Thu, Aug 19, 2010 at 04:09:38PM +0900, Iram Shahzad wrote:
+> >The loop should be waiting for the _other_ processes (doing direct
+> >reclaims) to proceed.  When there are _lots of_ ongoing page
+> >allocations/reclaims, it makes sense to wait for them to calm down a bit?
 > 
-> dump_tasks() needs to hold the RCU read lock around its access of the target
-> task's UID.  To this end it should use task_uid() as it only needs that one
-> thing from the creds.
+> I have noticed that if I run other process, it helps the loop to exit.
+> So is this (ie hanging until other process helps) intended behaviour?
 > 
-> The fact that dump_tasks() holds tasklist_lock is insufficient to prevent the
-> target process replacing its credentials on another CPU.
+> Also, the other process does help the loop to exit, but again it enters
+> the loop and the compaction is never finished. That is, the process
+> looks like hanging. Is this intended behaviour?
+> What will improve this situation?
 > 
-> Then, this patch change to call rcu_read_lock() explicitly.
-> 
-> 
-> 	===================================================
-> 	[ INFO: suspicious rcu_dereference_check() usage. ]
-> 	---------------------------------------------------
-> 	mm/oom_kill.c:410 invoked rcu_dereference_check() without protection!
-> 
-> 	other info that might help us debug this:
-> 
-> 	rcu_scheduler_active = 1, debug_locks = 1
-> 	4 locks held by kworker/1:2/651:
-> 	 #0:  (events){+.+.+.}, at: [<ffffffff8106aae7>]
-> 	process_one_work+0x137/0x4a0
-> 	 #1:  (moom_work){+.+...}, at: [<ffffffff8106aae7>]
-> 	process_one_work+0x137/0x4a0
-> 	 #2:  (tasklist_lock){.+.+..}, at: [<ffffffff810fafd4>]
-> 	out_of_memory+0x164/0x3f0
-> 	 #3:  (&(&p->alloc_lock)->rlock){+.+...}, at: [<ffffffff810fa48e>]
-> 	find_lock_task_mm+0x2e/0x70
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: David Howells <dhowells@redhat.com>
+I don't know why too many pages are isolated.
+Could you apply below patch for debugging and report it?
 
-Looks good to me!
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 94cce51..17f339f 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -215,6 +215,7 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ static bool too_many_isolated(struct zone *zone)
+ {
+ 
++       int overflow = 0;
+        unsigned long inactive, isolated;
+ 
+        inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+@@ -222,7 +223,13 @@ static bool too_many_isolated(struct zone *zone)
+        isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+                                        zone_page_state(zone, NR_ISOLATED_ANON);
+ 
+-       return isolated > inactive;
++       if (isolated > inactive)
++               overflow = 1;
++
++       if (overflow)
++               show_mem();     
++
++       return overflow;
+ }
 
-Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-> ---
+> Thanks
+> Iram
 > 
->  mm/oom_kill.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5014e50..7b03102 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -372,7 +372,7 @@ static void dump_tasks(const struct mem_cgroup *mem)
->  		}
-> 
->  		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
-> -			task->pid, __task_cred(task)->uid, task->tgid,
-> +			task->pid, task_uid(task), task->tgid,
->  			task->mm->total_vm, get_mm_rss(task->mm),
->  			task_cpu(task), task->signal->oom_adj,
->  			task->signal->oom_score_adj, task->comm);
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
