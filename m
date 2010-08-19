@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 35D846B01F1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:32:06 -0400 (EDT)
-Date: Thu, 19 Aug 2010 14:31:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH 0/6] mm, highmem: kmap_atomic rework
-Message-Id: <20100819143129.81274c03.akpm@linux-foundation.org>
-In-Reply-To: <20100819201317.673172547@chello.nl>
-References: <20100819201317.673172547@chello.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5185E6B01F1
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:38:07 -0400 (EDT)
+Date: Thu, 19 Aug 2010 16:31:26 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [S+Q Cleanup3 4/6] slub: Dynamically size kmalloc cache
+ allocations
+In-Reply-To: <alpine.DEB.2.00.1008191405230.18994@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1008191627100.5611@router.home>
+References: <20100819203324.549566024@linux.com> <20100819203438.745611155@linux.com> <alpine.DEB.2.00.1008191405230.18994@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010 22:13:17 +0200
-Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+On Thu, 19 Aug 2010, David Rientjes wrote:
 
-> 
-> This patch-set reworks the kmap_atomic API to be a stack based, instead of
-> static slot based. Some might remember this from last year, some not ;-)
-> 
-> The advantage is that you no longer need to worry about KM_foo, the
-> disadvantage is that kmap_atomic/kunmap_atomic now needs to be strictly
-> nested (CONFIG_HIGHMEM_DEBUG should complain in case its not) -- and of
-> course its a big massive patch changing a widely used API.
+> Since sysfs_slab_add() has been removed for kmem_cache and kmem_cache_node
+> here, they apparently don't need the __SYSFS_ADD_DEFERRED flag even though
+> we're waiting for the sysfs initcall since there's nothing that checks for
+> it.  That bit can be removed, the last users of it were the dynamic DMA
+> cache support that was dropped in patch 2.
 
-Nice.  That fixes the "use of irq-only slots from interrupts-on
-context" bugs which people keep adding.
+Correct. Then we also do not need the sysfs_slab_add in
+create_kmalloc_cache.
 
-We don't have any checks in there for the stack overflowing?
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Did you add every runtime check you could possibly think of? 
-kmap_atomic_idx_push() and pop() don't have much in there.  It'd be
-good to lard it up with runtime checks for at least a few weeks.
+---
+ mm/slub.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-> The patch-set is currently based on tip/master as of today, and compile
-> tested on: i386-all{mod,yes}config, mips-yosemite_defconfig,
-> sparc-sparc32_defconfig, powerpc-ppc6xx_defconfig, and some arm config.
-> 
-> (Sorry dhowells, I again couldn't find frv/mn10300 compilers)
-> 
-> Boot tested with i386-defconfig on kvm.
-> 
-> Since its a rather large set, and somewhat tedious to rebase, I wanted to
-> ask how to go about getting this merged?
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-08-19 16:28:40.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-19 16:30:39.000000000 -0500
+@@ -148,7 +148,6 @@ static inline int kmem_cache_debug(struc
 
+ /* Internal SLUB flags */
+ #define __OBJECT_POISON		0x80000000UL /* Poison object */
+-#define __SYSFS_ADD_DEFERRED	0x40000000UL /* Not yet visible via sysfs */
+ #define __ALIEN_CACHE		0x20000000UL /* Slab has alien caches */
 
-Well, there's that monster conversion patch.  How's about you
-temporarily do
+ static inline int aliens(struct kmem_cache *s)
+@@ -3123,9 +3122,7 @@ static struct kmem_cache *__init create_
+ 		goto panic;
 
-#define kmap_atomic(x, arg...)  __kmap_atomic(x)
+ 	list_add(&s->list, &slab_caches);
+-
+-	if (!sysfs_slab_add(s))
+-		return s;
++	return s;
 
-so for a while, both kmap_atomic(a, KM_foo) and kmap_atomic(a) are
-turned into __kmap_atomic(a).  Once all the dust has settled, pull that
-out again?
+ panic:
+ 	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
