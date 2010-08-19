@@ -1,67 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1CE896B01F1
-	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 20:12:42 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7J0Cc2L028171
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 19 Aug 2010 09:12:38 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 06BBF45DE5D
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:12:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D92B545DE55
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:12:37 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE6BB1DB803F
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:12:37 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D1BC1DB803E
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:12:37 +0900 (JST)
-Date: Thu, 19 Aug 2010 09:07:40 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
- NR_FREE_PAGES when memory is low and kswapd is awake
-Message-Id: <20100819090740.3f46aecf.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <alpine.DEB.2.00.1008181050230.4025@router.home>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
-	<1281951733-29466-3-git-send-email-mel@csn.ul.ie>
-	<20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1008181050230.4025@router.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 643F96B01F1
+	for <linux-mm@kvack.org>; Wed, 18 Aug 2010 20:54:51 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so1032197iwn.14
+        for <linux-mm@kvack.org>; Wed, 18 Aug 2010 17:54:49 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100818172627.7e38969f@varda>
+References: <20100818151857.GA6188@barrios-desktop>
+	<20100818172627.7e38969f@varda>
+Date: Thu, 19 Aug 2010 09:54:49 +0900
+Message-ID: <AANLkTimxbJQ7+cJ20x1Bcm=1xk_JgMANUQDFn-pJ9jZa@mail.gmail.com>
+Subject: Re: android-kernel memory reclaim x20 boost?
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: =?ISO-8859-1?Q?Alejandro_Riveira_Fern=E1ndez?= <ariveira@gmail.com>
+Cc: =?ISO-8859-1?Q?Arve_Hj=F8nnev=E5g?= <arve@android.com>, swetland@google.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Aug 2010 10:55:53 -0500 (CDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
+On Thu, Aug 19, 2010 at 12:26 AM, Alejandro Riveira Fern=E1ndez
+<ariveira@gmail.com> wrote:
+> El Thu, 19 Aug 2010 00:18:57 +0900
+> Minchan Kim <minchan.kim@gmail.com> escribi=F3:
+>
+>> Hello Android forks,
+> [ ... ]
+>>
+>> I saw the advertisement phrase in this[1].
+>>
+>> "Kernel Memory Management Boost: Improved memory reclaim by up to 20x,
+>> which results in faster app switching and smoother performance
+>> on memory-constrained devices."
+>>
+>> But I can't find any code for it in android kernel git tree.
+>
+> =A0Maybe the enhancements are on the Dalvik VM (shooting in the dark here=
+)
 
-> On Wed, 18 Aug 2010, KAMEZAWA Hiroyuki wrote:
-> 
-> > BTW, a nitpick.
-> >
-> > > @@ -143,6 +143,9 @@ static void refresh_zone_stat_thresholds(void)
-> > >  		for_each_online_cpu(cpu)
-> > >  			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
-> > >  							= threshold;
-> > > +
-> > > +		zone->percpu_drift_mark = high_wmark_pages(zone) +
-> > > +					num_online_cpus() * threshold;
-> > >  	}
-> > >  }
-> >
-> > This function is now called only at CPU_DEAD. IOW, not called at CPU_UP_PREPARE
-> 
-> calculate_threshold() does its calculation based on the number of online
-> cpus. Therefore the threshold may change if a cpu is brought down.
-> 
-yes. but why not calculate at bringing up ?
+Thanks.
+Android guys! Could you confirm this?
 
-Thanks,
--Kame
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
