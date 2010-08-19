@@ -1,38 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 130EB6B02BF
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:02:37 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id o7JL29eg008959
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:02:09 -0700
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by wpaz17.hot.corp.google.com with ESMTP id o7JL27BK023743
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:02:07 -0700
-Received: by pxi5 with SMTP id 5so1033895pxi.14
-        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:02:07 -0700 (PDT)
-Date: Thu, 19 Aug 2010 14:02:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup3 5/6] slub: Extract hooks for memory checkers from
- hotpaths
-In-Reply-To: <20100819203439.351107542@linux.com>
-Message-ID: <alpine.DEB.2.00.1008191401500.18994@chino.kir.corp.google.com>
-References: <20100819203324.549566024@linux.com> <20100819203439.351107542@linux.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 52A416B02BF
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:09:17 -0400 (EDT)
+Date: Fri, 20 Aug 2010 05:09:07 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [TESTCASE] Clean pages clogging the VM
+Message-ID: <20100819210907.GA22747@localhost>
+References: <20100809133000.GB6981@wil.cx>
+ <20100817195001.GA18817@linux.intel.com>
+ <20100818141308.GD1779@cmpxchg.org>
+ <20100818160613.GE9431@localhost>
+ <20100818160731.GA15002@localhost>
+ <20100819115106.GG1779@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100819115106.GG1779@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010, Christoph Lameter wrote:
-
-> Extract the code that memory checkers and other verification tools use from
-> the hotpaths. Makes it easier to add new ones and reduces the disturbances
-> of the hotpaths.
+On Thu, Aug 19, 2010 at 07:51:06PM +0800, Johannes Weiner wrote:
+> I am currently trying to get rid of all the congestion_wait() in the VM.
+> They are used for different purposes, so they need different replacement
+> mechanisms.
 > 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> I saw Shaohua's patch to make congestion_wait() cleverer.  But I really
+> think that congestion is not a good predicate in the first place.  Why
+> would the VM care about IO _congestion_?  It needs a bunch of pages to
+> complete IO, whether the writing device is congested is not really
+> useful information at this point, I think.
 
-Acked-by: David Rientjes <rientjes@google.com>
+I have the same feeling that the congestion_wait() calls are not
+pertinent ones.  I'm glad to see people working on that exploring
+all possible replacement schemes.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
