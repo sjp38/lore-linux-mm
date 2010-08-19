@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A946B01F8
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 10:37:13 -0400 (EDT)
-Date: Thu, 19 Aug 2010 10:37:10 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100819143710.GA4752@infradead.org>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2D6A66B01FA
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 10:47:14 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so838307pvc.14
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 07:47:11 -0700 (PDT)
+Date: Thu, 19 Aug 2010 23:47:03 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
+ direct reclaim allocation fails
+Message-ID: <20100819144703.GC6805@barrios-desktop>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
+ <1281951733-29466-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+In-Reply-To: <1281951733-29466-4-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Jeff Layton <jlayton@redhat.com>, fengguang.wu@gmail.com
-Cc: linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 10:15:25AM -0400, Jeff Layton wrote:
-> I'm looking at backporting some upstream changes to earlier kernels,
-> and ran across something I don't quite understand...
+On Mon, Aug 16, 2010 at 10:42:13AM +0100, Mel Gorman wrote:
+> When under significant memory pressure, a process enters direct reclaim
+> and immediately afterwards tries to allocate a page. If it fails and no
+> further progress is made, it's possible the system will go OOM. However,
+> on systems with large amounts of memory, it's possible that a significant
+> number of pages are on per-cpu lists and inaccessible to the calling
+> process. This leads to a process entering direct reclaim more often than
+> it should increasing the pressure on the system and compounding the problem.
 > 
-> In nfs_commit_unstable_pages, we set the flags to FLUSH_SYNC. We then
-> zero out the flags if wbc->nonblocking or wbc->for_background is set.
+> This patch notes that if direct reclaim is making progress but
+> allocations are still failing that the system is already under heavy
+> pressure. In this case, it drains the per-cpu lists and tries the
+> allocation a second time before continuing.
 > 
-> Shouldn't we also clear it out if wbc->sync_mode == WB_SYNC_NONE ?
-> WB_SYNC_NONE means "don't wait on anything", so shouldn't that include
-> not waiting on the COMMIT to complete?
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/page_alloc.c |   19 +++++++++++++++++--
+>  1 files changed, 17 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 67a2ed0..a8651a4 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1844,6 +1844,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	struct page *page = NULL;
+>  	struct reclaim_state reclaim_state;
+>  	struct task_struct *p = current;
+> +	bool drained = false;
+>  
+>  	cond_resched();
+>  
+> @@ -1865,11 +1866,25 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	if (order != 0)
+>  		drain_all_pages();
+>  
 
-I've been trying to figure out what the nonblocking flag is supposed
-to mean for a while now.
+Nitpick: 
 
-It basically disappeared in commit 0d99519efef15fd0cf84a849492c7b1deee1e4b7
+How about removing above condition and drain_all_pages?
+If get_page_from_freelist fails, we do drain_all_pages at last. 
+It can remove double calling of drain_all_pagse in case of order > 0.
+In addition, if the VM can't reclaim anythings, we don't need to drain
+in case of order > 0. 
 
-	"writeback: remove unused nonblocking and congestion checks"
 
-from Wu.  What's left these days is a couple of places in local copies
-of write_cache_pages (afs, cifs), and a couple of checks in random
-writepages instances (afs, block_write_full_page, ceph, nfs, reiserfs, xfs)
-and the use in nfs_write_inode.  It's only actually set for memory
-migration and pageout, that is VM writeback.
+> -	if (likely(*did_some_progress))
+> -		page = get_page_from_freelist(gfp_mask, nodemask, order,
+> +	if (unlikely(!(*did_some_progress)))
+> +		return NULL;
+> +
+> +retry:
+> +	page = get_page_from_freelist(gfp_mask, nodemask, order,
+>  					zonelist, high_zoneidx,
+>  					alloc_flags, preferred_zone,
+>  					migratetype);
+> +
+> +	/*
+> +	 * If an allocation failed after direct reclaim, it could be because
+> +	 * pages are pinned on the per-cpu lists. Drain them and try again
+> +	 */
+> +	if (!page && !drained) {
+> +		drain_all_pages();
+> +		drained = true;
+> +		goto retry;
+> +	}
+> +
+>  	return page;
+>  }
+>  
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-To me it really doesn't make much sense, but maybe someone has a better
-idea what it is for.
-
-> +	if (wbc->nonblocking || wbc->for_background ||
-> +	    wbc->sync_mode == WB_SYNC_NONE)
-
-You could remove the nonblocking and for_background checks as
-these impliy WB_SYNC_NONE.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
