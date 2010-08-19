@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 15B746B0204
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 16:35:57 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id o7JKZxaG007302
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:35:59 -0700
-Received: from pzk3 (pzk3.prod.google.com [10.243.19.131])
-	by hpaq13.eem.corp.google.com with ESMTP id o7JKZqSX025076
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:35:58 -0700
-Received: by pzk3 with SMTP id 3so1042760pzk.36
-        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:35:58 -0700 (PDT)
-Date: Thu, 19 Aug 2010 13:35:53 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 133916B01F2
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 16:37:24 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id o7JKbMEQ030442
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:37:23 -0700
+Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
+	by kpbe11.cbf.corp.google.com with ESMTP id o7JKaw4K030672
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:37:21 -0700
+Received: by pxi17 with SMTP id 17so1143211pxi.29
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 13:37:21 -0700 (PDT)
+Date: Thu, 19 Aug 2010 13:37:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] oom: fix NULL pointer dereference
-In-Reply-To: <20100819195310.5FC7.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1008191335370.18994@chino.kir.corp.google.com>
-References: <20100819194707.5FC4.A69D9226@jp.fujitsu.com> <20100819195310.5FC7.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 2/2] oom: fix tasklist_lock leak
+In-Reply-To: <20100819195346.5FCA.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008191336060.18994@chino.kir.corp.google.com>
+References: <20100819194707.5FC4.A69D9226@jp.fujitsu.com> <20100819195346.5FCA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -25,8 +25,20 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 19 Aug 2010, KOSAKI Motohiro wrote:
 
-> commit b940fd7035 (oom: remove unnecessary code and cleanup) added
-> unnecessary NULL pointer dereference. remove it.
+> commit 0aad4b3124 (oom: fold __out_of_memory into out_of_memory)
+> introduced tasklist_lock leak. Then it caused following obvious
+> danger warings and panic.
+> 
+>     ================================================
+>     [ BUG: lock held when returning to user space! ]
+>     ------------------------------------------------
+>     rsyslogd/1422 is leaving the kernel with locks still held!
+>     1 lock held by rsyslogd/1422:
+>      #0:  (tasklist_lock){.+.+.+}, at: [<ffffffff810faf64>] out_of_memory+0x164/0x3f0
+>     BUG: scheduling while atomic: rsyslogd/1422/0x00000002
+>     INFO: lockdep is turned off.
+> 
+> This patch fixes it.
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
