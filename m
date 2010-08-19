@@ -1,106 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F5D6B0206
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:10:21 -0400 (EDT)
-Date: Thu, 19 Aug 2010 16:10:04 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
-	direct reclaim allocation fails
-Message-ID: <20100819151003.GC19797@csn.ul.ie>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-4-git-send-email-mel@csn.ul.ie> <20100819144703.GC6805@barrios-desktop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100819144703.GC6805@barrios-desktop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6CD3E6B0208
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:11:33 -0400 (EDT)
+Date: Thu, 19 Aug 2010 11:11:22 -0400
+From: Jeff Layton <jlayton@redhat.com>
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+Message-ID: <20100819111122.562763d2@barsoom.rdu.redhat.com>
+In-Reply-To: <1282229905.6199.19.camel@heimdal.trondhjem.org>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+	<20100819143710.GA4752@infradead.org>
+	<1282229905.6199.19.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Christoph Hellwig <hch@infradead.org>, fengguang.wu@gmail.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 11:47:03PM +0900, Minchan Kim wrote:
-> On Mon, Aug 16, 2010 at 10:42:13AM +0100, Mel Gorman wrote:
-> > When under significant memory pressure, a process enters direct reclaim
-> > and immediately afterwards tries to allocate a page. If it fails and no
-> > further progress is made, it's possible the system will go OOM. However,
-> > on systems with large amounts of memory, it's possible that a significant
-> > number of pages are on per-cpu lists and inaccessible to the calling
-> > process. This leads to a process entering direct reclaim more often than
-> > it should increasing the pressure on the system and compounding the problem.
+On Thu, 19 Aug 2010 10:58:25 -0400
+Trond Myklebust <trond.myklebust@fys.uio.no> wrote:
+
+> On Thu, 2010-08-19 at 10:37 -0400, Christoph Hellwig wrote:
+> > On Thu, Aug 19, 2010 at 10:15:25AM -0400, Jeff Layton wrote:
+> > > I'm looking at backporting some upstream changes to earlier kernels,
+> > > and ran across something I don't quite understand...
+> > > 
+> > > In nfs_commit_unstable_pages, we set the flags to FLUSH_SYNC. We then
+> > > zero out the flags if wbc->nonblocking or wbc->for_background is set.
+> > > 
+> > > Shouldn't we also clear it out if wbc->sync_mode == WB_SYNC_NONE ?
+> > > WB_SYNC_NONE means "don't wait on anything", so shouldn't that include
+> > > not waiting on the COMMIT to complete?
 > > 
-> > This patch notes that if direct reclaim is making progress but
-> > allocations are still failing that the system is already under heavy
-> > pressure. In this case, it drains the per-cpu lists and tries the
-> > allocation a second time before continuing.
+> > I've been trying to figure out what the nonblocking flag is supposed
+> > to mean for a while now.
 > > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  mm/page_alloc.c |   19 +++++++++++++++++--
-> >  1 files changed, 17 insertions(+), 2 deletions(-)
+> > It basically disappeared in commit 0d99519efef15fd0cf84a849492c7b1deee1e4b7
 > > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 67a2ed0..a8651a4 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1844,6 +1844,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >  	struct page *page = NULL;
-> >  	struct reclaim_state reclaim_state;
-> >  	struct task_struct *p = current;
-> > +	bool drained = false;
-> >  
-> >  	cond_resched();
-> >  
-> > @@ -1865,11 +1866,25 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
-> >  	if (order != 0)
-> >  		drain_all_pages();
-> >  
+> > 	"writeback: remove unused nonblocking and congestion checks"
+> > 
+> > from Wu.  What's left these days is a couple of places in local copies
+> > of write_cache_pages (afs, cifs), and a couple of checks in random
+> > writepages instances (afs, block_write_full_page, ceph, nfs, reiserfs, xfs)
+> > and the use in nfs_write_inode.  It's only actually set for memory
+> > migration and pageout, that is VM writeback.
+> > 
+> > To me it really doesn't make much sense, but maybe someone has a better
+> > idea what it is for.
+> > 
+> > > +	if (wbc->nonblocking || wbc->for_background ||
+> > > +	    wbc->sync_mode == WB_SYNC_NONE)
+> > 
+> > You could remove the nonblocking and for_background checks as
+> > these impliy WB_SYNC_NONE.
 > 
-> Nitpick: 
+> To me that sounds fine. I've also been trying to wrap my head around the
+> differences between 'nonblocking', 'for_background', 'for_reclaim' and
+> 'for_kupdate' and how the filesystem is supposed to treat them.
 > 
-> How about removing above condition and drain_all_pages?
-> If get_page_from_freelist fails, we do drain_all_pages at last. 
-> It can remove double calling of drain_all_pagse in case of order > 0.
-> In addition, if the VM can't reclaim anythings, we don't need to drain
-> in case of order > 0. 
+> Aside from the above, I've used 'for_reclaim', 'for_kupdate' and
+> 'for_background' in order to adjust the RPC request's queuing priority
+> (high in the case of 'for_reclaim' and low for the other two).
 > 
 
-That sounds reasonable. V2 of this series will delete the lines
+Ok, I don't really have a great way to test the above change though
+aside from sticking it into the backport I'm working on for RHEL5
+(2.6.18).
 
-if (order != 0)
-	drain_all_pages()
+I suspect that the existing flag checks probably cover a lot of the
+WB_SYNC_NONE cases already. Changing it to a check for WB_SYNC_NONE
+would help me as RHEL5 doesn't have the for_background flag...
 
-> 
-> > -	if (likely(*did_some_progress))
-> > -		page = get_page_from_freelist(gfp_mask, nodemask, order,
-> > +	if (unlikely(!(*did_some_progress)))
-> > +		return NULL;
-> > +
-> > +retry:
-> > +	page = get_page_from_freelist(gfp_mask, nodemask, order,
-> >  					zonelist, high_zoneidx,
-> >  					alloc_flags, preferred_zone,
-> >  					migratetype);
-> > +
-> > +	/*
-> > +	 * If an allocation failed after direct reclaim, it could be because
-> > +	 * pages are pinned on the per-cpu lists. Drain them and try again
-> > +	 */
-> > +	if (!page && !drained) {
-> > +		drain_all_pages();
-> > +		drained = true;
-> > +		goto retry;
-> > +	}
-> > +
-> >  	return page;
-> >  }
-> >  
-> > -- 
-> > 1.7.1
-> > 
-
+Cheers,
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
