@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A98006B02B1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:46:47 -0400 (EDT)
-Received: by pwi3 with SMTP id 3so992137pwi.14
-        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 08:46:46 -0700 (PDT)
-Date: Fri, 20 Aug 2010 00:46:38 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
- NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100819154638.GF6805@barrios-desktop>
-References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
- <1281951733-29466-3-git-send-email-mel@csn.ul.ie>
- <20100816094350.GH19797@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFFF6B02B3
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:59:38 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7JFj0SM010569
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:45:00 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7JFp4Q9135710
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:51:04 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7JFp4hr025015
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 11:51:04 -0400
+Date: Thu, 19 Aug 2010 08:51:03 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] oom: __task_cred() need rcu_read_lock()
+Message-ID: <20100819155103.GB2425@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100816094350.GH19797@csn.ul.ie>
+In-Reply-To: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: David Howells <dhowells@redhat.com>
+Cc: torvalds@osdl.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 16, 2010 at 10:43:50AM +0100, Mel Gorman wrote:
-> On Mon, Aug 16, 2010 at 10:42:12AM +0100, Mel Gorman wrote:
-> > Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-> > it is cheaper than scanning a number of lists. To avoid synchronization
-> > overhead, counter deltas are maintained on a per-cpu basis and drained both
-> > periodically and when the delta is above a threshold. On large CPU systems,
-> > the difference between the estimated and real value of NR_FREE_PAGES can be
-> > very high. If the system is under both load and low memory, it's possible
-> > for watermarks to be breached. In extreme cases, the number of free pages
-> > can drop to 0 leading to the possibility of system livelock.
-> > 
-> > This patch introduces zone_nr_free_pages() to take a slightly more accurate
-> > estimate of NR_FREE_PAGES while kswapd is awake.  The estimate is not perfect
-> > and may result in cache line bounces but is expected to be lighter than the
-> > IPI calls necessary to continually drain the per-cpu counters while kswapd
-> > is awake.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+On Thu, Aug 19, 2010 at 04:26:18PM +0100, David Howells wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> And the second I sent this, I realised I had sent a slightly old version
-> that missed a compile-fix :(
+> dump_tasks() needs to hold the RCU read lock around its access of the target
+> task's UID.  To this end it should use task_uid() as it only needs that one
+> thing from the creds.
 > 
-> ==== CUT HERE ====
-> mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+> The fact that dump_tasks() holds tasklist_lock is insufficient to prevent the
+> target process replacing its credentials on another CPU.
 > 
-> Ordinarily watermark checks are made based on the vmstat NR_FREE_PAGES as
-> it is cheaper than scanning a number of lists. To avoid synchronization
-> overhead, counter deltas are maintained on a per-cpu basis and drained both
-> periodically and when the delta is above a threshold. On large CPU systems,
-> the difference between the estimated and real value of NR_FREE_PAGES can be
-> very high. If the system is under both load and low memory, it's possible
-> for watermarks to be breached. In extreme cases, the number of free pages
-> can drop to 0 leading to the possibility of system livelock.
+> Then, this patch change to call rcu_read_lock() explicitly.
+> 
+> 
+> 	===================================================
+> 	[ INFO: suspicious rcu_dereference_check() usage. ]
+> 	---------------------------------------------------
+> 	mm/oom_kill.c:410 invoked rcu_dereference_check() without protection!
+> 
+> 	other info that might help us debug this:
+> 
+> 	rcu_scheduler_active = 1, debug_locks = 1
+> 	4 locks held by kworker/1:2/651:
+> 	 #0:  (events){+.+.+.}, at: [<ffffffff8106aae7>]
+> 	process_one_work+0x137/0x4a0
+> 	 #1:  (moom_work){+.+...}, at: [<ffffffff8106aae7>]
+> 	process_one_work+0x137/0x4a0
+> 	 #2:  (tasklist_lock){.+.+..}, at: [<ffffffff810fafd4>]
+> 	out_of_memory+0x164/0x3f0
+> 	 #3:  (&(&p->alloc_lock)->rlock){+.+...}, at: [<ffffffff810fa48e>]
+> 	find_lock_task_mm+0x2e/0x70
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: David Howells <dhowells@redhat.com>
 
-Mel. Could you consider normal(or small) system but has two core at least?
-I means we apply you rule according to the number of CPU and RAM size. (ie,
-threshold value). 
-Now mobile system begin to have two core in system and above 1G RAM. 
-Such case, it has threshold 8.
+Looks good to me!
 
-It is unlikey to happen livelock.
-Is it worth to have such overhead in such system? 
-What do you think?
+Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
--- 
-Kind regards,
-Minchan Kim
+> ---
+> 
+>  mm/oom_kill.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 5014e50..7b03102 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -372,7 +372,7 @@ static void dump_tasks(const struct mem_cgroup *mem)
+>  		}
+> 
+>  		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
+> -			task->pid, __task_cred(task)->uid, task->tgid,
+> +			task->pid, task_uid(task), task->tgid,
+>  			task->mm->total_vm, get_mm_rss(task->mm),
+>  			task_cpu(task), task->signal->oom_adj,
+>  			task->signal->oom_score_adj, task->comm);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
