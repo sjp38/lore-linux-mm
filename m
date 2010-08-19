@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B82E86B01F1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:21:21 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o7JLLNDt023071
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:24 -0700
-Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
-	by kpbe16.cbf.corp.google.com with ESMTP id o7JLKXXQ022974
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:22 -0700
-Received: by pzk4 with SMTP id 4so1296426pzk.35
-        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:22 -0700 (PDT)
-Date: Thu, 19 Aug 2010 14:21:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [S+Q Cleanup3 4/6] slub: Dynamically size kmalloc cache
- allocations
-In-Reply-To: <20100819203438.745611155@linux.com>
-Message-ID: <alpine.DEB.2.00.1008191405230.18994@chino.kir.corp.google.com>
-References: <20100819203324.549566024@linux.com> <20100819203438.745611155@linux.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 35D846B01F1
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:32:06 -0400 (EDT)
+Date: Thu, 19 Aug 2010 14:31:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/6] mm, highmem: kmap_atomic rework
+Message-Id: <20100819143129.81274c03.akpm@linux-foundation.org>
+In-Reply-To: <20100819201317.673172547@chello.nl>
+References: <20100819201317.673172547@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010, Christoph Lameter wrote:
+On Thu, 19 Aug 2010 22:13:17 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-> @@ -2940,46 +2951,113 @@ static int slab_memory_callback(struct n
->   *			Basic setup of slabs
->   *******************************************************************/
->  
-> +/*
-> + * Used for early kmem_cache structures that were allocated using
-> + * the page allocator
-> + */
-> +
-> +static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
-> +{
-> +	int node;
-> +
-> +	list_add(&s->list, &slab_caches);
+> 
+> This patch-set reworks the kmap_atomic API to be a stack based, instead of
+> static slot based. Some might remember this from last year, some not ;-)
+> 
+> The advantage is that you no longer need to worry about KM_foo, the
+> disadvantage is that kmap_atomic/kunmap_atomic now needs to be strictly
+> nested (CONFIG_HIGHMEM_DEBUG should complain in case its not) -- and of
+> course its a big massive patch changing a widely used API.
 
-Since sysfs_slab_add() has been removed for kmem_cache and kmem_cache_node 
-here, they apparently don't need the __SYSFS_ADD_DEFERRED flag even though 
-we're waiting for the sysfs initcall since there's nothing that checks for 
-it.  That bit can be removed, the last users of it were the dynamic DMA 
-cache support that was dropped in patch 2.
+Nice.  That fixes the "use of irq-only slots from interrupts-on
+context" bugs which people keep adding.
 
-Acked-by: David Rientjes <rientjes@google.com>
+We don't have any checks in there for the stack overflowing?
+
+Did you add every runtime check you could possibly think of? 
+kmap_atomic_idx_push() and pop() don't have much in there.  It'd be
+good to lard it up with runtime checks for at least a few weeks.
+
+> The patch-set is currently based on tip/master as of today, and compile
+> tested on: i386-all{mod,yes}config, mips-yosemite_defconfig,
+> sparc-sparc32_defconfig, powerpc-ppc6xx_defconfig, and some arm config.
+> 
+> (Sorry dhowells, I again couldn't find frv/mn10300 compilers)
+> 
+> Boot tested with i386-defconfig on kvm.
+> 
+> Since its a rather large set, and somewhat tedious to rebase, I wanted to
+> ask how to go about getting this merged?
+
+
+Well, there's that monster conversion patch.  How's about you
+temporarily do
+
+#define kmap_atomic(x, arg...)  __kmap_atomic(x)
+
+so for a while, both kmap_atomic(a, KM_foo) and kmap_atomic(a) are
+turned into __kmap_atomic(a).  Once all the dust has settled, pull that
+out again?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
