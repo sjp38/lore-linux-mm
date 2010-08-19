@@ -1,43 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 52A416B02BF
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:09:17 -0400 (EDT)
-Date: Fri, 20 Aug 2010 05:09:07 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [TESTCASE] Clean pages clogging the VM
-Message-ID: <20100819210907.GA22747@localhost>
-References: <20100809133000.GB6981@wil.cx>
- <20100817195001.GA18817@linux.intel.com>
- <20100818141308.GD1779@cmpxchg.org>
- <20100818160613.GE9431@localhost>
- <20100818160731.GA15002@localhost>
- <20100819115106.GG1779@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B82E86B01F1
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:21:21 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o7JLLNDt023071
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:24 -0700
+Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
+	by kpbe16.cbf.corp.google.com with ESMTP id o7JLKXXQ022974
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:22 -0700
+Received: by pzk4 with SMTP id 4so1296426pzk.35
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 14:21:22 -0700 (PDT)
+Date: Thu, 19 Aug 2010 14:21:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q Cleanup3 4/6] slub: Dynamically size kmalloc cache
+ allocations
+In-Reply-To: <20100819203438.745611155@linux.com>
+Message-ID: <alpine.DEB.2.00.1008191405230.18994@chino.kir.corp.google.com>
+References: <20100819203324.549566024@linux.com> <20100819203438.745611155@linux.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100819115106.GG1779@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 07:51:06PM +0800, Johannes Weiner wrote:
-> I am currently trying to get rid of all the congestion_wait() in the VM.
-> They are used for different purposes, so they need different replacement
-> mechanisms.
-> 
-> I saw Shaohua's patch to make congestion_wait() cleverer.  But I really
-> think that congestion is not a good predicate in the first place.  Why
-> would the VM care about IO _congestion_?  It needs a bunch of pages to
-> complete IO, whether the writing device is congested is not really
-> useful information at this point, I think.
+On Thu, 19 Aug 2010, Christoph Lameter wrote:
 
-I have the same feeling that the congestion_wait() calls are not
-pertinent ones.  I'm glad to see people working on that exploring
-all possible replacement schemes.
+> @@ -2940,46 +2951,113 @@ static int slab_memory_callback(struct n
+>   *			Basic setup of slabs
+>   *******************************************************************/
+>  
+> +/*
+> + * Used for early kmem_cache structures that were allocated using
+> + * the page allocator
+> + */
+> +
+> +static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
+> +{
+> +	int node;
+> +
+> +	list_add(&s->list, &slab_caches);
 
-Thanks,
-Fengguang
+Since sysfs_slab_add() has been removed for kmem_cache and kmem_cache_node 
+here, they apparently don't need the __SYSFS_ADD_DEFERRED flag even though 
+we're waiting for the sysfs initcall since there's nothing that checks for 
+it.  That bit can be removed, the last users of it were the dynamic DMA 
+cache support that was dropped in patch 2.
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
