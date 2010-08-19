@@ -1,79 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D7CF66B02B5
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 12:00:12 -0400 (EDT)
-Received: by pzk33 with SMTP id 33so905397pzk.14
-        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:00:13 -0700 (PDT)
-Date: Fri, 20 Aug 2010 01:00:07 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6668E6B02B5
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 12:06:13 -0400 (EDT)
+Received: by iwn2 with SMTP id 2so1863054iwn.14
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 09:06:15 -0700 (PDT)
+Date: Fri, 20 Aug 2010 01:05:42 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: compaction: trying to understand the code
-Message-ID: <20100819160006.GG6805@barrios-desktop>
-References: <325E0A25FE724BA18190186F058FF37E@rainbow>
- <20100817111018.GQ19797@csn.ul.ie>
- <4385155269B445AEAF27DC8639A953D7@rainbow>
- <20100818154130.GC9431@localhost>
- <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+Subject: Re: [PATCH 2/2] oom: fix tasklist_lock leak
+Message-ID: <20100819160542.GH6805@barrios-desktop>
+References: <20100819194707.5FC4.A69D9226@jp.fujitsu.com>
+ <20100819195346.5FCA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+In-Reply-To: <20100819195346.5FCA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 04:09:38PM +0900, Iram Shahzad wrote:
-> >The loop should be waiting for the _other_ processes (doing direct
-> >reclaims) to proceed.  When there are _lots of_ ongoing page
-> >allocations/reclaims, it makes sense to wait for them to calm down a bit?
+On Thu, Aug 19, 2010 at 07:54:06PM +0900, KOSAKI Motohiro wrote:
+> commit 0aad4b3124 (oom: fold __out_of_memory into out_of_memory)
+> introduced tasklist_lock leak. Then it caused following obvious
+> danger warings and panic.
 > 
-> I have noticed that if I run other process, it helps the loop to exit.
-> So is this (ie hanging until other process helps) intended behaviour?
+>     ================================================
+>     [ BUG: lock held when returning to user space! ]
+>     ------------------------------------------------
+>     rsyslogd/1422 is leaving the kernel with locks still held!
+>     1 lock held by rsyslogd/1422:
+>      #0:  (tasklist_lock){.+.+.+}, at: [<ffffffff810faf64>] out_of_memory+0x164/0x3f0
+>     BUG: scheduling while atomic: rsyslogd/1422/0x00000002
+>     INFO: lockdep is turned off.
 > 
-> Also, the other process does help the loop to exit, but again it enters
-> the loop and the compaction is never finished. That is, the process
-> looks like hanging. Is this intended behaviour?
-> What will improve this situation?
+> This patch fixes it.
 > 
-I don't know why too many pages are isolated.
-Could you apply below patch for debugging and report it?
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 94cce51..17f339f 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -215,6 +215,7 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- static bool too_many_isolated(struct zone *zone)
- {
- 
-+       int overflow = 0;
-        unsigned long inactive, isolated;
- 
-        inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
-@@ -222,7 +223,13 @@ static bool too_many_isolated(struct zone *zone)
-        isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
-                                        zone_page_state(zone, NR_ISOLATED_ANON);
- 
--       return isolated > inactive;
-+       if (isolated > inactive)
-+               overflow = 1;
-+
-+       if (overflow)
-+               show_mem();     
-+
-+       return overflow;
- }
-
-
-> Thanks
-> Iram
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
 -- 
 Kind regards,
