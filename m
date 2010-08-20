@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A95876B02C4
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:41:33 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K5fVM9013741
-	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
-	Fri, 20 Aug 2010 14:41:31 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 299DE45DE51
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:31 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8EFD45DE53
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEBD1DB8037
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0554FE18001
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
-Message-ID: <5EF4FA9117384B1A80228C96926B4125@rainbow>
-From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
-References: <325E0A25FE724BA18190186F058FF37E@rainbow> <20100817111018.GQ19797@csn.ul.ie> <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819074602.GW19797@csn.ul.ie>
-Subject: Re: compaction: trying to understand the code
-Date: Fri, 20 Aug 2010 14:45:56 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2CCA06B02C6
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:45:38 -0400 (EDT)
+Date: Fri, 20 Aug 2010 13:45:33 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
+Message-ID: <20100820054533.GB11847@localhost>
+References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
+ <AANLkTi=WkoxjwZbt6Vd0VhbuA7_k2WM-NUXZnrmzOOPy@mail.gmail.com>
+ <1282159872.8540.96.camel@heimdal.trondhjem.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-15";
-	reply-type=original
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282159872.8540.96.camel@heimdal.trondhjem.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: Ram Pai <ram.n.pai@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> What is your test scenario? Who or what has these pages isolated that is
-> allowing too_many_isolated() to be true?
+> Hi Ram,
+> 
+> I was seeing it on NFS until I put in the following kswapd-specific hack
+> into nfs_release_page():
+> 
+> 	/* Only do I/O if gfp is a superset of GFP_KERNEL */
+> 	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL) {
+> 		int how = FLUSH_SYNC;
+> 
+> 		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+> 		if (current_is_kswapd())
+> 			how = 0;
 
-I have a test app that attempts to create fragmentation. Then I run
-echo 1 > /proc/sys/vm/compact_memory
-That is all.
-The test app mallocs 2MB 100 times, memsets them.
-Then it frees the even numbered 2MB blocks.
-That is, 2MB*50 remains malloced and 2MB*50 gets freed.
+So the patch can remove the above workaround together, and add comment
+that NFS exploits the gfp mask to avoid complex operations involving
+recursive memory allocation and hence deadlock?
 
-Thanks
-Iram
+Thanks,
+Fengguang
 
+> 		nfs_commit_inode(mapping->host, how);
+> 	}
+> 
+> Remove the 'if (current_is_kswapd())' line, and run an mmap() write
+> intensive workload, and it should hang pretty much every time.
+> 
+> Cheers
+>   Trond
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
