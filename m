@@ -1,29 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C005C6B02E4
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:19:12 -0400 (EDT)
-Date: Fri, 20 Aug 2010 05:19:04 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100820091904.GB20138@infradead.org>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
- <20100819143710.GA4752@infradead.org>
- <20100819235553.GB22747@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100819235553.GB22747@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D9776B02E5
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:31:44 -0400 (EDT)
+From: Michael Rubin <mrubin@google.com>
+Subject: [PATCH 2/4] mm: account_page_writeback added
+Date: Fri, 20 Aug 2010 02:31:27 -0700
+Message-Id: <1282296689-25618-3-git-send-email-mrubin@google.com>
+In-Reply-To: <1282296689-25618-1-git-send-email-mrubin@google.com>
+References: <1282296689-25618-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Jeff Layton <jlayton@redhat.com>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 07:55:53AM +0800, Wu Fengguang wrote:
-> Since migration and pageout still set nonblocking for ->writepage, we
-> may keep them in the near future, until VM does not start IO on itself.
+This allows code outside of the mm core to safely manipulate page
+writeback state and not worry about the other accounting. Not using
+these routines means that some code will lose track of the accounting
+and we get bugs.
 
-Why does pageout() and memory migration need to be even more
-non-blocking than the already non-blockig WB_SYNC_NONE writeout?
+Signed-off-by: Michael Rubin <mrubin@google.com>
+---
+ fs/nilfs2/segment.c |    2 +-
+ include/linux/mm.h  |    1 +
+ mm/page-writeback.c |   13 ++++++++++++-
+ 3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+index 9fd051a..5617f16 100644
+--- a/fs/nilfs2/segment.c
++++ b/fs/nilfs2/segment.c
+@@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
+ 	kunmap_atomic(kaddr, KM_USER0);
+ 
+ 	if (!TestSetPageWriteback(clone_page))
+-		inc_zone_page_state(clone_page, NR_WRITEBACK);
++		account_page_writeback(clone_page);
+ 	unlock_page(clone_page);
+ 
+ 	return 0;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 709f672..4b2f38b 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -856,6 +856,7 @@ int __set_page_dirty_no_writeback(struct page *page);
+ int redirty_page_for_writepage(struct writeback_control *wbc,
+ 				struct page *page);
+ void account_page_dirtied(struct page *page, struct address_space *mapping);
++void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 9d07a8d..ae5f5d5 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1134,6 +1134,17 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ EXPORT_SYMBOL(account_page_dirtied);
+ 
+ /*
++ * Helper function for set_page_writeback family.
++ * NOTE: Unlike account_page_dirtied this does not rely on being atomic
++ * wrt interrupts.
++ */
++void account_page_writeback(struct page *page)
++{
++	inc_zone_page_state(page, NR_WRITEBACK);
++}
++EXPORT_SYMBOL(account_page_writeback);
++
++/*
+  * For address_spaces which do not use buffers.  Just tag the page as dirty in
+  * its radix tree.
+  *
+@@ -1371,7 +1382,7 @@ int test_set_page_writeback(struct page *page)
+ 		ret = TestSetPageWriteback(page);
+ 	}
+ 	if (!ret)
+-		inc_zone_page_state(page, NR_WRITEBACK);
++		account_page_writeback(page);
+ 	return ret;
+ 
+ }
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
