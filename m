@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 14AE16B02C5
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:45:14 -0400 (EDT)
-Message-ID: <4C6EF747.7070904@redhat.com>
-Date: Fri, 20 Aug 2010 17:44:39 -0400
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E240A6B02DC
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:46:13 -0400 (EDT)
+Message-ID: <4C6EF78E.9020600@redhat.com>
+Date: Fri, 20 Aug 2010 17:45:50 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/6] mm: Remove all KM_type arguments
-References: <20100819201317.673172547@chello.nl> <20100819202753.773618082@chello.nl>
-In-Reply-To: <20100819202753.773618082@chello.nl>
+Subject: Re: [RFC][PATCH 5/6] mm: Fix up KM_type argument removal fallout
+References: <20100819201317.673172547@chello.nl> <20100819202753.845273979@chello.nl>
+In-Reply-To: <20100819202753.845273979@chello.nl>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,15 +17,9 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-fo
 List-ID: <linux-mm.kvack.org>
 
 On 08/19/2010 04:13 PM, Peter Zijlstra wrote:
-> Do the bulk of the km_type and KM_type removement by script.
+> Manual fixups of the previous patch
 >
-> git grep -l -e km_type -e KM_ | grep -v xfs | while read file;
-> do
-> 	quilt add $file;
->          sed -i -e 's/,[[:space:]]*enum km_type type[[:space:]]*//g'         \
->                 -e 's/,[[:space:]]*KM_[[:digit:][:upper:]_]*[[:space:]]*//g' \
->              $file;
-> done
+> (i386 all{mod,yes}config driven}
 >
 > Signed-off-by: Peter Zijlstra<a.p.zijlstra@chello.nl>
 
