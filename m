@@ -1,70 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F10336B02B1
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 23:13:34 -0400 (EDT)
-Date: Fri, 20 Aug 2010 12:12:50 +0900
-Subject: Re: [PATCH/RFCv3 0/6] The Contiguous Memory Allocator framework
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <op.vhppgaxq7p4s8u@localhost>
-References: <AANLkTikp49oOny-vrtRTsJvA3Sps08=w7__JjdA3FE8t@mail.gmail.com>
-	<20100820001339N.fujita.tomonori@lab.ntt.co.jp>
-	<op.vhppgaxq7p4s8u@localhost>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20100820121124Z.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 067F26B02B4
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 23:16:52 -0400 (EDT)
+Date: Fri, 20 Aug 2010 11:16:48 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] writeback: Reporting dirty thresholds in
+ /proc/vmstat
+Message-ID: <20100820031647.GC5502@localhost>
+References: <1282251447-16937-1-git-send-email-mrubin@google.com>
+ <1282251447-16937-4-git-send-email-mrubin@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282251447-16937-4-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: m.nazarewicz@samsung.com
-Cc: kyungmin.park@samsung.com, fujita.tomonori@lab.ntt.co.jp, linux-mm@kvack.org, dwalker@codeaurora.org, linux@arm.linux.org.uk, corbet@lwn.net, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, hverkuil@xs4all.nl, kgene.kim@samsung.com, zpfeffer@codeaurora.org, jaeryul.oh@samsung.com, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@suse.de, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-> >> We hope this method included at mainline kernel if possible.
-> >> It's really needed feature for our multimedia frameworks.
-> >
-> > You got any comments from mm people?
-> >
-> > Virtually, this adds a new memory allocator implementation that steals
-> > some memory from memory allocator during boot process. Its API looks
-> > completely different from the API for memory allocator. That doesn't
-> > sound appealing to me much. This stuff couldn't be integrated well
-> > into memory allocator?
+On Thu, Aug 19, 2010 at 01:57:27PM -0700, Michael Rubin wrote:
+> The kernel already exposes the desired thresholds in /proc/sys/vm with
+> dirty_background_ratio and background_ratio. Instead the kernel may
+> alter the number requested without giving the user any indication that
+> is the case.
+
+You mean the 5% lower bound in global_dirty_limits()? Let's rip it :)
+
+> Knowing the actual ratios the kernel is honoring can help app developers
+> understand how their buffered IO will be sent to the disk.
 > 
-> What kind of integration do you mean?  I see three levels:
+> 	$ grep threshold /proc/vmstat
+> 	nr_pages_dirty_threshold 409111
+> 	nr_pages_dirty_background_threshold 818223
+
+It's redundant to have _pages in the names. /proc/vmstat has the
+tradition to use nr_dirty instead of nr_pages_dirty.
+
+They do look like useful counters to export, especially when we do
+dynamic dirty limits in future.
+
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
+>  include/linux/mmzone.h |    2 ++
+>  mm/vmstat.c            |    8 ++++++++
+>  2 files changed, 10 insertions(+), 0 deletions(-)
 > 
-> 1. Integration on API level meaning that some kind of existing API is used
->     instead of new cma_*() calls.  CMA adds notion of devices and memory
->     types which is new to all the other APIs (coherent has notion of devices
->     but that's not enough).  This basically means that no existing API can be
->     used for CMA.  On the other hand, removing notion of devices and memory
->     types would defeat the whole purpose of CMA thus destroying the solution
->     that CMA provides.
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index f160481..7c4a3bf 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -114,6 +114,8 @@ enum zone_stat_item {
+>  #endif
+>  	NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter writeback */
+>  	NR_FILE_PAGES_DIRTIED,      /* number of times pages get dirtied */
+> +	NR_PAGES_DIRTY_THRESHOLD,   /* writeback threshold */
+> +	NR_PAGES_DIRTY_BG_THRESHOLD,/* bg writeback threshold */
 
-You can create something similar to the existing API for memory
-allocator.
+s/_PAGES//
 
-For example, blk_kmalloc/blk_alloc_pages was proposed as memory
-allocator API with notion of an address range for allocated memory. It
-wasn't merged for other reasons though.
+>  	NR_VM_ZONE_STAT_ITEMS };
+>  
+>  /*
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index e177a40..8b5bc78 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -17,6 +17,7 @@
+>  #include <linux/vmstat.h>
+>  #include <linux/sched.h>
+>  #include <linux/math64.h>
+> +#include <linux/writeback.h>
+>  
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+> @@ -742,6 +743,8 @@ static const char * const vmstat_text[] = {
+>  #endif
+>  	"nr_pages_entered_writeback",
+>  	"nr_file_pages_dirtied",
+> +	"nr_pages_dirty_threshold",
+> +	"nr_pages_dirty_background_threshold",
 
-I don't mean that this is necessary for the inclusion (I'm not the
-person to ack or nack this). I just expect the similarity of memory
-allocator API.
+s/_pages//
 
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  	"pgpgin",
+> @@ -901,6 +904,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  	unsigned long *e;
+>  #endif
+> +	unsigned long dirty_thresh, dirty_bg_thresh;
+>  	int i;
+>  
+>  	if (*pos >= ARRAY_SIZE(vmstat_text))
+> @@ -918,6 +922,10 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+>  		return ERR_PTR(-ENOMEM);
+>  	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+>  		v[i] = global_page_state(i);
+> +
+> +	get_dirty_limits(&dirty_thresh, &dirty_bg_thresh, NULL, NULL);
 
-> 2. Reuse of memory pools meaning that memory reserved by CMA can then be
->     used by other allocation mechanisms.  This is of course possible.  For
->     instance coherent could easily be implemented as a wrapper to CMA.
->     This is doable and can be done in the future after CMA gets more
->     recognition.
+2.6.36-rc1 will need this:
+
+        global_dirty_limits(v + NR_DIRTY_THRESHOLD, v + NR_DIRTY_BG_THRESHOLD);
+
+Thanks,
+Fengguang
+
+> +	v[NR_PAGES_DIRTY_THRESHOLD] = dirty_thresh;
+> +	v[NR_PAGES_DIRTY_BG_THRESHOLD] = dirty_bg_thresh;
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  	e = v + NR_VM_ZONE_STAT_ITEMS;
+>  	all_vm_events(e);
+> -- 
+> 1.7.1
 > 
-> 3. Reuse of algorithms meaning that allocation algorithms used by other
->     allocators will be used with CMA regions.  This is doable as well and
->     can be done in the future.
-
-Well, why can't we do the above before the inclusion?
-
-Anyway, I think that comments from mm people would be helpful to merge
-this.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
