@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 144576B02F0
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:36:18 -0400 (EDT)
-Date: Fri, 20 Aug 2010 10:35:59 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: compaction: trying to understand the code
-Message-ID: <20100820093558.GG19797@csn.ul.ie>
-References: <325E0A25FE724BA18190186F058FF37E@rainbow> <20100817111018.GQ19797@csn.ul.ie> <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819160006.GG6805@barrios-desktop> <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow> <20100820053447.GA13406@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3B9F66B02F2
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:39:58 -0400 (EDT)
+Date: Fri, 20 Aug 2010 17:39:51 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/4] mm: exporting account_page_dirty
+Message-ID: <20100820093951.GA8440@localhost>
+References: <1282296689-25618-1-git-send-email-mrubin@google.com>
+ <1282296689-25618-2-git-send-email-mrubin@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100820053447.GA13406@localhost>
+In-Reply-To: <1282296689-25618-2-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Michael Rubin <mrubin@google.com>, Sage Weil <sage@newdream.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 01:34:47PM +0800, Wu Fengguang wrote:
-> You do run lots of tasks: kernel_stack=1880kB.
-> 
-> And you have lots of free memory, page reclaim has never run, so
-> inactive_anon=0. This is where compaction is different from vmscan.
-> In vmscan, inactive_anon is reasonably large, and will only be
-> compared directly with isolated_anon.
-> 
+Sage,
 
-True, the key observation here was that compaction is being run via the
-proc trigger. Normally it would be run as part of the direct reclaim
-path when kswapd would already be awake. too_many_isolated() needs to be
-different for compaction to take the whole system into account. What
-would be the best alternative? Here is one possibility. A reasonable
-alternative would be that when inactive < active that isolated can't be
-more than num_online_cpus() * 2 (i.e. one compactor per online cpu).
+This is actually a bug fix for ceph, which missed the task_dirty_inc()
+call in account_page_dirty().
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 94cce51..1e000b7 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -215,14 +215,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- static bool too_many_isolated(struct zone *zone)
- {
- 
--	unsigned long inactive, isolated;
-+	unsigned long active, inactive, isolated;
- 
-+	active = zone_page_state(zone, NR_ACTIVE_FILE) +
-+					zone_page_state(zone, NR_INACTIVE_ANON);
- 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
- 					zone_page_state(zone, NR_INACTIVE_ANON);
- 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
- 					zone_page_state(zone, NR_ISOLATED_ANON);
- 
--	return isolated > inactive;
-+	return (inactive > active) ? isolated > inactive : false;
- }
- 
- /*
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+
+On Fri, Aug 20, 2010 at 05:31:26PM +0800, Michael Rubin wrote:
+> This allows code outside of the mm core to safely manipulate page state
+> and not worry about the other accounting. Not using these routines means
+> that some code will lose track of the accounting and we get bugs. This
+> has happened once already.
+> 
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
+>  fs/ceph/addr.c      |    8 +-------
+>  mm/page-writeback.c |    1 +
+>  2 files changed, 2 insertions(+), 7 deletions(-)
+> 
+> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> index 5598a0d..420d469 100644
+> --- a/fs/ceph/addr.c
+> +++ b/fs/ceph/addr.c
+> @@ -105,13 +105,7 @@ static int ceph_set_page_dirty(struct page *page)
+>  	spin_lock_irq(&mapping->tree_lock);
+>  	if (page->mapping) {	/* Race with truncate? */
+>  		WARN_ON_ONCE(!PageUptodate(page));
+> -
+> -		if (mapping_cap_account_dirty(mapping)) {
+> -			__inc_zone_page_state(page, NR_FILE_DIRTY);
+> -			__inc_bdi_stat(mapping->backing_dev_info,
+> -					BDI_RECLAIMABLE);
+> -			task_io_account_write(PAGE_CACHE_SIZE);
+> -		}
+> +		account_page_dirtied(page, page->mapping);
+>  		radix_tree_tag_set(&mapping->page_tree,
+>  				page_index(page), PAGECACHE_TAG_DIRTY);
+>  
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 7262aac..9d07a8d 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1131,6 +1131,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+>  		task_io_account_write(PAGE_CACHE_SIZE);
+>  	}
+>  }
+> +EXPORT_SYMBOL(account_page_dirtied);
+>  
+>  /*
+>   * For address_spaces which do not use buffers.  Just tag the page as dirty in
+> -- 
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
