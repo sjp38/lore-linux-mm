@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 259D36B0209
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:31:11 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K0V9dP006884
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 20 Aug 2010 09:31:09 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0998745DE4F
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:31:09 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF2D745DE4E
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:31:08 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B52D31DB804F
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:31:08 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E2ED1DB804C
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:31:08 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch v2 2/2] oom: kill all threads sharing oom killed task's mm
-In-Reply-To: <alpine.DEB.2.00.1008191340580.18994@chino.kir.corp.google.com>
-References: <20100819170642.5FAE.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1008191340580.18994@chino.kir.corp.google.com>
-Message-Id: <20100820091004.5FE4.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id E3DD46B020B
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:33:32 -0400 (EDT)
+Received: by ywo7 with SMTP id 7so1247474ywo.14
+        for <linux-mm@kvack.org>; Thu, 19 Aug 2010 17:33:31 -0700 (PDT)
+Date: Fri, 20 Aug 2010 08:33:08 +0800
+From: Wu Fengguang <fengguang.wu@gmail.com>
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+Message-ID: <20100820003308.GA30548@localhost>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+ <20100819143710.GA4752@infradead.org>
+ <1282229905.6199.19.camel@heimdal.trondhjem.org>
+ <20100819151618.5f769dc9@tlielax.poochiereds.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 20 Aug 2010 09:31:07 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100819151618.5f769dc9@tlielax.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, 19 Aug 2010, KOSAKI Motohiro wrote:
+> Here's a lightly tested patch that turns the check for the two flags
+> into a check for WB_SYNC_NONE. It seems to do the right thing, but I
+> don't have a clear testcase for it. Does this look reasonable?
+ 
+Yes, I don't see any problems.
+
+> ------------------[snip]------------------------
 > 
-> > > No, I'm talking about threads with CLONE_VM and not CLONE_THREAD (or 
-> > > CLONE_VFORK, in your example).  They share the same address space but are 
-> > > in different tgid's and may sit holding mm->mmap_sem looping in the page 
-> > > allocator while we know we're oom and there's no chance of freeing any 
-> > > more memory since the oom killer doesn't kill will other tasks have yet to 
-> > > exit.
-> > 
-> > Why don't you use pthread library? Is there any good reason? That said,
-> > If you are trying to optimize neither thread nor vfork case, I'm not charmed
-> > this because 99.99% user don't use it. but even though every user will get 
-> > performance degression. Can you please consider typical use case optimization?
-> > 
+> NFS: don't use FLUSH_SYNC on WB_SYNC_NONE COMMIT calls
 > 
-> Non-NPTL threaded applications exist in the wild, and I can't change that.  
+> WB_SYNC_NONE is supposed to mean "don't wait on anything". That should
+> also include not waiting for COMMIT calls to complete.
+> 
+> WB_SYNC_NONE is also implied when wbc->nonblocking or
+> wbc->for_background are set, so we can replace those checks in
+> nfs_commit_unstable_pages with a check for WB_SYNC_NONE.
+>
+> Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> ---
+>  fs/nfs/write.c |   10 +++++-----
+>  1 files changed, 5 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+> index 874972d..35bd7d0 100644
+> --- a/fs/nfs/write.c
+> +++ b/fs/nfs/write.c
+> @@ -1436,12 +1436,12 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
+>  	/* Don't commit yet if this is a non-blocking flush and there are
+>  	 * lots of outstanding writes for this mapping.
+>  	 */
+> -	if (wbc->sync_mode == WB_SYNC_NONE &&
+> -	    nfsi->ncommit <= (nfsi->npages >> 1))
+> -		goto out_mark_dirty;
+> -
+> -	if (wbc->nonblocking || wbc->for_background)
+> +	if (wbc->sync_mode == WB_SYNC_NONE) {
+> +		if (nfsi->ncommit <= (nfsi->npages >> 1))
+> +			goto out_mark_dirty;
+>  		flags = 0;
+> +	}
+> +
 
-Which application? If it is major opensource application, I think this one
-makes end user happy.
+nitpick: I'd slightly prefer an one-line change
 
+-       if (wbc->nonblocking || wbc->for_background)
++       if (wbc->sync_mode == WB_SYNC_NONE)
+                flags = 0;
 
-> This mm->mmap_sem livelock is a problem for them, we've hit it internally 
-> (we're forced to carry this patch internally), and we aren't the only ones 
-> running at least some non-NPTL apps.  That's why this code existed in the 
-> oom killer for over eight years since the 2.4 kernel before you removed it 
-> based on the mempolicy policy of killing current, which has since been 
-> obsoleted.  Until CLONE_VM without CLONE_THREAD is prohibited entirely on 
-> Linux, this livelock can exist.
+That way the patch will look more obvious and "git blame" friendly,
+and the original "Don't commit.." comment will best match its code.
 
-Or, can you eliminate O(n^2) thing? The cost is enough low, I don't oppose 
-this.
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-
-
-> Users who do not want the tasklist scan here, which only iterates over 
-> thread group leaders and not threads, can enable 
-> /proc/sys/vm/oom_kill_allocating_task.  That's its whole purpose.  Other 
-> than that, the oom killer will never be the most efficient part of the 
-> kernel and doing for_each_process() is much less expensive than all the 
-> task_lock()s we take already.
-
-No.
-Please don't forget typical end user don't use any kernel knob. kernel knob
-is not a way for developer excuse.
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
