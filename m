@@ -1,358 +1,689 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C03E46B0300
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:52:11 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L7G00L463EWS550@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 20 Aug 2010 10:52:08 +0100 (BST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1B5756B0301
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:52:18 -0400 (EDT)
+Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
+ by mailout2.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L7G00EM93F24K@mailout2.w1.samsung.com> for linux-mm@kvack.org;
+ Fri, 20 Aug 2010 10:52:14 +0100 (BST)
 Received: from pikus.localdomain ([10.89.8.241])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
  2004)) with ESMTPA id <0L7G008IB3CR4S@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 20 Aug 2010 10:52:08 +0100 (BST)
-Date: Fri, 20 Aug 2010 11:50:44 +0200
+ linux-mm@kvack.org; Fri, 20 Aug 2010 10:52:14 +0100 (BST)
+Date: Fri, 20 Aug 2010 11:50:45 +0200
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [PATCH/RFCv4 4/6] mm: cma: Added command line parameters support
+Subject: [PATCH/RFCv4 5/6] mm: cma: Test device and application added
 In-reply-to: 
- <9883433f103cc84e55db150806d2270200c74c6b.1282286941.git.m.nazarewicz@samsung.com>
-Message-id: 
  <8fa83f632d8198f98b232b96c848eece44e33f83.1282286941.git.m.nazarewicz@samsung.com>
+Message-id: 
+ <2e2a3d55b07cf8ce852e0d02e6fd77dc1fcbf275.1282286941.git.m.nazarewicz@samsung.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <cover.1282286941.git.m.nazarewicz@samsung.com>
  <0b02e05fc21e70a3af39e65e628d117cd89d70a1.1282286941.git.m.nazarewicz@samsung.com>
  <343f4b0edf9b5eef598831700cb459cd428d3f2e.1282286941.git.m.nazarewicz@samsung.com>
  <9883433f103cc84e55db150806d2270200c74c6b.1282286941.git.m.nazarewicz@samsung.com>
+ <8fa83f632d8198f98b232b96c848eece44e33f83.1282286941.git.m.nazarewicz@samsung.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a pair of early parameters ("cma" and
-"cma.map") which let one override the CMA configuration
-given by platform without the need to recompile the kernel.
+This patch adds a "cma" misc device which lets user space use the
+CMA API.  This device is meant for testing.  A testing application
+is also provided.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/contiguous-memory.txt |   85 ++++++++++++++++++++++--
- Documentation/kernel-parameters.txt |    7 ++
- mm/Kconfig                          |    6 ++
- mm/cma.c                            |  125 +++++++++++++++++++++++++++++++++++
- 4 files changed, 218 insertions(+), 5 deletions(-)
+ drivers/misc/Kconfig   |    8 +
+ drivers/misc/Makefile  |    1 +
+ drivers/misc/cma-dev.c |  185 ++++++++++++++++++++++++
+ include/linux/cma.h    |   30 ++++
+ tools/cma/cma-test.c   |  373 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 597 insertions(+), 0 deletions(-)
+ create mode 100644 drivers/misc/cma-dev.c
+ create mode 100644 tools/cma/cma-test.c
 
-diff --git a/Documentation/contiguous-memory.txt b/Documentation/contiguous-memory.txt
-index 8d189b8..95faec1 100644
---- a/Documentation/contiguous-memory.txt
-+++ b/Documentation/contiguous-memory.txt
-@@ -88,6 +88,20 @@
-            early region and the framework will handle the rest
-            including choosing the right early allocator.
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 0b591b6..f93e812 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -395,4 +395,12 @@ source "drivers/misc/eeprom/Kconfig"
+ source "drivers/misc/cb710/Kconfig"
+ source "drivers/misc/iwmc3200top/Kconfig"
  
-+    4. CMA allows a run-time configuration of the memory regions it
-+       will use to allocate chunks of memory from.  The set of memory
-+       regions is given on command line so it can be easily changed
-+       without the need for recompiling the kernel.
-+
-+       Each region has it's own size, alignment demand, a start
-+       address (physical address where it should be placed) and an
-+       allocator algorithm assigned to the region.
-+
-+       This means that there can be different algorithms running at
-+       the same time, if different devices on the platform have
-+       distinct memory usage characteristics and different algorithm
-+       match those the best way.
-+
- ** Use cases
- 
-     Let's analyse some imaginary system that uses the CMA to see how
-@@ -162,7 +176,6 @@
-     This solution also shows how with CMA you can assign private pools
-     of memory to each device if that is required.
- 
--
-     Allocation mechanisms can be replaced dynamically in a similar
-     manner as well. Let's say that during testing, it has been
-     discovered that, for a given shared region of 40 MiB,
-@@ -217,6 +230,42 @@
-      it will be set to a PAGE_SIZE.  start will be aligned to
-      alignment.
- 
-+     If command line parameter support is enabled, this attribute can
-+     also be overriden by a command line "cma" parameter.  When given
-+     on command line its forrmat is as follows:
-+
-+         regions-attr  ::= [ regions [ ';' ] ]
-+         regions       ::= region [ ';' regions ]
-+
-+         region        ::= REG-NAME
-+                             '=' size
-+                           [ '@' start ]
-+                           [ '/' alignment ]
-+                           [ ':' ALLOC-NAME ]
-+
-+         size          ::= MEMSIZE   // size of the region
-+         start         ::= MEMSIZE   // desired start address of
-+                                     // the region
-+         alignment     ::= MEMSIZE   // alignment of the start
-+                                     // address of the region
-+
-+     REG-NAME specifies the name of the region.  All regions given at
-+     via the regions attribute need to have a name.  Moreover, all
-+     regions need to have a unique name.  If two regions have the same
-+     name it is unspecified which will be used when requesting to
-+     allocate memory from region with given name.
-+
-+     ALLOC-NAME specifies the name of allocator to be used with the
-+     region.  If no allocator name is provided, the "default"
-+     allocator will be used with the region.  The "default" allocator
-+     is, of course, the first allocator that has been registered. ;)
-+
-+     size, start and alignment are specified in bytes with suffixes
-+     that memparse() accept.  If start is given, the region will be
-+     reserved on given starting address (or at close to it as
-+     possible).  If alignment is specified, the region will be aligned
-+     to given value.
-+
- **** Map
- 
-      The format of the "map" attribute is as follows:
-@@ -260,8 +309,33 @@
-      SysFS and can be changed at run-time by writing to
-      /sys/kernel/mm/contiguous/map.
- 
-+     If command line parameter support is enabled, this attribute can
-+     also be overriden by a command line "cma.map" parameter.
-+
-+**** Examples
-+
-      Some examples (whitespace added for better readability):
- 
-+         cma = r1 = 64M       // 64M region
-+                    @512M       // starting at address 512M
-+                                // (or at least as near as possible)
-+                    /1M         // make sure it's aligned to 1M
-+                    :foo(bar);  // uses allocator "foo" with "bar"
-+                                // as parameters for it
-+               r2 = 64M       // 64M region
-+                    /1M;        // make sure it's aligned to 1M
-+                                // uses the first available allocator
-+               r3 = 64M       // 64M region
-+                    @512M       // starting at address 512M
-+                    :foo;       // uses allocator "foo" with no parameters
-+
-+         cma_map = foo = r1;
-+                       // device foo with kind==NULL uses region r1
-+
-+                   foo/quaz = r2;  // OR:
-+                   /quaz = r2;
-+                       // device foo with kind == "quaz" uses region r2
-+
-          cma_map = foo/quaz = r1;
-                        // device foo with type == "quaz" uses region r1
- 
-@@ -526,10 +600,11 @@
- 
-         int cma_set_defaults(struct cma_region *regions, const char *map)
- 
--    It needs to be called prior to reserving regions.  It let one
--    specify the list of regions defined by platform and the map
--    attribute.  The map may point to a string in __initdata.  See
--    above in this document for example usage of this function.
-+    It needs to be called after early params have been parsed but
-+    prior to reserving regions.  It let one specify the list of
-+    regions defined by platform and the map attribute.  The map may
-+    point to a string in __initdata.  See above in this document for
-+    example usage of this function.
- 
- ** Future work
- 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index cf81298..db53b76 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -43,6 +43,7 @@ parameter is applicable:
- 	AVR32	AVR32 architecture is enabled.
- 	AX25	Appropriate AX.25 support is enabled.
- 	BLACKFIN Blackfin architecture is enabled.
-+	CMA	Contiguous Memory Allocator is enabled.
- 	DRM	Direct Rendering Management support is enabled.
- 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
- 	EFI	EFI Partitioning (GPT) is enabled
-@@ -477,6 +478,12 @@ and is between 256 and 4096 characters. It is defined in the file
- 			Also note the kernel might malfunction if you disable
- 			some critical bits.
- 
-+	cma=		[CMA] List of CMA regions.
-+			See Documentation/contiguous-memory.txt for details.
-+
-+	cma.map=	[CMA] CMA mapping
-+			See Documentation/contiguous-memory.txt for details.
-+
- 	cmo_free_hint=	[PPC] Format: { yes | no }
- 			Specify whether pages are marked as being inactive
- 			when they are freed.  This is used in CMO environments
-diff --git a/mm/Kconfig b/mm/Kconfig
-index ac0bb08..05404fc 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -339,6 +339,12 @@ config CMA_SYSFS
- 	  Enable support for SysFS interface.
- 
- config CMA_CMDLINE
-+	bool "CMA command line parameters support"
++config CMA_DEVICE
++	tristate "CMA misc device (DEVELOPEMENT)"
 +	depends on CMA_DEVELOPEMENT
 +	help
-+	  Enable support for cma, cma.map and cma.asterisk command line
-+	  parameters.
++	  The CMA misc device allows allocating contiguous memory areas
++	  from user space.  This is mostly for testing of the CMA
++	  framework.
 +
- config CMA_BEST_FIT
- 	bool "CMA best-fit allocator"
- 	depends on CMA
-diff --git a/mm/cma.c b/mm/cma.c
-index 561d817..33d48d8 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -103,6 +103,12 @@ static int __init cma_map_param(char *param)
- 	return 0;
- }
- 
-+#if defined CONFIG_CMA_CMDLINE
-+
-+early_param("cma.map", cma_map_param);
-+
-+#endif
-+
- 
- 
- /************************* Early regions *************************/
-@@ -110,6 +116,125 @@ static int __init cma_map_param(char *param)
- struct list_head cma_early_regions __initdata =
- 	LIST_HEAD_INIT(cma_early_regions);
- 
-+#ifdef CONFIG_CMA_CMDLINE
-+
+ endif # MISC_DEVICES
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index 255a80d..2e82898 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -35,3 +35,4 @@ obj-y				+= eeprom/
+ obj-y				+= cb710/
+ obj-$(CONFIG_VMWARE_BALLOON)	+= vmware_balloon.o
+ obj-$(CONFIG_ARM_CHARLCD)	+= arm-charlcd.o
++obj-$(CONFIG_CMA_DEVICE)	+= cma-dev.o
+diff --git a/drivers/misc/cma-dev.c b/drivers/misc/cma-dev.c
+new file mode 100644
+index 0000000..de534f0
+--- /dev/null
++++ b/drivers/misc/cma-dev.c
+@@ -0,0 +1,185 @@
 +/*
-+ * regions-attr ::= [ regions [ ';' ] ]
-+ * regions      ::= region [ ';' regions ]
++ * Contiguous Memory Allocator userspace driver
++ * Copyright (c) 2010 by Samsung Electronics.
++ * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
 + *
-+ * region       ::= [ '-' ] reg-name
-+ *                    '=' size
-+ *                  [ '@' start ]
-+ *                  [ '/' alignment ]
-+ *                  [ ':' alloc-name ]
-+ *
-+ * See Documentation/contiguous-memory.txt for details.
-+ *
-+ * Example:
-+ * cma=reg1=64M:bf;reg2=32M@0x100000:bf;reg3=64M/1M:bf
-+ *
-+ * If allocator is ommited the first available allocater will be used.
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License or (at your optional) any later version of the license.
 + */
 +
-+#define NUMPARSE(cond_ch, type, cond) ({				\
-+		unsigned long long v = 0;				\
-+		if (*param == (cond_ch)) {				\
-+			const char *const msg = param + 1;		\
-+			v = memparse(msg, &param);			\
-+			if (!v || v > ~(type)0 || !(cond)) {		\
-+				pr_err("param: invalid value near %s\n", msg); \
-+				ret = -EINVAL;				\
-+				break;					\
-+			}						\
-+		}							\
-+		v;							\
-+	})
++#define pr_fmt(fmt) "cma: " fmt
 +
-+static int __init cma_param_parse(char *param)
-+{
-+	static struct cma_region regions[16];
-+
-+	size_t left = ARRAY_SIZE(regions);
-+	struct cma_region *reg = regions;
-+	int ret = 0;
-+
-+	pr_debug("param: %s\n", param);
-+
-+	for (; *param; ++reg) {
-+		dma_addr_t start, alignment;
-+		size_t size;
-+
-+		if (unlikely(!--left)) {
-+			pr_err("param: too many early regions\n");
-+			return -ENOSPC;
-+		}
-+
-+		/* Parse name */
-+		reg->name = param;
-+		param = strchr(param, '=');
-+		if (!param || param == reg->name) {
-+			pr_err("param: expected \"<name>=\" near %s\n",
-+			       reg->name);
-+			ret = -EINVAL;
-+			break;
-+		}
-+		*param = '\0';
-+
-+		/* Parse numbers */
-+		size      = NUMPARSE('\0', size_t, true);
-+		start     = NUMPARSE('@', dma_addr_t, true);
-+		alignment = NUMPARSE('/', dma_addr_t, (v & (v - 1)) == 0);
-+
-+		alignment = max(alignment, (dma_addr_t)PAGE_SIZE);
-+		start     = ALIGN(start, alignment);
-+		size      = PAGE_ALIGN(size);
-+		if (start + size < start) {
-+			pr_err("param: invalid start, size combination\n");
-+			ret = -EINVAL;
-+			break;
-+		}
-+
-+		/* Parse allocator */
-+		if (*param == ':') {
-+			reg->alloc_name = ++param;
-+			while (*param && *param != ';')
-+				++param;
-+			if (param == reg->alloc_name)
-+				reg->alloc_name = NULL;
-+		}
-+
-+		/* Go to next */
-+		if (*param == ';') {
-+			*param = '\0';
-+			++param;
-+		} else if (*param) {
-+			pr_err("param: expecting ';' or end of parameter near %s\n",
-+			       param);
-+			ret = -EINVAL;
-+			break;
-+		}
-+
-+		/* Add */
-+		reg->size      = size;
-+		reg->start     = start;
-+		reg->alignment = alignment;
-+		reg->copy_name = 1;
-+
-+		list_add_tail(&reg->list, &cma_early_regions);
-+
-+		pr_debug("param: registering early region %s (%p@%p/%p)\n",
-+			 reg->name, (void *)reg->size, (void *)reg->start,
-+			 (void *)reg->alignment);
-+	}
-+
-+	return ret;
-+}
-+early_param("cma", cma_param_parse);
-+
-+#undef NUMPARSE
-+
++#ifdef CONFIG_CMA_DEBUG
++#  define DEBUG
 +#endif
 +
++#include <linux/errno.h>       /* Error numbers */
++#include <linux/err.h>         /* IS_ERR_VALUE() */
++#include <linux/fs.h>          /* struct file */
++#include <linux/mm.h>          /* Memory stuff */
++#include <linux/mman.h>
++#include <linux/slab.h>
++#include <linux/module.h>      /* Standard module stuff */
++#include <linux/device.h>      /* struct device, dev_dbg() */
++#include <linux/types.h>       /* Just to be safe ;) */
++#include <linux/uaccess.h>     /* __copy_{to,from}_user */
++#include <linux/miscdevice.h>  /* misc_register() and company */
++
++#include <linux/cma.h>
++
++static int  cma_file_open(struct inode *inode, struct file *file);
++static int  cma_file_release(struct inode *inode, struct file *file);
++static long cma_file_ioctl(struct file *file, unsigned cmd, unsigned long arg);
++static int  cma_file_mmap(struct file *file, struct vm_area_struct *vma);
++
++
++static struct miscdevice cma_miscdev = {
++	.minor = MISC_DYNAMIC_MINOR,
++	.name  = "cma",
++	.fops  = &(const struct file_operations) {
++		.owner          = THIS_MODULE,
++		.open           = cma_file_open,
++		.release        = cma_file_release,
++		.unlocked_ioctl = cma_file_ioctl,
++		.mmap           = cma_file_mmap,
++	},
++};
++#define cma_dev (cma_miscdev.this_device)
++
++
++#define cma_file_start(file) (((dma_addr_t *)(file)->private_data)[0])
++#define cma_file_size(file)  (((dma_addr_t *)(file)->private_data)[1])
++
++
++static int  cma_file_open(struct inode *inode, struct file *file)
++{
++	dev_dbg(cma_dev, "%s(%p)\n", __func__, (void *)file);
++
++	file->private_data = NULL;
++
++	return 0;
++}
++
++
++static int  cma_file_release(struct inode *inode, struct file *file)
++{
++	dev_dbg(cma_dev, "%s(%p)\n", __func__, (void *)file);
++
++	if (file->private_data) {
++		cma_free(cma_file_start(file));
++		kfree(file->private_data);
++	}
++
++	return 0;
++}
++
++
++static long cma_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
++{
++	struct cma_alloc_request req;
++	struct device fake_device;
++	unsigned long addr;
++	long ret;
++
++	dev_dbg(cma_dev, "%s(%p)\n", __func__, (void *)file);
++
++	if (cmd != IOCTL_CMA_ALLOC)
++		return -ENOTTY;
++
++	if (!arg)
++		return -EINVAL;
++
++	if (file->private_data) /* Already allocated */
++		return -EBADFD;
++
++	if (copy_from_user(&req, (void *)arg, sizeof req))
++		return -EFAULT;
++
++	if (req.magic != CMA_MAGIC)
++		return -ENOTTY;
++
++	/* May happen on 32 bit system. */
++	if (req.size > ~(typeof(req.size))0 ||
++	    req.alignment > ~(typeof(req.alignment))0)
++		return -EINVAL;
++
++	if (strnlen(req.name, sizeof req.name) >= sizeof req.name
++	 || strnlen(req.kind, sizeof req.kind) >= sizeof req.kind)
++		return -EINVAL;
++
++	file->private_data = kmalloc(2 * sizeof(dma_addr_t), GFP_KERNEL);
++	if (!file->private_data)
++		return -ENOMEM;
++
++	fake_device.init_name = req.name;
++	fake_device.kobj.name = req.name;
++	addr = cma_alloc(&fake_device, req.kind, req.size, req.alignment);
++	if (IS_ERR_VALUE(addr)) {
++		ret = addr;
++		goto error_priv;
++	}
++
++	if (put_user(addr, (typeof(req.start) *)(arg + offsetof(typeof(req),
++								start)))) {
++		ret = -EFAULT;
++		goto error_put;
++	}
++
++	cma_file_start(file) = addr;
++	cma_file_size(file) = req.size;
++
++	dev_dbg(cma_dev, "allocated %p@%p\n",
++		(void *)(dma_addr_t)req.size, (void *)addr);
++
++	return 0;
++
++error_put:
++	cma_free(addr);
++error_priv:
++	kfree(file->private_data);
++	file->private_data = NULL;
++	return ret;
++}
++
++
++static int  cma_file_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	unsigned long pgoff, offset, length;
++
++	dev_dbg(cma_dev, "%s(%p)\n", __func__, (void *)file);
++
++	if (!file->private_data)
++		return -EBADFD;
++
++	pgoff  = vma->vm_pgoff;
++	offset = pgoff << PAGE_SHIFT;
++	length = vma->vm_end - vma->vm_start;
++
++	if (offset          >= cma_file_size(file)
++	 || length          >  cma_file_size(file)
++	 || offset + length >  cma_file_size(file))
++		return -ENOSPC;
++
++	return remap_pfn_range(vma, vma->vm_start,
++			       __phys_to_pfn(cma_file_start(file) + offset),
++			       length, vma->vm_page_prot);
++}
++
++
++
++static int __init cma_dev_init(void)
++{
++	int ret = misc_register(&cma_miscdev);
++	pr_debug("miscdev: register returned: %d\n", ret);
++	return ret;
++}
++module_init(cma_dev_init);
++
++static void __exit cma_dev_exit(void)
++{
++	dev_dbg(cma_dev, "deregisterring\n");
++	misc_deregister(&cma_miscdev);
++}
++module_exit(cma_dev_exit);
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index eede28d..4334bb8 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -11,6 +11,36 @@
+  * See Documentation/contiguous-memory.txt for details.
+  */
  
- int __init __must_check cma_early_region_register(struct cma_region *reg)
- {
++#include <linux/ioctl.h>
++#include <linux/types.h>
++
++
++#define CMA_MAGIC (('c' << 24) | ('M' << 16) | ('a' << 8) | 0x42)
++
++/**
++ * An information about area exportable to user space.
++ * @magic:	must always be CMA_MAGIC.
++ * @name:	name of the device to allocate as.
++ * @kind:	kind of the memory.
++ * @_pad:	reserved.
++ * @size:	size of the chunk to allocate.
++ * @alignment:	desired alignment of the chunk (must be power of two or zero).
++ * @start:	when ioctl() finishes this stores physical address of the chunk.
++ */
++struct cma_alloc_request {
++	__u32 magic;
++	char  name[17];
++	char  kind[17];
++	__u16 pad;
++	/* __u64 to be compatible accross 32 and 64 bit systems. */
++	__u64 size;
++	__u64 alignment;
++	__u64 start;
++};
++
++#define IOCTL_CMA_ALLOC    _IOWR('p', 0, struct cma_alloc_request)
++
++
+ /***************************** Kernel lever API *****************************/
+ 
+ #ifdef __KERNEL__
+diff --git a/tools/cma/cma-test.c b/tools/cma/cma-test.c
+new file mode 100644
+index 0000000..567c57b
+--- /dev/null
++++ b/tools/cma/cma-test.c
+@@ -0,0 +1,373 @@
++/*
++ * cma-test.c -- CMA testing application
++ *
++ * Copyright (C) 2010 Samsung Electronics
++ *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ */
++
++/* $(CROSS_COMPILE)gcc -Wall -Wextra -g -o cma-test cma-test.c  */
++
++#include <linux/cma.h>
++
++#include <sys/ioctl.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++
++#include <fcntl.h>
++#include <unistd.h>
++
++#include <ctype.h>
++#include <errno.h>
++#include <limits.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++
++static void handle_command(char *line);
++
++int main(void)
++{
++	unsigned no = 1;
++	char line[1024];
++	int skip = 0;
++
++	fputs("commands:\n"
++	      " l or list                                list allocated chunks\n"
++	      " a or alloc  <name> <size>[/<alignment>]  allocate chunk\n"
++	      " f or free   [<num>]                      free an chunk\n"
++	      " # ...                                    comment\n"
++	      " <empty line>                             repeat previous\n"
++	      "\n", stderr);
++
++	while (fgets(line, sizeof line, stdin)) {
++		char *nl = strchr(line, '\n');
++		if (nl) {
++			if (skip) {
++				fprintf(stderr, "cma: %d: line too long\n", no);
++				skip = 0;
++			} else {
++				*nl = '\0';
++				handle_command(line);
++			}
++			++no;
++		} else {
++			skip = 1;
++		}
++	}
++
++	if (skip)
++		fprintf(stderr, "cma: %d: no new line at EOF\n", no);
++	return 0;
++}
++
++
++
++static void cmd_list(char *name, char *line);
++static void cmd_alloc(char *name, char *line);
++static void cmd_free(char *name, char *line);
++
++static const struct command {
++	const char name[8];
++	void (*handle)(char *name, char *line);
++} commands[] = {
++	{ "list",  cmd_list  },
++	{ "l",     cmd_list  },
++	{ "alloc", cmd_alloc },
++	{ "a",     cmd_alloc },
++	{ "free",  cmd_free  },
++	{ "f",     cmd_free  },
++	{ "",      NULL      }
++};
++
++
++#define SKIP_SPACE(ch) do while (isspace(*(ch))) ++(ch); while (0)
++
++
++static void handle_command(char *line)
++{
++	static char last_line[1024];
++
++	const struct command *cmd;
++	char *name;
++
++	SKIP_SPACE(line);
++	if (*line == '#')
++		return;
++
++	if (!*line)
++		strcpy(line, last_line);
++	else
++		strcpy(last_line, line);
++
++	name = line;
++	while (*line && !isspace(*line))
++		++line;
++
++	if (*line) {
++		*line = '\0';
++		++line;
++	}
++
++	for (cmd = commands; *(cmd->name); ++cmd)
++		if (!strcmp(name, cmd->name)) {
++			cmd->handle(name, line);
++			return;
++		}
++
++	fprintf(stderr, "%s: unknown command\n", name);
++}
++
++
++
++struct chunk {
++	struct chunk *next, *prev;
++	int fd;
++	unsigned long size;
++	unsigned long start;
++};
++
++static struct chunk root = {
++	.next = &root,
++	.prev = &root,
++};
++
++#define for_each(a) for (a = root.next; a != &root; a = a->next)
++
++static struct chunk *chunk_create(const char *prefix);
++static void chunk_destroy(struct chunk *chunk);
++static void chunk_add(struct chunk *chunk);
++
++static int memparse(char *ptr, char **retptr, unsigned long *ret);
++
++
++static void cmd_list(char *name, char *line)
++{
++	struct chunk *chunk;
++
++	(void)name; (void)line;
++
++	for_each(chunk)
++		printf("%3d: %p@%p\n", chunk->fd,
++		       (void *)chunk->size, (void *)chunk->start);
++}
++
++
++static void cmd_alloc(char *name, char *line)
++{
++	unsigned long size, alignment = 0;
++	struct cma_alloc_request req;
++	char *dev, *kind = NULL;
++	struct chunk *chunk;
++	int ret;
++
++	SKIP_SPACE(line);
++	if (!*line) {
++		fprintf(stderr, "%s: expecting name\n", name);
++		return;
++	}
++
++	for (dev = line; *line && !isspace(*line); ++line)
++		if (*line == '/')
++			kind = line;
++
++	if (!*line) {
++		fprintf(stderr, "%s: expecting size after name\n", name);
++		return;
++	}
++
++	if (kind)
++		*kind++ = '\0';
++	*line++ = '\0';
++
++	if (( kind && (size_t)(kind - dev ) > sizeof req.name)
++	 || (!kind && (size_t)(line - dev ) > sizeof req.name)
++	 || ( kind && (size_t)(line - kind) > sizeof req.kind)) {
++		fprintf(stderr, "%s: name or kind too long\n", name);
++		return;
++	}
++
++
++	if (memparse(line, &line, &size) < 0 || !size) {
++		fprintf(stderr, "%s: invalid size\n", name);
++		return;
++	}
++
++	if (*line == '/')
++		if (memparse(line, &line, &alignment) < 0) {
++			fprintf(stderr, "%s: invalid alignment\n", name);
++			return;
++		}
++
++	SKIP_SPACE(line);
++	if (*line) {
++		fprintf(stderr, "%s: unknown arguments at the end: %s\n",
++			name, line);
++		return;
++	}
++
++
++	chunk = chunk_create(name);
++	if (!chunk)
++		return;
++
++	fprintf(stderr, "%s: allocating %p/%p\n", name,
++		(void *)size, (void *)alignment);
++
++	req.magic     = CMA_MAGIC;
++	req.size      = size;
++	req.alignment = alignment;
++
++	strcpy(req.name, dev);
++	if (kind)
++		strcpy(req.kind, kind);
++	else
++		req.kind[0] = '\0';
++
++
++	ret = ioctl(chunk->fd, IOCTL_CMA_ALLOC, &req);
++	if (ret < 0) {
++		fprintf(stderr, "%s: cma_alloc: %s\n", name, strerror(errno));
++		chunk_destroy(chunk);
++	} else {
++		chunk_add(chunk);
++		chunk->size  = req.size;
++		chunk->start = req.start;
++
++		printf("%3d: %p@%p\n", chunk->fd,
++		       (void *)chunk->size, (void *)chunk->start);
++	}
++}
++
++
++static void cmd_free(char *name, char *line)
++{
++	struct chunk *chunk;
++
++	SKIP_SPACE(line);
++
++	if (*line) {
++		unsigned long num;
++
++		errno = 0;
++		num = strtoul(line, &line, 10);
++
++		if (errno || num > INT_MAX) {
++			fprintf(stderr, "%s: invalid number\n", name);
++			return;
++		}
++
++		SKIP_SPACE(line);
++		if (*line) {
++			fprintf(stderr, "%s: unknown arguments at the end: %s\n",
++				name, line);
++			return;
++		}
++
++		for_each(chunk)
++			if (chunk->fd == (int)num)
++				goto ok;
++		fprintf(stderr, "%s: no chunk %3lu\n", name, num);
++		return;
++
++	} else {
++		chunk = root.prev;
++		if (chunk == &root) {
++			fprintf(stderr, "%s: no chunks\n", name);
++			return;
++		}
++	}
++
++ok:
++	fprintf(stderr, "%s: freeing %p@%p\n", name,
++		(void *)chunk->size, (void *)chunk->start);
++	chunk_destroy(chunk);
++}
++
++
++static struct chunk *chunk_create(const char *prefix)
++{
++	struct chunk *chunk;
++	int fd;
++
++	chunk = malloc(sizeof *chunk);
++	if (!chunk) {
++		fprintf(stderr, "%s: %s\n", prefix, strerror(errno));
++		return NULL;
++	}
++
++	fd = open("/dev/cma", O_RDWR);
++	if (fd < 0) {
++		fprintf(stderr, "%s: /dev/cma: %s\n", prefix, strerror(errno));
++		return NULL;
++	}
++
++	chunk->prev = chunk;
++	chunk->next = chunk;
++	chunk->fd   = fd;
++	return chunk;
++}
++
++static void chunk_destroy(struct chunk *chunk)
++{
++	chunk->prev->next = chunk->next;
++	chunk->next->prev = chunk->prev;
++	close(chunk->fd);
++}
++
++static void chunk_add(struct chunk *chunk)
++{
++	chunk->next = &root;
++	chunk->prev = root.prev;
++	root.prev->next = chunk;
++	root.prev = chunk;
++}
++
++
++
++static int memparse(char *ptr, char **retptr, unsigned long *ret)
++{
++	unsigned long val;
++
++	SKIP_SPACE(ptr);
++
++	errno = 0;
++	val = strtoul(ptr, &ptr, 0);
++	if (errno)
++		return -1;
++
++	switch (*ptr) {
++	case 'G':
++	case 'g':
++		val <<= 10;
++	case 'M':
++	case 'm':
++		val <<= 10;
++	case 'K':
++	case 'k':
++		val <<= 10;
++		++ptr;
++	}
++
++	if (retptr) {
++		SKIP_SPACE(ptr);
++		*retptr = ptr;
++	}
++
++	*ret = val;
++	return 0;
++}
 -- 
 1.7.1
 
