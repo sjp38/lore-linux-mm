@@ -1,78 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 90CAF6B02DE
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 04:43:10 -0400 (EDT)
-Date: Fri, 20 Aug 2010 16:43:04 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/3] writeback: Adding pages_dirtied and
- pages_entered_writeback
-Message-ID: <20100820084304.GA6051@localhost>
-References: <1282251447-16937-1-git-send-email-mrubin@google.com>
- <1282251447-16937-3-git-send-email-mrubin@google.com>
- <20100820025111.GB5502@localhost>
- <AANLkTimKn5BZiCAyr-3XAZuu66Q+ASZgBZ7LDU2Jom1p@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTimKn5BZiCAyr-3XAZuu66Q+ASZgBZ7LDU2Jom1p@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 326666B02DF
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 04:50:17 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20100820084820.5FDB.A69D9226@jp.fujitsu.com>
+References: <20100820084820.5FDB.A69D9226@jp.fujitsu.com> <20100819220338.5FD5.A69D9226@jp.fujitsu.com> <7682.1282230394@redhat.com>
+Subject: Re: oom: __task_cred() need rcu_read_lock()
+Date: Fri, 20 Aug 2010 09:50:02 +0100
+Message-ID: <30014.1282294202@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@suse.de" <npiggin@suse.de>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: dhowells@redhat.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 04:16:09PM +0800, Michael Rubin wrote:
-> On Thu, Aug 19, 2010 at 7:51 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > As Rik said, /proc/sys is not a suitable place.
-> 
-> OK I'm convinced.
-> 
-> > Frankly speaking I've worked on writeback for years and never felt
-> > the need to add these counters. What I often do is:
-> >
-> > $ vmmon -d 1 nr_writeback nr_dirty nr_unstable
-> >
-> > A  A  nr_writeback A  A  A  A  nr_dirty A  A  A nr_unstable
-> > A  A  A  A  A  A 68738 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 39568
-> > A  A  A  A  A  A 66051 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 42255
-> > A  A  A  A  A  A 63406 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 44900
-> > A  A  A  A  A  A 60643 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 47663
-> > A  A  A  A  A  A 57954 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 50352
-> > A  A  A  A  A  A 55264 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 53042
-> > A  A  A  A  A  A 52592 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 55715
-> > A  A  A  A  A  A 49922 A  A  A  A  A  A  A  A 0 A  A  A  A  A  A 58385
-> > That is what I get when copying /dev/zero to NFS.
-> >
-> > I'm very interested in Google's use case for this patch, and why
-> > the simple /proc/vmstat based vmmon tool is not enough.
-> 
-> So as I understand it from looking at the code vmmon is sampling
-> nr_writeback, nr_dirty which are exported versions of
-> global_page_state for NR_FILE_DIRTY and NR_WRITEBACK. These states are
-> a snapshot of the state of the kernel's pages. Namely how many dpages
-> ar ein writeback or dirty at the moment vmmon's acquire routine is
-> called.
-> 
-> vmmon is sampling /proc/vstat and then displaying the difference from
-> the last time they sampled.  If I am misunderstanding let me know.
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Maybe Andrew's vmmon does that. My vmmon always display the raw values
-:) It could be improved to do raw values for nr_dirty and differences
-for pgpgin by default.
+> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > 
+> > > dump_tasks() can call __task_cred() safely because we are holding
+> > > tasklist_lock. but rcu lock validator don't have enough knowledge and
+> > > it makes following annoying warning.
+> > 
+> > No, it can't.  The tasklist_lock is not protection against the creds
+> > changing on another CPU.
+> 
+> Thank you for correction.
+> 
+> I suppose you mean I missed CONFIG_TREE_PREEMPT_RCU, right?
+> As far as my grepping, other rcu implementation and spinlock use 
+> preempt_disable(). In other word, Can I assume usual distro user 
+> don't hit this issue?
 
-> This is good for the state of the system but as we compare
-> application, mm and io performance over long periods of time we are
-> interested in the surges and fluctuations of the rates of the
-> producing and consuming of dirty pages also. It can help isolate where
-> the problem is and also to compare performance between kernels and/or
-> applications.
+No.  The paths by which a process changes its credentials don't normally take
+tasklist_lock, so holding tasklist_lock doesn't prevent the process you're
+looking at from replacing its cred and discarding the ones you're looking at.
 
-Yeah the accumulated dirty and writeback page counts could be useful.
-For example, for inspecting the dirty and writeback speed over time.
-That's not possible for nr_dirty/nr_writeback.
+Further, unless you're holding the RCU read lock, there's nothing theoretically
+stopping the system from deleting the discarded credentials.
 
-Thanks,
-Fengguang
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
