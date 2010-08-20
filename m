@@ -1,85 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AB5D96B0324
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 06:54:47 -0400 (EDT)
-Received: from eu_spt1 (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0L7G00C2O6BAW1@mailout2.w1.samsung.com> for linux-mm@kvack.org;
- Fri, 20 Aug 2010 11:54:46 +0100 (BST)
-Received: from localhost ([10.89.8.241])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L7G000CR6A43V@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 20 Aug 2010 11:54:45 +0100 (BST)
-Date: Fri, 20 Aug 2010 12:54:02 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH/RFCv3 0/6] The Contiguous Memory Allocator framework
-In-reply-to: <20100820193328P.fujita.tomonori@lab.ntt.co.jp>
-Message-id: <op.vhqgkcgj7p4s8u@localhost>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Content-transfer-encoding: Quoted-Printable
-References: <op.vhp4pws27p4s8u@localhost>
- <20100820155617S.fujita.tomonori@lab.ntt.co.jp> <op.vhp7rxz77p4s8u@localhost>
- <20100820193328P.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A23566B0325
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 07:28:05 -0400 (EDT)
+Date: Fri, 20 Aug 2010 07:27:57 -0400
+From: Jeff Layton <jlayton@redhat.com>
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+Message-ID: <20100820072757.6ae9741a@tlielax.poochiereds.net>
+In-Reply-To: <20100820091904.GB20138@infradead.org>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+	<20100819143710.GA4752@infradead.org>
+	<20100819235553.GB22747@localhost>
+	<20100820091904.GB20138@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: hverkuil@xs4all.nl, dwalker@codeaurora.org, linux@arm.linux.org.uk, corbet@lwn.net, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, linux-mm@kvack.org, kyungmin.park@samsung.com, kgene.kim@samsung.com, zpfeffer@codeaurora.org, jaeryul.oh@samsung.com, m.szyprowski@samsung.com, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@gmail.com>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Aug 2010 12:35:01 +0200, FUJITA Tomonori <fujita.tomonori@lab=
-.ntt.co.jp> wrote:
+On Fri, 20 Aug 2010 05:19:04 -0400
+Christoph Hellwig <hch@infradead.org> wrote:
 
-> On Fri, 20 Aug 2010 10:10:45 +0200
-> **UNKNOWN CHARSET** <m.nazarewicz@samsung.com> wrote:
->
->> > I wrote "similar to the existing API', not "reuse the existing API"=
-.
->>
->> Yes, but I don't really know what you have in mind.  CMA is similar t=
-o various
->> APIs in various ways: it's similar to any allocator since it takes
->> size in bytes,
->
-> why don't take gfp_t flags?
+> On Fri, Aug 20, 2010 at 07:55:53AM +0800, Wu Fengguang wrote:
+> > Since migration and pageout still set nonblocking for ->writepage, we
+> > may keep them in the near future, until VM does not start IO on itself.
+> 
+> Why does pageout() and memory migration need to be even more
+> non-blocking than the already non-blockig WB_SYNC_NONE writeout?
+> 
 
-Because they are insufficient.  Either that or I don't understand gfp_t.=
+Just an idle thought on this...
 
+I think a lot of the confusion here comes from the fact that we have
+sync_mode and a bunch of flags, and it's not at all clear how
+filesystems are supposed to treat the union of them. There are also
+possible unions of flags/sync_modes that never happen in practice. It's
+not always obvious though and as filesystem implementors we have to
+consider the possibility that they might occur (consider WB_SYNC_ALL +
+for_background).
 
-With CMA, platform can define many memory types.  For instance, if there=
- are
-two memory bans there can be two memory types for the two banks.  For at=
- least one
-of the device I'm in contact with, another type for it's firmware is als=
-o needed.
-Bottom line is that there may be possibly many types which won't map to =
-gfp_t.
+Perhaps a lot of this confusion could be lifted by getting rid of the
+extra flags and adding new sync_mode's. Maybe something like:
 
-> Something like dev_alloc_page is more appropriate name?
+WB_SYNC_ALL /* wait on everything to complete */
+WB_SYNC_NONE /* don't wait on anything */
+WB_SYNC_FOR_RECLAIM /* sync for reclaim */
+WB_SYNC_FOR_KUPDATED /* sync by kupdate */
+...etc...
 
-Two things: I'd prefer a "cma" prefix rather then "dev" and I think it s=
-hould
-be "pages", right? Then, size should be given in pages rather then bytes=
-.
+That does mean that all of the filesystem specific code may need to be
+touched when new modes are added and removed. I think it would be
+clearer though about what you're supposed to do in ->writepages.
 
-Nonetheless, I don't really see at the moment why this should be better.=
-
-
-> Or something similar to dmapool API (mm/dmapool.c) might work
-> better. The purpose of dmapool API is creating a pool for consistent
-> memory per device. It's similar to yours, creating a pool for
-> contiguous memory per device(s)?
-
-I'll try to look at it later on and think about it.  I'm still somehow r=
-eluctant
-to change the names but still, thank you for suggestions.
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+-- 
+Jeff Layton <jlayton@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
