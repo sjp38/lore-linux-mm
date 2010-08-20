@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2CCA06B02C6
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:45:38 -0400 (EDT)
-Date: Fri, 20 Aug 2010 13:45:33 +0800
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0E4B36B02C7
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:50:14 -0400 (EDT)
+Date: Fri, 20 Aug 2010 13:50:06 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
-Message-ID: <20100820054533.GB11847@localhost>
-References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
- <AANLkTi=WkoxjwZbt6Vd0VhbuA7_k2WM-NUXZnrmzOOPy@mail.gmail.com>
- <1282159872.8540.96.camel@heimdal.trondhjem.org>
+Subject: Re: compaction: trying to understand the code
+Message-ID: <20100820055006.GA13916@localhost>
+References: <325E0A25FE724BA18190186F058FF37E@rainbow>
+ <20100817111018.GQ19797@csn.ul.ie>
+ <4385155269B445AEAF27DC8639A953D7@rainbow>
+ <20100818154130.GC9431@localhost>
+ <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+ <20100819074602.GW19797@csn.ul.ie>
+ <5EF4FA9117384B1A80228C96926B4125@rainbow>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1282159872.8540.96.camel@heimdal.trondhjem.org>
+In-Reply-To: <5EF4FA9117384B1A80228C96926B4125@rainbow>
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: Ram Pai <ram.n.pai@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
+To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ying Han <yinghan@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> Hi Ram,
+On Fri, Aug 20, 2010 at 01:45:56PM +0800, Iram Shahzad wrote:
+> > What is your test scenario? Who or what has these pages isolated that is
+> > allowing too_many_isolated() to be true?
 > 
-> I was seeing it on NFS until I put in the following kswapd-specific hack
-> into nfs_release_page():
-> 
-> 	/* Only do I/O if gfp is a superset of GFP_KERNEL */
-> 	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL) {
-> 		int how = FLUSH_SYNC;
-> 
-> 		/* Don't let kswapd deadlock waiting for OOM RPC calls */
-> 		if (current_is_kswapd())
-> 			how = 0;
+> I have a test app that attempts to create fragmentation. Then I run
+> echo 1 > /proc/sys/vm/compact_memory
+> That is all.
 
-So the patch can remove the above workaround together, and add comment
-that NFS exploits the gfp mask to avoid complex operations involving
-recursive memory allocation and hence deadlock?
+That's all? Is you system idle otherwise? (for example, fresh booted
+and not running many processes)
+
+> The test app mallocs 2MB 100 times, memsets them.
+> Then it frees the even numbered 2MB blocks.
+> That is, 2MB*50 remains malloced and 2MB*50 gets freed.
+ 
+We are interested in the test app, can you share it? :)
 
 Thanks,
 Fengguang
-
-> 		nfs_commit_inode(mapping->host, how);
-> 	}
-> 
-> Remove the 'if (current_is_kswapd())' line, and run an mmap() write
-> intensive workload, and it should hang pretty much every time.
-> 
-> Cheers
->   Trond
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
