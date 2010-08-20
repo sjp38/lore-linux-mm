@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E8A286B02C1
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:40:20 -0400 (EDT)
-Date: Fri, 20 Aug 2010 13:40:16 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
-Message-ID: <20100820054016.GA11847@localhost>
-References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A95876B02C4
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:41:33 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K5fVM9013741
+	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
+	Fri, 20 Aug 2010 14:41:31 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 299DE45DE51
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:31 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8EFD45DE53
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DEBD1DB8037
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0554FE18001
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:41:30 +0900 (JST)
+Message-ID: <5EF4FA9117384B1A80228C96926B4125@rainbow>
+From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
+References: <325E0A25FE724BA18190186F058FF37E@rainbow> <20100817111018.GQ19797@csn.ul.ie> <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819074602.GW19797@csn.ul.ie>
+Subject: Re: compaction: trying to understand the code
+Date: Fri, 20 Aug 2010 14:45:56 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1282158241.8540.85.camel@heimdal.trondhjem.org>
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-15";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <Trond.Myklebust@netapp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 18, 2010 at 03:04:01PM -0400, Trond Myklebust wrote:
-> From: Trond Myklebust <Trond.Myklebust@netapp.com>
-> 
-> Allowing kswapd to do GFP_KERNEL memory allocations (or any blocking memory
-> allocations) is wrong and can cause deadlocks in try_to_release_page(), as
-> the filesystem believes it is safe to allocate new memory and block,
-> whereas kswapd is there specifically to clear a low-memory situation...
-> 
-> Set the gfp_mask to GFP_IOFS instead.
+> What is your test scenario? Who or what has these pages isolated that is
+> allowing too_many_isolated() to be true?
 
-It would be more descriptive to say "remove the __GFP_WAIT bit".
+I have a test app that attempts to create fragmentation. Then I run
+echo 1 > /proc/sys/vm/compact_memory
+That is all.
+The test app mallocs 2MB 100 times, memsets them.
+Then it frees the even numbered 2MB blocks.
+That is, 2MB*50 remains malloced and 2MB*50 gets freed.
 
-The change looks reasonable _in itself_, since we always prefer to
-avoid unnecessary waits for kswapd. So
+Thanks
+Iram
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-
-> Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
-> ---
-> 
->  mm/vmscan.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ec5ddcc..716dd16 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2095,7 +2095,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
->  	unsigned long total_scanned;
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	struct scan_control sc = {
-> -		.gfp_mask = GFP_KERNEL,
-> +		.gfp_mask = GFP_IOFS,
->  		.may_unmap = 1,
->  		.may_swap = 1,
->  		/*
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
