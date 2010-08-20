@@ -1,79 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE766B0338
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 10:38:33 -0400 (EDT)
-Subject: Re: [RFC][PATCH 0/6] mm, highmem: kmap_atomic rework
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20100819143129.81274c03.akpm@linux-foundation.org>
-References: <20100819201317.673172547@chello.nl>
-	 <20100819143129.81274c03.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 20 Aug 2010 16:38:12 +0200
-Message-ID: <1282315092.2605.1134.camel@laptop>
-Mime-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 570D06B0339
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 10:55:01 -0400 (EDT)
+Date: Fri, 20 Aug 2010 09:54:56 -0500 (CDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH] vmstat : update zone stat threshold at onlining a cpu
+In-Reply-To: <20100820092251.2ca67f66.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008200954051.30700@router.home>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie> <20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008181050230.4025@router.home> <20100819090740.3f46aecf.kamezawa.hiroyu@jp.fujitsu.com>
+ <alpine.DEB.2.00.1008191359400.1839@router.home> <20100820084908.10e55b76.kamezawa.hiroyu@jp.fujitsu.com> <20100820092251.2ca67f66.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-08-19 at 14:31 -0700, Andrew Morton wrote:
-> On Thu, 19 Aug 2010 22:13:17 +0200
-> Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->=20
-> >=20
-> > This patch-set reworks the kmap_atomic API to be a stack based, instead=
- of
-> > static slot based. Some might remember this from last year, some not ;-=
-)
-> >=20
-> > The advantage is that you no longer need to worry about KM_foo, the
-> > disadvantage is that kmap_atomic/kunmap_atomic now needs to be strictly
-> > nested (CONFIG_HIGHMEM_DEBUG should complain in case its not) -- and of
-> > course its a big massive patch changing a widely used API.
->=20
-> Nice.  That fixes the "use of irq-only slots from interrupts-on
-> context" bugs which people keep adding.
+On Fri, 20 Aug 2010, KAMEZAWA Hiroyuki wrote:
 
-Ah, I should add a:
+>  1 file changed, 1 insertion(+)
+>
+> Index: mmotm-0811/mm/vmstat.c
+> ===================================================================
+> --- mmotm-0811.orig/mm/vmstat.c
+> +++ mmotm-0811/mm/vmstat.c
+> @@ -998,6 +998,7 @@ static int __cpuinit vmstat_cpuup_callba
+>  	switch (action) {
+>  	case CPU_ONLINE:
+>  	case CPU_ONLINE_FROZEN:
+> +		refresh_zone_stat_thresholds();
+>  		start_cpu_timer(cpu);
+>  		node_set_state(cpu_to_node(cpu), N_CPU);
+>  		break;
 
-  WARN_ON_ONCE(in_irq() && !irqs_disabled());
-
-like check to ensure people don't use kmap_atomic() in nestable IRQ
-contexts (nestable IRQ context is bad anyway) the old debug code I
-deleted did something similar.
-
-> We don't have any checks in there for the stack overflowing?
-
-+#ifdef CONFIG_DEBUG_HIGHMEM
-+       BUG_ON(idx > KM_TYPE_NR);
-+#endif
-
-Seems to be that.
-
-> Did you add every runtime check you could possibly think of?=20
-> kmap_atomic_idx_push() and pop() don't have much in there.  It'd be
-> good to lard it up with runtime checks for at least a few weeks.
-
-Right, so I currently have:
-
- - stack size check in push/pop
- - proper nesting check in pop (verifies that the vaddr you try to
-   unmap is indeed the top most on the stack)
-
-Aside from the proposed no irq-nesting thing to avoid unbounded
-recursion I can't really come up with more creative abuse.
-
-> Well, there's that monster conversion patch.  How's about you
-> temporarily do
->=20
-> #define kmap_atomic(x, arg...)  __kmap_atomic(x)
->=20
-> so for a while, both kmap_atomic(a, KM_foo) and kmap_atomic(a) are
-> turned into __kmap_atomic(a).  Once all the dust has settled, pull that
-> out again?
-
-Ah, that's a nifty trick, let me try that.=20
+refresh_zone_stat_threshold must be run *after* the number of online cpus
+has been incremented. Does that occur before the callback?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
