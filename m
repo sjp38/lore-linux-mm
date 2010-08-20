@@ -1,60 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A23566B0325
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 07:28:05 -0400 (EDT)
-Date: Fri, 20 Aug 2010 07:27:57 -0400
-From: Jeff Layton <jlayton@redhat.com>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100820072757.6ae9741a@tlielax.poochiereds.net>
-In-Reply-To: <20100820091904.GB20138@infradead.org>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
-	<20100819143710.GA4752@infradead.org>
-	<20100819235553.GB22747@localhost>
-	<20100820091904.GB20138@infradead.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5A16B0328
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 08:18:08 -0400 (EDT)
+Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+In-Reply-To: <20100820054533.GB11847@localhost>
+References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
+	 <AANLkTi=WkoxjwZbt6Vd0VhbuA7_k2WM-NUXZnrmzOOPy@mail.gmail.com>
+	 <1282159872.8540.96.camel@heimdal.trondhjem.org>
+	 <20100820054533.GB11847@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 20 Aug 2010 08:17:08 -0400
+Message-ID: <1282306628.3927.0.camel@heimdal.trondhjem.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Wu Fengguang <fengguang.wu@gmail.com>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Ram Pai <ram.n.pai@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Aug 2010 05:19:04 -0400
-Christoph Hellwig <hch@infradead.org> wrote:
+On Fri, 2010-08-20 at 13:45 +0800, Wu Fengguang wrote:
+> > Hi Ram,
+> >=20
+> > I was seeing it on NFS until I put in the following kswapd-specific hac=
+k
+> > into nfs_release_page():
+> >=20
+> > 	/* Only do I/O if gfp is a superset of GFP_KERNEL */
+> > 	if (mapping && (gfp & GFP_KERNEL) =3D=3D GFP_KERNEL) {
+> > 		int how =3D FLUSH_SYNC;
+> >=20
+> > 		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+> > 		if (current_is_kswapd())
+> > 			how =3D 0;
+>=20
+> So the patch can remove the above workaround together, and add comment
+> that NFS exploits the gfp mask to avoid complex operations involving
+> recursive memory allocation and hence deadlock?
 
-> On Fri, Aug 20, 2010 at 07:55:53AM +0800, Wu Fengguang wrote:
-> > Since migration and pageout still set nonblocking for ->writepage, we
-> > may keep them in the near future, until VM does not start IO on itself.
-> 
-> Why does pageout() and memory migration need to be even more
-> non-blocking than the already non-blockig WB_SYNC_NONE writeout?
-> 
+I thought I'd send that as a separate patch, but yes, that is my
+intention next.
 
-Just an idle thought on this...
-
-I think a lot of the confusion here comes from the fact that we have
-sync_mode and a bunch of flags, and it's not at all clear how
-filesystems are supposed to treat the union of them. There are also
-possible unions of flags/sync_modes that never happen in practice. It's
-not always obvious though and as filesystem implementors we have to
-consider the possibility that they might occur (consider WB_SYNC_ALL +
-for_background).
-
-Perhaps a lot of this confusion could be lifted by getting rid of the
-extra flags and adding new sync_mode's. Maybe something like:
-
-WB_SYNC_ALL /* wait on everything to complete */
-WB_SYNC_NONE /* don't wait on anything */
-WB_SYNC_FOR_RECLAIM /* sync for reclaim */
-WB_SYNC_FOR_KUPDATED /* sync by kupdate */
-...etc...
-
-That does mean that all of the filesystem specific code may need to be
-touched when new modes are added and removed. I think it would be
-clearer though about what you're supposed to do in ->writepages.
-
--- 
-Jeff Layton <jlayton@redhat.com>
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
