@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1A06B6B032B
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 08:44:36 -0400 (EDT)
-Received: by pzk33 with SMTP id 33so1354788pzk.14
-        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:44:35 -0700 (PDT)
-Date: Fri, 20 Aug 2010 20:44:24 +0800
-From: Wu Fengguang <fengguang.wu@gmail.com>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100820124424.GA17022@localhost>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
- <20100819143710.GA4752@infradead.org>
- <20100819235553.GB22747@localhost>
- <20100820091904.GB20138@infradead.org>
- <20100820072757.6ae9741a@tlielax.poochiereds.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100820072757.6ae9741a@tlielax.poochiereds.net>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 754266B032E
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:16:25 -0400 (EDT)
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <cover.1282286941.git.m.nazarewicz@samsung.com>
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 20 Aug 2010 15:15:10 +0200
+Message-ID: <1282310110.2605.976.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <chris.mason@oracle.com>, Jens Axboe <jens.axboe@oracle.com>
+To: Michal Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 07:27:57AM -0400, Jeff Layton wrote:
-> On Fri, 20 Aug 2010 05:19:04 -0400
-> Christoph Hellwig <hch@infradead.org> wrote:
-> 
-> > On Fri, Aug 20, 2010 at 07:55:53AM +0800, Wu Fengguang wrote:
-> > > Since migration and pageout still set nonblocking for ->writepage, we
-> > > may keep them in the near future, until VM does not start IO on itself.
-> > 
-> > Why does pageout() and memory migration need to be even more
-> > non-blocking than the already non-blockig WB_SYNC_NONE writeout?
-> > 
-> 
-> Just an idle thought on this...
-> 
-> I think a lot of the confusion here comes from the fact that we have
-> sync_mode and a bunch of flags, and it's not at all clear how
-> filesystems are supposed to treat the union of them. There are also
-> possible unions of flags/sync_modes that never happen in practice. It's
-> not always obvious though and as filesystem implementors we have to
-> consider the possibility that they might occur (consider WB_SYNC_ALL +
-> for_background).
-> 
-> Perhaps a lot of this confusion could be lifted by getting rid of the
-> extra flags and adding new sync_mode's. Maybe something like:
-> 
-> WB_SYNC_ALL /* wait on everything to complete */
-> WB_SYNC_NONE /* don't wait on anything */
-> WB_SYNC_FOR_RECLAIM /* sync for reclaim */
-> WB_SYNC_FOR_KUPDATED /* sync by kupdate */
-> ...etc...
-> 
-> That does mean that all of the filesystem specific code may need to be
-> touched when new modes are added and removed. I think it would be
-> clearer though about what you're supposed to do in ->writepages.
+On Fri, 2010-08-20 at 11:50 +0200, Michal Nazarewicz wrote:
+> Hello everyone,
+>=20
+> The following patchset implements a Contiguous Memory Allocator.  For
+> those who have not yet stumbled across CMA an excerpt from
+> documentation:
+>=20
+>    The Contiguous Memory Allocator (CMA) is a framework, which allows
+>    setting up a machine-specific configuration for physically-contiguous
+>    memory management. Memory for devices is then allocated according
+>    to that configuration.
+>=20
+>    The main role of the framework is not to allocate memory, but to
+>    parse and manage memory configurations, as well as to act as an
+>    in-between between device drivers and pluggable allocators. It is
+>    thus not tied to any memory allocation method or strategy.
+>=20
+> For more information please refer to the second patch from the
+> patchset which contains the documentation.
 
-No, we are moving towards the other direction :)
+So the idea is to grab a large chunk of memory at boot time and then
+later allow some device to use it?
 
-I just removed the definition of wbc->nonblocking and
-wbc->encountered_congestion and all of the references.
+I'd much rather we'd improve the regular page allocator to be smarter
+about this. We recently added a lot of smarts to it like memory
+compaction, which allows large gobs of contiguous memory to be freed for
+things like huge pages.
 
-Sorry for the confusion!
+If you want guarantees you can free stuff, why not add constraints to
+the page allocation type and only allow MIGRATE_MOVABLE pages inside a
+certain region, those pages are easily freed/moved aside to satisfy
+large contiguous allocations.
 
-Thanks,
-Fengguang
+Also, please remove --chain-reply-to from your git config. You're using
+1.7 which should do the right thing (--no-chain-reply-to) by default.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
