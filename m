@@ -1,60 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 198626B02B0
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:51:17 -0400 (EDT)
-Date: Fri, 20 Aug 2010 10:51:11 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/3] writeback: Adding pages_dirtied and
- pages_entered_writeback
-Message-ID: <20100820025111.GB5502@localhost>
-References: <1282251447-16937-1-git-send-email-mrubin@google.com>
- <1282251447-16937-3-git-send-email-mrubin@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1282251447-16937-3-git-send-email-mrubin@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id F10336B02B1
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 23:13:34 -0400 (EDT)
+Date: Fri, 20 Aug 2010 12:12:50 +0900
+Subject: Re: [PATCH/RFCv3 0/6] The Contiguous Memory Allocator framework
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <op.vhppgaxq7p4s8u@localhost>
+References: <AANLkTikp49oOny-vrtRTsJvA3Sps08=w7__JjdA3FE8t@mail.gmail.com>
+	<20100820001339N.fujita.tomonori@lab.ntt.co.jp>
+	<op.vhppgaxq7p4s8u@localhost>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20100820121124Z.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@suse.de, hch@lst.de, axboe@kernel.dk
+To: m.nazarewicz@samsung.com
+Cc: kyungmin.park@samsung.com, fujita.tomonori@lab.ntt.co.jp, linux-mm@kvack.org, dwalker@codeaurora.org, linux@arm.linux.org.uk, corbet@lwn.net, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, hverkuil@xs4all.nl, kgene.kim@samsung.com, zpfeffer@codeaurora.org, jaeryul.oh@samsung.com, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 01:57:26PM -0700, Michael Rubin wrote:
-> To help developers and applications gain visibility into writeback
-> behaviour adding four read only sysctl files into /proc/sys/vm.
-> These files allow user apps to understand writeback behaviour over time
-> and learn how it is impacting their performance.
+> >> We hope this method included at mainline kernel if possible.
+> >> It's really needed feature for our multimedia frameworks.
+> >
+> > You got any comments from mm people?
+> >
+> > Virtually, this adds a new memory allocator implementation that steals
+> > some memory from memory allocator during boot process. Its API looks
+> > completely different from the API for memory allocator. That doesn't
+> > sound appealing to me much. This stuff couldn't be integrated well
+> > into memory allocator?
 > 
->    # cat /proc/sys/vm/pages_dirtied
->    3747
->    # cat /proc/sys/vm/pages_entered_writeback
->    3618
+> What kind of integration do you mean?  I see three levels:
+> 
+> 1. Integration on API level meaning that some kind of existing API is used
+>     instead of new cma_*() calls.  CMA adds notion of devices and memory
+>     types which is new to all the other APIs (coherent has notion of devices
+>     but that's not enough).  This basically means that no existing API can be
+>     used for CMA.  On the other hand, removing notion of devices and memory
+>     types would defeat the whole purpose of CMA thus destroying the solution
+>     that CMA provides.
 
-As Rik said, /proc/sys is not a suitable place.
+You can create something similar to the existing API for memory
+allocator.
 
-Frankly speaking I've worked on writeback for years and never felt
-the need to add these counters. What I often do is:
+For example, blk_kmalloc/blk_alloc_pages was proposed as memory
+allocator API with notion of an address range for allocated memory. It
+wasn't merged for other reasons though.
 
-$ vmmon -d 1 nr_writeback nr_dirty nr_unstable
+I don't mean that this is necessary for the inclusion (I'm not the
+person to ack or nack this). I just expect the similarity of memory
+allocator API.
 
-     nr_writeback         nr_dirty      nr_unstable
-            68738                0            39568
-            66051                0            42255
-            63406                0            44900
-            60643                0            47663
-            57954                0            50352
-            55264                0            53042
-            52592                0            55715
-            49922                0            58385
-That is what I get when copying /dev/zero to NFS.
 
-You can find vmmon.c in Andrew Morton's ext3-tools package.
-Also attached for your convenience.
+> 2. Reuse of memory pools meaning that memory reserved by CMA can then be
+>     used by other allocation mechanisms.  This is of course possible.  For
+>     instance coherent could easily be implemented as a wrapper to CMA.
+>     This is doable and can be done in the future after CMA gets more
+>     recognition.
+> 
+> 3. Reuse of algorithms meaning that allocation algorithms used by other
+>     allocators will be used with CMA regions.  This is doable as well and
+>     can be done in the future.
 
-I'm very interested in Google's use case for this patch, and why
-the simple /proc/vmstat based vmmon tool is not enough.
+Well, why can't we do the above before the inclusion?
 
-Thanks,
-Fengguang
+Anyway, I think that comments from mm people would be helpful to merge
+this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
