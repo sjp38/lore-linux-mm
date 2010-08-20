@@ -1,30 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E2F746B0357
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 16:51:38 -0400 (EDT)
-Message-ID: <4C6EEAB2.1040907@redhat.com>
-Date: Fri, 20 Aug 2010 16:50:58 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB186004CE
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:07:03 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id o7KL6xxj028222
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:06:59 -0700
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by wpaz17.hot.corp.google.com with ESMTP id o7KL6uvk012966
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:06:58 -0700
+Received: by pvg7 with SMTP id 7so1623468pvg.17
+        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 14:06:56 -0700 (PDT)
+Date: Fri, 20 Aug 2010 14:06:52 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [S+Q Cleanup4 0/6] SLUB: Cleanups V4
+In-Reply-To: <20100820173711.136529149@linux.com>
+Message-ID: <alpine.DEB.2.00.1008201405080.4202@chino.kir.corp.google.com>
+References: <20100820173711.136529149@linux.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 1/6] mm: strictly nested kmap_atomic
-References: <20100819201317.673172547@chello.nl> <20100819202753.595997973@chello.nl>
-In-Reply-To: <20100819202753.595997973@chello.nl>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/19/2010 04:13 PM, Peter Zijlstra wrote:
-> Ensure kmap_atomic usage is strictly nested
->
-> Signed-off-by: Peter Zijlstra<a.p.zijlstra@chello.nl>
+On Fri, 20 Aug 2010, Christoph Lameter wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> Patch 3
+> 
+> Remove static allocation of kmem_cache_cpu array and rely on the
+> percpu allocator to allocate memory for the array on bootup.
+> 
 
--- 
-All rights reversed
+I don't see this patch in the v4 posting of your series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
