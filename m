@@ -1,91 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 064856B0204
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:09:23 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K09Lxe030414
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 20 Aug 2010 09:09:21 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 048FA3A62C5
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:09:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D3CEC1EF086
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:09:20 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B27801DB801A
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:09:20 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 67FC41DB8014
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:09:20 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] oom: __task_cred() need rcu_read_lock()
-In-Reply-To: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
-References: <20100819152618.21246.68223.stgit@warthog.procyon.org.uk>
-Message-Id: <20100820090908.5FE1.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Fri, 20 Aug 2010 09:09:19 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5FE6B0205
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:25:36 -0400 (EDT)
+Date: Thu, 19 Aug 2010 17:25:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Export mlock information via smaps
+Message-Id: <20100819172502.42a0d493.akpm@linux-foundation.org>
+In-Reply-To: <201008181219.51915.knikanth@suse.de>
+References: <201008171039.31070.knikanth@suse.de>
+	<201008181023.41378.knikanth@suse.de>
+	<20100818055253.GA28417@balbir.in.ibm.com>
+	<201008181219.51915.knikanth@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, torvalds@osdl.org, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: balbir@linux.vnet.ibm.com, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, 18 Aug 2010 12:19:51 +0530
+Nikanth Karthikesan <knikanth@suse.de> wrote:
+
+> Currently there is no way to find whether a process has locked its pages in
+> memory or not. And which of the memory regions are locked in memory.
 > 
-> dump_tasks() needs to hold the RCU read lock around its access of the target
-> task's UID.  To this end it should use task_uid() as it only needs that one
-> thing from the creds.
+> Add a new field "Locked" to export this information via smaps file.
 > 
-> The fact that dump_tasks() holds tasklist_lock is insufficient to prevent the
-> target process replacing its credentials on another CPU.
+> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 > 
-> Then, this patch change to call rcu_read_lock() explicitly.
-> 
-> 
-> 	===================================================
-> 	[ INFO: suspicious rcu_dereference_check() usage. ]
-> 	---------------------------------------------------
-> 	mm/oom_kill.c:410 invoked rcu_dereference_check() without protection!
-> 
-> 	other info that might help us debug this:
-> 
-> 	rcu_scheduler_active = 1, debug_locks = 1
-> 	4 locks held by kworker/1:2/651:
-> 	 #0:  (events){+.+.+.}, at: [<ffffffff8106aae7>]
-> 	process_one_work+0x137/0x4a0
-> 	 #1:  (moom_work){+.+...}, at: [<ffffffff8106aae7>]
-> 	process_one_work+0x137/0x4a0
-> 	 #2:  (tasklist_lock){.+.+..}, at: [<ffffffff810fafd4>]
-> 	out_of_memory+0x164/0x3f0
-> 	 #3:  (&(&p->alloc_lock)->rlock){+.+...}, at: [<ffffffff810fa48e>]
-> 	find_lock_task_mm+0x2e/0x70
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: David Howells <dhowells@redhat.com>
 > ---
 > 
->  mm/oom_kill.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5014e50..7b03102 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -372,7 +372,7 @@ static void dump_tasks(const struct mem_cgroup *mem)
->  		}
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index a6aca87..17b0ae0 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -373,6 +373,7 @@ Referenced:          892 kB
+>  Swap:                  0 kB
+>  KernelPageSize:        4 kB
+>  MMUPageSize:           4 kB
+> +Locked:              374 kB
 >  
->  		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %3d         %5d %s\n",
-> -			task->pid, __task_cred(task)->uid, task->tgid,
-> +			task->pid, task_uid(task), task->tgid,
->  			task->mm->total_vm, get_mm_rss(task->mm),
->  			task_cpu(task), task->signal->oom_adj,
->  			task->signal->oom_score_adj, task->comm);
+>  The first  of these lines shows  the same information  as is displayed for the
+>  mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
+> @@ -397,6 +398,8 @@ To clear the bits for the file mapped pages associated with the process
+>      > echo 3 > /proc/PID/clear_refs
+>  Any other value written to /proc/PID/clear_refs will have no effect.
+>  
+> +The "Locked" indicates whether the mapping is locked in memory or not.
+> +
+>  
+>  1.2 Kernel data
+>  ---------------
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index aea1d3f..58e586c 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -405,7 +405,8 @@ static int show_smap(struct seq_file *m, void *v)
+>  		   "Referenced:     %8lu kB\n"
+>  		   "Swap:           %8lu kB\n"
+>  		   "KernelPageSize: %8lu kB\n"
+> -		   "MMUPageSize:    %8lu kB\n",
+> +		   "MMUPageSize:    %8lu kB\n"
+> +		   "Locked:         %8lu kB\n",
+>  		   (vma->vm_end - vma->vm_start) >> 10,
+>  		   mss.resident >> 10,
+>  		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+> @@ -416,7 +417,9 @@ static int show_smap(struct seq_file *m, void *v)
+>  		   mss.referenced >> 10,
+>  		   mss.swap >> 10,
+>  		   vma_kernel_pagesize(vma) >> 10,
+> -		   vma_mmu_pagesize(vma) >> 10);
+> +		   vma_mmu_pagesize(vma) >> 10,
+> +		   (vma->vm_flags & VM_LOCKED) ?
+> +			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
 
-Thank you!
+What was the rationale for duplicating the Pss value here, rather than
+say Rss or whatever?  Really, the value is just a boolean due to kernel
+internal details but we should try to put something sensible and
+meaningful in there if it isn't just "1" or "0".  As it stands, people
+will look at the /proc/pid/smaps output, then at proc.txt and will come
+away all confused.
 
-
+btw, we forgot to document Pss (of all things!) in
+Documentation/filesystems/proc.txt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
