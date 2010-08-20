@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A7BB76B0331
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:23:21 -0400 (EDT)
-Received: by pxi5 with SMTP id 5so1354699pxi.14
-        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 06:23:20 -0700 (PDT)
-Date: Fri, 20 Aug 2010 21:23:09 +0800
-From: Wu Fengguang <fengguang.wu@gmail.com>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100820132309.GB20126@localhost>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
- <20100819143710.GA4752@infradead.org>
- <1282229905.6199.19.camel@heimdal.trondhjem.org>
- <20100819151618.5f769dc9@tlielax.poochiereds.net>
- <1282246999.7799.66.camel@heimdal.trondhjem.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1282246999.7799.66.camel@heimdal.trondhjem.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 033B46B0333
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:31:49 -0400 (EDT)
+From: Jeff Layton <jlayton@redhat.com>
+Subject: [PATCH] NFS: update comments in nfs_commit_unstable_pages
+Date: Fri, 20 Aug 2010 09:31:41 -0400
+Message-Id: <1282311101-30650-1-git-send-email-jlayton@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Jeff Layton <jlayton@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Wu Fengguang <fengguang.wu@gmail.com>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Here's a lightly tested patch that turns the check for the two flags
-> > into a check for WB_SYNC_NONE. It seems to do the right thing, but I
-> > don't have a clear testcase for it. Does this look reasonable?
-> 
-> Looks fine to me. I'll queue it up for the post-2.6.36 merge window...
+Signed-off-by: Jeff Layton <jlayton@redhat.com>
+---
+ fs/nfs/write.c |    8 +++++---
+ 1 files changed, 5 insertions(+), 3 deletions(-)
 
-Trond, I just created a patch that removes the wbc->nonblocking
-definition and all its references except NFS. So there will be merge
-dependencies. What should we do?  To push both patches to Andrew's -mm
-tree?
-
-Thanks,
-Fengguang
+diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+index 35bd7d0..d417790 100644
+--- a/fs/nfs/write.c
++++ b/fs/nfs/write.c
+@@ -1433,12 +1433,14 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
+ 	int flags = FLUSH_SYNC;
+ 	int ret = 0;
+ 
+-	/* Don't commit yet if this is a non-blocking flush and there are
+-	 * lots of outstanding writes for this mapping.
+-	 */
+ 	if (wbc->sync_mode == WB_SYNC_NONE) {
++		/* Don't commit yet if this is a non-blocking flush and there
++		 * are a lot of outstanding writes for this mapping.
++		 */
+ 		if (nfsi->ncommit <= (nfsi->npages >> 1))
+ 			goto out_mark_dirty;
++
++		/* don't wait for the COMMIT response */
+ 		flags = 0;
+ 	}
+ 
+-- 
+1.5.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
