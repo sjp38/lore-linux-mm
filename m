@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E2C4F6B02D9
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 04:18:38 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id o7K8IaXJ010870
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:18:36 -0700
-Received: from ywi4 (ywi4.prod.google.com [10.192.9.4])
-	by wpaz17.hot.corp.google.com with ESMTP id o7K8IZfD022301
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:18:35 -0700
-Received: by ywi4 with SMTP id 4so1206753ywi.17
-        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:18:35 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C0966B02DA
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 04:19:58 -0400 (EDT)
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id o7K8JtVl010471
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:19:55 -0700
+Received: from ywh2 (ywh2.prod.google.com [10.192.8.2])
+	by wpaz29.hot.corp.google.com with ESMTP id o7K8Jsqv018990
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:19:54 -0700
+Received: by ywh2 with SMTP id 2so1536530ywh.37
+        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:19:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100820031647.GC5502@localhost>
+In-Reply-To: <20100820023419.GA5502@localhost>
 References: <1282251447-16937-1-git-send-email-mrubin@google.com>
- <1282251447-16937-4-git-send-email-mrubin@google.com> <20100820031647.GC5502@localhost>
+ <1282251447-16937-2-git-send-email-mrubin@google.com> <20100820023419.GA5502@localhost>
 From: Michael Rubin <mrubin@google.com>
-Date: Fri, 20 Aug 2010 01:18:15 -0700
-Message-ID: <AANLkTik1=FRc53o9L8z6PGeA4wcLBaeBv_eLVzCUpypg@mail.gmail.com>
-Subject: Re: [PATCH 3/3] writeback: Reporting dirty thresholds in /proc/vmstat
+Date: Fri, 20 Aug 2010 01:19:33 -0700
+Message-ID: <AANLkTinzS5J2PsG4Ftmbjvpi=beyD54A=ZrRw3_DA8jv@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm: helper functions for dirty and writeback accounting
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
@@ -25,109 +25,126 @@ To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-Thank you for your quick reply and comments.
-
-On Thu, Aug 19, 2010 at 8:16 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
+On Thu, Aug 19, 2010 at 7:34 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
 e:
-> On Thu, Aug 19, 2010 at 01:57:27PM -0700, Michael Rubin wrote:
->> The kernel already exposes the desired thresholds in /proc/sys/vm with
->> dirty_background_ratio and background_ratio. Instead the kernel may
->> alter the number requested without giving the user any indication that
->> is the case.
+> On Thu, Aug 19, 2010 at 01:57:25PM -0700, Michael Rubin wrote:
+>> Exporting account_pages_dirty and adding a symmetric routine
+>> account_pages_writeback.
 >
-> You mean the 5% lower bound in global_dirty_limits()? Let's rip it :)
->
->> Knowing the actual ratios the kernel is honoring can help app developers
->> understand how their buffered IO will be sent to the disk.
+> s/account_pages_writeback/account_page_writeback/
+
+Got it. thanks.
+
+> I'd recommend to separate the changes into two patches.
+> It's actually a bug fix to export account_pages_dirty() for ceph,
+> which should be a good candidate for 2.6.36.
+
+Good idea.
+
+>> This allows code outside of the mm core to safely manipulate page state
+>> and not worry about the other accounting. Not using these routines means
+>> that some code will lose track of the accounting and we get bugs. This
+>> has happened once already.
 >>
->> =A0 =A0 =A0 $ grep threshold /proc/vmstat
->> =A0 =A0 =A0 nr_pages_dirty_threshold 409111
->> =A0 =A0 =A0 nr_pages_dirty_background_threshold 818223
->
-> It's redundant to have _pages in the names. /proc/vmstat has the
-> tradition to use nr_dirty instead of nr_pages_dirty.
->
-> They do look like useful counters to export, especially when we do
-> dynamic dirty limits in future.
->
 >> Signed-off-by: Michael Rubin <mrubin@google.com>
 >> ---
->> =A0include/linux/mmzone.h | =A0 =A02 ++
->> =A0mm/vmstat.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A08 ++++++++
->> =A02 files changed, 10 insertions(+), 0 deletions(-)
+>> =A0fs/ceph/addr.c =A0 =A0 =A0| =A0 =A08 ++------
+>> =A0fs/nilfs2/segment.c | =A0 =A02 +-
+>> =A0include/linux/mm.h =A0| =A0 =A01 +
+>> =A0mm/page-writeback.c | =A0 15 +++++++++++++++
+>> =A04 files changed, 19 insertions(+), 7 deletions(-)
 >>
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index f160481..7c4a3bf 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -114,6 +114,8 @@ enum zone_stat_item {
->> =A0#endif
->> =A0 =A0 =A0 NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter w=
-riteback */
->> =A0 =A0 =A0 NR_FILE_PAGES_DIRTIED, =A0 =A0 =A0/* number of times pages g=
-et dirtied */
->> + =A0 =A0 NR_PAGES_DIRTY_THRESHOLD, =A0 /* writeback threshold */
->> + =A0 =A0 NR_PAGES_DIRTY_BG_THRESHOLD,/* bg writeback threshold */
->
-> s/_PAGES//
-
-Cool. Thanks.
-
->
->> =A0 =A0 =A0 NR_VM_ZONE_STAT_ITEMS };
+>> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+>> index d9c60b8..359aa3a 100644
+>> --- a/fs/ceph/addr.c
+>> +++ b/fs/ceph/addr.c
+>> @@ -106,12 +106,8 @@ static int ceph_set_page_dirty(struct page *page)
+>> =A0 =A0 =A0 if (page->mapping) { =A0 =A0/* Race with truncate? */
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 WARN_ON_ONCE(!PageUptodate(page));
 >>
->> =A0/*
->> diff --git a/mm/vmstat.c b/mm/vmstat.c
->> index e177a40..8b5bc78 100644
->> --- a/mm/vmstat.c
->> +++ b/mm/vmstat.c
->> @@ -17,6 +17,7 @@
->> =A0#include <linux/vmstat.h>
->> =A0#include <linux/sched.h>
->> =A0#include <linux/math64.h>
->> +#include <linux/writeback.h>
->>
->> =A0#ifdef CONFIG_VM_EVENT_COUNTERS
->> =A0DEFINE_PER_CPU(struct vm_event_state, vm_event_states) =3D {{0}};
->> @@ -742,6 +743,8 @@ static const char * const vmstat_text[] =3D {
->> =A0#endif
->> =A0 =A0 =A0 "nr_pages_entered_writeback",
->> =A0 =A0 =A0 "nr_file_pages_dirtied",
->> + =A0 =A0 "nr_pages_dirty_threshold",
->> + =A0 =A0 "nr_pages_dirty_background_threshold",
+>> - =A0 =A0 =A0 =A0 =A0 =A0 if (mapping_cap_account_dirty(mapping)) {
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __inc_zone_page_state(page, NR=
+_FILE_DIRTY);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __inc_bdi_stat(mapping->backin=
+g_dev_info,
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 BDI_RECLAIMABLE);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 task_io_account_write(PAGE_CAC=
+HE_SIZE);
+>> - =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (mapping_cap_account_dirty(mapping))
 >
-> s/_pages//
+> That 'if' is not necessary. account_page_dirtied() already has one.
+> The extra 'if' is not an optimization either, because the ceph fs is
+> not likely to have un-accountable mappings.
 
-Got it.
-
+Sweet. Thanks.
 >
->> =A0#ifdef CONFIG_VM_EVENT_COUNTERS
->> =A0 =A0 =A0 "pgpgin",
->> @@ -901,6 +904,7 @@ static void *vmstat_start(struct seq_file *m, loff_t=
- *pos)
->> =A0#ifdef CONFIG_VM_EVENT_COUNTERS
->> =A0 =A0 =A0 unsigned long *e;
->> =A0#endif
->> + =A0 =A0 unsigned long dirty_thresh, dirty_bg_thresh;
->> =A0 =A0 =A0 int i;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 account_page_dirtied(page, pag=
+e->mapping);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 radix_tree_tag_set(&mapping->page_tree,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_index(p=
+age), PAGECACHE_TAG_DIRTY);
 >>
->> =A0 =A0 =A0 if (*pos >=3D ARRAY_SIZE(vmstat_text))
->> @@ -918,6 +922,10 @@ static void *vmstat_start(struct seq_file *m, loff_=
-t *pos)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ERR_PTR(-ENOMEM);
->> =A0 =A0 =A0 for (i =3D 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 v[i] =3D global_page_state(i);
+>> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+>> index c920164..967ed7d 100644
+>> --- a/fs/nilfs2/segment.c
+>> +++ b/fs/nilfs2/segment.c
+>> @@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page,=
+ struct list_head *out)
+>> =A0 =A0 =A0 kunmap_atomic(kaddr, KM_USER0);
+>>
+>> =A0 =A0 =A0 if (!TestSetPageWriteback(clone_page))
+>> - =A0 =A0 =A0 =A0 =A0 =A0 inc_zone_page_state(clone_page, NR_WRITEBACK);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 account_page_writeback(clone_page, page_mappin=
+g(clone_page));
+>> =A0 =A0 =A0 unlock_page(clone_page);
+>>
+>> =A0 =A0 =A0 return 0;
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index a2b4804..b138392 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -855,6 +855,7 @@ int __set_page_dirty_no_writeback(struct page *page)=
+;
+>> =A0int redirty_page_for_writepage(struct writeback_control *wbc,
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page =
+*page);
+>> =A0void account_page_dirtied(struct page *page, struct address_space *ma=
+pping);
+>> +void account_page_writeback(struct page *page, struct address_space *ma=
+pping);
+>> =A0int set_page_dirty(struct page *page);
+>> =A0int set_page_dirty_lock(struct page *page);
+>> =A0int clear_page_dirty_for_io(struct page *page);
+>> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+>> index 37498ef..b8e7b3b 100644
+>> --- a/mm/page-writeback.c
+>> +++ b/mm/page-writeback.c
+>> @@ -1096,6 +1096,21 @@ void account_page_dirtied(struct page *page, stru=
+ct address_space *mapping)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 task_io_account_write(PAGE_CACHE_SIZE);
+>> =A0 =A0 =A0 }
+>> =A0}
+>> +EXPORT_SYMBOL(account_page_dirtied);
 >> +
->> + =A0 =A0 get_dirty_limits(&dirty_thresh, &dirty_bg_thresh, NULL, NULL);
+>> +/*
+>> + * Helper function for set_page_writeback family.
+>> + * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+>> + * wrt interrupts.
+>> + */
+>> +
+>> +void account_page_writeback(struct page *page, struct address_space *ma=
+pping)
+>> +{
+>> + =A0 =A0 if (mapping_cap_account_dirty(mapping))
 >
-> 2.6.36-rc1 will need this:
->
-> =A0 =A0 =A0 =A0global_dirty_limits(v + NR_DIRTY_THRESHOLD, v + NR_DIRTY_B=
-G_THRESHOLD);
+> The 'if' test and *mapping parameter looks unnecessary at least for
+> now. The only place a mapping has BDI_CAP_NO_ACCT_WB but not
+> BDI_CAP_NO_WRITEBACK is fuse, which does its own accounting.
 
-Yeah I noticed when I rebased. Thanks.
-
-mrubin
+Cool.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
