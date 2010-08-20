@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9776B02E5
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BEA9C6B02E7
 	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 05:31:44 -0400 (EDT)
 From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 2/4] mm: account_page_writeback added
-Date: Fri, 20 Aug 2010 02:31:27 -0700
-Message-Id: <1282296689-25618-3-git-send-email-mrubin@google.com>
+Subject: [PATCH 4/4] writeback: Reporting dirty thresholds in /proc/vmstat
+Date: Fri, 20 Aug 2010 02:31:29 -0700
+Message-Id: <1282296689-25618-5-git-send-email-mrubin@google.com>
 In-Reply-To: <1282296689-25618-1-git-send-email-mrubin@google.com>
 References: <1282296689-25618-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,74 +13,68 @@ To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This allows code outside of the mm core to safely manipulate page
-writeback state and not worry about the other accounting. Not using
-these routines means that some code will lose track of the accounting
-and we get bugs.
+The kernel already exposes the user desired thresholds in /proc/sys/vm
+with dirty_background_ratio and background_ratio. But the kernel may
+alter the number requested without giving the user any indication that
+is the case.
+
+Knowing the actual ratios the kernel is honoring can help app developers
+understand how their buffered IO will be sent to the disk.
+
+	$ grep threshold /proc/vmstat
+	nr_dirty_threshold 409111
+	nr_dirty_background_threshold 818223
 
 Signed-off-by: Michael Rubin <mrubin@google.com>
 ---
- fs/nilfs2/segment.c |    2 +-
- include/linux/mm.h  |    1 +
- mm/page-writeback.c |   13 ++++++++++++-
- 3 files changed, 14 insertions(+), 2 deletions(-)
+ include/linux/mmzone.h |    3 +++
+ mm/vmstat.c            |    5 +++++
+ 2 files changed, 8 insertions(+), 0 deletions(-)
 
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index 9fd051a..5617f16 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
- 	kunmap_atomic(kaddr, KM_USER0);
- 
- 	if (!TestSetPageWriteback(clone_page))
--		inc_zone_page_state(clone_page, NR_WRITEBACK);
-+		account_page_writeback(clone_page);
- 	unlock_page(clone_page);
- 
- 	return 0;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 709f672..4b2f38b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -856,6 +856,7 @@ int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- void account_page_dirtied(struct page *page, struct address_space *mapping);
-+void account_page_writeback(struct page *page);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 9d07a8d..ae5f5d5 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1134,6 +1134,17 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- EXPORT_SYMBOL(account_page_dirtied);
- 
- /*
-+ * Helper function for set_page_writeback family.
-+ * NOTE: Unlike account_page_dirtied this does not rely on being atomic
-+ * wrt interrupts.
-+ */
-+void account_page_writeback(struct page *page)
-+{
-+	inc_zone_page_state(page, NR_WRITEBACK);
-+}
-+EXPORT_SYMBOL(account_page_writeback);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index fe4e6dd..c2243d0 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -106,6 +106,9 @@ enum zone_stat_item {
+ 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+ 	NR_FILE_PAGES_DIRTIED,	/* number of times pages get dirtied */
+ 	NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter writeback */
++	NR_DIRTY_THRESHOLD,	/* writeback threshold */
++	NR_DIRTY_BG_THRESHOLD,	/* bg writeback threshold */
 +
-+/*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-  * its radix tree.
-  *
-@@ -1371,7 +1382,7 @@ int test_set_page_writeback(struct page *page)
- 		ret = TestSetPageWriteback(page);
- 	}
- 	if (!ret)
--		inc_zone_page_state(page, NR_WRITEBACK);
-+		account_page_writeback(page);
- 	return ret;
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 073a496..c755d71 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -17,6 +17,7 @@
+ #include <linux/vmstat.h>
+ #include <linux/sched.h>
+ #include <linux/math64.h>
++#include <linux/writeback.h>
  
- }
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+@@ -734,6 +735,8 @@ static const char * const vmstat_text[] = {
+ 	"nr_shmem",
+ 	"nr_dirtied",
+ 	"nr_entered_writeback",
++	"nr_dirty_threshold",
++	"nr_dirty_background_threshold",
+ 
+ #ifdef CONFIG_NUMA
+ 	"numa_hit",
+@@ -917,6 +920,8 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+ 		v[i] = global_page_state(i);
++
++	global_dirty_limits(v + NR_DIRTY_THRESHOLD, v + NR_DIRTY_BG_THRESHOLD);
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ 	e = v + NR_VM_ZONE_STAT_ITEMS;
+ 	all_vm_events(e);
 -- 
 1.7.1
 
