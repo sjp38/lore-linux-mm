@@ -1,124 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 89B586B02BF
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:34:56 -0400 (EDT)
-Date: Fri, 20 Aug 2010 13:34:47 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E8A286B02C1
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 01:40:20 -0400 (EDT)
+Date: Fri, 20 Aug 2010 13:40:16 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: compaction: trying to understand the code
-Message-ID: <20100820053447.GA13406@localhost>
-References: <325E0A25FE724BA18190186F058FF37E@rainbow>
- <20100817111018.GQ19797@csn.ul.ie>
- <4385155269B445AEAF27DC8639A953D7@rainbow>
- <20100818154130.GC9431@localhost>
- <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
- <20100819160006.GG6805@barrios-desktop>
- <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
+Subject: Re: [PATCH] VM: kswapd should not do blocking memory allocations
+Message-ID: <20100820054016.GA11847@localhost>
+References: <1282158241.8540.85.camel@heimdal.trondhjem.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
+In-Reply-To: <1282158241.8540.85.camel@heimdal.trondhjem.org>
 Sender: owner-linux-mm@kvack.org
-To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Trond Myklebust <Trond.Myklebust@netapp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-nfs@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-You do run lots of tasks: kernel_stack=1880kB.
+On Wed, Aug 18, 2010 at 03:04:01PM -0400, Trond Myklebust wrote:
+> From: Trond Myklebust <Trond.Myklebust@netapp.com>
+> 
+> Allowing kswapd to do GFP_KERNEL memory allocations (or any blocking memory
+> allocations) is wrong and can cause deadlocks in try_to_release_page(), as
+> the filesystem believes it is safe to allocate new memory and block,
+> whereas kswapd is there specifically to clear a low-memory situation...
+> 
+> Set the gfp_mask to GFP_IOFS instead.
 
-And you have lots of free memory, page reclaim has never run, so
-inactive_anon=0. This is where compaction is different from vmscan.
-In vmscan, inactive_anon is reasonably large, and will only be
-compared directly with isolated_anon.
+It would be more descriptive to say "remove the __GFP_WAIT bit".
 
-Thanks,
-Fengguang
+The change looks reasonable _in itself_, since we always prefer to
+avoid unnecessary waits for kswapd. So
 
-On Fri, Aug 20, 2010 at 01:31:03PM +0800, Iram Shahzad wrote:
-> > Could you apply below patch for debugging and report it?
-> 
-> The Mem-info gets printed forever. So I have picked the first 2 of them
-> and then another 2 after some time. These 4 Mem-infos are shown in
-> the attached log.
-> 
-> Thanks
-> Iram
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
 
-> Mem-info:
-> Normal per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 184
-> active_anon:40345 inactive_anon:0 isolated_anon:8549
->  active_file:2713 inactive_file:10418 isolated_file:1871
->  unevictable:0 dirty:0 writeback:0 unstable:0
->  free:53713 slab_reclaimable:533 slab_unreclaimable:1076
->  mapped:9461 shmem:2349 pagetables:1574 bounce:0
-> Normal free:214852kB min:2884kB low:3604kB high:4324kB active_anon:161380kB inactive_anon:0kB active_file:10852kB inactive_file:41672kB unevictable:0kB isolated(anon):34196kB isolated(file):7484kB present:520192kB mlocked:0kB dirty:0kB writeback:0kB mapped:37844kB shmem:9396kB slab_reclaimable:2132kB slab_unreclaimable:4304kB kernel_stack:1880kB pagetables:6296kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0
-> Normal: 31*4kB 29*8kB 20*16kB 23*32kB 21*64kB 19*128kB 19*256kB 20*512kB 20*1024kB 3*2048kB 41*4096kB = 214852kB
-> 15491 total pagecache pages
-> 131072 pages of RAM
-> 54242 free pages
-> 18897 reserved pages
-> 1609 slab pages
-> 84316 pages shared
-> 0 pages swap cached
-> Mem-info:
-> Normal per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 184
-> active_anon:40345 inactive_anon:0 isolated_anon:8549
->  active_file:2713 inactive_file:10418 isolated_file:1871
->  unevictable:0 dirty:0 writeback:0 unstable:0
->  free:53713 slab_reclaimable:533 slab_unreclaimable:1076
->  mapped:9461 shmem:2349 pagetables:1574 bounce:0
-> Normal free:214852kB min:2884kB low:3604kB high:4324kB active_anon:161380kB inactive_anon:0kB active_file:10852kB inactive_file:41672kB unevictable:0kB isolated(anon):34196kB isolated(file):7484kB present:520192kB mlocked:0kB dirty:0kB writeback:0kB mapped:37844kB shmem:9396kB slab_reclaimable:2132kB slab_unreclaimable:4304kB kernel_stack:1880kB pagetables:6296kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0
-> Normal: 26*4kB 27*8kB 19*16kB 22*32kB 20*64kB 19*128kB 19*256kB 20*512kB 20*1024kB 3*2048kB 41*4096kB = 214704kB
-> 15491 total pagecache pages
-> 131072 pages of RAM
-> 54258 free pages
-> 18897 reserved pages
-> 1609 slab pages
-> 84296 pages shared
-> 0 pages swap cached
+> Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
+> ---
+> 
+>  mm/vmscan.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
 > 
-> [snip]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ec5ddcc..716dd16 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2095,7 +2095,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
+>  	unsigned long total_scanned;
+>  	struct reclaim_state *reclaim_state = current->reclaim_state;
+>  	struct scan_control sc = {
+> -		.gfp_mask = GFP_KERNEL,
+> +		.gfp_mask = GFP_IOFS,
+>  		.may_unmap = 1,
+>  		.may_swap = 1,
+>  		/*
 > 
-> 
-> Mem-info:
-> Normal per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 100
-> active_anon:40429 inactive_anon:0 isolated_anon:8581
->  active_file:2719 inactive_file:10423 isolated_file:1871
->  unevictable:0 dirty:0 writeback:0 unstable:0
->  free:53777 slab_reclaimable:534 slab_unreclaimable:1070
->  mapped:9461 shmem:2349 pagetables:1574 bounce:0
-> Normal free:215108kB min:2884kB low:3604kB high:4324kB active_anon:161716kB inactive_anon:0kB active_file:10876kB inactive_file:41692kB unevictable:0kB isolated(anon):34324kB isolated(file):7484kB present:520192kB mlocked:0kB dirty:0kB writeback:0kB mapped:37844kB shmem:9396kB slab_reclaimable:2136kB slab_unreclaimable:4280kB kernel_stack:1872kB pagetables:6296kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0
-> Normal: 31*4kB 29*8kB 20*16kB 21*32kB 22*64kB 19*128kB 20*256kB 20*512kB 20*1024kB 3*2048kB 41*4096kB = 215108kB
-> 15491 total pagecache pages
-> 131072 pages of RAM
-> 54221 free pages
-> 18897 reserved pages
-> 1604 slab pages
-> 84289 pages shared
-> 0 pages swap cached
-> Mem-info:
-> Normal per-cpu:
-> CPU    0: hi:  186, btch:  31 usd: 100
-> active_anon:40429 inactive_anon:0 isolated_anon:8581
->  active_file:2719 inactive_file:10423 isolated_file:1871
->  unevictable:0 dirty:0 writeback:0 unstable:0
->  free:53777 slab_reclaimable:534 slab_unreclaimable:1070
->  mapped:9461 shmem:2349 pagetables:1574 bounce:0
-> Normal free:215108kB min:2884kB low:3604kB high:4324kB active_anon:161716kB inactive_anon:0kB active_file:10876kB inactive_file:41692kB unevictable:0kB isolated(anon):34324kB isolated(file):7484kB present:520192kB mlocked:0kB dirty:0kB writeback:0kB mapped:37844kB shmem:9396kB slab_reclaimable:2136kB slab_unreclaimable:4280kB kernel_stack:1872kB pagetables:6296kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-> lowmem_reserve[]: 0 0 0
-> Normal: 31*4kB 29*8kB 20*16kB 21*32kB 22*64kB 19*128kB 20*256kB 20*512kB 20*1024kB 3*2048kB 41*4096kB = 215108kB
-> 15491 total pagecache pages
-> 131072 pages of RAM
-> 54222 free pages
-> 18897 reserved pages
-> 1603 slab pages
-> 84289 pages shared
-> 0 pages swap cached
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
