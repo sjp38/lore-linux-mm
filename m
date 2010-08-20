@@ -1,57 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 754266B032E
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:16:25 -0400 (EDT)
-Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <cover.1282286941.git.m.nazarewicz@samsung.com>
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 20 Aug 2010 15:15:10 +0200
-Message-ID: <1282310110.2605.976.camel@laptop>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6D11D6B032F
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:20:50 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so1347062pvc.14
+        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 06:20:49 -0700 (PDT)
+Date: Fri, 20 Aug 2010 21:20:39 +0800
+From: Wu Fengguang <fengguang.wu@gmail.com>
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+Message-ID: <20100820132039.GA20126@localhost>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+ <20100819143710.GA4752@infradead.org>
+ <1282229905.6199.19.camel@heimdal.trondhjem.org>
+ <20100819151618.5f769dc9@tlielax.poochiereds.net>
+ <20100820003308.GA30548@localhost>
+ <20100819205332.5ea929ee@corrin.poochiereds.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100819205332.5ea929ee@corrin.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
-To: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Cc: linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Jeff Layton <jlayton@redhat.com>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-08-20 at 11:50 +0200, Michal Nazarewicz wrote:
-> Hello everyone,
->=20
-> The following patchset implements a Contiguous Memory Allocator.  For
-> those who have not yet stumbled across CMA an excerpt from
-> documentation:
->=20
->    The Contiguous Memory Allocator (CMA) is a framework, which allows
->    setting up a machine-specific configuration for physically-contiguous
->    memory management. Memory for devices is then allocated according
->    to that configuration.
->=20
->    The main role of the framework is not to allocate memory, but to
->    parse and manage memory configurations, as well as to act as an
->    in-between between device drivers and pluggable allocators. It is
->    thus not tied to any memory allocation method or strategy.
->=20
-> For more information please refer to the second patch from the
-> patchset which contains the documentation.
+On Thu, Aug 19, 2010 at 08:53:32PM -0400, Jeff Layton wrote:
+> On Fri, 20 Aug 2010 08:33:08 +0800
+> Wu Fengguang <fengguang.wu@gmail.com> wrote:
+> 
+> > > Here's a lightly tested patch that turns the check for the two flags
+> > > into a check for WB_SYNC_NONE. It seems to do the right thing, but I
+> > > don't have a clear testcase for it. Does this look reasonable?
+> >  
+> > Yes, I don't see any problems.
+> > 
+> > > ------------------[snip]------------------------
+> > > 
+> > > NFS: don't use FLUSH_SYNC on WB_SYNC_NONE COMMIT calls
+> > > 
+> > > WB_SYNC_NONE is supposed to mean "don't wait on anything". That should
+> > > also include not waiting for COMMIT calls to complete.
+> > > 
+> > > WB_SYNC_NONE is also implied when wbc->nonblocking or
+> > > wbc->for_background are set, so we can replace those checks in
+> > > nfs_commit_unstable_pages with a check for WB_SYNC_NONE.
+> > >
+> > > Signed-off-by: Jeff Layton <jlayton@redhat.com>
+> > > ---
+> > >  fs/nfs/write.c |   10 +++++-----
+> > >  1 files changed, 5 insertions(+), 5 deletions(-)
+> > > 
+> > > diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+> > > index 874972d..35bd7d0 100644
+> > > --- a/fs/nfs/write.c
+> > > +++ b/fs/nfs/write.c
+> > > @@ -1436,12 +1436,12 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
+> > >  	/* Don't commit yet if this is a non-blocking flush and there are
+> > >  	 * lots of outstanding writes for this mapping.
+> > >  	 */
+> > > -	if (wbc->sync_mode == WB_SYNC_NONE &&
+> > > -	    nfsi->ncommit <= (nfsi->npages >> 1))
+> > > -		goto out_mark_dirty;
+> > > -
+> > > -	if (wbc->nonblocking || wbc->for_background)
+> > > +	if (wbc->sync_mode == WB_SYNC_NONE) {
+> > > +		if (nfsi->ncommit <= (nfsi->npages >> 1))
+> > > +			goto out_mark_dirty;
+> > >  		flags = 0;
+> > > +	}
+> > > +
+> > 
+> > nitpick: I'd slightly prefer an one-line change
+> > 
+> > -       if (wbc->nonblocking || wbc->for_background)
+> > +       if (wbc->sync_mode == WB_SYNC_NONE)
+> >                 flags = 0;
+> > 
+> > That way the patch will look more obvious and "git blame" friendly,
+> > and the original "Don't commit.." comment will best match its code.
+> > 
+> > Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+> > 
+> > Thanks,
+> > Fengguang
+> 
+> Either way. I figured it would be slightly more efficient to just check
+> WB_SYNC_NONE once in that function. I suppose we could just fix up the
+> comments instead. Let me know if I should respin the patch with updated
+> comments...
 
-So the idea is to grab a large chunk of memory at boot time and then
-later allow some device to use it?
+OK, please do the comments.
 
-I'd much rather we'd improve the regular page allocator to be smarter
-about this. We recently added a lot of smarts to it like memory
-compaction, which allows large gobs of contiguous memory to be freed for
-things like huge pages.
+> Thanks for the review...
 
-If you want guarantees you can free stuff, why not add constraints to
-the page allocation type and only allow MIGRATE_MOVABLE pages inside a
-certain region, those pages are easily freed/moved aside to satisfy
-large contiguous allocations.
+You are welcome.
 
-Also, please remove --chain-reply-to from your git config. You're using
-1.7 which should do the right thing (--no-chain-reply-to) by default.
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
