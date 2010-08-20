@@ -1,86 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 28C896B02A9
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 21:09:18 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L7F00GX4F7C9S70@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 20 Aug 2010 02:09:14 +0100 (BST)
-Received: from localhost ([10.89.8.241])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L7F00MC3F62AL@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 20 Aug 2010 02:09:12 +0100 (BST)
-Date: Fri, 20 Aug 2010 03:08:24 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH/RFCv3 0/6] The Contiguous Memory Allocator framework
-In-reply-to: <20100820001339N.fujita.tomonori@lab.ntt.co.jp>
-Message-id: <op.vhppgaxq7p4s8u@localhost>
-Content-transfer-encoding: Quoted-Printable
-References: <cover.1281100495.git.m.nazarewicz@samsung.com>
- <AANLkTikp49oOny-vrtRTsJvA3Sps08=w7__JjdA3FE8t@mail.gmail.com>
- <20100820001339N.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5C02D6B02AC
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 22:34:25 -0400 (EDT)
+Date: Fri, 20 Aug 2010 10:34:19 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/3] mm: helper functions for dirty and writeback
+ accounting
+Message-ID: <20100820023419.GA5502@localhost>
+References: <1282251447-16937-1-git-send-email-mrubin@google.com>
+ <1282251447-16937-2-git-send-email-mrubin@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282251447-16937-2-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: kyungmin.park@samsung.com, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-Cc: linux-mm@kvack.org, dwalker@codeaurora.org, linux@arm.linux.org.uk, corbet@lwn.net, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, hverkuil@xs4all.nl, kgene.kim@samsung.com, zpfeffer@codeaurora.org, jaeryul.oh@samsung.com, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@suse.de, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Aug 2010 17:15:12 +0200, FUJITA Tomonori <fujita.tomonori@lab=
-.ntt.co.jp> wrote:
+On Thu, Aug 19, 2010 at 01:57:25PM -0700, Michael Rubin wrote:
+> Exporting account_pages_dirty and adding a symmetric routine
+> account_pages_writeback.
 
-> On Wed, 18 Aug 2010 12:01:35 +0900
-> Kyungmin Park <kyungmin.park@samsung.com> wrote:
->
->> Are there any comments or ack?
->>
->> We hope this method included at mainline kernel if possible.
->> It's really needed feature for our multimedia frameworks.
->
-> You got any comments from mm people?
->
-> Virtually, this adds a new memory allocator implementation that steals=
+s/account_pages_writeback/account_page_writeback/
 
-> some memory from memory allocator during boot process. Its API looks
-> completely different from the API for memory allocator. That doesn't
-> sound appealing to me much. This stuff couldn't be integrated well
-> into memory allocator?
+I'd recommend to separate the changes into two patches.
+It's actually a bug fix to export account_pages_dirty() for ceph,
+which should be a good candidate for 2.6.36.
 
-What kind of integration do you mean?  I see three levels:
+> This allows code outside of the mm core to safely manipulate page state
+> and not worry about the other accounting. Not using these routines means
+> that some code will lose track of the accounting and we get bugs. This
+> has happened once already.
+> 
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
+>  fs/ceph/addr.c      |    8 ++------
+>  fs/nilfs2/segment.c |    2 +-
+>  include/linux/mm.h  |    1 +
+>  mm/page-writeback.c |   15 +++++++++++++++
+>  4 files changed, 19 insertions(+), 7 deletions(-)
+> 
+> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> index d9c60b8..359aa3a 100644
+> --- a/fs/ceph/addr.c
+> +++ b/fs/ceph/addr.c
+> @@ -106,12 +106,8 @@ static int ceph_set_page_dirty(struct page *page)
+>  	if (page->mapping) {	/* Race with truncate? */
+>  		WARN_ON_ONCE(!PageUptodate(page));
+>  
+> -		if (mapping_cap_account_dirty(mapping)) {
+> -			__inc_zone_page_state(page, NR_FILE_DIRTY);
+> -			__inc_bdi_stat(mapping->backing_dev_info,
+> -					BDI_RECLAIMABLE);
+> -			task_io_account_write(PAGE_CACHE_SIZE);
+> -		}
+> +		if (mapping_cap_account_dirty(mapping))
 
-1. Integration on API level meaning that some kind of existing API is us=
-ed
-    instead of new cma_*() calls.  CMA adds notion of devices and memory=
+That 'if' is not necessary. account_page_dirtied() already has one.
+The extra 'if' is not an optimization either, because the ceph fs is
+not likely to have un-accountable mappings.
 
-    types which is new to all the other APIs (coherent has notion of dev=
-ices
-    but that's not enough).  This basically means that no existing API c=
-an be
-    used for CMA.  On the other hand, removing notion of devices and mem=
-ory
-    types would defeat the whole purpose of CMA thus destroying the solu=
-tion
-    that CMA provides.
+> +			account_page_dirtied(page, page->mapping);
+>  		radix_tree_tag_set(&mapping->page_tree,
+>  				page_index(page), PAGECACHE_TAG_DIRTY);
+>  
+> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+> index c920164..967ed7d 100644
+> --- a/fs/nilfs2/segment.c
+> +++ b/fs/nilfs2/segment.c
+> @@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
+>  	kunmap_atomic(kaddr, KM_USER0);
+>  
+>  	if (!TestSetPageWriteback(clone_page))
+> -		inc_zone_page_state(clone_page, NR_WRITEBACK);
+> +		account_page_writeback(clone_page, page_mapping(clone_page));
+>  	unlock_page(clone_page);
+>  
+>  	return 0;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a2b4804..b138392 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -855,6 +855,7 @@ int __set_page_dirty_no_writeback(struct page *page);
+>  int redirty_page_for_writepage(struct writeback_control *wbc,
+>  				struct page *page);
+>  void account_page_dirtied(struct page *page, struct address_space *mapping);
+> +void account_page_writeback(struct page *page, struct address_space *mapping);
+>  int set_page_dirty(struct page *page);
+>  int set_page_dirty_lock(struct page *page);
+>  int clear_page_dirty_for_io(struct page *page);
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 37498ef..b8e7b3b 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1096,6 +1096,21 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+>  		task_io_account_write(PAGE_CACHE_SIZE);
+>  	}
+>  }
+> +EXPORT_SYMBOL(account_page_dirtied);
+> +
+> +/*
+> + * Helper function for set_page_writeback family.
+> + * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+> + * wrt interrupts.
+> + */
+> +
+> +void account_page_writeback(struct page *page, struct address_space *mapping)
+> +{
+> +	if (mapping_cap_account_dirty(mapping))
 
-2. Reuse of memory pools meaning that memory reserved by CMA can then be=
+The 'if' test and *mapping parameter looks unnecessary at least for
+now. The only place a mapping has BDI_CAP_NO_ACCT_WB but not
+BDI_CAP_NO_WRITEBACK is fuse, which does its own accounting.
 
-    used by other allocation mechanisms.  This is of course possible.  F=
-or
-    instance coherent could easily be implemented as a wrapper to CMA.
-    This is doable and can be done in the future after CMA gets more
-    recognition.
+Thanks,
+Fengguang
 
-3. Reuse of algorithms meaning that allocation algorithms used by other
-    allocators will be used with CMA regions.  This is doable as well an=
-d
-    can be done in the future.
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+> +		inc_zone_page_state(page, NR_WRITEBACK);
+> +}
+> +EXPORT_SYMBOL(account_page_writeback);
+> +
+>  
+>  /*
+>   * For address_spaces which do not use buffers.  Just tag the page as dirty in
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
