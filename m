@@ -1,141 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 053E76B02CE
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 02:09:12 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K69Aiu025703
-	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
-	Fri, 20 Aug 2010 15:09:10 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 007D445DE56
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:09:10 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AD8EB45DE4F
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:09:09 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 61A1AE18002
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:09:09 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 09DF81DB8038
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:09:09 +0900 (JST)
-Message-ID: <F185F1F1FF284307ABD7BA74DB4747D1@rainbow>
-From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
-References: <325E0A25FE724BA18190186F058FF37E@rainbow> <20100817111018.GQ19797@csn.ul.ie> <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819074602.GW19797@csn.ul.ie> <5EF4FA9117384B1A80228C96926B4125@rainbow> <20100820055006.GA13916@localhost>
-Subject: Re: compaction: trying to understand the code
-Date: Fri, 20 Aug 2010 15:13:33 +0900
-MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_NextPart_000_00E8_01CB407A.41303FE0"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3435B6B02D0
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 02:39:13 -0400 (EDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from eu_spt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0L7F00G7IUH8AO00@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 20 Aug 2010 07:39:09 +0100 (BST)
+Received: from localhost ([10.89.8.241])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L7F00091UFP2D@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 20 Aug 2010 07:39:08 +0100 (BST)
+Date: Fri, 20 Aug 2010 08:38:10 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH/RFCv3 0/6] The Contiguous Memory Allocator framework
+In-reply-to: <20100820121124Z.fujita.tomonori@lab.ntt.co.jp>
+Message-id: <op.vhp4pws27p4s8u@localhost>
+Content-transfer-encoding: Quoted-Printable
+References: <AANLkTikp49oOny-vrtRTsJvA3Sps08=w7__JjdA3FE8t@mail.gmail.com>
+ <20100820001339N.fujita.tomonori@lab.ntt.co.jp> <op.vhppgaxq7p4s8u@localhost>
+ <20100820121124Z.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ying Han <yinghan@google.com>
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: kyungmin.park@samsung.com, linux-mm@kvack.org, dwalker@codeaurora.org, linux@arm.linux.org.uk, corbet@lwn.net, p.osciak@samsung.com, broonie@opensource.wolfsonmicro.com, linux-kernel@vger.kernel.org, hvaibhav@ti.com, hverkuil@xs4all.nl, kgene.kim@samsung.com, zpfeffer@codeaurora.org, jaeryul.oh@samsung.com, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, m.szyprowski@samsung.com
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Fri, 20 Aug 2010 05:12:50 +0200, FUJITA Tomonori <fujita.tomonori@lab=
+.ntt.co.jp> wrote:
+>> 1. Integration on API level meaning that some kind of existing API is=
+ used
+>>     instead of new cma_*() calls.  CMA adds notion of devices and mem=
+ory
+>>     types which is new to all the other APIs (coherent has notion of =
+devices
+>>     but that's not enough).  This basically means that no existing AP=
+I can be
+>>     used for CMA.  On the other hand, removing notion of devices and =
+memory
+>>     types would defeat the whole purpose of CMA thus destroying the s=
+olution
+>>     that CMA provides.
+>
+> You can create something similar to the existing API for memory
+> allocator.
 
-------=_NextPart_000_00E8_01CB407A.41303FE0
-Content-Type: text/plain;
-	format=flowed;
-	charset="ISO-8859-1";
-	reply-type=original
-Content-Transfer-Encoding: 7bit
+That may be tricky.  cma_alloc() takes four parameters each of which is
+required for CMA.  No other existing set of API uses all those arguments=
+.
+This means, CMA needs it's own, somehow unique API.  I don't quite see
+how the APIs may be unified or "made similar".  Of course, I'm gladly
+accepting suggestions.
 
-> That's all? Is you system idle otherwise? (for example, fresh booted
-> and not running many processes)
+>> 2. Reuse of memory pools meaning that memory reserved by CMA can then=
+ be
+>>     used by other allocation mechanisms.  This is of course possible.=
+  For
+>>     instance coherent could easily be implemented as a wrapper to CMA=
+.
+>>     This is doable and can be done in the future after CMA gets more
+>>     recognition.
+>>
+>> 3. Reuse of algorithms meaning that allocation algorithms used by oth=
+er
+>>     allocators will be used with CMA regions.  This is doable as well=
+ and
+>>     can be done in the future.
+>
+> Well, why can't we do the above before the inclusion?
 
-Sorry, I didn't mean that. There are other processes running.
-I just meant my test doesn't do anything else.
+Because it's quite a bit of work and instead of diverting my attention I=
+'d
+prefer to make CMA as good as possible and then integrate it with other
+subsystems.  Also, adding the integration would change the patch from be=
+ing
+4k lines to being like 40k lines.
 
-> We are interested in the test app, can you share it? :)
+What I'm trying to say is that I don't consider that a work for now but
+rather a further enchantments.
 
-Attached.
+> Anyway, I think that comments from mm people would be helpful to merge=
 
-Thanks
-Iram
+> this.
 
-------=_NextPart_000_00E8_01CB407A.41303FE0
-Content-Type: application/octet-stream;
-	name="mfragprog.c"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
-	filename="mfragprog.c"
+Yes, I agree.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <asm/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <errno.h>
-#include <string.h>
+-- =
 
-#define TRYNUMMAX (1024*50)
-static void *p[TRYNUMMAX] =3D {(void *)1, };
-static size_t size;
-static int trynum;
-
-static void mfrag(void)
-{
-	int i;
-
-	fprintf(stderr, "size, trynum: %d %d\n", size, trynum);
-
-	for (i=3D0; i<trynum; i++) {
-			p[i] =3D NULL;
-	}
-
-	for (i=3D0; i<trynum; i++) {
-		p[i] =3D malloc(size);
-		if (p[i]) {
-			fprintf(stderr, "(%s:%s:%d) Success %d %d %p\n", __FILE__, =
-__FUNCTION__, __LINE__, size, i, p[i]);
-			memset(p[i], 'a', size);
-		}
-		else {
-			fprintf(stderr, "(%s:%s:%d) Fail %d %d\n", __FILE__, __FUNCTION__, =
-__LINE__, size, i);
-			break;
-		}
-	}
-
-	fprintf(stderr, "%d allocs done\n", i);
-
-	for (i=3D0; i<trynum; i+=3D2) {
-		if (p[i]) {
-			free(p[i]);
-			p[i] =3D NULL;
-		}
-	}
-
-	fprintf(stderr, "frag done\n");
-}
-
-int main (int argc, char **argv)
-{
-	if (argc !=3D 3) {
-		fprintf(stderr, "usage: %s <size> <trynum>\n", argv[0]);
-		exit(1);
-	}
-
-	size =3D atoi(argv[1]);
-	trynum =3D atoi(argv[2]);
-	if (trynum > TRYNUMMAX) {
-		trynum =3D TRYNUMMAX;
-	}
-=09
-	mfrag();
-=09
-	while (1) {
-		fprintf(stdout, "(%s:%s:%d)\n", __FILE__, __FUNCTION__, __LINE__);
-		sleep(3);
-	}
-}
-
-------=_NextPart_000_00E8_01CB407A.41303FE0--
-
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
