@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 449E36B031B
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 06:12:58 -0400 (EDT)
-Date: Fri, 20 Aug 2010 18:12:51 +0800
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0B7826B031D
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 06:24:01 -0400 (EDT)
+Date: Fri, 20 Aug 2010 18:23:55 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in
- /proc/vmstat
-Message-ID: <20100820101251.GD8440@localhost>
-References: <1282296689-25618-1-git-send-email-mrubin@google.com>
- <1282296689-25618-5-git-send-email-mrubin@google.com>
+Subject: Re: compaction: trying to understand the code
+Message-ID: <20100820102355.GE8440@localhost>
+References: <325E0A25FE724BA18190186F058FF37E@rainbow>
+ <20100817111018.GQ19797@csn.ul.ie>
+ <4385155269B445AEAF27DC8639A953D7@rainbow>
+ <20100818154130.GC9431@localhost>
+ <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+ <20100819160006.GG6805@barrios-desktop>
+ <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
+ <20100820053447.GA13406@localhost>
+ <20100820093558.GG19797@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1282296689-25618-5-git-send-email-mrubin@google.com>
+In-Reply-To: <20100820093558.GG19797@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 05:31:29PM +0800, Michael Rubin wrote:
-> The kernel already exposes the user desired thresholds in /proc/sys/vm
-> with dirty_background_ratio and background_ratio. But the kernel may
-> alter the number requested without giving the user any indication that
-> is the case.
+On Fri, Aug 20, 2010 at 05:35:59PM +0800, Mel Gorman wrote:
+> On Fri, Aug 20, 2010 at 01:34:47PM +0800, Wu Fengguang wrote:
+> > You do run lots of tasks: kernel_stack=1880kB.
+> > 
+> > And you have lots of free memory, page reclaim has never run, so
+> > inactive_anon=0. This is where compaction is different from vmscan.
+> > In vmscan, inactive_anon is reasonably large, and will only be
+> > compared directly with isolated_anon.
+> > 
 > 
-> Knowing the actual ratios the kernel is honoring can help app developers
-> understand how their buffered IO will be sent to the disk.
-> 
-> 	$ grep threshold /proc/vmstat
-> 	nr_dirty_threshold 409111
-> 	nr_dirty_background_threshold 818223
-> 
-> Signed-off-by: Michael Rubin <mrubin@google.com>
-> ---
->  include/linux/mmzone.h |    3 +++
->  mm/vmstat.c            |    5 +++++
->  2 files changed, 8 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index fe4e6dd..c2243d0 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -106,6 +106,9 @@ enum zone_stat_item {
->  	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
->  	NR_FILE_PAGES_DIRTIED,	/* number of times pages get dirtied */
->  	NR_PAGES_ENTERED_WRITEBACK, /* number of times pages enter writeback */
-> +	NR_DIRTY_THRESHOLD,	/* writeback threshold */
-> +	NR_DIRTY_BG_THRESHOLD,	/* bg writeback threshold */
+> True, the key observation here was that compaction is being run via the
+> proc trigger. Normally it would be run as part of the direct reclaim
+> path when kswapd would already be awake. too_many_isolated() needs to be
+> different for compaction to take the whole system into account. What
+> would be the best alternative? Here is one possibility. A reasonable
+> alternative would be that when inactive < active that isolated can't be
+> more than num_online_cpus() * 2 (i.e. one compactor per online cpu).
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 94cce51..1e000b7 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -215,14 +215,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  static bool too_many_isolated(struct zone *zone)
+>  {
+>  
+> -	unsigned long inactive, isolated;
+> +	unsigned long active, inactive, isolated;
+>  
+> +	active = zone_page_state(zone, NR_ACTIVE_FILE) +
+> +					zone_page_state(zone, NR_INACTIVE_ANON);
 
-This may cost cacheline.
+s/NR_INACTIVE_ANON/NR_ACTIVE_ANON/
+
+>  	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+>  					zone_page_state(zone, NR_INACTIVE_ANON);
+>  	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+>  					zone_page_state(zone, NR_ISOLATED_ANON);
+>  
+> -	return isolated > inactive;
+> +	return (inactive > active) ? isolated > inactive : false;
+
+Note that for anon LRU, inactive_ratio may be large numbers.
+(inactive > active) is not easy, and not stable even when inactive_ratio=1.
 
 Thanks,
 Fengguang
