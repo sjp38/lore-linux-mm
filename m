@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7A0356B02D4
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:35:05 -0400 (EDT)
-Message-ID: <4C6EF4EA.30603@redhat.com>
-Date: Fri, 20 Aug 2010 17:34:34 -0400
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 14AE16B02C5
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:45:14 -0400 (EDT)
+Message-ID: <4C6EF747.7070904@redhat.com>
+Date: Fri, 20 Aug 2010 17:44:39 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/6] mm: stack based kmap_atomic
-References: <20100819201317.673172547@chello.nl> <20100819202753.656285068@chello.nl>
-In-Reply-To: <20100819202753.656285068@chello.nl>
+Subject: Re: [RFC][PATCH 4/6] mm: Remove all KM_type arguments
+References: <20100819201317.673172547@chello.nl> <20100819202753.773618082@chello.nl>
+In-Reply-To: <20100819202753.773618082@chello.nl>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,8 +17,15 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-fo
 List-ID: <linux-mm.kvack.org>
 
 On 08/19/2010 04:13 PM, Peter Zijlstra wrote:
-> Keep the current interface but ignore the KM_type and use a stack
-> based approach.
+> Do the bulk of the km_type and KM_type removement by script.
+>
+> git grep -l -e km_type -e KM_ | grep -v xfs | while read file;
+> do
+> 	quilt add $file;
+>          sed -i -e 's/,[[:space:]]*enum km_type type[[:space:]]*//g'         \
+>                 -e 's/,[[:space:]]*KM_[[:digit:][:upper:]_]*[[:space:]]*//g' \
+>              $file;
+> done
 >
 > Signed-off-by: Peter Zijlstra<a.p.zijlstra@chello.nl>
 
