@@ -1,131 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id DC90E6B02EB
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 17:57:11 -0400 (EDT)
-Subject: Re: [PATCH] Export mlock information via smaps
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20100819172502.42a0d493.akpm@linux-foundation.org>
-References: <201008171039.31070.knikanth@suse.de>
-	 <201008181023.41378.knikanth@suse.de>
-	 <20100818055253.GA28417@balbir.in.ibm.com>
-	 <201008181219.51915.knikanth@suse.de>
-	 <20100819172502.42a0d493.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 20 Aug 2010 16:57:06 -0500
-Message-ID: <1282341426.10679.715.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 51FDF6004CE
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 18:41:59 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id o7KMfufm021578
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:41:56 -0700
+Received: from pvh1 (pvh1.prod.google.com [10.241.210.193])
+	by hpaq7.eem.corp.google.com with ESMTP id o7KMfr6P000469
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:41:54 -0700
+Received: by pvh1 with SMTP id 1so1883092pvh.37
+        for <linux-mm@kvack.org>; Fri, 20 Aug 2010 15:41:53 -0700 (PDT)
+Date: Fri, 20 Aug 2010 15:41:48 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 1/3 v3] oom: add per-mm oom disable count
+Message-ID: <alpine.DEB.2.00.1008201539310.9201@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, balbir@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2010-08-19 at 17:25 -0700, Andrew Morton wrote:
-> On Wed, 18 Aug 2010 12:19:51 +0530
-> Nikanth Karthikesan <knikanth@suse.de> wrote:
-> 
-> > Currently there is no way to find whether a process has locked its pages in
-> > memory or not. And which of the memory regions are locked in memory.
-> > 
-> > Add a new field "Locked" to export this information via smaps file.
-> > 
-> > Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-> > 
-> > ---
-> > 
-> > diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> > index a6aca87..17b0ae0 100644
-> > --- a/Documentation/filesystems/proc.txt
-> > +++ b/Documentation/filesystems/proc.txt
-> > @@ -373,6 +373,7 @@ Referenced:          892 kB
-> >  Swap:                  0 kB
-> >  KernelPageSize:        4 kB
-> >  MMUPageSize:           4 kB
-> > +Locked:              374 kB
-> >  
-> >  The first  of these lines shows  the same information  as is displayed for the
-> >  mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-> > @@ -397,6 +398,8 @@ To clear the bits for the file mapped pages associated with the process
-> >      > echo 3 > /proc/PID/clear_refs
-> >  Any other value written to /proc/PID/clear_refs will have no effect.
-> >  
-> > +The "Locked" indicates whether the mapping is locked in memory or not.
-> > +
-> >  
-> >  1.2 Kernel data
-> >  ---------------
-> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > index aea1d3f..58e586c 100644
-> > --- a/fs/proc/task_mmu.c
-> > +++ b/fs/proc/task_mmu.c
-> > @@ -405,7 +405,8 @@ static int show_smap(struct seq_file *m, void *v)
-> >  		   "Referenced:     %8lu kB\n"
-> >  		   "Swap:           %8lu kB\n"
-> >  		   "KernelPageSize: %8lu kB\n"
-> > -		   "MMUPageSize:    %8lu kB\n",
-> > +		   "MMUPageSize:    %8lu kB\n"
-> > +		   "Locked:         %8lu kB\n",
-> >  		   (vma->vm_end - vma->vm_start) >> 10,
-> >  		   mss.resident >> 10,
-> >  		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
-> > @@ -416,7 +417,9 @@ static int show_smap(struct seq_file *m, void *v)
-> >  		   mss.referenced >> 10,
-> >  		   mss.swap >> 10,
-> >  		   vma_kernel_pagesize(vma) >> 10,
-> > -		   vma_mmu_pagesize(vma) >> 10);
-> > +		   vma_mmu_pagesize(vma) >> 10,
-> > +		   (vma->vm_flags & VM_LOCKED) ?
-> > +			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
-> 
-> What was the rationale for duplicating the Pss value here, rather than
-> say Rss or whatever?  Really, the value is just a boolean due to kernel
-> internal details but we should try to put something sensible and
-> meaningful in there if it isn't just "1" or "0".  As it stands, people
-> will look at the /proc/pid/smaps output, then at proc.txt and will come
-> away all confused.
+From: Ying Han <yinghan@google.com>
 
-I think RSS is perhaps a better answer here.
+It's pointless to kill a task if another thread sharing its mm cannot be
+killed to allow future memory freeing.  A subsequent patch will prevent
+kills in such cases, but first it's necessary to have a way to flag a
+task that shares memory with an OOM_DISABLE task that doesn't incur an
+additional tasklist scan, which would make select_bad_process() an O(n^2)
+function.
 
-> btw, we forgot to document Pss (of all things!) in
-> Documentation/filesystems/proc.txt.
+This patch adds an atomic counter to struct mm_struct that follows how
+many threads attached to it have an oom_score_adj of OOM_SCORE_ADJ_MIN.
+They cannot be killed by the kernel, so their memory cannot be freed in
+oom conditions.
 
-There is something there, but it's nearly useless. How about something
-like this:
+This only requires task_lock() on the task that we're operating on, it
+does not require mm->mmap_sem since task_lock() pins the mm and the
+operation is atomic.
 
-Improve smaps field documentation
+[rientjes@google.com: changelog and sys_unshare() code]
+Signed-off-by: Ying Han <yinghan@google.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ fs/exec.c                |    5 +++++
+ fs/proc/base.c           |   30 ++++++++++++++++++++++++++++++
+ include/linux/mm_types.h |    2 ++
+ kernel/exit.c            |    3 +++
+ kernel/fork.c            |   13 ++++++++++++-
+ 5 files changed, 52 insertions(+), 1 deletions(-)
 
-Signed-off-by: Matt Mackall <mpm@selenic.com>
-
-diff -r ef46bace13e0 Documentation/filesystems/proc.txt
---- a/Documentation/filesystems/proc.txt	Wed Aug 18 15:45:23 2010 -0700
-+++ b/Documentation/filesystems/proc.txt	Fri Aug 20 16:55:09 2010 -0500
-@@ -374,13 +374,14 @@
- KernelPageSize:        4 kB
- MMUPageSize:           4 kB
+diff --git a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -54,6 +54,7 @@
+ #include <linux/fsnotify.h>
+ #include <linux/fs_struct.h>
+ #include <linux/pipe_fs_i.h>
++#include <linux/oom.h>
  
--The first  of these lines shows  the same information  as is displayed for the
--mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
--the amount of the mapping that is currently resident in RAM, the "proportional
--set sizea?? (divide each shared page by the number of processes sharing it), the
--number of clean and dirty shared pages in the mapping, and the number of clean
--and dirty private pages in the mapping.  The "Referenced" indicates the amount
--of memory currently marked as referenced or accessed.
-+The first of these lines shows the same information as is displayed
-+for the mapping in /proc/PID/maps. The remaining lines show the size
-+of the mapping (size), the amount of the mapping that is currently
-+resident in RAM (RSS), the process' proportional share of this mapping
-+(PSS), the number of clean and dirty shared pages in the mapping, and
-+the number of clean and dirty private pages in the mapping. The
-+"Referenced" indicates the amount of memory currently marked as
-+referenced or accessed.
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -745,6 +746,10 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
++	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++		atomic_dec(&active_mm->oom_disable_count);
++		atomic_inc(&tsk->mm->oom_disable_count);
++	}
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1047,6 +1047,21 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+ 		return -EACCES;
+ 	}
  
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
-
-
--- 
-Mathematics is the supreme nostalgia of our time.
-
++	task_lock(task);
++	if (!task->mm) {
++		task_unlock(task);
++		unlock_task_sighand(task, &flags);
++		put_task_struct(task);
++		return -EINVAL;
++	}
++
++	if (oom_adjust != task->signal->oom_adj) {
++		if (oom_adjust == OOM_DISABLE)
++			atomic_inc(&task->mm->oom_disable_count);
++		if (task->signal->oom_adj == OOM_DISABLE)
++			atomic_dec(&task->mm->oom_disable_count);
++	}
++
+ 	/*
+ 	 * Warn that /proc/pid/oom_adj is deprecated, see
+ 	 * Documentation/feature-removal-schedule.txt.
+@@ -1065,6 +1080,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
+ 	else
+ 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
+ 								-OOM_DISABLE;
++	task_unlock(task);
+ 	unlock_task_sighand(task, &flags);
+ 	put_task_struct(task);
+ 
+@@ -1133,6 +1149,19 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 		return -EACCES;
+ 	}
+ 
++	task_lock(task);
++	if (!task->mm) {
++		task_unlock(task);
++		unlock_task_sighand(task, &flags);
++		put_task_struct(task);
++		return -EINVAL;
++	}
++	if (oom_score_adj != task->signal->oom_score_adj) {
++		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
++			atomic_inc(&task->mm->oom_disable_count);
++		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++			atomic_dec(&task->mm->oom_disable_count);
++	}
+ 	task->signal->oom_score_adj = oom_score_adj;
+ 	/*
+ 	 * Scale /proc/pid/oom_adj appropriately ensuring that OOM_DISABLE is
+@@ -1143,6 +1172,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 	else
+ 		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
+ 							OOM_SCORE_ADJ_MAX;
++	task_unlock(task);
+ 	unlock_task_sighand(task, &flags);
+ 	put_task_struct(task);
+ 	return count;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -310,6 +310,8 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
++	/* How many tasks sharing this mm are OOM_DISABLE */
++	atomic_t oom_disable_count;
+ };
+ 
+ /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
+diff --git a/kernel/exit.c b/kernel/exit.c
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -50,6 +50,7 @@
+ #include <linux/perf_event.h>
+ #include <trace/events/sched.h>
+ #include <linux/hw_breakpoint.h>
++#include <linux/oom.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/unistd.h>
+@@ -689,6 +690,8 @@ static void exit_mm(struct task_struct * tsk)
+ 	enter_lazy_tlb(mm, current);
+ 	/* We don't want this task to be frozen prematurely */
+ 	clear_freeze_flag(tsk);
++	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++		atomic_dec(&mm->oom_disable_count);
+ 	task_unlock(tsk);
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -65,6 +65,7 @@
+ #include <linux/perf_event.h>
+ #include <linux/posix-timers.h>
+ #include <linux/user-return-notifier.h>
++#include <linux/oom.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -485,6 +486,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+ 	mm->cached_hole_size = ~0UL;
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
++	atomic_set(&mm->oom_disable_count, 0);
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
+ 		mm->def_flags = 0;
+@@ -738,6 +740,8 @@ good_mm:
+ 	/* Initializing for Swap token stuff */
+ 	mm->token_priority = 0;
+ 	mm->last_interval = 0;
++	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++		atomic_inc(&mm->oom_disable_count);
+ 
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+@@ -1296,8 +1300,11 @@ bad_fork_cleanup_io:
+ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+-	if (p->mm)
++	if (p->mm) {
++		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
++			atomic_dec(&p->mm->oom_disable_count);
+ 		mmput(p->mm);
++	}
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+ 		free_signal_struct(p->signal);
+@@ -1690,6 +1697,10 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
+ 			active_mm = current->active_mm;
+ 			current->mm = new_mm;
+ 			current->active_mm = new_mm;
++			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++				atomic_dec(&mm->oom_disable_count);
++				atomic_inc(&new_mm->oom_disable_count);
++			}
+ 			activate_mm(active_mm, new_mm);
+ 			new_mm = mm;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
