@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F5FE6B0205
-	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:25:36 -0400 (EDT)
-Date: Thu, 19 Aug 2010 17:25:02 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Export mlock information via smaps
-Message-Id: <20100819172502.42a0d493.akpm@linux-foundation.org>
-In-Reply-To: <201008181219.51915.knikanth@suse.de>
-References: <201008171039.31070.knikanth@suse.de>
-	<201008181023.41378.knikanth@suse.de>
-	<20100818055253.GA28417@balbir.in.ibm.com>
-	<201008181219.51915.knikanth@suse.de>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A95546B0207
+	for <linux-mm@kvack.org>; Thu, 19 Aug 2010 20:27:46 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7K0RhTI010364
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 20 Aug 2010 09:27:43 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4840045DE55
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:27:43 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C79745DE4E
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:27:43 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 00E4EE08001
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:27:43 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADD4B1DB803C
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 09:27:42 +0900 (JST)
+Date: Fri, 20 Aug 2010 09:22:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] vmstat : update zone stat threshold at onlining a cpu
+Message-Id: <20100820092251.2ca67f66.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100820084908.10e55b76.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie>
+	<1281951733-29466-3-git-send-email-mel@csn.ul.ie>
+	<20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1008181050230.4025@router.home>
+	<20100819090740.3f46aecf.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1008191359400.1839@router.home>
+	<20100820084908.10e55b76.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nikanth Karthikesan <knikanth@suse.de>
-Cc: balbir@linux.vnet.ibm.com, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Aug 2010 12:19:51 +0530
-Nikanth Karthikesan <knikanth@suse.de> wrote:
 
-> Currently there is no way to find whether a process has locked its pages in
-> memory or not. And which of the memory regions are locked in memory.
-> 
-> Add a new field "Locked" to export this information via smaps file.
-> 
-> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-> 
-> ---
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index a6aca87..17b0ae0 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -373,6 +373,7 @@ Referenced:          892 kB
->  Swap:                  0 kB
->  KernelPageSize:        4 kB
->  MMUPageSize:           4 kB
-> +Locked:              374 kB
->  
->  The first  of these lines shows  the same information  as is displayed for the
->  mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-> @@ -397,6 +398,8 @@ To clear the bits for the file mapped pages associated with the process
->      > echo 3 > /proc/PID/clear_refs
->  Any other value written to /proc/PID/clear_refs will have no effect.
->  
-> +The "Locked" indicates whether the mapping is locked in memory or not.
-> +
->  
->  1.2 Kernel data
->  ---------------
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index aea1d3f..58e586c 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -405,7 +405,8 @@ static int show_smap(struct seq_file *m, void *v)
->  		   "Referenced:     %8lu kB\n"
->  		   "Swap:           %8lu kB\n"
->  		   "KernelPageSize: %8lu kB\n"
-> -		   "MMUPageSize:    %8lu kB\n",
-> +		   "MMUPageSize:    %8lu kB\n"
-> +		   "Locked:         %8lu kB\n",
->  		   (vma->vm_end - vma->vm_start) >> 10,
->  		   mss.resident >> 10,
->  		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
-> @@ -416,7 +417,9 @@ static int show_smap(struct seq_file *m, void *v)
->  		   mss.referenced >> 10,
->  		   mss.swap >> 10,
->  		   vma_kernel_pagesize(vma) >> 10,
-> -		   vma_mmu_pagesize(vma) >> 10);
-> +		   vma_mmu_pagesize(vma) >> 10,
-> +		   (vma->vm_flags & VM_LOCKED) ?
-> +			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+refresh_zone_stat_thresholds() calculates parameter based on
+the number of online cpus. It's called at cpu offlining but
+needs to be called at onlining, too.
 
-What was the rationale for duplicating the Pss value here, rather than
-say Rss or whatever?  Really, the value is just a boolean due to kernel
-internal details but we should try to put something sensible and
-meaningful in there if it isn't just "1" or "0".  As it stands, people
-will look at the /proc/pid/smaps output, then at proc.txt and will come
-away all confused.
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/vmstat.c |    1 +
+ 1 file changed, 1 insertion(+)
 
-btw, we forgot to document Pss (of all things!) in
-Documentation/filesystems/proc.txt.
+Index: mmotm-0811/mm/vmstat.c
+===================================================================
+--- mmotm-0811.orig/mm/vmstat.c
++++ mmotm-0811/mm/vmstat.c
+@@ -998,6 +998,7 @@ static int __cpuinit vmstat_cpuup_callba
+ 	switch (action) {
+ 	case CPU_ONLINE:
+ 	case CPU_ONLINE_FROZEN:
++		refresh_zone_stat_thresholds();
+ 		start_cpu_timer(cpu);
+ 		node_set_state(cpu_to_node(cpu), N_CPU);
+ 		break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
