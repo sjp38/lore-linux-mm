@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A1C8C6B0366
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 19:56:03 -0400 (EDT)
-Message-Id: <20100820190236.144574042@linux.com>
-Date: Fri, 20 Aug 2010 14:01:55 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [S+Q Core 4/6] slub: Remove MAX_OBJS limitation
-References: <20100820190151.493325014@linux.com>
-Content-Disposition: inline; filename=unified_unlimited
+	by kanga.kvack.org (Postfix) with SMTP id 07EF16B0373
+	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 20:48:17 -0400 (EDT)
+Date: Sat, 21 Aug 2010 08:48:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_entered_writeback in
+ /proc/vmstat
+Message-ID: <20100821004804.GA11030@localhost>
+References: <1282296689-25618-1-git-send-email-mrubin@google.com>
+ <1282296689-25618-4-git-send-email-mrubin@google.com>
+ <20100820100855.GC8440@localhost>
+ <AANLkTi=+uNFq5=5gmjfAOhngXqR8RS3dX3E2uEWG33Ot@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTi=+uNFq5=5gmjfAOhngXqR8RS3dX3E2uEWG33Ot@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Michael Rubin <mrubin@google.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-There is no need anymore for the "inuse" field in the page struct.
-Extend the objects field to 32 bit allowing a practically unlimited
-number of objects.
+On Sat, Aug 21, 2010 at 07:51:38AM +0800, Michael Rubin wrote:
+> On Fri, Aug 20, 2010 at 3:08 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > How about the names nr_dirty_accumulated and nr_writeback_accumulated?
+> > It seems more consistent, for both the interface and code (see below).
+> > I'm not really sure though.
+> 
+> Those names don't seem to right to me.
+> I admit I like "nr_dirtied" and "nr_cleaned" that seems most
+> understood. These numbers also get very big pretty fast so I don't
+> think it's hard to infer.
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+That's fine. I like "nr_cleaned".
 
----
- include/linux/mm_types.h |    5 +----
- mm/slub.c                |    7 -------
- 2 files changed, 1 insertion(+), 11 deletions(-)
+> >> In order to track the "cleaned" and "dirtied" counts we added two
+> >> vm_stat_items. A Per memory node stats have been added also. So we can
+> >> see per node granularity:
+> >>
+> >> A  A # cat /sys/devices/system/node/node20/writebackstat
+> >> A  A Node 20 pages_writeback: 0 times
+> >> A  A Node 20 pages_dirtied: 0 times
+> >
+> > I'd prefer the name "vmstat" over "writebackstat", and propose to
+> > migrate items from /proc/zoneinfo over time. zoneinfo is a terrible
+> > interface for scripting.
+> 
+> I like vmstat also. I can do that.
 
-Index: linux-2.6/include/linux/mm_types.h
-===================================================================
---- linux-2.6.orig/include/linux/mm_types.h	2010-08-19 16:31:50.000000000 -0500
-+++ linux-2.6/include/linux/mm_types.h	2010-08-19 16:34:26.000000000 -0500
-@@ -40,10 +40,7 @@ struct page {
- 					 * to show when page is mapped
- 					 * & limit reverse map searches.
- 					 */
--		struct {		/* SLUB */
--			u16 inuse;
--			u16 objects;
--		};
-+		u32 objects;		/* SLUB */
- 	};
- 	union {
- 	    struct {
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-08-19 16:34:23.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-08-19 16:34:26.000000000 -0500
-@@ -143,7 +143,6 @@ static inline int kmem_cache_debug(struc
- 
- #define OO_SHIFT	16
- #define OO_MASK		((1 << OO_SHIFT) - 1)
--#define MAX_OBJS_PER_PAGE	65535 /* since page.objects is u16 */
- 
- /* Internal SLUB flags */
- #define __OBJECT_POISON		0x80000000UL /* Poison object */
-@@ -789,9 +788,6 @@ static int verify_slab(struct kmem_cache
- 			max_objects = ((void *)page->freelist - start) / s->size;
- 	}
- 
--	if (max_objects > MAX_OBJS_PER_PAGE)
--		max_objects = MAX_OBJS_PER_PAGE;
--
- 	if (page->objects != max_objects) {
- 		slab_err(s, page, "Wrong number of objects. Found %d but "
- 			"should be %d", page->objects, max_objects);
-@@ -2055,9 +2051,6 @@ static inline int slab_order(int size, i
- 	int rem;
- 	int min_order = slub_min_order;
- 
--	if ((PAGE_SIZE << min_order) / size > MAX_OBJS_PER_PAGE)
--		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
--
- 	for (order = max(min_order,
- 				fls(min_objects * size - 1) - PAGE_SHIFT);
- 			order <= max_order; order++) {
+Thank you.
+
+> > Also, are there meaningful usage of per-node writeback stats?
+> 
+> For us yes. We use fake numa nodes to implement cgroup memory isolation.
+> This allows us to see what the writeback behaviour is like per cgroup.
+
+That's sure convenient for you, for now. But it's special use case.
+
+I wonder if you'll still stick to the fake NUMA scenario two years
+later -- when memcg grows powerful enough. What do we do then? "Hey
+let's rip these counters, their major consumer has dumped them.."
+
+For per-job nr_dirtied, I suspect the per-process write_bytes and
+cancelled_write_bytes in /proc/self/io will serve you well.
+
+For per-job nr_cleaned, I suspect the per-zone nr_writeback will be
+sufficient for debug purposes (in despite of being a bit different).
+
+> > The numbers are naturally per-bdi ones instead. But if we plan to
+> > expose them for each bdi, this patch will need to be implemented
+> > vastly differently.
+> 
+> Currently I have no plans to do that.
+
+Peter? :)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
