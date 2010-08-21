@@ -1,79 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 07EF16B0373
-	for <linux-mm@kvack.org>; Fri, 20 Aug 2010 20:48:17 -0400 (EDT)
-Date: Sat, 21 Aug 2010 08:48:04 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0B6BA6B0375
+	for <linux-mm@kvack.org>; Sat, 21 Aug 2010 01:48:34 -0400 (EDT)
+Date: Sat, 21 Aug 2010 13:48:08 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_entered_writeback in
+Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in
  /proc/vmstat
-Message-ID: <20100821004804.GA11030@localhost>
+Message-ID: <20100821054808.GA29869@localhost>
 References: <1282296689-25618-1-git-send-email-mrubin@google.com>
- <1282296689-25618-4-git-send-email-mrubin@google.com>
- <20100820100855.GC8440@localhost>
- <AANLkTi=+uNFq5=5gmjfAOhngXqR8RS3dX3E2uEWG33Ot@mail.gmail.com>
+ <1282296689-25618-5-git-send-email-mrubin@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTi=+uNFq5=5gmjfAOhngXqR8RS3dX3E2uEWG33Ot@mail.gmail.com>
+In-Reply-To: <1282296689-25618-5-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
 To: Michael Rubin <mrubin@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 21, 2010 at 07:51:38AM +0800, Michael Rubin wrote:
-> On Fri, Aug 20, 2010 at 3:08 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > How about the names nr_dirty_accumulated and nr_writeback_accumulated?
-> > It seems more consistent, for both the interface and code (see below).
-> > I'm not really sure though.
+On Fri, Aug 20, 2010 at 05:31:29PM +0800, Michael Rubin wrote:
+> The kernel already exposes the user desired thresholds in /proc/sys/vm
+> with dirty_background_ratio and background_ratio. But the kernel may
+> alter the number requested without giving the user any indication that
+> is the case.
 > 
-> Those names don't seem to right to me.
-> I admit I like "nr_dirtied" and "nr_cleaned" that seems most
-> understood. These numbers also get very big pretty fast so I don't
-> think it's hard to infer.
-
-That's fine. I like "nr_cleaned".
-
-> >> In order to track the "cleaned" and "dirtied" counts we added two
-> >> vm_stat_items. A Per memory node stats have been added also. So we can
-> >> see per node granularity:
-> >>
-> >> A  A # cat /sys/devices/system/node/node20/writebackstat
-> >> A  A Node 20 pages_writeback: 0 times
-> >> A  A Node 20 pages_dirtied: 0 times
-> >
-> > I'd prefer the name "vmstat" over "writebackstat", and propose to
-> > migrate items from /proc/zoneinfo over time. zoneinfo is a terrible
-> > interface for scripting.
+> Knowing the actual ratios the kernel is honoring can help app developers
+> understand how their buffered IO will be sent to the disk.
 > 
-> I like vmstat also. I can do that.
+> 	$ grep threshold /proc/vmstat
+> 	nr_dirty_threshold 409111
+> 	nr_dirty_background_threshold 818223
 
-Thank you.
+I realized that the dirty thresholds has already been exported here:
 
-> > Also, are there meaningful usage of per-node writeback stats?
-> 
-> For us yes. We use fake numa nodes to implement cgroup memory isolation.
-> This allows us to see what the writeback behaviour is like per cgroup.
+$ grep Thresh  /debug/bdi/8:0/stats
+BdiDirtyThresh:     381000 kB
+DirtyThresh:       1719076 kB
+BackgroundThresh:   859536 kB
 
-That's sure convenient for you, for now. But it's special use case.
-
-I wonder if you'll still stick to the fake NUMA scenario two years
-later -- when memcg grows powerful enough. What do we do then? "Hey
-let's rip these counters, their major consumer has dumped them.."
-
-For per-job nr_dirtied, I suspect the per-process write_bytes and
-cancelled_write_bytes in /proc/self/io will serve you well.
-
-For per-job nr_cleaned, I suspect the per-zone nr_writeback will be
-sufficient for debug purposes (in despite of being a bit different).
-
-> > The numbers are naturally per-bdi ones instead. But if we plan to
-> > expose them for each bdi, this patch will need to be implemented
-> > vastly differently.
-> 
-> Currently I have no plans to do that.
-
-Peter? :)
+So why not use that interface directly?
 
 Thanks,
 Fengguang
