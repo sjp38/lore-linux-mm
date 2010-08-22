@@ -1,100 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 518B06B0379
-	for <linux-mm@kvack.org>; Sat, 21 Aug 2010 20:42:45 -0400 (EDT)
-Date: Sun, 22 Aug 2010 08:42:32 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
- offlining code
-Message-ID: <20100822004232.GA11007@localhost>
-References: <20100820141400.GD4636@tiehlicka.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 3423D600044
+	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 02:55:33 -0400 (EDT)
+Date: Sun, 22 Aug 2010 08:47:25 +0200 (CEST)
+From: Mikael Abrahamsson <swmike@swm.pp.se>
+Subject: Re: 2.6.34.1 page allocation failure
+In-Reply-To: <4C70BFF3.8030507@hardwarefreak.com>
+Message-ID: <alpine.DEB.1.10.1008220842400.8562@uplift.swm.pp.se>
+References: <4C70BFF3.8030507@hardwarefreak.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100820141400.GD4636@tiehlicka.suse.cz>
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Stan Hoeppner <stan@hardwarefreak.com>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Michal,
+On Sun, 22 Aug 2010, Stan Hoeppner wrote:
 
-It helps to explain in changelog/code
+> I'm not subscribed to lkml so please CC me in replies.  First post.
 
-- in what situation a ZONE_MOVABLE will contain !MIGRATE_MOVABLE
-  pages? And why the MIGRATE_MOVABLE test is still necessary given the
-  ZONE_MOVABLE check?
+I'm seeing similar problems on older kernels (.24 up to .32).
 
-- why do you think free pages are not removeable? Simply to cater for
-  the set_migratetype_isolate() logic, or there are more fundamental
-  reasons?
+<http://www.spinics.net/lists/linux-mm/msg07808.html>
 
-Thanks,
-Fengguang
+I didn't get any response at all, neither on linux-mm or lkml... Our 
+problems seem very similar, but I'm running 64bit and I have 8 gigs of 
+ram.
 
-On Fri, Aug 20, 2010 at 04:14:00PM +0200, Michal Hocko wrote:
-> Hi,
-> what do you think about the patch below?
-> 
-> >From b983695b92b5be58f31c719fada1d3245f7b6768 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Fri, 20 Aug 2010 15:39:16 +0200
-> Subject: [PATCH] Make is_mem_section_removable more conformable with offlining code
-> 
-> Currently is_mem_section_removable checks whether each pageblock from
-> the given pfn range is of MIGRATE_MOVABLE type or if it is free. If both
-> are false then the range is considered non removable.
-> 
-> On the other hand, offlining code (more specifically
-> set_migratetype_isolate) doesn't care whether a page is free and instead
-> it just checks the migrate type of the page and whether the page's zone
-> is movable.
-> 
-> This can lead into a situation when a node is marked as removable even
-> though all pages are neither MIGRATE_MOVABLE nor the zone is
-> ZONE_MOVABLE.
-> 
-> Also we can mark a node as not removable just because a pageblock is
-> MIGRATE_RESERVE and not free (and this situation is much more probable).
-> ---
->  mm/memory_hotplug.c |    6 +++---
->  1 files changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index a4cfcdc..da20568 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -611,10 +611,10 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
->  		type = get_pageblock_migratetype(page);
->  
->  		/*
-> -		 * A pageblock containing MOVABLE or free pages is considered
-> -		 * removable
-> +		 * A pageblock containing MOVABLE or page from movable
-> +		 * zone are considered removable
->  		 */
-> -		if (type != MIGRATE_MOVABLE && !pageblock_free(page))
-> +		if (type != MIGRATE_MOVABLE && zone_idx(page) != ZONE_MOVABLE)
->  			return 0;
->  
->  		/*
+Personally I can avoid this by tuning down my TCP settings so TCP uses 
+less memory, but I don't think that workaround is very good, this 
+shouldn't happen. My machine also freezes up (pressing caps lock doesn't 
+work) sometimes, sometimes it just logs the error.
+
+> Mobo:    Abit BP6, dual Celeron 366@500, i440BX chipset, 384MB PC100
+> Disk:    SiI 3512 PCI (sata_sil, libata), 1 x WD5000AAKS 500 GB SATAII
+> Kernel:  vanilla 2.6.34.1, 32 bit x86, SMP, Celeron pre Coppermine
+> OS:      Debian 5.0.5 (Stable)
+> Build:   kernel configured via make menuconfig
+>         no modules, no initrd
+>         built via "make KDEB_PKGVERSION="
+>         installed via dpkg, bootloader is LILO
+> Role:    headless SOHO server, run level 2, _very_ light load
+>         Postfix, pdns-recursor, Dovecot, Lighttpd, Roundcube, Samba
+>         bulk of system memory (>300MB) is consumed by buffers/cache
+> Issue:   AFAIK, these errors never occurred with any revisions of
+>         2.6.26, .31, or .32.  After installing 2.6.34.1 I've noticed
+>         the following errors in dmesg.  I see 6 of these, including
+>         two errors each for kswapd0, lighttpd, and smtpd, all not
+>         tainted.  AFAICT everything is still running fine.  Are these
+>         critical errors?  If so, how do I fix?
+>
+> kswapd0: page allocation failure. order:1, mode:0x20
+> Pid: 139, comm: kswapd0 Not tainted 2.6.34.1 #1
+> Call Trace:
+> [<c104b6b3>] ? __alloc_pages_nodemask+0x448/0x48a
+> [<c1062ffb>] ? cache_alloc_refill+0x22f/0x422
+> [<c11a9a73>] ? tcp_v4_send_check+0x6e/0xa4
+> [<c10632c3>] ? kmem_cache_alloc+0x41/0x6a
+> [<c11773a5>] ? sk_prot_alloc+0x19/0x55
+> [<c117744b>] ? sk_clone+0x16/0x1cc
+> [<c119a71d>] ? inet_csk_clone+0xf/0x80
+> [<c11ac0e3>] ? tcp_create_openreq_child+0x1a/0x3c8
+> [<c11aaf0a>] ? tcp_v4_syn_recv_sock+0x4b/0x151
+> [<c11abf9d>] ? tcp_check_req+0x209/0x335
+> [<c11aa892>] ? tcp_v4_do_rcv+0x8d/0x14d
+> [<c11aacd5>] ? tcp_v4_rcv+0x383/0x56d
+> [<c1193ba4>] ? ip_local_deliver+0x76/0xc0
+> [<c1193b10>] ? ip_rcv+0x3dc/0x3fa
+> [<c103655e>] ? ktime_get_real+0xf/0x2b
+> [<c117f8d3>] ? netif_receive_skb+0x219/0x234
+> [<c115ff46>] ? e100_poll+0x1d0/0x47e
+> [<c117fa98>] ? net_rx_action+0x58/0xf8
+> [<c102539c>] ? __do_softirq+0x78/0xe5
+> [<c102542c>] ? do_softirq+0x23/0x27
+> [<c1003955>] ? do_IRQ+0x7d/0x8e
+> [<c1002aa9>] ? common_interrupt+0x29/0x30
+> [<c1062870>] ? kmem_cache_free+0xbd/0xc5
+> [<c10fa7d1>] ? __xfs_inode_set_reclaim_tag+0x29/0x2f
+> [<c1075215>] ? destroy_inode+0x1c/0x2b
+> [<c10752ce>] ? dispose_list+0xaa/0xd0
+> [<c107548c>] ? shrink_icache_memory+0x198/0x1c5
+> [<c104f76b>] ? shrink_slab+0xda/0x12f
+> [<c104fc28>] ? kswapd+0x468/0x63b
+> [<c104dca3>] ? isolate_pages_global+0x0/0x1bc
+> [<c10304d6>] ? autoremove_wake_function+0x0/0x2d
+> [<c1018faf>] ? complete+0x28/0x36
+> [<c104f7c0>] ? kswapd+0x0/0x63b
+> [<c10301cd>] ? kthread+0x61/0x66
+> [<c103016c>] ? kthread+0x0/0x66
+> [<c1002ab6>] ? kernel_thread_helper+0x6/0x10
+> Mem-Info:
+> DMA per-cpu:
+> CPU    0: hi:    0, btch:   1 usd:   0
+> CPU    1: hi:    0, btch:   1 usd:   0
+> Normal per-cpu:
+> CPU    0: hi:  186, btch:  31 usd: 180
+> CPU    1: hi:  186, btch:  31 usd:  29
+> active_anon:646 inactive_anon:4337 isolated_anon:0
+> active_file:27189 inactive_file:35957 isolated_file:0
+> unevictable:0 dirty:56 writeback:0 unstable:0
+> free:1142 slab_reclaimable:25495 slab_unreclaimable:1020
+> mapped:3116 shmem:143 pagetables:123 bounce:0
+> DMA free:1568kB min:100kB low:124kB high:148kB active_anon:0kB
+> inactive_anon:4kB active_file:5704kB inactive_file:7732kB
+> unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15868kB
+> mlocked:0kB dirty:0kB writeback:0kB mapped:28kB shmem:0kB
+> slab_reclaimable:912kB slab_unreclaimable:52kB kernel_stack:0kB
+> pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0
+> all_unreclaimable? no
+> lowmem_reserve[]: 0 365 365
+> Normal free:3000kB min:2392kB low:2988kB high:3588kB active_anon:2584kB
+> inactive_anon:17344kB active_file:103052kB inactive_file:136096kB
+> unevictable:0kB isolated(anon):0kB isolated(file):0kB present:373888kB
+> mlocked:0kB dirty:224kB writeback:0kB mapped:12436kB shmem:572kB
+> slab_reclaimable:101068kB slab_unreclaimable:4028kB kernel_stack:520kB
+> pagetables:492kB unstable:0kB bounce:0kB writeback_tmp:0kB
+> pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0
+> DMA: 391*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB
+> 0*2048kB 0*4096kB = 1564kB
+> Normal: 750*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB
+> 0*1024kB 0*2048kB 0*4096kB = 3000kB
+> 63342 total pagecache pages
+> 23 pages in swap cache
+> Swap cache stats: add 159, delete 136, find 401/412
+> Free swap  = 995636kB
+> Total swap = 995992kB
+> 98303 pages RAM
+> 1638 pages reserved
+> 22416 pages shared
+> 76947 pages non-shared
+>
+> Thanks.
+>
 > -- 
-> 1.7.1
-> 
-> 
-> -- 
-> Michal Hocko
-> L3 team 
-> SUSE LINUX s.r.o.
-> Lihovarska 1060/12
-> 190 00 Praha 9    
-> Czech Republic
-> 
+> Stan
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
+
+-- 
+Mikael Abrahamsson    email: swmike@swm.pp.se
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
