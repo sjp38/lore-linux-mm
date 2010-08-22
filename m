@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 807B96B02D1
-	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 19:16:15 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o7MNGCx9028840
-	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 16:16:13 -0700
-Received: from pvg13 (pvg13.prod.google.com [10.241.210.141])
-	by hpaq1.eem.corp.google.com with ESMTP id o7MNGAs6000594
-	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 16:16:11 -0700
-Received: by pvg13 with SMTP id 13so2801306pvg.24
-        for <linux-mm@kvack.org>; Sun, 22 Aug 2010 16:16:10 -0700 (PDT)
-Date: Sun, 22 Aug 2010 16:16:06 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] slob: fix gfp flags for order-0 page allocations
-Message-ID: <alpine.DEB.2.00.1008221615350.29062@chino.kir.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 254466007D6
+	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 19:23:29 -0400 (EDT)
+Date: Mon, 23 Aug 2010 07:23:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: compaction: trying to understand the code
+Message-ID: <20100822232316.GA339@localhost>
+References: <20100817111018.GQ19797@csn.ul.ie>
+ <4385155269B445AEAF27DC8639A953D7@rainbow>
+ <20100818154130.GC9431@localhost>
+ <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+ <20100819160006.GG6805@barrios-desktop>
+ <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
+ <20100820053447.GA13406@localhost>
+ <20100820093558.GG19797@csn.ul.ie>
+ <AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com>
+ <20100822153121.GA29389@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100822153121.GA29389@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-kmalloc_node() may allocate higher order slob pages, but the __GFP_COMP
-bit is only passed to the page allocator and not represented in the
-tracepoint event.  The bit should be passed to trace_kmalloc_node() as
-well.
+> From: Minchan Kim <minchan.kim@gmail.com>
+> Date: Mon, 23 Aug 2010 00:20:44 +0900
+> Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
+> 
+> Iram reported compaction's too_many_isolated loops forever.
+> (http://www.spinics.net/lists/linux-mm/msg08123.html)
+> 
+> The meminfo of situation happened was inactive anon is zero.
+> That's because the system has no memory pressure until then.
+> While all anon pages was in active lru, compaction could select
+> active lru as well as inactive lru. That's different things
+> with vmscan's isolated. So we has been two too_many_isolated.
+> 
+> While compaction can isolated pages in both active and inactive,
+> current implementation of too_many_isolated only considers inactive.
+> It made Iram's problem.
+> 
+> This patch handles active and inactie with fair.
+> That's because we can't expect where from and how many compaction would
+> isolated pages.
+> 
+> This patch changes (nr_isolated > nr_inactive) with
+> nr_isolated > (nr_active + nr_inactive) / 2.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slob.c |    4 +++-
- 1 files changed, 3 insertions(+), 1 deletions(-)
+The change looks good, thanks. However I'm not sure if it's enough.
 
-diff --git a/mm/slob.c b/mm/slob.c
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -500,7 +500,9 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
- 	} else {
- 		unsigned int order = get_order(size);
- 
--		ret = slob_new_pages(gfp | __GFP_COMP, get_order(size), node);
-+		if (likely(order))
-+			gfp |= __GFP_COMP;
-+		ret = slob_new_pages(gfp, order, node);
- 		if (ret) {
- 			struct page *page;
- 			page = virt_to_page(ret);
+I wonder where the >40MB isolated pages come about.  inactive_anon
+remains 0 and free remains high over a long time, so it seems there
+are no concurrent direct reclaims at all. Are the pages isolated by
+the compaction process itself?
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
