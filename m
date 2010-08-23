@@ -1,91 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0CB576B01F4
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 02:58:26 -0400 (EDT)
-Date: Mon, 23 Aug 2010 14:58:22 +0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3EBCA6007DC
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 03:15:41 -0400 (EDT)
+Date: Mon, 23 Aug 2010 15:15:35 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [2.6.35-rc1, bug] mm: minute-long livelocks in memory reclaim
-Message-ID: <20100823065822.GA22707@localhost>
-References: <20100822234811.GF31488@dastard>
+Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
+ dirty_ratio
+Message-ID: <20100823071534.GA24566@localhost>
+References: <20100820032506.GA6662@localhost>
+ <20100823144248.15fbb700@notabene>
+ <20100823062359.GA19586@localhost>
+ <201008231630.40892.kernel@kolivas.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100822234811.GF31488@dastard>
+In-Reply-To: <201008231630.40892.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Neil Brown <neilb@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 09:48:11AM +1000, Dave Chinner wrote:
-> Folks,
+On Mon, Aug 23, 2010 at 02:30:40PM +0800, Con Kolivas wrote:
+> On Mon, 23 Aug 2010 04:23:59 pm Wu Fengguang wrote:
+> > On Mon, Aug 23, 2010 at 12:42:48PM +0800, Neil Brown wrote:
+> > > On Fri, 20 Aug 2010 15:50:54 +1000
+> > >
+> > > Con Kolivas <kernel@kolivas.org> wrote:
+> > > > On Fri, 20 Aug 2010 02:13:25 pm KOSAKI Motohiro wrote:
+> > > > > > The dirty_ratio was silently limited to >= 5%. This is not a user
+> > > > > > expected behavior. Let's rip it.
+> > > > > >
+> > > > > > It's not likely the user space will depend on the old behavior.
+> > > > > > So the risk of breaking user space is very low.
+> > > > > >
+> > > > > > CC: Jan Kara <jack@suse.cz>
+> > > > > > CC: Neil Brown <neilb@suse.de>
+> > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > > >
+> > > > > Thank you.
+> > > > > 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > >
+> > > > I have tried to do this in the past, and setting this value to 0 on
+> > > > some machines caused the machine to come to a complete standstill with
+> > > > small writes to disk. It seemed there was some kind of "minimum" amount
+> > > > of data required by the VM before anything would make it to the disk
+> > > > and I never quite found out where that blockade occurred. This was some
+> > > > time ago (3 years ago) so I'm not sure if the problem has since been
+> > > > fixed in the VM since then. I suggest you do some testing with this
+> > > > value set to zero before approving this change.
+> >
+> > You are right, vm.dirty_ratio=0 will block applications for ever..
 > 
-> I've been testing parallel create workloads over the weekend, and
-> I've seen this a couple of times now under 8 thread parallel creates
-> with XFS. I'm running on an 8p VM with 4GB RAM and a fast disk
-> subsystem. Basically I am seeing the create rate drop to zero
-> with all 8 CPUs stuck spinning for up to 2 minutes. 'echo t >
-> /proc/sysrq-trigger' while this is occurring gives the following
-> trace for all the fs-mark processes:
-> 
-> [49506.624018] fs_mark       R  running task        0  8376   7917 0x00000008
-> [49506.624018]  0000000000000000 ffffffff81b94590 00000000000008fc 0000000000000002
-> [49506.624018]  0000000000000000 0000000000000286 0000000000000297 ffffffffffffff10
-> [49506.624018]  ffffffff810b3d02 0000000000000010 0000000000000202 ffff88011df777a8
-> [49506.624018] Call Trace:
-> [49506.624018]  [<ffffffff810b3d02>] ? smp_call_function_many+0x1a2/0x210
-> [49506.624018]  [<ffffffff810b3ce5>] ? smp_call_function_many+0x185/0x210
-> [49506.624018]  [<ffffffff81109170>] ? drain_local_pages+0x0/0x20
-> [49506.624018]  [<ffffffff810b3d92>] ? smp_call_function+0x22/0x30
-> [49506.624018]  [<ffffffff810849a4>] ? on_each_cpu+0x24/0x50
-> [49506.624018]  [<ffffffff81107bec>] ? drain_all_pages+0x1c/0x20
-> [49506.624018]  [<ffffffff8110825a>] ? __alloc_pages_nodemask+0x57a/0x730
-> [49506.624018]  [<ffffffff8113c6d2>] ? kmem_getpages+0x62/0x160
-> [49506.624018]  [<ffffffff8113d2b2>] ? fallback_alloc+0x192/0x240
-> [49506.624018]  [<ffffffff8113cce1>] ? cache_grow+0x2d1/0x300
-> [49506.624018]  [<ffffffff8113d04a>] ? ____cache_alloc_node+0x9a/0x170
-> [49506.624018]  [<ffffffff8113cf6c>] ? cache_alloc_refill+0x25c/0x2a0
-> [49506.624018]  [<ffffffff8113ddb3>] ? __kmalloc+0x193/0x230
-> [49506.624018]  [<ffffffff812f59af>] ? kmem_alloc+0x8f/0xe0
-> [49506.624018]  [<ffffffff812f59af>] ? kmem_alloc+0x8f/0xe0
-> [49506.624018]  [<ffffffff812f5a9e>] ? kmem_zalloc+0x1e/0x50
-> [49506.624018]  [<ffffffff812e2f4d>] ? xfs_log_commit_cil+0x9d/0x440
-> [49506.624018]  [<ffffffff812eeec6>] ? _xfs_trans_commit+0x1e6/0x2b0
-> [49506.624018]  [<ffffffff812f2b6f>] ? xfs_create+0x51f/0x690
-> [49506.624018]  [<ffffffff812ffdb7>] ? xfs_vn_mknod+0xa7/0x1c0
-> [49506.624018]  [<ffffffff812fff00>] ? xfs_vn_create+0x10/0x20
-> [49506.624018]  [<ffffffff811510b8>] ? vfs_create+0xb8/0xf0
-> [49506.624018]  [<ffffffff81151d2c>] ? do_last+0x4dc/0x5d0
-> [49506.624018]  [<ffffffff81153bd7>] ? do_filp_open+0x207/0x5e0
-> [49506.624018]  [<ffffffff8105fc58>] ? pvclock_clocksource_read+0x58/0xd0
-> [49506.624018]  [<ffffffff8115eaca>] ? alloc_fd+0x10a/0x150
-> [49506.624018]  [<ffffffff81144005>] ? do_sys_open+0x65/0x130
-> [49506.624018]  [<ffffffff81144110>] ? sys_open+0x20/0x30
-> [49506.624018]  [<ffffffff81036072>] ? system_call_fastpath+0x16/0x1b
-> 
-> Eventually the problem goes away, and the system goes back to
-> performing at the normal rate. Any ideas on how to avoid this
-> problem? I'm using CONFIG_SLAB=y is that is relevant....
+> Indeed. And while you shouldn't set the lower limit to zero to avoid this 
+> problem, it doesn't answer _why_ this happens. What is this "minimum write" 
+> that blocks everything, will 1% be enough, and is it hiding another real bug 
+> somewhere in the VM?
 
-zone->lock contention? Try rip the following two lines. The change
-might be a bit aggressive though :)
+Good question.
+This simple change will unblock the application even with vm_dirty_ratio=0.
+
+# echo 0 > /proc/sys/vm/dirty_ratio
+# echo 0 > /proc/sys/vm/dirty_background_ratio                                               
+# vmmon nr_dirty nr_writeback nr_unstable
+
+        nr_dirty     nr_writeback      nr_unstable
+               0              444             1369
+              37               37              326
+               0                0               37
+              74              772              694
+               0                0               19
+               0                0             1406
+               0                0               23
+               0                0                0
+               0              370              186
+              74             1073             1221
+               0               12               26
+               0              703             1147
+              37                0              999
+              37               37             1517
+               0              888               63
+               0                0                0
+               0                0               20
+              37                0                0
+              37               74             1776
+               0                0                8
+              37              629              333
+               0               12               19
+
+Even with it, the 1% explicit bound still looks reasonable for me.
+Who will want to set it to 0%? That would destroy IO inefficient.
 
 Thanks,
 Fengguang
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1bb327a..c08b8d3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1864,9 +1864,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+---
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		 * the last resort safeguard.
+ 		 */
+ 		dirty_exceeded =
+-			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+-			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
++			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
++			|| (nr_reclaimable + nr_writeback > dirty_thresh);
  
- 	cond_resched();
- 
--	if (order != 0)
--		drain_all_pages();
--
- 	if (likely(*did_some_progress))
- 		page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx,
+ 		if (!dirty_exceeded)
+ 			break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
