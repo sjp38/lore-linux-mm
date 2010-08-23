@@ -1,50 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B21316007E9
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 09:56:13 -0400 (EDT)
-Date: Mon, 23 Aug 2010 14:55:59 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
-	NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100823135559.GS19797@csn.ul.ie>
-References: <1282550442-15193-1-git-send-email-mel@csn.ul.ie> <1282550442-15193-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1008230750380.4094@router.home> <20100823130315.GQ19797@csn.ul.ie> <alpine.DEB.2.00.1008230838320.5750@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 11C1D6007E9
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:22:19 -0400 (EDT)
+Message-ID: <4C72921A.8000308@redhat.com>
+Date: Mon, 23 Aug 2010 18:22:02 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1008230838320.5750@router.home>
+Subject: Re: [PATCH v5 02/12] Add PV MSR to enable asynchronous page faults
+ delivery.
+References: <1279553462-7036-1-git-send-email-gleb@redhat.com> <1279553462-7036-3-git-send-email-gleb@redhat.com>
+In-Reply-To: <1279553462-7036-3-git-send-email-gleb@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 08:41:56AM -0500, Christoph Lameter wrote:
-> On Mon, 23 Aug 2010, Mel Gorman wrote:
-> 
-> > > The delta of the counters could also be reduced to increase accuracy.
-> > > See refresh_zone_stat_thresholds().
-> > True, but I thought that would introduce a constant performance penalty
-> > for a corner case which I didn't like.
-> 
-> Sure, an increased frequency of updates would increase the chance of
-> bouncing cachelines. But the bouncing cacheline scenario for the vm
-> counters was tuned for applications that continually allocate pages in
-> parallel.
-> 
-> When the vm gets into a state where continual reclaim is necessary then
-> the counters are not that frequently updated. If the machine is already
-> slowing down due to reclaim then the vm can likely affort more frequent
-> counter updates.
-> 
+  On 07/19/2010 06:30 PM, Gleb Natapov wrote:
+> Guess enables async PF vcpu functionality using this MSR.
+>
+>
+>
+> +static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+> +{
+> +	u64 gpa = data&  ~0x3f;
+> +	int offset = offset_in_page(gpa);
+> +	unsigned long addr;
+> +
+> +	/* Bits 1:5 are resrved, Should be zero */
+> +	if (data&  0x3e)
+> +		return 1;
+> +
+> +	vcpu->arch.apf_msr_val = data;
+> +
+> +	if (!(data&  KVM_ASYNC_PF_ENABLED)) {
+> +		vcpu->arch.apf_data = NULL;
+> +		return 0;
+> +	}
+> +
+> +	addr = gfn_to_hva(vcpu->kvm, gpa>>  PAGE_SHIFT);
+> +	if (kvm_is_error_hva(addr))
+> +		return 1;
+> +
+> +	vcpu->arch.apf_data = (u32 __user*)(addr + offset);
 
-Ok, but is that better than this patch? Decreasing the size of the window by
-reducing the threshold still leaves a window. There is still a small amount
-of drift by summing up all the deltas but you get a much more accurate count
-at the point of time it was important to know.
+This can be invalidated by host userspace playing with memory regions.  
+It needs to be recalculated on memory map changes, and it may disappear 
+from under the guest's feet (in which case we're allowed to 
+KVM_REQ_TRIPLE_FAULT it).
+
+(note: this is a much better approach than kvmclock's and vapic's, we 
+should copy it there)
+
+> +
+> +	/* check if address is mapped */
+> +	if (get_user(offset, vcpu->arch.apf_data)) {
+> +		vcpu->arch.apf_data = NULL;
+> +		return 1;
+> +	}
+
+So, this check can succeed today but fail tomorrow.
+
+> +	return 0;
+> +}
+> +
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
