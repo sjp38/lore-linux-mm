@@ -1,56 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FEB6007DC
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 03:18:19 -0400 (EDT)
-Date: Mon, 23 Aug 2010 08:18:04 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F327D6007DC
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 03:18:58 -0400 (EDT)
+Date: Mon, 23 Aug 2010 08:18:43 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: compaction: trying to understand the code
-Message-ID: <20100823071804.GM19797@csn.ul.ie>
-References: <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819160006.GG6805@barrios-desktop> <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow> <20100820053447.GA13406@localhost> <20100820093558.GG19797@csn.ul.ie> <AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com> <20100822153121.GA29389@barrios-desktop> <20100822232316.GA339@localhost>
+Subject: Re: [PATCH] vmstat : update zone stat threshold at onlining a cpu
+Message-ID: <20100823071843.GN19797@csn.ul.ie>
+References: <1281951733-29466-1-git-send-email-mel@csn.ul.ie> <1281951733-29466-3-git-send-email-mel@csn.ul.ie> <20100818115949.c840c937.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008181050230.4025@router.home> <20100819090740.3f46aecf.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008191359400.1839@router.home> <20100820084908.10e55b76.kamezawa.hiroyu@jp.fujitsu.com> <20100820092251.2ca67f66.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100822232316.GA339@localhost>
+In-Reply-To: <20100820092251.2ca67f66.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 07:23:16AM +0800, Wu Fengguang wrote:
-> > From: Minchan Kim <minchan.kim@gmail.com>
-> > Date: Mon, 23 Aug 2010 00:20:44 +0900
-> > Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
-> > 
-> > Iram reported compaction's too_many_isolated loops forever.
-> > (http://www.spinics.net/lists/linux-mm/msg08123.html)
-> > 
-> > The meminfo of situation happened was inactive anon is zero.
-> > That's because the system has no memory pressure until then.
-> > While all anon pages was in active lru, compaction could select
-> > active lru as well as inactive lru. That's different things
-> > with vmscan's isolated. So we has been two too_many_isolated.
-> > 
-> > While compaction can isolated pages in both active and inactive,
-> > current implementation of too_many_isolated only considers inactive.
-> > It made Iram's problem.
-> > 
-> > This patch handles active and inactie with fair.
-> > That's because we can't expect where from and how many compaction would
-> > isolated pages.
-> > 
-> > This patch changes (nr_isolated > nr_inactive) with
-> > nr_isolated > (nr_active + nr_inactive) / 2.
+On Fri, Aug 20, 2010 at 09:22:51AM +0900, KAMEZAWA Hiroyuki wrote:
 > 
-> The change looks good, thanks. However I'm not sure if it's enough.
+> refresh_zone_stat_thresholds() calculates parameter based on
+> the number of online cpus. It's called at cpu offlining but
+> needs to be called at onlining, too.
 > 
-> I wonder where the >40MB isolated pages come about.  inactive_anon
-> remains 0 and free remains high over a long time, so it seems there
-> are no concurrent direct reclaims at all.
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-When the proc trigger is used, it is not necessary for there to be any
-memory pressure for compaction to be running. It's unlikely in this case
-that there are many processes direct compacting but the check should
-still not potentially loop.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+Thanks
 
 -- 
 Mel Gorman
