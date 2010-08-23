@@ -1,71 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D2F7A6B0203
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 01:52:41 -0400 (EDT)
-Date: Mon, 23 Aug 2010 14:32:37 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] memcg: use ID in page_cgroup
-Message-Id: <20100823143237.b7822ffc.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 558D36007DC
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 02:24:06 -0400 (EDT)
+Date: Mon, 23 Aug 2010 14:23:59 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
+ dirty_ratio
+Message-ID: <20100823062359.GA19586@localhost>
+References: <20100820032506.GA6662@localhost>
+ <20100820131249.5FF4.A69D9226@jp.fujitsu.com>
+ <201008201550.54164.kernel@kolivas.org>
+ <20100823144248.15fbb700@notabene>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100823144248.15fbb700@notabene>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Neil Brown <neilb@suse.de>
+Cc: Con Kolivas <kernel@kolivas.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 20 Aug 2010 19:01:32 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon, Aug 23, 2010 at 12:42:48PM +0800, Neil Brown wrote:
+> On Fri, 20 Aug 2010 15:50:54 +1000
+> Con Kolivas <kernel@kolivas.org> wrote:
+> 
+> > On Fri, 20 Aug 2010 02:13:25 pm KOSAKI Motohiro wrote:
+> > > > The dirty_ratio was silently limited to >= 5%. This is not a user
+> > > > expected behavior. Let's rip it.
+> > > >
+> > > > It's not likely the user space will depend on the old behavior.
+> > > > So the risk of breaking user space is very low.
+> > > >
+> > > > CC: Jan Kara <jack@suse.cz>
+> > > > CC: Neil Brown <neilb@suse.de>
+> > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > >
+> > > Thank you.
+> > > 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > 
+> > I have tried to do this in the past, and setting this value to 0 on some 
+> > machines caused the machine to come to a complete standstill with small 
+> > writes to disk. It seemed there was some kind of "minimum" amount of data 
+> > required by the VM before anything would make it to the disk and I never 
+> > quite found out where that blockade occurred. This was some time ago (3 years 
+> > ago) so I'm not sure if the problem has since been fixed in the VM since 
+> > then. I suggest you do some testing with this value set to zero before 
+> > approving this change.
+
+You are right, vm.dirty_ratio=0 will block applications for ever..
 
 > 
-> I have an idea to remove page_cgroup->page pointer, 8bytes reduction per page.
-> But it will be after this work.
-Another off topic. I think we can reduce the size of mem_cgroup by packing
-some boolean members into one "unsinged long flags".
+>  If it is appropriate to have a lower limit, that should be imposed where
+>  the sysctl is defined in kernel/sysctl.c, not imposed after the fact where
+>  the value is used.
+> 
+>  As we now have dirty_bytes which over-rides dirty_ratio, there is little
+>  cost in having a lower_limit for dirty_ratio - it could even stay at 5% -
+>  but it really shouldn't be silent.  Writing a number below the limit to the
+>  sysctl file should fail.
 
-> @@ -300,12 +300,13 @@ static atomic_t mem_cgroup_num;
->  #define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
->  static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
->  
-> -/* Must be called under rcu_read_lock */
-> -static struct mem_cgroup *id_to_memcg(unsigned short id)
-> +/* Must be called under rcu_read_lock, set safe==true if under lock */
-Do you mean, "Set safe==true if we can ensure by some locks that the id can be
-safely dereferenced without rcu_read_lock", right ?
-
-> +static struct mem_cgroup *id_to_memcg(unsigned short id, bool safe)
->  {
->  	struct mem_cgroup *ret;
->  	/* see mem_cgroup_free() */
-> -	ret = rcu_dereference_check(mem_cgroups[id], rch_read_lock_held());
-> +	ret = rcu_dereference_check(mem_cgroups[id],
-> +				rch_read_lock_held() || safe);
->  	if (likely(ret && ret->valid))
->  		return ret;
->  	return NULL;
-
-(snip)
-> @@ -723,6 +729,11 @@ static inline bool mem_cgroup_is_root(st
->  	return (mem == root_mem_cgroup);
->  }
->  
-> +static inline bool mem_cgroup_is_rootid(unsigned short id)
-> +{
-> +	return (id == 1);
-> +}
-> +
-It might be better to add
-
-	BUG_ON(newid->id != 1)
-
-in cgroup.c::cgroup_init_idr().
-
+How about imposing an explicit bound of 1%? That's more natural and
+its risk of breaking user space should be lower than 5%.
 
 Thanks,
-Daisuke Nishimura.
+Fengguang
+---
+writeback: remove the internal 5% low bound on dirty_ratio
+
+The dirty_ratio was silently limited in global_dirty_limits() to >= 5%. This
+is not a user expected behavior. And it's inconsistent with calc_period_shift(),
+which uses the plain vm_dirty_ratio value. So let's rip the internal bound.
+
+At the same time, force a user visible low bound of 1% for the vm.dirty_ratio
+interface. Applications trying to write 0 will be rejected with -EINVAL. This
+will break user space applications if they
+1) try to write 0 to vm.dirty_ratio
+2) and check the return value
+That is very weird combination, so the risk of breaking user space is low.
+
+CC: Jan Kara <jack@suse.cz>
+CC: Neil Brown <neilb@suse.de>
+CC: Rik van Riel <riel@redhat.com>
+CC: Con Kolivas <kernel@kolivas.org>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ kernel/sysctl.c     |    2 +-
+ mm/page-writeback.c |   10 ++--------
+ 2 files changed, 3 insertions(+), 9 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-08-20 20:14:11.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-23 10:31:01.000000000 +0800
+@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else {
+-		int dirty_ratio;
+-
+-		dirty_ratio = vm_dirty_ratio;
+-		if (dirty_ratio < 5)
+-			dirty_ratio = 5;
+-		dirty = (dirty_ratio * available_memory) / 100;
+-	}
++	else
++		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+ 	if (dirty_background_bytes)
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+--- linux-next.orig/kernel/sysctl.c	2010-08-23 14:06:11.000000000 +0800
++++ linux-next/kernel/sysctl.c	2010-08-23 14:07:30.000000000 +0800
+@@ -1029,7 +1029,7 @@ static struct ctl_table vm_table[] = {
+ 		.maxlen		= sizeof(vm_dirty_ratio),
+ 		.mode		= 0644,
+ 		.proc_handler	= dirty_ratio_handler,
+-		.extra1		= &zero,
++		.extra1		= &one,
+ 		.extra2		= &one_hundred,
+ 	},
+ 	{
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
