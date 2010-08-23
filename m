@@ -1,82 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 36BF56B03DD
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 13:14:24 -0400 (EDT)
-Received: by pxi5 with SMTP id 5so2703890pxi.14
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 10:14:22 -0700 (PDT)
-Date: Tue, 24 Aug 2010 02:14:16 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: compaction: trying to understand the code
-Message-ID: <20100823171416.GA2216@barrios-desktop>
-References: <4385155269B445AEAF27DC8639A953D7@rainbow>
- <20100818154130.GC9431@localhost>
- <565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
- <20100819160006.GG6805@barrios-desktop>
- <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
- <20100820053447.GA13406@localhost>
- <20100820093558.GG19797@csn.ul.ie>
- <AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com>
- <20100822153121.GA29389@barrios-desktop>
- <20100822232316.GA339@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F5066007EE
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 13:17:20 -0400 (EDT)
+Message-ID: <4C72AD0D.7040100@cs.helsinki.fi>
+Date: Mon, 23 Aug 2010 20:17:01 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100822232316.GA339@localhost>
+Subject: Re: [S+Q Cleanup4 0/6] SLUB: Cleanups V4
+References: <20100820173711.136529149@linux.com>
+In-Reply-To: <20100820173711.136529149@linux.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 07:23:16AM +0800, Wu Fengguang wrote:
-> > From: Minchan Kim <minchan.kim@gmail.com>
-> > Date: Mon, 23 Aug 2010 00:20:44 +0900
-> > Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
-> > 
-> > Iram reported compaction's too_many_isolated loops forever.
-> > (http://www.spinics.net/lists/linux-mm/msg08123.html)
-> > 
-> > The meminfo of situation happened was inactive anon is zero.
-> > That's because the system has no memory pressure until then.
-> > While all anon pages was in active lru, compaction could select
-> > active lru as well as inactive lru. That's different things
-> > with vmscan's isolated. So we has been two too_many_isolated.
-> > 
-> > While compaction can isolated pages in both active and inactive,
-> > current implementation of too_many_isolated only considers inactive.
-> > It made Iram's problem.
-> > 
-> > This patch handles active and inactie with fair.
-> > That's because we can't expect where from and how many compaction would
-> > isolated pages.
-> > 
-> > This patch changes (nr_isolated > nr_inactive) with
-> > nr_isolated > (nr_active + nr_inactive) / 2.
-> 
-> The change looks good, thanks. However I'm not sure if it's enough.
-> 
-> I wonder where the >40MB isolated pages come about.  inactive_anon
-> remains 0 and free remains high over a long time, so it seems there
-> are no concurrent direct reclaims at all. Are the pages isolated by
-> the compaction process itself?
+On 20.8.2010 20.37, Christoph Lameter wrote:
+> I think it may be best to first try to merge these and make sure that
+> they are fine before we go step by step through the unification patches.
+> I hope they can go into -next.
 
-I think it can't happen without kswapd or direct reclaim.
-But I think direct reclaim doesn't happen becuase Iram has no activity on system 
-at that time. So just geussing following scenario.
-
-1. trigger compaction by proc
-2. isolate some pages and then migrate_pages
-3. migrate_pages calls cond_resched
-4. someone need big page(I am not sure this part)
-4. kswapd: shrink anon active list due to inactive_anon_is_low
-5. kswapd: isolate_lru_pages for order > 0 (ex, 0.5M page) so 0.5 M * 32 = 16M are isolated
-6. kswapd: shrink_zone : shrink anon active list due to inactive_anon_is_low 
-7. kswapd: isolate_lru_pages for order > 0 (ex, 0.5M page) so 0.5 M * 32  are isolated again.
-
-Does it make sense?
-
--- 
-Kind regards,
-Minchan Kim
+I've applied these patches and queued them for -next. Thanks guys!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
