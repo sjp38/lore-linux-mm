@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CCEBF600803
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 19:54:18 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7NNsFkS031738
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 066CF6B0381
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 19:56:12 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7NNu9WP024820
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 24 Aug 2010 08:54:16 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D24545DE6E
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:54:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E21CD45DE4D
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:54:14 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7D4EEF8002
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:54:14 +0900 (JST)
+	Tue, 24 Aug 2010 08:56:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 77E3345DE62
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:56:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 48D6C45DD77
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:56:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CC331DB8040
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:56:09 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 35481EF8001
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:54:14 +0900 (JST)
-Date: Tue, 24 Aug 2010 08:49:16 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BEB4F1DB803C
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:56:08 +0900 (JST)
+Date: Tue, 24 Aug 2010 08:51:11 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/5] memcg: lockless update of file_mapped
-Message-Id: <20100824084916.078d6a82.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100823175015.8d834645.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/5] memcg: use array and ID for quick look up
+Message-Id: <20100824085111.6acf8881.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100823123533.b75b99c5.nishimura@mxp.nes.nec.co.jp>
 References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100820190256.531af759.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100823175015.8d834645.nishimura@mxp.nes.nec.co.jp>
+	<20100820185917.87876cb0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100823123533.b75b99c5.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,212 +34,86 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Aug 2010 17:50:15 +0900
+On Mon, 23 Aug 2010 12:35:33 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> This patch looks good to me, but I have one question.
+> Hi,
 > 
-> Why do we need to acquire sc.lock inside mem_cgroup_(start|end)_move() ?
-> These functions doesn't access mc.*.
+> > +/* 0 is unused */
+> > +static atomic_t mem_cgroup_num;
+> > +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> > +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> > +
+> > +/* Must be called under rcu_read_lock */
+> > +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> > +{
+> > +	struct mem_cgroup *ret;
+> > +	/* see mem_cgroup_free() */
+> > +	ret = rcu_dereference_check(mem_cgroups[id], rch_read_lock_held());
+> > +	if (likely(ret && ret->valid))
+> > +		return ret;
+> > +	return NULL;
+> > +}
+> > +
+> I prefer "mem" to "ret".
 > 
+Hmm, ok.
 
-just reusing a lock to update status. If you don't like, I'll add a new lock.
+
+> > @@ -2231,7 +2244,7 @@ __mem_cgroup_commit_charge_swapin(struct
+> >  
+> >  		id = swap_cgroup_record(ent, 0);
+> >  		rcu_read_lock();
+> > -		memcg = mem_cgroup_lookup(id);
+> > +		memcg = id_to_memcg(id);
+> >  		if (memcg) {
+> >  			/*
+> >  			 * This recorded memcg can be obsolete one. So, avoid
+> > @@ -2240,9 +2253,10 @@ __mem_cgroup_commit_charge_swapin(struct
+> >  			if (!mem_cgroup_is_root(memcg))
+> >  				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+> >  			mem_cgroup_swap_statistics(memcg, false);
+> > +			rcu_read_unlock();
+> >  			mem_cgroup_put(memcg);
+> > -		}
+> > -		rcu_read_unlock();
+> > +		} else
+> > +			rcu_read_unlock();
+> >  	}
+> >  	/*
+> >  	 * At swapin, we may charge account against cgroup which has no tasks.
+> > @@ -2495,7 +2509,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
+> >  
+> >  	id = swap_cgroup_record(ent, 0);
+> >  	rcu_read_lock();
+> > -	memcg = mem_cgroup_lookup(id);
+> > +	memcg = id_to_memcg(id);
+> >  	if (memcg) {
+> >  		/*
+> >  		 * We uncharge this because swap is freed.
+> > @@ -2504,9 +2518,10 @@ void mem_cgroup_uncharge_swap(swp_entry_
+> >  		if (!mem_cgroup_is_root(memcg))
+> >  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+> >  		mem_cgroup_swap_statistics(memcg, false);
+> > +		rcu_read_unlock();
+> >  		mem_cgroup_put(memcg);
+> > -	}
+> > -	rcu_read_unlock();
+> > +	} else
+> > +		rcu_read_unlock();
+> >  }
+> >  
+> >  /**
+> Could you explain why we need rcu_read_unlock() before mem_cgroup_put() ?
+> I suspect that it's because mem_cgroup_put() can free the memcg, but do we
+> need mem->valid then ?
+> 
+mem_cgroup_put() may call synchronize_rcu(). So, we have to unlock before it.
 
 Thanks,
 -Kame
 
-> Thanks,
-> Daisuke Nishimura.
-> 
-> On Fri, 20 Aug 2010 19:02:56 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > No changes from v4.
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > At accounting file events per memory cgroup, we need to find memory cgroup
-> > via page_cgroup->mem_cgroup. Now, we use lock_page_cgroup().
-> > 
-> > But, considering the context which page-cgroup for files are accessed,
-> > we can use alternative light-weight mutual execusion in the most case.
-> > At handling file-caches, the only race we have to take care of is "moving"
-> > account, IOW, overwriting page_cgroup->mem_cgroup. Because file status
-> > update is done while the page-cache is in stable state, we don't have to
-> > take care of race with charge/uncharge.
-> > 
-> > Unlike charge/uncharge, "move" happens not so frequently. It happens only when
-> > rmdir() and task-moving (with a special settings.)
-> > This patch adds a race-checker for file-cache-status accounting v.s. account
-> > moving. The new per-cpu-per-memcg counter MEM_CGROUP_ON_MOVE is added.
-> > The routine for account move 
-> >   1. Increment it before start moving
-> >   2. Call synchronize_rcu()
-> >   3. Decrement it after the end of moving.
-> > By this, file-status-counting routine can check it needs to call
-> > lock_page_cgroup(). In most case, I doesn't need to call it.
-> > 
-> > 
-> > Changelog: 20100804
-> >  - added a comment for possible optimization hint.
-> > Changelog: 20100730
-> >  - some cleanup.
-> > Changelog: 20100729
-> >  - replaced __this_cpu_xxx() with this_cpu_xxx
-> >    (because we don't call spinlock)
-> >  - added VM_BUG_ON().
-> > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |   79 +++++++++++++++++++++++++++++++++++++++++++++++---------
-> >  1 file changed, 67 insertions(+), 12 deletions(-)
-> > 
-> > Index: mmotm-0811/mm/memcontrol.c
-> > ===================================================================
-> > --- mmotm-0811.orig/mm/memcontrol.c
-> > +++ mmotm-0811/mm/memcontrol.c
-> > @@ -90,6 +90,7 @@ enum mem_cgroup_stat_index {
-> >  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
-> >  	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-> >  	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
-> > +	MEM_CGROUP_ON_MOVE,   /* A check for locking move account/status */
-> >  
-> >  	MEM_CGROUP_STAT_NSTATS,
-> >  };
-> > @@ -1086,7 +1087,50 @@ static unsigned int get_swappiness(struc
-> >  	return swappiness;
-> >  }
-> >  
-> > -/* A routine for testing mem is not under move_account */
-> > +static void mem_cgroup_start_move(struct mem_cgroup *mem)
-> > +{
-> > +	int cpu;
-> > +	/* for fast checking in mem_cgroup_update_file_stat() etc..*/
-> > +	spin_lock(&mc.lock);
-> > +	/* TODO: Can we optimize this by for_each_online_cpu() ? */
-> > +	for_each_possible_cpu(cpu)
-> > +		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
-> > +	spin_unlock(&mc.lock);
-> > +
-> > +	synchronize_rcu();
-> > +}
-> > +
-> > +static void mem_cgroup_end_move(struct mem_cgroup *mem)
-> > +{
-> > +	int cpu;
-> > +
-> > +	if (!mem)
-> > +		return;
-> > +	/* for fast checking in mem_cgroup_update_file_stat() etc..*/
-> > +	spin_lock(&mc.lock);
-> > +	for_each_possible_cpu(cpu)
-> > +		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) -= 1;
-> > +	spin_unlock(&mc.lock);
-> > +}
-> > +
-> > +/*
-> > + * mem_cgroup_is_moved -- checking a cgroup is mc.from target or not.
-> > + *                          used for avoiding race.
-> > + * mem_cgroup_under_move -- checking a cgroup is mc.from or mc.to or
-> > + *			    under hierarchy of them. used for waiting at
-> > + *			    memory pressure.
-> > + * Result of is_moved can be trusted until the end of rcu_read_unlock().
-> > + * The caller must do
-> > + *	rcu_read_lock();
-> > + *	result = mem_cgroup_is_moved();
-> > + *	.....make use of result here....
-> > + *	rcu_read_unlock();
-> > + */
-> > +static bool mem_cgroup_is_moved(struct mem_cgroup *mem)
-> > +{
-> > +	VM_BUG_ON(!rcu_read_lock_held());
-> > +	return this_cpu_read(mem->stat->count[MEM_CGROUP_ON_MOVE]) > 0;
-> > +}
-> >  
-> >  static bool mem_cgroup_under_move(struct mem_cgroup *mem)
-> >  {
-> > @@ -1502,29 +1546,36 @@ void mem_cgroup_update_file_mapped(struc
-> >  {
-> >  	struct mem_cgroup *mem;
-> >  	struct page_cgroup *pc;
-> > +	bool need_lock = false;
-> >  
-> >  	pc = lookup_page_cgroup(page);
-> >  	if (unlikely(!pc))
-> >  		return;
-> > -
-> > -	lock_page_cgroup(pc);
-> > +	rcu_read_lock();
-> >  	mem = id_to_memcg(pc->mem_cgroup, true);
-> > -	if (!mem || !PageCgroupUsed(pc))
-> > +	if (likely(mem)) {
-> > +		if (mem_cgroup_is_moved(mem)) {
-> > +			/* need to serialize with move_account */
-> > +			lock_page_cgroup(pc);
-> > +			need_lock = true;
-> > +			mem = id_to_memcg(pc->mem_cgroup, true);
-> > +			if (unlikely(!mem))
-> > +				goto done;
-> > +		}
-> > +	}
-> > +	if (unlikely(!PageCgroupUsed(pc)))
-> >  		goto done;
-> > -
-> > -	/*
-> > -	 * Preemption is already disabled. We can use __this_cpu_xxx
-> > -	 */
-> >  	if (val > 0) {
-> > -		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> > +		this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> >  		SetPageCgroupFileMapped(pc);
-> >  	} else {
-> > -		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> > +		this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> >  		ClearPageCgroupFileMapped(pc);
-> >  	}
-> > -
-> >  done:
-> > -	unlock_page_cgroup(pc);
-> > +	if (need_lock)
-> > +		unlock_page_cgroup(pc);
-> > +	rcu_read_unlock();
-> >  }
-> >  
-> >  /*
-> > @@ -3064,6 +3115,7 @@ move_account:
-> >  		lru_add_drain_all();
-> >  		drain_all_stock_sync();
-> >  		ret = 0;
-> > +		mem_cgroup_start_move(mem);
-> >  		for_each_node_state(node, N_HIGH_MEMORY) {
-> >  			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
-> >  				enum lru_list l;
-> > @@ -3077,6 +3129,7 @@ move_account:
-> >  			if (ret)
-> >  				break;
-> >  		}
-> > +		mem_cgroup_end_move(mem);
-> >  		memcg_oom_recover(mem);
-> >  		/* it seems parent cgroup doesn't have enough mem */
-> >  		if (ret == -ENOMEM)
-> > @@ -4563,6 +4616,7 @@ static void mem_cgroup_clear_mc(void)
-> >  	mc.to = NULL;
-> >  	mc.moving_task = NULL;
-> >  	spin_unlock(&mc.lock);
-> > +	mem_cgroup_end_move(from);
-> >  	memcg_oom_recover(from);
-> >  	memcg_oom_recover(to);
-> >  	wake_up_all(&mc.waitq);
-> > @@ -4593,6 +4647,7 @@ static int mem_cgroup_can_attach(struct 
-> >  			VM_BUG_ON(mc.moved_charge);
-> >  			VM_BUG_ON(mc.moved_swap);
-> >  			VM_BUG_ON(mc.moving_task);
-> > +			mem_cgroup_start_move(from);
-> >  			spin_lock(&mc.lock);
-> >  			mc.from = from;
-> >  			mc.to = mem;
-> > 
-> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
