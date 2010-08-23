@@ -1,75 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6F1DB6007E9
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:29:27 -0400 (EDT)
-Date: Mon, 23 Aug 2010 18:29:17 +0300
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id CBCF06007EE
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:36:06 -0400 (EDT)
+Date: Mon, 23 Aug 2010 18:35:49 +0300
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v5 02/12] Add PV MSR to enable asynchronous page faults
- delivery.
-Message-ID: <20100823152917.GT10499@redhat.com>
+Subject: Re: [PATCH v5 03/12] Add async PF initialization to PV guest.
+Message-ID: <20100823153549.GU10499@redhat.com>
 References: <1279553462-7036-1-git-send-email-gleb@redhat.com>
- <1279553462-7036-3-git-send-email-gleb@redhat.com>
- <4C72921A.8000308@redhat.com>
+ <1279553462-7036-4-git-send-email-gleb@redhat.com>
+ <4C729342.6070205@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C72921A.8000308@redhat.com>
+In-Reply-To: <4C729342.6070205@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Avi Kivity <avi@redhat.com>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 06:22:02PM +0300, Avi Kivity wrote:
+On Mon, Aug 23, 2010 at 06:26:58PM +0300, Avi Kivity wrote:
 >  On 07/19/2010 06:30 PM, Gleb Natapov wrote:
-> >Guess enables async PF vcpu functionality using this MSR.
+> >Enable async PF in a guest if async PF capability is discovered.
 > >
+> >Signed-off-by: Gleb Natapov<gleb@redhat.com>
+> >---
+> >  arch/x86/include/asm/kvm_para.h |    5 +++
+> >  arch/x86/kernel/kvm.c           |   68 +++++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 73 insertions(+), 0 deletions(-)
 > >
+> >diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+> >index 5b05e9f..f1662d7 100644
+> >--- a/arch/x86/include/asm/kvm_para.h
+> >+++ b/arch/x86/include/asm/kvm_para.h
+> >@@ -65,6 +65,11 @@ struct kvm_mmu_op_release_pt {
+> >  	__u64 pt_phys;
+> >  };
 > >
-> >+static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+> >+struct kvm_vcpu_pv_apf_data {
+> >+	__u32 reason;
+> >+	__u32 enabled;
+> >+};
+> >+
+> 
+> The guest will have to align this on a 64 byte boundary, should this
+> be marked __aligned(64) here?
+> 
+I do __aligned(64) when I declare variable of that type:
+
+static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
+
+> >@@ -231,12 +235,72 @@ static void __init paravirt_ops_setup(void)
+> >  #endif
+> >  }
+> >
+> >+void __cpuinit kvm_guest_cpu_init(void)
 > >+{
-> >+	u64 gpa = data&  ~0x3f;
-> >+	int offset = offset_in_page(gpa);
-> >+	unsigned long addr;
+> >+	if (!kvm_para_available())
+> >+		return;
 > >+
-> >+	/* Bits 1:5 are resrved, Should be zero */
-> >+	if (data&  0x3e)
-> >+		return 1;
+> >+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)) {
+> >+		u64 pa = __pa(&__get_cpu_var(apf_reason));
 > >+
-> >+	vcpu->arch.apf_msr_val = data;
-> >+
-> >+	if (!(data&  KVM_ASYNC_PF_ENABLED)) {
-> >+		vcpu->arch.apf_data = NULL;
-> >+		return 0;
+> >+		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
+> >+					  pa | KVM_ASYNC_PF_ENABLED, pa>>  32))
+> >+			return;
+> >+		__get_cpu_var(apf_reason).enabled = 1;
+> >+		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
+> >+		       smp_processor_id());
 > >+	}
-> >+
-> >+	addr = gfn_to_hva(vcpu->kvm, gpa>>  PAGE_SHIFT);
-> >+	if (kvm_is_error_hva(addr))
-> >+		return 1;
-> >+
-> >+	vcpu->arch.apf_data = (u32 __user*)(addr + offset);
+> >+}
 > 
-> This can be invalidated by host userspace playing with memory
-> regions.  It needs to be recalculated on memory map changes, and it
-> may disappear from under the guest's feet (in which case we're
-> allowed to KVM_REQ_TRIPLE_FAULT it).
+> Need a way to disable apf from the guest kernel command line.
 > 
-> (note: this is a much better approach than kvmclock's and vapic's,
-> we should copy it there)
-> 
-apf_put_user() tracks memory slot changes and revalidate the address if
-needed.
+OK.
 
 > >+
-> >+	/* check if address is mapped */
-> >+	if (get_user(offset, vcpu->arch.apf_data)) {
-> >+		vcpu->arch.apf_data = NULL;
-> >+		return 1;
-> >+	}
+> >+static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
+> >+				    unsigned long action, void *hcpu)
+> >+{
+> >+	switch (action) {
+> >+	case CPU_ONLINE:
+> >+	case CPU_ONLINE_FROZEN:
+> >+		kvm_guest_cpu_init();
+> >+		break;
+> >+	default:
+> >+		break;
 > 
-> So, this check can succeed today but fail tomorrow.
+> Should we disable apf if the cpu is dying here?
 > 
+Why? Can CPU die with outstanding sleeping tasks?
 
-> >+	return 0;
+> >+	}
+> >+	return NOTIFY_OK;
 > >+}
 > >+
 > 
