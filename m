@@ -1,63 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C63056B03B1
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 08:33:44 -0400 (EDT)
-Date: Mon, 23 Aug 2010 22:33:39 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [2.6.35-rc1, bug] mm: minute-long livelocks in memory reclaim
-Message-ID: <20100823123339.GI31488@dastard>
-References: <20100822234811.GF31488@dastard>
- <20100823065822.GA22707@localhost>
- <alpine.DEB.2.00.1008230219480.13384@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id B664A6B03B2
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 08:45:29 -0400 (EDT)
+Date: Mon, 23 Aug 2010 07:45:25 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/3] Reduce watermark-related problems with the per-cpu
+ allocator V2
+In-Reply-To: <1282550442-15193-1-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1008230742300.4094@router.home>
+References: <1282550442-15193-1-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1008230219480.13384@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 02:23:27AM -0700, David Rientjes wrote:
-> On Mon, 23 Aug 2010, Wu Fengguang wrote:
-> 
-> > > I've been testing parallel create workloads over the weekend, and
-> > > I've seen this a couple of times now under 8 thread parallel creates
-> > > with XFS. I'm running on an 8p VM with 4GB RAM and a fast disk
-> > > subsystem. Basically I am seeing the create rate drop to zero
-> > > with all 8 CPUs stuck spinning for up to 2 minutes. 'echo t >
-> > > /proc/sysrq-trigger' while this is occurring gives the following
-> > > trace for all the fs-mark processes:
-.....
-> 
-> You may be interested in Mel's patchset that he just proposed for -mm 
-> which identifies watermark variations on machines with high cpu counts 
-> (perhaps even eight, as in this report).  The last patch actually reworks 
-> this hunk of the code as well.
-> 
-> 	http://marc.info/?l=linux-mm&m=128255044912938
-> 	http://marc.info/?l=linux-mm&m=128255045312950
-> 	http://marc.info/?l=linux-mm&m=128255045012942
-> 	http://marc.info/?l=linux-mm&m=128255045612954
-> 
-> Dave, it would be interesting to see if this fixes your problem.
+On Mon, 23 Aug 2010, Mel Gorman wrote:
 
-That looks promising - I'll give it a shot, though my test case is
-not really what you'd call reproducable(*) so it might take a
-couple of days before I can say whether the issue has gone away or
-not.
+> Internal IBM test teams beta testing distribution kernels have reported
+> problems on machines with a large number of CPUs whereby page allocator
+> failure messages show huge differences between the nr_free_pages vmstat
+> counter and what is available on the buddy lists. In an extreme example,
+> nr_free_pages was above the min watermark but zero pages were on the buddy
+> lists allowing the system to potentially livelock unable to make forward
+> progress unless an allocation succeeds. There is no reason why the problems
+> would not affect mainline so the following series mitigates the problems
+> in the page allocator related to to per-cpu counter drift and lists.
 
-Cheers,
-
-Dave.
-
-(*) create 100 million inodes in parallel using fsmark, collect and
-watch behavioural metrics via PCP/pmchart for stuff out of the
-ordinary, and dump stack traces, etc when somthing strange occurs.
-
--- 
-Dave Chinner
-david@fromorbit.com
+The maximum time for which the livelock can exists is the vm stat
+interval. By default the counters are brought up to date at least once per
+second or if a certain delta was violated. Drifts are controlled by the
+delta configuration.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
