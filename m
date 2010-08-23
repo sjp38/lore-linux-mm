@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A2D0D6B03A6
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 05:07:43 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so4195119iwn.14
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 02:07:42 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0F5456B03A7
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 05:10:03 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so4197321iwn.14
+        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 02:10:02 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100823071610.GL19797@csn.ul.ie>
+In-Reply-To: <C06122FE6B6044BD94C8A632B205D909@rainbow>
 References: <20100817111018.GQ19797@csn.ul.ie>
 	<4385155269B445AEAF27DC8639A953D7@rainbow>
 	<20100818154130.GC9431@localhost>
@@ -16,64 +16,53 @@ References: <20100817111018.GQ19797@csn.ul.ie>
 	<20100820093558.GG19797@csn.ul.ie>
 	<AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com>
 	<20100822153121.GA29389@barrios-desktop>
-	<20100823071610.GL19797@csn.ul.ie>
-Date: Mon, 23 Aug 2010 18:07:41 +0900
-Message-ID: <AANLkTikOvsH38K0j7ETOfY08AbzvfHd72otw-JTesh-4@mail.gmail.com>
+	<20100822232316.GA339@localhost>
+	<AANLkTim8c5C+vH1HUx-GsScirmnVoJXenLST1qQgk2bp@mail.gmail.com>
+	<C06122FE6B6044BD94C8A632B205D909@rainbow>
+Date: Mon, 23 Aug 2010 18:10:02 +0900
+Message-ID: <AANLkTikwZtaMioEOnwTJhs-PkXWeaZhv-hYXG13n=OBX@mail.gmail.com>
 Subject: Re: compaction: trying to understand the code
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 4:16 PM, Mel Gorman <mel@csn.ul.ie> wrote:
-> On Mon, Aug 23, 2010 at 12:31:21AM +0900, Minchan Kim wrote:
->> <SNIP>
+On Mon, Aug 23, 2010 at 12:03 PM, Iram Shahzad
+<iram.shahzad@jp.fujitsu.com> wrote:
+>> Iram. How do you execute test_app?
 >>
->> From 560e8898295c663f02aede07b3d55880eba16c69 Mon Sep 17 00:00:00 2001
->> From: Minchan Kim <minchan.kim@gmail.com>
->> Date: Mon, 23 Aug 2010 00:20:44 +0900
->> Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
+>> 1) synchronous test
+>> 1.1 start test_app
+>> 1.2 wait test_app job done (ie, wait memory is fragment)
+>> 1.3 echo 1 > /proc/sys/vm/compact_memory
 >>
->> Iram reported compaction's too_many_isolated loops forever.
->> (http://www.spinics.net/lists/linux-mm/msg08123.html)
->>
->> The meminfo of situation happened was inactive anon is zero.
->> That's because the system has no memory pressure until then.
->> While all anon pages was in active lru, compaction could select
->> active lru as well as inactive lru. That's different things
->> with vmscan's isolated. So we has been two too_many_isolated.
->>
->> While compaction can isolated pages in both active and inactive,
->> current implementation of too_many_isolated only considers inactive.
->> It made Iram's problem.
->>
->> This patch handles active and inactie with fair.
->> That's because we can't expect where from and how many compaction would
->> isolated pages.
->>
->> This patch changes (nr_isolated > nr_inactive) with
->> nr_isolated > (nr_active + nr_inactive) / 2.
->>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> Cc: Wu Fengguang <fengguang.wu@intel.com>
->> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+>> 2) asynchronous test
+>> 2.1 start test_app
+>> 2.2 not wait test_app job done
+>> 2.3 echo 1 > /proc/sys/vm/compact_memory(Maybe your test app and
+>> compaction were executed parallel)
 >
-> Seems reasonable to me.
+> It's synchronous.
+> First I confirm that the test app has completed its fragmentation work
+> by looking at the printf output. Then only I run echo 1 >
+> /proc/sys/vm/compact_memory.
 >
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> After completing fragmentation work, my test app sleeps in a useless while
+> loop
+> which I think is not important.
 
-Thanks.
+Thanks. It seems to be not any other processes which is entering
+direct reclaiming.
+I tested your test_app but failed to reproduce your problem.
+Actually I suspected some leak of decrease NR_ISOLATE_XXX but my
+system worked well.
+And I couldn't find the point as just code reviewing. If it really
+was, Mel found it during his stress test.
 
->
-> Want to repost this as a standalone patch?
-
-Yes. It is enough to be a standalone.
-I will repost the patch as removing part about reporting Iram's problem.
-
-We need to dig in Iram's problem regardless of this patch.
-
+Hmm.. Mystery.
+Maybe we need some tracepoint to debug.
 -- 
 Kind regards,
 Minchan Kim
