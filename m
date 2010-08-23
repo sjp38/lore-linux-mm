@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 87C036007EE
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:53:13 -0400 (EDT)
-Message-ID: <4C729961.7070308@redhat.com>
-Date: Mon, 23 Aug 2010 18:53:05 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CB3066007EE
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 12:04:41 -0400 (EDT)
+Date: Mon, 23 Aug 2010 11:04:38 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+In-Reply-To: <20100823135559.GS19797@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1008231059580.8601@router.home>
+References: <1282550442-15193-1-git-send-email-mel@csn.ul.ie> <1282550442-15193-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1008230750380.4094@router.home> <20100823130315.GQ19797@csn.ul.ie> <alpine.DEB.2.00.1008230838320.5750@router.home>
+ <20100823135559.GS19797@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 07/12] Maintain memslot version number
-References: <1279553462-7036-1-git-send-email-gleb@redhat.com> <1279553462-7036-8-git-send-email-gleb@redhat.com>
-In-Reply-To: <1279553462-7036-8-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-  On 07/19/2010 06:30 PM, Gleb Natapov wrote:
-> Code that depends on particular memslot layout can track changes and
-> adjust to new layout.
->
->
-> diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-> index c13cc48..c74ffc0 100644
-> --- a/include/linux/kvm_host.h
-> +++ b/include/linux/kvm_host.h
-> @@ -177,6 +177,7 @@ struct kvm {
->   	raw_spinlock_t requests_lock;
->   	struct mutex slots_lock;
->   	struct mm_struct *mm; /* userspace tied to this vm */
-> +	u32 memslot_version;
->   	struct kvm_memslots *memslots;
->   	struct srcu_struct srcu;
->   #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index b78b794..292514c 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -733,6 +733,7 @@ skip_lpage:
->   	slots->memslots[mem->slot] = new;
->   	old_memslots = kvm->memslots;
->   	rcu_assign_pointer(kvm->memslots, slots);
-> +	kvm->memslot_version++;
->   	synchronize_srcu_expedited(&kvm->srcu);
->
->   	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
+On Mon, 23 Aug 2010, Mel Gorman wrote:
 
-How does this interact with rcu?  Nothing enforces consistency between 
-rcu_dereference(kvm->memslots) and kvm->memslot_version.
+> > When the vm gets into a state where continual reclaim is necessary then
+> > the counters are not that frequently updated. If the machine is already
+> > slowing down due to reclaim then the vm can likely affort more frequent
+> > counter updates.
+> >
+>
+> Ok, but is that better than this patch? Decreasing the size of the window by
+> reducing the threshold still leaves a window. There is still a small amount
+> of drift by summing up all the deltas but you get a much more accurate count
+> at the point of time it was important to know.
 
-Should probably be rcu_dereference(kvm->memslots)->version.
+In order to make that decision we would need to know what deltas make a
+significant difference. Would be also important to know if there are any
+other counters that have issues. If so then the reduction of the
+thresholds is addressing these problems in a number of counters.
 
--- 
-error compiling committee.c: too many arguments to function
+I have no objection against this approach here but it may just be bandaid
+on a larger issue that could be approached in a cleaner way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
