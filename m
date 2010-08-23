@@ -1,322 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BE6A46007EE
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:49:39 -0400 (EDT)
-Message-ID: <4C729865.3050409@redhat.com>
-Date: Mon, 23 Aug 2010 18:48:53 +0300
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B1A256007EE
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:51:27 -0400 (EDT)
+Message-ID: <4C7298E2.7080107@redhat.com>
+Date: Mon, 23 Aug 2010 18:50:58 +0300
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 04/12] Provide special async page fault handler when
- async PF capability is detected
-References: <1279553462-7036-1-git-send-email-gleb@redhat.com> <1279553462-7036-5-git-send-email-gleb@redhat.com>
-In-Reply-To: <1279553462-7036-5-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH v5 06/12] Add get_user_pages() variant that fails if major
+ fault is required.
+References: <1279553462-7036-1-git-send-email-gleb@redhat.com> <1279553462-7036-7-git-send-email-gleb@redhat.com>
+In-Reply-To: <1279553462-7036-7-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
+To: Gleb Natapov <gleb@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
   On 07/19/2010 06:30 PM, Gleb Natapov wrote:
-> When async PF capability is detected hook up special page fault handler
-> that will handle async page fault events and bypass other page faults to
-> regular page fault handler.
+> This patch add get_user_pages() variant that only succeeds if getting
+> a reference to a page doesn't require major fault.
 >
-> Acked-by: Rik van Riel<riel@redhat.com>
+
+
+Andrew, can this go in through kvm.git?
+
+> Reviewed-by: Rik van Riel<riel@redhat.com>
 > Signed-off-by: Gleb Natapov<gleb@redhat.com>
 > ---
->   arch/x86/include/asm/kvm_para.h |    3 +
->   arch/x86/include/asm/traps.h    |    1 +
->   arch/x86/kernel/entry_32.S      |   10 +++
->   arch/x86/kernel/entry_64.S      |    3 +
->   arch/x86/kernel/kvm.c           |  170 +++++++++++++++++++++++++++++++++++++++
->   5 files changed, 187 insertions(+), 0 deletions(-)
+>   fs/ncpfs/mmap.c    |    2 ++
+>   include/linux/mm.h |    5 +++++
+>   mm/filemap.c       |    3 +++
+>   mm/memory.c        |   31 ++++++++++++++++++++++++++++---
+>   mm/shmem.c         |    8 +++++++-
+>   5 files changed, 45 insertions(+), 4 deletions(-)
 >
-> diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-> index f1662d7..edf07cf 100644
-> --- a/arch/x86/include/asm/kvm_para.h
-> +++ b/arch/x86/include/asm/kvm_para.h
-> @@ -65,6 +65,9 @@ struct kvm_mmu_op_release_pt {
->   	__u64 pt_phys;
->   };
+> diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+> index 56f5b3a..b9c4f36 100644
+> --- a/fs/ncpfs/mmap.c
+> +++ b/fs/ncpfs/mmap.c
+> @@ -39,6 +39,8 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
+>   	int bufsize;
+>   	int pos; /* XXX: loff_t ? */
 >
-> +#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
-> +#define KVM_PV_REASON_PAGE_READY 2
-> +
->   struct kvm_vcpu_pv_apf_data {
->   	__u32 reason;
->   	__u32 enabled;
-> diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
-> index f66cda5..0310da6 100644
-> --- a/arch/x86/include/asm/traps.h
-> +++ b/arch/x86/include/asm/traps.h
-> @@ -30,6 +30,7 @@ asmlinkage void segment_not_present(void);
->   asmlinkage void stack_segment(void);
->   asmlinkage void general_protection(void);
->   asmlinkage void page_fault(void);
-> +asmlinkage void async_page_fault(void);
->   asmlinkage void spurious_interrupt_bug(void);
->   asmlinkage void coprocessor_error(void);
->   asmlinkage void alignment_check(void);
-> diff --git a/arch/x86/kernel/entry_32.S b/arch/x86/kernel/entry_32.S
-> index cd49141..95e13da 100644
-> --- a/arch/x86/kernel/entry_32.S
-> +++ b/arch/x86/kernel/entry_32.S
-> @@ -1494,6 +1494,16 @@ ENTRY(general_protection)
->   	CFI_ENDPROC
->   END(general_protection)
+> +	if (vmf->flags&  FAULT_FLAG_MINOR)
+> +		return VM_FAULT_MAJOR | VM_FAULT_ERROR;
+>   	/*
+>   	 * ncpfs has nothing against high pages as long
+>   	 * as recvmsg and memset works on it
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4238a9c..2bfc85a 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -140,6 +140,7 @@ extern pgprot_t protection_map[16];
+>   #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+>   #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+>   #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
+> +#define FAULT_FLAG_MINOR	0x08	/* Do only minor fault */
 >
-> +#ifdef CONFIG_KVM_GUEST
-> +ENTRY(async_page_fault)
-> +	RING0_EC_FRAME
-> +	pushl $do_async_page_fault
-> +	CFI_ADJUST_CFA_OFFSET 4
-> +	jmp error_code
-> +	CFI_ENDPROC
-> +END(apf_page_fault)
-> +#endif
-> +
 >   /*
->    * End of kprobes section
->    */
-> diff --git a/arch/x86/kernel/entry_64.S b/arch/x86/kernel/entry_64.S
-> index 0697ff1..65c3eb6 100644
-> --- a/arch/x86/kernel/entry_64.S
-> +++ b/arch/x86/kernel/entry_64.S
-> @@ -1346,6 +1346,9 @@ errorentry xen_stack_segment do_stack_segment
->   #endif
->   errorentry general_protection do_general_protection
->   errorentry page_fault do_page_fault
-> +#ifdef CONFIG_KVM_GUEST
-> +errorentry async_page_fault do_async_page_fault
-> +#endif
->   #ifdef CONFIG_X86_MCE
->   paranoidzeroentry machine_check *machine_check_vector(%rip)
->   #endif
-> diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-> index 5177dd1..a6db92e 100644
-> --- a/arch/x86/kernel/kvm.c
-> +++ b/arch/x86/kernel/kvm.c
-> @@ -29,8 +29,14 @@
->   #include<linux/hardirq.h>
->   #include<linux/notifier.h>
->   #include<linux/reboot.h>
-> +#include<linux/hash.h>
-> +#include<linux/sched.h>
-> +#include<linux/slab.h>
-> +#include<linux/kprobes.h>
->   #include<asm/timer.h>
->   #include<asm/cpu.h>
-> +#include<asm/traps.h>
-> +#include<asm/desc.h>
+>    * This interface is used by x86 PAT code to identify a pfn mapping that is
+> @@ -843,6 +844,9 @@ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *
+>   int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>   			unsigned long start, int nr_pages, int write, int force,
+>   			struct page **pages, struct vm_area_struct **vmas);
+> +int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
+> +			unsigned long start, int nr_pages, int write, int force,
+> +			struct page **pages, struct vm_area_struct **vmas);
+>   int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>   			struct page **pages);
+>   struct page *get_dump_page(unsigned long addr);
+> @@ -1373,6 +1377,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+>   #define FOLL_GET	0x04	/* do get_page on page */
+>   #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
+>   #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
+> +#define FOLL_MINOR	0x20	/* do only minor page faults */
 >
->   #define MMU_QUEUE_SIZE 1024
+>   typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+>   			void *data);
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 20e5642..1186338 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1548,6 +1548,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>   			goto no_cached_page;
+>   		}
+>   	} else {
+> +		if (vmf->flags&  FAULT_FLAG_MINOR)
+> +			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
+> +
+>   		/* No page in the page cache at all */
+>   		do_sync_mmap_readahead(vma, ra, file, offset);
+>   		count_vm_event(PGMAJFAULT);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 119b7cc..7dfaba2 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1433,10 +1433,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>   			cond_resched();
+>   			while (!(page = follow_page(vma, start, foll_flags))) {
+>   				int ret;
+> +				unsigned int fault_fl =
+> +					((foll_flags&  FOLL_WRITE) ?
+> +					FAULT_FLAG_WRITE : 0) |
+> +					((foll_flags&  FOLL_MINOR) ?
+> +					FAULT_FLAG_MINOR : 0);
 >
-> @@ -54,6 +60,158 @@ static void kvm_io_delay(void)
->   {
+> -				ret = handle_mm_fault(mm, vma, start,
+> -					(foll_flags&  FOLL_WRITE) ?
+> -					FAULT_FLAG_WRITE : 0);
+> +				ret = handle_mm_fault(mm, vma, start, fault_fl);
+>
+>   				if (ret&  VM_FAULT_ERROR) {
+>   					if (ret&  VM_FAULT_OOM)
+> @@ -1444,6 +1447,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>   					if (ret&
+>   					(VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+>   						return i ? i : -EFAULT;
+> +					else if (ret&  VM_FAULT_MAJOR)
+> +						return i ? i : -EFAULT;
+>   					BUG();
+>   				}
+>   				if (ret&  VM_FAULT_MAJOR)
+> @@ -1554,6 +1559,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 >   }
+>   EXPORT_SYMBOL(get_user_pages);
 >
-> +#define KVM_TASK_SLEEP_HASHBITS 8
-> +#define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
-> +
-> +struct kvm_task_sleep_node {
-> +	struct hlist_node link;
-> +	wait_queue_head_t wq;
-> +	u32 token;
-> +	int cpu;
-> +};
-> +
-> +static struct kvm_task_sleep_head {
-> +	spinlock_t lock;
-> +	struct hlist_head list;
-> +} async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
-> +
-> +static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
-> +						  u64 token)
-
-u64 token?
-
+> +int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
+> +		unsigned long start, int nr_pages, int write, int force,
+> +		struct page **pages, struct vm_area_struct **vmas)
 > +{
-> +	struct hlist_node *p;
+> +	int flags = FOLL_TOUCH | FOLL_MINOR;
 > +
-> +	hlist_for_each(p,&b->list) {
-> +		struct kvm_task_sleep_node *n =
-> +			hlist_entry(p, typeof(*n), link);
-> +		if (n->token == token)
-> +			return n;
-
-Do you need to match cpu here as well?  Or is token globally unique?
-
-Perhaps we should make it locally unique to remove a requirement from 
-the host to synchronize?  I haven't seen how you generate it yet.
-
-> +	}
+> +	if (pages)
+> +		flags |= FOLL_GET;
+> +	if (write)
+> +		flags |= FOLL_WRITE;
+> +	if (force)
+> +		flags |= FOLL_FORCE;
 > +
-> +	return NULL;
+> +	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 > +}
+> +EXPORT_SYMBOL(get_user_pages_noio);
 > +
-> +static void apf_task_wait(struct task_struct *tsk, u32 token)
-> +{
-> +	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
-> +	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
-> +	struct kvm_task_sleep_node n, *e;
-> +	DEFINE_WAIT(wait);
+>   /**
+>    * get_dump_page() - pin user page in memory while writing it to core dump
+>    * @addr: user address
+> @@ -2640,6 +2662,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+>   	page = lookup_swap_cache(entry);
+>   	if (!page) {
+> +		if (flags&  FAULT_FLAG_MINOR)
+> +			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
 > +
-> +	spin_lock(&b->lock);
-> +	e = _find_apf_task(b, token);
-> +	if (e) {
-> +		/* dummy entry exist ->  wake up was delivered ahead of PF */
-> +		hlist_del(&e->link);
-> +		kfree(e);
-> +		spin_unlock(&b->lock);
-> +		return;
-> +	}
-> +
-> +	n.token = token;
-> +	n.cpu = smp_processor_id();
-
-What's the meaning of cpu?  Won't the waiter migrate to other cpus?  Can 
-apf_task_wait() start on a different cpu than the one we got our apf on?
-
-> +	init_waitqueue_head(&n.wq);
-> +	hlist_add_head(&n.link,&b->list);
-> +	spin_unlock(&b->lock);
-> +
-> +	for (;;) {
-> +		prepare_to_wait(&n.wq,&wait, TASK_UNINTERRUPTIBLE);
-
-In theory we could make it interruptible if it's in user context.  The 
-signal could arrive before the page and we could handle it.  Not worth 
-the complexity I think (having a wakeup with no task to wake).
-
-The user might be confused why they have uninterruptible tasks and no 
-disk load, but more than likely they're confused already, so no big loss.
-
-> +		if (hlist_unhashed(&n.link))
-> +			break;
-> +		schedule();
-> +	}
-> +	finish_wait(&n.wq,&wait);
-> +
-> +	return;
-> +}
-> +
-> +static void apf_task_wake_one(struct kvm_task_sleep_node *n)
-> +{
-> +	hlist_del_init(&n->link);
-> +	if (waitqueue_active(&n->wq))
-> +		wake_up(&n->wq);
-> +}
-> +
-> +static void apf_task_wake(u32 token)
-> +{
-> +	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
-> +	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
-> +	struct kvm_task_sleep_node *n;
-> +
-> +again:
-> +	spin_lock(&b->lock);
-> +	n = _find_apf_task(b, token);
-> +	if (!n) {
-> +		/*
-> +		 * async PF was not yet handled.
-> +		 * Add dummy entry for the token.
-> +		 */
-> +		n = kmalloc(sizeof(*n), GFP_ATOMIC);
-> +		if (!n) {
-> +			/*
-> +			 * Allocation failed! Busy wait while other vcpu
-> +			 * handles async PF.
-> +			 */
-
-In guest code, please use 'cpu', not 'vcpu'.
-
-> +			spin_unlock(&b->lock);
-> +			cpu_relax();
-> +			goto again;
-> +		}
-
-The other cpu might be waiting for us to yield.  We can fix it later 
-with the the pv spinlock infrastructure.
-
-Or, we can avoid the allocation.  If at most one apf can be pending (is 
-this true?), we can use a per-cpu variable for this dummy entry.
-
-> +		n->token = token;
-> +		n->cpu = smp_processor_id();
-> +		init_waitqueue_head(&n->wq);
-> +		hlist_add_head(&n->link,&b->list);
-> +	} else
-> +		apf_task_wake_one(n);
-> +	spin_unlock(&b->lock);
-> +	return;
-> +}
-> +
-> +static void apf_task_wake_all(void)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i<  KVM_TASK_SLEEP_HASHSIZE; i++) {
-> +		struct hlist_node *p, *next;
-> +		struct kvm_task_sleep_head *b =&async_pf_sleepers[i];
-> +		spin_lock(&b->lock);
-> +		hlist_for_each_safe(p, next,&b->list) {
-> +			struct kvm_task_sleep_node *n =
-> +				hlist_entry(p, typeof(*n), link);
-> +			if (n->cpu == smp_processor_id())
-> +				apf_task_wake_one(n);
-> +		}
-> +		spin_unlock(&b->lock);
-> +	}
-> +}
-> +
-> +dotraplinkage void __kprobes
-> +do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
-> +{
-> +	u32 reason = 0, token;
-> +
-> +	if (__get_cpu_var(apf_reason).enabled) {
-> +		reason = __get_cpu_var(apf_reason).reason;
-> +		__get_cpu_var(apf_reason).reason = 0;
-
-Can per-cpu vars be in vmalloc space?  if so they may trigger nested faults.
-
-I don't think that's the case for core code, so probably safe here.
-
-> +
-> +		token = (u32)read_cr2();
-> +	}
-> +
-> +	switch (reason) {
-> +	default:
-> +		do_page_fault(regs, error_code);
-> +		break;
-> +	case KVM_PV_REASON_PAGE_NOT_PRESENT:
-> +		/* page is swapped out by the host. */
-> +		apf_task_wait(current, token);
-> +		break;
-> +	case KVM_PV_REASON_PAGE_READY:
-> +		if (unlikely(token == ~0))
-> +			apf_task_wake_all();
-> +		else
-> +			apf_task_wake(token);
-> +		break;
-> +	}
-> +}
-> +
->   static void kvm_mmu_op(void *buffer, unsigned len)
+>   		grab_swap_token(mm); /* Contend for token _before_ read-in */
+>   		page = swapin_readahead(entry,
+>   					GFP_HIGHUSER_MOVABLE, vma, address);
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index f65f840..acc8958 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1227,6 +1227,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
+>   	swp_entry_t swap;
+>   	gfp_t gfp;
+>   	int error;
+> +	int flags = type ? *type : 0;
+>
+>   	if (idx>= SHMEM_MAX_INDEX)
+>   		return -EFBIG;
+> @@ -1275,6 +1276,11 @@ repeat:
+>   		swappage = lookup_swap_cache(swap);
+>   		if (!swappage) {
+>   			shmem_swp_unmap(entry);
+> +			if (flags&  FAULT_FLAG_MINOR) {
+> +				spin_unlock(&info->lock);
+> +				*type = VM_FAULT_MAJOR | VM_FAULT_ERROR;
+> +				goto failed;
+> +			}
+>   			/* here we actually do the io */
+>   			if (type&&  !(*type&  VM_FAULT_MAJOR)) {
+>   				__count_vm_event(PGMAJFAULT);
+> @@ -1483,7 +1489,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 >   {
->   	int r;
-> @@ -303,13 +461,25 @@ static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
->   };
->   #endif
+>   	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+>   	int error;
+> -	int ret;
+> +	int ret = (int)vmf->flags;
 >
-> +static void __init kvm_apf_trap_init(void)
-> +{
-> +	set_intr_gate(14,&async_page_fault);
-> +}
+>   	if (((loff_t)vmf->pgoff<<  PAGE_CACHE_SHIFT)>= i_size_read(inode))
+>   		return VM_FAULT_SIGBUS;
 
-Nice!  Zero impact on non-virt.
 
 -- 
 error compiling committee.c: too many arguments to function
