@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 099D56B03B0
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 08:16:45 -0400 (EDT)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: Re: [RFC][PATCH] Per file dirty limit throttling
-Date: Mon, 23 Aug 2010 17:49:19 +0530
-References: <201008160949.51512.knikanth@suse.de> <201008181452.05047.knikanth@suse.de> <1282125536.1926.3675.camel@laptop>
-In-Reply-To: <1282125536.1926.3675.camel@laptop>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C63056B03B1
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 08:33:44 -0400 (EDT)
+Date: Mon, 23 Aug 2010 22:33:39 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [2.6.35-rc1, bug] mm: minute-long livelocks in memory reclaim
+Message-ID: <20100823123339.GI31488@dastard>
+References: <20100822234811.GF31488@dastard>
+ <20100823065822.GA22707@localhost>
+ <alpine.DEB.2.00.1008230219480.13384@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201008231749.19836.knikanth@suse.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1008230219480.13384@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Bill Davidsen <davidsen@tmr.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 18 August 2010 15:28:56 Peter Zijlstra wrote:
-> On Wed, 2010-08-18 at 14:52 +0530, Nikanth Karthikesan wrote:
-> > On Tuesday 17 August 2010 13:54:35 Peter Zijlstra wrote:
-> > > On Tue, 2010-08-17 at 10:39 +0530, Nikanth Karthikesan wrote:
-> > > > Oh, nice.  Per-task limit is an elegant solution, which should help
-> > > > during most of the common cases.
-> > > >
-> > > > But I just wonder what happens, when
-> > > > 1. The dirtier is multiple co-operating processes
-> > > > 2. Some app like a shell script, that repeatedly calls dd with seek
-> > > > and skip? People do this for data deduplication, sparse skipping
-> > > > etc.. 3. The app dies and comes back again. Like a VM that is
-> > > > rebooted, and continues writing to a disk backed by a file on the
-> > > > host.
-> > > >
-> > > > Do you think, in those cases this might still be useful?
-> > >
-> > > Those cases do indeed defeat the current per-task-limit, however I
-> > > think the solution to that is to limit the amount of writeback done by
-> > > each blocked process.
-> >
-> > Blocked on what? Sorry, I do not understand.
+On Mon, Aug 23, 2010 at 02:23:27AM -0700, David Rientjes wrote:
+> On Mon, 23 Aug 2010, Wu Fengguang wrote:
 > 
-> balance_dirty_pages(), by limiting the work done there (or actually, the
-> amount of page writeback completions you wait for -- starting IO isn't
-> that expensive), you can also affect the time it takes, and therefore
-> influence the impact.
+> > > I've been testing parallel create workloads over the weekend, and
+> > > I've seen this a couple of times now under 8 thread parallel creates
+> > > with XFS. I'm running on an 8p VM with 4GB RAM and a fast disk
+> > > subsystem. Basically I am seeing the create rate drop to zero
+> > > with all 8 CPUs stuck spinning for up to 2 minutes. 'echo t >
+> > > /proc/sysrq-trigger' while this is occurring gives the following
+> > > trace for all the fs-mark processes:
+.....
 > 
+> You may be interested in Mel's patchset that he just proposed for -mm 
+> which identifies watermark variations on machines with high cpu counts 
+> (perhaps even eight, as in this report).  The last patch actually reworks 
+> this hunk of the code as well.
+> 
+> 	http://marc.info/?l=linux-mm&m=128255044912938
+> 	http://marc.info/?l=linux-mm&m=128255045312950
+> 	http://marc.info/?l=linux-mm&m=128255045012942
+> 	http://marc.info/?l=linux-mm&m=128255045612954
+> 
+> Dave, it would be interesting to see if this fixes your problem.
 
-But this has nothing special to do with the cases like multi-threaded dirtier, 
-which is why I was confused. :)
+That looks promising - I'll give it a shot, though my test case is
+not really what you'd call reproducable(*) so it might take a
+couple of days before I can say whether the issue has gone away or
+not.
 
-Thanks
-Nikanth
+Cheers,
+
+Dave.
+
+(*) create 100 million inodes in parallel using fsmark, collect and
+watch behavioural metrics via PCP/pmchart for stuff out of the
+ordinary, and dump stack traces, etc when somthing strange occurs.
+
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
