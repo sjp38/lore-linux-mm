@@ -1,72 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FDA06B03C0
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 12:13:34 -0400 (EDT)
-Date: Mon, 23 Aug 2010 17:13:18 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
-	NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100823161317.GU19797@csn.ul.ie>
-References: <1282550442-15193-1-git-send-email-mel@csn.ul.ie> <1282550442-15193-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1008230750380.4094@router.home> <20100823130315.GQ19797@csn.ul.ie> <alpine.DEB.2.00.1008230838320.5750@router.home> <20100823135559.GS19797@csn.ul.ie> <alpine.DEB.2.00.1008231059580.8601@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1008231059580.8601@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 199496B03C3
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 12:14:18 -0400 (EDT)
+Received: by pwi3 with SMTP id 3so2780009pwi.14
+        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 09:14:16 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
+Date: Tue, 24 Aug 2010 01:13:48 +0900
+Message-Id: <1282580028-1940-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 11:04:38AM -0500, Christoph Lameter wrote:
-> On Mon, 23 Aug 2010, Mel Gorman wrote:
-> 
-> > > When the vm gets into a state where continual reclaim is necessary then
-> > > the counters are not that frequently updated. If the machine is already
-> > > slowing down due to reclaim then the vm can likely affort more frequent
-> > > counter updates.
-> > >
-> >
-> > Ok, but is that better than this patch? Decreasing the size of the window by
-> > reducing the threshold still leaves a window. There is still a small amount
-> > of drift by summing up all the deltas but you get a much more accurate count
-> > at the point of time it was important to know.
-> 
-> In order to make that decision we would need to know what deltas make a
-> significant difference.
+Iram reported compaction's too_many_isolated loops forever.
+(http://www.spinics.net/lists/linux-mm/msg08123.html)
 
-A delta on the NR_FREE_PAGES is the obvious problem. The page allocation
-failure report I saw clearly stated that free was a value above min watermark
-where as the buddy lists just as clearly showed that the number of pages on
-the list were 0.
+The meminfo of situation happened was inactive anon is zero.
+That's because the system has no memory pressure until then.
+While all anon pages was in active lru, compaction could select
+active lru as well as inactive lru. That's different things
+with vmscan's isolated. So we has been two too_many_isolated.
 
-> Would be also important to know if there are any
-> other counters that have issues.
+While compaction can isolated pages in both active and inactive,
+current implementation of too_many_isolated only considers inactive.
+It made Iram's problem.
 
-I am not aware of similar issues with another counter where drift causes
-the system to make the wrong decision, are you?
+This patch handles active and inactive with fair.
+That's because we can't expect where from and how many compaction would
+isolated pages.
 
-> If so then the reduction of the
-> thresholds is addressing these problems in a number of counters.
-> 
-> I have no objection against this approach here but it may just be bandaid
-> on a larger issue that could be approached in a cleaner way.
-> 
+This patch changes (nr_isolated > nr_inactive) with
+nr_isolated > (nr_active + nr_inactive) / 2.
 
-Unfortunately, I do not have access to a machine large enough to investigate
-around this area. All I have to go on is a few bug reports showing the delta
-problem with NR_FREE_PAGES and test results in a patch functionally similar
-to this patch showing that the livelock problem went away.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/compaction.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-At best all we can do is keep an eye out for problems one large machines
-that could be explained by counter drift. If such a bug is found with a
-reporter with regular access to the machine for test kernels, we can
-investigate if reducing the thresholds fix the problem without affecting
-general performance.
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 94cce51..4d709ee 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -214,15 +214,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ /* Similar to reclaim, but different enough that they don't share logic */
+ static bool too_many_isolated(struct zone *zone)
+ {
+-
+-	unsigned long inactive, isolated;
++	unsigned long active, inactive, isolated;
+ 
+ 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+ 					zone_page_state(zone, NR_INACTIVE_ANON);
++	active = zone_page_state(zone, NR_ACTIVE_FILE) +
++					zone_page_state(zone, NR_ACTIVE_ANON);
+ 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+ 					zone_page_state(zone, NR_ISOLATED_ANON);
+ 
+-	return isolated > inactive;
++	return isolated > (inactive + active) / 2;
+ }
+ 
+ /*
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
