@@ -1,70 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8172A6007E4
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 05:25:56 -0400 (EDT)
-Date: Mon, 23 Aug 2010 18:24:49 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/9] HWPOISON, hugetlb: move PG_HWPoison bit check
-Message-ID: <20100823092449.GC3769@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1281432464-14833-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20100818001842.GC6928@localhost>
- <20100819075543.GA4125@spritzera.linux.bs1.fc.nec.co.jp>
- <20100819092828.GA20863@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9B16B03A9
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 05:37:09 -0400 (EDT)
+Message-ID: <4C724141.8060000@kernel.org>
+Date: Mon, 23 Aug 2010 12:37:05 +0300
+From: Pekka Enberg <penberg@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <20100819092828.GA20863@localhost>
+Subject: Re: 2.6.34.1 page allocation failure
+References: <4C70BFF3.8030507@hardwarefreak.com> <alpine.DEB.1.10.1008220842400.8562@uplift.swm.pp.se> <AANLkTin48SJ58HvFqjrOnQBMqLcbECtqXokweV00dNgv@mail.gmail.com> <alpine.DEB.2.00.1008221734410.21916@router.home>
+In-Reply-To: <alpine.DEB.2.00.1008221734410.21916@router.home>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Mikael Abrahamsson <swmike@swm.pp.se>, Stan Hoeppner <stan@hardwarefreak.com>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 19, 2010 at 05:28:28PM +0800, Wu Fengguang wrote:
-> On Thu, Aug 19, 2010 at 03:55:43PM +0800, Naoya Horiguchi wrote:
-> > On Wed, Aug 18, 2010 at 08:18:42AM +0800, Wu Fengguang wrote:
-> > > On Tue, Aug 10, 2010 at 05:27:36PM +0800, Naoya Horiguchi wrote:
-> > > > In order to handle metadatum correctly, we should check whether the hugepage
-> > > > we are going to access is HWPOISONed *before* incrementing mapcount,
-> > > > adding the hugepage into pagecache or constructing anon_vma.
-> > > > This patch also adds retry code when there is a race between
-> > > > alloc_huge_page() and memory failure.
-> > > 
-> > > This duplicates the PageHWPoison() test into 3 places without really
-> > > address any problem. For example, there are still _unavoidable_ races
-> > > between PageHWPoison() and add_to_page_cache().
-> > > 
-> > > What's the problem you are trying to resolve here? If there are
-> > > data structure corruption, we may need to do it in some other ways.
-> > 
-> > The problem I tried to resolve in this patch is the corruption of
-> > data structures when memory failure occurs between alloc_huge_page()
-> > and lock_page().
-> > The corruption occurs because page fault can fail with metadata changes
-> > remained (such as refcount, mapcount, etc.) 
-> > Since the PageHWPoison() check is for avoiding hwpoisoned page remained
-> > in pagecache mapping to the process, it should be done in
-> > "found in pagecache" branch, not in the common path.
-> > This patch moves the check to "found in pagecache" branch.
-> 
-> That's good stuff to put in the changelog.
-
-OK.
-
-> > In addition to that, I added 2 PageHWPoison checks in "new allocation" branches
-> > to enhance the possiblity to recover from memory failures on pages under allocation.
-> > But it's a different point from the original one, so I drop these retry checks.
-> 
-> So you'll remove the first two chunks and retain the 3rd chunk?
-
-Yes.
-
-> That makes it a small bug-fix patch suitable for 2.6.36 and I'll
-> happily ACK it :)
-
-Thank you!
-
-Naoya Horiguchi
+  On 8/23/10 1:40 AM, Christoph Lameter wrote:
+> On Sun, 22 Aug 2010, Pekka Enberg wrote:
+>
+>> In Stan's case, it's a order-1 GFP_ATOMIC allocation but there are
+>> only order-0 pages available. Mel, any recent page allocator fixes in
+>> 2.6.35 or 2.6.36-rc1 that Stan/Mikael should test?
+> This is the TCP slab? Best fix would be in the page allocator. However,
+> in this particular case the slub allocator would be able to fall back to
+> an order 0 allocation and still satisfy the request.
+>
+Looking at the stack trace of the oops, I think Stan has CONFIG_SLAB 
+which doesn't have order-0 fallback.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
