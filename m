@@ -1,111 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 3EBCA6007DC
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 03:15:41 -0400 (EDT)
-Date: Mon, 23 Aug 2010 15:15:35 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
- dirty_ratio
-Message-ID: <20100823071534.GA24566@localhost>
-References: <20100820032506.GA6662@localhost>
- <20100823144248.15fbb700@notabene>
- <20100823062359.GA19586@localhost>
- <201008231630.40892.kernel@kolivas.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6AD6007DC
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 03:16:27 -0400 (EDT)
+Date: Mon, 23 Aug 2010 08:16:11 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: compaction: trying to understand the code
+Message-ID: <20100823071610.GL19797@csn.ul.ie>
+References: <20100817111018.GQ19797@csn.ul.ie> <4385155269B445AEAF27DC8639A953D7@rainbow> <20100818154130.GC9431@localhost> <565A4EE71DAC4B1A820B2748F56ABF73@rainbow> <20100819160006.GG6805@barrios-desktop> <AA3F2D89535A431DB91FE3032EDCB9EA@rainbow> <20100820053447.GA13406@localhost> <20100820093558.GG19797@csn.ul.ie> <AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com> <20100822153121.GA29389@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201008231630.40892.kernel@kolivas.org>
+In-Reply-To: <20100822153121.GA29389@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Neil Brown <neilb@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 02:30:40PM +0800, Con Kolivas wrote:
-> On Mon, 23 Aug 2010 04:23:59 pm Wu Fengguang wrote:
-> > On Mon, Aug 23, 2010 at 12:42:48PM +0800, Neil Brown wrote:
-> > > On Fri, 20 Aug 2010 15:50:54 +1000
-> > >
-> > > Con Kolivas <kernel@kolivas.org> wrote:
-> > > > On Fri, 20 Aug 2010 02:13:25 pm KOSAKI Motohiro wrote:
-> > > > > > The dirty_ratio was silently limited to >= 5%. This is not a user
-> > > > > > expected behavior. Let's rip it.
-> > > > > >
-> > > > > > It's not likely the user space will depend on the old behavior.
-> > > > > > So the risk of breaking user space is very low.
-> > > > > >
-> > > > > > CC: Jan Kara <jack@suse.cz>
-> > > > > > CC: Neil Brown <neilb@suse.de>
-> > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > >
-> > > > > Thank you.
-> > > > > 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > >
-> > > > I have tried to do this in the past, and setting this value to 0 on
-> > > > some machines caused the machine to come to a complete standstill with
-> > > > small writes to disk. It seemed there was some kind of "minimum" amount
-> > > > of data required by the VM before anything would make it to the disk
-> > > > and I never quite found out where that blockade occurred. This was some
-> > > > time ago (3 years ago) so I'm not sure if the problem has since been
-> > > > fixed in the VM since then. I suggest you do some testing with this
-> > > > value set to zero before approving this change.
-> >
-> > You are right, vm.dirty_ratio=0 will block applications for ever..
+On Mon, Aug 23, 2010 at 12:31:21AM +0900, Minchan Kim wrote:
+> <SNIP>
 > 
-> Indeed. And while you shouldn't set the lower limit to zero to avoid this 
-> problem, it doesn't answer _why_ this happens. What is this "minimum write" 
-> that blocks everything, will 1% be enough, and is it hiding another real bug 
-> somewhere in the VM?
+> From 560e8898295c663f02aede07b3d55880eba16c69 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan.kim@gmail.com>
+> Date: Mon, 23 Aug 2010 00:20:44 +0900
+> Subject: [PATCH] compaction: handle active and inactive fairly in too_many_isolated
+> 
+> Iram reported compaction's too_many_isolated loops forever.
+> (http://www.spinics.net/lists/linux-mm/msg08123.html)
+> 
+> The meminfo of situation happened was inactive anon is zero.
+> That's because the system has no memory pressure until then.
+> While all anon pages was in active lru, compaction could select
+> active lru as well as inactive lru. That's different things
+> with vmscan's isolated. So we has been two too_many_isolated.
+> 
+> While compaction can isolated pages in both active and inactive,
+> current implementation of too_many_isolated only considers inactive.
+> It made Iram's problem.
+> 
+> This patch handles active and inactie with fair.
+> That's because we can't expect where from and how many compaction would
+> isolated pages.
+> 
+> This patch changes (nr_isolated > nr_inactive) with
+> nr_isolated > (nr_active + nr_inactive) / 2.
+> 
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Wu Fengguang <fengguang.wu@intel.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-Good question.
-This simple change will unblock the application even with vm_dirty_ratio=0.
+Seems reasonable to me.
 
-# echo 0 > /proc/sys/vm/dirty_ratio
-# echo 0 > /proc/sys/vm/dirty_background_ratio                                               
-# vmmon nr_dirty nr_writeback nr_unstable
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-        nr_dirty     nr_writeback      nr_unstable
-               0              444             1369
-              37               37              326
-               0                0               37
-              74              772              694
-               0                0               19
-               0                0             1406
-               0                0               23
-               0                0                0
-               0              370              186
-              74             1073             1221
-               0               12               26
-               0              703             1147
-              37                0              999
-              37               37             1517
-               0              888               63
-               0                0                0
-               0                0               20
-              37                0                0
-              37               74             1776
-               0                0                8
-              37              629              333
-               0               12               19
+Want to repost this as a standalone patch?
 
-Even with it, the 1% explicit bound still looks reasonable for me.
-Who will want to set it to 0%? That would destroy IO inefficient.
+> ---
+>  mm/compaction.c |    9 +++++----
+>  1 files changed, 5 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 94cce51..0864839 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -214,15 +214,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  /* Similar to reclaim, but different enough that they don't share logic */
+>  static bool too_many_isolated(struct zone *zone)
+>  {
+> -
+> -       unsigned long inactive, isolated;
+> +       unsigned long active, inactive, isolated;
+>  
+>         inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+>                                         zone_page_state(zone, NR_INACTIVE_ANON);
+> +       active = zone_page_state(zone, NR_ACTIVE_FILE) +
+> +                                       zone_page_state(zone, NR_ACTIVE_ANON);
+>         isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+>                                         zone_page_state(zone, NR_ISOLATED_ANON);
+> -
+> -       return isolated > inactive;
+> +
+> +       return isolated > (inactive + active) / 2;
+>  }
+> 
 
-Thanks,
-Fengguang
----
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		 * the last resort safeguard.
- 		 */
- 		dirty_exceeded =
--			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
--			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
-+			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-+			|| (nr_reclaimable + nr_writeback > dirty_thresh);
- 
- 		if (!dirty_exceeded)
- 			break;
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
