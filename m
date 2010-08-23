@@ -1,64 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 23CDF6B038C
-	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 22:59:47 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7N2xeWQ029347
-	for <linux-mm@kvack.org> (envelope-from iram.shahzad@jp.fujitsu.com);
-	Mon, 23 Aug 2010 11:59:40 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F2F545DE4F
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:59:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7327245DE3E
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:59:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A20E1DB8050
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:59:40 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 14EE21DB804C
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 11:59:40 +0900 (JST)
-Message-ID: <C06122FE6B6044BD94C8A632B205D909@rainbow>
-From: "Iram Shahzad" <iram.shahzad@jp.fujitsu.com>
-References: <20100817111018.GQ19797@csn.ul.ie><4385155269B445AEAF27DC8639A953D7@rainbow><20100818154130.GC9431@localhost><565A4EE71DAC4B1A820B2748F56ABF73@rainbow><20100819160006.GG6805@barrios-desktop><AA3F2D89535A431DB91FE3032EDCB9EA@rainbow><20100820053447.GA13406@localhost><20100820093558.GG19797@csn.ul.ie><AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com><20100822153121.GA29389@barrios-desktop><20100822232316.GA339@localhost> <AANLkTim8c5C+vH1HUx-GsScirmnVoJXenLST1qQgk2bp@mail.gmail.com>
-Subject: Re: compaction: trying to understand the code
-Date: Mon, 23 Aug 2010 12:03:55 +0900
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="ISO-8859-1";
-	reply-type=original
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C6A6007D6
+	for <linux-mm@kvack.org>; Sun, 22 Aug 2010 23:39:00 -0400 (EDT)
+Date: Mon, 23 Aug 2010 12:35:33 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/5] memcg: use array and ID for quick look up
+Message-Id: <20100823123533.b75b99c5.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100820185917.87876cb0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100820185917.87876cb0.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> Iram. How do you execute test_app?
->
-> 1) synchronous test
-> 1.1 start test_app
-> 1.2 wait test_app job done (ie, wait memory is fragment)
-> 1.3 echo 1 > /proc/sys/vm/compact_memory
->
-> 2) asynchronous test
-> 2.1 start test_app
-> 2.2 not wait test_app job done
-> 2.3 echo 1 > /proc/sys/vm/compact_memory(Maybe your test app and
-> compaction were executed parallel)
+Hi,
 
-It's synchronous.
-First I confirm that the test app has completed its fragmentation work
-by looking at the printf output. Then only I run echo 1 > 
-/proc/sys/vm/compact_memory.
+> +/* 0 is unused */
+> +static atomic_t mem_cgroup_num;
+> +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> +
+> +/* Must be called under rcu_read_lock */
+> +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> +{
+> +	struct mem_cgroup *ret;
+> +	/* see mem_cgroup_free() */
+> +	ret = rcu_dereference_check(mem_cgroups[id], rch_read_lock_held());
+> +	if (likely(ret && ret->valid))
+> +		return ret;
+> +	return NULL;
+> +}
+> +
+I prefer "mem" to "ret".
 
-After completing fragmentation work, my test app sleeps in a useless while 
-loop
-which I think is not important.
+> @@ -2231,7 +2244,7 @@ __mem_cgroup_commit_charge_swapin(struct
+>  
+>  		id = swap_cgroup_record(ent, 0);
+>  		rcu_read_lock();
+> -		memcg = mem_cgroup_lookup(id);
+> +		memcg = id_to_memcg(id);
+>  		if (memcg) {
+>  			/*
+>  			 * This recorded memcg can be obsolete one. So, avoid
+> @@ -2240,9 +2253,10 @@ __mem_cgroup_commit_charge_swapin(struct
+>  			if (!mem_cgroup_is_root(memcg))
+>  				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  			mem_cgroup_swap_statistics(memcg, false);
+> +			rcu_read_unlock();
+>  			mem_cgroup_put(memcg);
+> -		}
+> -		rcu_read_unlock();
+> +		} else
+> +			rcu_read_unlock();
+>  	}
+>  	/*
+>  	 * At swapin, we may charge account against cgroup which has no tasks.
+> @@ -2495,7 +2509,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
+>  
+>  	id = swap_cgroup_record(ent, 0);
+>  	rcu_read_lock();
+> -	memcg = mem_cgroup_lookup(id);
+> +	memcg = id_to_memcg(id);
+>  	if (memcg) {
+>  		/*
+>  		 * We uncharge this because swap is freed.
+> @@ -2504,9 +2518,10 @@ void mem_cgroup_uncharge_swap(swp_entry_
+>  		if (!mem_cgroup_is_root(memcg))
+>  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  		mem_cgroup_swap_statistics(memcg, false);
+> +		rcu_read_unlock();
+>  		mem_cgroup_put(memcg);
+> -	}
+> -	rcu_read_unlock();
+> +	} else
+> +		rcu_read_unlock();
+>  }
+>  
+>  /**
+Could you explain why we need rcu_read_unlock() before mem_cgroup_put() ?
+I suspect that it's because mem_cgroup_put() can free the memcg, but do we
+need mem->valid then ?
 
-Thanks
-Iram
 
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
