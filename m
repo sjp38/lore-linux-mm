@@ -1,58 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 239776008DF
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:46:24 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7O7VWxn032651
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:31:32 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7O7kLfF089842
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:46:22 -0400
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7O7kKdR018517
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 01:46:21 -0600
-Date: Tue, 24 Aug 2010 13:16:17 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: towards I/O aware memcg v5
-Message-ID: <20100824074617.GI4684@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 101296B0402
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:47:07 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7O7l4PQ005441
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 24 Aug 2010 16:47:04 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F3B345DE51
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:47:04 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 523EB45DE4E
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:47:04 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3021F1DB8040
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:47:04 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E1CC91DB803C
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:47:03 +0900 (JST)
+Date: Tue, 24 Aug 2010 16:42:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] memcg: use array and ID for quick look up
+Message-Id: <20100824164206.37595039.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <xr9339u4pi84.fsf@ninji.mtv.corp.google.com>
 References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100820185917.87876cb0.kamezawa.hiroyu@jp.fujitsu.com>
+	<xr9339u4pi84.fsf@ninji.mtv.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
+To: Greg Thelen <gthelen@google.com>
+Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-20 18:55:52]:
+On Tue, 24 Aug 2010 00:44:59 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> This is v5.
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 > 
-> Sorry for delaying...but I had time for resetting myself and..several
-> changes are added. I think this version is simpler than v4.
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >
+> > Now, memory cgroup has an ID per cgroup and make use of it at
+> >  - hierarchy walk,
+> >  - swap recording.
+> >
+> > This patch is for making more use of it. The final purpose is
+> > to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
+> >
+> > This patch caches a pointer of memcg in an array. By this, we
+> > don't have to call css_lookup() which requires radix-hash walk.
+> > This saves some amount of memory footprint at lookup memcg via id.
+> >
+> > Changelog: 20100811
+> >  - adjusted onto mmotm-2010-08-11
+> >  - fixed RCU related parts.
+> >  - use attach_id() callback.
+> >
+> > Changelog: 20100804
+> >  - fixed description in init/Kconfig
+> >
+> > Changelog: 20100730
+> >  - fixed rcu_read_unlock() placement.
+> >
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  init/Kconfig    |   10 ++++++
+> >  mm/memcontrol.c |   83 ++++++++++++++++++++++++++++++++++++++++++--------------
+> >  2 files changed, 73 insertions(+), 20 deletions(-)
+> >
+> > Index: mmotm-0811/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-0811.orig/mm/memcontrol.c
+> > +++ mmotm-0811/mm/memcontrol.c
+> > @@ -195,6 +195,7 @@ static void mem_cgroup_oom_notify(struct
+> >   */
+> >  struct mem_cgroup {
+> >  	struct cgroup_subsys_state css;
+> > +	int	valid; /* for checking validness under RCU access.*/
+> >  	/*
+> >  	 * the counter to account for memory usage
+> >  	 */
+> > @@ -294,6 +295,29 @@ static bool move_file(void)
+> >  					&mc.to->move_charge_at_immigrate);
+> >  }
+> >  
+> > +/* 0 is unused */
+> > +static atomic_t mem_cgroup_num;
+> > +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> > +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> > +
+> > +/* Must be called under rcu_read_lock */
+> > +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> > +{
+> > +	struct mem_cgroup *ret;
+> > +	/* see mem_cgroup_free() */
+> > +	ret = rcu_dereference_check(mem_cgroups[id], rch_read_lock_held());
 > 
-> Major changes from v4 is 
->  a) added kernel/cgroup.c hooks again. (for b)
->  b) make RCU aware. previous version seems dangerous in an extreme case.
+> I think this be rcu_read_lock_held() instead of rch_read_lock_held()?
 > 
-> Then, codes are updated. Most of changes are related to RCU.
-> 
-> Patch brief view:
->  1. add hooks to kernel/cgroup.c for ID management.
->  2. use ID-array in memcg.
->  3. record ID to page_cgroup rather than pointer.
->  4. make update_file_mapped to be RCU aware routine instead of spinlock.
->  5. make update_file_mapped as general-purpose function.
->
+yes, mayb overwritten by following patch.. thank you for finding.
 
-Thanks for being persistent, will review the patches with comments in
-the relevant patches. 
 
--- 
-	Three Cheers,
-	Balbir
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
