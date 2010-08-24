@@ -1,278 +1,288 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C316B0404
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:48:00 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH] memcg: use ID in page_cgroup
-References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 24 Aug 2010 00:47:50 -0700
-In-Reply-To: <20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
-	(KAMEZAWA Hiroyuki's message of "Fri, 20 Aug 2010 19:01:32 +0900")
-Message-ID: <xr93aaoco3ix.fsf@ninji.mtv.corp.google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A34216B0404
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:53:20 -0400 (EDT)
+Date: Tue, 24 Aug 2010 10:52:58 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v5 08/12] Inject asynchronous page fault into a guest
+ if page is swapped out.
+Message-ID: <20100824075258.GX10499@redhat.com>
+References: <1279553462-7036-1-git-send-email-gleb@redhat.com>
+ <1279553462-7036-9-git-send-email-gleb@redhat.com>
+ <4C729F10.40005@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C729F10.40005@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
+To: Avi Kivity <avi@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Mon, Aug 23, 2010 at 07:17:20PM +0300, Avi Kivity wrote:
+>  On 07/19/2010 06:30 PM, Gleb Natapov wrote:
+> >If guest access swapped out memory do not swap it in from vcpu thread
+> >context. Setup slow work to do swapping and send async page fault to
+> >a guest.
+> >
+> >Allow async page fault injection only when guest is in user mode since
+> >otherwise guest may be in non-sleepable context and will not be able to
+> >reschedule.
+> >
+> >
+> >
+> >  struct kvm_arch {
+> >@@ -444,6 +446,8 @@ struct kvm_vcpu_stat {
+> >  	u32 hypercalls;
+> >  	u32 irq_injections;
+> >  	u32 nmi_injections;
+> >+	u32 apf_not_present;
+> >+	u32 apf_present;
+> >  };
+> 
+> Please don't add more stats, instead add tracepoints which can be
+> converted to stats by userspace.
+> 
+> Would be good to have both guest and host tracepoints.
+> 
+I do have host tracepoints for all events. I still prefer to have also
+kvm stats since they are so much easier to use right now. We can delete
+them later when we replace kvm_stat with perf.
 
-> I have an idea to remove page_cgroup->page pointer, 8bytes reduction per page.
-> But it will be after this work.
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Now, addresses of memory cgroup can be calculated by their ID without complex.
-> This patch relplaces pc->mem_cgroup from a pointer to a unsigned short.
-> On 64bit architecture, this offers us more 6bytes room per page_cgroup.
-> Use 2bytes for blkio-cgroup's page tracking. More 4bytes will be used for
-> some light-weight concurrent access.
->
-> We may able to move this id onto flags field but ...go step by step.
->
-> Changelog: 20100811
->  - using new rcu APIs, as rcu_dereference_check() etc.
-> Changelog: 20100804
->  - added comments to page_cgroup.h
-> Changelog: 20100730
->  - fixed some garbage added by debug code in early stage
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/page_cgroup.h |    6 ++++-
->  mm/memcontrol.c             |   52 +++++++++++++++++++++++++++-----------------
->  mm/page_cgroup.c            |    2 -
->  3 files changed, 38 insertions(+), 22 deletions(-)
->
-> Index: mmotm-0811/include/linux/page_cgroup.h
-> ===================================================================
-> --- mmotm-0811.orig/include/linux/page_cgroup.h
-> +++ mmotm-0811/include/linux/page_cgroup.h
-> @@ -9,10 +9,14 @@
->   * page_cgroup helps us identify information about the cgroup
->   * All page cgroups are allocated at boot or memory hotplug event,
->   * then the page cgroup for pfn always exists.
-> + *
-> + * TODO: It seems ID for cgroup can be packed into "flags". But there will
-> + * be race between assigning ID <-> set/clear flags. Please be careful.
->   */
->  struct page_cgroup {
->  	unsigned long flags;
-> -	struct mem_cgroup *mem_cgroup;
-> +	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
-> +	unsigned short blk_cgroup;	/* Not Used..but will be. */
->  	struct page *page;
->  	struct list_head lru;		/* per cgroup LRU list */
->  };
-> Index: mmotm-0811/mm/page_cgroup.c
-> ===================================================================
-> --- mmotm-0811.orig/mm/page_cgroup.c
-> +++ mmotm-0811/mm/page_cgroup.c
-> @@ -15,7 +15,7 @@ static void __meminit
->  __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
->  {
->  	pc->flags = 0;
-> -	pc->mem_cgroup = NULL;
-> +	pc->mem_cgroup = 0;
->  	pc->page = pfn_to_page(pfn);
->  	INIT_LIST_HEAD(&pc->lru);
->  }
-> Index: mmotm-0811/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0811.orig/mm/memcontrol.c
-> +++ mmotm-0811/mm/memcontrol.c
-> @@ -300,12 +300,13 @@ static atomic_t mem_cgroup_num;
->  #define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
->  static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
->  
-> -/* Must be called under rcu_read_lock */
-> -static struct mem_cgroup *id_to_memcg(unsigned short id)
-> +/* Must be called under rcu_read_lock, set safe==true if under lock */
-> +static struct mem_cgroup *id_to_memcg(unsigned short id, bool safe)
->  {
->  	struct mem_cgroup *ret;
->  	/* see mem_cgroup_free() */
-> -	ret = rcu_dereference_check(mem_cgroups[id], rch_read_lock_held());
-> +	ret = rcu_dereference_check(mem_cgroups[id],
-> +				rch_read_lock_held() || safe);
->  	if (likely(ret && ret->valid))
->  		return ret;
->  	return NULL;
-> @@ -381,7 +382,12 @@ struct cgroup_subsys_state *mem_cgroup_c
->  static struct mem_cgroup_per_zone *
->  page_cgroup_zoneinfo(struct page_cgroup *pc)
->  {
-> -	struct mem_cgroup *mem = pc->mem_cgroup;
-> +	/*
-> +	 * The caller should guarantee this "pc" is under lock. In typical
-> +	 * case, this function is called by lru function with zone->lru_lock.
-> +	 * It is a safe access.
-> +	 */
-> +	struct mem_cgroup *mem = id_to_memcg(pc->mem_cgroup, true);
->  	int nid = page_cgroup_nid(pc);
->  	int zid = page_cgroup_zid(pc);
->  
-> @@ -723,6 +729,11 @@ static inline bool mem_cgroup_is_root(st
->  	return (mem == root_mem_cgroup);
->  }
->  
-> +static inline bool mem_cgroup_is_rootid(unsigned short id)
-> +{
-> +	return (id == 1);
-> +}
-> +
->  /*
->   * Following LRU functions are allowed to be used without PCG_LOCK.
->   * Operations are called by routine of global LRU independently from memcg.
-> @@ -755,7 +766,7 @@ void mem_cgroup_del_lru_list(struct page
->  	 */
->  	mz = page_cgroup_zoneinfo(pc);
->  	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
-> -	if (mem_cgroup_is_root(pc->mem_cgroup))
-> +	if (mem_cgroup_is_rootid(pc->mem_cgroup))
->  		return;
->  	VM_BUG_ON(list_empty(&pc->lru));
->  	list_del_init(&pc->lru);
-> @@ -782,7 +793,7 @@ void mem_cgroup_rotate_lru_list(struct p
->  	 */
->  	smp_rmb();
->  	/* unused or root page is not rotated. */
-> -	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
-> +	if (!PageCgroupUsed(pc) || mem_cgroup_is_rootid(pc->mem_cgroup))
->  		return;
->  	mz = page_cgroup_zoneinfo(pc);
->  	list_move(&pc->lru, &mz->lists[lru]);
-> @@ -808,7 +819,7 @@ void mem_cgroup_add_lru_list(struct page
->  	mz = page_cgroup_zoneinfo(pc);
->  	MEM_CGROUP_ZSTAT(mz, lru) += 1;
->  	SetPageCgroupAcctLRU(pc);
-> -	if (mem_cgroup_is_root(pc->mem_cgroup))
-> +	if (mem_cgroup_is_rootid(pc->mem_cgroup))
->  		return;
->  	list_add(&pc->lru, &mz->lists[lru]);
->  }
-> @@ -1497,7 +1508,7 @@ void mem_cgroup_update_file_mapped(struc
->  		return;
->  
->  	lock_page_cgroup(pc);
-> -	mem = pc->mem_cgroup;
-> +	mem = id_to_memcg(pc->mem_cgroup, true);
->  	if (!mem || !PageCgroupUsed(pc))
->  		goto done;
->  
-> @@ -1885,14 +1896,14 @@ struct mem_cgroup *try_get_mem_cgroup_fr
->  	pc = lookup_page_cgroup(page);
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
-> -		mem = pc->mem_cgroup;
-> +		mem = id_to_memcg(pc->mem_cgroup, true);
->  		if (mem && !css_tryget(&mem->css))
->  			mem = NULL;
->  	} else if (PageSwapCache(page)) {
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup(ent);
->  		rcu_read_lock();
-> -		mem = id_to_memcg(id);
-> +		mem = id_to_memcg(id, false);
->  		if (mem && !css_tryget(&mem->css))
->  			mem = NULL;
->  		rcu_read_unlock();
-> @@ -1921,7 +1932,7 @@ static void __mem_cgroup_commit_charge(s
->  		return;
->  	}
->  
-> -	pc->mem_cgroup = mem;
-> +	pc->mem_cgroup = css_id(&mem->css);
->  	/*
->  	 * We access a page_cgroup asynchronously without lock_page_cgroup().
->  	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
-> @@ -1979,7 +1990,7 @@ static void __mem_cgroup_move_account(st
->  	VM_BUG_ON(PageLRU(pc->page));
->  	VM_BUG_ON(!PageCgroupLocked(pc));
+> >@@ -2345,6 +2346,21 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+> >  			     error_code&  PFERR_WRITE_MASK, gfn);
+> >  }
+> >
+> >+int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
+> >+{
+> >+	struct kvm_arch_async_pf arch;
+> >+	arch.token = (vcpu->arch.async_pf_id++<<  12) | vcpu->vcpu_id;
+> >+	return kvm_setup_async_pf(vcpu, gva, gfn,&arch);
+> >+}
+> 
+> Ok.  so token is globally unique.  We're limited to 4096 vcpus, I
+> guess that's fine.  Wraparound at 1M faults/vcpu, what's the impact?
+> failure if we have 1M faulting processes on one vcpu?
+1M faulting processes on one vcpu simultaneously. And we limit number of
+outstanding apfs anyway.
 
-Should this be VM_BUG_ON(!rcu_read_lock_held())?  I suspect that
-mem_cgroup_move_account() should grab rcu read lock (see my comment below).
+> 
+> I guess that's fine too.
+> 
+> >+
+> >+static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+> >+{
+> >+	if (!vcpu->arch.apf_data || kvm_event_needs_reinjection(vcpu))
+> >+		return false;
+> >+
+> >+	return !!kvm_x86_ops->get_cpl(vcpu);
+> 
+> !! !needed, bool autoconverts.  But > 0 is more readable.
+OK.
 
->  	VM_BUG_ON(!PageCgroupUsed(pc));
-> -	VM_BUG_ON(pc->mem_cgroup != from);
-> +	VM_BUG_ON(id_to_memcg(pc->mem_cgroup, true) != from);
->  
->  	if (PageCgroupFileMapped(pc)) {
->  		/* Update mapped_file data for mem_cgroup */
-> @@ -1994,7 +2005,7 @@ static void __mem_cgroup_move_account(st
->  		mem_cgroup_cancel_charge(from);
->  
->  	/* caller should have done css_get */
-> -	pc->mem_cgroup = to;
-> +	pc->mem_cgroup = css_id(&to->css);
->  	mem_cgroup_charge_statistics(to, pc, true);
->  	/*
->  	 * We charges against "to" which may not have any tasks. Then, "to"
-> @@ -2014,11 +2025,11 @@ static int mem_cgroup_move_account(struc
->  {
->  	int ret = -EINVAL;
->  	lock_page_cgroup(pc);
+> 
+> >+}
+> >+
+> >  static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+> >  				u32 error_code)
+> >  {
+> >@@ -2353,6 +2369,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+> >  	int level;
+> >  	gfn_t gfn = gpa>>  PAGE_SHIFT;
+> >  	unsigned long mmu_seq;
+> >+	bool async;
+> >
+> >  	ASSERT(vcpu);
+> >  	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
+> >@@ -2367,7 +2384,23 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+> >
+> >  	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+> >  	smp_rmb();
+> >-	pfn = gfn_to_pfn(vcpu->kvm, gfn);
+> >+
+> >+	if (can_do_async_pf(vcpu)) {
+> >+		pfn = gfn_to_pfn_async(vcpu->kvm, gfn,&async);
+> >+		trace_kvm_try_async_get_page(async, pfn);
+> >+	} else {
+> >+do_sync:
+> >+		async = false;
+> >+		pfn = gfn_to_pfn(vcpu->kvm, gfn);
+> >+	}
+> >+
+> >+	if (async) {
+> >+		if (!kvm_arch_setup_async_pf(vcpu, gpa, gfn))
+> >+			goto do_sync;
+> >+		return 0;
+> >+	}
+> >+
+> 
+> This goto is pretty ugly.  How about:
+> 
+>     async = false;
+>     if (can_do_async_pf(&async)) {
+>     }
+>     if (async && !setup())
+>           async = false;
+>     if (async)
+>           ...
+> 
+> or something.
+> 
+Will try to re-factor.
 
-Should this be rcu_read_lock() instead of lock_page_cgroup()?
+> >@@ -459,7 +460,21 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+> >
+> >  	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+> >  	smp_rmb();
+> >-	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
+> >+
+> >+	if (can_do_async_pf(vcpu)) {
+> >+		pfn = gfn_to_pfn_async(vcpu->kvm, walker.gfn,&async);
+> >+		trace_kvm_try_async_get_page(async, pfn);
+> >+	} else {
+> >+do_sync:
+> >+		async = false;
+> >+		pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
+> >+	}
+> >+
+> >+	if (async) {
+> >+		if (!kvm_arch_setup_async_pf(vcpu, addr, walker.gfn))
+> >+			goto do_sync;
+> >+		return 0;
+> >+	}
+> >
+> 
+> This repetition is ugly too.
+> 
+Yeah. May be it can be moved to separate function and this will help to
+get rid of goto as well.
 
-> -	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-> +	if (PageCgroupUsed(pc) && id_to_memcg(pc->mem_cgroup, true) == from) {
->  		__mem_cgroup_move_account(pc, from, to, uncharge);
->  		ret = 0;
->  	}
-> -	unlock_page_cgroup(pc);
-> +	rcu_read_unlock();
->  	/*
->  	 * check events
->  	 */
-> @@ -2244,7 +2255,7 @@ __mem_cgroup_commit_charge_swapin(struct
->  
->  		id = swap_cgroup_record(ent, 0);
->  		rcu_read_lock();
-> -		memcg = id_to_memcg(id);
-> +		memcg = id_to_memcg(id, false);
->  		if (memcg) {
->  			/*
->  			 * This recorded memcg can be obsolete one. So, avoid
-> @@ -2354,7 +2365,7 @@ __mem_cgroup_uncharge_common(struct page
->  
->  	lock_page_cgroup(pc);
->  
-> -	mem = pc->mem_cgroup;
-> +	mem = id_to_memcg(pc->mem_cgroup, true);
->  
->  	if (!PageCgroupUsed(pc))
->  		goto unlock_out;
-> @@ -2509,7 +2520,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
->  
->  	id = swap_cgroup_record(ent, 0);
->  	rcu_read_lock();
-> -	memcg = id_to_memcg(id);
-> +	memcg = id_to_memcg(id, false);
->  	if (memcg) {
->  		/*
->  		 * We uncharge this because swap is freed.
-> @@ -2600,7 +2611,7 @@ int mem_cgroup_prepare_migration(struct 
->  	pc = lookup_page_cgroup(page);
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
-> -		mem = pc->mem_cgroup;
-> +		mem = id_to_memcg(pc->mem_cgroup, true);
->  		css_get(&mem->css);
->  		/*
->  		 * At migrating an anonymous page, its mapcount goes down
-> @@ -4442,7 +4453,8 @@ static int is_target_pte_for_mc(struct v
->  		 * mem_cgroup_move_account() checks the pc is valid or not under
->  		 * the lock.
->  		 */
-> -		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-> +		if (PageCgroupUsed(pc) &&
-> +			id_to_memcg(pc->mem_cgroup, true) == mc.from) {
->  			ret = MC_TARGET_PAGE;
->  			if (target)
->  				target->page = page;
+> >
+> >+static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
+> >+{
+> >+	if (unlikely(vcpu->arch.apf_memslot_ver !=
+> >+		     vcpu->kvm->memslot_version)) {
+> >+		u64 gpa = vcpu->arch.apf_msr_val&  ~0x3f;
+> >+		unsigned long addr;
+> >+		int offset = offset_in_page(gpa);
+> >+
+> >+		addr = gfn_to_hva(vcpu->kvm, gpa>>  PAGE_SHIFT);
+> >+		vcpu->arch.apf_data = (u32 __user *)(addr + offset);
+> >+		if (kvm_is_error_hva(addr)) {
+> >+			vcpu->arch.apf_data = NULL;
+> >+			return -EFAULT;
+> >+		}
+> >+	}
+> >+
+> >+	return put_user(val, vcpu->arch.apf_data);
+> >+}
+> 
+> This nice cache needs to be outside apf to reduce complexity for
+> reviewers and since it is useful for others.
+> 
+> Would be good to have memslot-cached kvm_put_guest() and kvm_get_guest().
+Will look into it.
+
+> 
+> >diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> >index 292514c..f56e8ac 100644
+> >--- a/virt/kvm/kvm_main.c
+> >+++ b/virt/kvm/kvm_main.c
+> >@@ -78,6 +78,11 @@ static atomic_t hardware_enable_failed;
+> >  struct kmem_cache *kvm_vcpu_cache;
+> >  EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
+> >
+> >+#ifdef CONFIG_KVM_ASYNC_PF
+> >+#define ASYNC_PF_PER_VCPU 100
+> >+static struct kmem_cache *async_pf_cache;
+> >+#endif
+> 
+> All those #ifdefs can be eliminated with virt/kvm/apf.[ch].
+> 
+OK.
+
+> >+
+> >  static __read_mostly struct preempt_ops kvm_preempt_ops;
+> >
+> >  struct dentry *kvm_debugfs_dir;
+> >@@ -186,6 +191,11 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
+> >  	vcpu->kvm = kvm;
+> >  	vcpu->vcpu_id = id;
+> >  	init_waitqueue_head(&vcpu->wq);
+> >+#ifdef CONFIG_KVM_ASYNC_PF
+> >+	INIT_LIST_HEAD(&vcpu->async_pf_done);
+> >+	INIT_LIST_HEAD(&vcpu->async_pf_queue);
+> >+	spin_lock_init(&vcpu->async_pf_lock);
+> >+#endif
+> 
+>  kvm_apf_init() etc.
+> 
+> >+		       struct kvm_arch_async_pf *arch)
+> >+{
+> >+	struct kvm_async_pf *work;
+> >+
+> >+	if (vcpu->async_pf_queued>= ASYNC_PF_PER_VCPU)
+> >+		return 0;
+> 
+> 100 == too high.  At 16 vcpus, this allows 1600 kernel threads to
+> wait for I/O.
+Number of kernel threads are limited by other means. Slow work subsystem
+has its own knobs to tune that. Here we limit how much slow work items
+can be queued per vcpu.
+
+> 
+> Would have been best if we could ask for a page to be paged in
+> asynchronously.
+> 
+You mean to have core kernel facility for that? I agree it would be
+nice, but much harder.
+
+> >+
+> >+	/* setup slow work */
+> >+
+> >+	/* do alloc nowait since if we are going to sleep anyway we
+> >+	   may as well sleep faulting in page */
+> >+	work = kmem_cache_zalloc(async_pf_cache, GFP_NOWAIT);
+> >+	if (!work)
+> >+		return 0;
+> >+
+> >+	atomic_set(&work->used, 1);
+> >+	work->page = NULL;
+> >+	work->vcpu = vcpu;
+> >+	work->gva = gva;
+> >+	work->addr = gfn_to_hva(vcpu->kvm, gfn);
+> >+	work->arch = *arch;
+> >+	work->mm = current->mm;
+> >+	atomic_inc(&work->mm->mm_count);
+> >+	kvm_get_kvm(work->vcpu->kvm);
+> >+
+> >+	/* this can't really happen otherwise gfn_to_pfn_async
+> >+	   would succeed */
+> >+	if (unlikely(kvm_is_error_hva(work->addr)))
+> >+		goto retry_sync;
+> >+
+> >+	slow_work_init(&work->work,&async_pf_ops);
+> >+	if (slow_work_enqueue(&work->work) != 0)
+> >+		goto retry_sync;
+> >+
+> >+	vcpu->async_pf_work = work;
+> >+	list_add_tail(&work->queue,&vcpu->async_pf_queue);
+> >+	vcpu->async_pf_queued++;
+> >+	return 1;
+> >+retry_sync:
+> >+	kvm_put_kvm(work->vcpu->kvm);
+> >+	mmdrop(work->mm);
+> >+	kmem_cache_free(async_pf_cache, work);
+> >+	return 0;
+> >+}
+> >+
+> >+
+> 
+> -- 
+> error compiling committee.c: too many arguments to function
+
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
