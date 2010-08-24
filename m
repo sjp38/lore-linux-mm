@@ -1,46 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D5F260080F
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 22:42:44 -0400 (EDT)
-Received: from kpbe18.cbf.corp.google.com (kpbe18.cbf.corp.google.com [172.25.105.82])
-	by smtp-out.google.com with ESMTP id o7O2gfQH012412
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 19:42:41 -0700
-Received: from ywg4 (ywg4.prod.google.com [10.192.7.4])
-	by kpbe18.cbf.corp.google.com with ESMTP id o7O2gerL029602
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 19:42:40 -0700
-Received: by ywg4 with SMTP id 4so2958530ywg.7
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 19:42:40 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2013760080F
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 23:02:38 -0400 (EDT)
+Date: Tue, 24 Aug 2010 12:01:33 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 9/9] hugetlb: add corrupted hugepage counter
+Message-ID: <20100824030133.GB12507@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1281432464-14833-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1281432464-14833-10-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100819015752.GB5762@localhost>
 MIME-Version: 1.0
-In-Reply-To: <20100824021136.GA9254@localhost>
-References: <20100821054808.GA29869@localhost> <AANLkTikS+DUfPz0E2SmCZTQBWL8h2zSsGM8--yqEaVgZ@mail.gmail.com>
- <20100824100943.F3B6.A69D9226@jp.fujitsu.com> <AANLkTi=OwGUzM0oZ5qTEFnGTuo8kVfW79oqH-Dcf8jdp@mail.gmail.com>
- <20100824021136.GA9254@localhost>
-From: Michael Rubin <mrubin@google.com>
-Date: Mon, 23 Aug 2010 19:42:20 -0700
-Message-ID: <AANLkTikcsqnwwNjXPPTJ3xb981Z0hopWRLEYjrE3uvQ7@mail.gmail.com>
-Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in /proc/vmstat
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100819015752.GB5762@localhost>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 23, 2010 at 7:11 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> Sorry for giving a wrong example. Hope this one is better:
+On Thu, Aug 19, 2010 at 09:57:52AM +0800, Wu Fengguang wrote:
+> > +void increment_corrupted_huge_page(struct page *page);
+> > +void decrement_corrupted_huge_page(struct page *page);
 >
-> $ cat /debug/bdi/default/stats
-> [...]
-> DirtyThresh: =A0 =A0 =A0 1838904 kB
-> BackgroundThresh: =A0 919452 kB
-> [...]
+> nitpick: increment/decrement are not verbs.
+
+OK, increase/decrease are correct.
+
+
+> > +void increment_corrupted_huge_page(struct page *hpage)
+> > +{
+> > +   struct hstate *h = page_hstate(hpage);
+> > +   spin_lock(&hugetlb_lock);
+> > +   h->corrupted_huge_pages++;
+> > +   spin_unlock(&hugetlb_lock);
+> > +}
+> > +
+> > +void decrement_corrupted_huge_page(struct page *hpage)
+> > +{
+> > +   struct hstate *h = page_hstate(hpage);
+> > +   spin_lock(&hugetlb_lock);
+> > +   BUG_ON(!h->corrupted_huge_pages);
 >
-> It's a trick to avoid messing with real devices :)
+> There is no point to have BUG_ON() here:
+>
+> /*
+>  * Don't use BUG() or BUG_ON() unless there's really no way out; one
+>  * example might be detecting data structure corruption in the middle
+>  * of an operation that can't be backed out of.  If the (sub)system
+>  * can somehow continue operating, perhaps with reduced functionality,
+>  * it's probably not BUG-worthy.
+>  *
+>  * If you're tempted to BUG(), think again:  is completely giving up
+>  * really the *only* solution?  There are usually better options, where
+>  * users don't need to reboot ASAP and can mostly shut down cleanly.
+>  */
 
-That's cool. And it's the exact code path :-)
+OK. I understand.
+BUG_ON() is too severe for just a counter.
 
-mrubin
+>
+> And there is a race case that (corrupted_huge_pages==0)!
+> Suppose the user space calls unpoison_memory() on a good pfn, and the page
+> happen to be hwpoisoned between lock_page() and TestClearPageHWPoison(),
+> corrupted_huge_pages will go negative.
+
+I see.
+When this race happens, unpoison runs and decreases HugePages_Crpt,
+but racing memory failure returns without increasing it.
+Yes, this is a problem we need to fix.
+
+Moreover for hugepage we should pay attention to the possiblity of
+mce_bad_pages mismatch which can occur by race between unpoison and
+multiple memory failures, where each failure increases mce_bad_pages
+by the number of pages in a hugepage.
+
+I think counting corrupted hugepages is not directly related to
+hugepage migration, and this problem only affects the counter,
+not other behaviors, so I'll separate hugepage counter fix patch
+from this patch set and post as another patch series. Is this OK?
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
