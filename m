@@ -1,36 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 55DE16B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:36:15 -0400 (EDT)
-Date: Tue, 24 Aug 2010 10:37:22 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch] slob: fix gfp flags for order-0 page allocations
-In-Reply-To: <1282663241.10679.958.camel@calx>
-Message-ID: <alpine.DEB.2.00.1008241036250.344@router.home>
-References: <alpine.DEB.2.00.1008221615350.29062@chino.kir.corp.google.com>  <1282623994.10679.921.camel@calx>  <alpine.DEB.2.00.1008232134480.25742@chino.kir.corp.google.com> <1282663241.10679.958.camel@calx>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3176B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:41:34 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so3137665pzk.14
+        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:42:45 -0700 (PDT)
+Date: Wed, 25 Aug 2010 00:42:38 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v2 2/2] compaction: fix COMPACTPAGEFAILED counting
+Message-ID: <20100824154238.GA4500@barrios-desktop>
+References: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
+ <1282663879-4130-2-git-send-email-minchan.kim@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282663879-4130-2-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Aug 2010, Matt Mackall wrote:
+Broken description. Will resend 
 
-> kmalloc-32        1113344 1113344     32  128    1 : tunables    0    0
-> 0 : slabdata   8698   8698      0
->
-> That's /proc/slabinfo on my laptop with SLUB. It looks like my last
-> reboot popped me back to 2.6.33 so it may also be old news, but I
-> couldn't spot any reports with Google.
-
-Boot with "slub_debug" as a kernel parameter
-
-and then do a
-
-cat /sys/kernel/slab/kmalloc-32/alloc_calls
-
-to find the caller allocating the objets.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
