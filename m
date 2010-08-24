@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C75260080F
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 21:18:15 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o7O0vEA4023065
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 17:57:14 -0700
-Received: from pxi6 (pxi6.prod.google.com [10.243.27.6])
-	by wpaz37.hot.corp.google.com with ESMTP id o7O0vCoB030104
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 17:57:13 -0700
-Received: by pxi6 with SMTP id 6so3060277pxi.17
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 17:57:11 -0700 (PDT)
-Date: Mon, 23 Aug 2010 17:57:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 3/3 v3] oom: kill all threads sharing oom killed task's
- mm
-In-Reply-To: <20100823161620.7a46f2e1.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1008231756590.25841@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008201539310.9201@chino.kir.corp.google.com> <alpine.DEB.2.00.1008201541210.9201@chino.kir.corp.google.com> <alpine.DEB.2.00.1008201651400.16947@chino.kir.corp.google.com> <20100823161620.7a46f2e1.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 04FC360080F
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 21:20:00 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so5061800iwn.14
+        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:19:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.00.1008231217100.9840@router.home>
+References: <1282580114-2136-1-git-send-email-minchan.kim@gmail.com>
+	<alpine.DEB.2.00.1008231140320.9496@router.home>
+	<20100823170610.GB2304@barrios-desktop>
+	<alpine.DEB.2.00.1008231217100.9840@router.home>
+Date: Tue, 24 Aug 2010 10:19:59 +0900
+Message-ID: <AANLkTi=bbRHJ1Wzmm9FTiYzDyKj6PFGWmFqCZNHTNgEb@mail.gmail.com>
+Subject: Re: [PATCH] compaction: fix COMPACTPAGEFAILED counting
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Aug 2010, Andrew Morton wrote:
+On Tue, Aug 24, 2010 at 2:17 AM, Christoph Lameter <cl@linux.com> wrote:
+> On Tue, 24 Aug 2010, Minchan Kim wrote:
+>
+>> On Mon, Aug 23, 2010 at 11:41:49AM -0500, Christoph Lameter wrote:
+>> > On Tue, 24 Aug 2010, Minchan Kim wrote
+>> >
+>> > > This patch introude new argument 'cleanup' to migrate_pages.
+>> > > Only if we set 1 to 'cleanup', migrate_page will clean up the lists.
+>> > > Otherwise, caller need to clean up the lists so it has a chance to postprocess
+>> > > the pages.
+>> >
+>> > Could we simply make migrate_pages simply not do any cleanup?
+>> > Caller has to call putback_lru_pages()?
+>> >
+>> Hmm. maybe I misunderstood your point.
+>> Your point is that let's make whole caller of migrate_pagse has a responsibility
+>> of clean up the list?
+>
+> Yes. All callers would be responsible for cleanup.
 
-> > +			pr_err("Kill process %d (%s) sharing same memory\n",
-> > +				task_pid_nr(q), q->comm);
-> 
-> We're really supposed to use get_task_comm() when accessing another
-> tasks's comm[] to avoid races with that task altering its comm[] in
-> prctl().
-> 
+Yes. I hoped it but try to maintain API semantics.
+But if you agree to change it, I will do it.
+Will repost.
+Thanks, Christoph.
 
-Ok!
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
