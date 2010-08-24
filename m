@@ -1,61 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE6B6B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 19:56:32 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 14FC16B01F1
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 19:56:42 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 0/8] Hugepage migration (v3)
-Date: Wed, 25 Aug 2010 08:55:19 +0900
-Message-Id: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/8] hugetlb: add allocate function for hugepage migration
+Date: Wed, 25 Aug 2010 08:55:21 +0900
+Message-Id: <1282694127-14609-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+We can't use existing hugepage allocation functions to allocate hugepage
+for page migration, because page migration can happen asynchronously with
+the running processes and page migration users should call the allocation
+function with physical addresses (not virtual addresses) as arguments.
 
-This is the 3rd version of "hugepage migration" set.
-I rebased this onto 2.6.36-rc2 and merged many comments from you.
+ChangeLog since v2:
+- remove unnecessary get/put_mems_allowed() (thanks to David Rientjes)
 
-In previous discussion, I explained why hugepage migration encounts no race
-with direct I/O without additional page locking. Based on that reasoning,
-I made no change on page locking on migration code (i.e. lock only head pages.)
+ChangeLog since v1:
+- add comment on top of alloc_huge_page_no_vma()
 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+---
+ include/linux/hugetlb.h |    3 ++
+ mm/hugetlb.c            |   90 ++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 72 insertions(+), 21 deletions(-)
 
-Future works:
-
-- Migration can fail for various reasons depending on various factors,
-  so it's useful if soft offline can be retried when it noticed migration
-  fails. This problem is a more general one because it's applied for
-  soft offline of normal-sized pages. So we leave it as a future work.
-  
-- Corrupted hugepage counter implemeted in the previous version was dropped
-  because it's not directly related to migration topic and have no serious
-  impact on kernel behavior. We also leave it as the next work.
-  
-
-Summary:
-
- [PATCH 1/8] hugetlb: fix metadata corruption in hugetlb_fault()
- [PATCH 2/8] hugetlb: add allocate function for hugepage migration
- [PATCH 3/8] hugetlb: rename hugepage allocation functions
- [PATCH 4/8] hugetlb: redefine hugepage copy functions
- [PATCH 5/8] hugetlb: hugepage migration core
- [PATCH 6/8] HWPOISON, hugetlb: soft offlining for hugepage
- [PATCH 7/8] HWPOISON, hugetlb: fix unpoison for hugepage
- [PATCH 8/8] page-types.c: fix name of unpoison interface
-
- Documentation/vm/page-types.c |    2 +-
- fs/hugetlbfs/inode.c          |   15 +++
- include/linux/hugetlb.h       |    9 ++
- include/linux/migrate.h       |   12 +++
- mm/hugetlb.c                  |  216 ++++++++++++++++++++++++++++++++---------
- mm/memory-failure.c           |   65 +++++++++----
- mm/migrate.c                  |  192 +++++++++++++++++++++++++++++++++----
- mm/vmscan.c                   |    9 ++-
- 8 files changed, 434 insertions(+), 86 deletions(-)
-
-Thanks,
-Naoya Horiguchi
+diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
+index f479700..142bd4f 100644
+--- v2.6.36-rc2/include/linux/hugetlb.h
++++ v2.6.36-rc2/include/linux/hugetlb.h
+@@ -228,6 +228,8 @@ struct huge_bootmem_page {
+ 	struct hstate *hstate;
+ };
+ 
++struct page *alloc_huge_page_no_vma_node(struct hstate *h, int nid);
++
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
+ 
+@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
+ 
+ #else
+ struct hstate {};
++#define alloc_huge_page_no_vma_node(h, nid) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
+diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
+index 6871b41..31118d2 100644
+--- v2.6.36-rc2/mm/hugetlb.c
++++ v2.6.36-rc2/mm/hugetlb.c
+@@ -466,11 +466,22 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
+ 	h->free_huge_pages_node[nid]++;
+ }
+ 
++static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++	if (list_empty(&h->hugepage_freelists[nid]))
++		return NULL;
++	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
++	list_del(&page->lru);
++	h->free_huge_pages--;
++	h->free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+ {
+-	int nid;
+ 	struct page *page = NULL;
+ 	struct mempolicy *mpol;
+ 	nodemask_t *nodemask;
+@@ -496,19 +507,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						MAX_NR_ZONES - 1, nodemask) {
+-		nid = zone_to_nid(zone);
+-		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
+-		    !list_empty(&h->hugepage_freelists[nid])) {
+-			page = list_entry(h->hugepage_freelists[nid].next,
+-					  struct page, lru);
+-			list_del(&page->lru);
+-			h->free_huge_pages--;
+-			h->free_huge_pages_node[nid]--;
+-
+-			if (!avoid_reserve)
+-				decrement_hugepage_resv_vma(h, vma);
+-
+-			break;
++		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
++			page = dequeue_huge_page_node(h, zone_to_nid(zone));
++			if (page) {
++				if (!avoid_reserve)
++					decrement_hugepage_resv_vma(h, vma);
++				break;
++			}
+ 		}
+ 	}
+ err:
+@@ -615,9 +620,7 @@ int PageHuge(struct page *page)
+ 	return dtor == free_huge_page;
+ }
+ 
+-EXPORT_SYMBOL_GPL(PageHuge);
+-
+-static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
++static struct page *__alloc_huge_page_node(struct hstate *h, int nid)
+ {
+ 	struct page *page;
+ 
+@@ -628,14 +631,59 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+ 		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
+ 						__GFP_REPEAT|__GFP_NOWARN,
+ 		huge_page_order(h));
++	if (page && arch_prepare_hugepage(page)) {
++		__free_pages(page, huge_page_order(h));
++		return NULL;
++	}
++
++	return page;
++}
++
++static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page = __alloc_huge_page_node(h, nid);
++	if (page)
++		prep_new_huge_page(h, page, nid);
++	return page;
++}
++
++static struct page *alloc_buddy_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page = __alloc_huge_page_node(h, nid);
+ 	if (page) {
+-		if (arch_prepare_hugepage(page)) {
+-			__free_pages(page, huge_page_order(h));
++		set_compound_page_dtor(page, free_huge_page);
++		spin_lock(&hugetlb_lock);
++		h->nr_huge_pages++;
++		h->nr_huge_pages_node[nid]++;
++		spin_unlock(&hugetlb_lock);
++		put_page_testzero(page);
++	}
++	return page;
++}
++
++/*
++ * This allocation function is useful in the context where vma is irrelevant.
++ * E.g. soft-offlining uses this function because it only cares physical
++ * address of error page.
++ */
++struct page *alloc_huge_page_no_vma_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	spin_lock(&hugetlb_lock);
++	page = dequeue_huge_page_node(h, nid);
++	spin_unlock(&hugetlb_lock);
++
++	if (!page) {
++		page = alloc_buddy_huge_page_node(h, nid);
++		if (!page) {
++			__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 			return NULL;
+-		}
+-		prep_new_huge_page(h, page, nid);
++		} else
++			__count_vm_event(HTLB_BUDDY_PGALLOC);
+ 	}
+ 
++	set_page_refcounted(page);
+ 	return page;
+ }
+ 
+-- 
+1.7.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
