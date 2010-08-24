@@ -1,77 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 97C526008D8
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 02:52:40 -0400 (EDT)
-Received: by ywo7 with SMTP id 7so3100701ywo.14
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 23:52:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <8E31CE28A1354C43BBAD0BDEFA10494E@rainbow>
-References: <20100818154130.GC9431@localhost>
-	<565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
-	<20100819160006.GG6805@barrios-desktop>
-	<AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
-	<20100820053447.GA13406@localhost>
-	<20100820093558.GG19797@csn.ul.ie>
-	<AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com>
-	<20100822153121.GA29389@barrios-desktop>
-	<20100822232316.GA339@localhost>
-	<20100823171416.GA2216@barrios-desktop>
-	<20100824002753.GB6568@localhost>
-	<8E31CE28A1354C43BBAD0BDEFA10494E@rainbow>
-Date: Tue, 24 Aug 2010 15:52:37 +0900
-Message-ID: <AANLkTikTu3jx5WyYEDZY2mk99V+w7kxL5k7xJDS+QZ+m@mail.gmail.com>
-Subject: Re: compaction: trying to understand the code
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EFE726B03FC
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 03:15:00 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7O7EwdA025755
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 24 Aug 2010 16:14:58 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8448B45DE60
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:14:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 65B1A45DE4D
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:14:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C210EF8001
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:14:58 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E20D51DB803E
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 16:14:54 +0900 (JST)
+Date: Tue, 24 Aug 2010 16:09:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/6] mm: strictly nested kmap_atomic
+Message-Id: <20100824160948.4923ff0e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100819202753.595997973@chello.nl>
+References: <20100819201317.673172547@chello.nl>
+	<20100819202753.595997973@chello.nl>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 24, 2010 at 2:07 PM, Iram Shahzad
-<iram.shahzad@jp.fujitsu.com> wrote:
->> One question is, why kswapd won't proceed after isolating all the pages?
->> If it has done with the isolated pages, we'll see growing inactive_anon
->> numbers.
->>
->> /proc/vmstat should give more clues on any possible page reclaim
->> activities. Iram, would you help post it?
->
-> I am not sure which point of time are you interested in, so I am
-> attaching /proc/vmstat log of 3 points.
->
-> too_many_isolated_vmstat_before_frag.txt
-> =A0This one is taken before I ran my test app which attempts
-> =A0to make fragmentation
-> too_many_isolated_vmstat_before_compaction.txt
-> =A0This one is taken after running the test app and before
-> =A0running compaction.
-> too_many_isolated_vmstat_during_compaction.txt
-> =A0This one is taken a few minutes after running compaction.
-> =A0To take this I ran compaction in background.
->
-> Thanks
-> Iram
->
+On Thu, 19 Aug 2010 22:13:18 +0200
+Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
 
-Hmm.. Never happens reclaim. Strange.
-In addtion, pgpgin is always 4.
+> Ensure kmap_atomic usage is strictly nested
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-pgpgin 4
-pgpgout 0
-
-Is it possible?
-What kinds of filesystem do you use?
-Do you boot from NFS?
-Do your system have any non-mainline(ie, doesn't merged into linux
-kernel tree) driver, file system or any feature?
-
-Maybe your config file can answer this questions.
-Thanks.
---=20
-Kind regards,
-Minchan Kim
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
