@@ -1,101 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 5B93D6B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 05:46:42 -0400 (EDT)
-Message-ID: <4C7394F3.2050706@redhat.com>
-Date: Tue, 24 Aug 2010 12:46:27 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4C5666B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:28:35 -0400 (EDT)
+Date: Tue, 24 Aug 2010 15:28:44 +0300
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v5 08/12] Inject asynchronous page fault into a guest
+ if page is swapped out.
+Message-ID: <20100824122844.GA10499@redhat.com>
+References: <1279553462-7036-1-git-send-email-gleb@redhat.com>
+ <1279553462-7036-9-git-send-email-gleb@redhat.com>
+ <4C729F10.40005@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 10/12] Handle async PF in non preemptable context
-References: <1279553462-7036-1-git-send-email-gleb@redhat.com> <1279553462-7036-11-git-send-email-gleb@redhat.com> <4C739131.1050203@redhat.com> <20100824093635.GZ10499@redhat.com>
-In-Reply-To: <20100824093635.GZ10499@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C729F10.40005@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
+To: Avi Kivity <avi@redhat.com>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-  On 08/24/2010 12:36 PM, Gleb Natapov wrote:
-> On Tue, Aug 24, 2010 at 12:30:25PM +0300, Avi Kivity wrote:
->>   On 07/19/2010 06:31 PM, Gleb Natapov wrote:
->>> If async page fault is received by idle task or when preemp_count is
->>> not zero guest cannot reschedule, so do sti; hlt and wait for page to be
->>> ready. vcpu can still process interrupts while it waits for the page to
->>> be ready.
->>>
->>> Acked-by: Rik van Riel<riel@redhat.com>
->>> Signed-off-by: Gleb Natapov<gleb@redhat.com>
->>> ---
->>>   arch/x86/kernel/kvm.c |   36 ++++++++++++++++++++++++++++++++----
->>>   1 files changed, 32 insertions(+), 4 deletions(-)
->>>
->>> diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
->>> index a6db92e..914b0fc 100644
->>> --- a/arch/x86/kernel/kvm.c
->>> +++ b/arch/x86/kernel/kvm.c
->>> @@ -37,6 +37,7 @@
->>>   #include<asm/cpu.h>
->>>   #include<asm/traps.h>
->>>   #include<asm/desc.h>
->>> +#include<asm/tlbflush.h>
->>>
->>>   #define MMU_QUEUE_SIZE 1024
->>>
->>> @@ -68,6 +69,8 @@ struct kvm_task_sleep_node {
->>>   	wait_queue_head_t wq;
->>>   	u32 token;
->>>   	int cpu;
->>> +	bool halted;
->>> +	struct mm_struct *mm;
->>>   };
->>>
->>>   static struct kvm_task_sleep_head {
->>> @@ -96,6 +99,11 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
->>>   	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
->>>   	struct kvm_task_sleep_node n, *e;
->>>   	DEFINE_WAIT(wait);
->>> +	int cpu, idle;
->>> +
->>> +	cpu = get_cpu();
->>> +	idle = idle_cpu(cpu);
->>> +	put_cpu();
->>>
->>>   	spin_lock(&b->lock);
->>>   	e = _find_apf_task(b, token);
->>> @@ -109,17 +117,31 @@ static void apf_task_wait(struct task_struct *tsk, u32 token)
->>>
->>>   	n.token = token;
->>>   	n.cpu = smp_processor_id();
->>> +	n.mm = current->active_mm;
->>> +	n.halted = idle || preempt_count()>   1;
->>> +	atomic_inc(&n.mm->mm_count);
->>>   	init_waitqueue_head(&n.wq);
->>>   	hlist_add_head(&n.link,&b->list);
->>>   	spin_unlock(&b->lock);
->>>
->>>   	for (;;) {
->>> -		prepare_to_wait(&n.wq,&wait, TASK_UNINTERRUPTIBLE);
->>> +		if (!n.halted)
->>> +			prepare_to_wait(&n.wq,&wait, TASK_UNINTERRUPTIBLE);
->>>   		if (hlist_unhashed(&n.link))
->>>   			break;
->>> -		schedule();
->>> +
->>> +		if (!n.halted) {
->>> +			schedule();
->>> +		} else {
->>> +			/*
->>> +			 * We cannot reschedule. So halt.
->>> +			 */
->> If we get the wakeup here, we'll halt and never wake up again.
->>
-> We will not. IRQs are disabled here. native_safe_halt() enables them.
+On Mon, Aug 23, 2010 at 07:17:20PM +0300, Avi Kivity wrote:
+> >
+> >+static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
+> >+{
+> >+	if (unlikely(vcpu->arch.apf_memslot_ver !=
+> >+		     vcpu->kvm->memslot_version)) {
+> >+		u64 gpa = vcpu->arch.apf_msr_val&  ~0x3f;
+> >+		unsigned long addr;
+> >+		int offset = offset_in_page(gpa);
+> >+
+> >+		addr = gfn_to_hva(vcpu->kvm, gpa>>  PAGE_SHIFT);
+> >+		vcpu->arch.apf_data = (u32 __user *)(addr + offset);
+> >+		if (kvm_is_error_hva(addr)) {
+> >+			vcpu->arch.apf_data = NULL;
+> >+			return -EFAULT;
+> >+		}
+> >+	}
+> >+
+> >+	return put_user(val, vcpu->arch.apf_data);
+> >+}
+> 
+> This nice cache needs to be outside apf to reduce complexity for
+> reviewers and since it is useful for others.
+> 
+> Would be good to have memslot-cached kvm_put_guest() and kvm_get_guest().
+> 
+Something like this? (only compile tested)
 
-Ok.
 
--- 
-error compiling committee.c: too many arguments to function
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index c13cc48..9aa3dd2 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -168,10 +168,18 @@ struct kvm_irq_routing_table {};
+ 
+ struct kvm_memslots {
+ 	int nmemslots;
++	u32 generation;
+ 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
+ 					KVM_PRIVATE_MEM_SLOTS];
+ };
+ 
++struct gfn_to_hva_cache {
++	u32 generation;
++	gpa_t gpa;
++	unsigned long hva;
++	struct kvm_memory_slot *memslot;
++};
++
+ struct kvm {
+ 	spinlock_t mmu_lock;
+ 	raw_spinlock_t requests_lock;
+@@ -315,12 +323,16 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
+ 			 int offset, int len);
+ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 		    unsigned long len);
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len);
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
+ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
+ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
+ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
+ unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
+ void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn);
+ 
+ void kvm_vcpu_block(struct kvm_vcpu *vcpu);
+ void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index b78b794..512cf9b 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -685,6 +685,7 @@ skip_lpage:
+ 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 		if (mem->slot >= slots->nmemslots)
+ 			slots->nmemslots = mem->slot + 1;
++		slots->generation++;
+ 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
+ 
+ 		old_memslots = kvm->memslots;
+@@ -721,6 +722,7 @@ skip_lpage:
+ 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 	if (mem->slot >= slots->nmemslots)
+ 		slots->nmemslots = mem->slot + 1;
++	slots->generation++;
+ 
+ 	/* actual memory is freed via old in kvm_free_physmem_slot below */
+ 	if (!npages) {
+@@ -1175,6 +1177,36 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 	return 0;
+ }
+ 
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len)
++{
++	int r;
++	gfn_t gfn = ghc->gpa >> PAGE_SHIFT;
++	struct kvm_memslots *slots = kvm_memslots(kvm);
++
++	if (slots->generation != ghc->generation) {
++		int offset = offset_in_page(ghc->gpa);
++
++		ghc->hva = gfn_to_hva(kvm, gfn);
++		if (!kvm_is_error_hva(ghc->hva))
++			ghc->hva += offset;
++		ghc->generation = slots->generation;
++
++		ghc->memslot = gfn_to_memslot(kvm, gfn);
++	}
++	
++	if (kvm_is_error_hva(ghc->hva))
++		return -EFAULT;
++
++	r = copy_to_user((void __user *)ghc->hva, data, len);
++	if (r)
++		return -EFAULT;
++	mark_page_dirty_in_slot(kvm, ghc->memslot, gfn);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
++
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
+ {
+ 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
+@@ -1200,11 +1232,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
+ }
+ EXPORT_SYMBOL_GPL(kvm_clear_guest);
+ 
+-void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn)
+ {
+-	struct kvm_memory_slot *memslot;
+-
+-	memslot = gfn_to_memslot(kvm, gfn);
+ 	if (memslot && memslot->dirty_bitmap) {
+ 		unsigned long rel_gfn = gfn - memslot->base_gfn;
+ 
+@@ -1212,6 +1242,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
+ 	}
+ }
+ 
++void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++{
++	struct kvm_memory_slot *memslot;
++
++	memslot = gfn_to_memslot(kvm, gfn);
++	mark_page_dirty_in_slot(kvm, memslot, gfn);
++}
++
+ /*
+  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
+  */
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
