@@ -1,70 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 882E66B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:19:42 -0400 (EDT)
-Subject: Re: [patch] slob: fix gfp flags for order-0 page allocations
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <alpine.DEB.2.00.1008232134480.25742@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008221615350.29062@chino.kir.corp.google.com>
-	 <1282623994.10679.921.camel@calx>
-	 <alpine.DEB.2.00.1008232134480.25742@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 24 Aug 2010 10:20:41 -0500
-Message-ID: <1282663241.10679.958.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 402BD6B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:30:31 -0400 (EDT)
+Received: by pwi3 with SMTP id 3so3222816pwi.14
+        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:31:39 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2 1/2] compaction: handle active and inactive fairly in too_many_isolated
+Date: Wed, 25 Aug 2010 00:31:18 +0900
+Message-Id: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2010-08-23 at 21:36 -0700, David Rientjes wrote:
-> On Mon, 23 Aug 2010, Matt Mackall wrote:
-> 
-> > > kmalloc_node() may allocate higher order slob pages, but the __GFP_COMP
-> > > bit is only passed to the page allocator and not represented in the
-> > > tracepoint event.  The bit should be passed to trace_kmalloc_node() as
-> > > well.
-> > > 
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > 
-> > >  		unsigned int order = get_order(size);
-> > >  
-> > > -		ret = slob_new_pages(gfp | __GFP_COMP, get_order(size), node);
-> > > +		if (likely(order))
-> > > +			gfp |= __GFP_COMP;
-> > 
-> > Why is it likely? I would hope that the majority of page allocations are
-> > in fact order 0.
-> > 
-> 
-> This code only executes when size >= PAGE_SIZE + align, so I would assume 
-> that the vast majority of times this is actually higher order allocs 
-> (which is probably why __GFP_COMP was implicitly added to the gfpmask in 
-> the first place).  Is there evidence to show otherwise?
+Iram reported compaction's too_many_isolated loops forever.
+(http://www.spinics.net/lists/linux-mm/msg08123.html)
 
-(peeks at code)
+The meminfo of situation happened was inactive anon is zero.
+That's because the system has no memory pressure until then.
+While all anon pages was in active lru, compaction could select
+active lru as well as inactive lru. That's different things
+with vmscan's isolated. So we has been two too_many_isolated.
 
-Ok, that + should be a -. But yes, you're right, the bucket around an
-order-0 allocation is quite small.
+While compaction can isolated pages in both active and inactive,
+current implementation of too_many_isolated only considers inactive.
+It made Iram's problem.
 
-Acked-by: Matt Mackall <mpm@selenic.com>
+This patch handles active and inactive with fair.
+That's because we can't expect where from and how many compaction would
+isolated pages.
 
+This patch changes (nr_isolated > nr_inactive) with
+nr_isolated > (nr_active + nr_inactive) / 2.
 
-By the way, has anyone seen anything like this leak reported?
+Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/compaction.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-/proc/slabinfo:
-
-kmalloc-32        1113344 1113344     32  128    1 : tunables    0    0
-0 : slabdata   8698   8698      0
-
-That's /proc/slabinfo on my laptop with SLUB. It looks like my last
-reboot popped me back to 2.6.33 so it may also be old news, but I
-couldn't spot any reports with Google.
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 94cce51..4d709ee 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -214,15 +214,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ /* Similar to reclaim, but different enough that they don't share logic */
+ static bool too_many_isolated(struct zone *zone)
+ {
+-
+-	unsigned long inactive, isolated;
++	unsigned long active, inactive, isolated;
+ 
+ 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+ 					zone_page_state(zone, NR_INACTIVE_ANON);
++	active = zone_page_state(zone, NR_ACTIVE_FILE) +
++					zone_page_state(zone, NR_ACTIVE_ANON);
+ 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+ 					zone_page_state(zone, NR_ISOLATED_ANON);
+ 
+-	return isolated > inactive;
++	return isolated > (inactive + active) / 2;
+ }
+ 
+ /*
 -- 
-Mathematics is the supreme nostalgia of our time.
-
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
