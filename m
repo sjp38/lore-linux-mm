@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D916B01F1
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 19:56:45 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5436B01F1
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 19:56:48 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 4/8] hugetlb: redefine hugepage copy functions
-Date: Wed, 25 Aug 2010 08:55:23 +0900
-Message-Id: <1282694127-14609-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 1/8] hugetlb: fix metadata corruption in hugetlb_fault()
+Date: Wed, 25 Aug 2010 08:55:20 +0900
+Message-Id: <1282694127-14609-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,126 +13,62 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch modifies hugepage copy functions to have only destination
-and source hugepages as arguments for later use.
-The old ones are renamed from copy_{gigantic,huge}_page() to
-copy_user_{gigantic,huge}_page().
-This naming convention is consistent with that between copy_highpage()
-and copy_user_highpage().
+In order to avoid metadata corruption when memory failure occurs between
+alloc_huge_page() and lock_page().
+The corruption occurs because page fault can fail with metadata changes
+remained (such as refcount, mapcount, etc.)
+Since the PageHWPoison() check is for avoiding hwpoisoned page remained
+in pagecache mapping to the process, it should be done in "found in pagecache"
+branch, not in the common path.
+This patch moves the check to "found in pagecache" branch and fix the problem.
 
 ChangeLog since v2:
-- change copy_huge_page() from macro to inline dummy function
-  to avoid compile warning when !CONFIG_HUGETLB_PAGE.
+- remove retry check in "new allocation" path.
+- make description more detailed
+- change patch name from "HWPOISON, hugetlb: move PG_HWPoison bit check"
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- include/linux/hugetlb.h |    4 ++++
- mm/hugetlb.c            |   43 +++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 43 insertions(+), 4 deletions(-)
+ mm/hugetlb.c |   21 +++++++++------------
+ 1 files changed, 9 insertions(+), 12 deletions(-)
 
-diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-index 0b73c53..9e51f77 100644
---- v2.6.36-rc2/include/linux/hugetlb.h
-+++ v2.6.36-rc2/include/linux/hugetlb.h
-@@ -44,6 +44,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						int acctflags);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
- void __isolate_hwpoisoned_huge_page(struct page *page);
-+void copy_huge_page(struct page *dst, struct page *src);
- 
- extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
-@@ -102,6 +103,9 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
- #define __isolate_hwpoisoned_huge_page(page)	0
-+static inline void copy_huge_page(struct page *dst, struct page *src)
-+{
-+}
- 
- #define hugetlb_change_protection(vma, address, end, newprot)
- 
 diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index 674a25e..283563d 100644
+index cc5be78..6871b41 100644
 --- v2.6.36-rc2/mm/hugetlb.c
 +++ v2.6.36-rc2/mm/hugetlb.c
-@@ -423,7 +423,7 @@ static void clear_huge_page(struct page *page,
+@@ -2518,22 +2518,19 @@ retry:
+ 			hugepage_add_new_anon_rmap(page, vma, address);
+ 		}
+ 	} else {
++		/*
++		 * If memory error occurs between mmap() and fault, some process
++		 * don't have hwpoisoned swap entry for errored virtual address.
++		 * So we need to block hugepage fault by PG_hwpoison bit check.
++		 */
++		if (unlikely(PageHWPoison(page))) {
++			ret = VM_FAULT_HWPOISON;
++			goto backout_unlocked;
++		}
+ 		page_dup_rmap(page);
  	}
- }
- 
--static void copy_gigantic_page(struct page *dst, struct page *src,
-+static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
-@@ -440,14 +440,15 @@ static void copy_gigantic_page(struct page *dst, struct page *src,
- 		src = mem_map_next(src, src_base, i);
- 	}
- }
--static void copy_huge_page(struct page *dst, struct page *src,
-+
-+static void copy_user_huge_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
- 	struct hstate *h = hstate_vma(vma);
- 
- 	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
-+		copy_user_gigantic_page(dst, src, addr, vma);
- 		return;
- 	}
- 
-@@ -458,6 +459,40 @@ static void copy_huge_page(struct page *dst, struct page *src,
- 	}
- }
- 
-+static void copy_gigantic_page(struct page *dst, struct page *src)
-+{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page(h); ) {
-+		cond_resched();
-+		copy_highpage(dst, src);
-+
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
-+}
-+
-+void copy_huge_page(struct page *dst, struct page *src)
-+{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+
-+	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page(h); i++) {
-+		cond_resched();
-+		copy_highpage(dst + i, src + i);
-+	}
-+}
-+
- static void enqueue_huge_page(struct hstate *h, struct page *page)
- {
- 	int nid = page_to_nid(page);
-@@ -2434,7 +2469,7 @@ retry_avoidcopy:
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
- 
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_user_huge_page(new_page, old_page, address, vma);
- 	__SetPageUptodate(new_page);
  
  	/*
+-	 * Since memory error handler replaces pte into hwpoison swap entry
+-	 * at the time of error handling, a process which reserved but not have
+-	 * the mapping to the error hugepage does not have hwpoison swap entry.
+-	 * So we need to block accesses from such a process by checking
+-	 * PG_hwpoison bit here.
+-	 */
+-	if (unlikely(PageHWPoison(page))) {
+-		ret = VM_FAULT_HWPOISON;
+-		goto backout_unlocked;
+-	}
+-
+-	/*
+ 	 * If we are going to COW a private mapping later, we examine the
+ 	 * pending reservations for this page now. This will ensure that
+ 	 * any allocations necessary to record that reservation occur outside
 -- 
 1.7.2.1
 
