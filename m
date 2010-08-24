@@ -1,37 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1D2746B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 13:12:01 -0400 (EDT)
-Date: Tue, 24 Aug 2010 12:13:23 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: 2.6.34.1 page allocation failure
-In-Reply-To: <4C72F7C6.3020109@hardwarefreak.com>
-Message-ID: <alpine.DEB.2.00.1008241210570.3695@router.home>
-References: <4C70BFF3.8030507@hardwarefreak.com> <alpine.DEB.1.10.1008220842400.8562@uplift.swm.pp.se> <AANLkTin48SJ58HvFqjrOnQBMqLcbECtqXokweV00dNgv@mail.gmail.com> <alpine.DEB.2.00.1008221734410.21916@router.home> <4C724141.8060000@kernel.org>
- <4C72F7C6.3020109@hardwarefreak.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 573E96B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 13:43:20 -0400 (EDT)
+Date: Tue, 24 Aug 2010 20:44:57 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [patch] slob: fix gfp flags for order-0 page allocations
+In-Reply-To: <1282663241.10679.958.camel@calx>
+Message-ID: <alpine.DEB.2.00.1008242044450.2329@tiger>
+References: <alpine.DEB.2.00.1008221615350.29062@chino.kir.corp.google.com>  <1282623994.10679.921.camel@calx>  <alpine.DEB.2.00.1008232134480.25742@chino.kir.corp.google.com> <1282663241.10679.958.camel@calx>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
-To: Stan Hoeppner <stan@hardwarefreak.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Mikael Abrahamsson <swmike@swm.pp.se>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>
+To: Matt Mackall <mpm@selenic.com>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Aug 2010, Stan Hoeppner wrote:
+On Tue, 24 Aug 2010, Matt Mackall wrote:
+> (peeks at code)
+>
+> Ok, that + should be a -. But yes, you're right, the bucket around an
+> order-0 allocation is quite small.
+>
+> Acked-by: Matt Mackall <mpm@selenic.com>
 
-> Should I be using SLUB instead?  Any downsides to SLUB on an old and
-> slow (500 MHz) single core dual CPU box with <512MB RAM?
-
-SLUB has a smaller memory footprint so you may come out ahead for
-such a small system in particular.
-
-> Also, what is the impact of these oopses?  Despite the entries in dmesg,
-> the system "seems" to be running ok.  Or is this simply the calm before
-> the impending storm?
-
-The system does not guarantee that GFP_ATOMIC allocation succeed so any
-caller must provide logic to fall back if no memory is allocated. So the
-effect may just be that certain OS operations have to be retried.
-
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
