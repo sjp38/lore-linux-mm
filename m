@@ -1,66 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8554B60080F
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 23:26:42 -0400 (EDT)
-Date: Tue, 24 Aug 2010 11:25:34 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_entered_writeback in
- /proc/vmstat
-Message-ID: <20100824032534.GC11970@localhost>
-References: <1282296689-25618-1-git-send-email-mrubin@google.com>
- <1282296689-25618-4-git-send-email-mrubin@google.com>
- <20100820100855.GC8440@localhost>
- <AANLkTi=+uNFq5=5gmjfAOhngXqR8RS3dX3E2uEWG33Ot@mail.gmail.com>
- <20100821004804.GA11030@localhost>
- <AANLkTim4NZrV18a2LYpyTz9+MSBgVw6KKo4tCUmu9GHZ@mail.gmail.com>
- <20100824023028.GA9005@localhost>
- <AANLkTi=KwJat47-7GjQOhhMnriiBE5sBOR2b9b7XC6As@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTi=KwJat47-7GjQOhhMnriiBE5sBOR2b9b7XC6As@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E016660080F
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 00:08:40 -0400 (EDT)
+Date: Tue, 24 Aug 2010 13:04:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] memcg: use ID in page_cgroup
+Message-Id: <20100824130402.9ee7447b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100824105405.abf226e6.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100823143237.b7822ffc.nishimura@mxp.nes.nec.co.jp>
+	<20100824085243.8dd3c8de.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100824101425.2dc25773.nishimura@mxp.nes.nec.co.jp>
+	<20100824105405.abf226e6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: Shailabh Nagar <nagar@watson.ibm.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 24, 2010 at 11:02:42AM +0800, Michael Rubin wrote:
-> On Mon, Aug 23, 2010 at 7:30 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > It's about the interface, I don't mind you adding the per-node vmstat
-> > entries which may be convenient for you and mostly harmless to others.
-> >
-> > My concern is, what do you think about the existing
-> > /proc/<pid>/io:write_bytes interface and is it good enough for your?
-> > You'll have to iterate through tasks to collect numbers for one job or
-> > for the whole system, however that should be easy and more flexible?
+On Tue, 24 Aug 2010 10:54:05 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Tue, 24 Aug 2010 10:14:25 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> Is this as an alternative to the vmstat counters or the per node
-> vmstat counters?
+> > > > > @@ -723,6 +729,11 @@ static inline bool mem_cgroup_is_root(st
+> > > > >  	return (mem == root_mem_cgroup);
+> > > > >  }
+> > > > >  
+> > > > > +static inline bool mem_cgroup_is_rootid(unsigned short id)
+> > > > > +{
+> > > > > +	return (id == 1);
+> > > > > +}
+> > > > > +
+> > > > It might be better to add
+> > > > 
+> > > > 	BUG_ON(newid->id != 1)
+> > > > 
+> > > > in cgroup.c::cgroup_init_idr().
+> > > > 
+> > > 
+> > > Why ??
+> > > 
+> > Just to make sure that the root css has id==1. mem_cgroup_is_rootid() make
+> > use of the fact.
+> > I'm sorry if I miss something.
+> > 
 > 
-> In either case I am not sure /proc/pid will be sufficient. What if 20
-> processes are created, write a lot of data, then quit? How do we know
-> about those events later? What about jobs that wake up, write data
-> then quit quickly?
+> Hmm. The function allocating ID does
+> 
+> 4530 static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
+> 4531 {
+> ==
+> 4546         spin_lock(&ss->id_lock);
+> 4547         /* Don't use 0. allocates an ID of 1-65535 */
+> 4548         error = idr_get_new_above(&ss->idr, newid, 1, &myid);
+> 4549         spin_unlock(&ss->id_lock);
+> ==
+> 
+> and allocates ID above "1", always.
+> 
+> Adding BUG_ON(newid->id != 1) will mean that we doubt the bitmap function and
+> consider possibility that new->id == 0.
+> 
+> But, we're 100% sure that it never happens.
+> 
+> I don't think adding a comment is a right thing to do.
+> 
+Okey, I don't have strong requirement to add BUG_ON() anyway.
 
-According to Documentation/accounting/taskstats.txt, it's possible to
-register a task for collecting its stat numbers when it quits. However
-I'm not sure if there are reliable ways to do this if tasks come and
-go very quickly. It may help to somehow automatically add the numbers
-to the parent process at process quit time.
-
-> If we are running many many tasks I would think the amount of time it
-> can take to cycle through all of them might mean we might not capture
-> all the data.
-
-Yes, 10k tasks may be too much to track.
-
-> The goal is to have a complete view of the dirtying and cleaning of
-> the pages over time. Using /proc/pid feels like it won't achieve that.
-
-Looks so.
+These patches looks good to me except for some minor points I've commented.
 
 Thanks,
-Fengguang
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
