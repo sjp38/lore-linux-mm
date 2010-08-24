@@ -1,185 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DBB1F6B0352
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 21:59:09 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o7O1af4E002992
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:41 -0700
-Received: from pxi17 (pxi17.prod.google.com [10.243.27.17])
-	by kpbe17.cbf.corp.google.com with ESMTP id o7O1ad6x032355
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:40 -0700
-Received: by pxi17 with SMTP id 17so2783088pxi.13
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:39 -0700 (PDT)
-Date: Mon, 23 Aug 2010 18:36:33 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 1/2] oom: rewrite error handling for oom_adj and
- oom_score_adj tunables
-Message-ID: <alpine.DEB.2.00.1008231829230.6483@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id C8B956B0353
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 22:01:13 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7O217AZ014345
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 24 Aug 2010 11:01:08 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 896D345DE51
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:01:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BC3B45DD77
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:01:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 365A01DB803B
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:01:07 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E91F71DB8038
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:01:06 +0900 (JST)
+Date: Tue, 24 Aug 2010 10:54:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: use ID in page_cgroup
+Message-Id: <20100824105405.abf226e6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100824101425.2dc25773.nishimura@mxp.nes.nec.co.jp>
+References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100823143237.b7822ffc.nishimura@mxp.nes.nec.co.jp>
+	<20100824085243.8dd3c8de.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100824101425.2dc25773.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-It's better to use proper error handling in oom_adjust_write() and 
-oom_score_adj_write() instead of duplicating the locking order on various
-exit paths.
+On Tue, 24 Aug 2010 10:14:25 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- fs/proc/base.c |   83 ++++++++++++++++++++++++++++++++-----------------------
- 1 files changed, 48 insertions(+), 35 deletions(-)
+> > > > @@ -723,6 +729,11 @@ static inline bool mem_cgroup_is_root(st
+> > > >  	return (mem == root_mem_cgroup);
+> > > >  }
+> > > >  
+> > > > +static inline bool mem_cgroup_is_rootid(unsigned short id)
+> > > > +{
+> > > > +	return (id == 1);
+> > > > +}
+> > > > +
+> > > It might be better to add
+> > > 
+> > > 	BUG_ON(newid->id != 1)
+> > > 
+> > > in cgroup.c::cgroup_init_idr().
+> > > 
+> > 
+> > Why ??
+> > 
+> Just to make sure that the root css has id==1. mem_cgroup_is_rootid() make
+> use of the fact.
+> I'm sorry if I miss something.
+> 
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1023,36 +1023,39 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 	memset(buffer, 0, sizeof(buffer));
- 	if (count > sizeof(buffer) - 1)
- 		count = sizeof(buffer) - 1;
--	if (copy_from_user(buffer, buf, count))
--		return -EFAULT;
-+	if (copy_from_user(buffer, buf, count)) {
-+		err = -EFAULT;
-+		goto out;
-+	}
- 
- 	err = strict_strtol(strstrip(buffer), 0, &oom_adjust);
- 	if (err)
--		return -EINVAL;
-+		goto out;
- 	if ((oom_adjust < OOM_ADJUST_MIN || oom_adjust > OOM_ADJUST_MAX) &&
--	     oom_adjust != OOM_DISABLE)
--		return -EINVAL;
-+	     oom_adjust != OOM_DISABLE) {
-+		err = -EINVAL;
-+		goto out;
-+	}
- 
- 	task = get_proc_task(file->f_path.dentry->d_inode);
--	if (!task)
--		return -ESRCH;
-+	if (!task) {
-+		err = -ESRCH;
-+		goto out;
-+	}
- 	if (!lock_task_sighand(task, &flags)) {
--		put_task_struct(task);
--		return -ESRCH;
-+		err = -ESRCH;
-+		goto err_task_struct;
- 	}
- 
- 	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
--		unlock_task_sighand(task, &flags);
--		put_task_struct(task);
--		return -EACCES;
-+		err = -EACCES;
-+		goto err_sighand;
- 	}
- 
- 	task_lock(task);
- 	if (!task->mm) {
--		task_unlock(task);
--		unlock_task_sighand(task, &flags);
--		put_task_struct(task);
--		return -EINVAL;
-+		err = -EINVAL;
-+		goto err_task_lock;
- 	}
- 
- 	if (oom_adjust != task->signal->oom_adj) {
-@@ -1080,11 +1083,14 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 	else
- 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
- 								-OOM_DISABLE;
-+err_task_lock:
- 	task_unlock(task);
-+err_sighand:
- 	unlock_task_sighand(task, &flags);
-+err_task_struct:
- 	put_task_struct(task);
--
--	return count;
-+out:
-+	return err < 0 ? err : count;
- }
- 
- static const struct file_operations proc_oom_adjust_operations = {
-@@ -1125,36 +1131,39 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
- 	memset(buffer, 0, sizeof(buffer));
- 	if (count > sizeof(buffer) - 1)
- 		count = sizeof(buffer) - 1;
--	if (copy_from_user(buffer, buf, count))
--		return -EFAULT;
-+	if (copy_from_user(buffer, buf, count)) {
-+		err = -EFAULT;
-+		goto out;
-+	}
- 
- 	err = strict_strtol(strstrip(buffer), 0, &oom_score_adj);
- 	if (err)
--		return -EINVAL;
-+		goto out;
- 	if (oom_score_adj < OOM_SCORE_ADJ_MIN ||
--			oom_score_adj > OOM_SCORE_ADJ_MAX)
--		return -EINVAL;
-+			oom_score_adj > OOM_SCORE_ADJ_MAX) {
-+		err = -EINVAL;
-+		goto out;
-+	}
- 
- 	task = get_proc_task(file->f_path.dentry->d_inode);
--	if (!task)
--		return -ESRCH;
-+	if (!task) {
-+		err = -ESRCH;
-+		goto out;
-+	}
- 	if (!lock_task_sighand(task, &flags)) {
--		put_task_struct(task);
--		return -ESRCH;
-+		err = -ESRCH;
-+		goto err_task_struct;
- 	}
- 	if (oom_score_adj < task->signal->oom_score_adj &&
- 			!capable(CAP_SYS_RESOURCE)) {
--		unlock_task_sighand(task, &flags);
--		put_task_struct(task);
--		return -EACCES;
-+		err = -EACCES;
-+		goto err_sighand;
- 	}
- 
- 	task_lock(task);
- 	if (!task->mm) {
--		task_unlock(task);
--		unlock_task_sighand(task, &flags);
--		put_task_struct(task);
--		return -EINVAL;
-+		err = -EINVAL;
-+		goto err_task_lock;
- 	}
- 	if (oom_score_adj != task->signal->oom_score_adj) {
- 		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
-@@ -1172,10 +1181,14 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
- 	else
- 		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
- 							OOM_SCORE_ADJ_MAX;
-+err_task_lock:
- 	task_unlock(task);
-+err_sighand:
- 	unlock_task_sighand(task, &flags);
-+err_task_struct:
- 	put_task_struct(task);
--	return count;
-+out:
-+	return err < 0 ? err : count;
- }
- 
- static const struct file_operations proc_oom_score_adj_operations = {
+Hmm. The function allocating ID does
+
+4530 static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
+4531 {
+==
+4546         spin_lock(&ss->id_lock);
+4547         /* Don't use 0. allocates an ID of 1-65535 */
+4548         error = idr_get_new_above(&ss->idr, newid, 1, &myid);
+4549         spin_unlock(&ss->id_lock);
+==
+
+and allocates ID above "1", always.
+
+Adding BUG_ON(newid->id != 1) will mean that we doubt the bitmap function and
+consider possibility that new->id == 0.
+
+But, we're 100% sure that it never happens.
+
+I don't think adding a comment is a right thing to do.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
