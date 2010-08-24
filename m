@@ -1,70 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 402BD6B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:30:31 -0400 (EDT)
-Received: by pwi3 with SMTP id 3so3222816pwi.14
-        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:31:39 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4AC016B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 11:32:53 -0400 (EDT)
+Received: by pxi5 with SMTP id 5so3112869pxi.14
+        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 08:33:59 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2 1/2] compaction: handle active and inactive fairly in too_many_isolated
-Date: Wed, 25 Aug 2010 00:31:18 +0900
-Message-Id: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
+Subject: [PATCH v2 2/2] compaction: fix COMPACTPAGEFAILED counting
+Date: Wed, 25 Aug 2010 00:31:19 +0900
+Message-Id: <1282663879-4130-2-git-send-email-minchan.kim@gmail.com>
+In-Reply-To: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
+References: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Christoph Lameter <cl@linux.com>
 List-ID: <linux-mm.kvack.org>
 
-Iram reported compaction's too_many_isolated loops forever.
-(http://www.spinics.net/lists/linux-mm/msg08123.html)
+Now update_nr_listpages doesn't have a role. That's because
+lists passed is always empty just after calling migrate_pages.
+The migrate_pages cleans up page list which have failed to migrate
+before returning by aaa994b3.
 
-The meminfo of situation happened was inactive anon is zero.
-That's because the system has no memory pressure until then.
-While all anon pages was in active lru, compaction could select
-active lru as well as inactive lru. That's different things
-with vmscan's isolated. So we has been two too_many_isolated.
+ [PATCH] page migration: handle freeing of pages in migrate_pages()
 
-While compaction can isolated pages in both active and inactive,
-current implementation of too_many_isolated only considers inactive.
-It made Iram's problem.
+ Do not leave pages on the lists passed to migrate_pages().  Seems that we will
+ not need any postprocessing of pages.  This will simplify the handling of
+ pages by the callers of migrate_pages().
 
-This patch handles active and inactive with fair.
-That's because we can't expect where from and how many compaction would
-isolated pages.
+At that time, we thought we don't need any postprocessing of pages.
+But the situation is changed. The compaction need to know the number of
+failed to migrate for COMPACTPAGEFAILED stat
 
-This patch changes (nr_isolated > nr_inactive) with
-nr_isolated > (nr_active + nr_inactive) / 2.
+This patch introduces new argument 'cleanup' to migrate_pages.
+This patch make new rule for caller of migrate_pages to call putback_lru_pages.
+So caller need to clean up the lists so it has a chance to postprocess the pages.
 
-Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
-Acked-by: Mel Gorman <mel@csn.ul.ie>
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
 Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- mm/compaction.c |    7 ++++---
- 1 files changed, 4 insertions(+), 3 deletions(-)
+ mm/memory-failure.c |    1 +
+ mm/memory_hotplug.c |    2 ++
+ mm/mempolicy.c      |   10 ++++++++--
+ mm/migrate.c        |   12 +++++++-----
+ 4 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 94cce51..4d709ee 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -214,15 +214,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- /* Similar to reclaim, but different enough that they don't share logic */
- static bool too_many_isolated(struct zone *zone)
- {
--
--	unsigned long inactive, isolated;
-+	unsigned long active, inactive, isolated;
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 9c26eec..5267861 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1339,6 +1339,7 @@ int soft_offline_page(struct page *page, int flags)
+ 		list_add(&page->lru, &pagelist);
+ 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+ 		if (ret) {
++			putback_lru_pages(&pagelist);
+ 			pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+ 				pfn, ret, page->flags);
+ 			if (ret > 0)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a4cfcdc..2638079 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -731,6 +731,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 		goto out;
+ 	/* this function returns # of failed pages */
+ 	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
++	if (ret)
++		putback_lru_pages(&source);
  
- 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
- 					zone_page_state(zone, NR_INACTIVE_ANON);
-+	active = zone_page_state(zone, NR_ACTIVE_FILE) +
-+					zone_page_state(zone, NR_ACTIVE_ANON);
- 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
- 					zone_page_state(zone, NR_ISOLATED_ANON);
+ out:
+ 	return ret;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f969da5..21243b2 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -931,8 +931,11 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+ 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
  
--	return isolated > inactive;
-+	return isolated > (inactive + active) / 2;
+-	if (!list_empty(&pagelist))
++	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_node_page, dest, 0);
++		if (err)
++			putback_lru_pages(&pagelist);
++	}
+ 
+ 	return err;
  }
+@@ -1147,9 +1150,12 @@ static long do_mbind(unsigned long start, unsigned long len,
  
- /*
+ 		err = mbind_range(mm, start, end, new);
+ 
+-		if (!list_empty(&pagelist))
++		if (!list_empty(&pagelist)) {
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+ 						(unsigned long)vma, 0);
++			if (nr_failed)
++				putback_lru_pages(&pagelist);
++		}
+ 
+ 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
+ 			err = -EIO;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 38e7cad..ed38c22 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -732,8 +732,9 @@ move_newpage:
+  *
+  * The function returns after 10 attempts or if no pages
+  * are movable anymore because to has become empty
+- * or no retryable pages exist anymore. All pages will be
+- * returned to the LRU or freed.
++ * or no retryable pages exist anymore.
++ * Caller should call putback_lru_pages to return pages to the LRU
++ * or free list.
+  *
+  * Return: Number of pages not migrated or error code.
+  */
+@@ -780,8 +781,6 @@ out:
+ 	if (!swapwrite)
+ 		current->flags &= ~PF_SWAPWRITE;
+ 
+-	putback_lru_pages(from);
+-
+ 	if (rc)
+ 		return rc;
+ 
+@@ -890,9 +889,12 @@ set_status:
+ 	}
+ 
+ 	err = 0;
+-	if (!list_empty(&pagelist))
++	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_page_node,
+ 				(unsigned long)pm, 0);
++		if (err)
++			putback_lru_pages(&pagelist);
++	}
+ 
+ 	up_read(&mm->mmap_sem);
+ 	return err;
 -- 
 1.7.0.5
 
