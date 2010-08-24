@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CD8BF60080F
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 21:36:49 -0400 (EDT)
-Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
-	by smtp-out.google.com with ESMTP id o7O1akTm004443
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:46 -0700
-Received: from pzk26 (pzk26.prod.google.com [10.243.19.154])
-	by hpaq13.eem.corp.google.com with ESMTP id o7O1aiWc027146
-	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:45 -0700
-Received: by pzk26 with SMTP id 26so2410557pzk.5
-        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:36:44 -0700 (PDT)
-Date: Mon, 23 Aug 2010 18:36:40 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 2/2] oom: protect task name when killing threads sharing
- memory
-In-Reply-To: <alpine.DEB.2.00.1008231829230.6483@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1008231830290.6483@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008231829230.6483@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1443760080F
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 21:41:25 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o7O1fMdn001043
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:41:22 -0700
+Received: from gwb17 (gwb17.prod.google.com [10.200.2.17])
+	by hpaq3.eem.corp.google.com with ESMTP id o7O1fKJL030226
+	for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:41:20 -0700
+Received: by gwb17 with SMTP id 17so3220535gwb.10
+        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 18:41:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20100824100943.F3B6.A69D9226@jp.fujitsu.com>
+References: <20100821054808.GA29869@localhost> <AANLkTikS+DUfPz0E2SmCZTQBWL8h2zSsGM8--yqEaVgZ@mail.gmail.com>
+ <20100824100943.F3B6.A69D9226@jp.fujitsu.com>
+From: Michael Rubin <mrubin@google.com>
+Date: Mon, 23 Aug 2010 18:41:00 -0700
+Message-ID: <AANLkTi=OwGUzM0oZ5qTEFnGTuo8kVfW79oqH-Dcf8jdp@mail.gmail.com>
+Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in /proc/vmstat
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-It's necessary to prevent dereferences of q->comm for a task q when
-q != current because its name may change during prctl() with
-PR_SET_NAME.
+On Mon, Aug 23, 2010 at 6:20 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Fri, Aug 20, 2010 at 10:48 PM, Wu Fengguang <fengguang.wu@intel.com> =
+wrote:
+>> LOL. I know about these counters. This goes back and forth a lot.
+>> The reason we don't want to use this interface is several fold.
+>
+> Please don't use LOL if you want to get good discuttion. afaict, Wu have
+> deep knowledge in this area. However all kernel-developer don't know all
+> kernel knob.
 
-Unfortunately, we can't use get_task_comm() when killing other threads
-sharing the same memory as the oom killed task since it would require a
-string to be allocated on the stack which may be very deep, especially
-during failed page allocations.
+Apologies. No offense was intended. I was laughing at the situation
+and how I too once thought the per bdi counters were enough. Feng has
+been very helpful and patient. The discussion has done nothing but
+help the code so far so it is appreciated.
 
-This patch protects the dereference with task_lock() instead.
+> In nowadays, many distro mount debugfs at boot time. so, can you please
+> elaborate you worried risk? =A0even though we have namespace.
 
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Right now we don't mount all of debugfs at boot time. We have not done
+the work to verify its safe in our environment. It's mostly a nit.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -429,8 +429,10 @@ static int oom_kill_task(struct task_struct *p, struct mem_cgroup *mem)
- 	 */
- 	for_each_process(q)
- 		if (q->mm == mm && !same_thread_group(q, p)) {
-+			task_lock(q);
- 			pr_err("Kill process %d (%s) sharing same memory\n",
- 				task_pid_nr(q), q->comm);
-+			task_unlock(q);
- 			force_sig(SIGKILL, q);
- 		}
- 
+Also I was under the impression that debugfs was intended more for
+kernel devs while /proc and /sys was intended for application
+developers.
+
+>> 3) Full system counters are easier to handle the juggling of removable
+>> storage where these numbers will appear and disappear due to being
+>> dynamic.
+
+This is the biggie to me. The idea is to get a complete view of the
+system's writeback behaviour over time. With systems with hot plug
+devices, or many many drives collecting that view gets difficult.
+
+>> The goal is to get a full view of the system writeback behaviour not a
+>> "kinda got it-oops maybe not" view.
+>
+> I bet nobody oppose this point :)
+
+Yup.
+
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
