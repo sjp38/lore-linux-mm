@@ -1,103 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3BFF960080F
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 02:10:24 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7O6AKuI029144
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 24 Aug 2010 15:10:20 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E954C45DE50
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 15:10:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C72A245DE4E
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 15:10:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A7D031DB8037
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 15:10:19 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 36944E08001
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 15:10:16 +0900 (JST)
-Date: Tue, 24 Aug 2010 15:05:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: use ID in page_cgroup
-Message-Id: <20100824150516.000f21b5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100824130402.9ee7447b.nishimura@mxp.nes.nec.co.jp>
-References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100820190132.43684862.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100823143237.b7822ffc.nishimura@mxp.nes.nec.co.jp>
-	<20100824085243.8dd3c8de.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100824101425.2dc25773.nishimura@mxp.nes.nec.co.jp>
-	<20100824105405.abf226e6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100824130402.9ee7447b.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 97C526008D8
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 02:52:40 -0400 (EDT)
+Received: by ywo7 with SMTP id 7so3100701ywo.14
+        for <linux-mm@kvack.org>; Mon, 23 Aug 2010 23:52:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <8E31CE28A1354C43BBAD0BDEFA10494E@rainbow>
+References: <20100818154130.GC9431@localhost>
+	<565A4EE71DAC4B1A820B2748F56ABF73@rainbow>
+	<20100819160006.GG6805@barrios-desktop>
+	<AA3F2D89535A431DB91FE3032EDCB9EA@rainbow>
+	<20100820053447.GA13406@localhost>
+	<20100820093558.GG19797@csn.ul.ie>
+	<AANLkTimVmoomDjGMCfKvNrS+v-mMnfeq6JDZzx7fjZi+@mail.gmail.com>
+	<20100822153121.GA29389@barrios-desktop>
+	<20100822232316.GA339@localhost>
+	<20100823171416.GA2216@barrios-desktop>
+	<20100824002753.GB6568@localhost>
+	<8E31CE28A1354C43BBAD0BDEFA10494E@rainbow>
+Date: Tue, 24 Aug 2010 15:52:37 +0900
+Message-ID: <AANLkTikTu3jx5WyYEDZY2mk99V+w7kxL5k7xJDS+QZ+m@mail.gmail.com>
+Subject: Re: compaction: trying to understand the code
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
+To: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 24 Aug 2010 13:04:02 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Tue, Aug 24, 2010 at 2:07 PM, Iram Shahzad
+<iram.shahzad@jp.fujitsu.com> wrote:
+>> One question is, why kswapd won't proceed after isolating all the pages?
+>> If it has done with the isolated pages, we'll see growing inactive_anon
+>> numbers.
+>>
+>> /proc/vmstat should give more clues on any possible page reclaim
+>> activities. Iram, would you help post it?
+>
+> I am not sure which point of time are you interested in, so I am
+> attaching /proc/vmstat log of 3 points.
+>
+> too_many_isolated_vmstat_before_frag.txt
+> =A0This one is taken before I ran my test app which attempts
+> =A0to make fragmentation
+> too_many_isolated_vmstat_before_compaction.txt
+> =A0This one is taken after running the test app and before
+> =A0running compaction.
+> too_many_isolated_vmstat_during_compaction.txt
+> =A0This one is taken a few minutes after running compaction.
+> =A0To take this I ran compaction in background.
+>
+> Thanks
+> Iram
+>
 
-> On Tue, 24 Aug 2010 10:54:05 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > On Tue, 24 Aug 2010 10:14:25 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > > > > @@ -723,6 +729,11 @@ static inline bool mem_cgroup_is_root(st
-> > > > > >  	return (mem == root_mem_cgroup);
-> > > > > >  }
-> > > > > >  
-> > > > > > +static inline bool mem_cgroup_is_rootid(unsigned short id)
-> > > > > > +{
-> > > > > > +	return (id == 1);
-> > > > > > +}
-> > > > > > +
-> > > > > It might be better to add
-> > > > > 
-> > > > > 	BUG_ON(newid->id != 1)
-> > > > > 
-> > > > > in cgroup.c::cgroup_init_idr().
-> > > > > 
-> > > > 
-> > > > Why ??
-> > > > 
-> > > Just to make sure that the root css has id==1. mem_cgroup_is_rootid() make
-> > > use of the fact.
-> > > I'm sorry if I miss something.
-> > > 
-> > 
-> > Hmm. The function allocating ID does
-> > 
-> > 4530 static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
-> > 4531 {
-> > ==
-> > 4546         spin_lock(&ss->id_lock);
-> > 4547         /* Don't use 0. allocates an ID of 1-65535 */
-> > 4548         error = idr_get_new_above(&ss->idr, newid, 1, &myid);
-> > 4549         spin_unlock(&ss->id_lock);
-> > ==
-> > 
-> > and allocates ID above "1", always.
-> > 
-> > Adding BUG_ON(newid->id != 1) will mean that we doubt the bitmap function and
-> > consider possibility that new->id == 0.
-> > 
-> > But, we're 100% sure that it never happens.
-> > 
-> > I don't think adding a comment is a right thing to do.
-> > 
-> Okey, I don't have strong requirement to add BUG_ON() anyway.
-> 
-> These patches looks good to me except for some minor points I've commented.
-> 
+Hmm.. Never happens reclaim. Strange.
+In addtion, pgpgin is always 4.
 
-Thank you for review. I'll repost after applying your feedback.
+pgpgin 4
+pgpgout 0
 
--Kame
+Is it possible?
+What kinds of filesystem do you use?
+Do you boot from NFS?
+Do your system have any non-mainline(ie, doesn't merged into linux
+kernel tree) driver, file system or any feature?
+
+Maybe your config file can answer this questions.
+Thanks.
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
