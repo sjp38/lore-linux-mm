@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A25A66B01F8
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 15:22:56 -0400 (EDT)
-Date: Wed, 25 Aug 2010 12:21:34 -0700
-From: Randy Dunlap <randy.dunlap@oracle.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 5F0B76B01FA
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 15:51:17 -0400 (EDT)
+Date: Wed, 25 Aug 2010 14:51:14 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: linux-next: Tree for August 25 (mm/slub)
-Message-Id: <20100825122134.2ac33360.randy.dunlap@oracle.com>
-In-Reply-To: <alpine.DEB.2.00.1008251409260.22117@router.home>
-References: <20100825132057.c8416bef.sfr@canb.auug.org.au>
-	<20100825094559.bc652afe.randy.dunlap@oracle.com>
-	<alpine.DEB.2.00.1008251409260.22117@router.home>
-Mime-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="Multipart=_Wed__25_Aug_2010_12_21_34_-0700_E8znxx3jWZLoOru2"
+In-Reply-To: <20100825122134.2ac33360.randy.dunlap@oracle.com>
+Message-ID: <alpine.DEB.2.00.1008251447410.22117@router.home>
+References: <20100825132057.c8416bef.sfr@canb.auug.org.au> <20100825094559.bc652afe.randy.dunlap@oracle.com> <alpine.DEB.2.00.1008251409260.22117@router.home> <20100825122134.2ac33360.randy.dunlap@oracle.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/Mixed; BOUNDARY="Multipart=_Wed__25_Aug_2010_12_21_34_-0700_E8znxx3jWZLoOru2"
+Content-ID: <alpine.DEB.2.00.1008251447411.22117@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
+To: Randy Dunlap <randy.dunlap@oracle.com>
 Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
 --Multipart=_Wed__25_Aug_2010_12_21_34_-0700_E8znxx3jWZLoOru2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.00.1008251447412.22117@router.home>
 
-On Wed, 25 Aug 2010 14:11:25 -0500 (CDT) Christoph Lameter wrote:
+On Wed, 25 Aug 2010, Randy Dunlap wrote:
 
-> On Wed, 25 Aug 2010, Randy Dunlap wrote:
-> 
-> > and in different builds:
-> >
-> > mm/slub.c:1898: note: expected 'struct kmem_cache *' but argument is of type 'struct kmem_cache **'
-> > mm/slub.c:1756: note: expected 'struct kmem_cache *' but argument is of type 'struct kmem_cache **'
-> 
-> Hmmm... Any details on the configuration that got you this result?
+> Certainly.  config file is attached.
 
-Certainly.  config file is attached.
+Ah. Memory hotplug....
 
-Excerpt:
-CONFIG_SLUB_DEBUG=y
-# CONFIG_COMPAT_BRK is not set
-# CONFIG_SLAB is not set
-CONFIG_SLUB=y
+
+
+Subject: Slub: Fix up missing kmalloc_cache -> kmem_cache_node case for memoryhotplug
+
+Memory hotplug allocates and frees per node structures. Use the correct name.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
-~Randy
-*** Remember to use Documentation/SubmitChecklist when testing your code ***
+ mm/slub.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-08-25 14:48:23.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-08-25 14:49:03.000000000 -0500
+@@ -2909,7 +2909,7 @@ static void slab_mem_offline_callback(vo
+ 			BUG_ON(slabs_node(s, offline_node));
+
+ 			s->node[offline_node] = NULL;
+-			kmem_cache_free(kmalloc_caches, n);
++			kmem_cache_free(kmem_cache_node, n);
+ 		}
+ 	}
+ 	up_read(&slub_lock);
+@@ -2942,7 +2942,7 @@ static int slab_mem_going_online_callbac
+ 		 *      since memory is not yet available from the node that
+ 		 *      is brought up.
+ 		 */
+-		n = kmem_cache_alloc(kmalloc_caches, GFP_KERNEL);
++		n = kmem_cache_alloc(kmem_cache_node, GFP_KERNEL);
+ 		if (!n) {
+ 			ret = -ENOMEM;
+ 			goto out;
 --Multipart=_Wed__25_Aug_2010_12_21_34_-0700_E8znxx3jWZLoOru2
-Content-Type: application/octet-stream;
- name="config-r5816"
-Content-Disposition: attachment;
- filename="config-r5816"
-Content-Transfer-Encoding: base64
+Content-Type: APPLICATION/OCTET-STREAM; NAME=config-r5816
+Content-Transfer-Encoding: BASE64
+Content-ID: <alpine.DEB.2.00.1008251447413.22117@router.home>
+Content-Description: 
+Content-Disposition: ATTACHMENT; FILENAME=config-r5816
 
 IwojIEF1dG9tYXRpY2FsbHkgZ2VuZXJhdGVkIG1ha2UgY29uZmlnOiBkb24ndCBlZGl0CiMgTGlu
 dXgga2VybmVsIHZlcnNpb246IDIuNi4zNi1yYzIKIyBUdWUgQXVnIDI0IDIyOjU1OjQyIDIwMTAK
