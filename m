@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CC546B01F0
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 03:45:17 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [BUGFIX][PATCH 1/2] x86, mem: separate x86_64 vmalloc_sync_all() into separate functions
-References: <4C6E4ECD.1090607@linux.intel.com>
-Date: Wed, 25 Aug 2010 09:45:13 +0200
-In-Reply-To: <4C6E4ECD.1090607@linux.intel.com> (Haicheng Li's message of
-	"Fri, 20 Aug 2010 17:45:49 +0800")
-Message-ID: <87r5hni19y.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 387566B01F0
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 04:09:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7P89YF9006871
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 25 Aug 2010 17:09:34 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6717545DE51
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 17:09:34 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3974D45DE4D
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 17:09:34 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D43E1DB8050
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 17:09:34 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A2414E38001
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 17:09:33 +0900 (JST)
+Date: Wed, 25 Aug 2010 17:04:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/5] memcg: towards I/O aware memcg v6.
+Message-Id: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Haicheng Li <haicheng.li@linux.intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "ak@linux.intel.com" <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Haicheng Li <haicheng.li@linux.intel.com> writes:
 
-> hello,
->
-> Resend these two patches for bug fixing:
->
-> The bug is that when memory hotplug-adding happens for a large enough area that a new PGD entry is
-> needed for the direct mapping, the PGDs of other processes would not get updated. This leads to some
-> CPUs oopsing when they have to access the unmapped areas, e.g. onlining CPUs on the new added node.
+This is v6. Thank you all for kindly reviews.
 
-The patches look good to me. Can we please move forward with this?
+Major changes from v5 is
+ a) changed ID allocation logic. Maybe much clearer than v6.
+ b) fixed typos and bugs.
 
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
+Patch brief view:
+ 1. changes css ID allocation in kernel/cgroup.c
+ 2. use ID-array in memcg.
+ 3. record ID to page_cgroup rather than pointer.
+ 4. make update_file_mapped to be RCU aware routine instead of spinlock.
+ 5. make update_file_mapped as general-purpose function.
 
--Andi
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
