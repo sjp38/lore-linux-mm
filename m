@@ -1,76 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id DEBF76B020F
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:31:27 -0400 (EDT)
-Date: Wed, 25 Aug 2010 17:31:25 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-Message-ID: <20100825173125.0855a6b0@bike.lwn.net>
-In-Reply-To: <20100825155814.25c783c7.akpm@linux-foundation.org>
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
-	<1282310110.2605.976.camel@laptop>
-	<20100825155814.25c783c7.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with ESMTP id ADC566B02A9
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:32:33 -0400 (EDT)
+Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
+	by smtp-out.google.com with ESMTP id o7PNWWF7031980
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:32 -0700
+Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
+	by hpaq7.eem.corp.google.com with ESMTP id o7PNWURu021511
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:31 -0700
+Received: by pzk9 with SMTP id 9so386649pzk.5
+        for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:30 -0700 (PDT)
+Date: Wed, 25 Aug 2010 16:32:27 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: linux-next: Tree for August 25 (mm/slub)
+In-Reply-To: <alpine.DEB.2.00.1008251447410.22117@router.home>
+Message-ID: <alpine.DEB.2.00.1008251622500.31521@chino.kir.corp.google.com>
+References: <20100825132057.c8416bef.sfr@canb.auug.org.au> <20100825094559.bc652afe.randy.dunlap@oracle.com> <alpine.DEB.2.00.1008251409260.22117@router.home> <20100825122134.2ac33360.randy.dunlap@oracle.com>
+ <alpine.DEB.2.00.1008251447410.22117@router.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux.com>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Aug 2010 15:58:14 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 25 Aug 2010, Christoph Lameter wrote:
 
-> > If you want guarantees you can free stuff, why not add constraints to
-> > the page allocation type and only allow MIGRATE_MOVABLE pages inside a
-> > certain region, those pages are easily freed/moved aside to satisfy
-> > large contiguous allocations.  
+> > Certainly.  config file is attached.
 > 
-> That would be good.  Although I expect that the allocation would need
-> to be 100% rock-solid reliable, otherwise the end user has a
-> non-functioning device.  Could generic core VM provide the required level
-> of service?
+> Ah. Memory hotplug....
+> 
+> 
+> 
+> Subject: Slub: Fix up missing kmalloc_cache -> kmem_cache_node case for memoryhotplug
+> 
+> Memory hotplug allocates and frees per node structures. Use the correct name.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-The original OLPC has a camera controller which requires three contiguous,
-image-sized buffers in memory.  That system is a little memory constrained
-(OK, it's desperately short of memory), so, in the past, the chances of
-being able to allocate those buffers anytime some kid decides to start
-taking pictures was poor.  Thus, cafe_ccic.c has an option to snag the
-memory at initialization time and never let go even if you threaten its
-family.  Hell hath no fury like a little kid whose new toy^W educational
-tool stops taking pictures.
+Acked-by: David Rientjes <rientjes@google.com>
 
-That, of course, is not a hugely efficient use of memory on a
-memory-constrained system.  If the VM could reliably satisfy those
-allocation requestss, life would be wonderful.  Seems difficult.  But it
-would be a nicer solution than CMA, which, to a great extent, is really
-just a standardized mechanism for grabbing memory and never letting go.
+But we also need to fixup SLUB_RESILIENCY_TEST.
 
-> It would help (a lot) if we could get more attention and buyin and
-> fedback from the potential clients of this code.  rmk's feedback is
-> valuable.  Have we heard from the linux-media people?  What other
-> subsystems might use it?  ieee1394 perhaps?  Please help identify
-> specific subsystems and I can perhaps help to wake people up.
 
-If this code had been present when I did the Cafe driver, I would have used
-it.  I think it could be made useful to a number of low-end camera drivers
-if the videobuf layer were made to talk to it in a way which Just Works.
+slub: fix SLUB_RESILIENCY_TEST for dynamic kmalloc caches
 
-With a bit of tweaking, I think it could be made useful in other
-situations: the viafb driver, for example, really needs an allocator for
-framebuffer memory and it seems silly to create one from scratch.  Of
-course, there might be other possible solutions, like adding a "zones"
-concept to LMB^W memblock.
+Now that the kmalloc_caches array is dynamically allocated at boot, 
+SLUB_RESILIENCY_TEST needs to be fixed to pass the correct type.
 
-The problem which is being addressed here is real.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/slub.c |   14 ++++++++------
+ 1 files changed, 8 insertions(+), 6 deletions(-)
 
-That said, the complexity of the solution still bugs me a bit, and the core
-idea is still to take big chunks of memory out of service for specific
-needs.  It would be far better if the VM could just provide big chunks on
-demand.  Perhaps compaction and the pressures of making transparent huge
-pages work will get us there, but I'm not sure we're there yet.
-
-jon
+diff --git a/mm/slub.c b/mm/slub.c
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3486,6 +3486,8 @@ static void resiliency_test(void)
+ {
+ 	u8 *p;
+ 
++	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 16 || SLUB_PAGE_SHIFT < 10);
++
+ 	printk(KERN_ERR "SLUB resiliency testing\n");
+ 	printk(KERN_ERR "-----------------------\n");
+ 	printk(KERN_ERR "A. Corruption after allocation\n");
+@@ -3495,7 +3497,7 @@ static void resiliency_test(void)
+ 	printk(KERN_ERR "\n1. kmalloc-16: Clobber Redzone/next pointer"
+ 			" 0x12->0x%p\n\n", p + 16);
+ 
+-	validate_slab_cache(kmalloc_caches + 4);
++	validate_slab_cache(kmalloc_caches[4]);
+ 
+ 	/* Hmmm... The next two are dangerous */
+ 	p = kzalloc(32, GFP_KERNEL);
+@@ -3505,7 +3507,7 @@ static void resiliency_test(void)
+ 	printk(KERN_ERR
+ 		"If allocated object is overwritten then not detectable\n\n");
+ 
+-	validate_slab_cache(kmalloc_caches + 5);
++	validate_slab_cache(kmalloc_caches[5]);
+ 	p = kzalloc(64, GFP_KERNEL);
+ 	p += 64 + (get_cycles() & 0xff) * sizeof(void *);
+ 	*p = 0x56;
+@@ -3513,27 +3515,27 @@ static void resiliency_test(void)
+ 									p);
+ 	printk(KERN_ERR
+ 		"If allocated object is overwritten then not detectable\n\n");
+-	validate_slab_cache(kmalloc_caches + 6);
++	validate_slab_cache(kmalloc_caches[6]);
+ 
+ 	printk(KERN_ERR "\nB. Corruption after free\n");
+ 	p = kzalloc(128, GFP_KERNEL);
+ 	kfree(p);
+ 	*p = 0x78;
+ 	printk(KERN_ERR "1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
+-	validate_slab_cache(kmalloc_caches + 7);
++	validate_slab_cache(kmalloc_caches[7]);
+ 
+ 	p = kzalloc(256, GFP_KERNEL);
+ 	kfree(p);
+ 	p[50] = 0x9a;
+ 	printk(KERN_ERR "\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n",
+ 			p);
+-	validate_slab_cache(kmalloc_caches + 8);
++	validate_slab_cache(kmalloc_caches[8]);
+ 
+ 	p = kzalloc(512, GFP_KERNEL);
+ 	kfree(p);
+ 	p[512] = 0xab;
+ 	printk(KERN_ERR "\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
+-	validate_slab_cache(kmalloc_caches + 9);
++	validate_slab_cache(kmalloc_caches[9]);
+ }
+ #else
+ static void resiliency_test(void) {};
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
