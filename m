@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E70C26B01F6
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 22:58:15 -0400 (EDT)
-Date: Wed, 25 Aug 2010 11:02:02 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 6/8] HWPOISON, hugetlb: soft offlining for hugepage
-Message-ID: <20100825030202.GB15129@localhost>
-References: <1282694127-14609-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1282694127-14609-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC546B01F0
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 03:45:17 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [BUGFIX][PATCH 1/2] x86, mem: separate x86_64 vmalloc_sync_all() into separate functions
+References: <4C6E4ECD.1090607@linux.intel.com>
+Date: Wed, 25 Aug 2010 09:45:13 +0200
+In-Reply-To: <4C6E4ECD.1090607@linux.intel.com> (Haicheng Li's message of
+	"Fri, 20 Aug 2010 17:45:49 +0800")
+Message-ID: <87r5hni19y.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1282694127-14609-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Haicheng Li <haicheng.li@linux.intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "ak@linux.intel.com" <ak@linux.intel.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> +static int is_hugepage_on_freelist(struct page *hpage)
-> +{
-> +	struct page *page;
-> +	struct page *tmp;
-> +	struct hstate *h = page_hstate(hpage);
-> +	int nid = page_to_nid(hpage);
-> +
-> +	spin_lock(&hugetlb_lock);
-> +	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru) {
-> +		if (page == hpage) {
-> +			spin_unlock(&hugetlb_lock);
-> +			return 1;
-> +		}
-> +	}
-> +	spin_unlock(&hugetlb_lock);
-> +	return 0;
-> +}
+Haicheng Li <haicheng.li@linux.intel.com> writes:
 
-Ha! That looks better than the page_count test in my previous email.
+> hello,
+>
+> Resend these two patches for bug fixing:
+>
+> The bug is that when memory hotplug-adding happens for a large enough area that a new PGD entry is
+> needed for the direct mapping, the PGDs of other processes would not get updated. This leads to some
+> CPUs oopsing when they have to access the unmapped areas, e.g. onlining CPUs on the new added node.
 
-> +void isolate_hwpoisoned_huge_page(struct page *hpage)
-> +{
-> +	lock_page(hpage);
-> +	if (is_hugepage_on_freelist(hpage))
-> +		__isolate_hwpoisoned_huge_page(hpage);
-> +	unlock_page(hpage);
-> +}
+The patches look good to me. Can we please move forward with this?
 
-However it should still be racy if the test/isolate actions are
-not performed in the same hugetlb_lock.
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
 
-Thanks,
-Fengguang
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
