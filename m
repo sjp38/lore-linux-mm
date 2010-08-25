@@ -1,270 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CBD46B01F4
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 10:01:03 -0400 (EDT)
-Received: (from localhost user: 'dkiper' uid#4000 fake: STDIN
-	(dkiper@router-fw.net-space.pl)) by router-fw-old.local.net-space.pl
-	id S1545972Ab0HYOA1 (ORCPT <rfc822;linux-mm@kvack.org>);
-	Wed, 25 Aug 2010 16:00:27 +0200
-Date: Wed, 25 Aug 2010 16:00:27 +0200
-From: Daniel Kiper <dkiper@net-space.pl>
-Subject: [REPOST] Re: [PATCH] GSoC 2010 - Memory hotplug support for Xen guests - third fully working version
-Message-ID: <20100825140027.GC7307@router-fw-old.local.net-space.pl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1016B01F4
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 10:15:07 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7PED8ZW013425
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 08:13:08 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o7PEF6BU230558
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 08:15:06 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7PEF5On030828
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 08:15:05 -0600
+Date: Wed, 25 Aug 2010 19:45:00 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/5] cgroup: do ID allocation under css allocator.
+Message-ID: <20100825141500.GA32680@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: jeremy@goop.org
-Cc: dkiper@net-space.pl, konrad.wilk@oracle.com, stefano.stabellini@eu.citrix.com, linux-mm@kvack.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, v.tolstov@selfip.ru, gregkh@suse.de
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:06:40]:
 
-On Thu, Aug 12, 2010 at 05:43:33PM -0700, Jeremy Fitzhardinge wrote:
->  On 08/11/2010 06:22 PM, Daniel Kiper wrote:
-> >>Overall, this looks much better.  The next step is to split this into at
-> >>least two patches: one for the core code, and one for the Xen bits.
-> >>Each patch should do just one logical operation, so if you have several
-> >>distinct changes to the core code, put them in separate patches.
-> >I will do that if this patch will be accepted.
->
-> First step is to post it to lkml for discussion, cc:ing the relevant
-> maintainers. (I'm not really sure who that is at the moment.  It will
-> take some digging around in the history.)
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now, css'id is allocated after ->create() is called. But to make use of ID
+> in ->create(), it should be available before ->create().
+> 
+> In another thinking, considering the ID is tightly coupled with "css",
+> it should be allocated when "css" is allocated.
+> This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
+> memory and blkio are useing ID. (To support complicated hierarchy walk.)
+                       ^^^^ typo
+> 
+> ID will be used in mem cgroup's ->create(), later.
+> 
+> Note:
+> If someone changes rules of css allocation, ID allocation should be moved too.
+> 
 
-I took all relevant addresses (sorry if I missed somebody) from MAINTAINERS
-file and they are in To in most of e-mails from me.
+What rules? could you please elaborate?
 
-> >>Can you find a clean way to prevent/disable ARCH_MEMORY_PROBE at runtime
-> >>when in a Xen context?
-> >There is no simple way to do that. It requiers to do some
-> >changes in drivers/base/memory.c code. I think it should
-> >be done as kernel boot option (on by default to not break
-> >things using this interface now). If it be useful for maintainers
-> >of mm/memory_hotplug.c and drivers/base/memory.c code then
-> >I could do that. Currently original arch/x86/Kconfig version
-> >is restored.
->
-> I think adding a global flag which the Xen balloon driver can disable
-> should be sufficient.  There's no need to make an separate user-settable
-> control.
+Seems cleaner, may be we need to update cgroups.txt?
 
-OK.
-
-> >>>+/* we are OK calling __meminit stuff here - we have
-> >>>CONFIG_MEMORY_HOTPLUG
-> >>>*/
-> >>>+static int __ref xen_add_memory(int nid, u64 start, u64 size)
-> >>Could this be __meminit too then?
-> >Good question. I looked throught the code and could
-> >not find any simple explanation why mm/memory_hotplug.c
-> >authors used __ref instead __meminit. Could you (mm/memory_hotplug.c
-> >authors/maintainers) tell us why ???
->
-> Quite possibly a left-over from something else.  You could just try
-> making it __meminit, then compile with, erm, the option which shows you
-> section conflicts (it shows the number of conflicts at the end of the
-> kernel build by default, and tells you how to explicitly list them).
-
-Small reminder: make CONFIG_DEBUG_SECTION_MISMATCH=y
-
-I reviewed kernel source code once again. It is OK. Normaly it is
-not allowed to reference code/data tagged as .init.* because
-that sections are freed at the end of kernel boot sequence and
-they do not exists any more in memory. However it is sometimes
-required to use code/data marked .init.*. To allow that __ref
-tag is used and then referenced objects are not removed from
-memory (and no warnings are displayed during kernel compilation).
-
-> >>What's this for?  I see all its other users are in the memory hotplug
-> >>code, but presumably they're concerned about a real S3 suspend.  Do we
-> >>care about that here?
-> >Yes, because as I know S3 state is supported by Xen guests.
->
-> Yes, but I'm assuming the interaction between S3 and ACPI hotplug memory
-> isn't something that concerns a Xen guest; our hotplug mechanism is
-> completely different.
-
-Suspend/Hibernation code in Linux Kernel is platform independent
-to some extent and it does not require ACPI. It means that
-lock_system_sleep/unlock_system_sleep is required in that
-place to have memory state intact during suspend/hibernation.
-
-> >>>+		r->name = "System RAM";
-> >>How about making it clear its Xen hotplug RAM?  Or do things care about
-> >>the "System RAM" name?
-> >As I know no however as I saw anybody do not differentiate between
-> >normal and hotplugged memory. I thought about that ealier however
-> >stated that this soultion does not give us any real gain. That is why
-> >I decided to use standard name for hotplugged memory.
->
-> Its cosmetic, but it would be useful to see what's going on.
-
-If you wish I will do that, however then it should be changed
-as well add_registered_memory() function syntax. It should
-contain pointer to name published through /sys/firmware/memmap
-interface. I am not sure it is good solution to change
-add_registered_memory() function syntax which I think should be
-same as add_memory() function syntax.
-
-> >+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG + unsigned long
-> >boot_max_pfn; + u64 hotplug_start_paddr; + u64 hotplug_size;
->
-> So does this mean you only support adding a single hotplug region?  What
-> happens if your initial increase wasn't enough and you want to add
-> more?  Would you make this a list of hot-added memory or something?
->
-> But I'm not even quite sure why you need to keep this as global data.
-
-No. It supports multiple allocations. This variables are
-used mostly for communication between allocate_additional_memory
-and hotplug_allocated_memory functions.
-
-> >PFN_PHYS(section_nr_to_pfn(pfn_to_section_nr(balloon_stats.boot_max_pfn)
-> >+ 1)); + r_size = (balloon_stats.target_pages -
-> >balloon_stats.current_pages) << PAGE_SHIFT;
->
-> So this just reserves enough resource to satisfy the current outstanding
-> requirement?  That's OK if we can repeat it, but it looks like it will
-> only do this once?
-
-For full description of current algorithm
-please look at the end of this e-mail.
-
-> >+ + rc = allocate_resource(&iomem_resource, r, r_size, r_min, +
-> >ULONG_MAX, PAGE_SIZE, NULL, NULL);
->
-> Does this need to be section aligned, with a section size?  Or is any old
-> place OK?
-
-It is always PAGE_SIZE aligned and not below than
-<max_address_of_section_allocated_at_boot> + 1.
-
-> >reservation.nr_extents = nr_pages; + + rc =
-> >HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
->
-> Allocating all the memory here seems sub-optimal.
-
-Here is allocated min(nr_pages, ARRAY_SIZE(frame_list)) of pages.
-
-> >0 ? rc : rc != nr_pages; +} + +static void hotplug_allocated_memory(void)
->
-> Why is this done separately from the reservation/allocation from xen?
-
-First memory is allocated in batches of min(nr_pages, ARRAY_SIZE(frame_list))
-of pages and then whole allocated memory is hotplugged.
-
-> >{ - unsigned long target = balloon_stats.target_pages; + int nid, ret;
-> >+ struct memory_block *mem; + unsigned long pfn, pfn_limit; + + nid =
-> >memory_add_physaddr_to_nid(balloon_stats.hotplug_start_paddr);
->
-> Is the entire reserved memory range guaranteed to be within one node?
->
-> I see that this function has multiple definitions depending on a number
-> of config settings.  Do we care about what definition it has?
-
-As I know (maybe I have missed something) currently Xen does not support
-NUMA in guests and nid is always 0. However maybe it will be good to create
-Xen specific version of memory_add_physaddr_to_nid function.
-
-> >= online_pages(PFN_DOWN(balloon_stats.hotplug_start_paddr), +
-> >balloon_stats.hotplug_size >> PAGE_SHIFT);
->
-> Are the pages available for allocation by the rest of the kernel from
-> this point on?
-
-Yes.
-
-> Which function allocates the actual page structures?
-
-add_registered_memory()
-
->
-> >+ + if (ret) { + pr_err("%s: online_pages: Failed: %i\n", __func__,
-> >ret); + goto error; + } + + pfn =
-> >PFN_DOWN(balloon_stats.hotplug_start_paddr); + pfn_limit = pfn +
-> >(balloon_stats.hotplug_size >> PAGE_SHIFT); - return target; + for (;
-> >pfn < pfn_limit; pfn += PAGES_PER_SECTION) { + mem =
-> >find_memory_block(__pfn_to_section(pfn)); + BUG_ON(!mem); +
-> >BUG_ON(!present_section_nr(mem->phys_index)); +
-> >mutex_lock(&mem->state_mutex); + mem->state = MEM_ONLINE; +
-> >mutex_unlock(&mem->state_mutex); + }
->
-> What does this do?  How is it different from what online_pages() does?
-
-This updates /sys/devices/system/memory/memory*/state files
-which contain information about states of sections.
-
-> >+ else if (is_memory_resource_reserved()) + hotplug_allocated_memory();
->
-> Why can't this be done in allocate_additional_memory()?
-
-Because memory is allocated in relatively small
-batches and then whole memory is hotplugged.
-
-> In your earlier, patch I think you made the firmware_map_add_hotplug()
-> be specific to add_memory, but now you have it in __add_memory.  Does it
-> make a difference either way?
-
-It was not available in Linux Kernel Ver. 2.6.32.*
-on which based first versions of this patch.
-It updates /sys/firmware/memmap.
-
-> As before, this all looks reasonably good.  I think the next steps
-> should be:
->
->   1. identify how to incrementally allocate the memory from Xen, rather
->      than doing it at hotplug time
->   2. identify how to disable the sysfs online interface for Xen
->      hotplugged memory
->
-> For 1., I think the code should be something like:
->
-> increase_address_space(unsigned long pages)
-> {
-> 	- reserve resource for memory section
-> 	- online section
-> 	for each page in section {
-> 		online page
-> 		mark page structure allocated
-> 		add page to ballooned_pages list
-> 		balloon_stats.balloon_(low|high)++;
-> 	}
-> }
-
-Here is current algorithm:
-  - allocate_resource() with size requested by user,
-  - allocate memory in relatively small batches,
-  - add_registered_memory(),
-  - online_pages(),
-  - update /sys/devices/system/memory/memory*/state files.
-
-> The tricky part is making sure that the memory for the page structures
-> has been populated so it can be used.  Aside from that, there should be
-> no need to have another call to
-> HYPERVISOR_memory_op(XENMEM_populate_physmap, ...) aside from the
-> existing one.
-
-Currently it is.
-
-> 2 requires a deeper understanding of the existing hotplug code.  It
-> needs to be refactored so that you can use the core hotplug machinery
-> without enabling the sysfs page-onlining mechanism, while still leaving
-> it available for physical hotplug.  In the short term, having a boolean
-> to disable the onlining mechanism is probably the pragmatic solution, so
-> the balloon code can simply disable it.
-
-I think that sysfs should stay intact because it contains some
-useful information for admins. We should reconsider avaibilty
-of /sys/devices/system/memory/probe. In physical systems it
-is available however usage without real hotplug support
-lead to big crash. I am not sure we should disable probe in Xen.
-Maybe it is better to stay in sync with standard behavior.
-Second solution is to prepare an interface (kernel option
-or only some enable/disable functions) which give possibilty
-to enable/disable probe interface when it is required.
-
-Daniel
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
