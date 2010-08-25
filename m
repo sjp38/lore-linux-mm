@@ -1,139 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8F8C16B01F2
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 07:29:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7P9gqeA014625
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 25 Aug 2010 18:42:52 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 379AB45DE4D
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 18:42:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 025A445DE4E
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 18:42:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA6C3E38001
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 18:42:51 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 841A21DB804F
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 18:42:51 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 2/2][BUGFIX] Revert "oom: deprecate oom_adj tunable"
-In-Reply-To: <20100825184001.F3EF.A69D9226@jp.fujitsu.com>
-References: <20100825184001.F3EF.A69D9226@jp.fujitsu.com>
-Message-Id: <20100825184219.F3F2.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1D86B01F0
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 08:14:31 -0400 (EDT)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id o7PARovo031678
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 03:27:51 -0700
+Received: from pwj4 (pwj4.prod.google.com [10.241.219.68])
+	by wpaz13.hot.corp.google.com with ESMTP id o7PARnuM016104
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 03:27:49 -0700
+Received: by pwj4 with SMTP id 4so276664pwj.7
+        for <linux-mm@kvack.org>; Wed, 25 Aug 2010 03:27:49 -0700 (PDT)
+Date: Wed, 25 Aug 2010 03:27:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/2][BUGFIX] Revert "oom: deprecate oom_adj tunable"
+In-Reply-To: <20100825184219.F3F2.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1008250326150.16411@chino.kir.corp.google.com>
+References: <20100825184001.F3EF.A69D9226@jp.fujitsu.com> <20100825184219.F3F2.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 25 Aug 2010 18:42:50 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-oom_adj is not only used for kernel knob, but also used for
-application interface.
-Then, adding new knob is no good reason to deprecate it.
+On Wed, 25 Aug 2010, KOSAKI Motohiro wrote:
 
-Also, after former patch, oom_score_adj can't be used for setting
-OOM_DISABLE. We need "echo -17 > /proc/<pid>/oom_adj" thing.
+> oom_adj is not only used for kernel knob, but also used for
+> application interface.
+> Then, adding new knob is no good reason to deprecate it.
+> 
+> Also, after former patch, oom_score_adj can't be used for setting
+> OOM_DISABLE. We need "echo -17 > /proc/<pid>/oom_adj" thing.
+> 
+> This reverts commit 51b1bd2ace1595b72956224deda349efa880b693.
 
-This reverts commit 51b1bd2ace1595b72956224deda349efa880b693.
----
- Documentation/feature-removal-schedule.txt |   25 -------------------------
- Documentation/filesystems/proc.txt         |    3 ---
- fs/proc/base.c                             |    8 --------
- include/linux/oom.h                        |    3 ---
- 4 files changed, 0 insertions(+), 39 deletions(-)
-
-diff --git a/Documentation/feature-removal-schedule.txt b/Documentation/feature-removal-schedule.txt
-index 842aa9d..aff4d11 100644
---- a/Documentation/feature-removal-schedule.txt
-+++ b/Documentation/feature-removal-schedule.txt
-@@ -151,31 +151,6 @@ Who:	Eric Biederman <ebiederm@xmission.com>
- 
- ---------------------------
- 
--What:	/proc/<pid>/oom_adj
--When:	August 2012
--Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
--	badness heuristic used to determine which task to kill when the kernel
--	is out of memory.
--
--	The badness heuristic has since been rewritten since the introduction of
--	this tunable such that its meaning is deprecated.  The value was
--	implemented as a bitshift on a score generated by the badness()
--	function that did not have any precise units of measure.  With the
--	rewrite, the score is given as a proportion of available memory to the
--	task allocating pages, so using a bitshift which grows the score
--	exponentially is, thus, impossible to tune with fine granularity.
--
--	A much more powerful interface, /proc/<pid>/oom_score_adj, was
--	introduced with the oom killer rewrite that allows users to increase or
--	decrease the badness() score linearly.  This interface will replace
--	/proc/<pid>/oom_adj.
--
--	A warning will be emitted to the kernel log if an application uses this
--	deprecated interface.  After it is printed once, future warnings will be
--	suppressed until the kernel is rebooted.
--
-----------------------------
--
- What:	remove EXPORT_SYMBOL(kernel_thread)
- When:	August 2006
- Files:	arch/*/kernel/*_ksyms.c
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index a6aca87..cf1295c 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1285,9 +1285,6 @@ scaled linearly with /proc/<pid>/oom_score_adj.
- Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
- other with its scaled value.
- 
--NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
--Documentation/feature-removal-schedule.txt.
--
- Caveat: when a parent task is selected, the oom killer will sacrifice any first
- generation children with seperate address spaces instead, if possible.  This
- avoids servers and important system daemons from being killed and loses the
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 90ba487..55a16f2 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1046,14 +1046,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		return -EACCES;
- 	}
- 
--	/*
--	 * Warn that /proc/pid/oom_adj is deprecated, see
--	 * Documentation/feature-removal-schedule.txt.
--	 */
--	printk_once(KERN_WARNING "%s (%d): /proc/%d/oom_adj is deprecated, "
--			"please use /proc/%d/oom_score_adj instead.\n",
--			current->comm, task_pid_nr(current),
--			task_pid_nr(task), task_pid_nr(task));
- 	task->signal->oom_adj = oom_adjust;
- 
- 	unlock_task_sighand(task, &flags);
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 21006dc..394f2e6 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -2,9 +2,6 @@
- #define __INCLUDE_LINUX_OOM_H
- 
- /*
-- * /proc/<pid>/oom_adj is deprecated, see
-- * Documentation/feature-removal-schedule.txt.
-- *
-  * /proc/<pid>/oom_adj set to -17 protects from the oom-killer
-  */
- #define OOM_DISABLE (-17)
--- 
-1.6.5.2
-
-
+Since I nacked the parent patch of this, I implicitly nack this one as 
+well since oom_score_adj shouldn't be going anywhere.  The way to disable 
+oom killing for a task via the new interface, /proc/pid/oom_score_adj, is 
+by OOM_SCORE_ADJ_MIN as specified in the documentation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
