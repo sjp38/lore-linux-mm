@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A4F96B01F0
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 20:06:01 -0400 (EDT)
-Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
-	by smtp-out.google.com with ESMTP id o7P09RKJ008313
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:09:27 -0700
-Received: from pzk3 (pzk3.prod.google.com [10.243.19.131])
-	by kpbe16.cbf.corp.google.com with ESMTP id o7P09PKT014451
-	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:09:26 -0700
-Received: by pzk3 with SMTP id 3so3301741pzk.36
-        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:09:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 889B66B01F0
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 20:07:58 -0400 (EDT)
+Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
+	by smtp-out.google.com with ESMTP id o7P0BOEp001462
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:11:25 -0700
+Received: from pvg7 (pvg7.prod.google.com [10.241.210.135])
+	by wpaz33.hot.corp.google.com with ESMTP id o7P0BMEp010136
+	for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:11:23 -0700
+Received: by pvg7 with SMTP id 7so8399pvg.31
+        for <linux-mm@kvack.org>; Tue, 24 Aug 2010 17:11:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20100820185816.1dbcd53a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4C738B34.6070602@cn.fujitsu.com>
 References: <20100820185552.426ff12e.kamezawa.hiroyu@jp.fujitsu.com>
 	<20100820185816.1dbcd53a.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 24 Aug 2010 17:09:25 -0700
-Message-ID: <AANLkTi=imK6Px+JrdVupg2V3jtN9pgmEdWv=+aB1XKLY@mail.gmail.com>
+	<4C738B34.6070602@cn.fujitsu.com>
+Date: Tue, 24 Aug 2010 17:11:22 -0700
+Message-ID: <AANLkTi=HwPeWafzTBh66g37XxZouKicsemmnTE-Cvz=Y@mail.gmail.com>
 Subject: Re: [PATCH 1/5] cgroup: ID notification call back
 From: Paul Menage <menage@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyuki@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 2:58 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> CC'ed to Paul Menage and Li Zefan.
-> =3D=3D
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Tue, Aug 24, 2010 at 2:04 AM, Li Zefan <lizf@cn.fujitsu.com> wrote:
 >
-> When cgroup subsystem use ID (ss->use_id=3D=3D1), each css's ID is assign=
-ed
-> after successful call of ->create(). css_ID is tightly coupled with
-> css struct itself but it is allocated by ->create() call, IOW,
-> per-subsystem special allocations.
+> Maybe pass the id number to id_attached() is better.
 >
-> To know css_id before creation, this patch adds id_attached() callback.
-> after css_ID allocation. This will be used by memory cgroup's quick looku=
-p
-> routine.
+> And actually the @ss argument is not necessary, because the memcg's
+> id_attached() handler of course knows it's dealing with the memory
+> cgroup subsystem.
 >
-> Maybe you can think of other implementations as
-> =A0 =A0 =A0 =A0- pass ID to ->create()
-> =A0 =A0 =A0 =A0or
-> =A0 =A0 =A0 =A0- add post_create()
-> =A0 =A0 =A0 =A0etc...
-> But when considering dirtiness of codes, this straightforward patch seems
-> good to me. If someone wants post_create(), this patch can be replaced.
+> So I suspect we can just remove all the @ss from all the callbacks..
 
-I think I'd prefer the approach where any necessary css_ids are
-allocated prior to calling any create methods (which gives the
-additional advantage of removing the need to roll back partial
-creation of a cgroup in the event of alloc_css_id() failing) and then
-passed in to the create() method. The main cgroups framework would
-still be responsible for actually filling the css->id field with the
-allocated id.
+Yes, I don't think any subsystem uses these. They dated originally
+from when, as part of the initial cgroups framwork, I included a
+library that could wrap a mostly-unmodified CKRM resource controller
+into a cgroups subsystem, at which point the callback code didn't
+necessarily know which subsystem it was being called for. But that's
+obsolete now.
 
 Paul
 
