@@ -1,96 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id EC48F6B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 13:38:51 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so903925pvc.14
-        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 10:38:50 -0700 (PDT)
-Date: Fri, 27 Aug 2010 02:38:43 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 3/3] writeback: Do not congestion sleep when there are
- no congested BDIs
-Message-ID: <20100826173843.GD6873@barrios-desktop>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
- <1282835656-5638-4-git-send-email-mel@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2162E6B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 13:41:22 -0400 (EDT)
+Date: Thu, 26 Aug 2010 18:41:06 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] writeback: Record if the congestion was unnecessary
+Message-ID: <20100826174105.GI20944@csn.ul.ie>
+References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie> <1282835656-5638-3-git-send-email-mel@csn.ul.ie> <20100826173534.GC6873@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1282835656-5638-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <20100826173534.GC6873@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
+To: Minchan Kim <minchan.kim@gmail.com>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 26, 2010 at 04:14:16PM +0100, Mel Gorman wrote:
-> If congestion_wait() is called with no BDIs congested, the caller will
-> sleep for the full timeout and this is an unnecessary sleep. This patch
-> checks if there are BDIs congested. If so, it goes to sleep as normal.
-> If not, it calls cond_resched() to ensure the caller is not hogging the
-> CPU longer than its quota but otherwise will not sleep.
+On Fri, Aug 27, 2010 at 02:35:34AM +0900, Minchan Kim wrote:
+> On Thu, Aug 26, 2010 at 04:14:15PM +0100, Mel Gorman wrote:
+> > If congestion_wait() is called when there is no congestion, the caller
+> > will wait for the full timeout. This can cause unreasonable and
+> > unnecessary stalls. There are a number of potential modifications that
+> > could be made to wake sleepers but this patch measures how serious the
+> > problem is. It keeps count of how many congested BDIs there are. If
+> > congestion_wait() is called with no BDIs congested, the tracepoint will
+> > record that the wait was unnecessary.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  include/trace/events/writeback.h |   11 ++++++++---
+> >  mm/backing-dev.c                 |   15 ++++++++++++---
+> >  2 files changed, 20 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+> > index e3bee61..03bb04b 100644
+> > --- a/include/trace/events/writeback.h
+> > +++ b/include/trace/events/writeback.h
+> > @@ -155,19 +155,24 @@ DEFINE_WBC_EVENT(wbc_writepage);
+> >  
+> >  TRACE_EVENT(writeback_congest_waited,
+> >  
+> > -	TP_PROTO(unsigned int usec_delayed),
+> > +	TP_PROTO(unsigned int usec_delayed, bool unnecessary),
+> >  
+> > -	TP_ARGS(usec_delayed),
+> > +	TP_ARGS(usec_delayed, unnecessary),
+> >  
+> >  	TP_STRUCT__entry(
+> >  		__field(	unsigned int,	usec_delayed	)
+> > +		__field(	unsigned int,	unnecessary	)
+> >  	),
+> >  
+> >  	TP_fast_assign(
+> >  		__entry->usec_delayed	= usec_delayed;
+> > +		__entry->unnecessary	= unnecessary;
+> >  	),
+> >  
+> > -	TP_printk("usec_delayed=%u", __entry->usec_delayed)
+> > +	TP_printk("usec_delayed=%u unnecessary=%d",
+> > +		__entry->usec_delayed,
+> > +		__entry->unnecessary
+> > +	)
+> >  );
+> >  
+> >  #endif /* _TRACE_WRITEBACK_H */
+> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > index 7ae33e2..a49167f 100644
+> > --- a/mm/backing-dev.c
+> > +++ b/mm/backing-dev.c
+> > @@ -724,6 +724,7 @@ static wait_queue_head_t congestion_wqh[2] = {
+> >  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+> >  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+> >  	};
+> > +static atomic_t nr_bdi_congested[2];
+> >  
+> >  void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+> >  {
+> > @@ -731,7 +732,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+> >  	wait_queue_head_t *wqh = &congestion_wqh[sync];
+> >  
+> >  	bit = sync ? BDI_sync_congested : BDI_async_congested;
+> > -	clear_bit(bit, &bdi->state);
+> > +	if (test_and_clear_bit(bit, &bdi->state))
+> > +		atomic_dec(&nr_bdi_congested[sync]);
 > 
-> This is aimed at reducing some of the major desktop stalls reported during
-> IO. For example, while kswapd is operating, it calls congestion_wait()
-> but it could just have been reclaiming clean page cache pages with no
-> congestion. Without this patch, it would sleep for a full timeout but after
-> this patch, it'll just call schedule() if it has been on the CPU too long.
-> Similar logic applies to direct reclaimers that are not making enough
-> progress.
+> Hmm.. Now congestion_wait's semantics "wait for _a_ backing_dev to become uncongested"
+> But this seems to consider whole backing dev. Is your intention? or Am I missing now?
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/backing-dev.c |   20 ++++++++++++++------
->  1 files changed, 14 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index a49167f..6abe860 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
 
-Function's decripton should be changed since we don't wait next write any more. 
+Not whole backing devs, all backing devs. This is intentional.
 
-> @@ -767,13 +767,21 @@ long congestion_wait(int sync, long timeout)
->  	DEFINE_WAIT(wait);
->  	wait_queue_head_t *wqh = &congestion_wqh[sync];
->  
-> -	/* Check if this call to congestion_wait was necessary */
-> -	if (atomic_read(&nr_bdi_congested[sync]) == 0)
-> +	/*
-> +	 * If there is no congestion, there is no point sleeping on the queue.
-> +	 * This call was unecessary but in case we are spinning due to a bad
-> +	 * caller, at least call cond_reched() and sleep if our CPU quota
-> +	 * has expired
-> +	 */
-> +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
->  		unnecessary = true;
-> -
-> -	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-> -	ret = io_schedule_timeout(timeout);
-> -	finish_wait(wqh, &wait);
-> +		cond_resched();
-> +		ret = 0;
-
-"ret = timeout" is more proper as considering io_schedule_timeout's return value.
-
-> +	} else {
-> +		prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-> +		ret = io_schedule_timeout(timeout);
-> +		finish_wait(wqh, &wait);
-> +	}
->  
->  	trace_writeback_congest_waited(jiffies_to_usecs(jiffies - start),
->  			unnecessary);
-> -- 
-> 1.7.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+If congestion_wait() is called with 0 BDIs congested, we sleep the full timeout
+because a wakeup event will not occur - this is a bad scenario. To know if
+0 BDIs were congested, one could either walk all the BDIs checking their
+status or maintain a counter like nr_bdi_congested which is what I decided on.
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
