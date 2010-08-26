@@ -1,56 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DDA1B6B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 05:03:20 -0400 (EDT)
-Date: Thu, 26 Aug 2010 10:03:05 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH v2 1/2] compaction: handle active and inactive fairly
-	in too_many_isolated
-Message-ID: <20100826090305.GC20944@csn.ul.ie>
-References: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 72F116B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 05:29:23 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so1883723iwn.14
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 02:29:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1282663879-4130-1-git-send-email-minchan.kim@gmail.com>
+In-Reply-To: <1282810811.1975.246.camel@laptop>
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+	<1282310110.2605.976.camel@laptop>
+	<20100825155814.25c783c7.akpm@linux-foundation.org>
+	<20100825173125.0855a6b0@bike.lwn.net>
+	<AANLkTinPaq+0MbdW81uoc5_OZ=1Gy_mVYEBnwv8zgOBd@mail.gmail.com>
+	<1282810811.1975.246.camel@laptop>
+Date: Thu, 26 Aug 2010 18:29:21 +0900
+Message-ID: <AANLkTin7EBZw0-WY=NGOmYzZT5Cfy7oWVFBaT2cjK+vZ@mail.gmail.com>
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 25, 2010 at 12:31:18AM +0900, Minchan Kim wrote:
-> Iram reported compaction's too_many_isolated loops forever.
-> (http://www.spinics.net/lists/linux-mm/msg08123.html)
-> 
-> The meminfo of situation happened was inactive anon is zero.
-> That's because the system has no memory pressure until then.
-> While all anon pages was in active lru, compaction could select
-> active lru as well as inactive lru. That's different things
-> with vmscan's isolated. So we has been two too_many_isolated.
-> 
-> While compaction can isolated pages in both active and inactive,
-> current implementation of too_many_isolated only considers inactive.
-> It made Iram's problem.
-> 
-> This patch handles active and inactive with fair.
-> That's because we can't expect where from and how many compaction would
-> isolated pages.
-> 
-> This patch changes (nr_isolated > nr_inactive) with
-> nr_isolated > (nr_active + nr_inactive) / 2.
-> 
-> Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+On Thu, Aug 26, 2010 at 5:20 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Thu, 2010-08-26 at 11:49 +0900, Minchan Kim wrote:
+>> But one of
+>> problems is anonymous page which can be has a role of pinned page in
+>> non-swapsystem.
+>
+> Well, compaction can move those around, but if you've got too many of
+> them its a simple matter of over-commit and for that we've got the
+> OOM-killer ;-)
+>
 
-Please send this patch on its own as it looks like it should be merged and
-arguably is a stable candidate for 2.6.35. Alternatively, Andrew, can you pick
-up just this patch? It seems unrelated to the second patch on COMPACTPAGEFAILED.
+As I said following mail, I said about free space problem.
+Of course, compaction could move anon pages into somewhere.
+What's is somewhere? At last, it's same zone.
+It can prevent fragment problem but not size of free space.
+So I mean it would be better to move it into another zone(ex, HIGHMEM)
+rather than OOM kill.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
