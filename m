@@ -1,98 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3E16B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 06:12:45 -0400 (EDT)
-Date: Thu, 26 Aug 2010 11:12:28 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F936B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 06:19:11 -0400 (EDT)
+Date: Thu, 26 Aug 2010 11:18:55 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-Message-ID: <20100826101227.GE20944@csn.ul.ie>
-References: <cover.1282286941.git.m.nazarewicz@samsung.com> <1282310110.2605.976.camel@laptop>
+Message-ID: <20100826101855.GF20944@csn.ul.ie>
+References: <cover.1282286941.git.m.nazarewicz@samsung.com> <1282310110.2605.976.camel@laptop> <20100825155814.25c783c7.akpm@linux-foundation.org> <op.vh0xp8ix7p4s8u@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1282310110.2605.976.camel@laptop>
+In-Reply-To: <op.vh0xp8ix7p4s8u@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org
+To: Micha?? Nazarewicz <m.nazarewicz@samsung.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Hans Verkuil <hverkuil@xs4all.nl>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 20, 2010 at 03:15:10PM +0200, Peter Zijlstra wrote:
-> On Fri, 2010-08-20 at 11:50 +0200, Michal Nazarewicz wrote:
-> > Hello everyone,
-> > 
-> > The following patchset implements a Contiguous Memory Allocator.  For
-> > those who have not yet stumbled across CMA an excerpt from
-> > documentation:
-> > 
-> >    The Contiguous Memory Allocator (CMA) is a framework, which allows
-> >    setting up a machine-specific configuration for physically-contiguous
-> >    memory management. Memory for devices is then allocated according
-> >    to that configuration.
-> > 
-> >    The main role of the framework is not to allocate memory, but to
-> >    parse and manage memory configurations, as well as to act as an
-> >    in-between between device drivers and pluggable allocators. It is
-> >    thus not tied to any memory allocation method or strategy.
-> > 
-> > For more information please refer to the second patch from the
-> > patchset which contains the documentation.
-> 
-
-I'm only taking a quick look at this - slow as ever so pardon me if I
-missed anything.
-
-> So the idea is to grab a large chunk of memory at boot time and then
-> later allow some device to use it?
+On Thu, Aug 26, 2010 at 04:40:46AM +0200, Micha?? Nazarewicz wrote:
+> Hello Andrew,
 >
-> I'd much rather we'd improve the regular page allocator to be smarter
-> about this. We recently added a lot of smarts to it like memory
-> compaction, which allows large gobs of contiguous memory to be freed for
-> things like huge pages.
-> 
+> I think Pawel has replied to most of your comments, so I'll just add my own
+> 0.02 KRW. ;)
+>
+>> Peter Zijlstra <peterz@infradead.org> wrote:
+>>> So the idea is to grab a large chunk of memory at boot time and then
+>>> later allow some device to use it?
+>>>
+>>> I'd much rather we'd improve the regular page allocator to be smarter
+>>> about this. We recently added a lot of smarts to it like memory
+>>> compaction, which allows large gobs of contiguous memory to be freed for
+>>> things like huge pages.
+>>>
+>>> If you want guarantees you can free stuff, why not add constraints to
+>>> the page allocation type and only allow MIGRATE_MOVABLE pages inside a
+>>> certain region, those pages are easily freed/moved aside to satisfy
+>>> large contiguous allocations.
+>
+> On Thu, 26 Aug 2010 00:58:14 +0200, Andrew Morton <akpm@linux-foundation.org> wrote:
+>> That would be good.  Although I expect that the allocation would need
+>> to be 100% rock-solid reliable, otherwise the end user has a
+>> non-functioning device.  Could generic core VM provide the required level
+>> of service?
+>
+> I think that the biggest problem is fragmentation here.  For instance,
+> I think that a situation where there is enough free space but it's
+> fragmented so no single contiguous chunk can be allocated is a serious
+> problem.  However, I would argue that if there's simply no space left,
+> a multimedia device could fail and even though it's not desirable, it
+> would not be such a big issue in my eyes.
+>
 
-Quick glance tells me that buffer sizes of 20MB are being thrown about
-which the core page allocator doesn't handle very well (and couldn't
-without major modification). Fragmentation avoidance only works well on
-sizes < MAX_ORDER_NR_PAGES which likely will be 2MB or 4MB.
+For handling fragmentation, there is the option of ZONE_MOVABLE so it's
+usable by normal allocations but the CMA can take action to get it
+cleared out if necessary. Another option that is trickier but less
+disruptive would be to select a range of memory in a normal zone for CMA
+and mark it MIGRATE_MOVABLE so that movable pages are allocated from it.
+The trickier part is you need to make that bit stick so that non-movable
+pages are never allocated from that range. That would be trickish to
+implement but possible and it would avoid the fragmentation
+problem without pinning memory.
 
-That said, there are things the core VM can do to help. One is related
-to ZONE_MOVABLE and the second is on the use of MIGRATE_ISOLATE.
-
-ZONE_MOVABLE is setup when the command line has kernelcore= or movablecore=
-specified. In ZONE_MOVABLE only pages that can be migrated are allocated
-(or huge pages if specifically configured to be allowed).  The zone is setup
-during initialisation by slicing pieces from the end of existing zones and
-for various reasons, it would be best to maintain that behaviour unless CMA
-had a specific requirement for memory in the middle of an existing zone.
-
-So lets say the maximum amount of contiguous memory required by all
-devices is 64M and ZONE_MOVABLE is 64M. During normal operation, normal
-order-0 pages can be allocated from this zone meaning the memory is not
-pinned and unusable by anybody else. This avoids wasting memory. When a
-device needs a new buffer, compaction would need some additional smarts
-to compact or reclaim the size of memory needed by the driver but
-because all the pages in the zone are movable, it should be possible.
-Ideally it would have swap to reclaim because if not, compaction needs
-to know how to move pages outside a zone (something it currently
-avoids).
-
-Essentially, cma_alloc() would be a normal alloc_pages that uses
-ZONE_MOVABLE for buffers < MAX_ORDER_NR_PAGES but would need additional
-compaction smarts for the larger buffers. I think it would reuse as much
-of the existing VM as possible but without reviewing the code, I don't
-know for sure how useful the suggestion is.
-
-> If you want guarantees you can free stuff, why not add constraints to
-> the page allocation type and only allow MIGRATE_MOVABLE pages inside a
-> certain region, those pages are easily freed/moved aside to satisfy
-> large contiguous allocations.
-> 
-
-Relatively handy to do something like this. It can also be somewhat
-contrained by doing something similar to MIGRATE_ISOLATE to have
-contiguous regions of memory in a zone unusable by non-movable
-allocationos. It would be a lot trickier when interacting with reclaim
-though so using ZONE_MOVABLE would have less gotchas.
+> So, if only movable or discardable pages are allocated in CMA managed
+> regions all should work well.  When a device needs memory discardable
+> pages would get freed and movable moved unless there is no space left
+> on the device in which case allocation would fail.
+>
+> Critical devices (just a hypothetical entities) could have separate
+> regions on which only discardable pages can be allocated so that memory
+> can always be allocated for them.
+>
+>> I agree that having two "contiguous memory allocators" floating about
+>> on the list is distressing.  Are we really all 100% diligently certain
+>> that there is no commonality here with Zach's work?
+>
+> As Pawel said, I think Zach's trying to solve a different problem.  No
+> matter, as I've said in response to Konrad's message, I have thought
+> about unifying Zach's IOMMU and CMA in such a way that devices could
+> work on both systems with and without IOMMU if only they would limit
+> the usage of the API to some subset which always works.
+>
+>> Please cc me on future emails on this topic?
+>
+> Not a problem.
+>
+> -- 
+> Best regards,                                        _     _
+> | Humble Liege of Serenely Enlightened Majesty of  o' \,=./ `o
+> | Computer Science,  Micha?? "mina86" Nazarewicz       (o o)
+> +----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 -- 
 Mel Gorman
