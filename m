@@ -1,143 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5DB8D6B02B9
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:23:12 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: text/plain; charset=ISO-8859-1; format=flowed
-Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L7Q0077HJUMRD20@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 26 Aug 2010 02:23:10 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L7Q00KV1JUM7Q@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 26 Aug 2010 02:23:10 +0100 (BST)
-Date: Thu, 26 Aug 2010 10:22:08 +0900
-From: Pawel Osciak <p.osciak@samsung.com>
-Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-In-reply-to: <20100825155814.25c783c7.akpm@linux-foundation.org>
-Message-id: <4C75C1C0.8050805@samsung.com>
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
- <1282310110.2605.976.camel@laptop>
- <20100825155814.25c783c7.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5AB6B6B02BA
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:28:58 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7Q1SvLF007819
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 26 Aug 2010 10:28:57 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 32FE645DE5D
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 10:28:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EB4AD45DE55
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 10:28:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D59BAE18001
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 10:28:56 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5983C1DB8038
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 10:28:53 +0900 (JST)
+Date: Thu, 26 Aug 2010 10:23:52 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] GSoC 2010 - Memory hotplug support for Xen guests -
+ third fully working version
+Message-Id: <20100826102352.9d7bcfd0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4C758C12.2020107@goop.org>
+References: <20100812012224.GA16479@router-fw-old.local.net-space.pl>
+	<4C649535.8050800@goop.org>
+	<20100816154444.GA28219@router-fw-old.local.net-space.pl>
+	<4C758C12.2020107@goop.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Daniel Kiper <dkiper@net-space.pl>, konrad.wilk@oracle.com, stefano.stabellini@eu.citrix.com, linux-mm@kvack.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, v.tolstov@selfip.ru, Dulloor <dulloor@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Wed, 25 Aug 2010 14:33:06 -0700
+Jeremy Fitzhardinge <jeremy@goop.org> wrote:
 
-Thank you for your comments and interest in this!
+> >> 2 requires a deeper understanding of the existing hotplug code.  It
+> >> needs to be refactored so that you can use the core hotplug machinery
+> >> without enabling the sysfs page-onlining mechanism, while still leaving
+> >> it available for physical hotplug.  In the short term, having a boolean
+> >> to disable the onlining mechanism is probably the pragmatic solution, so
+> >> the balloon code can simply disable it.
+> > I think that sysfs should stay intact because it contains some
+> > useful information for admins. We should reconsider avaibilty
+> > of /sys/devices/system/memory/probe. In physical systems it
+> > is available however usage without real hotplug support
+> > lead to big crash. I am not sure we should disable probe in Xen.
+> > Maybe it is better to stay in sync with standard behavior.
+> > Second solution is to prepare an interface (kernel option
+> > or only some enable/disable functions) which give possibilty
+> > to enable/disable probe interface when it is required.
+> 
+> My understanding is that on systems with real physical hotplug memory,
+> the process is:
+> 
+>    1. you insert/enable a DIMM or whatever to make the memory
+>       electrically active
+>    2. the kernel notices this and generates a udev event
+>    3. a usermode script sees this and, according to whatever policy it
+>       wants to implement, choose to online the memory at some point
+> 
+> I'm concerned that if we partially implement this but leave "online" as
+> a timebomb then existing installs with hotplug scripts in place may poke
+> at it - thinking they're dealing with physical hotplug - and cause problems.
+> 
 
-On 08/26/2010 07:58 AM, Andrew Morton wrote:
-> On Fri, 20 Aug 2010 15:15:10 +0200
-> Peter Zijlstra<peterz@infradead.org>  wrote:
->
->    
->> On Fri, 2010-08-20 at 11:50 +0200, Michal Nazarewicz wrote:
->>      
->>> Hello everyone,
->>>
->>> The following patchset implements a Contiguous Memory Allocator.  For
->>> those who have not yet stumbled across CMA an excerpt from
->>> documentation:
->>>
->>>     The Contiguous Memory Allocator (CMA) is a framework, which allows
->>>     setting up a machine-specific configuration for physically-contiguous
->>>     memory management. Memory for devices is then allocated according
->>>     to that configuration.
->>>
->>>     The main role of the framework is not to allocate memory, but to
->>>     parse and manage memory configurations, as well as to act as an
->>>     in-between between device drivers and pluggable allocators. It is
->>>     thus not tied to any memory allocation method or strategy.
->>>
->>> For more information please refer to the second patch from the
->>> patchset which contains the documentation.
->>>        
->> So the idea is to grab a large chunk of memory at boot time and then
->> later allow some device to use it?
->>
->> I'd much rather we'd improve the regular page allocator to be smarter
->> about this. We recently added a lot of smarts to it like memory
->> compaction, which allows large gobs of contiguous memory to be freed for
->> things like huge pages.
->>
->> If you want guarantees you can free stuff, why not add constraints to
->> the page allocation type and only allow MIGRATE_MOVABLE pages inside a
->> certain region, those pages are easily freed/moved aside to satisfy
->> large contiguous allocations.
->>      
-> That would be good.  Although I expect that the allocation would need
-> to be 100% rock-solid reliable, otherwise the end user has a
-> non-functioning device.  Could generic core VM provide the required level
-> of service?
->
-> Anyway, these patches are going to be hard to merge but not impossible.
-> Keep going.  Part of the problem is cultural, really: the consumers of
-> this interface are weird dinky little devices which the core MM guys
-> tend not to work with a lot, and it adds code which they wouldn't use.
->    
+IIUC, IBM guys, using LPAR?, does memory hotplug on VM.
 
-This is encouraging, thanks. Merging a contiguous allocator seems like a 
-lost cause, with a relative disinterest of non-embedded people, and on 
-the other hand because of the difficulty to satisfy those actually 
-interested. With virtually everybody having their own, custom solutions, 
-agreeing on one is nearly impossible.
+The operation is.
+	1. tell the region of memory to be added to a userland daemon.
+	2. The daemon write 0xXXXXXX > /sys/devices/system/memory/probe
+	   (This notifies that memory is added physically.)
+	   Here, memory is created.
+	3. Then, online memory.
 
-> I agree that having two "contiguous memory allocators" floating about
-> on the list is distressing.  Are we really all 100% diligently certain
-> that there is no commonality here with Zach's work?
->    
+I think VM guys can use similar method rather than simulating phyiscal hotplug.
+Then, you don't have to worry about udev etc...
+No ?
 
-I think Zach's work is more focused on IOMMU and on unifying virtual 
-memory handling. As far as I understand, any physical allocator can be 
-plugged into it, including CMA. CMA solves a different set of problems.
-
-> I agree that Peter's above suggestion would be the best thing to do.
-> Please let's take a look at that without getting into sunk cost
-> fallacies with existing code!
->
-> It would help (a lot) if we could get more attention and buyin and
-> fedback from the potential clients of this code.  rmk's feedback is
-> valuable.  Have we heard from the linux-media people?  What other
-> subsystems might use it?  ieee1394 perhaps?  Please help identify
-> specific subsystems and I can perhaps help to wake people up.
->    
-
-As a media developer myself, I talked with people and many have 
-expressed their interest. Among them were developers from ST-Ericsson, 
-Intel and TI, to name a few. Their SoCs, like ours at Samsung, require 
-contiguous memory allocation schemes as well.
-
-
-I am working on a driver framework for media for memory management (on 
-the logical, not physical level). One of the goals is to allow plugging 
-in custom allocators and memory handling functions (cache management, 
-etc.). CMA is intended to be used as one of the pluggable allocators for 
-it. Right now, many media drivers have to provide their own, more or 
-less complicated, memory handling, which is of course undesirable. Some 
-of those make it to the kernel, many are maintained outside the mainline.
-
-The problem is that, as far as I am aware, there have already been quite 
-a few proposals for such allocators and none made it to the mainline. So 
-companies develop their own solutions and maintain them outside the 
-mainline.
-
-I think that the interest is definitely there, but people have their 
-deadlines and assume that it is close to impossible to have a contiguous 
-allocator merged.
-
-Your help and support would be very much appreciated. Working in 
-embedded Linux for some time now, I feel that the need is definitely 
-there and is quite substantial.
-
--- 
-Best regards,
-Pawel Osciak
-Linux Platform Group
-Samsung Poland R&D Center
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
