@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C52696B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 18:10:43 -0400 (EDT)
-Date: Thu, 26 Aug 2010 15:10:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] percpu: fix a memory leak in pcpu_extend_area_map()
-Message-Id: <20100826151017.63b20d2e.akpm@linux-foundation.org>
-In-Reply-To: <4C5EA651.7080009@kernel.org>
-References: <1281261197-8816-1-git-send-email-shijie8@gmail.com>
-	<4C5EA651.7080009@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B7DB46B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 19:51:00 -0400 (EDT)
+Date: Fri, 27 Aug 2010 01:50:52 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
+Message-ID: <20100826235052.GZ6803@random.random>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Huang Shijie <shijie8@gmail.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 08 Aug 2010 14:42:57 +0200
-Tejun Heo <tj@kernel.org> wrote:
+Hi Hugh,
 
-> >From 206c53730b8b1707becca7a868ea8d14ebee24d2 Mon Sep 17 00:00:00 2001
-> From: Huang Shijie <shijie8@gmail.com>
-> Date: Sun, 8 Aug 2010 14:39:07 +0200
+On Wed, Aug 25, 2010 at 11:12:54PM -0700, Hugh Dickins wrote:
+> After several hours, kbuild tests hang with anon_vma_prepare() spinning on
+> a newly allocated anon_vma's lock - on a box with CONFIG_TREE_PREEMPT_RCU=y
+> (which makes this very much more likely, but it could happen without).
 > 
-> The original code did not free the old map.  This patch fixes it.
-> 
-> tj: use @old as memcpy source instead of @chunk->map, and indentation
->     and description update
-> 
-> Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+> The ever-subtle page_lock_anon_vma() now needs a further twist: since
+> anon_vma_prepare() and anon_vma_fork() are liable to change the ->root
+> of a reused anon_vma structure at any moment, page_lock_anon_vma()
+> needs to check page_mapped() again before succeeding, otherwise
+> page_unlock_anon_vma() might address a different root->lock.
 
-Should have had a cc:stable in the changelog, IMO.
+I don't get it, the anon_vma can be freed and reused only after we run
+rcu_read_unlock(). And the anon_vma->root can't change unless the
+anon_vma is freed and reused. Last but not the least by the time
+page->mapping points to "anon_vma" the "anon_vma->root" is already
+initialized and stable.
 
-> ---
-> Patch applied to percpu#for-linus w/ some updates.  Thanks a lot for
-> catching this.
-> 
+The page_mapped test is only relevant against the rcu_read_lock, not
+the spin_lock, so how it can make a difference to run it twice inside
+the same rcu_read_lock protected critical section? The first one still
+is valid also after the anon_vma_lock() returns, it's not like that
+anon_vma_lock drops the rcu_read_lock internally.
 
-This patch appears to have been lost?
-
-> diff --git a/mm/percpu.c b/mm/percpu.c
-> index e61dc2c..a1830d8 100644
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -393,7 +393,9 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
->  		goto out_unlock;
-> 
->  	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
-> -	memcpy(new, chunk->map, old_size);
-> +	old = chunk->map;
-> +
-> +	memcpy(new, old, old_size);
-> 
->  	chunk->map_alloc = new_alloc;
->  	chunk->map = new;
+Furthermore no need of ACCESS_ONCE on the anon_vma->root because it
+can't change from under us as the anon_vma can't be freed from under
+us until rcu_read_unlock returns (after we verified the first time
+that page_mapped is true under the rcu_read_lock, which we already do
+before trying to take the anon_vma_lock).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
