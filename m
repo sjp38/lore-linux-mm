@@ -1,120 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC566B02A9
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:32:33 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id o7PNWWF7031980
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:32 -0700
-Received: from pzk9 (pzk9.prod.google.com [10.243.19.137])
-	by hpaq7.eem.corp.google.com with ESMTP id o7PNWURu021511
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:31 -0700
-Received: by pzk9 with SMTP id 9so386649pzk.5
-        for <linux-mm@kvack.org>; Wed, 25 Aug 2010 16:32:30 -0700 (PDT)
-Date: Wed, 25 Aug 2010 16:32:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: linux-next: Tree for August 25 (mm/slub)
-In-Reply-To: <alpine.DEB.2.00.1008251447410.22117@router.home>
-Message-ID: <alpine.DEB.2.00.1008251622500.31521@chino.kir.corp.google.com>
-References: <20100825132057.c8416bef.sfr@canb.auug.org.au> <20100825094559.bc652afe.randy.dunlap@oracle.com> <alpine.DEB.2.00.1008251409260.22117@router.home> <20100825122134.2ac33360.randy.dunlap@oracle.com>
- <alpine.DEB.2.00.1008251447410.22117@router.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 540676B02AB
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 20:18:45 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7Q0IhJT006638
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 26 Aug 2010 09:18:44 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B9F4845DE51
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 09:18:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 96B0845DE4F
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 09:18:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EBD1E38002
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 09:18:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B5D4E38001
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 09:18:43 +0900 (JST)
+Date: Thu, 26 Aug 2010 09:13:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/5] cgroup: do ID allocation under css allocator.
+Message-Id: <20100826091346.88eb3ecc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100825141500.GA32680@balbir.in.ibm.com>
+References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100825141500.GA32680@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Aug 2010, Christoph Lameter wrote:
+On Wed, 25 Aug 2010 19:45:00 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> > Certainly.  config file is attached.
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:06:40]:
 > 
-> Ah. Memory hotplug....
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> > Now, css'id is allocated after ->create() is called. But to make use of ID
+> > in ->create(), it should be available before ->create().
+> > 
+> > In another thinking, considering the ID is tightly coupled with "css",
+> > it should be allocated when "css" is allocated.
+> > This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
+> > memory and blkio are useing ID. (To support complicated hierarchy walk.)
+>                        ^^^^ typo
+> > 
+> > ID will be used in mem cgroup's ->create(), later.
+> > 
+> > Note:
+> > If someone changes rules of css allocation, ID allocation should be moved too.
+> > 
+> 
+> What rules? could you please elaborate?
+> 
+See Paul Menage's mail. He said "allocating css object under kernel/cgroup.c
+will make kernel/cgroup.c cleaner." But it seems too big for my purpose.
+
+> Seems cleaner, may be we need to update cgroups.txt?
+
+Hmm. will look into.
+
+Thanks,
+-Kame
+
+> 
+> -- 
+> 	Three Cheers,
+> 	Balbir
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 > 
-> 
-> Subject: Slub: Fix up missing kmalloc_cache -> kmem_cache_node case for memoryhotplug
-> 
-> Memory hotplug allocates and frees per node structures. Use the correct name.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-But we also need to fixup SLUB_RESILIENCY_TEST.
-
-
-slub: fix SLUB_RESILIENCY_TEST for dynamic kmalloc caches
-
-Now that the kmalloc_caches array is dynamically allocated at boot, 
-SLUB_RESILIENCY_TEST needs to be fixed to pass the correct type.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slub.c |   14 ++++++++------
- 1 files changed, 8 insertions(+), 6 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3486,6 +3486,8 @@ static void resiliency_test(void)
- {
- 	u8 *p;
- 
-+	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 16 || SLUB_PAGE_SHIFT < 10);
-+
- 	printk(KERN_ERR "SLUB resiliency testing\n");
- 	printk(KERN_ERR "-----------------------\n");
- 	printk(KERN_ERR "A. Corruption after allocation\n");
-@@ -3495,7 +3497,7 @@ static void resiliency_test(void)
- 	printk(KERN_ERR "\n1. kmalloc-16: Clobber Redzone/next pointer"
- 			" 0x12->0x%p\n\n", p + 16);
- 
--	validate_slab_cache(kmalloc_caches + 4);
-+	validate_slab_cache(kmalloc_caches[4]);
- 
- 	/* Hmmm... The next two are dangerous */
- 	p = kzalloc(32, GFP_KERNEL);
-@@ -3505,7 +3507,7 @@ static void resiliency_test(void)
- 	printk(KERN_ERR
- 		"If allocated object is overwritten then not detectable\n\n");
- 
--	validate_slab_cache(kmalloc_caches + 5);
-+	validate_slab_cache(kmalloc_caches[5]);
- 	p = kzalloc(64, GFP_KERNEL);
- 	p += 64 + (get_cycles() & 0xff) * sizeof(void *);
- 	*p = 0x56;
-@@ -3513,27 +3515,27 @@ static void resiliency_test(void)
- 									p);
- 	printk(KERN_ERR
- 		"If allocated object is overwritten then not detectable\n\n");
--	validate_slab_cache(kmalloc_caches + 6);
-+	validate_slab_cache(kmalloc_caches[6]);
- 
- 	printk(KERN_ERR "\nB. Corruption after free\n");
- 	p = kzalloc(128, GFP_KERNEL);
- 	kfree(p);
- 	*p = 0x78;
- 	printk(KERN_ERR "1. kmalloc-128: Clobber first word 0x78->0x%p\n\n", p);
--	validate_slab_cache(kmalloc_caches + 7);
-+	validate_slab_cache(kmalloc_caches[7]);
- 
- 	p = kzalloc(256, GFP_KERNEL);
- 	kfree(p);
- 	p[50] = 0x9a;
- 	printk(KERN_ERR "\n2. kmalloc-256: Clobber 50th byte 0x9a->0x%p\n\n",
- 			p);
--	validate_slab_cache(kmalloc_caches + 8);
-+	validate_slab_cache(kmalloc_caches[8]);
- 
- 	p = kzalloc(512, GFP_KERNEL);
- 	kfree(p);
- 	p[512] = 0xab;
- 	printk(KERN_ERR "\n3. kmalloc-512: Clobber redzone 0xab->0x%p\n\n", p);
--	validate_slab_cache(kmalloc_caches + 9);
-+	validate_slab_cache(kmalloc_caches[9]);
- }
- #else
- static void resiliency_test(void) {};
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
