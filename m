@@ -1,81 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 64DE16B02D2
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 22:50:31 -0400 (EDT)
-Received: from hpaq2.eem.corp.google.com (hpaq2.eem.corp.google.com [172.25.149.2])
-	by smtp-out.google.com with ESMTP id o7Q2oTtS031112
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:50:29 -0700
-Received: from pzk4 (pzk4.prod.google.com [10.243.19.132])
-	by hpaq2.eem.corp.google.com with ESMTP id o7Q2oRfZ017367
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:50:27 -0700
-Received: by pzk4 with SMTP id 4so549659pzk.7
-        for <linux-mm@kvack.org>; Wed, 25 Aug 2010 19:50:26 -0700 (PDT)
-Date: Wed, 25 Aug 2010 19:50:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2][BUGFIX] oom: remove totalpage normalization from
- oom_badness()
-In-Reply-To: <20100826101139.eb05fe2d.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1008251920510.6227@chino.kir.corp.google.com>
-References: <20100825184001.F3EF.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1008250300500.13300@chino.kir.corp.google.com> <20100826093923.d4ac29b6.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.2.00.1008251746200.28401@chino.kir.corp.google.com>
- <20100826101139.eb05fe2d.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3B1236B02D4
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 22:55:31 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7Q2tQ3J009507
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 26 Aug 2010 11:55:26 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2217B45DE54
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:55:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E02AD45DE4E
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:55:25 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B864C1DB8053
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:55:25 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E0E41DB804D
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:55:25 +0900 (JST)
+Date: Thu, 26 Aug 2010 11:50:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+Message-Id: <20100826115017.04f6f707.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <op.vh0wektv7p4s8u@localhost>
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+	<1282310110.2605.976.camel@laptop>
+	<20100825155814.25c783c7.akpm@linux-foundation.org>
+	<20100826095857.5b821d7f.kamezawa.hiroyu@jp.fujitsu.com>
+	<op.vh0wektv7p4s8u@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Minchan Kim <minchan.kim@gmail.com>
+To: =?UTF-8?B?TWljaGHFgg==?= Nazarewicz <m.nazarewicz@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hans Verkuil <hverkuil@xs4all.nl>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Pawel Osciak <p.osciak@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Aug 2010, KAMEZAWA Hiroyuki wrote:
+On Thu, 26 Aug 2010 04:12:10 +0200
+MichaA? Nazarewicz <m.nazarewicz@samsung.com> wrote:
 
-> Hmm. I'll add a text like following to cgroup/memory.txt. O.K. ?
+> On Thu, 26 Aug 2010 02:58:57 +0200, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Hmm, you may not like this..but how about following kind of interface ?
+> >
+> > Now, memoyr hotplug supports following operation to free and _isolate_
+> > memory region.
+> > 	# echo offline > /sys/devices/system/memory/memoryX/state
+> >
+> > Then, a region of memory will be isolated. (This succeeds if there are free
+> > memory.)
+> >
+> > Add a new interface.
+> >
+> > 	% echo offline > /sys/devices/system/memory/memoryX/state
+> > 	# extract memory from System RAM and make them invisible from buddy allocator.
+> >
+> > 	% echo cma > /sys/devices/system/memory/memoryX/state
+> > 	# move invisible memory to cma.
 > 
-> ==
-> Notes on oom_score and oom_score_adj.
-> 
-> oom_score is calculated as
-> 	oom_score = (taks's proportion of memory) + oom_score_adj.
-> 
-
-I'd replace "memory" with "memory limit (or memsw limit)" so it's clear 
-we're talking about the amount of memory available to task.
-
-> Then, when you use oom_score_adj to control the order of priority of oom,
-> you should know about the amount of memory you can use.
-
-Hmm, you need to know the amount of memory that you can use iff you know 
-the memcg limit and it's a static value.  Otherwise, you only need to know 
-the "memory usage of your application relative to others in the same 
-cgroup."  An oom_score_adj of +300 adds 30% of that memcg's limit to the 
-task, allowing all other tasks to use 30% more memory than that task with 
-it still be killed.  An oom_score_adj of -300 allows that task to use 30% 
-more memory than other tasks without getting killed.  These don't need to 
-know the actual limit.
-
-> So, an approximate oom_score under memcg can be
-> 
->  memcg_oom_score = (oom_score - oom_score_adj) * system_memory/memcg's limit
-> 		+ oom_score_adj.
+> At this point I need to say that I have no experience with hotplug memory but
+> I think that for this to make sense the regions of memory would have to be
+> smaller.  Unless I'm misunderstanding something, the above would convert
+> a region of sizes in order of GiBs to use for CMA.
 > 
 
-Right, that's the exact score within the memcg.
+Now, x86's section size is 
+==
+#ifdef CONFIG_X86_32
+# ifdef CONFIG_X86_PAE
+#  define SECTION_SIZE_BITS     29
+#  define MAX_PHYSADDR_BITS     36
+#  define MAX_PHYSMEM_BITS      36
+# else
+#  define SECTION_SIZE_BITS     26
+#  define MAX_PHYSADDR_BITS     32
+#  define MAX_PHYSMEM_BITS      32
+# endif
+#else /* CONFIG_X86_32 */
+# define SECTION_SIZE_BITS      27 /* matt - 128 is convenient right now */
+# define MAX_PHYSADDR_BITS      44
+# define MAX_PHYSMEM_BITS       46
+#endif
+==
 
-But, I still wouldn't encourage a formula like this because the memcg 
-limit (or cpuset mems, mempolicy nodes, etc) are dynamic and may change 
-out from under us.  So it's more important to define oom_score_adj in the 
-user's mind as a proportion of memory available to be added (either 
-positively or negatively) to its memory use when comparing it to other 
-tasks.  The point is that the memcg limit isn't interesting in this 
-formula, it's more important to understand the priority of the task 
-_compared_ to other tasks memory usage in that memcg.
+128MB...too big ? But it's depend on config.
 
-It probably would be helpful, though, if you know that a vital system task 
-uses 1G, for instance, in a 4G memcg that an oom_score_adj of -250 will 
-disable oom killing for it.  If that tasks leaks memory or becomes 
-significantly large, for whatever reason, it could be killed, but we _can_ 
-discount the 1G in comparison to other tasks as the "cost of doing 
-business" when it comes to vital system tasks:
+IBM's ppc guys used 16MB section, and recently, a new interface to shrink
+the number of /sys files are added, maybe usable.
 
-	(memory usage) * (memory+swap limit / system memory)
+Something good with this approach will be you can create "cma" memory
+before installing driver.
+
+But yes, complicated and need some works.
+
+Bye,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
