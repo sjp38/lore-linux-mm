@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA416B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 16:23:41 -0400 (EDT)
-Date: Thu, 26 Aug 2010 21:23:24 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B1FA96B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 16:31:46 -0400 (EDT)
+Date: Thu, 26 Aug 2010 21:31:30 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 3/3] writeback: Do not congestion sleep when there are
-	no congested BDIs
-Message-ID: <20100826202324.GK20944@csn.ul.ie>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie> <1282835656-5638-4-git-send-email-mel@csn.ul.ie> <20100826173843.GD6873@barrios-desktop> <20100826174245.GJ20944@csn.ul.ie> <20100826181735.GB6805@cmpxchg.org>
+Subject: Re: [PATCH 2/3] writeback: Record if the congestion was unnecessary
+Message-ID: <20100826203130.GL20944@csn.ul.ie>
+References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie> <1282835656-5638-3-git-send-email-mel@csn.ul.ie> <20100826182904.GC6805@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100826181735.GB6805@cmpxchg.org>
+In-Reply-To: <20100826182904.GC6805@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 26, 2010 at 08:17:35PM +0200, Johannes Weiner wrote:
-> On Thu, Aug 26, 2010 at 06:42:45PM +0100, Mel Gorman wrote:
-> > On Fri, Aug 27, 2010 at 02:38:43AM +0900, Minchan Kim wrote:
-> > > On Thu, Aug 26, 2010 at 04:14:16PM +0100, Mel Gorman wrote:
-> > > > If congestion_wait() is called with no BDIs congested, the caller will
-> > > > sleep for the full timeout and this is an unnecessary sleep. This patch
-> > > > checks if there are BDIs congested. If so, it goes to sleep as normal.
-> > > > If not, it calls cond_resched() to ensure the caller is not hogging the
-> > > > CPU longer than its quota but otherwise will not sleep.
-> > > > 
-> > > > This is aimed at reducing some of the major desktop stalls reported during
-> > > > IO. For example, while kswapd is operating, it calls congestion_wait()
-> > > > but it could just have been reclaiming clean page cache pages with no
-> > > > congestion. Without this patch, it would sleep for a full timeout but after
-> > > > this patch, it'll just call schedule() if it has been on the CPU too long.
-> > > > Similar logic applies to direct reclaimers that are not making enough
-> > > > progress.
-> > > > 
-> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > ---
-> > > >  mm/backing-dev.c |   20 ++++++++++++++------
-> > > >  1 files changed, 14 insertions(+), 6 deletions(-)
-> > > > 
-> > > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > > > index a49167f..6abe860 100644
-> > > > --- a/mm/backing-dev.c
-> > > > +++ b/mm/backing-dev.c
-> > > 
-> > > Function's decripton should be changed since we don't wait next write any more. 
-> > > 
-> > 
-> > My bad. I need to check that "next write" thing. It doesn't appear to be
-> > happening but maybe that side of things just broke somewhere in the
-> > distant past. I lack context of how this is meant to work so maybe
-> > someone will educate me.
+On Thu, Aug 26, 2010 at 08:29:04PM +0200, Johannes Weiner wrote:
+> On Thu, Aug 26, 2010 at 04:14:15PM +0100, Mel Gorman wrote:
+> > If congestion_wait() is called when there is no congestion, the caller
+> > will wait for the full timeout. This can cause unreasonable and
+> > unnecessary stalls. There are a number of potential modifications that
+> > could be made to wake sleepers but this patch measures how serious the
+> > problem is. It keeps count of how many congested BDIs there are. If
+> > congestion_wait() is called with no BDIs congested, the tracepoint will
+> > record that the wait was unnecessary.
 > 
-> On every retired io request the congestion state on the bdi is checked
-> and the congestion waitqueue woken up.
+> I am not convinced that unnecessary is the right word.  On a workload
+> without any IO (i.e. no congestion_wait() necessary, ever), I noticed
+> the VM regressing both in time and in reclaiming the right pages when
+> simply removing congestion_wait() from the direct reclaim paths (the
+> one in __alloc_pages_slowpath and the other one in
+> do_try_to_free_pages).
 > 
-> So without congestion, we still only wait until the next write
-> retires, but without any IO, we sleep the full timeout.
+> So just being stupid and waiting for the timeout in direct reclaim
+> while kswapd can make progress seemed to do a better job for that
+> load.
 > 
-> Check __freed_requests() in block/blk-core.c.
+> I can not exactly pinpoint the reason for that behaviour, it would be
+> nice if somebody had an idea.
 > 
 
-Seems reasonable. Still, if there is no write IO going on and no
-congestion there seems to be no point going to sleep for the full
-timeout. It still feels wrong.
+There is a possibility that the behaviour in that case was due to flusher
+threads doing the writes rather than direct reclaim queueing pages for IO
+in an inefficient manner. So the stall is stupid but happens to work out
+well because flusher threads get the chance to do work.
+
+> So personally I think it's a good idea to get an insight on the use of
+> congestion_wait() [patch 1] but I don't agree with changing its
+> behaviour just yet, or judging its usefulness solely on whether it
+> correctly waits for bdi congestion.
+> 
+
+Unfortunately, I strongly suspect that some of the desktop stalls seen during
+IO (one of which involved no writes) were due to calling congestion_wait
+and waiting the full timeout where no writes are going on.
+
+It gets potentially worse too. Lets say we have a system with many BDIs of
+different speed - e.g. SSD on one end of the spectrum and USB flash drive
+on the other. The congestion for writes could be on the USB flash drive but
+due to low memory, the allocator, direct reclaimers and kswapd go to sleep
+periodically on congestion_wait for USB even though the bulk of the pages
+need reclaiming are backed by an SSD.
 
 -- 
 Mel Gorman
