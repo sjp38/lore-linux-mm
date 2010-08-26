@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4040B6B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 06:21:56 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so1936534iwn.14
-        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 03:21:55 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE066B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 06:54:34 -0400 (EDT)
+Received: from hpaq12.eem.corp.google.com (hpaq12.eem.corp.google.com [172.25.149.12])
+	by smtp-out.google.com with ESMTP id o7QAsTU8011283
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 03:54:31 -0700
+Received: from vws16 (vws16.prod.google.com [10.241.21.144])
+	by hpaq12.eem.corp.google.com with ESMTP id o7QAreLX021201
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 03:54:28 -0700
+Received: by vws16 with SMTP id 16so1648765vws.28
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 03:54:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1282817160.1975.476.camel@laptop>
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
-	<1282310110.2605.976.camel@laptop>
-	<20100825155814.25c783c7.akpm@linux-foundation.org>
-	<20100825173125.0855a6b0@bike.lwn.net>
-	<AANLkTinPaq+0MbdW81uoc5_OZ=1Gy_mVYEBnwv8zgOBd@mail.gmail.com>
-	<1282810811.1975.246.camel@laptop>
-	<AANLkTin7EBZw0-WY=NGOmYzZT5Cfy7oWVFBaT2cjK+vZ@mail.gmail.com>
-	<1282817160.1975.476.camel@laptop>
-Date: Thu, 26 Aug 2010 19:21:55 +0900
-Message-ID: <AANLkTikS9Bc1NmCCO5w=pT+LBLaeSyk2PBnAry+oDxM8@mail.gmail.com>
-Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <20100825.234149.189710316.davem@davemloft.net>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
+	<20100825.234149.189710316.davem@davemloft.net>
+Date: Thu, 26 Aug 2010 03:54:28 -0700
+Message-ID: <AANLkTik8cHD_qsey8NBw-YWsoibwMM5RNP9SeKom2VtC@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+To: David Miller <davem@davemloft.net>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, riel@redhat.com, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 26, 2010 at 7:06 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Thu, 2010-08-26 at 18:29 +0900, Minchan Kim wrote:
->> As I said following mail, I said about free space problem.
->> Of course, compaction could move anon pages into somewhere.
->> What's is somewhere? At last, it's same zone.
->> It can prevent fragment problem but not size of free space.
->> So I mean it would be better to move it into another zone(ex, HIGHMEM)
->> rather than OOM kill.
+On Wed, Aug 25, 2010 at 11:41 PM, David Miller <davem@davemloft.net> wrote:
+> From: Hugh Dickins <hughd@google.com>
+> Date: Wed, 25 Aug 2010 23:12:54 -0700 (PDT)
 >
-> Real machines don't have highmem, highmem sucks!! /me runs
-
-It's another topic.
-I agree highmem isn't a gorgeous. But my desktop isn't real machine?
-Important thing is that we already have a highmem and many guys
-include you(kmap stacking patch :))try to improve highmem problems. :)
-
+>> After several hours, kbuild tests hang with anon_vma_prepare() spinning on
+>> a newly allocated anon_vma's lock - on a box with CONFIG_TREE_PREEMPT_RCU=y
+>> (which makes this very much more likely, but it could happen without).
+>>
+>> The ever-subtle page_lock_anon_vma() now needs a further twist: since
+>> anon_vma_prepare() and anon_vma_fork() are liable to change the ->root
+>> of a reused anon_vma structure at any moment, page_lock_anon_vma()
+>> needs to check page_mapped() again before succeeding, otherwise
+>> page_unlock_anon_vma() might address a different root->lock.
+>>
+>> Signed-off-by: Hugh Dickins <hughd@google.com>
 >
-> Does cross zone movement really matter, I though these crappy devices
-> were mostly used on crappy hardware with very limited memory, so pretty
-> much everything would be in zone_normal.. no?
+> Interesting, is the condition which allows this to trigger specific
+> to this merge window or was it always possible?
 
-No. Until now, many embedded devices have used to small memory. In
-that case, only there is a DMA zone in system. But as I know, mobile
-phone starts to use big(?) memory like 1G or above sooner or later. So
-they starts to use HIGHMEM. Otherwise, 2G/2G space configuration.
-Some embedded device uses many thread model to port easily from RTOS.
-In that case, they don't have enough address space for application if
-it uses 2G/2G model.
+Just specific to this merge window, which started using
+anon_vma->root->lock in place of anon_vma->lock (anon_vma->root is
+often anon_vma itself, but not always).  I _think_ that change was
+itself a simplification of the locking in 2.6.35, rather than plugging
+a particular hole (it's not been backported to -stable), but I may be
+wrong on that - Rik?
 
-So we should care of HIGHMEM in embedded system from now on.
-
->
-> But sure, if there's really a need we can look at maybe doing cross zone
-> movement.
->
-
-
--- 
-Kind regards,
-Minchan Kim
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
