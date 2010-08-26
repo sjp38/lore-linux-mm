@@ -1,180 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8092E6B02C2
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:33:02 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L7Q00DHDJUBSB10@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 26 Aug 2010 02:22:59 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L7Q0021QJUARJ@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 26 Aug 2010 02:22:59 +0100 (BST)
-Date: Thu, 26 Aug 2010 03:22:37 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH/RFCv4 2/6] mm: cma: Contiguous Memory Allocator added
-In-reply-to: <20100825203237.GA5318@phenom.dumpdata.com>
-Message-id: <op.vh0t3z2m7p4s8u@localhost>
-Content-transfer-encoding: Quoted-Printable
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
- <0b02e05fc21e70a3af39e65e628d117cd89d70a1.1282286941.git.m.nazarewicz@samsung.com>
- <343f4b0edf9b5eef598831700cb459cd428d3f2e.1282286941.git.m.nazarewicz@samsung.com>
- <20100825203237.GA5318@phenom.dumpdata.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 597E66B02C4
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:37:08 -0400 (EDT)
+Date: Thu, 26 Aug 2010 11:36:49 +1000
+From: Neil Brown <neilb@suse.de>
+Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
+ dirty_ratio
+Message-ID: <20100826113649.687b453a@notabene>
+In-Reply-To: <20100826012945.GA7859@localhost>
+References: <20100820032506.GA6662@localhost>
+	<201008241620.54048.kernel@kolivas.org>
+	<20100824071440.GA14598@localhost>
+	<201008251840.00532.kernel@kolivas.org>
+	<20100826012945.GA7859@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Hans Verkuil <hverkuil@xs4all.nl>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Pawel Osciak <p.osciak@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, linux-kernel@vger.kernel.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Aug 2010 22:32:37 +0200, Konrad Rzeszutek Wilk <konrad.wilk@o=
-racle.com> wrote:
+On Thu, 26 Aug 2010 09:29:45 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-> On Fri, Aug 20, 2010 at 11:50:42AM +0200, Michal Nazarewicz wrote:
->> The Contiguous Memory Allocator framework is a set of APIs for
->> allocating physically contiguous chunks of memory.
->>
->> Various chips require contiguous blocks of memory to operate.  Those
->> chips include devices such as cameras, hardware video decoders and
->> encoders, etc.
->
-> I am not that familiar with how StrongARM works, and I took a bit look=
+> On Wed, Aug 25, 2010 at 04:40:00PM +0800, Con Kolivas wrote:
+> > On Tue, 24 Aug 2010 05:14:40 pm you wrote:
+> > > On Tue, Aug 24, 2010 at 02:20:54PM +0800, Con Kolivas wrote:
+> > > > On Mon, 23 Aug 2010 05:15:35 pm you wrote:
+> > > > > On Mon, Aug 23, 2010 at 02:30:40PM +0800, Con Kolivas wrote:
+> > > > > > On Mon, 23 Aug 2010 04:23:59 pm Wu Fengguang wrote:
+> > > > > > > On Mon, Aug 23, 2010 at 12:42:48PM +0800, Neil Brown wrote:
+> > > > > > > > On Fri, 20 Aug 2010 15:50:54 +1000
+> > > > > > > >
+> > > > > > > > Con Kolivas <kernel@kolivas.org> wrote:
+> > > > > > > > > On Fri, 20 Aug 2010 02:13:25 pm KOSAKI Motohiro wrote:
+> > > > > > > > > > > The dirty_ratio was silently limited to >= 5%. This is not
+> > > > > > > > > > > a user expected behavior. Let's rip it.
+> > > > > > > > > > >
+> > > > > > > > > > > It's not likely the user space will depend on the old
+> > > > > > > > > > > behavior. So the risk of breaking user space is very low.
+> > > > > > > > > > >
+> > > > > > > > > > > CC: Jan Kara <jack@suse.cz>
+> > > > > > > > > > > CC: Neil Brown <neilb@suse.de>
+> > > > > > > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > > > > > > > >
+> > > > > > > > > > Thank you.
+> > > > > > > > > > 	Reviewed-by: KOSAKI Motohiro
+> > > > > > > > > > <kosaki.motohiro@jp.fujitsu.com>
+> > > > > > > > >
+> > > > > > > > > I have tried to do this in the past, and setting this value to
+> > > > > > > > > 0 on some machines caused the machine to come to a complete
+> > > > > > > > > standstill with small writes to disk. It seemed there was some
+> > > > > > > > > kind of "minimum" amount of data required by the VM before
+> > > > > > > > > anything would make it to the disk and I never quite found out
+> > > > > > > > > where that blockade occurred. This was some time ago (3 years
+> > > > > > > > > ago) so I'm not sure if the problem has since been fixed in the
+> > > > > > > > > VM since then. I suggest you do some testing with this value
+> > > > > > > > > set to zero before approving this change.
+> > > > > > >
+> > > > > > > You are right, vm.dirty_ratio=0 will block applications for ever..
+> > > > > >
+> > > > > > Indeed. And while you shouldn't set the lower limit to zero to avoid
+> > > > > > this problem, it doesn't answer _why_ this happens. What is this
+> > > > > > "minimum write" that blocks everything, will 1% be enough, and is it
+> > > > > > hiding another real bug somewhere in the VM?
+> > > > >
+> > > > > Good question.
+> > > > > This simple change will unblock the application even with
+> > > > > vm_dirty_ratio=0.
+> > > > >
+> > > > > # echo 0 > /proc/sys/vm/dirty_ratio
+> > > > > # echo 0 > /proc/sys/vm/dirty_background_ratio
+> > > > > # vmmon nr_dirty nr_writeback nr_unstable
+> > > > >
+> > > > >         nr_dirty     nr_writeback      nr_unstable
+> > > > >                0              444             1369
+> > > > >               37               37              326
+> > > > >                0                0               37
+> > > > >               74              772              694
+> > > > >                0                0               19
+> > > > >                0                0             1406
+> > > > >                0                0               23
+> > > > >                0                0                0
+> > > > >                0              370              186
+> > > > >               74             1073             1221
+> > > > >                0               12               26
+> > > > >                0              703             1147
+> > > > >               37                0              999
+> > > > >               37               37             1517
+> > > > >                0              888               63
+> > > > >                0                0                0
+> > > > >                0                0               20
+> > > > >               37                0                0
+> > > > >               37               74             1776
+> > > > >                0                0                8
+> > > > >               37              629              333
+> > > > >                0               12               19
+> > > > >
+> > > > > Even with it, the 1% explicit bound still looks reasonable for me.
+> > > > > Who will want to set it to 0%? That would destroy IO inefficient.
+> > > >
+> > > > Thanks for your work in this area. I'll experiment with these later.
+> > > > There are low latency applications that would benefit with it set to
+> > > > zero.
+> > >
+> > > It might be useful to some users. Shall we give the rope to users, heh?
+> > >
+> > > Note that for these applications, they may well use
+> > > /proc/sys/vm/dirty_bytes for more fine grained control. That interface only
+> > > imposes a low limit of 2 pages.
+> > 
+> > I don't see why there needs to be a limit. Users fiddling with sysctls should 
+> > know what they're messing with, and there may well be a valid use out there 
+> > somewhere for it.
+> 
+> OK, the following patch gives users the full freedom. I tested 1
+> single dirtier and 9 parallel dirtiers, the system remains alive, but
+> with much slower IO throughput. Maybe not all users care IO performance
+> in all situations?
+> 
+> Thanks,
+> Fengguang
+> ---
+> writeback: remove the internal 5% low bound on dirty_ratio
+> 
+> The dirty_ratio was silently limited in global_dirty_limits() to >= 5%.
+> This is not a user expected behavior. And it's inconsistent with
+> calc_period_shift(), which uses the plain vm_dirty_ratio value.
+> 
+> Let's rip the internal bound.
+> 
+> At the same time, fix balance_dirty_pages() to work with the
+> dirty_thresh=0 case. This allows applications to proceed when
+> dirty+writeback pages are all cleaned.
 
-> at the arch/arm/mach-s* and then some of the
-> drivers/video/media/video/cx88 to get an idea how the hardware video
-> decoders would work this.
->
-> What I got from this patch review is that you are writting an IOMMU
+And ">" fits with the name "exceeded" better than ">=" does.  I think it is
+an aesthetic improvement as well as a functional one.
 
-No.  CMA's designed for systems without IOMMU.  If system has IOMMU then=
+Reviewed-by: NeilBrown <neilb@suse.de>
 
-there is no need for contiguous memory blocks since all discontiguousnes=
-ses
-can be hidden by the IOMMU.
+Thanks,
+NeilBrown
 
-> that is on steroids. It essentially knows that this device and that
-> device can both share the same region, and it has fancy plugin system
-> to deal with fragmentation and offers an simple API for other to
-> write their own "allocators".
 
-Dunno if the plugin system is "fancy" but essentially the above is true.=
- ;)
-
-> Even better, during init, the sub-platform can use
-> cma_early_regions_reserve(<func>) to register their own function
-> for reserving large regions of memory. Which from my experience (with
-> Xen) means that there is a mechanism in place to have it setup
-> contingous regions using sub-platform code.
-
-Essentially that's the idea.  Platform init code adds early regions and =
-later
-on reserves memory for all of the early regions.  For the former some
-additional helper functions are provided which can be used.
-
-> This is how I think it works, but I am not sure if I got it right. Fro=
-m
-> looking at 'cma_alloc' and 'cma_alloc_from_region' - both return
-> an dma_addr_t, which is what is usually feed in the DMA API. And looki=
-ng
-> at the cx88 driver I see it using that API..
->
-> I do understand that under ARM platform you might not have a need for
-> DMA at all, and you use the 'dma_addr_t' just as handles, but for
-> other platforms this would be used.
-
-In the first version I've used unsigned long as return type but then it
-was suggested that maybe dma_addr_t would be better.  This is easily
-changed at this stage so I'd be more then happy to hear any comments.
-
-> So here is the bit where I am confused. Why not have this
-> as Software IOMMU that would utilize the IOMMU API? There would be som=
-e
-> technical questions to be answered (such as, what to do when you have
-> another IOMMU and can you stack them on top of each other).
-
-If I understood you correctly this is something I'm thinking about.  I'm=
-
-actually thinking of ways to integrate CMA with Zach's IOMMU proposal po=
-sted
-some time ago.  The idea would be to define a subset of functionalities
-of the IOMMU API that would work on systems with and without hardware IO=
-MMU.
-If platform had no IOMMU CMA would be used.
-
-I'm currently trying to fully understand Zach's proposal to see how such=
- an
-approach could be pursued.
-
-> A light review below:
-
-Thanks!  Greatly appreciated.
-
->> + * cma_alloc_from - allocates contiguous chunk of memory from named =
-regions.
->> + * @regions:	Comma separated list of region names.  Terminated by NU=
-L
->
-> I think you mean 'NULL'
-
-No, a NUL byte, ie. '\0'.
-
->> + *		byte or a semicolon.
->
-> Uh, really? Why? Why not just simplify your life and make it \0?
-
-This is a consequence of how map is stored.  It's stored as a single str=
-ing
-with entries separated by semicolons.
-
->> + * The cma_allocator::alloc() operation need to set only the @start
->                       ^^- C++, eh?
-
-Well, I'm unaware of a C way to reference "methods" so I just borrowed C=
-++ style.
-
->> +int __init cma_early_region_reserve(struct cma_region *reg)
->> +{
-[...]
->> +#ifndef CONFIG_NO_BOOTMEM
-[...]
->> +#endif
->> +
->> +#ifdef CONFIG_HAVE_MEMBLOCK
-[...]
->> +#endif
-
-> Those two #ifdefs are pretty ugly. What if you defined in a header
-> something along this:
->
-> #ifdef CONFIG_HAVE_MEMBLOCK
-> int __init default_early_region_reserve(struct cma_region *reg) {
->    .. do it using memblock
-> }
-> #endif
-> #ifdef CONFIG_NO_BOOTMEM
-> int __init default_early_region_reserve(struct cma_region *reg) {
->    .. do it using bootmem
-> }
-> #endif
-
-I wanted the function to try all possible allocators.  As a matter of fa=
-ct,
-both APIs (memblock and bootmem) can be supported at the same time.
-
-> and you would cut the API by one function, the
-> cma_early_regions_reserve(struct cma_region *reg)
-
-Actually, I would prefer to leave it.  It may be useful for platform
-initialisation code.  Especially if platform has some special regions
-which are allocated in a different but for the rest wants to use the
-default CMA's reserve call.
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+> 
+> CC: Jan Kara <jack@suse.cz>
+> CC: Neil Brown <neilb@suse.de>
+> CC: Con Kolivas <kernel@kolivas.org>
+> CC: Rik van Riel <riel@redhat.com>
+> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |   14 ++++----------
+>  1 file changed, 4 insertions(+), 10 deletions(-)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-08-26 08:37:31.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-08-26 08:37:55.000000000 +0800
+> @@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+>  
+>  	if (vm_dirty_bytes)
+>  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+> -	else {
+> -		int dirty_ratio;
+> -
+> -		dirty_ratio = vm_dirty_ratio;
+> -		if (dirty_ratio < 5)
+> -			dirty_ratio = 5;
+> -		dirty = (dirty_ratio * available_memory) / 100;
+> -	}
+> +	else
+> +		dirty = (vm_dirty_ratio * available_memory) / 100;
+>  
+>  	if (dirty_background_bytes)
+>  		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+> @@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
+>  		 * the last resort safeguard.
+>  		 */
+>  		dirty_exceeded =
+> -			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+> -			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
+> +			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
+> +			|| (nr_reclaimable + nr_writeback > dirty_thresh);
+>  
+>  		if (!dirty_exceeded)
+>  			break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
