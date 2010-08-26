@@ -1,120 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A1EB16B01F4
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:14:23 -0400 (EDT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/3] writeback: Record if the congestion was unnecessary
-Date: Thu, 26 Aug 2010 16:14:15 +0100
-Message-Id: <1282835656-5638-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 601EC6B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 11:40:32 -0400 (EDT)
+Received: by pxi5 with SMTP id 5so814018pxi.14
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 08:40:30 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2] compaction: handle active and inactive fairly in too_many_isolated
+Date: Fri, 27 Aug 2010 00:40:01 +0900
+Message-Id: <1282837201-6707-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@suse.de>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Minchan Kim <minchan.kim@gmail.com>, Iram Shahzad <iram.shahzad@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-If congestion_wait() is called when there is no congestion, the caller
-will wait for the full timeout. This can cause unreasonable and
-unnecessary stalls. There are a number of potential modifications that
-could be made to wake sleepers but this patch measures how serious the
-problem is. It keeps count of how many congested BDIs there are. If
-congestion_wait() is called with no BDIs congested, the tracepoint will
-record that the wait was unnecessary.
+Iram reported compaction's too_many_isolated loops forever.
+(http://www.spinics.net/lists/linux-mm/msg08123.html)
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+The meminfo of situation happened was inactive anon is zero.
+That's because the system has no memory pressure until then.
+While all anon pages was in active lru, compaction could select
+active lru as well as inactive lru. That's a different thing
+with vmscan's isolated. So we has been two too_many_isolated.
+
+While compaction can isolated pages in both active and inactive,
+current implementation of too_many_isolated only considers inactive.
+It made Iram's problem.
+
+This patch handles active and inactive with fair.
+That's because we can't expect where from and how many compaction would
+isolated pages.
+
+This patch changes (nr_isolated > nr_inactive) with
+nr_isolated > (nr_active + nr_inactive) / 2.
+
+P.S : Mel said "it should be merged and arguably is a stable candidate for 2.6.35"
+
+Cc: Iram Shahzad <iram.shahzad@jp.fujitsu.com>
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 ---
- include/trace/events/writeback.h |   11 ++++++++---
- mm/backing-dev.c                 |   15 ++++++++++++---
- 2 files changed, 20 insertions(+), 6 deletions(-)
+ mm/compaction.c |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
-index e3bee61..03bb04b 100644
---- a/include/trace/events/writeback.h
-+++ b/include/trace/events/writeback.h
-@@ -155,19 +155,24 @@ DEFINE_WBC_EVENT(wbc_writepage);
- 
- TRACE_EVENT(writeback_congest_waited,
- 
--	TP_PROTO(unsigned int usec_delayed),
-+	TP_PROTO(unsigned int usec_delayed, bool unnecessary),
- 
--	TP_ARGS(usec_delayed),
-+	TP_ARGS(usec_delayed, unnecessary),
- 
- 	TP_STRUCT__entry(
- 		__field(	unsigned int,	usec_delayed	)
-+		__field(	unsigned int,	unnecessary	)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->usec_delayed	= usec_delayed;
-+		__entry->unnecessary	= unnecessary;
- 	),
- 
--	TP_printk("usec_delayed=%u", __entry->usec_delayed)
-+	TP_printk("usec_delayed=%u unnecessary=%d",
-+		__entry->usec_delayed,
-+		__entry->unnecessary
-+	)
- );
- 
- #endif /* _TRACE_WRITEBACK_H */
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 7ae33e2..a49167f 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -724,6 +724,7 @@ static wait_queue_head_t congestion_wqh[2] = {
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
- 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
- 	};
-+static atomic_t nr_bdi_congested[2];
- 
- void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 94cce51..4d709ee 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -214,15 +214,16 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ /* Similar to reclaim, but different enough that they don't share logic */
+ static bool too_many_isolated(struct zone *zone)
  {
-@@ -731,7 +732,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
- 	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-
+-	unsigned long inactive, isolated;
++	unsigned long active, inactive, isolated;
  
- 	bit = sync ? BDI_sync_congested : BDI_async_congested;
--	clear_bit(bit, &bdi->state);
-+	if (test_and_clear_bit(bit, &bdi->state))
-+		atomic_dec(&nr_bdi_congested[sync]);
- 	smp_mb__after_clear_bit();
- 	if (waitqueue_active(wqh))
- 		wake_up(wqh);
-@@ -743,7 +745,8 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
- 	enum bdi_state bit;
+ 	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+ 					zone_page_state(zone, NR_INACTIVE_ANON);
++	active = zone_page_state(zone, NR_ACTIVE_FILE) +
++					zone_page_state(zone, NR_ACTIVE_ANON);
+ 	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+ 					zone_page_state(zone, NR_ISOLATED_ANON);
  
- 	bit = sync ? BDI_sync_congested : BDI_async_congested;
--	set_bit(bit, &bdi->state);
-+	if (!test_and_set_bit(bit, &bdi->state))
-+		atomic_inc(&nr_bdi_congested[sync]);
+-	return isolated > inactive;
++	return isolated > (inactive + active) / 2;
  }
- EXPORT_SYMBOL(set_bdi_congested);
  
-@@ -760,14 +763,20 @@ long congestion_wait(int sync, long timeout)
- {
- 	long ret;
- 	unsigned long start = jiffies;
-+	bool unnecessary = false;
- 	DEFINE_WAIT(wait);
- 	wait_queue_head_t *wqh = &congestion_wqh[sync];
- 
-+	/* Check if this call to congestion_wait was necessary */
-+	if (atomic_read(&nr_bdi_congested[sync]) == 0)
-+		unnecessary = true;
-+
- 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
- 	ret = io_schedule_timeout(timeout);
- 	finish_wait(wqh, &wait);
- 
--	trace_writeback_congest_waited(jiffies_to_usecs(jiffies - start));
-+	trace_writeback_congest_waited(jiffies_to_usecs(jiffies - start),
-+			unnecessary);
- 
- 	return ret;
- }
+ /*
 -- 
-1.7.1
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
