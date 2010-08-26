@@ -1,191 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 597E66B02C4
-	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:37:08 -0400 (EDT)
-Date: Thu, 26 Aug 2010 11:36:49 +1000
-From: Neil Brown <neilb@suse.de>
-Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
- dirty_ratio
-Message-ID: <20100826113649.687b453a@notabene>
-In-Reply-To: <20100826012945.GA7859@localhost>
-References: <20100820032506.GA6662@localhost>
-	<201008241620.54048.kernel@kolivas.org>
-	<20100824071440.GA14598@localhost>
-	<201008251840.00532.kernel@kolivas.org>
-	<20100826012945.GA7859@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 6BA9B6B02C6
+	for <linux-mm@kvack.org>; Wed, 25 Aug 2010 21:38:45 -0400 (EDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from eu_spt2 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0L7Q0096OKKH6O70@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Aug 2010 02:38:41 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L7Q000JVKKGOO@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 26 Aug 2010 02:38:41 +0100 (BST)
+Date: Thu, 26 Aug 2010 03:38:11 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+In-reply-to: <1282778794.13797.15.camel@c-dwalke-linux.qualcomm.com>
+Message-id: <op.vh0utxl87p4s8u@localhost>
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+ <1282310110.2605.976.camel@laptop>
+ <20100825155814.25c783c7.akpm@linux-foundation.org>
+ <1282778794.13797.15.camel@c-dwalke-linux.qualcomm.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Aug 2010 09:29:45 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Thu, 26 Aug 2010 01:26:34 +0200, Daniel Walker <dwalker@codeaurora.or=
+g> wrote:
+> If Michal is active, and follows community comments (including Zach's,=
 
-> On Wed, Aug 25, 2010 at 04:40:00PM +0800, Con Kolivas wrote:
-> > On Tue, 24 Aug 2010 05:14:40 pm you wrote:
-> > > On Tue, Aug 24, 2010 at 02:20:54PM +0800, Con Kolivas wrote:
-> > > > On Mon, 23 Aug 2010 05:15:35 pm you wrote:
-> > > > > On Mon, Aug 23, 2010 at 02:30:40PM +0800, Con Kolivas wrote:
-> > > > > > On Mon, 23 Aug 2010 04:23:59 pm Wu Fengguang wrote:
-> > > > > > > On Mon, Aug 23, 2010 at 12:42:48PM +0800, Neil Brown wrote:
-> > > > > > > > On Fri, 20 Aug 2010 15:50:54 +1000
-> > > > > > > >
-> > > > > > > > Con Kolivas <kernel@kolivas.org> wrote:
-> > > > > > > > > On Fri, 20 Aug 2010 02:13:25 pm KOSAKI Motohiro wrote:
-> > > > > > > > > > > The dirty_ratio was silently limited to >= 5%. This is not
-> > > > > > > > > > > a user expected behavior. Let's rip it.
-> > > > > > > > > > >
-> > > > > > > > > > > It's not likely the user space will depend on the old
-> > > > > > > > > > > behavior. So the risk of breaking user space is very low.
-> > > > > > > > > > >
-> > > > > > > > > > > CC: Jan Kara <jack@suse.cz>
-> > > > > > > > > > > CC: Neil Brown <neilb@suse.de>
-> > > > > > > > > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > > > > > > >
-> > > > > > > > > > Thank you.
-> > > > > > > > > > 	Reviewed-by: KOSAKI Motohiro
-> > > > > > > > > > <kosaki.motohiro@jp.fujitsu.com>
-> > > > > > > > >
-> > > > > > > > > I have tried to do this in the past, and setting this value to
-> > > > > > > > > 0 on some machines caused the machine to come to a complete
-> > > > > > > > > standstill with small writes to disk. It seemed there was some
-> > > > > > > > > kind of "minimum" amount of data required by the VM before
-> > > > > > > > > anything would make it to the disk and I never quite found out
-> > > > > > > > > where that blockade occurred. This was some time ago (3 years
-> > > > > > > > > ago) so I'm not sure if the problem has since been fixed in the
-> > > > > > > > > VM since then. I suggest you do some testing with this value
-> > > > > > > > > set to zero before approving this change.
-> > > > > > >
-> > > > > > > You are right, vm.dirty_ratio=0 will block applications for ever..
-> > > > > >
-> > > > > > Indeed. And while you shouldn't set the lower limit to zero to avoid
-> > > > > > this problem, it doesn't answer _why_ this happens. What is this
-> > > > > > "minimum write" that blocks everything, will 1% be enough, and is it
-> > > > > > hiding another real bug somewhere in the VM?
-> > > > >
-> > > > > Good question.
-> > > > > This simple change will unblock the application even with
-> > > > > vm_dirty_ratio=0.
-> > > > >
-> > > > > # echo 0 > /proc/sys/vm/dirty_ratio
-> > > > > # echo 0 > /proc/sys/vm/dirty_background_ratio
-> > > > > # vmmon nr_dirty nr_writeback nr_unstable
-> > > > >
-> > > > >         nr_dirty     nr_writeback      nr_unstable
-> > > > >                0              444             1369
-> > > > >               37               37              326
-> > > > >                0                0               37
-> > > > >               74              772              694
-> > > > >                0                0               19
-> > > > >                0                0             1406
-> > > > >                0                0               23
-> > > > >                0                0                0
-> > > > >                0              370              186
-> > > > >               74             1073             1221
-> > > > >                0               12               26
-> > > > >                0              703             1147
-> > > > >               37                0              999
-> > > > >               37               37             1517
-> > > > >                0              888               63
-> > > > >                0                0                0
-> > > > >                0                0               20
-> > > > >               37                0                0
-> > > > >               37               74             1776
-> > > > >                0                0                8
-> > > > >               37              629              333
-> > > > >                0               12               19
-> > > > >
-> > > > > Even with it, the 1% explicit bound still looks reasonable for me.
-> > > > > Who will want to set it to 0%? That would destroy IO inefficient.
-> > > >
-> > > > Thanks for your work in this area. I'll experiment with these later.
-> > > > There are low latency applications that would benefit with it set to
-> > > > zero.
-> > >
-> > > It might be useful to some users. Shall we give the rope to users, heh?
-> > >
-> > > Note that for these applications, they may well use
-> > > /proc/sys/vm/dirty_bytes for more fine grained control. That interface only
-> > > imposes a low limit of 2 pages.
-> > 
-> > I don't see why there needs to be a limit. Users fiddling with sysctls should 
-> > know what they're messing with, and there may well be a valid use out there 
-> > somewhere for it.
-> 
-> OK, the following patch gives users the full freedom. I tested 1
-> single dirtier and 9 parallel dirtiers, the system remains alive, but
-> with much slower IO throughput. Maybe not all users care IO performance
-> in all situations?
-> 
-> Thanks,
-> Fengguang
-> ---
-> writeback: remove the internal 5% low bound on dirty_ratio
-> 
-> The dirty_ratio was silently limited in global_dirty_limits() to >= 5%.
-> This is not a user expected behavior. And it's inconsistent with
-> calc_period_shift(), which uses the plain vm_dirty_ratio value.
-> 
-> Let's rip the internal bound.
-> 
-> At the same time, fix balance_dirty_pages() to work with the
-> dirty_thresh=0 case. This allows applications to proceed when
-> dirty+writeback pages are all cleaned.
+> but I haven't seen any) then we can defer to that solution ..
 
-And ">" fits with the name "exceeded" better than ">=" does.  I think it is
-an aesthetic improvement as well as a functional one.
+Comments are always welcome. :)
 
-Reviewed-by: NeilBrown <neilb@suse.de>
+-- =
 
-Thanks,
-NeilBrown
-
-
-> 
-> CC: Jan Kara <jack@suse.cz>
-> CC: Neil Brown <neilb@suse.de>
-> CC: Con Kolivas <kernel@kolivas.org>
-> CC: Rik van Riel <riel@redhat.com>
-> CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/page-writeback.c |   14 ++++----------
->  1 file changed, 4 insertions(+), 10 deletions(-)
-> 
-> --- linux-next.orig/mm/page-writeback.c	2010-08-26 08:37:31.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-08-26 08:37:55.000000000 +0800
-> @@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
->  
->  	if (vm_dirty_bytes)
->  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> -	else {
-> -		int dirty_ratio;
-> -
-> -		dirty_ratio = vm_dirty_ratio;
-> -		if (dirty_ratio < 5)
-> -			dirty_ratio = 5;
-> -		dirty = (dirty_ratio * available_memory) / 100;
-> -	}
-> +	else
-> +		dirty = (vm_dirty_ratio * available_memory) / 100;
->  
->  	if (dirty_background_bytes)
->  		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-> @@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
->  		 * the last resort safeguard.
->  		 */
->  		dirty_exceeded =
-> -			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
-> -			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
-> +			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-> +			|| (nr_reclaimable + nr_writeback > dirty_thresh);
->  
->  		if (!dirty_exceeded)
->  			break;
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
