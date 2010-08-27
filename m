@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2CFF96B01F2
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 22:12:15 -0400 (EDT)
-Subject: Re: [PATCH 2/3] writeback: Record if the congestion was unnecessary
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <20100826203130.GL20944@csn.ul.ie>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
-	 <1282835656-5638-3-git-send-email-mel@csn.ul.ie>
-	 <20100826182904.GC6805@cmpxchg.org>  <20100826203130.GL20944@csn.ul.ie>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 27 Aug 2010 10:12:10 +0800
-Message-ID: <1282875130.17594.2.camel@sli10-conroe.sh.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CEC0F6B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 22:42:11 -0400 (EDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
+Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
+ (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
+ with ESMTP id <0L7S00FFDI690970@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Aug 2010 03:42:09 +0100 (BST)
+Received: from linux.samsung.com ([106.116.38.10])
+ by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L7S00IV6I68TL@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Aug 2010 03:42:09 +0100 (BST)
+Date: Fri, 27 Aug 2010 04:41:36 +0200
+From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+In-reply-to: <1282810627.1975.237.camel@laptop>
+Message-id: <op.vh2sfmqt7p4s8u@localhost>
+Content-transfer-encoding: Quoted-Printable
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+ <1282310110.2605.976.camel@laptop> <op.vh0ud3rg7p4s8u@localhost>
+ <1282810627.1975.237.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <p.osciak@samsung.com>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-08-27 at 04:31 +0800, Mel Gorman wrote:
-> On Thu, Aug 26, 2010 at 08:29:04PM +0200, Johannes Weiner wrote:
-> > On Thu, Aug 26, 2010 at 04:14:15PM +0100, Mel Gorman wrote:
-> > > If congestion_wait() is called when there is no congestion, the caller
-> > > will wait for the full timeout. This can cause unreasonable and
-> > > unnecessary stalls. There are a number of potential modifications that
-> > > could be made to wake sleepers but this patch measures how serious the
-> > > problem is. It keeps count of how many congested BDIs there are. If
-> > > congestion_wait() is called with no BDIs congested, the tracepoint will
-> > > record that the wait was unnecessary.
-> > 
-> > I am not convinced that unnecessary is the right word.  On a workload
-> > without any IO (i.e. no congestion_wait() necessary, ever), I noticed
-> > the VM regressing both in time and in reclaiming the right pages when
-> > simply removing congestion_wait() from the direct reclaim paths (the
-> > one in __alloc_pages_slowpath and the other one in
-> > do_try_to_free_pages).
-> > 
-> > So just being stupid and waiting for the timeout in direct reclaim
-> > while kswapd can make progress seemed to do a better job for that
-> > load.
-> > 
-> > I can not exactly pinpoint the reason for that behaviour, it would be
-> > nice if somebody had an idea.
-> > 
-> 
-> There is a possibility that the behaviour in that case was due to flusher
-> threads doing the writes rather than direct reclaim queueing pages for IO
-> in an inefficient manner. So the stall is stupid but happens to work out
-> well because flusher threads get the chance to do work.
-If this is the case, we already have queue congested. removing
-congestion_wait() might cause regression but either your change or the
-congestion_wait_check() should not have the regression, as we do check
-if the bdi is congested.
+On Thu, 26 Aug 2010 10:17:07 +0200, Peter Zijlstra <peterz@infradead.org=
+> wrote:
+> So why not work on the page allocator to improve its contiguous
+> allocation behaviour. If you look at the thing you'll find pageblocks
+> and migration types. If you change it so that you pin the migration ty=
+pe
+> of one or a number of contiguous pageblocks to say MIGRATE_MOVABLE, so=
 
-Thanks,
-Shaohua
+> that they cannot be used for anything but movable pages you're pretty
+> much there.
+
+And that's exactly where I'm headed.  I've created API that seems to be
+usable and meat mine and others requirements (not that I'm not saying it=
+
+cannot be improved -- I'm always happy to hear comments) and now I'm
+starting to concentrate on the reusing of the grabbed memory.  At first
+I wasn't sure how this can be managed but thanks to many comments
+(including yours, thanks!) I have an idea of how the thing should work
+and what I should do from now.
+
+-- =
+
+Best regards,                                        _     _
+| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
+| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
++----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
