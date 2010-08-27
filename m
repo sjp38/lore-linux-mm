@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 47EA26B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:13:30 -0400 (EDT)
-Date: Fri, 27 Aug 2010 09:11:06 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 1475C6B01F2
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:22:16 -0400 (EDT)
+Date: Fri, 27 Aug 2010 09:21:47 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/3] writeback: Do not congestion sleep when there are
- no congested BDIs
-Message-ID: <20100827011106.GB7353@localhost>
+Subject: Re: [RFC PATCH 0/3] Do not wait the full timeout on
+ congestion_wait when there is no congestion
+Message-ID: <20100827012147.GC7353@localhost>
 References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
- <1282835656-5638-4-git-send-email-mel@csn.ul.ie>
- <20100826173843.GD6873@barrios-desktop>
- <20100826174245.GJ20944@csn.ul.ie>
- <20100826181735.GB6805@cmpxchg.org>
- <20100826202324.GK20944@csn.ul.ie>
+ <20100826172038.GA6873@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100826202324.GK20944@csn.ul.ie>
+In-Reply-To: <20100826172038.GA6873@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Li Shaohua <shaohua.li@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2010 at 04:23:24AM +0800, Mel Gorman wrote:
-> On Thu, Aug 26, 2010 at 08:17:35PM +0200, Johannes Weiner wrote:
-> > On Thu, Aug 26, 2010 at 06:42:45PM +0100, Mel Gorman wrote:
-> > > On Fri, Aug 27, 2010 at 02:38:43AM +0900, Minchan Kim wrote:
-> > > > On Thu, Aug 26, 2010 at 04:14:16PM +0100, Mel Gorman wrote:
-> > > > > If congestion_wait() is called with no BDIs congested, the caller will
-> > > > > sleep for the full timeout and this is an unnecessary sleep. This patch
-> > > > > checks if there are BDIs congested. If so, it goes to sleep as normal.
-> > > > > If not, it calls cond_resched() to ensure the caller is not hogging the
-> > > > > CPU longer than its quota but otherwise will not sleep.
-> > > > > 
-> > > > > This is aimed at reducing some of the major desktop stalls reported during
-> > > > > IO. For example, while kswapd is operating, it calls congestion_wait()
-> > > > > but it could just have been reclaiming clean page cache pages with no
-> > > > > congestion. Without this patch, it would sleep for a full timeout but after
-> > > > > this patch, it'll just call schedule() if it has been on the CPU too long.
-> > > > > Similar logic applies to direct reclaimers that are not making enough
-> > > > > progress.
-> > > > > 
-> > > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > > ---
-> > > > >  mm/backing-dev.c |   20 ++++++++++++++------
-> > > > >  1 files changed, 14 insertions(+), 6 deletions(-)
-> > > > > 
-> > > > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > > > > index a49167f..6abe860 100644
-> > > > > --- a/mm/backing-dev.c
-> > > > > +++ b/mm/backing-dev.c
-> > > > 
-> > > > Function's decripton should be changed since we don't wait next write any more. 
-> > > > 
-> > > 
-> > > My bad. I need to check that "next write" thing. It doesn't appear to be
-> > > happening but maybe that side of things just broke somewhere in the
-> > > distant past. I lack context of how this is meant to work so maybe
-> > > someone will educate me.
-> > 
-> > On every retired io request the congestion state on the bdi is checked
-> > and the congestion waitqueue woken up.
-> > 
-> > So without congestion, we still only wait until the next write
-> > retires, but without any IO, we sleep the full timeout.
-> > 
-> > Check __freed_requests() in block/blk-core.c.
-> > 
-> 
-> Seems reasonable. Still, if there is no write IO going on and no
-> congestion there seems to be no point going to sleep for the full
-> timeout. It still feels wrong.
+Minchan,
 
-Yeah the stupid sleeping feels wrong. However there are ~20
-congestion_wait() callers spread randomly in VM, FS and block drivers.
-Many of them may be added by rule of thumb, however what if some of
-them happen to depend on the old stupid sleeping behavior? Obviously
-you've done extensive tests on the page reclaim paths, however that's
-far from enough to cover the wider changes made by this patch.
-
-We may have to do the conversions case by case. Converting to
-congestion_wait_check() (see http://lkml.org/lkml/2010/8/18/292) or
-other waiting schemes.
+It's much cleaner to keep the unchanged congestion_wait() and add a
+congestion_wait_check() for converting problematic wait sites. The
+too_many_isolated() wait is merely a protective mechanism, I won't
+bother to improve it at the cost of more code.
 
 Thanks,
 Fengguang
+
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 94cce51..7370683 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -253,7 +253,11 @@ static unsigned long isolate_migratepages(struct zone *zone,
+>          * delay for some time until fewer pages are isolated
+>          */  
+>         while (unlikely(too_many_isolated(zone))) {
+> -               congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +               long timeout = HZ/10;
+> +               if (timeout == congestion_wait(BLK_RW_ASYNC, timeout)) {
+> +                       set_current_state(TASK_INTERRUPTIBLE);
+> +                       schedule_timeout(timeout);
+> +               }
+> 
+>                 if (fatal_signal_pending(current))
+>                         return 0;
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3109ff7..f5e3e28 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1337,7 +1337,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>         unsigned long nr_dirty;
+>         while (unlikely(too_many_isolated(zone, file, sc))) {
+> -               congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +               long timeout = HZ/10;
+> +               if (timeout == congestion_wait(BLK_RW_ASYNC, timeout)) {
+> +                       set_current_state(TASK_INTERRUPTIBLE);
+> +                       schedule_timeout(timeout);
+> +               }
+> 
+>                 /* We are about to die and free our memory. Return now. */
+>                 if (fatal_signal_pending(current))
+> -- 
+> 1.7.0.5
+> 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
