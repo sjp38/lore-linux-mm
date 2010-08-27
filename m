@@ -1,57 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id CEC0F6B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 22:42:11 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Received: from eu_spt1 ([210.118.77.13]) by mailout3.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L7S00FFDI690970@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 27 Aug 2010 03:42:09 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L7S00IV6I68TL@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 27 Aug 2010 03:42:09 +0100 (BST)
-Date: Fri, 27 Aug 2010 04:41:36 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
-In-reply-to: <1282810627.1975.237.camel@laptop>
-Message-id: <op.vh2sfmqt7p4s8u@localhost>
-Content-transfer-encoding: Quoted-Printable
-References: <cover.1282286941.git.m.nazarewicz@samsung.com>
- <1282310110.2605.976.camel@laptop> <op.vh0ud3rg7p4s8u@localhost>
- <1282810627.1975.237.camel@laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E92A6B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 23:31:04 -0400 (EDT)
+Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
+	by smtp-out.google.com with ESMTP id o7R3V2Dg032368
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 20:31:02 -0700
+Received: from qwk4 (qwk4.prod.google.com [10.241.195.132])
+	by wpaz24.hot.corp.google.com with ESMTP id o7R3V0CS008255
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 20:31:01 -0700
+Received: by qwk4 with SMTP id 4so2155230qwk.9
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 20:31:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
+References: <1282867897-31201-1-git-send-email-yinghan@google.com>
+	<AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
+Date: Thu, 26 Aug 2010 20:31:00 -0700
+Message-ID: <AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Mel Gorman <mel@csn.ul.ie>, Pawel Osciak <p.osciak@samsung.com>, Jonathan Corbet <corbet@lwn.net>, linux-kernel@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Aug 2010 10:17:07 +0200, Peter Zijlstra <peterz@infradead.org=
-> wrote:
-> So why not work on the page allocator to improve its contiguous
-> allocation behaviour. If you look at the thing you'll find pageblocks
-> and migration types. If you change it so that you pin the migration ty=
-pe
-> of one or a number of contiguous pageblocks to say MIGRATE_MOVABLE, so=
+On Thu, Aug 26, 2010 at 6:03 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+> Hello.
+>
+> On Fri, Aug 27, 2010 at 9:11 AM, Ying Han <yinghan@google.com> wrote:
+> > Fix a missed place where checks nr_swap_pages to do shrink_active_list.=
+ Make the
+> > change that moves the check to common function inactive_anon_is_low.
+> >
+>
+> Hmm.. AFAIR, we discussed it at that time but we concluded it's not good.
+> That's because nr_swap_pages < 0 means both "NO SWAP" and "NOT enough
+> swap space now". If we have a swap device or file but not enough space
+> now, we need to aging anon pages to make inactive list enough size.
+> Otherwise, working set pages would be swapped out more fast before
+> promotion.
 
-> that they cannot be used for anything but movable pages you're pretty
-> much there.
+We found the problem on one of our workloads where more TLB flush
+happens without the change. Kswapd seems to be calling
+shrink_active_list() which eventually clears access bit of those ptes
+and does TLB flush
+with ptep_clear_flush_young(). This system does not have swap
+configured, and why aging the anon lru in that
+case?
 
-And that's exactly where I'm headed.  I've created API that seems to be
-usable and meat mine and others requirements (not that I'm not saying it=
+> That aging is done by kswapd so I think it's not big harmful in the syste=
+m.
+> But if you want to remove aging completely in non-swap system, we need
+> to identify non swap system and not enough swap space. I thought we
+> need it for embedded system.
 
-cannot be improved -- I'm always happy to hear comments) and now I'm
-starting to concentrate on the reusing of the grabbed memory.  At first
-I wasn't sure how this can be managed but thanks to many comments
-(including yours, thanks!) I have an idea of how the thing should work
-and what I should do from now.
+Lots of TLB flush hurts the performance especially on large smp system. So =
+does
+it make sense if change it to:
 
--- =
++       if (nr_swap_pages =3D=3D 0)
++               return 0;
 
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+--Ying
+
+
+> Thanks.
+>
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
