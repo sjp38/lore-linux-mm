@@ -1,40 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7F1CE6B0200
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 05:55:53 -0400 (EDT)
-Date: Fri, 27 Aug 2010 11:55:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
-Message-ID: <20100827095546.GC6803@random.random>
-References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
- <20100826235052.GZ6803@random.random>
- <AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7132B6B01F3
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 06:36:31 -0400 (EDT)
+Date: Fri, 27 Aug 2010 18:36:03 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] writeback: remove the internal 5% low bound on dirty_ratio
+Message-ID: <20100827103603.GB6237@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Neil Brown <neilb@suse.de>, Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 26, 2010 at 06:43:31PM -0700, Hugh Dickins wrote:
-> some light., I think you're mistaking the role that RCU plays here.
+The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
+This is not a user expected behavior. And it's inconsistent with
+calc_period_shift(), which uses the plain vm_dirty_ratio value.
 
-That's exactly correct, I thought it prevented reuse of the slab
-entry, not only of the whole slab... SLAB_DESTROY_BY_RCU is a lot more
-tricky to use than I though...
+Let's rip the internal bound.
 
-However at the light of this, I think page_lock_anon_vma could have
-returned a freed and reused anon_vma well before the anon-vma changes.
+At the same time, fix balance_dirty_pages() to work with the
+dirty_thresh=0 case. This allows applications to proceed when
+dirty+writeback pages are all cleaned.
 
-The anon_vma could have been freed after the first page_mapped check
-succeed but before taking the spinlock. I think, it worked fine
-because the rmap walks are robust enough just not to fall apart on a
-reused anon_vma while the lock is hold. It become a visible problem
-now because we were unlocking the wrong lock leading to a
-deadlock. But I guess it wasn't too intentional to return a reused
-anon_vma out of page_lock_anon_vma.
+And ">" fits with the name "exceeded" better than ">=" does. Neil
+think it is an aesthetic improvement as well as a functional one :)
+
+CC: Jan Kara <jack@suse.cz>
+CC: Rik van Riel <riel@redhat.com>
+CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Proposed-by: Con Kolivas <kernel@kolivas.org>
+Reviewed-by: Neil Brown <neilb@suse.de>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/page-writeback.c |   14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
+
+--- linux-next.orig/mm/page-writeback.c	2010-08-26 08:37:31.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-26 08:37:55.000000000 +0800
+@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else {
+-		int dirty_ratio;
+-
+-		dirty_ratio = vm_dirty_ratio;
+-		if (dirty_ratio < 5)
+-			dirty_ratio = 5;
+-		dirty = (dirty_ratio * available_memory) / 100;
+-	}
++	else
++		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+ 	if (dirty_background_bytes)
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
+ 		 * the last resort safeguard.
+ 		 */
+ 		dirty_exceeded =
+-			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+-			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
++			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
++			|| (nr_reclaimable + nr_writeback > dirty_thresh);
+ 
+ 		if (!dirty_exceeded)
+ 			break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
