@@ -1,47 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 458316B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:03:07 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so2737089iwn.14
-        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 18:03:05 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 47EA26B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:13:30 -0400 (EDT)
+Date: Fri, 27 Aug 2010 09:11:06 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] writeback: Do not congestion sleep when there are
+ no congested BDIs
+Message-ID: <20100827011106.GB7353@localhost>
+References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
+ <1282835656-5638-4-git-send-email-mel@csn.ul.ie>
+ <20100826173843.GD6873@barrios-desktop>
+ <20100826174245.GJ20944@csn.ul.ie>
+ <20100826181735.GB6805@cmpxchg.org>
+ <20100826202324.GK20944@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <1282867897-31201-1-git-send-email-yinghan@google.com>
-References: <1282867897-31201-1-git-send-email-yinghan@google.com>
-Date: Fri, 27 Aug 2010 10:03:05 +0900
-Message-ID: <AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100826202324.GK20944@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello.
+On Fri, Aug 27, 2010 at 04:23:24AM +0800, Mel Gorman wrote:
+> On Thu, Aug 26, 2010 at 08:17:35PM +0200, Johannes Weiner wrote:
+> > On Thu, Aug 26, 2010 at 06:42:45PM +0100, Mel Gorman wrote:
+> > > On Fri, Aug 27, 2010 at 02:38:43AM +0900, Minchan Kim wrote:
+> > > > On Thu, Aug 26, 2010 at 04:14:16PM +0100, Mel Gorman wrote:
+> > > > > If congestion_wait() is called with no BDIs congested, the caller will
+> > > > > sleep for the full timeout and this is an unnecessary sleep. This patch
+> > > > > checks if there are BDIs congested. If so, it goes to sleep as normal.
+> > > > > If not, it calls cond_resched() to ensure the caller is not hogging the
+> > > > > CPU longer than its quota but otherwise will not sleep.
+> > > > > 
+> > > > > This is aimed at reducing some of the major desktop stalls reported during
+> > > > > IO. For example, while kswapd is operating, it calls congestion_wait()
+> > > > > but it could just have been reclaiming clean page cache pages with no
+> > > > > congestion. Without this patch, it would sleep for a full timeout but after
+> > > > > this patch, it'll just call schedule() if it has been on the CPU too long.
+> > > > > Similar logic applies to direct reclaimers that are not making enough
+> > > > > progress.
+> > > > > 
+> > > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > > > > ---
+> > > > >  mm/backing-dev.c |   20 ++++++++++++++------
+> > > > >  1 files changed, 14 insertions(+), 6 deletions(-)
+> > > > > 
+> > > > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > > > > index a49167f..6abe860 100644
+> > > > > --- a/mm/backing-dev.c
+> > > > > +++ b/mm/backing-dev.c
+> > > > 
+> > > > Function's decripton should be changed since we don't wait next write any more. 
+> > > > 
+> > > 
+> > > My bad. I need to check that "next write" thing. It doesn't appear to be
+> > > happening but maybe that side of things just broke somewhere in the
+> > > distant past. I lack context of how this is meant to work so maybe
+> > > someone will educate me.
+> > 
+> > On every retired io request the congestion state on the bdi is checked
+> > and the congestion waitqueue woken up.
+> > 
+> > So without congestion, we still only wait until the next write
+> > retires, but without any IO, we sleep the full timeout.
+> > 
+> > Check __freed_requests() in block/blk-core.c.
+> > 
+> 
+> Seems reasonable. Still, if there is no write IO going on and no
+> congestion there seems to be no point going to sleep for the full
+> timeout. It still feels wrong.
 
-On Fri, Aug 27, 2010 at 9:11 AM, Ying Han <yinghan@google.com> wrote:
-> Fix a missed place where checks nr_swap_pages to do shrink_active_list. Make the
-> change that moves the check to common function inactive_anon_is_low.
->
+Yeah the stupid sleeping feels wrong. However there are ~20
+congestion_wait() callers spread randomly in VM, FS and block drivers.
+Many of them may be added by rule of thumb, however what if some of
+them happen to depend on the old stupid sleeping behavior? Obviously
+you've done extensive tests on the page reclaim paths, however that's
+far from enough to cover the wider changes made by this patch.
 
-Hmm.. AFAIR, we discussed it at that time but we concluded it's not good.
-That's because nr_swap_pages < 0 means both "NO SWAP" and "NOT enough
-swap space now". If we have a swap device or file but not enough space
-now, we need to aging anon pages to make inactive list enough size.
-Otherwise, working set pages would be swapped out more fast before
-promotion.
+We may have to do the conversions case by case. Converting to
+congestion_wait_check() (see http://lkml.org/lkml/2010/8/18/292) or
+other waiting schemes.
 
-That aging is done by kswapd so I think it's not big harmful in the system.
-But if you want to remove aging completely in non-swap system, we need
-to identify non swap system and not enough swap space. I thought we
-need it for embedded system.
-
-Thanks.
-
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
