@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B7DB46B01F1
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 19:51:00 -0400 (EDT)
-Date: Fri, 27 Aug 2010 01:50:52 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
-Message-ID: <20100826235052.GZ6803@random.random>
-References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CCAC36B01F1
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 20:11:43 -0400 (EDT)
+From: Ying Han <yinghan@google.com>
+Subject: [PATCH] vmscan: fix missing place to check nr_swap_pages.
+Date: Thu, 26 Aug 2010 17:11:37 -0700
+Message-Id: <1282867897-31201-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: minchan.kim@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Hugh,
+Fix a missed place where checks nr_swap_pages to do shrink_active_list. Make the
+change that moves the check to common function inactive_anon_is_low.
 
-On Wed, Aug 25, 2010 at 11:12:54PM -0700, Hugh Dickins wrote:
-> After several hours, kbuild tests hang with anon_vma_prepare() spinning on
-> a newly allocated anon_vma's lock - on a box with CONFIG_TREE_PREEMPT_RCU=y
-> (which makes this very much more likely, but it could happen without).
-> 
-> The ever-subtle page_lock_anon_vma() now needs a further twist: since
-> anon_vma_prepare() and anon_vma_fork() are liable to change the ->root
-> of a reused anon_vma structure at any moment, page_lock_anon_vma()
-> needs to check page_mapped() again before succeeding, otherwise
-> page_unlock_anon_vma() might address a different root->lock.
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ mm/vmscan.c |    5 ++++-
+ 1 files changed, 4 insertions(+), 1 deletions(-)
 
-I don't get it, the anon_vma can be freed and reused only after we run
-rcu_read_unlock(). And the anon_vma->root can't change unless the
-anon_vma is freed and reused. Last but not the least by the time
-page->mapping points to "anon_vma" the "anon_vma->root" is already
-initialized and stable.
-
-The page_mapped test is only relevant against the rcu_read_lock, not
-the spin_lock, so how it can make a difference to run it twice inside
-the same rcu_read_lock protected critical section? The first one still
-is valid also after the anon_vma_lock() returns, it's not like that
-anon_vma_lock drops the rcu_read_lock internally.
-
-Furthermore no need of ACCESS_ONCE on the anon_vma->root because it
-can't change from under us as the anon_vma can't be freed from under
-us until rcu_read_unlock returns (after we verified the first time
-that page_mapped is true under the rcu_read_lock, which we already do
-before trying to take the anon_vma_lock).
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3109ff7..c7923e7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1605,6 +1605,9 @@ static int inactive_anon_is_low(struct zone *zone, struct scan_control *sc)
+ {
+ 	int low;
+ 
++	if (nr_swap_pages <= 0)
++		return 0;
++
+ 	if (scanning_global_lru(sc))
+ 		low = inactive_anon_is_low_global(zone);
+ 	else
+@@ -1856,7 +1859,7 @@ static void shrink_zone(int priority, struct zone *zone,
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
++	if (inactive_anon_is_low(zone, sc))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+ 
+ 	throttle_vm_writeout(sc->gfp_mask);
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
