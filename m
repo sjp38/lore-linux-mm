@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D95F66B01F2
-	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:43:16 -0400 (EDT)
-Date: Fri, 27 Aug 2010 09:42:54 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/3] writeback: Do not congestion sleep when there are
- no congested BDIs
-Message-ID: <20100827014254.GD7353@localhost>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
- <1282835656-5638-4-git-send-email-mel@csn.ul.ie>
- <20100826173843.GD6873@barrios-desktop>
- <20100826174245.GJ20944@csn.ul.ie>
- <20100826181735.GB6805@cmpxchg.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 38F806B01F2
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 21:43:36 -0400 (EDT)
+Received: from kpbe16.cbf.corp.google.com (kpbe16.cbf.corp.google.com [172.25.105.80])
+	by smtp-out.google.com with ESMTP id o7R1hXkG002369
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 18:43:33 -0700
+Received: from vws3 (vws3.prod.google.com [10.241.21.131])
+	by kpbe16.cbf.corp.google.com with ESMTP id o7R1hVed008778
+	for <linux-mm@kvack.org>; Thu, 26 Aug 2010 18:43:32 -0700
+Received: by vws3 with SMTP id 3so2909206vws.33
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 18:43:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100826181735.GB6805@cmpxchg.org>
+In-Reply-To: <20100826235052.GZ6803@random.random>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
+	<20100826235052.GZ6803@random.random>
+Date: Thu, 26 Aug 2010 18:43:31 -0700
+Message-ID: <AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Li Shaohua <shaohua.li@intel.com>, Rik van Riel <riel@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2010 at 02:17:35AM +0800, Johannes Weiner wrote:
-> On Thu, Aug 26, 2010 at 06:42:45PM +0100, Mel Gorman wrote:
-> > On Fri, Aug 27, 2010 at 02:38:43AM +0900, Minchan Kim wrote:
-> > > On Thu, Aug 26, 2010 at 04:14:16PM +0100, Mel Gorman wrote:
-> > > > If congestion_wait() is called with no BDIs congested, the caller will
-> > > > sleep for the full timeout and this is an unnecessary sleep. This patch
-> > > > checks if there are BDIs congested. If so, it goes to sleep as normal.
-> > > > If not, it calls cond_resched() to ensure the caller is not hogging the
-> > > > CPU longer than its quota but otherwise will not sleep.
-> > > > 
-> > > > This is aimed at reducing some of the major desktop stalls reported during
-> > > > IO. For example, while kswapd is operating, it calls congestion_wait()
-> > > > but it could just have been reclaiming clean page cache pages with no
-> > > > congestion. Without this patch, it would sleep for a full timeout but after
-> > > > this patch, it'll just call schedule() if it has been on the CPU too long.
-> > > > Similar logic applies to direct reclaimers that are not making enough
-> > > > progress.
-> > > > 
-> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > ---
-> > > >  mm/backing-dev.c |   20 ++++++++++++++------
-> > > >  1 files changed, 14 insertions(+), 6 deletions(-)
-> > > > 
-> > > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > > > index a49167f..6abe860 100644
-> > > > --- a/mm/backing-dev.c
-> > > > +++ b/mm/backing-dev.c
-> > > 
-> > > Function's decripton should be changed since we don't wait next write any more. 
-> > > 
-> > 
-> > My bad. I need to check that "next write" thing. It doesn't appear to be
-> > happening but maybe that side of things just broke somewhere in the
-> > distant past. I lack context of how this is meant to work so maybe
-> > someone will educate me.
-> 
-> On every retired io request the congestion state on the bdi is checked
-> and the congestion waitqueue woken up.
-> 
-> So without congestion, we still only wait until the next write
-> retires, but without any IO, we sleep the full timeout.
-> 
-> Check __freed_requests() in block/blk-core.c.
+On Thu, Aug 26, 2010 at 4:50 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Wed, Aug 25, 2010 at 11:12:54PM -0700, Hugh Dickins wrote:
+>> After several hours, kbuild tests hang with anon_vma_prepare() spinning on
+>> a newly allocated anon_vma's lock - on a box with CONFIG_TREE_PREEMPT_RCU=y
+>> (which makes this very much more likely, but it could happen without).
+>>
+>> The ever-subtle page_lock_anon_vma() now needs a further twist: since
+>> anon_vma_prepare() and anon_vma_fork() are liable to change the ->root
+>> of a reused anon_vma structure at any moment, page_lock_anon_vma()
+>> needs to check page_mapped() again before succeeding, otherwise
+>> page_unlock_anon_vma() might address a different root->lock.
+>
+> I don't get it, the anon_vma can be freed and reused only after we run
+> rcu_read_unlock().
 
-congestion_wait() is tightly related with pageout() and writeback,
-however it may have some intention for the no-IO case as well.
+No.  Between rcu_read_lock and rcu_read_unlock, once we've done the
+first (original) page_mapped test to make sure that this isn't just a
+long-stale page->mapping left over in there, SLAB_DESTROY_BY_RCU
+ensures that the slab page on which this "struct anon_vma" resides
+cannot be freed and reused for some other purpose e.g. a page of user
+data.  But that piece of slab holding this "struct anon_vma" is liable
+to be freed and reused for another struct anon_vma at any point, until
+we've got the right lock on it.
 
-- if write congested, maybe we are doing too much pageout(), so wait.
-  it might also reduce some get_request_wait() stalls (the normal way
-  is to explicitly check for congestion before doing write out).
+> And the anon_vma->root can't change unless the
+> anon_vma is freed and reused.
 
-- if any write completes, it may free some PG_reclaim pages, so proceed.
-  (when not congested)
+Yes, but RCU is not protecting against that: all it's doing is
+guaranteeing that when we "speculatively" spin_lock the anon_vma, we
+won't be corrupting some other kind of structure or data.
 
-- if no IO at all, the 100ms sleep might still prevent a page reclaimer
-  from stealing lots of slices from a busy computing program that
-  involves no page allocation at all.
+> Last but not the least by the time
+> page->mapping points to "anon_vma" the "anon_vma->root" is already
+> initialized and stable.
 
-Thanks,
-Fengguang
+Yes, but two things to be careful of there: one, we leave
+page->mapping pointing to the anon_vma maybe long after that address
+has got reused for something else, it's only when the page is finally
+freed that it's cleared (and there certainly was a good racing reason
+for that, but I'd have to think long and hard to reconstruct the
+sequence - OTOH it was a race between page_remove_rmap and
+page_add_anon_rmap); and two, notice how anon_vma_prepare() sets
+anon_vma->root = anon_vma on a newly allocated anon_vma, before it
+gets anon_vma_lock - so anon_vma->root can change underneath us at any
+point there, until we've got anon_vma_lock _and_ checked stability
+with a second page_mapped test.
+
+>
+> The page_mapped test is only relevant against the rcu_read_lock, not
+> the spin_lock, so how it can make a difference to run it twice inside
+> the same rcu_read_lock protected critical section? The first one still
+> is valid also after the anon_vma_lock() returns, it's not like that
+> anon_vma_lock drops the rcu_read_lock internally.
+>
+> Furthermore no need of ACCESS_ONCE on the anon_vma->root because it
+> can't change from under us as the anon_vma can't be freed from under
+> us until rcu_read_unlock returns (after we verified the first time
+> that page_mapped is true under the rcu_read_lock, which we already do
+> before trying to take the anon_vma_lock).
+
+I must rush off for a few hours: hopefully my assertions above shed
+some light., I think you're mistaking the role that RCU plays here.
+You remark in other mail "About your patch, it's a noop in my view..."
+- but seems quite an effective noop ;)  Without the patch my kbuilds
+would hang usually within 6 hours - though one time they did manage 20
+hours, I admit. They ran with the patch for 52 hours before I switched
+the machine over to something else.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
