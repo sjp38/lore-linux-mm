@@ -1,37 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 58A3C6B01FA
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 05:38:11 -0400 (EDT)
-Message-ID: <4C778623.6000303@kernel.org>
-Date: Fri, 27 Aug 2010 11:32:19 +0200
-From: Tejun Heo <tj@kernel.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 170DD6B01FC
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 05:38:41 -0400 (EDT)
+Date: Fri, 27 Aug 2010 10:38:25 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/3] Do not wait the full timeout on
+	congestion_wait when there is no congestion
+Message-ID: <20100827093825.GF19556@csn.ul.ie>
+References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie> <20100826172038.GA6873@barrios-desktop> <20100827012147.GC7353@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH] percpu: fix a memory leak in pcpu_extend_area_map()
-References: <1281261197-8816-1-git-send-email-shijie8@gmail.com>	<4C5EA651.7080009@kernel.org> <20100826151017.63b20d2e.akpm@linux-foundation.org>
-In-Reply-To: <20100826151017.63b20d2e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100827012147.GC7353@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Huang Shijie <shijie8@gmail.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-
-On 08/27/2010 12:10 AM, Andrew Morton wrote:
->> Patch applied to percpu#for-linus w/ some updates.  Thanks a lot for
->> catching this.
+On Fri, Aug 27, 2010 at 09:21:47AM +0800, Wu Fengguang wrote:
+> Minchan,
 > 
-> This patch appears to have been lost?
+> It's much cleaner to keep the unchanged congestion_wait() and add a
+> congestion_wait_check() for converting problematic wait sites. The
+> too_many_isolated() wait is merely a protective mechanism, I won't
+> bother to improve it at the cost of more code.
+> 
 
-It has been in percpu#for-linus.  Given the way percpu allocator is
-currently used, the bug isn't likely to cause any real leakage, so I
-was waiting a bit before pushing it out.  I'll push it today.
-
-Thanks.
+This is what I've done. I dropped the patch again and am using
+wait_iff_congested(). I left the too_many_isolated() callers as
+congestion_wait().
 
 -- 
-tejun
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
