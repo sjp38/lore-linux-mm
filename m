@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B4F56B01F0
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 13:55:17 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id o7RHtDd2028645
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 10:55:13 -0700
-Received: from vws18 (vws18.prod.google.com [10.241.21.146])
-	by hpaq14.eem.corp.google.com with ESMTP id o7RHsjlP009309
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 10:55:12 -0700
-Received: by vws18 with SMTP id 18so5588505vws.1
-        for <linux-mm@kvack.org>; Fri, 27 Aug 2010 10:55:11 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1008271159160.18495@router.home>
-References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
-	<20100826235052.GZ6803@random.random>
-	<AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com>
-	<20100827095546.GC6803@random.random>
-	<AANLkTikvB1fN42A91ZdEHyEXnz2bGw9Q21dJcfa3PBP0@mail.gmail.com>
-	<alpine.DEB.2.00.1008271159160.18495@router.home>
-Date: Fri, 27 Aug 2010 10:55:11 -0700
-Message-ID: <AANLkTi=FeHnLu4_6M5N6yUL==4YyxVXXxsccsE2kNUbm@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 047BF6B01F0
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 14:05:45 -0400 (EDT)
+Date: Fri, 27 Aug 2010 12:13:22 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
-From: Hugh Dickins <hughd@google.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <AANLkTikvB1fN42A91ZdEHyEXnz2bGw9Q21dJcfa3PBP0@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1008271159160.18495@router.home>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils> <20100826235052.GZ6803@random.random> <AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com> <20100827095546.GC6803@random.random>
+ <AANLkTikvB1fN42A91ZdEHyEXnz2bGw9Q21dJcfa3PBP0@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
+To: Hugh Dickins <hughd@google.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2010 at 10:13 AM, Christoph Lameter <cl@linux.com> wrote:
+On Fri, 27 Aug 2010, Hugh Dickins wrote:
 
-> The basic problem with SLAB_DESTROY_BY_RCU is that you get a reference to
-> an object that is guaranteed only to have the same type (the instance may
-> fluctuate and be replaced from under you unless other measures are taken).
+> I would have liked to say "well known" above, but perhaps well known
+> only to me: you're certainly not the first to be surprised by this.
 
-(I wouldn't describe that as a "problem with SLAB_DESTROY_BY_RCU":
-it's precisely the nature of SLAB_DESTROY_BY_RCU, what makes it useful
-in solving backward-locking problems elsewhere.)
+Most people dealing with this for the first time get through a discovery
+period. The network guys had similar problems when they first tried to use
+SLAB_DESTROY_BY_RCU.
 
->
-> Typically one must take a lock within the memory structure to pin down
-> the object (or take a refcount). Only then can you follow pointers and
-> such. It is only possible to verify that the right object has been
-> reached *after* locking. Following a pointer without having determined
-> that we hit the right object should not occur.
->
-> A solution here would be to take the anon_vma->lock (prevents the object
-> switching under us) and then verify that the mapping is the one we are
-> looking for and that the pointer points to the right root. Then take the
-> root lock.
->
-> Hughs solution takes a global spinlock which will limit scalability.
+> IIRC both Christoph and Peter have at different times proposed patches
+> to tighten up page_lock_anon_vma() to avoid returning a stale/reused
+> anon_vma, probably both were dropped because neither was actually
+> necessary, until now: I guess it's a good thing for understandability
+> that anon_vma->root->lock now requires that we weed out that case.
 
-Eh?  My solution was a second page_mapped(page) test i.e. testing an atomic.
+Right. We need to verify that the object we have reached is the correct
+one.
 
-Hugh
+The basic problem with SLAB_DESTROY_BY_RCU is that you get a reference to
+an object that is guaranteed only to have the same type (the instance may
+fluctuate and be replaced from under you unless other measures are taken).
+
+Typically one must take a lock within the memory structure to pin down
+the object (or take a refcount). Only then can you follow pointers and
+such. It is only possible to verify that the right object has been
+reached *after* locking. Following a pointer without having determined
+that we hit the right object should not occur.
+
+A solution here would be to take the anon_vma->lock (prevents the object
+switching under us) and then verify that the mapping is the one we are
+looking for and that the pointer points to the right root. Then take the
+root lock.
+
+Hughs solution takes a global spinlock which will limit scalability.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
