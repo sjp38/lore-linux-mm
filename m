@@ -1,97 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D43966B01F1
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 00:34:31 -0400 (EDT)
-Date: Fri, 27 Aug 2010 12:34:26 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC PATCH 0/3] Do not wait the full timeout on
- congestion_wait when there is no congestion
-Message-ID: <20100827043426.GA6659@localhost>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
- <20100826172038.GA6873@barrios-desktop>
- <20100827012147.GC7353@localhost>
- <AANLkTimLhZcP=eqB9TFfO_rgb-dhXUJh8iNTXuceuCq0@mail.gmail.com>
- <20100827015041.GF7353@localhost>
- <AANLkTin0PZu=ceoeyYa6qSv_piHL1yrfyEgTw35=gnex@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 80BF16B01F1
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 01:00:43 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so2952805iwn.14
+        for <linux-mm@kvack.org>; Thu, 26 Aug 2010 22:00:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTin0PZu=ceoeyYa6qSv_piHL1yrfyEgTw35=gnex@mail.gmail.com>
+In-Reply-To: <AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
+References: <1282867897-31201-1-git-send-email-yinghan@google.com>
+	<AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
+	<AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
+Date: Fri, 27 Aug 2010 14:00:41 +0900
+Message-ID: <AANLkTinP_q7S4_O921hdBoedmTp-7gw0+=4DPHZGmysi@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2010 at 10:02:52AM +0800, Minchan Kim wrote:
-> On Fri, Aug 27, 2010 at 10:50 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > On Fri, Aug 27, 2010 at 09:41:48AM +0800, Minchan Kim wrote:
-> >> Hi, Wu.
-> >>
-> >> On Fri, Aug 27, 2010 at 10:21 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> >> > Minchan,
-> >> >
-> >> > It's much cleaner to keep the unchanged congestion_wait() and add a
-> >> > congestion_wait_check() for converting problematic wait sites. The
-> >> > too_many_isolated() wait is merely a protective mechanism, I won't
-> >> > bother to improve it at the cost of more code.
-> >>
-> >> You means following as?
-> >
-> > No, I mean do not change the too_many_isolated() related code at all :)
-> > And to use congestion_wait_check() in other places that we can prove
-> > there is a problem that can be rightly fixed by changing to
-> > congestion_wait_check().
-> 
-> I always suffer from understanding your comment.
-> Apparently, my eyes have a problem. ;(
+On Fri, Aug 27, 2010 at 12:31 PM, Ying Han <yinghan@google.com> wrote:
+> On Thu, Aug 26, 2010 at 6:03 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+>>
+>> Hello.
+>>
+>> On Fri, Aug 27, 2010 at 9:11 AM, Ying Han <yinghan@google.com> wrote:
+>> > Fix a missed place where checks nr_swap_pages to do shrink_active_list. Make the
+>> > change that moves the check to common function inactive_anon_is_low.
+>> >
+>>
+>> Hmm.. AFAIR, we discussed it at that time but we concluded it's not good.
+>> That's because nr_swap_pages < 0 means both "NO SWAP" and "NOT enough
+>> swap space now". If we have a swap device or file but not enough space
+>> now, we need to aging anon pages to make inactive list enough size.
+>> Otherwise, working set pages would be swapped out more fast before
+>> promotion.
+>
+> We found the problem on one of our workloads where more TLB flush
+> happens without the change. Kswapd seems to be calling
+> shrink_active_list() which eventually clears access bit of those ptes
+> and does TLB flush
+> with ptep_clear_flush_young(). This system does not have swap
+> configured, and why aging the anon lru in that
+> case?
 
-> This patch is dependent of Mel's series.
-> With changing congestion_wait with just return when no congestion, it
-> would have CPU hogging in too_many_isolated. I think it would apply in
-> Li's congestion_wait_check, too.
-> If no change is current congestion_wait, we doesn't need this patch.
-> 
-> Still, maybe I can't understand your comment. Sorry.
+True. I also wanted it but we have to care swap configured but
+non-enabling still yet system as well as non-swap configured system at
+that time.
 
-Sorry! The confusion must come from the modified congestion_wait() by
-Mel. My proposal is to _not_ modify congestion_wait(), but add another
-congestion_wait_check() which won't sleep 100ms when no IO. In this
-way, the following chunks become unnecessary.
+If your system is no swap configured, how about this?
+(It's a not formal proper patch but just quick patch to show the concept).
 
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -253,7 +253,11 @@ static unsigned long isolate_migratepages(struct zone *zone,
-         * delay for some time until fewer pages are isolated
-         */
-        while (unlikely(too_many_isolated(zone))) {
--               congestion_wait(BLK_RW_ASYNC, HZ/10);
-+               long timeout = HZ/10;
-+               if (timeout == congestion_wait(BLK_RW_ASYNC, timeout)) {
-+                       set_current_state(TASK_INTERRUPTIBLE);
-+                       schedule_timeout(timeout);
-+               }
-               
-                if (fatal_signal_pending(current))
-                        return 0;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3109ff7..f5e3e28 100644
+index 3109ff7..641c6a6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1337,7 +1337,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
-        unsigned long nr_dirty;
-        while (unlikely(too_many_isolated(zone, file, sc))) {
--               congestion_wait(BLK_RW_ASYNC, HZ/10);
-+               long timeout = HZ/10;
-+               if (timeout == congestion_wait(BLK_RW_ASYNC, timeout)) {
-+                       set_current_state(TASK_INTERRUPTIBLE);
-+                       schedule_timeout(timeout);
-+               }
-               
-                /* We are about to die and free our memory. Return now. */
-                if (fatal_signal_pending(current))
+@@ -1580,6 +1580,11 @@ static void shrink_active_list(unsigned long
+nr_pages, struct zone *zone,
+        spin_unlock_irq(&zone->lru_lock);
+ }
 
-Thanks,
-Fengguang
++/*
++ * If system doesn't have a swap configuration,
++ * it doesn't need to age anon pages in kswapd.
++ */
++#ifdef CONFIG_SWAP
+ static int inactive_anon_is_low_global(struct zone *zone)
+ {
+        unsigned long active, inactive;
+@@ -1611,6 +1616,12 @@ static int inactive_anon_is_low(struct zone
+*zone, struct scan_control *sc)
+                low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup);
+        return low;
+ }
++#else
++static inline int inactive_anon_is_low(struct zone *zone, struct
+scan_control *sc)
++{
++       return 0;
++}
++#endif
+
+ static int inactive_file_is_low_global(struct zone *zone)
+ {
+
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
