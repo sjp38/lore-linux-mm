@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DCAA6B01F0
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 12:36:12 -0400 (EDT)
-Received: from wpaz33.hot.corp.google.com (wpaz33.hot.corp.google.com [172.24.198.97])
-	by smtp-out.google.com with ESMTP id o7RGZxqD003186
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:36:00 -0700
-Received: from qyk12 (qyk12.prod.google.com [10.241.83.140])
-	by wpaz33.hot.corp.google.com with ESMTP id o7RGZbD8027423
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:35:58 -0700
-Received: by qyk12 with SMTP id 12so812791qyk.7
-        for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:35:58 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9476B01F0
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 12:43:51 -0400 (EDT)
+Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
+	by smtp-out.google.com with ESMTP id o7RGhjUi005793
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:43:45 -0700
+Received: from vws10 (vws10.prod.google.com [10.241.21.138])
+	by wpaz17.hot.corp.google.com with ESMTP id o7RGhhu5018382
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:43:44 -0700
+Received: by vws10 with SMTP id 10so4431539vws.17
+        for <linux-mm@kvack.org>; Fri, 27 Aug 2010 09:43:43 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTinP_q7S4_O921hdBoedmTp-7gw0+=4DPHZGmysi@mail.gmail.com>
-References: <1282867897-31201-1-git-send-email-yinghan@google.com>
-	<AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
-	<AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
-	<AANLkTinP_q7S4_O921hdBoedmTp-7gw0+=4DPHZGmysi@mail.gmail.com>
-Date: Fri, 27 Aug 2010 09:35:58 -0700
-Message-ID: <AANLkTin6+nHOowdptW2jaxg9urn3OLf9ArgGzKjWnQLM@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20100827095546.GC6803@random.random>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils>
+	<20100826235052.GZ6803@random.random>
+	<AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com>
+	<20100827095546.GC6803@random.random>
+Date: Fri, 27 Aug 2010 09:43:43 -0700
+Message-ID: <AANLkTikvB1fN42A91ZdEHyEXnz2bGw9Q21dJcfa3PBP0@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
+From: Hugh Dickins <hughd@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 26, 2010 at 10:00 PM, Minchan Kim <minchan.kim@gmail.com> wrote=
-:
+On Fri, Aug 27, 2010 at 2:55 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> On Thu, Aug 26, 2010 at 06:43:31PM -0700, Hugh Dickins wrote:
+>> some light., I think you're mistaking the role that RCU plays here.
 >
-> On Fri, Aug 27, 2010 at 12:31 PM, Ying Han <yinghan@google.com> wrote:
-> > On Thu, Aug 26, 2010 at 6:03 PM, Minchan Kim <minchan.kim@gmail.com> wr=
-ote:
-> >>
-> >> Hello.
-> >>
-> >> On Fri, Aug 27, 2010 at 9:11 AM, Ying Han <yinghan@google.com> wrote:
-> >> > Fix a missed place where checks nr_swap_pages to do shrink_active_li=
-st. Make the
-> >> > change that moves the check to common function inactive_anon_is_low.
-> >> >
-> >>
-> >> Hmm.. AFAIR, we discussed it at that time but we concluded it's not go=
-od.
-> >> That's because nr_swap_pages < 0 means both "NO SWAP" and "NOT enough
-> >> swap space now". If we have a swap device or file but not enough space
-> >> now, we need to aging anon pages to make inactive list enough size.
-> >> Otherwise, working set pages would be swapped out more fast before
-> >> promotion.
-> >
-> > We found the problem on one of our workloads where more TLB flush
-> > happens without the change. Kswapd seems to be calling
-> > shrink_active_list() which eventually clears access bit of those ptes
-> > and does TLB flush
-> > with ptep_clear_flush_young(). This system does not have swap
-> > configured, and why aging the anon lru in that
-> > case?
+> That's exactly correct, I thought it prevented reuse of the slab
+> entry, not only of the whole slab... SLAB_DESTROY_BY_RCU is a lot more
+> tricky to use than I though...
 >
-> True. I also wanted it but we have to care swap configured but
-> non-enabling still yet system as well as non-swap configured system at
-> that time.
+> However at the light of this, I think page_lock_anon_vma could have
+> returned a freed and reused anon_vma well before the anon-vma changes.
+>
+> The anon_vma could have been freed after the first page_mapped check
+> succeed but before taking the spinlock. I think, it worked fine
+> because the rmap walks are robust enough just not to fall apart on a
+> reused anon_vma while the lock is hold. It become a visible problem
+> now because we were unlocking the wrong lock leading to a
+> deadlock. But I guess it wasn't too intentional to return a reused
+> anon_vma out of page_lock_anon_vma.
 
-Agree. =A0In our case, we cares about the case where swap is not enabled
-but is configured .
->
-> If your system is no swap configured, how about this?
-> (It's a not formal proper patch but just quick patch to show the concept)=
+What you say there is all exactly right, except for "I guess it wasn't
+too intentional": it was intentional, and known that it all worked out
+okay in the rare case when a reused anon_vma got fed into the loops -
+the anon_vma, after all, is nothing more than a list of places where
+you may find the page mapped, it has never asserted that a page will
+be found everywhere that the anon_vma lists.
+
+I would have liked to say "well known" above, but perhaps well known
+only to me: you're certainly not the first to be surprised by this.
+IIRC both Christoph and Peter have at different times proposed patches
+to tighten up page_lock_anon_vma() to avoid returning a stale/reused
+anon_vma, probably both were dropped because neither was actually
+necessary, until now: I guess it's a good thing for understandability
+that anon_vma->root->lock now requires that we weed out that case.
+
+Hugh
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
