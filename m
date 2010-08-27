@@ -1,76 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7132B6B01F3
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 06:36:31 -0400 (EDT)
-Date: Fri, 27 Aug 2010 18:36:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] writeback: remove the internal 5% low bound on dirty_ratio
-Message-ID: <20100827103603.GB6237@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+	by kanga.kvack.org (Postfix) with ESMTP id 574E86B01F3
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 06:39:57 -0400 (EDT)
+Subject: Re: [PATCH] writeback: remove the internal 5% low bound on
+ dirty_ratio
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20100827103603.GB6237@localhost>
+References: <20100827103603.GB6237@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Date: Fri, 27 Aug 2010 12:39:39 +0200
+Message-ID: <1282905579.1975.2141.camel@laptop>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Neil Brown <neilb@suse.de>, Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Neil Brown <neilb@suse.de>, Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
-This is not a user expected behavior. And it's inconsistent with
-calc_period_shift(), which uses the plain vm_dirty_ratio value.
-
-Let's rip the internal bound.
-
-At the same time, fix balance_dirty_pages() to work with the
-dirty_thresh=0 case. This allows applications to proceed when
-dirty+writeback pages are all cleaned.
-
-And ">" fits with the name "exceeded" better than ">=" does. Neil
-think it is an aesthetic improvement as well as a functional one :)
-
-CC: Jan Kara <jack@suse.cz>
-CC: Rik van Riel <riel@redhat.com>
-CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Proposed-by: Con Kolivas <kernel@kolivas.org>
-Reviewed-by: Neil Brown <neilb@suse.de>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |   14 ++++----------
- 1 file changed, 4 insertions(+), 10 deletions(-)
-
---- linux-next.orig/mm/page-writeback.c	2010-08-26 08:37:31.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-08-26 08:37:55.000000000 +0800
-@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
- 
- 	if (vm_dirty_bytes)
- 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
--	else {
--		int dirty_ratio;
--
--		dirty_ratio = vm_dirty_ratio;
--		if (dirty_ratio < 5)
--			dirty_ratio = 5;
--		dirty = (dirty_ratio * available_memory) / 100;
--	}
-+	else
-+		dirty = (vm_dirty_ratio * available_memory) / 100;
- 
- 	if (dirty_background_bytes)
- 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
- 		 * the last resort safeguard.
- 		 */
- 		dirty_exceeded =
--			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
--			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
-+			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
-+			|| (nr_reclaimable + nr_writeback > dirty_thresh);
- 
- 		if (!dirty_exceeded)
- 			break;
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Fri, 2010-08-27 at 18:36 +0800, Wu Fengguang wrote:
+> The dirty_ratio was siliently limited in global_dirty_limits() to >=3D 5%=
