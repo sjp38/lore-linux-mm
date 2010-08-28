@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2F07B6B01F0
-	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 10:11:20 -0400 (EDT)
-Subject: [PATCH] mm:  remove alignment padding from anon_vma on (some) 64
- bit builds
-From: Richard Kennedy <richard@rsk.demon.co.uk>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A79E86B01F0
+	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 10:16:22 -0400 (EDT)
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <201008281558.23501.hverkuil@xs4all.nl>
+References: <cover.1282286941.git.m.nazarewicz@samsung.com>
+	 <201008281508.19756.hverkuil@xs4all.nl> <1283002486.1975.3479.camel@laptop>
+	 <201008281558.23501.hverkuil@xs4all.nl>
 Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 28 Aug 2010 15:09:46 +0100
-Message-ID: <1283004586.1912.10.camel@castor.rsk>
+Content-Transfer-Encoding: quoted-printable
+Date: Sat, 28 Aug 2010 16:16:09 +0200
+Message-ID: <1283004969.1975.3530.camel@laptop>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Nazarewicz <m.nazarewicz@samsung.com>, linux-mm@kvack.org, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Pawel Osciak <p.osciak@samsung.com>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Reorder structure anon_vma to remove alignment padding on 64 builds when
-(CONFIG_KSM || CONFIG_MIGRATION).
-This will shrink the size of the anon_vma structure from 40 to 32 bytes
-& allow more objects per slab in its kmem_cache.
+On Sat, 2010-08-28 at 15:58 +0200, Hans Verkuil wrote:
+> > Isn't the proposed CMA thing vulnerable to the exact same problem? If
+> > you allow sharing of regions and plug some allocator in there you get
+> > the same problem. If you can solve it there, you can solve it for any
+> > kind of reservation scheme.
+>=20
+> Since with cma you can assign a region exclusively to a driver you can en=
+sure
+> that this problem does not occur. Of course, if you allow sharing then yo=
+u will
+> end up with the same type of problem unless you know that there is only o=
+ne
+> driver at a time that will use that memory.
 
-Under slub the objects in the anon_vma kmem_cache will then be 40 bytes
-with 102 objects per slab.
-(On v2.6.36 without this patch,the size is 48 bytes and 85
-objects/slab.)
-    
-compiled & tested on x86_64 using SLUB
-    
-Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
----
-patch against v2.6.36-rc2
-compiled & tested on x86_64 AMD X2  
-
-regards
-Richard
+I think you could do the same thing, the proposed page allocator
+solutions still needs to manage pageblock state, you can manage those
+the same as you would your cma regions -- the difference is that you get
+the option of letting the rest of the system use the memory in a
+transparent manner if you don't need it.
 
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 31b2fd7..5c98df6 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -25,8 +25,8 @@
-  * pointing to this anon_vma once its vma list is empty.
-  */
- struct anon_vma {
--	spinlock_t lock;	/* Serialize access to vma list */
- 	struct anon_vma *root;	/* Root of this anon_vma tree */
-+	spinlock_t lock;	/* Serialize access to vma list */
- #if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
- 
- 	/*
+> There is obviously a trade-off. I was just wondering how costly it is.
+> E.g. would it be a noticeable delay making 64 MB memory available in this
+> way on a, say, 600 MHz ARM.=20
 
+Right, dunno really, rather depends on the memory bandwidth of your arm
+device I suspect. It is something you'd have to test.=20
+
+In case the machine isn't fast enough, there really isn't anything you
+can do but keep the memory empty at all times; unless of course the
+device in question needs it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
