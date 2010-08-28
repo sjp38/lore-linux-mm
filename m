@@ -1,178 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 631676B01F1
-	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 18:25:24 -0400 (EDT)
-Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
-	by smtp-out.google.com with ESMTP id o7SMPLL0019747
-	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 15:25:22 -0700
-Received: from pvh1 (pvh1.prod.google.com [10.241.210.193])
-	by kpbe17.cbf.corp.google.com with ESMTP id o7SMPKps009820
-	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 15:25:20 -0700
-Received: by pvh1 with SMTP id 1so2140357pvh.23
-        for <linux-mm@kvack.org>; Sat, 28 Aug 2010 15:25:20 -0700 (PDT)
-Date: Sat, 28 Aug 2010 15:25:16 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] oom: fix locking for oom_adj and oom_score_adj
-In-Reply-To: <20100827144835.a125feea.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1008281524120.24754@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008201539310.9201@chino.kir.corp.google.com> <20100827144835.a125feea.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 64C7B6B01F1
+	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 19:50:41 -0400 (EDT)
+Date: Sun, 29 Aug 2010 07:50:29 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in
+ /proc/vmstat
+Message-ID: <20100828235029.GA7071@localhost>
+References: <1282963227-31867-1-git-send-email-mrubin@google.com>
+ <1282963227-31867-4-git-send-email-mrubin@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1282963227-31867-4-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Ying Han <yinghan@google.com>, linux-mm@kvack.org
+To: Michael Rubin <mrubin@google.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Aug 2010, Andrew Morton wrote:
-
-> > From: Ying Han <yinghan@google.com>
-> > 
-> > It's pointless to kill a task if another thread sharing its mm cannot be
-> > killed to allow future memory freeing.  A subsequent patch will prevent
-> > kills in such cases, but first it's necessary to have a way to flag a
-> > task that shares memory with an OOM_DISABLE task that doesn't incur an
-> > additional tasklist scan, which would make select_bad_process() an O(n^2)
-> > function.
-> > 
-> > This patch adds an atomic counter to struct mm_struct that follows how
-> > many threads attached to it have an oom_score_adj of OOM_SCORE_ADJ_MIN.
-> > They cannot be killed by the kernel, so their memory cannot be freed in
-> > oom conditions.
-> > 
-> > This only requires task_lock() on the task that we're operating on, it
-> > does not require mm->mmap_sem since task_lock() pins the mm and the
-> > operation is atomic.
+On Sat, Aug 28, 2010 at 10:40:26AM +0800, Michael Rubin wrote:
+> To help developers and applications gain visibility into writeback
+> behaviour adding two entries to /proc/vmstat.
 > 
-> I don't think lockdep likes us taking task_lock() inside
-> lock_task_sighand(), in oom_adjust_write():
+>    # grep nr_dirtied /proc/vmstat
+>    nr_dirtied 3747
+>    # grep nr_cleaned /proc/vmstat
+>    nr_cleaned 3618
 > 
-> [   78.185341] 
-> [   78.185341] =========================================================
-> [   78.185341] [ INFO: possible irq lock inversion dependency detected ]
-> [   78.185341] 2.6.36-rc2-mm1 #6
-> [   78.185341] ---------------------------------------------------------
-> [   78.185341] kworker/0:1/0 just changed the state of lock:
-> [   78.185341]  (&(&sighand->siglock)->rlock){-.....}, at: [<ffffffff81042d83>] lock_task_sighand+0x9a/0xda
-> [   78.185341] but this lock took another, HARDIRQ-unsafe lock in the past:
-> [   78.185341]  (&(&p->alloc_lock)->rlock){+.+...}
-> [   78.185341] 
-> [   78.185341] and interrupts could create inverse lock ordering between them.
+> In order to track the "cleaned" and "dirtied" counts we added two
+> vm_stat_items. Per memory node stats have been added also. So we can
+> see per node granularity:
+> 
+>    # cat /sys/devices/system/node/node20/vmstat
+>    Node 20 pages_cleaned: 0 times
+>    Node 20 pages_dirtied: 0 times
 
+It's silly to have the different names nr_dirtied and pages_cleaned
+for the same item.
 
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> ---
+>  drivers/base/node.c    |   14 ++++++++++++++
+>  include/linux/mmzone.h |    2 ++
+>  mm/page-writeback.c    |    2 ++
+>  mm/vmstat.c            |    3 +++
+>  4 files changed, 21 insertions(+), 0 deletions(-)
+> 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 2872e86..facd920 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -160,6 +160,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
+>  }
+>  static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+>  
+> +static ssize_t node_read_vmstat(struct sys_device *dev,
+> +				struct sysdev_attribute *attr, char *buf)
+> +{
+> +	int nid = dev->id;
+> +	return sprintf(buf,
+> +		"Node %d pages_cleaned: %lu times\n"
+> +		"Node %d pages_dirtied: %lu times\n",
+> +		nid, node_page_state(nid, NR_PAGES_CLEANED),
+> +		nid, node_page_state(nid, NR_FILE_PAGES_DIRTIED));
+> +}
 
-oom: fix locking for oom_adj and oom_score_adj
+The output format is quite different from /proc/vmstat.
+Do we really need to "Node X", ":" and "times" decorations?
 
-The locking order in oom_adjust_write() and oom_score_adj_write() for 
-task->alloc_lock and task->sighand->siglock is reversed, and lockdep
-notices that irqs could encounter an ABBA scenario.
+And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
+the "_page" in node_page_state(). It's a bit long to be a pleasant
+name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
 
-This fixes the locking order so that we always take task_lock(task) prior
-to lock_task_sighand(task).
+> +static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
+> +
+>  static ssize_t node_read_distance(struct sys_device * dev,
+>  			struct sysdev_attribute *attr, char * buf)
+>  {
+> @@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct node *parent)
+>  		sysdev_create_file(&node->sysdev, &attr_meminfo);
+>  		sysdev_create_file(&node->sysdev, &attr_numastat);
+>  		sysdev_create_file(&node->sysdev, &attr_distance);
+> +		sysdev_create_file(&node->sysdev, &attr_vmstat);
+>  
+>  		scan_unevictable_register_node(node);
+>  
+> @@ -267,6 +280,7 @@ void unregister_node(struct node *node)
+>  	sysdev_remove_file(&node->sysdev, &attr_meminfo);
+>  	sysdev_remove_file(&node->sysdev, &attr_numastat);
+>  	sysdev_remove_file(&node->sysdev, &attr_distance);
+> +	sysdev_remove_file(&node->sysdev, &attr_vmstat);
+>  
+>  	scan_unevictable_unregister_node(node);
+>  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 6e6e626..d42f179 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -104,6 +104,8 @@ enum zone_stat_item {
+>  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+>  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+>  	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+> +	NR_FILE_PAGES_DIRTIED,	/* number of times pages get dirtied */
+> +	NR_PAGES_CLEANED,	/* number of times pages enter writeback */
 
-Reported-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Can't be folded into the offending patch, 
- oom-add-per-mm-oom-disable-count.patch, because later patch
- oom-rewrite-error-handling-for-oom_adj-and-oom_score_adj-tunables.patch 
- rewrites error handling in these functions.
+How about the comments /* accumulated number of pages ... */?
 
- fs/proc/base.c |   40 +++++++++++++++++++++-------------------
- 1 files changed, 21 insertions(+), 19 deletions(-)
+Note that NR_CLEANED won't match NR_FILE_DIRTIED in long term because
+it also accounts for anon pages, and does not account for dirty pages
+that are truncated before they go writeback.
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1042,9 +1042,16 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		err = -ESRCH;
- 		goto out;
- 	}
-+
-+	task_lock(task);
-+	if (!task->mm) {
-+		err = -EINVAL;
-+		goto err_task_lock;
-+	}
-+	
- 	if (!lock_task_sighand(task, &flags)) {
- 		err = -ESRCH;
--		goto err_task_struct;
-+		goto err_task_lock;
- 	}
- 
- 	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
-@@ -1052,12 +1059,6 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 		goto err_sighand;
- 	}
- 
--	task_lock(task);
--	if (!task->mm) {
--		err = -EINVAL;
--		goto err_task_lock;
--	}
--
- 	if (oom_adjust != task->signal->oom_adj) {
- 		if (oom_adjust == OOM_DISABLE)
- 			atomic_inc(&task->mm->oom_disable_count);
-@@ -1083,11 +1084,10 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
- 	else
- 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
- 								-OOM_DISABLE;
--err_task_lock:
--	task_unlock(task);
- err_sighand:
- 	unlock_task_sighand(task, &flags);
--err_task_struct:
-+err_task_lock:
-+	task_unlock(task);
- 	put_task_struct(task);
- out:
- 	return err < 0 ? err : count;
-@@ -1150,21 +1150,24 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
- 		err = -ESRCH;
- 		goto out;
- 	}
-+
-+	task_lock(task);
-+	if (!task->mm) {
-+		err = -EINVAL;
-+		goto err_task_lock;
-+	}
-+
- 	if (!lock_task_sighand(task, &flags)) {
- 		err = -ESRCH;
--		goto err_task_struct;
-+		goto err_task_lock;
- 	}
-+
- 	if (oom_score_adj < task->signal->oom_score_adj &&
- 			!capable(CAP_SYS_RESOURCE)) {
- 		err = -EACCES;
- 		goto err_sighand;
- 	}
- 
--	task_lock(task);
--	if (!task->mm) {
--		err = -EINVAL;
--		goto err_task_lock;
--	}
- 	if (oom_score_adj != task->signal->oom_score_adj) {
- 		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
- 			atomic_inc(&task->mm->oom_disable_count);
-@@ -1181,11 +1184,10 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
- 	else
- 		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
- 							OOM_SCORE_ADJ_MAX;
--err_task_lock:
--	task_unlock(task);
- err_sighand:
- 	unlock_task_sighand(task, &flags);
--err_task_struct:
-+err_task_lock:
-+	task_unlock(task);
- 	put_task_struct(task);
- out:
- 	return err < 0 ? err : count;
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
