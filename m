@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BC9F6B01F8
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 22:40:53 -0400 (EDT)
-From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 1/4] mm: exporting account_page_dirty
-Date: Fri, 27 Aug 2010 19:40:24 -0700
-Message-Id: <1282963227-31867-2-git-send-email-mrubin@google.com>
-In-Reply-To: <1282963227-31867-1-git-send-email-mrubin@google.com>
-References: <1282963227-31867-1-git-send-email-mrubin@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6299C6B01F0
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 22:47:20 -0400 (EDT)
+Date: Fri, 27 Aug 2010 21:47:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: fix hang on anon_vma->root->lock
+In-Reply-To: <AANLkTindjNiJXbfsWbFexXBQVB174aprhSbBLFosBvC=@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1008272136220.28501@router.home>
+References: <alpine.LSU.2.00.1008252305540.19107@sister.anvils> <20100826235052.GZ6803@random.random> <AANLkTimgKcP78CNakDf34NrVrd5apfXrtptNw+G6G5DK@mail.gmail.com> <20100827095546.GC6803@random.random> <AANLkTikvB1fN42A91ZdEHyEXnz2bGw9Q21dJcfa3PBP0@mail.gmail.com>
+ <alpine.DEB.2.00.1008271159160.18495@router.home> <AANLkTi=FeHnLu4_6M5N6yUL==4YyxVXXxsccsE2kNUbm@mail.gmail.com> <alpine.DEB.2.00.1008271420400.18495@router.home> <AANLkTinLpDnpwr40dtU5UFq53avODSKxTA4=xnZwmJFX@mail.gmail.com> <alpine.DEB.2.00.1008271547200.22988@router.home>
+ <AANLkTim16oT13keYK_oz=7kmDmdG=ADfkGXMKp3_dEw_@mail.gmail.com> <AANLkTikML=HghpOVK0WZ0t6CRaNOKvu=57ebojZ+YCNS@mail.gmail.com> <alpine.DEB.2.00.1008271801080.25115@router.home> <AANLkTindjNiJXbfsWbFexXBQVB174aprhSbBLFosBvC=@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kosaki.motohiro@jp.fujitsu.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This allows code outside of the mm core to safely manipulate page state
-and not worry about the other accounting. Not using these routines means
-that some code will lose track of the accounting and we get bugs. This
-has happened once already.
+On Fri, 27 Aug 2010, Hugh Dickins wrote:
 
-Modified cephs to use the interface.
+> >> No, that's what we rely upon SLAB_DESTROY_BY_RCU for.
+> >
+> > SLAB_DESTROY_BY_RCU does not guarantee that the object stays the same nor
+> > does it prevent any fields from changing. Going through a pointer with
+> > only SLAB_DESTROY_BY_RCU means that you can only rely on the atomicity
+> > guarantee for pointer updates. You get a valid pointer but pointer changes
+> > are not prevented by SLAB_DESTROY_BY_RCU.
+>
+> You're speaking too generally there for me to understand its
+> relevance!  What specific problem do you see?
 
-Signed-off-by: Michael Rubin <mrubin@google.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+I had the impression that you rely on SLAB_DESTROY_BY_RCU for more than
+what it gives you. If the lock taken is not directly in the structure that
+is managed by slab but only reachable by a pointer then potential pointer
+changes are also danger to consider.
 
----
- fs/ceph/addr.c      |    8 +-------
- mm/page-writeback.c |    1 +
- 2 files changed, 2 insertions(+), 7 deletions(-)
+I'd be much more comfortable if the following would be done
 
-diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-index 5598a0d..420d469 100644
---- a/fs/ceph/addr.c
-+++ b/fs/ceph/addr.c
-@@ -105,13 +105,7 @@ static int ceph_set_page_dirty(struct page *page)
- 	spin_lock_irq(&mapping->tree_lock);
- 	if (page->mapping) {	/* Race with truncate? */
- 		WARN_ON_ONCE(!PageUptodate(page));
--
--		if (mapping_cap_account_dirty(mapping)) {
--			__inc_zone_page_state(page, NR_FILE_DIRTY);
--			__inc_bdi_stat(mapping->backing_dev_info,
--					BDI_RECLAIMABLE);
--			task_io_account_write(PAGE_CACHE_SIZE);
--		}
-+		account_page_dirtied(page, page->mapping);
- 		radix_tree_tag_set(&mapping->page_tree,
- 				page_index(page), PAGECACHE_TAG_DIRTY);
- 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 7262aac..9d07a8d 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1131,6 +1131,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		task_io_account_write(PAGE_CACHE_SIZE);
- 	}
- }
-+EXPORT_SYMBOL(account_page_dirtied);
- 
- /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
--- 
-1.7.1
+A. Pin the anon_vma by either
+	I. Take a refcount on the anon vma
+	II. Take a lock in the anon vma (something that is not pointed to)
+
+B. Either
+	I. All values that have been used before the pinning are
+	   verified after the pinning (and the lock is reacquired
+           if verification fails).
+
+	II. Or all functions using page_lock_anon_vma() must securely
+	    work in the case that the anon_vma was reused for
+	    something else before the vma lock was acquired.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
