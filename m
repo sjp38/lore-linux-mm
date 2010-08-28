@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E83ED6B01F2
-	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 22:40:52 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BC9F6B01F8
+	for <linux-mm@kvack.org>; Fri, 27 Aug 2010 22:40:53 -0400 (EDT)
 From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 2/4] mm: account_page_writeback added
-Date: Fri, 27 Aug 2010 19:40:25 -0700
-Message-Id: <1282963227-31867-3-git-send-email-mrubin@google.com>
+Subject: [PATCH 1/4] mm: exporting account_page_dirty
+Date: Fri, 27 Aug 2010 19:40:24 -0700
+Message-Id: <1282963227-31867-2-git-send-email-mrubin@google.com>
 In-Reply-To: <1282963227-31867-1-git-send-email-mrubin@google.com>
 References: <1282963227-31867-1-git-send-email-mrubin@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,77 +13,52 @@ To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kosaki.motohiro@jp.fujitsu.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This allows code outside of the mm core to safely manipulate page
-writeback state and not worry about the other accounting. Not using
-these routines means that some code will lose track of the accounting
-and we get bugs.
+This allows code outside of the mm core to safely manipulate page state
+and not worry about the other accounting. Not using these routines means
+that some code will lose track of the accounting and we get bugs. This
+has happened once already.
 
-Modified nilfs2 to use interface.
+Modified cephs to use the interface.
 
 Signed-off-by: Michael Rubin <mrubin@google.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- fs/nilfs2/segment.c |    2 +-
- include/linux/mm.h  |    1 +
- mm/page-writeback.c |   13 ++++++++++++-
- 3 files changed, 14 insertions(+), 2 deletions(-)
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index 9fd051a..5617f16 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -1599,7 +1599,7 @@ nilfs_copy_replace_page_buffers(struct page *page, struct list_head *out)
- 	kunmap_atomic(kaddr, KM_USER0);
+---
+ fs/ceph/addr.c      |    8 +-------
+ mm/page-writeback.c |    1 +
+ 2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index 5598a0d..420d469 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -105,13 +105,7 @@ static int ceph_set_page_dirty(struct page *page)
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(!PageUptodate(page));
+-
+-		if (mapping_cap_account_dirty(mapping)) {
+-			__inc_zone_page_state(page, NR_FILE_DIRTY);
+-			__inc_bdi_stat(mapping->backing_dev_info,
+-					BDI_RECLAIMABLE);
+-			task_io_account_write(PAGE_CACHE_SIZE);
+-		}
++		account_page_dirtied(page, page->mapping);
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
  
- 	if (!TestSetPageWriteback(clone_page))
--		inc_zone_page_state(clone_page, NR_WRITEBACK);
-+		account_page_writeback(clone_page);
- 	unlock_page(clone_page);
- 
- 	return 0;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 709f672..4b2f38b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -856,6 +856,7 @@ int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- void account_page_dirtied(struct page *page, struct address_space *mapping);
-+void account_page_writeback(struct page *page);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 9d07a8d..ae5f5d5 100644
+index 7262aac..9d07a8d 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -1134,6 +1134,17 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- EXPORT_SYMBOL(account_page_dirtied);
+@@ -1131,6 +1131,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ 		task_io_account_write(PAGE_CACHE_SIZE);
+ 	}
+ }
++EXPORT_SYMBOL(account_page_dirtied);
  
  /*
-+ * Helper function for set_page_writeback family.
-+ * NOTE: Unlike account_page_dirtied this does not rely on being atomic
-+ * wrt interrupts.
-+ */
-+void account_page_writeback(struct page *page)
-+{
-+	inc_zone_page_state(page, NR_WRITEBACK);
-+}
-+EXPORT_SYMBOL(account_page_writeback);
-+
-+/*
   * For address_spaces which do not use buffers.  Just tag the page as dirty in
-  * its radix tree.
-  *
-@@ -1371,7 +1382,7 @@ int test_set_page_writeback(struct page *page)
- 		ret = TestSetPageWriteback(page);
- 	}
- 	if (!ret)
--		inc_zone_page_state(page, NR_WRITEBACK);
-+		account_page_writeback(page);
- 	return ret;
- 
- }
 -- 
 1.7.1
 
