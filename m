@@ -1,53 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 90B8E6B01F0
-	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 11:42:29 -0400 (EDT)
-Received: by pwj6 with SMTP id 6so1972390pwj.14
-        for <linux-mm@kvack.org>; Sun, 29 Aug 2010 08:42:28 -0700 (PDT)
-Date: Mon, 30 Aug 2010 00:42:21 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C41686B01F0
+	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 11:44:46 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so2150880pvc.14
+        for <linux-mm@kvack.org>; Sun, 29 Aug 2010 08:44:45 -0700 (PDT)
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
-Message-ID: <20100829154221.GB2714@barrios-desktop>
-References: <1282867897-31201-1-git-send-email-yinghan@google.com>
- <AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
- <AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
- <AANLkTinP_q7S4_O921hdBoedmTp-7gw0+=4DPHZGmysi@mail.gmail.com>
- <AANLkTin6+nHOowdptW2jaxg9urn3OLf9ArgGzKjWnQLM@mail.gmail.com>
- <AANLkTin92hywGThE=Z7=ZJOJrmw4yA-d-sFCnUYxS2hd@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTin92hywGThE=Z7=ZJOJrmw4yA-d-sFCnUYxS2hd@mail.gmail.com>
+Subject: [PATCH] vmscan: prevent background aging of anon page in no swap system
+Date: Mon, 30 Aug 2010 00:43:48 +0900
+Message-Id: <1283096628-4450-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Venkatesh Pallipadi <venki@google.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, Ying Han <yinghan@google.com>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 27, 2010 at 06:30:58PM -0700, Venkatesh Pallipadi wrote:
-> On Fri, Aug 27, 2010 at 9:35 AM, Ying Han <yinghan@google.com> wrote:
-> > In our system, we do have swap configured. In vmscan.c, there are
-> > couple of places where we skip scanning
-> > and shrinking anon lru while the condition if(nr_swap_pages <= 0)  is
-> > true. It still make sense to me to add it
-> > to the shrink_active() condition as the initial patch.
-> >
-> > Also, we found it is quite often to hit the condition
-> > inactive_anon_is_low on machine with small numa node size, since the
-> > zone->inactive_ratio is set based on the zone->present_pages.
-> >
-> 
-> Does "total_swap_pages" help?
+Ying Han reported that backing aging of anon pages in no swap system
+causes unnecessary TLB flush.
 
-Yes. Thanks for advising. 
+When I sent a patch(69c8548175), I wanted this patch but Rik pointed out
+and allowed aging of anon pages to give a chance to promote from inactive
+to active LRU.
 
-> 
-> Thanks,
-> Venki
+It has a two problem.
 
+1) non-swap system
+
+Never make sense to age anon pages.
+
+2) swap configured but still doesn't swapon
+
+It doesn't make sense to age anon pages until swap-on time.
+But it's arguable. If we have aged anon pages by swapon, VM have moved
+anon pages from active to inactive. And in the time swapon by admin,
+the VM can't reclaim hot pages so we can protect hot pages swapout.
+
+But let's think about it. When does swap-on happen? It depends on admin.
+we can't expect it. Nonetheless, we have done aging of anon pages to
+protect hot pages swapout. It means we lost run time overhead when
+below high watermark but gain hot page swap-[in/out] overhead when VM
+decide swapout. Is it true? Let's think more detail.
+We don't promote anon pages in case of non-swap system. So even though
+VM does aging of anon pages, the pages would be in inactive LRU for a long
+time. It means many of pages in there would mark access bit again. So access
+bit hot/code separation would be pointless.
+
+This patch prevents unnecessary anon pages demotion in not-swapon and
+non-configured swap system. Of course, it could make side effect that
+hot anon pages could swap out when admin does swap on.
+But I think sooner or later it would be steady state. 
+So it's not a big problem.
+We could lose someting but gain more thing(TLB flush and unnecessary 
+function call to demote anon pages). 
+
+I used total_swap_pages because we want to age anon pages 
+even though swap full happens.
+
+Cc: Rik van Riel <riel@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Reported-by: Ying Han <yinghan@google.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3109ff7..d8fd87d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2211,7 +2211,7 @@ loop_again:
+ 			 * Do some background aging of the anon list, to give
+ 			 * pages a chance to be referenced before reclaiming.
+ 			 */
+-			if (inactive_anon_is_low(zone, &sc))
++			if (total_swap_pages > 0 && inactive_anon_is_low(zone, &sc))
+ 				shrink_active_list(SWAP_CLUSTER_MAX, zone,
+ 							&sc, priority, 0);
+ 
 -- 
-Kind regards,
-Minchan Kim
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
