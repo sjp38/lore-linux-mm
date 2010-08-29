@@ -1,38 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C4CE96B01F0
-	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 09:17:36 -0400 (EDT)
-Message-ID: <4C7A5DDE.8030106@kernel.org>
-Date: Sun, 29 Aug 2010 16:17:18 +0300
-From: Pekka Enberg <penberg@kernel.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C58366B01F0
+	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 11:40:48 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so2149874pvc.14
+        for <linux-mm@kvack.org>; Sun, 29 Aug 2010 08:40:47 -0700 (PDT)
+Date: Mon, 30 Aug 2010 00:40:40 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] vmscan: fix missing place to check nr_swap_pages.
+Message-ID: <20100829154040.GA2714@barrios-desktop>
+References: <1282867897-31201-1-git-send-email-yinghan@google.com>
+ <AANLkTimaLBJa9hmufqQy3jk7GD-mJDbg=Dqkaja0nOMk@mail.gmail.com>
+ <AANLkTi=xUMSZ7wX-2BtJ0-+2BYLCTW=VPTAErinb5Zd2@mail.gmail.com>
+ <AANLkTinP_q7S4_O921hdBoedmTp-7gw0+=4DPHZGmysi@mail.gmail.com>
+ <AANLkTin6+nHOowdptW2jaxg9urn3OLf9ArgGzKjWnQLM@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: 2.6.34.1 page allocation failure
-References: <4C70BFF3.8030507@hardwarefreak.com> <alpine.DEB.1.10.1008220842400.8562@uplift.swm.pp.se> <AANLkTin48SJ58HvFqjrOnQBMqLcbECtqXokweV00dNgv@mail.gmail.com> <alpine.DEB.2.00.1008221734410.21916@router.home> <4C724141.8060000@kernel.org> <4C72F7C6.3020109@hardwarefreak.com> <4C74097A.5020504@kernel.org> <alpine.DEB.1.10.1008242114120.8562@uplift.swm.pp.se> <4C7A3B1D.7050500@kernel.org> <alpine.DEB.1.10.1008291433420.8562@uplift.swm.pp.se>
-In-Reply-To: <alpine.DEB.1.10.1008291433420.8562@uplift.swm.pp.se>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTin6+nHOowdptW2jaxg9urn3OLf9ArgGzKjWnQLM@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Mikael Abrahamsson <swmike@swm.pp.se>
-Cc: Stan Hoeppner <stan@hardwarefreak.com>, Christoph Lameter <cl@linux.com>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Linux Netdev List <netdev@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-  On Sun, 29 Aug 2010, Pekka Enberg wrote:
->> Do you see these out-of-memory problems with 2.6.35?
-On 29.8.2010 15.38, Mikael Abrahamsson wrote:
-> Haven't tried it.
->
-> Has there been substantial work done there that changes things so that 
-> if I reproduce it on 2.6.35, someone will look into the issue in 
-> earnest? Since I'll most likely have to compile a new kernel, are 
-> there any debug options I should enable to give more information to 
-> aid fault finding?
-There aren't any debug options that need to be enabled. The reason I'm 
-asking is because we had a bunch of similar issues being reported 
-earlier that got fixed and it's been calm for a while. That's why it 
-would be interesting to know if 2.6.35 or 2.6.36-rc2 (if it's not too 
-unstable to test) fixes things.
+On Fri, Aug 27, 2010 at 09:35:58AM -0700, Ying Han wrote:
+ 
+> Also, we found it is quite often to hit the condition
+> inactive_anon_is_low on machine with small numa node size, since the
+> zone->inactive_ratio is set based on the zone->present_pages.
 
-             Pekka
+What's your memory configuration and memory size?
+
+Now we have zoned page allocator and zoned page reclaimer. 
+So it makes sense to me. :)
+
+Anyway, I will resend new version. Thanks, Ying. 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
