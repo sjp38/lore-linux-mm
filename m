@@ -1,117 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 64C7B6B01F1
-	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 19:50:41 -0400 (EDT)
-Date: Sun, 29 Aug 2010 07:50:29 +0800
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 23DDF6B01F1
+	for <linux-mm@kvack.org>; Sat, 28 Aug 2010 20:19:39 -0400 (EDT)
+Date: Sun, 29 Aug 2010 08:19:17 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in
- /proc/vmstat
-Message-ID: <20100828235029.GA7071@localhost>
-References: <1282963227-31867-1-git-send-email-mrubin@google.com>
- <1282963227-31867-4-git-send-email-mrubin@google.com>
+Subject: [PATCH v2] writeback: remove the internal 5% low bound on
+ dirty_ratio
+Message-ID: <20100829001917.GA11403@localhost>
+References: <20100827103603.GB6237@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1282963227-31867-4-git-send-email-mrubin@google.com>
+In-Reply-To: <20100827103603.GB6237@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Neil Brown <neilb@suse.de>, Con Kolivas <kernel@kolivas.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "david@fromorbit.com" <david@fromorbit.com>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 28, 2010 at 10:40:26AM +0800, Michael Rubin wrote:
-> To help developers and applications gain visibility into writeback
-> behaviour adding two entries to /proc/vmstat.
-> 
->    # grep nr_dirtied /proc/vmstat
->    nr_dirtied 3747
->    # grep nr_cleaned /proc/vmstat
->    nr_cleaned 3618
-> 
-> In order to track the "cleaned" and "dirtied" counts we added two
-> vm_stat_items. Per memory node stats have been added also. So we can
-> see per node granularity:
-> 
->    # cat /sys/devices/system/node/node20/vmstat
->    Node 20 pages_cleaned: 0 times
->    Node 20 pages_dirtied: 0 times
+The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
+This is not a user expected behavior. And it's inconsistent with
+calc_period_shift(), which uses the plain vm_dirty_ratio value.
 
-It's silly to have the different names nr_dirtied and pages_cleaned
-for the same item.
+Let's rip the internal bound.
 
-> Signed-off-by: Michael Rubin <mrubin@google.com>
-> ---
->  drivers/base/node.c    |   14 ++++++++++++++
->  include/linux/mmzone.h |    2 ++
->  mm/page-writeback.c    |    2 ++
->  mm/vmstat.c            |    3 +++
->  4 files changed, 21 insertions(+), 0 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index 2872e86..facd920 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -160,6 +160,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
->  }
->  static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
->  
-> +static ssize_t node_read_vmstat(struct sys_device *dev,
-> +				struct sysdev_attribute *attr, char *buf)
-> +{
-> +	int nid = dev->id;
-> +	return sprintf(buf,
-> +		"Node %d pages_cleaned: %lu times\n"
-> +		"Node %d pages_dirtied: %lu times\n",
-> +		nid, node_page_state(nid, NR_PAGES_CLEANED),
-> +		nid, node_page_state(nid, NR_FILE_PAGES_DIRTIED));
-> +}
+At the same time, fix balance_dirty_pages() to work with the
+dirty_thresh=0 case. This allows applications to proceed when
+dirty+writeback pages are all cleaned.
 
-The output format is quite different from /proc/vmstat.
-Do we really need to "Node X", ":" and "times" decorations?
+And ">" fits with the name "exceeded" better than ">=" does. Neil
+think it is an aesthetic improvement as well as a functional one :)
 
-And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
-the "_page" in node_page_state(). It's a bit long to be a pleasant
-name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
+v2: convert the background writeback checks, too. Just to be sure.
 
-> +static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
-> +
->  static ssize_t node_read_distance(struct sys_device * dev,
->  			struct sysdev_attribute *attr, char * buf)
->  {
-> @@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct node *parent)
->  		sysdev_create_file(&node->sysdev, &attr_meminfo);
->  		sysdev_create_file(&node->sysdev, &attr_numastat);
->  		sysdev_create_file(&node->sysdev, &attr_distance);
-> +		sysdev_create_file(&node->sysdev, &attr_vmstat);
->  
->  		scan_unevictable_register_node(node);
->  
-> @@ -267,6 +280,7 @@ void unregister_node(struct node *node)
->  	sysdev_remove_file(&node->sysdev, &attr_meminfo);
->  	sysdev_remove_file(&node->sysdev, &attr_numastat);
->  	sysdev_remove_file(&node->sysdev, &attr_distance);
-> +	sysdev_remove_file(&node->sysdev, &attr_vmstat);
->  
->  	scan_unevictable_unregister_node(node);
->  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 6e6e626..d42f179 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -104,6 +104,8 @@ enum zone_stat_item {
->  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
->  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
->  	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
-> +	NR_FILE_PAGES_DIRTIED,	/* number of times pages get dirtied */
-> +	NR_PAGES_CLEANED,	/* number of times pages enter writeback */
+CC: Jan Kara <jack@suse.cz>
+Proposed-by: Con Kolivas <kernel@kolivas.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Neil Brown <neilb@suse.de>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c   |    2 +-
+ mm/page-writeback.c |   16 +++++-----------
+ 2 files changed, 6 insertions(+), 12 deletions(-)
 
-How about the comments /* accumulated number of pages ... */?
-
-Note that NR_CLEANED won't match NR_FILE_DIRTIED in long term because
-it also accounts for anon pages, and does not account for dirty pages
-that are truncated before they go writeback.
-
-Thanks,
-Fengguang
+--- linux-next.orig/mm/page-writeback.c	2010-08-29 08:10:30.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-29 08:12:08.000000000 +0800
+@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else {
+-		int dirty_ratio;
+-
+-		dirty_ratio = vm_dirty_ratio;
+-		if (dirty_ratio < 5)
+-			dirty_ratio = 5;
+-		dirty = (dirty_ratio * available_memory) / 100;
+-	}
++	else
++		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+ 	if (dirty_background_bytes)
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+@@ -510,7 +504,7 @@ static void balance_dirty_pages(struct a
+ 		 * catch-up. This avoids (excessively) small writeouts
+ 		 * when the bdi limits are ramping up.
+ 		 */
+-		if (nr_reclaimable + nr_writeback <
++		if (nr_reclaimable + nr_writeback <=
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
+ 
+@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
+ 		 * the last resort safeguard.
+ 		 */
+ 		dirty_exceeded =
+-			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+-			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
++			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
++			|| (nr_reclaimable + nr_writeback > dirty_thresh);
+ 
+ 		if (!dirty_exceeded)
+ 			break;
+--- linux-next.orig/fs/fs-writeback.c	2010-08-29 08:12:51.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-08-29 08:12:53.000000000 +0800
+@@ -574,7 +574,7 @@ static inline bool over_bground_thresh(v
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+ 	return (global_page_state(NR_FILE_DIRTY) +
+-		global_page_state(NR_UNSTABLE_NFS) >= background_thresh);
++		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
