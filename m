@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9D66B01F2
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 18:51:33 -0400 (EDT)
-Message-ID: <4C7C35F5.6040508@goop.org>
-Date: Mon, 30 Aug 2010 15:51:33 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 835FE6B01F2
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 18:53:30 -0400 (EDT)
+Message-ID: <4C7C3666.2080601@goop.org>
+Date: Mon, 30 Aug 2010 15:53:26 -0700
 From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V4 4/8] Cleancache: VFS hooks for cleancache
-References: <20100830223203.GA1296@ca-server1.us.oracle.com>
-In-Reply-To: <20100830223203.GA1296@ca-server1.us.oracle.com>
+Subject: Re: [PATCH V4 5/8] Cleancache: ext3 hook for cleancache
+References: <20100830223233.GA1317@ca-server1.us.oracle.com>
+In-Reply-To: <20100830223233.GA1317@ca-server1.us.oracle.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,203 +17,44 @@ Cc: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, 
 List-ID: <linux-mm.kvack.org>
 
  On 08/30/2010 03:32 PM, Dan Magenheimer wrote:
-> [PATCH V4 4/8] Cleancache: VFS hooks for cleancache
+> [PATCH V4 5/8] Cleancache: ext3 hook for cleancache
 >
-> Implement core hooks in VFS for: initializing cleancache
-> per filesystem; capturing clean pages evicted by page cache;
-> attempting to get pages from cleancache before filesystem
-> read; and ensuring coherency between pagecache, disk,
-> and cleancache.  All hooks become no-ops if CONFIG_CLEANCACHE
-> is unset, or become compare-function-pointer-to-NULL if
-> CONFIG_CLEANCACHE is set but no cleancache "backend" has
-> claimed cleancache_ops.
+> Filesystems must explicitly enable cleancache by calling
+> cleancache_init_fs anytime a instance of the filesystem
+> is mounted and must save the returned poolid.  For ext3,
+> all other cleancache hooks are in the VFS layer including
+> the matching cleancache_flush_fs hook which must be
+> called on unmount.
 >
-> Signed-off-by: Chris Mason <chris.mason@oracle.com>
 > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Acked-by: Andreas Dilger <adilger@sun.com>
 >
 > Diffstat:
->  fs/buffer.c                              |    5 +++++
->  fs/mpage.c                               |    7 +++++++
->  fs/super.c                               |    7 +++++++
->  mm/filemap.c                             |   11 +++++++++++
->  mm/truncate.c                            |   10 ++++++++++
->  5 files changed, 40 insertions(+)
+>  super.c                                  |    2 ++
+>  1 file changed, 2 insertions(+)
 >
-> --- linux-2.6.36-rc3/fs/super.c	2010-08-29 09:36:04.000000000 -0600
-> +++ linux-2.6.36-rc3-cleancache/fs/super.c	2010-08-30 09:20:43.000000000 -0600
-> @@ -30,6 +30,7 @@
->  #include <linux/idr.h>
->  #include <linux/mutex.h>
->  #include <linux/backing-dev.h>
+> --- linux-2.6.36-rc3/fs/ext3/super.c	2010-08-29 09:36:04.000000000 -0600
+> +++ linux-2.6.36-rc3-cleancache/fs/ext3/super.c	2010-08-30 09:20:42.000000000 -0600
+> @@ -37,6 +37,7 @@
+>  #include <linux/quotaops.h>
+>  #include <linux/seq_file.h>
+>  #include <linux/log2.h>
 > +#include <linux/cleancache.h>
->  #include "internal.h"
 >  
+>  #include <asm/uaccess.h>
 >  
-> @@ -110,6 +111,7 @@ static struct super_block *alloc_super(s
->  		s->s_maxbytes = MAX_NON_LFS;
->  		s->s_op = &default_op;
->  		s->s_time_gran = 1000000000;
-> +		s->cleancache_poolid = -1;
->  	}
->  out:
->  	return s;
-> @@ -176,6 +178,11 @@ void deactivate_locked_super(struct supe
->  	struct file_system_type *fs = s->s_type;
->  	if (atomic_dec_and_test(&s->s_active)) {
->  		fs->kill_sb(s);
-> +		if (s->cleancache_poolid >= 0) {
-> +			int cleancache_poolid = s->cleancache_poolid;
-
-That's a lot of characters for a local in a 3-line scope.
-
-> +			s->cleancache_poolid = -1; /* avoid races */
-
-Races with what?  Something else sneaking something into the pool after
-the flush?  Is the filesystem dead at this stage or not?
-
-> +			cleancache_flush_fs(cleancache_poolid);
-> +		}
->  		put_filesystem(fs);
->  		put_super(s);
+> @@ -1349,6 +1350,7 @@ static int ext3_setup_super(struct super
 >  	} else {
-> --- linux-2.6.36-rc3/fs/buffer.c	2010-08-29 09:36:04.000000000 -0600
-> +++ linux-2.6.36-rc3-cleancache/fs/buffer.c	2010-08-30 09:20:42.000000000 -0600
-> @@ -41,6 +41,7 @@
->  #include <linux/bitops.h>
->  #include <linux/mpage.h>
->  #include <linux/bit_spinlock.h>
-> +#include <linux/cleancache.h>
->  
->  static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
->  
-> @@ -277,6 +278,10 @@ void invalidate_bdev(struct block_device
->  	invalidate_bh_lrus();
->  	lru_add_drain_all();	/* make sure all lru add caches are flushed */
->  	invalidate_mapping_pages(mapping, 0, -1);
-> +	/* 99% of the time, we don't need to flush the cleancache on the bdev.
-> +	 * But, for the strange corners, lets be cautious
-> +	 */
-
-This comment-style is... unconventional for the kernel.
-
-> +	cleancache_flush_inode(mapping);
->  }
->  EXPORT_SYMBOL(invalidate_bdev);
->  
-> --- linux-2.6.36-rc3/fs/mpage.c	2010-08-29 09:36:04.000000000 -0600
-> +++ linux-2.6.36-rc3-cleancache/fs/mpage.c	2010-08-30 09:20:43.000000000 -0600
-> @@ -27,6 +27,7 @@
->  #include <linux/writeback.h>
->  #include <linux/backing-dev.h>
->  #include <linux/pagevec.h>
-> +#include <linux/cleancache.h>
->  
->  /*
->   * I/O completion handler for multipage BIOs.
-> @@ -286,6 +287,12 @@ do_mpage_readpage(struct bio *bio, struc
->  		SetPageMappedToDisk(page);
+>  		ext3_msg(sb, KERN_INFO, "using internal journal");
 >  	}
->  
-> +	if (fully_mapped && blocks_per_page == 1 && !PageUptodate(page) &&
-> +	    cleancache_get_page(page) == 0) {
-> +		SetPageUptodate(page);
-> +		goto confused;
-> +	}
-> +
->  	/*
->  	 * This page will go to BIO.  Do we need to send this BIO off first?
->  	 */
-> --- linux-2.6.36-rc3/mm/filemap.c	2010-08-29 09:36:04.000000000 -0600
-> +++ linux-2.6.36-rc3-cleancache/mm/filemap.c	2010-08-30 09:20:43.000000000 -0600
-> @@ -34,6 +34,7 @@
->  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
->  #include <linux/memcontrol.h>
->  #include <linux/mm_inline.h> /* for page_is_file_cache() */
-> +#include <linux/cleancache.h>
->  #include "internal.h"
->  
->  /*
-> @@ -119,6 +120,16 @@ void __remove_from_page_cache(struct pag
->  {
->  	struct address_space *mapping = page->mapping;
->  
-> +	/*
-> +	 * if we're uptodate, flush out into the cleancache, otherwise
-> +	 * invalidate any existing cleancache entries.  We can't leave
-> +	 * stale data around in the cleancache once our page is gone
-> +	 */
-> +	if (PageUptodate(page))
-> +		cleancache_put_page(page);
-> +	else
-> +		cleancache_flush_page(mapping, page);
-> +
->  	radix_tree_delete(&mapping->page_tree, page->index);
->  	page->mapping = NULL;
->  	mapping->nrpages--;
-> --- linux-2.6.36-rc3/mm/truncate.c	2010-08-29 09:36:04.000000000 -0600
-> +++ linux-2.6.36-rc3-cleancache/mm/truncate.c	2010-08-30 09:20:43.000000000 -0600
-> @@ -19,6 +19,7 @@
->  #include <linux/task_io_accounting_ops.h>
->  #include <linux/buffer_head.h>	/* grr. try_to_release_page,
->  				   do_invalidatepage */
-> +#include <linux/cleancache.h>
->  #include "internal.h"
->  
->  
-> @@ -51,6 +52,7 @@ void do_invalidatepage(struct page *page
->  static inline void truncate_partial_page(struct page *page, unsigned partial)
->  {
->  	zero_user_segment(page, partial, PAGE_CACHE_SIZE);
-> +	cleancache_flush_page(page->mapping, page);
->  	if (page_has_private(page))
->  		do_invalidatepage(page, partial);
->  }
-> @@ -108,6 +110,10 @@ truncate_complete_page(struct address_sp
->  	clear_page_mlock(page);
->  	remove_from_page_cache(page);
->  	ClearPageMappedToDisk(page);
-> +	/* this must be after the remove_from_page_cache which
-> +	 * calls cleancache_put_page (and note page->mapping is now NULL)
-> +	 */
-> +	cleancache_flush_page(mapping, page);
->  	page_cache_release(page);	/* pagecache ref */
->  	return 0;
->  }
-> @@ -215,6 +221,7 @@ void truncate_inode_pages_range(struct a
->  	pgoff_t next;
->  	int i;
->  
-> +	cleancache_flush_inode(mapping);
->  	if (mapping->nrpages == 0)
->  		return;
->  
-> @@ -290,6 +297,7 @@ void truncate_inode_pages_range(struct a
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  	}
-> +	cleancache_flush_inode(mapping);
->  }
->  EXPORT_SYMBOL(truncate_inode_pages_range);
->  
-> @@ -428,6 +436,7 @@ int invalidate_inode_pages2_range(struct
->  	int did_range_unmap = 0;
->  	int wrapped = 0;
->  
-> +	cleancache_flush_inode(mapping);
->  	pagevec_init(&pvec, 0);
->  	next = start;
->  	while (next <= end && !wrapped &&
-> @@ -486,6 +495,7 @@ int invalidate_inode_pages2_range(struct
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
->  	}
-> +	cleancache_flush_inode(mapping);
->  	return ret;
->  }
->  EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
->
+> +	sb->cleancache_poolid = cleancache_init_fs(PAGE_SIZE);
 
-   
+Do you really need to pass in the page size?  What about just
+"cleancache_init_fs(sb)" rather than exposing the
+"sb->cleancache_poolid"?  In other words, what if you want to do
+more/other per-filesystem init at some point?
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
