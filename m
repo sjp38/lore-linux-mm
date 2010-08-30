@@ -1,133 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 545B06B01F0
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 01:46:51 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o7U5kmvY014214
-	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:48 -0700
-Received: from qyk33 (qyk33.prod.google.com [10.241.83.161])
-	by wpaz1.hot.corp.google.com with ESMTP id o7U5klOt012765
-	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:47 -0700
-Received: by qyk33 with SMTP id 33so4838965qyk.19
-        for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTi==mQh31PzuNa1efH2WM1s-VPKyZX0f5iwb54PD@mail.gmail.com>
-References: <1283096628-4450-1-git-send-email-minchan.kim@gmail.com>
-	<AANLkTinCKJw2oaNgAvfm0RawbW4zuJMtMb2pUROeY2ij@mail.gmail.com>
-	<4C7ABD14.9050207@redhat.com>
-	<AANLkTimjVHp1=Fc35xLnyPb2aa+ew7w1P9DC_0GfhZgY@mail.gmail.com>
-	<AANLkTi==mQh31PzuNa1efH2WM1s-VPKyZX0f5iwb54PD@mail.gmail.com>
-Date: Sun, 29 Aug 2010 22:40:47 -0700
-Message-ID: <AANLkTinqm0o=AfmgFy+SpZ1mrdekRnjeXvs_7=OcLii8@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap system
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 8A4B56B01F2
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 01:47:21 -0400 (EDT)
+Date: Mon, 30 Aug 2010 14:44:23 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 1/5] cgroup: do ID allocation under css allocator.
+Message-Id: <20100830144423.e9516b7e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 29, 2010 at 5:18 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> Hi Ying,
->
-> On Mon, Aug 30, 2010 at 6:23 AM, Ying Han <yinghan@google.com> wrote:
->> On Sun, Aug 29, 2010 at 1:03 PM, Rik van Riel <riel@redhat.com> wrote:
->>> On 08/29/2010 01:45 PM, Ying Han wrote:
->>>
->>>> There are few other places in vmscan where we check nr_swap_pages and
->>>> inactive_anon_is_low. Are we planning to change them to use
->>>> total_swap_pages
->>>> to be consistent ?
->>>
->>> If that makes sense, maybe the check can just be moved into
->>> inactive_anon_is_low itself?
->>
->> That was the initial patch posted, instead we changed to use
->> total_swap_pages instead. How this patch looks:
->>
->> @@ -1605,6 +1605,9 @@ static int inactive_anon_is_low(struct zone
->> *zone, struct scan_control *sc)
->> =A0{
->> =A0 =A0 =A0 =A0int low;
->>
->> + =A0 =A0 =A0 if (total_swap_pages <=3D 0)
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
->> +
->> =A0 =A0 =A0 =A0if (scanning_global_lru(sc))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0low =3D inactive_anon_is_low_global(zone)=
-;
->> =A0 =A0 =A0 =A0else
->> @@ -1856,7 +1859,7 @@ static void shrink_zone(int priority, struct zone =
-*zone,
->> =A0 =A0 =A0 =A0 * Even if we did not try to evict anon pages at all, we =
-want to
->> =A0 =A0 =A0 =A0 * rebalance the anon lru active/inactive ratio.
->> =A0 =A0 =A0 =A0 */
->> - =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
->> + =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc))
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, zone=
-, sc, priority, 0);
->>
->> =A0 =A0 =A0 =A0throttle_vm_writeout(sc->gfp_mask);
->>
->> --Ying
->>
->>>
->
-> I did it intentionally since inactive_anon_is_low have been used both
-> direct reclaim and background path. In this point, your patch could
-> make side effect in swap enabled system when swap is full.
->
-> I think we need aging in only background if system is swap full.
-> That's because if the swap space is full, we don't reclaim anon pages
-> in direct reclaim path with (nr_swap_pages < 0) =A0and even have been
-> not rebalance it until now.
-> I think direct reclaim path is important about latency as well as
-> reclaim's effectiveness.
-> So if you don't mind, I hope direct reclaim patch would be left just as i=
-t is.
+On Wed, 25 Aug 2010 17:06:40 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Minchan, I would prefer to make kswapd as well as direct reclaim to be
-consistent if possible.
-They both try to reclaim pages when system is under memory pressure,
-and also do not make
-much sense to look at anon lru if no swap space available. Either
-because of no swapon or run
-out of swap space.
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now, css'id is allocated after ->create() is called. But to make use of ID
+> in ->create(), it should be available before ->create().
+> 
+> In another thinking, considering the ID is tightly coupled with "css",
+> it should be allocated when "css" is allocated.
+> This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
+> memory and blkio are useing ID. (To support complicated hierarchy walk.)
+> 
+> ID will be used in mem cgroup's ->create(), later.
+> 
+> Note:
+> If someone changes rules of css allocation, ID allocation should be moved too.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I think we need some signs from Paul and Li, but anyway
 
-I think letting kswapd to age anon lru without free swap space is not
-necessary neither. That leads
-to my initial patch:
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-@@ -1605,6 +1605,9 @@ static int inactive_anon_is_low(struct zone
-*zone, struct scan_control *sc)
- {
-       int low;
+Thanks,
+Daisuke Nishimura.
 
-+       if (nr_swap_pages <=3D 0)
-+               return 0;
-+
-       if (scanning_global_lru(sc))
-               low =3D inactive_anon_is_low_global(zone);
-       else
-@@ -1856,7 +1859,7 @@ static void shrink_zone(int priority, struct zone *zo=
-ne,
-        * Even if we did not try to evict anon pages at all, we want to
-        * rebalance the anon lru active/inactive ratio.
-        */
--       if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
-+       if (inactive_anon_is_low(zone, sc))
-               shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
-
-What do you think ?
-
---Ying
->
-> --
-> Kind regards,
-> Minchan Kim
->
+> ---
+>  block/blk-cgroup.c     |    9 ++++++++
+>  include/linux/cgroup.h |   16 ++++++++-------
+>  kernel/cgroup.c        |   50 ++++++++++++++-----------------------------------
+>  mm/memcontrol.c        |    5 ++++
+>  4 files changed, 38 insertions(+), 42 deletions(-)
+> 
+> Index: mmotm-0811/kernel/cgroup.c
+> ===================================================================
+> --- mmotm-0811.orig/kernel/cgroup.c
+> +++ mmotm-0811/kernel/cgroup.c
+> @@ -289,9 +289,6 @@ struct cg_cgroup_link {
+>  static struct css_set init_css_set;
+>  static struct cg_cgroup_link init_css_set_link;
+>  
+> -static int cgroup_init_idr(struct cgroup_subsys *ss,
+> -			   struct cgroup_subsys_state *css);
+> -
+>  /* css_set_lock protects the list of css_set objects, and the
+>   * chain of tasks off each css_set.  Nests outside task->alloc_lock
+>   * due to cgroup_iter_start() */
+> @@ -770,9 +767,6 @@ static struct backing_dev_info cgroup_ba
+>  	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
+>  };
+>  
+> -static int alloc_css_id(struct cgroup_subsys *ss,
+> -			struct cgroup *parent, struct cgroup *child);
+> -
+>  static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+>  {
+>  	struct inode *inode = new_inode(sb);
+> @@ -3257,7 +3251,8 @@ static void init_cgroup_css(struct cgrou
+>  	css->cgroup = cgrp;
+>  	atomic_set(&css->refcnt, 1);
+>  	css->flags = 0;
+> -	css->id = NULL;
+> +	if (!ss->use_id)
+> +		css->id = NULL;
+>  	if (cgrp == dummytop)
+>  		set_bit(CSS_ROOT, &css->flags);
+>  	BUG_ON(cgrp->subsys[ss->subsys_id]);
+> @@ -3342,12 +3337,6 @@ static long cgroup_create(struct cgroup 
+>  			goto err_destroy;
+>  		}
+>  		init_cgroup_css(css, ss, cgrp);
+> -		if (ss->use_id) {
+> -			err = alloc_css_id(ss, parent, cgrp);
+> -			if (err)
+> -				goto err_destroy;
+> -		}
+> -		/* At error, ->destroy() callback has to free assigned ID. */
+>  	}
+>  
+>  	cgroup_lock_hierarchy(root);
+> @@ -3709,17 +3698,6 @@ int __init_or_module cgroup_load_subsys(
+>  
+>  	/* our new subsystem will be attached to the dummy hierarchy. */
+>  	init_cgroup_css(css, ss, dummytop);
+> -	/* init_idr must be after init_cgroup_css because it sets css->id. */
+> -	if (ss->use_id) {
+> -		int ret = cgroup_init_idr(ss, css);
+> -		if (ret) {
+> -			dummytop->subsys[ss->subsys_id] = NULL;
+> -			ss->destroy(ss, dummytop);
+> -			subsys[i] = NULL;
+> -			mutex_unlock(&cgroup_mutex);
+> -			return ret;
+> -		}
+> -	}
+>  
+>  	/*
+>  	 * Now we need to entangle the css into the existing css_sets. unlike
+> @@ -3888,8 +3866,6 @@ int __init cgroup_init(void)
+>  		struct cgroup_subsys *ss = subsys[i];
+>  		if (!ss->early_init)
+>  			cgroup_init_subsys(ss);
+> -		if (ss->use_id)
+> -			cgroup_init_idr(ss, init_css_set.subsys[ss->subsys_id]);
+>  	}
+>  
+>  	/* Add init_css_set to the hash table */
+> @@ -4603,8 +4579,8 @@ err_out:
+>  
+>  }
+>  
+> -static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
+> -					    struct cgroup_subsys_state *rootcss)
+> +static int cgroup_init_idr(struct cgroup_subsys *ss,
+> +			    struct cgroup_subsys_state *rootcss)
+>  {
+>  	struct css_id *newid;
+>  
+> @@ -4616,21 +4592,25 @@ static int __init_or_module cgroup_init_
+>  		return PTR_ERR(newid);
+>  
+>  	newid->stack[0] = newid->id;
+> -	newid->css = rootcss;
+> -	rootcss->id = newid;
+> +	rcu_assign_pointer(newid->css, rootcss);
+> +	rcu_assign_pointer(rootcss->id, newid);
+>  	return 0;
+>  }
+>  
+> -static int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *parent,
+> -			struct cgroup *child)
+> +int alloc_css_id(struct cgroup_subsys *ss,
+> +	struct cgroup *cgrp, struct cgroup_subsys_state *css)
+>  {
+>  	int subsys_id, i, depth = 0;
+> -	struct cgroup_subsys_state *parent_css, *child_css;
+> +	struct cgroup_subsys_state *parent_css;
+> +	struct cgroup *parent;
+>  	struct css_id *child_id, *parent_id;
+>  
+> +	if (cgrp == dummytop)
+> +		return cgroup_init_idr(ss, css);
+> +
+> +	parent = cgrp->parent;
+>  	subsys_id = ss->subsys_id;
+>  	parent_css = parent->subsys[subsys_id];
+> -	child_css = child->subsys[subsys_id];
+>  	parent_id = parent_css->id;
+>  	depth = parent_id->depth + 1;
+>  
+> @@ -4645,7 +4625,7 @@ static int alloc_css_id(struct cgroup_su
+>  	 * child_id->css pointer will be set after this cgroup is available
+>  	 * see cgroup_populate_dir()
+>  	 */
+> -	rcu_assign_pointer(child_css->id, child_id);
+> +	rcu_assign_pointer(css->id, child_id);
+>  
+>  	return 0;
+>  }
+> Index: mmotm-0811/include/linux/cgroup.h
+> ===================================================================
+> --- mmotm-0811.orig/include/linux/cgroup.h
+> +++ mmotm-0811/include/linux/cgroup.h
+> @@ -583,9 +583,11 @@ int cgroup_attach_task_current_cg(struct
+>  /*
+>   * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
+>   * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
+> - * CSS ID is assigned at cgroup allocation (create) automatically
+> - * and removed when subsys calls free_css_id() function. This is because
+> - * the lifetime of cgroup_subsys_state is subsys's matter.
+> + * CSS ID must be assigned by subsys itself at cgroup creation and deleted
+> + * when subsys calls free_css_id() function. This is because the life time of
+> + * of cgroup_subsys_state is subsys's matter.
+> + *
+> + * ID->css look up is available after cgroup's directory is populated.
+>   *
+>   * Looking up and scanning function should be called under rcu_read_lock().
+>   * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+> @@ -593,10 +595,10 @@ int cgroup_attach_task_current_cg(struct
+>   * destroyed". The caller should check css and cgroup's status.
+>   */
+>  
+> -/*
+> - * Typically Called at ->destroy(), or somewhere the subsys frees
+> - * cgroup_subsys_state.
+> - */
+> +/* Should be called in ->create() by subsys itself */
+> +int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *newgr,
+> +		struct cgroup_subsys_state *css);
+> +/* Typically Called at ->destroy(), or somewhere the subsys frees css */
+>  void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
+>  
+>  /* Find a cgroup_subsys_state which has given ID */
+> Index: mmotm-0811/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0811.orig/mm/memcontrol.c
+> +++ mmotm-0811/mm/memcontrol.c
+> @@ -4141,6 +4141,11 @@ mem_cgroup_create(struct cgroup_subsys *
+>  		if (alloc_mem_cgroup_per_zone_info(mem, node))
+>  			goto free_out;
+>  
+> +	error = alloc_css_id(ss, cont, &mem->css);
+> +	if (error)
+> +		goto free_out;
+> +	/* Here, css_id(&mem->css) works. but css_lookup(id)->mem doesn't */
+> +
+>  	/* root ? */
+>  	if (cont->parent == NULL) {
+>  		int cpu;
+> Index: mmotm-0811/block/blk-cgroup.c
+> ===================================================================
+> --- mmotm-0811.orig/block/blk-cgroup.c
+> +++ mmotm-0811/block/blk-cgroup.c
+> @@ -958,9 +958,13 @@ blkiocg_create(struct cgroup_subsys *sub
+>  {
+>  	struct blkio_cgroup *blkcg;
+>  	struct cgroup *parent = cgroup->parent;
+> +	int ret;
+>  
+>  	if (!parent) {
+>  		blkcg = &blkio_root_cgroup;
+> +		ret = alloc_css_id(subsys, cgroup, &blkcg->css);
+> +		if (ret)
+> +			return ERR_PTR(ret);
+>  		goto done;
+>  	}
+>  
+> @@ -971,6 +975,11 @@ blkiocg_create(struct cgroup_subsys *sub
+>  	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
+>  	if (!blkcg)
+>  		return ERR_PTR(-ENOMEM);
+> +	ret = alloc_css_id(subsys, cgroup, &blkcg->css);
+> +	if (ret) {
+> +		kfree(blkcg);
+> +		return ERR_PTR(ret);
+> +	}
+>  
+>  	blkcg->weight = BLKIO_WEIGHT_DEFAULT;
+>  done:
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
