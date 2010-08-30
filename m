@@ -1,264 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 800306B01F0
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 00:39:12 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7U4d7kh010863
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 30 Aug 2010 13:39:08 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 81D1745DE53
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 13:39:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B85645DE4F
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 13:39:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 254151DB8055
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 13:39:07 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B95661DB804F
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 13:39:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 1/3 v3] oom: add per-mm oom disable count
-In-Reply-To: <alpine.DEB.2.00.1008201539310.9201@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1008201539310.9201@chino.kir.corp.google.com>
-Message-Id: <20100830130913.525F.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 545B06B01F0
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 01:46:51 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o7U5kmvY014214
+	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:48 -0700
+Received: from qyk33 (qyk33.prod.google.com [10.241.83.161])
+	by wpaz1.hot.corp.google.com with ESMTP id o7U5klOt012765
+	for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:47 -0700
+Received: by qyk33 with SMTP id 33so4838965qyk.19
+        for <linux-mm@kvack.org>; Sun, 29 Aug 2010 22:46:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 30 Aug 2010 13:39:06 +0900 (JST)
+In-Reply-To: <AANLkTi==mQh31PzuNa1efH2WM1s-VPKyZX0f5iwb54PD@mail.gmail.com>
+References: <1283096628-4450-1-git-send-email-minchan.kim@gmail.com>
+	<AANLkTinCKJw2oaNgAvfm0RawbW4zuJMtMb2pUROeY2ij@mail.gmail.com>
+	<4C7ABD14.9050207@redhat.com>
+	<AANLkTimjVHp1=Fc35xLnyPb2aa+ew7w1P9DC_0GfhZgY@mail.gmail.com>
+	<AANLkTi==mQh31PzuNa1efH2WM1s-VPKyZX0f5iwb54PD@mail.gmail.com>
+Date: Sun, 29 Aug 2010 22:40:47 -0700
+Message-ID: <AANLkTinqm0o=AfmgFy+SpZ1mrdekRnjeXvs_7=OcLii8@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap system
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>, Ying Han <yinghan@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-> From: Ying Han <yinghan@google.com>
-> 
-> It's pointless to kill a task if another thread sharing its mm cannot be
-> killed to allow future memory freeing.  A subsequent patch will prevent
-> kills in such cases, but first it's necessary to have a way to flag a
-> task that shares memory with an OOM_DISABLE task that doesn't incur an
-> additional tasklist scan, which would make select_bad_process() an O(n^2)
-> function.
-> 
-> This patch adds an atomic counter to struct mm_struct that follows how
-> many threads attached to it have an oom_score_adj of OOM_SCORE_ADJ_MIN.
-> They cannot be killed by the kernel, so their memory cannot be freed in
-> oom conditions.
-> 
-> This only requires task_lock() on the task that we're operating on, it
-> does not require mm->mmap_sem since task_lock() pins the mm and the
-> operation is atomic.
-> 
-> [rientjes@google.com: changelog and sys_unshare() code]
-> Signed-off-by: Ying Han <yinghan@google.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  fs/exec.c                |    5 +++++
->  fs/proc/base.c           |   30 ++++++++++++++++++++++++++++++
->  include/linux/mm_types.h |    2 ++
->  kernel/exit.c            |    3 +++
->  kernel/fork.c            |   13 ++++++++++++-
->  5 files changed, 52 insertions(+), 1 deletions(-)
-> 
-> diff --git a/fs/exec.c b/fs/exec.c
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -54,6 +54,7 @@
->  #include <linux/fsnotify.h>
->  #include <linux/fs_struct.h>
->  #include <linux/pipe_fs_i.h>
-> +#include <linux/oom.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/mmu_context.h>
-> @@ -745,6 +746,10 @@ static int exec_mmap(struct mm_struct *mm)
->  	tsk->mm = mm;
->  	tsk->active_mm = mm;
->  	activate_mm(active_mm, mm);
-> +	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> +		atomic_dec(&active_mm->oom_disable_count);
-
-When kernel thread makes user-land process (e.g. usermode-helper),
-active_mm might point to unrelated process. active_mm is only meaningful
-for scheduler code. please don't touch it. probably you intend to
-change old_mm.
-
-
-
-> +		atomic_inc(&tsk->mm->oom_disable_count);
-> +	}
->  	task_unlock(tsk);
->  	arch_pick_mmap_layout(mm);
->  	if (old_mm) {
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1047,6 +1047,21 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
->  		return -EACCES;
->  	}
->  
-> +	task_lock(task);
+On Sun, Aug 29, 2010 at 5:18 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
+> Hi Ying,
 >
-> +	if (!task->mm) {
-> +		task_unlock(task);
-> +		unlock_task_sighand(task, &flags);
-> +		put_task_struct(task);
-> +		return -EINVAL;
-> +	}
-> +
-> +	if (oom_adjust != task->signal->oom_adj) {
-> +		if (oom_adjust == OOM_DISABLE)
-> +			atomic_inc(&task->mm->oom_disable_count);
-> +		if (task->signal->oom_adj == OOM_DISABLE)
-> +			atomic_dec(&task->mm->oom_disable_count);
-> +	}
-> +
->  	/*
->  	 * Warn that /proc/pid/oom_adj is deprecated, see
->  	 * Documentation/feature-removal-schedule.txt.
-> @@ -1065,6 +1080,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
->  	else
->  		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
->  								-OOM_DISABLE;
-> +	task_unlock(task);
->  	unlock_task_sighand(task, &flags);
->  	put_task_struct(task);
->  
-> @@ -1133,6 +1149,19 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
->  		return -EACCES;
->  	}
->  
-> +	task_lock(task);
-> +	if (!task->mm) {
-> +		task_unlock(task);
-> +		unlock_task_sighand(task, &flags);
-> +		put_task_struct(task);
-> +		return -EINVAL;
-> +	}
-> +	if (oom_score_adj != task->signal->oom_score_adj) {
-> +		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +			atomic_inc(&task->mm->oom_disable_count);
-> +		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +			atomic_dec(&task->mm->oom_disable_count);
-> +	}
->  	task->signal->oom_score_adj = oom_score_adj;
->  	/*
->  	 * Scale /proc/pid/oom_adj appropriately ensuring that OOM_DISABLE is
-> @@ -1143,6 +1172,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
->  	else
->  		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
->  							OOM_SCORE_ADJ_MAX;
-> +	task_unlock(task);
->  	unlock_task_sighand(task, &flags);
->  	put_task_struct(task);
->  	return count;
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -310,6 +310,8 @@ struct mm_struct {
->  #ifdef CONFIG_MMU_NOTIFIER
->  	struct mmu_notifier_mm *mmu_notifier_mm;
->  #endif
-> +	/* How many tasks sharing this mm are OOM_DISABLE */
-> +	atomic_t oom_disable_count;
->  };
->  
->  /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-> diff --git a/kernel/exit.c b/kernel/exit.c
-> --- a/kernel/exit.c
-> +++ b/kernel/exit.c
-> @@ -50,6 +50,7 @@
->  #include <linux/perf_event.h>
->  #include <trace/events/sched.h>
->  #include <linux/hw_breakpoint.h>
-> +#include <linux/oom.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/unistd.h>
-> @@ -689,6 +690,8 @@ static void exit_mm(struct task_struct * tsk)
->  	enter_lazy_tlb(mm, current);
->  	/* We don't want this task to be frozen prematurely */
->  	clear_freeze_flag(tsk);
-> +	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +		atomic_dec(&mm->oom_disable_count);
->  	task_unlock(tsk);
->  	mm_update_next_owner(mm);
->  	mmput(mm);
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -65,6 +65,7 @@
->  #include <linux/perf_event.h>
->  #include <linux/posix-timers.h>
->  #include <linux/user-return-notifier.h>
-> +#include <linux/oom.h>
->  
->  #include <asm/pgtable.h>
->  #include <asm/pgalloc.h>
-> @@ -485,6 +486,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
->  	mm->cached_hole_size = ~0UL;
->  	mm_init_aio(mm);
->  	mm_init_owner(mm, p);
-> +	atomic_set(&mm->oom_disable_count, 0);
->  
->  	if (likely(!mm_alloc_pgd(mm))) {
->  		mm->def_flags = 0;
-> @@ -738,6 +740,8 @@ good_mm:
->  	/* Initializing for Swap token stuff */
->  	mm->token_priority = 0;
->  	mm->last_interval = 0;
-> +	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +		atomic_inc(&mm->oom_disable_count);
->  
->  	tsk->mm = mm;
->  	tsk->active_mm = mm;
-> @@ -1296,8 +1300,11 @@ bad_fork_cleanup_io:
->  bad_fork_cleanup_namespaces:
->  	exit_task_namespaces(p);
->  bad_fork_cleanup_mm:
-> -	if (p->mm)
-> +	if (p->mm) {
-> +		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
-> +			atomic_dec(&p->mm->oom_disable_count);
->  		mmput(p->mm);
-> +	}
+> On Mon, Aug 30, 2010 at 6:23 AM, Ying Han <yinghan@google.com> wrote:
+>> On Sun, Aug 29, 2010 at 1:03 PM, Rik van Riel <riel@redhat.com> wrote:
+>>> On 08/29/2010 01:45 PM, Ying Han wrote:
+>>>
+>>>> There are few other places in vmscan where we check nr_swap_pages and
+>>>> inactive_anon_is_low. Are we planning to change them to use
+>>>> total_swap_pages
+>>>> to be consistent ?
+>>>
+>>> If that makes sense, maybe the check can just be moved into
+>>> inactive_anon_is_low itself?
+>>
+>> That was the initial patch posted, instead we changed to use
+>> total_swap_pages instead. How this patch looks:
+>>
+>> @@ -1605,6 +1605,9 @@ static int inactive_anon_is_low(struct zone
+>> *zone, struct scan_control *sc)
+>> =A0{
+>> =A0 =A0 =A0 =A0int low;
+>>
+>> + =A0 =A0 =A0 if (total_swap_pages <=3D 0)
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;
+>> +
+>> =A0 =A0 =A0 =A0if (scanning_global_lru(sc))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0low =3D inactive_anon_is_low_global(zone)=
+;
+>> =A0 =A0 =A0 =A0else
+>> @@ -1856,7 +1859,7 @@ static void shrink_zone(int priority, struct zone =
+*zone,
+>> =A0 =A0 =A0 =A0 * Even if we did not try to evict anon pages at all, we =
+want to
+>> =A0 =A0 =A0 =A0 * rebalance the anon lru active/inactive ratio.
+>> =A0 =A0 =A0 =A0 */
+>> - =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
+>> + =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc))
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0shrink_active_list(SWAP_CLUSTER_MAX, zone=
+, sc, priority, 0);
+>>
+>> =A0 =A0 =A0 =A0throttle_vm_writeout(sc->gfp_mask);
+>>
+>> --Ying
+>>
+>>>
+>
+> I did it intentionally since inactive_anon_is_low have been used both
+> direct reclaim and background path. In this point, your patch could
+> make side effect in swap enabled system when swap is full.
+>
+> I think we need aging in only background if system is swap full.
+> That's because if the swap space is full, we don't reclaim anon pages
+> in direct reclaim path with (nr_swap_pages < 0) =A0and even have been
+> not rebalance it until now.
+> I think direct reclaim path is important about latency as well as
+> reclaim's effectiveness.
+> So if you don't mind, I hope direct reclaim patch would be left just as i=
+t is.
 
-This place, we don't have any lock. so, checking signal->oom_score_adj and
-change oom_disable_count seems inatomic.
+Minchan, I would prefer to make kswapd as well as direct reclaim to be
+consistent if possible.
+They both try to reclaim pages when system is under memory pressure,
+and also do not make
+much sense to look at anon lru if no swap space available. Either
+because of no swapon or run
+out of swap space.
 
+I think letting kswapd to age anon lru without free swap space is not
+necessary neither. That leads
+to my initial patch:
 
->  bad_fork_cleanup_signal:
->  	if (!(clone_flags & CLONE_THREAD))
->  		free_signal_struct(p->signal);
-> @@ -1690,6 +1697,10 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
->  			active_mm = current->active_mm;
->  			current->mm = new_mm;
->  			current->active_mm = new_mm;
-> +			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> +				atomic_dec(&mm->oom_disable_count);
-> +				atomic_inc(&new_mm->oom_disable_count);
-> +			}
->  			activate_mm(active_mm, new_mm);
->  			new_mm = mm;
->  		}
+@@ -1605,6 +1605,9 @@ static int inactive_anon_is_low(struct zone
+*zone, struct scan_control *sc)
+ {
+       int low;
 
-This place, we are grabbing task_lock(), but task_lock don't prevent
-to change signal->oom_score_adj from another thread. This seems racy.
++       if (nr_swap_pages <=3D 0)
++               return 0;
++
+       if (scanning_global_lru(sc))
+               low =3D inactive_anon_is_low_global(zone);
+       else
+@@ -1856,7 +1859,7 @@ static void shrink_zone(int priority, struct zone *zo=
+ne,
+        * Even if we did not try to evict anon pages at all, we want to
+        * rebalance the anon lru active/inactive ratio.
+        */
+-       if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
++       if (inactive_anon_is_low(zone, sc))
+               shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
 
-Perhaps, almost place need something else. example,
+What do you think ?
 
-	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-		task_lock_sighand()
-		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) { /* check again */
-			atomic_dec(&p->mm->oom_disable_count);
-		}
-		task_unlock_sighand()
-	}
-
-But I'm not sure all place don't makes lock order inversion.
-
-
+--Ying
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
