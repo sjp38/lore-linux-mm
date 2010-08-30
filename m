@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DDCF06B01F1
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 12:26:17 -0400 (EDT)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id o7UGQEJB013691
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 09:26:14 -0700
-Received: from gxk20 (gxk20.prod.google.com [10.202.11.20])
-	by wpaz24.hot.corp.google.com with ESMTP id o7UGQDxY004096
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 09:26:13 -0700
-Received: by gxk20 with SMTP id 20so2643059gxk.17
-        for <linux-mm@kvack.org>; Mon, 30 Aug 2010 09:26:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100830092446.524B.A69D9226@jp.fujitsu.com>
-References: <1282963227-31867-1-git-send-email-mrubin@google.com>
- <1282963227-31867-5-git-send-email-mrubin@google.com> <20100830092446.524B.A69D9226@jp.fujitsu.com>
-From: Michael Rubin <mrubin@google.com>
-Date: Mon, 30 Aug 2010 09:25:41 -0700
-Message-ID: <AANLkTimLwv04pvuz_AtSK3ASr-epD0PeA-vOCigFH8+0@mail.gmail.com>
-Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in /proc/vmstat
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 268886B01F1
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 15:23:09 -0400 (EDT)
+Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <20100820132309.GB20126@localhost>
+References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
+	 <20100819143710.GA4752@infradead.org>
+	 <1282229905.6199.19.camel@heimdal.trondhjem.org>
+	 <20100819151618.5f769dc9@tlielax.poochiereds.net>
+	 <1282246999.7799.66.camel@heimdal.trondhjem.org>
+	 <20100820132309.GB20126@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 30 Aug 2010 15:22:54 -0400
+Message-ID: <1283196174.2920.4.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk
+To: Wu Fengguang <fengguang.wu@gmail.com>
+Cc: Jeff Layton <jlayton@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 29, 2010 at 5:28 PM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> afaict, you and wu agreed /debug/bdi/default/stats is enough good.
-> why do you change your mention?
+On Fri, 2010-08-20 at 21:23 +0800, Wu Fengguang wrote:
+> > > Here's a lightly tested patch that turns the check for the two flags
+> > > into a check for WB_SYNC_NONE. It seems to do the right thing, but I
+> > > don't have a clear testcase for it. Does this look reasonable?
+> > 
+> > Looks fine to me. I'll queue it up for the post-2.6.36 merge window...
+> 
+> Trond, I just created a patch that removes the wbc->nonblocking
+> definition and all its references except NFS. So there will be merge
+> dependencies. What should we do?  To push both patches to Andrew's -mm
+> tree?
+> 
+> Thanks,
+> Fengguang
 
-I commented on this in the 0/4 email of the bug. I think these belong
-in /proc/vmstat but I saw they exist in /debug/bdi/default/stats. I
-figure they will probably not be accepted but I thought it was worth
-attaching for consideration of upgrading from debugfs to /proc.
+Do you want to include it as part of your series? Just remember to add
+an
 
-mrubin
+Acked-by: Trond Myklebust <Trond.Myklebust@netapp.com>
+
+Cheers
+  Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
