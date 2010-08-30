@@ -1,335 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B84366B01F2
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 09:19:43 -0400 (EDT)
-Date: Mon, 30 Aug 2010 15:19:29 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] writeback: Record if the congestion was unnecessary
-Message-ID: <20100830131929.GA28652@cmpxchg.org>
-References: <1282835656-5638-1-git-send-email-mel@csn.ul.ie>
- <1282835656-5638-3-git-send-email-mel@csn.ul.ie>
- <20100826182904.GC6805@cmpxchg.org>
- <20100826203130.GL20944@csn.ul.ie>
- <20100827081648.GD6805@cmpxchg.org>
- <20100827092415.GB19556@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9DD3F6B01F1
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 10:16:20 -0400 (EDT)
+Received: by eyh5 with SMTP id 5so3773626eyh.14
+        for <linux-mm@kvack.org>; Mon, 30 Aug 2010 07:16:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="LQksG6bCIzRHxTLp"
-Content-Disposition: inline
-In-Reply-To: <20100827092415.GB19556@csn.ul.ie>
+Date: Mon, 30 Aug 2010 11:16:16 -0300
+Message-ID: <AANLkTimwCWmXHuu3ahnDy9uWqqLAoxtzSfxL86TE2swv@mail.gmail.com>
+Subject: [BUG] Oops: unable to handle kernel paging request at ffff8a101da005a0
+From: Felipe W Damasio <felipewd@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
---LQksG6bCIzRHxTLp
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+My server frooze this morning, and on the logs this error appeared:
 
-On Fri, Aug 27, 2010 at 10:24:16AM +0100, Mel Gorman wrote:
-> On Fri, Aug 27, 2010 at 10:16:48AM +0200, Johannes Weiner wrote:
-> > On Thu, Aug 26, 2010 at 09:31:30PM +0100, Mel Gorman wrote:
-> > > On Thu, Aug 26, 2010 at 08:29:04PM +0200, Johannes Weiner wrote:
-> > > > On Thu, Aug 26, 2010 at 04:14:15PM +0100, Mel Gorman wrote:
-> > > > > If congestion_wait() is called when there is no congestion, the caller
-> > > > > will wait for the full timeout. This can cause unreasonable and
-> > > > > unnecessary stalls. There are a number of potential modifications that
-> > > > > could be made to wake sleepers but this patch measures how serious the
-> > > > > problem is. It keeps count of how many congested BDIs there are. If
-> > > > > congestion_wait() is called with no BDIs congested, the tracepoint will
-> > > > > record that the wait was unnecessary.
-> > > > 
-> > > > I am not convinced that unnecessary is the right word.  On a workload
-> > > > without any IO (i.e. no congestion_wait() necessary, ever), I noticed
-> > > > the VM regressing both in time and in reclaiming the right pages when
-> > > > simply removing congestion_wait() from the direct reclaim paths (the
-> > > > one in __alloc_pages_slowpath and the other one in
-> > > > do_try_to_free_pages).
-> > > > 
-> > > > So just being stupid and waiting for the timeout in direct reclaim
-> > > > while kswapd can make progress seemed to do a better job for that
-> > > > load.
-> > > > 
-> > > > I can not exactly pinpoint the reason for that behaviour, it would be
-> > > > nice if somebody had an idea.
-> > > > 
-> > > 
-> > > There is a possibility that the behaviour in that case was due to flusher
-> > > threads doing the writes rather than direct reclaim queueing pages for IO
-> > > in an inefficient manner. So the stall is stupid but happens to work out
-> > > well because flusher threads get the chance to do work.
-> > 
-> > The workload was accessing a large sparse-file through mmap, so there
-> > wasn't much IO in the first place.
-> > 
-> 
-> Then waiting on congestion was the totally wrong thing to do. We were
-> effectively calling sleep(HZ/10) and magically this was helping in some
-> undefined manner. Do you know *which* called of congestion_wait() was
-> the most important to you?
+Aug 30 09:08:36 cache-machine kernel: BUG: unable to handle kernel
+paging request at ffff8a101da005a0
+Aug 30 09:08:36 cache-machine kernel: IP: [<ffffffff810b0460>]
+kmem_cache_alloc+0x5a/0x86
+Aug 30 09:08:36 cache-machine kernel: PGD 0
+Aug 30 09:08:36 cache-machine kernel: Oops: 0000 [#19] SMP
+Aug 30 09:08:36 cache-machine kernel: last sysfs file:
+/sys/devices/platform/w83627ehf.2576/in8_max
+Aug 30 09:08:36 cache-machine kernel: CPU 7
+Aug 30 09:08:36 cache-machine kernel: Modules linked in:
+Aug 30 09:08:36 cache-machine kernel:
+Aug 30 09:08:36 cache-machine kernel: Pid: 24819, comm: mysqld
+Tainted: G      D    2.6.34.1 #1 MB-X58I-CH19/Thurley
+Aug 30 09:08:36 cache-machine kernel: RIP: 0010:[<ffffffff810b0460>]
+[<ffffffff810b0460>] kmem_cache_alloc+0x5a/0x86
+Aug 30 09:08:36 cache-machine kernel: RSP: 0000:ffff8800c7637728
+EFLAGS: 00010086
+Aug 30 09:08:36 cache-machine kernel: RAX: 0000000000000000 RBX:
+0000000000008010 RCX: 0000000000000010
+Aug 30 09:08:36 cache-machine kernel: RDX: ffff8a101da005a0 RSI:
+0000000000008010 RDI: ffff88021ecd9400
+Aug 30 09:08:36 cache-machine kernel: RBP: ffff8800c7637748 R08:
+ffff880001bd8700 R09: 0000000000000002
+Aug 30 09:08:36 cache-machine kernel: R10: 00000000000022c1 R11:
+0000000000014466 R12: ffff88021ecd9400
+Aug 30 09:08:36 cache-machine kernel: R13: 0000000000000246 R14:
+ffffffff811d24d4 R15: 0000000000000000
+Aug 30 09:08:36 cache-machine kernel: FS:  00007f98072de950(0000)
+GS:ffff880001bc0000(0000) knlGS:0000000000000000
+Aug 30 09:08:36 cache-machine kernel: CS:  0010 DS: 0000 ES: 0000 CR0:
+0000000080050033
+Aug 30 09:08:36 cache-machine kernel: CR2: ffff8a101da005a0 CR3:
+000000021e79e000 CR4: 00000000000006e0
+Aug 30 09:08:36 cache-machine kernel: DR0: 0000000000000000 DR1:
+0000000000000000 DR2: 0000000000000000
+Aug 30 09:08:36 cache-machine kernel: DR3: 0000000000000000 DR6:
+00000000ffff0ff0 DR7: 0000000000000400
+Aug 30 09:08:36 cache-machine kernel: Process mysqld (pid: 24819,
+threadinfo ffff8800c7636000, task ffff88021e477740)
+Aug 30 09:08:36 cache-machine kernel: Stack:
+Aug 30 09:08:36 cache-machine kernel: ffff88021f7b1000
+ffff8800d2ae1cc0 ffff88021f7b1340 0000000000000000
+Aug 30 09:08:36 cache-machine kernel: <0> ffff8800c76377b8
+ffffffff811d24d4 ffff8800c7637778 0000000000000010
+Aug 30 09:08:36 cache-machine kernel: <0> 0000001000008010
+0000000000000003 ffff88021f7b1030 01ff880000000000
+Aug 30 09:08:36 cache-machine kernel: Call Trace:
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811d24d4>]
+cfq_get_queue+0x10c/0x227
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811d28d9>]
+cfq_set_request+0x26b/0x380
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c4d8e>]
+elv_set_request+0x16/0x27
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c8307>]
+get_request+0x24a/0x30b
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c83f5>]
+get_request_wait+0x2d/0x13a
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c87bb>]
+__make_request+0x2b9/0x3db
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c6e25>]
+generic_make_request+0x1bd/0x224
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810d838e>] ?
+bio_alloc_bioset+0x73/0xbd
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff811c6f4a>] submit_bio+0xbe/0xc7
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810db0b3>]
+mpage_bio_submit+0x22/0x26
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810dbb33>]
+do_mpage_readpage+0x3b1/0x4fb
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8108edaa>] ?
+____pagevec_lru_add+0x12f/0x145
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810dbdb1>]
+mpage_readpages+0xd7/0x11e
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8119c6e6>] ?
+xfs_get_blocks+0x0/0x14
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8119c6e6>] ?
+xfs_get_blocks+0x0/0x14
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8119d859>]
+xfs_vm_readpages+0x18/0x1a
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8108e296>]
+__do_page_cache_readahead+0x10c/0x1a2
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8108e348>] ra_submit+0x1c/0x20
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff81087e46>]
+filemap_fault+0x1a4/0x327
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff81098fdf>] __do_fault+0x50/0x40b
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8109a4fe>]
+handle_mm_fault+0x3fa/0x7d0
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810b49da>] ?
+do_sync_read+0xc6/0x103
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8102004c>]
+do_page_fault+0x2d9/0x2fb
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff810b558b>] ?
+vfs_read+0x137/0x16f
+Aug 30 09:08:36 cache-machine kernel: [<ffffffff8143b35f>] page_fault+0x1f/0x30
+Aug 30 09:08:36 cache-machine kernel: Code: 00 00 49 8b 04 24 49 01 c0
+49 8b 10 48 85 d2 75 15 83 ca ff 4c 89 f1 89 de 4c 89 e7 e8 77 f9 ff
+ff 48 89 c2 eb 0c 49 63 44 24 18 <48> 8b 04 02 49 89 00 41 55 9d 48 85
+d2 74 11 66 85 db 79 0c 49
+Aug 30 09:08:36 cache-machine kernel: RIP  [<ffffffff810b0460>]
+kmem_cache_alloc+0x5a/0x86
+Aug 30 09:08:36 cache-machine kernel: RSP <ffff8800c7637728>
+Aug 30 09:08:36 cache-machine kernel: CR2: ffff8a101da005a0
+Aug 30 09:08:36 cache-machine kernel: ---[ end trace 5bbe659d1963f172 ]---
 
-Removing congestion_wait() in do_try_to_free_pages() definitely
-worsens reclaim behaviour for this workload:
 
-1. wallclock time of the testrun increases by 11%
+This has happened before (I posted it here a few weeks back), but I
+don't know how to fix it or even duplicate the bug...
 
-2. the scanners do a worse job and go for the wrong zone:
+Looking back a few days, I noticed the first one appeared 2 days ago:
 
--pgalloc_dma 79597
--pgalloc_dma32 134465902
-+pgalloc_dma 297089
-+pgalloc_dma32 134247237
+Aug 28 23:49:02 cache-machine kernel: BUG: unable to handle kernel
+paging request at ffff8a101da005a0
+Aug 28 23:49:02 cache-machine kernel: IP: [<ffffffff810b0460>]
+kmem_cache_alloc+0x5a/0x86
+Aug 28 23:49:02 cache-machine kernel: PGD 0
+Aug 28 23:49:02 cache-machine kernel: Oops: 0000 [#1] SMP
+Aug 28 23:49:02 cache-machine kernel: last sysfs file:
+/sys/devices/platform/w83627ehf.2576/in8_max
+Aug 28 23:49:02 cache-machine kernel: CPU 7
+Aug 28 23:49:02 cache-machine kernel: Modules linked in:
+Aug 28 23:49:02 cache-machine kernel:
+Aug 28 23:49:02 cache-machine kernel: Pid: 20884, comm: sh Not tainted
+2.6.34.1 #1 MB-X58I-CH19/Thurley
+Aug 28 23:49:02 cache-machine kernel: RIP: 0010:[<ffffffff810b0460>]
+[<ffffffff810b0460>] kmem_cache_alloc+0x5a/0x86
+Aug 28 23:49:02 cache-machine kernel: RSP: 0000:ffff88016a209728
+EFLAGS: 00010086
+Aug 28 23:49:02 cache-machine kernel: RAX: 0000000000000000 RBX:
+0000000000008010 RCX: 0000000000000010
+Aug 28 23:49:02 cache-machine kernel: RDX: ffff8a101da005a0 RSI:
+0000000000008010 RDI: ffff88021ecd9400
+Aug 28 23:49:02 cache-machine kernel: RBP: ffff88016a209748 R08:
+ffff880001bd8700 R09: ffff88021f95f190
+Aug 28 23:49:02 cache-machine kernel: R10: 0000000000000001 R11:
+0000000000000001 R12: ffff88021ecd9400
+Aug 28 23:49:02 cache-machine kernel: R13: 0000000000000246 R14:
+ffffffff811d24d4 R15: 0000000000000000
+Aug 28 23:49:02 cache-machine kernel: FS:  00007f806013b6f0(0000)
+GS:ffff880001bc0000(0000) knlGS:0000000000000000
+Aug 28 23:49:02 cache-machine kernel: CS:  0010 DS: 0000 ES: 0000 CR0:
+000000008005003b
+Aug 28 23:49:02 cache-machine kernel: CR2: ffff8a101da005a0 CR3:
+00000001f975c000 CR4: 00000000000006e0
+Aug 28 23:49:02 cache-machine kernel: DR0: 0000000000000000 DR1:
+0000000000000000 DR2: 0000000000000000
+Aug 28 23:49:02 cache-machine kernel: DR3: 0000000000000000 DR6:
+00000000ffff0ff0 DR7: 0000000000000400
+Aug 28 23:49:02 cache-machine kernel: Process sh (pid: 20884,
+threadinfo ffff88016a208000, task ffff88021da15620)
+Aug 28 23:49:02 cache-machine kernel: Stack:
+Aug 28 23:49:02 cache-machine kernel: ffff88021f7b1000
+ffff8801fce6fe80 ffff88021f7b1340 0000000000000000
+Aug 28 23:49:02 cache-machine kernel: <0> ffff88016a2097b8
+ffffffff811d24d4 ffff88016a209778 ffffffff00000010
+Aug 28 23:49:02 cache-machine kernel: <0> 0000001000008010
+0000000000000003 ffff88021f7b1030 01ffffff00000000
+Aug 28 23:49:02 cache-machine kernel: Call Trace:
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811d24d4>]
+cfq_get_queue+0x10c/0x227
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811d28d9>]
+cfq_set_request+0x26b/0x380
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c4d8e>]
+elv_set_request+0x16/0x27
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c8307>]
+get_request+0x24a/0x30b
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c83f5>]
+get_request_wait+0x2d/0x13a
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811d3f58>] ? cfq_merge+0x30/0x9f
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c548c>] ?
+elv_merge+0x166/0x19e
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c87bb>]
+__make_request+0x2b9/0x3db
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c6e25>]
+generic_make_request+0x1bd/0x224
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8119c627>] ?
+__xfs_get_blocks+0xb1/0x159
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff811c6f4a>] submit_bio+0xbe/0xc7
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810db0b3>]
+mpage_bio_submit+0x22/0x26
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810dbb33>]
+do_mpage_readpage+0x3b1/0x4fb
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff81096a23>] ?
+__inc_zone_page_state+0x1e/0x20
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810879e0>] ?
+add_to_page_cache_locked+0x75/0xb6
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810dbdb1>]
+mpage_readpages+0xd7/0x11e
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8119c6e6>] ?
+xfs_get_blocks+0x0/0x14
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8119c6e6>] ?
+xfs_get_blocks+0x0/0x14
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8108c493>] ?
+get_page_from_freelist+0x3c1/0x483
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff81087807>] ?
+unlock_page+0x22/0x26
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8108c493>] ?
+get_page_from_freelist+0x3c1/0x483
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8119d859>]
+xfs_vm_readpages+0x18/0x1a
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8108e296>]
+__do_page_cache_readahead+0x10c/0x1a2
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8108e348>] ra_submit+0x1c/0x20
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff81087e46>]
+filemap_fault+0x1a4/0x327
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff81098fdf>] __do_fault+0x50/0x40b
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8109a4fe>]
+handle_mm_fault+0x3fa/0x7d0
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8102004c>]
+do_page_fault+0x2d9/0x2fb
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810a027d>] ? do_brk+0x2d9/0x338
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff810c86a4>] ? alloc_fd+0x76/0x11e
+Aug 28 23:49:02 cache-machine kernel: [<ffffffff8143b35f>] page_fault+0x1f/0x30
+Aug 28 23:49:02 cache-machine kernel: Code: 00 00 49 8b 04 24 49 01 c0
+49 8b 10 48 85 d2 75 15 83 ca ff 4c 89 f1 89 de 4c 89 e7 e8 77 f9 ff
+ff 48 89 c2 eb 0c 49 63 44 24 18 <48> 8b 04 02 49 89 00 41 55 9d 48 85
+d2 74 11 66 85 db 79 0c 49
+Aug 28 23:49:02 cache-machine kernel: RIP  [<ffffffff810b0460>]
+kmem_cache_alloc+0x5a/0x86
+Aug 28 23:49:02 cache-machine kernel: RSP <ffff88016a209728>
+Aug 28 23:49:02 cache-machine kernel: CR2: ffff8a101da005a0
+Aug 28 23:49:02 cache-machine kernel: ---[ end trace 5bbe659d1963f160 ]---
 
--pgsteal_dma 77501
--pgsteal_dma32 133939446
-+pgsteal_dma 294998
-+pgsteal_dma32 133722312
+Is there any info I can provide you to help and fix it?
 
--pgscan_kswapd_dma 145897
--pgscan_kswapd_dma32 266141381
-+pgscan_kswapd_dma 287981
-+pgscan_kswapd_dma32 186647637
+Cheers,
 
--pgscan_direct_dma 9666
--pgscan_direct_dma32 1758655
-+pgscan_direct_dma 302495
-+pgscan_direct_dma32 80947179
-
--pageoutrun 1768531
--allocstall 614
-+pageoutrun 1927451
-+allocstall 8566
-
-I attached the full vmstat contents below.  Also the test program,
-which I ran in this case as: ./mapped-file-stream 1 $((512 << 30))
-
-> > > > So personally I think it's a good idea to get an insight on the use of
-> > > > congestion_wait() [patch 1] but I don't agree with changing its
-> > > > behaviour just yet, or judging its usefulness solely on whether it
-> > > > correctly waits for bdi congestion.
-> > > > 
-> > > 
-> > > Unfortunately, I strongly suspect that some of the desktop stalls seen during
-> > > IO (one of which involved no writes) were due to calling congestion_wait
-> > > and waiting the full timeout where no writes are going on.
-> > 
-> > Oh, I am in full agreement here!  Removing those congestion_wait() as
-> > described above showed a reduction in peak latency.  The dilemma is
-> > only that it increased the overall walltime of the load.
-> > 
-> 
-> Do you know why because leaving in random sleeps() hardly seems to be
-> the right approach?
-
-I am still trying to find out what's going wrong.
-
-> > And the scanning behaviour deteriorated, as in having increased
-> > scanning pressure on other zones than the unpatched kernel did.
-> > 
-> 
-> Probably because it was scanning more but not finding what it needed.
-> There is a condition other than congestion it is having trouble with. In
-> some respects, I think if we change congestion_wait() as I propose,
-> we may see a case where CPU usage is higher because it's now
-> encountering the unspecified reclaim problem we have.
-
-Exactly.
-
-> > So I think very much that we need a fix.  congestion_wait() causes
-> > stalls and relying on random sleeps for the current reclaim behaviour
-> > can not be the solution, at all.
-> > 
-> > I just don't think we can remove it based on the argument that it
-> > doesn't do what it is supposed to do, when it does other things right
-> > that it is not supposed to do ;-)
-> > 
-> 
-> We are not removing it, we are just stopping it going to sleep for
-> stupid reasons. If we find that wall time is increasing as a result, we
-> have a path to figuring out what the real underlying problem is instead
-> of sweeping it under the rug.
-
-Well, for that testcase it is in effect the same as a removal as
-there's never congestion.
-
-But again: I agree with your changes per-se, I just don't think they
-should get merged as long as they knowingly catalyze a problem that
-has yet to be identified.
-
---LQksG6bCIzRHxTLp
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="mapped-file-stream.c"
-
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/wait.h>
-#include <limits.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdio.h>
-
-static int start_process(unsigned long nr_bytes)
-{
-	char filename[] = "/tmp/clog-XXXXXX";
-	unsigned long i;
-	char *map;
-	int fd;
-
-	fd = mkstemp(filename);
-	unlink(filename);
-	if (fd == -1) {
-		perror("mkstemp()");
-		return -1;
-	}
-
-	if (ftruncate(fd, nr_bytes)) {
-		perror("ftruncate()");
-		return -1;
-	}
-
-	map = mmap(NULL, nr_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (map == MAP_FAILED) {
-		perror("mmap()");
-		return -1;
-	}
-
-	if (madvise(map, nr_bytes, MADV_RANDOM)) {
-		perror("madvise()");
-		return -1;
-	}
-
-	kill(getpid(), SIGSTOP);
-
-	for (i = 0; i < nr_bytes; i += 4096)
-		((volatile char *)map)[i];
-
-	close(fd);
-	return 0;
-}
-
-static int do_test(unsigned long nr_procs, unsigned long nr_bytes)
-{
-	pid_t procs[nr_procs];
-	unsigned long i;
-	int dummy;
-
-	for (i = 0; i < nr_procs; i++) {
-		switch ((procs[i] = fork())) {
-		case -1:
-			kill(0, SIGKILL);
-			perror("fork()");
-			return -1;
-		case 0:
-			return start_process(nr_bytes);
-		default:
-			waitpid(procs[i], &dummy, WUNTRACED);
-			break;
-		}
-	}
-
-	kill(0, SIGCONT);
-
-	for (i = 0; i < nr_procs; i++)
-		waitpid(procs[i], &dummy, 0);
-
-	return 0;
-}
-
-static int xstrtoul(const char *str, unsigned long *valuep)
-{
-	unsigned long value;
-	char *endp;
-
-	value = strtoul(str, &endp, 0);
-	if (*endp || (value == ULONG_MAX && errno == ERANGE))
-		return -1;
-	*valuep = value;
-	return 0;
-}
-
-int main(int ac, char **av)
-{
-	unsigned long nr_procs, nr_bytes;
-
-	if (ac != 3)
-		goto usage;
-	if (xstrtoul(av[1], &nr_procs))
-		goto usage;
-	if (xstrtoul(av[2], &nr_bytes))
-		goto usage;
-	setbuf(stdout, NULL);
-	setbuf(stderr, NULL);
-	return !!do_test(nr_procs, nr_bytes);
-usage:
-	fprintf(stderr, "usage: %s nr_procs nr_bytes\n", av[0]);
-	return 1;
-}
-
---LQksG6bCIzRHxTLp
-Content-Type: application/x-troff-man
-Content-Disposition: attachment; filename="vmstat.a.2"
-Content-Transfer-Encoding: quoted-printable
-
-nr_free_pages 474460=0Anr_inactive_anon 440=0Anr_active_anon 490=0Anr_inact=
-ive_file 472=0Anr_active_file 1179=0Anr_unevictable 0=0Anr_mlock 0=0Anr_ano=
-n_pages 903=0Anr_mapped 743=0Anr_file_pages 1680=0Anr_dirty 0=0Anr_writebac=
-k 0=0Anr_slab_reclaimable 474=0Anr_slab_unreclaimable 1320=0Anr_page_table_=
-pages 214=0Anr_kernel_stack 54=0Anr_unstable 0=0Anr_bounce 0=0Anr_vmscan_wr=
-ite 0=0Anr_writeback_temp 0=0Anr_isolated_anon 0=0Anr_isolated_file 0=0Anr_=
-shmem 27=0Anuma_hit 134544040=0Anuma_miss 0=0Anuma_foreign 0=0Anuma_interle=
-ave 2402=0Anuma_local 134544040=0Anuma_other 0=0Apgpgin 34264=0Apgpgout 616=
-=0Apswpin 0=0Apswpout 0=0Apgalloc_dma 79597=0Apgalloc_dma32 134465902=0Apga=
-lloc_normal 0=0Apgalloc_movable 0=0Apgfree 135020217=0Apgactivate 2002=0Apg=
-deactivate 416=0Apgfault 134346107=0Apgmajfault 134218014=0Apgrefill_dma 0=
-=0Apgrefill_dma32 416=0Apgrefill_normal 0=0Apgrefill_movable 0=0Apgsteal_dm=
-a 77501=0Apgsteal_dma32 133939446=0Apgsteal_normal 0=0Apgsteal_movable 0=0A=
-pgscan_kswapd_dma 145897=0Apgscan_kswapd_dma32 266141381=0Apgscan_kswapd_no=
-rmal 0=0Apgscan_kswapd_movable 0=0Apgscan_direct_dma 9666=0Apgscan_direct_d=
-ma32 1758655=0Apgscan_direct_normal 0=0Apgscan_direct_movable 0=0Azone_recl=
-aim_failed 0=0Apginodesteal 0=0Aslabs_scanned 2304=0Akswapd_steal 133994020=
-=0Akswapd_inodesteal 711=0Akswapd_low_wmark_hit_quickly 201624=0Akswapd_hig=
-h_wmark_hit_quickly 4=0Akswapd_skip_congestion_wait 8050=0Apageoutrun 17685=
-31=0Aallocstall 614=0Apgrotated 0=0Acompact_blocks_moved 0=0Acompact_pages_=
-moved 0=0Acompact_pagemigrate_failed 0=0Acompact_stall 0=0Acompact_fail 0=
-=0Acompact_success 0=0Ahtlb_buddy_alloc_success 0=0Ahtlb_buddy_alloc_fail 0=
-=0Aunevictable_pgs_culled 0=0Aunevictable_pgs_scanned 0=0Aunevictable_pgs_r=
-escued 0=0Aunevictable_pgs_mlocked 0=0Aunevictable_pgs_munlocked 0=0Aunevic=
-table_pgs_cleared 0=0Aunevictable_pgs_stranded 0=0Aunevictable_pgs_mlockfre=
-ed 0=0A
---LQksG6bCIzRHxTLp
-Content-Type: application/x-troff-man
-Content-Disposition: attachment; filename="vmstat.b.2"
-Content-Transfer-Encoding: quoted-printable
-
-nr_free_pages 474483=0Anr_inactive_anon 440=0Anr_active_anon 502=0Anr_inact=
-ive_file 427=0Anr_active_file 1178=0Anr_unevictable 0=0Anr_mlock 0=0Anr_ano=
-n_pages 915=0Anr_mapped 743=0Anr_file_pages 1648=0Anr_dirty 0=0Anr_writebac=
-k 0=0Anr_slab_reclaimable 474=0Anr_slab_unreclaimable 1342=0Anr_page_table_=
-pages 213=0Anr_kernel_stack 54=0Anr_unstable 0=0Anr_bounce 0=0Anr_vmscan_wr=
-ite 0=0Anr_writeback_temp 0=0Anr_isolated_anon 0=0Anr_isolated_file 0=0Anr_=
-shmem 27=0Anuma_hit 134542888=0Anuma_miss 0=0Anuma_foreign 0=0Anuma_interle=
-ave 2402=0Anuma_local 134542888=0Anuma_other 0=0Apgpgin 34148=0Apgpgout 592=
-=0Apswpin 0=0Apswpout 0=0Apgalloc_dma 297089=0Apgalloc_dma32 134247237=0Apg=
-alloc_normal 0=0Apgalloc_movable 0=0Apgfree 135019047=0Apgactivate 1997=0Ap=
-gdeactivate 416=0Apgfault 134344164=0Apgmajfault 134218018=0Apgrefill_dma 0=
-=0Apgrefill_dma32 416=0Apgrefill_normal 0=0Apgrefill_movable 0=0Apgsteal_dm=
-a 294998=0Apgsteal_dma32 133722312=0Apgsteal_normal 0=0Apgsteal_movable 0=
-=0Apgscan_kswapd_dma 287981=0Apgscan_kswapd_dma32 186647637=0Apgscan_kswapd=
-_normal 0=0Apgscan_kswapd_movable 0=0Apgscan_direct_dma 302495=0Apgscan_dir=
-ect_dma32 80947179=0Apgscan_direct_normal 0=0Apgscan_direct_movable 0=0Azon=
-e_reclaim_failed 0=0Apginodesteal 426=0Aslabs_scanned 2304=0Akswapd_steal 1=
-33647322=0Akswapd_inodesteal 284=0Akswapd_low_wmark_hit_quickly 213970=0Aks=
-wapd_high_wmark_hit_quickly 1=0Akswapd_skip_congestion_wait 12633=0Apageout=
-run 1927451=0Aallocstall 8566=0Apgrotated 0=0Acompact_blocks_moved 0=0Acomp=
-act_pages_moved 0=0Acompact_pagemigrate_failed 0=0Acompact_stall 0=0Acompac=
-t_fail 0=0Acompact_success 0=0Ahtlb_buddy_alloc_success 0=0Ahtlb_buddy_allo=
-c_fail 0=0Aunevictable_pgs_culled 0=0Aunevictable_pgs_scanned 0=0Aunevictab=
-le_pgs_rescued 0=0Aunevictable_pgs_mlocked 0=0Aunevictable_pgs_munlocked 0=
-=0Aunevictable_pgs_cleared 0=0Aunevictable_pgs_stranded 0=0Aunevictable_pgs=
-_mlockfreed 0=0A
---LQksG6bCIzRHxTLp--
+Felipe Damasio
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
