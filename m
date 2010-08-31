@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A48AE6B01F0
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 08:30:37 -0400 (EDT)
-Date: Tue, 31 Aug 2010 14:30:32 +0200
-From: Michal Hocko <mhocko@suse.cz>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2A1316B01F0
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 10:20:11 -0400 (EDT)
+Date: Tue, 31 Aug 2010 22:19:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
  offlining code
-Message-ID: <20100831123032.GA30475@tiehlicka.suse.cz>
+Message-ID: <20100831141942.GA30353@localhost>
 References: <20100820141400.GD4636@tiehlicka.suse.cz>
  <20100822004232.GA11007@localhost>
  <20100823092246.GA25772@tiehlicka.suse.cz>
@@ -15,13 +15,11 @@ Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20100823092246.GA25772@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Mon 23-08-10 11:22:46, Michal Hocko wrote:
+On Mon, Aug 23, 2010 at 05:22:46PM +0800, Michal Hocko wrote:
 > On Sun 22-08-10 08:42:32, Wu Fengguang wrote:
 > > Hi Michal,
 > 
@@ -34,7 +32,9 @@ On Mon 23-08-10 11:22:46, Michal Hocko wrote:
 > >   pages? 
 > 
 > page can be MIGRATE_RESERVE IIUC.
-> 
+
+Yup, it may also be set to MIGRATE_ISOLATE by soft_offline_page().
+
 > >   And why the MIGRATE_MOVABLE test is still necessary given the
 > >   ZONE_MOVABLE check?
 > 
@@ -42,12 +42,16 @@ On Mon 23-08-10 11:22:46, Michal Hocko wrote:
 > the whole zone is set as movable) but this test is used also in the
 > offlining path (in set_migratetype_isolate) and the primary reason for
 > this patch is to sync those two checks. 
-> 
+
+Merge the two checks into an inline function?
+
 > I am not familiar with all the possible cases for migrate flags so the
 > test reduction should be better done by someone more familiar with the
 > code (the zone flag test is much more easier than the whole
 > get_pageblock_migratetype so this could be a win in the end).
-> 
+
+Feel free to swap the order of tests :)
+
 > > 
 > > - why do you think free pages are not removeable? Simply to cater for
 > >   the set_migratetype_isolate() logic, or there are more fundamental
@@ -58,13 +62,15 @@ On Mon 23-08-10 11:22:46, Michal Hocko wrote:
 > improbable but what is the point of this check anyway? So yes, this is
 > more to be in sync than anything more fundamental.
 
-Are there any other comments on this? Is the patch reasonable at all?
+You don't have strong reasons to remove the free pages test, so why
+not keep it? We never know what the user will do. He may regretted
+immediately after onlining a node, and want to offline it..  Some
+hackers may want to offline some 128MB memory blocks (by chance) with
+the help of drop_caches.
 
-> 
-> > 
-> > Thanks,
-> > Fengguang
-> > 
+Thanks,
+Fengguang
+
 > > On Fri, Aug 20, 2010 at 04:14:00PM +0200, Michal Hocko wrote:
 > > > Hi,
 > > > what do you think about the patch below?
@@ -111,14 +117,31 @@ Are there any other comments on this? Is the patch reasonable at all?
 > > >  			return 0;
 > > >  
 > > >  		/*
-
--- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+> > > -- 
+> > > 1.7.1
+> > > 
+> > > 
+> > > -- 
+> > > Michal Hocko
+> > > L3 team 
+> > > SUSE LINUX s.r.o.
+> > > Lihovarska 1060/12
+> > > 190 00 Praha 9    
+> > > Czech Republic
+> > > 
+> > > --
+> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > see: http://www.linux-mm.org/ .
+> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> L3 team 
+> SUSE LINUX s.r.o.
+> Lihovarska 1060/12
+> 190 00 Praha 9    
+> Czech Republic
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
