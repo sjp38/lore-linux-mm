@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8A9A26B01F1
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 14:21:54 -0400 (EDT)
-Date: Tue, 31 Aug 2010 13:20:45 -0500 (CDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A3C266B01F1
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 14:27:15 -0400 (EDT)
+Date: Tue, 31 Aug 2010 13:26:17 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
- NR_FREE_PAGES when memory is low and kswapd is awake
-In-Reply-To: <1283276257-1793-3-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1008311320340.867@router.home>
-References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-3-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after direct
+ reclaim allocation fails
+In-Reply-To: <1283276257-1793-4-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1008311326050.867@router.home>
+References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
