@@ -1,100 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A251B6B01F0
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:09:39 -0400 (EDT)
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id o7V69b6F005118
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 23:09:37 -0700
-Received: from gxk25 (gxk25.prod.google.com [10.202.11.25])
-	by wpaz9.hot.corp.google.com with ESMTP id o7V69aeJ031977
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 23:09:36 -0700
-Received: by gxk25 with SMTP id 25so3723516gxk.15
-        for <linux-mm@kvack.org>; Mon, 30 Aug 2010 23:09:36 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 34B4B6B01F0
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:42 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7V6RLAm022544
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:27:21 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7V6XcdK315114
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:38 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7V6XctU020347
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:38 -0400
+Date: Tue, 31 Aug 2010 12:03:34 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/5] cgroup: do ID allocation under css allocator.
+Message-ID: <20100831063334.GM32680@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100825141500.GA32680@balbir.in.ibm.com>
+ <20100826091346.88eb3ecc.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20100828235029.GA7071@localhost>
-References: <1282963227-31867-1-git-send-email-mrubin@google.com>
- <1282963227-31867-4-git-send-email-mrubin@google.com> <20100828235029.GA7071@localhost>
-From: Michael Rubin <mrubin@google.com>
-Date: Mon, 30 Aug 2010 23:09:14 -0700
-Message-ID: <AANLkTi=KjbfqzZsD6MOQG+4i7vHj6ZEh1_nF7DpwqeLV@mail.gmail.com>
-Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in /proc/vmstat
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20100826091346.88eb3ecc.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 28, 2010 at 4:50 PM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> It's silly to have the different names nr_dirtied and pages_cleaned
-> for the same item.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-26 09:13:46]:
 
-I agree. Will fix.
-
-> The output format is quite different from /proc/vmstat.
-> Do we really need to "Node X", ":" and "times" decorations?
-
-Node X is based on the meminfo file but I agree it's redundant information.
-
-> And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
-> the "_page" in node_page_state(). It's a bit long to be a pleasant
-> name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
-
-Yeah. Will fix.
-
-
->> +static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
->> +
->> =A0static ssize_t node_read_distance(struct sys_device * dev,
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct sysdev_attribute *att=
-r, char * buf)
->> =A0{
->> @@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct=
- node *parent)
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysdev_create_file(&node->sysdev, &attr_memi=
-nfo);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysdev_create_file(&node->sysdev, &attr_numa=
-stat);
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 sysdev_create_file(&node->sysdev, &attr_dist=
-ance);
->> + =A0 =A0 =A0 =A0 =A0 =A0 sysdev_create_file(&node->sysdev, &attr_vmstat=
-);
->>
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 scan_unevictable_register_node(node);
->>
->> @@ -267,6 +280,7 @@ void unregister_node(struct node *node)
->> =A0 =A0 =A0 sysdev_remove_file(&node->sysdev, &attr_meminfo);
->> =A0 =A0 =A0 sysdev_remove_file(&node->sysdev, &attr_numastat);
->> =A0 =A0 =A0 sysdev_remove_file(&node->sysdev, &attr_distance);
->> + =A0 =A0 sysdev_remove_file(&node->sysdev, &attr_vmstat);
->>
->> =A0 =A0 =A0 scan_unevictable_unregister_node(node);
->> =A0 =A0 =A0 hugetlb_unregister_node(node); =A0 =A0 =A0 =A0 =A0/* no-op, =
-if memoryless node */
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 6e6e626..d42f179 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -104,6 +104,8 @@ enum zone_stat_item {
->> =A0 =A0 =A0 NR_ISOLATED_ANON, =A0 =A0 =A0 /* Temporary isolated pages fr=
-om anon lru */
->> =A0 =A0 =A0 NR_ISOLATED_FILE, =A0 =A0 =A0 /* Temporary isolated pages fr=
-om file lru */
->> =A0 =A0 =A0 NR_SHMEM, =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* shmem pages (includ=
-ed tmpfs/GEM pages) */
->> + =A0 =A0 NR_FILE_PAGES_DIRTIED, =A0/* number of times pages get dirtied=
- */
->> + =A0 =A0 NR_PAGES_CLEANED, =A0 =A0 =A0 /* number of times pages enter w=
-riteback */
+> On Wed, 25 Aug 2010 19:45:00 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:06:40]:
+> > 
+> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > > 
+> > > Now, css'id is allocated after ->create() is called. But to make use of ID
+> > > in ->create(), it should be available before ->create().
+> > > 
+> > > In another thinking, considering the ID is tightly coupled with "css",
+> > > it should be allocated when "css" is allocated.
+> > > This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
+> > > memory and blkio are useing ID. (To support complicated hierarchy walk.)
+> >                        ^^^^ typo
+> > > 
+> > > ID will be used in mem cgroup's ->create(), later.
+> > > 
+> > > Note:
+> > > If someone changes rules of css allocation, ID allocation should be moved too.
+> > > 
+> > 
+> > What rules? could you please elaborate?
+> > 
+> See Paul Menage's mail. He said "allocating css object under kernel/cgroup.c
+> will make kernel/cgroup.c cleaner." But it seems too big for my purpose.
+> 
+> > Seems cleaner, may be we need to update cgroups.txt?
+> 
+> Hmm. will look into.
 >
-> How about the comments /* accumulated number of pages ... */?
 
-OK.
-May not get patch out today but will incorporate these fixes. Thank you aga=
-in.
+OK, the patch looks good to me otherwise
 
-mrubin
+ 
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
