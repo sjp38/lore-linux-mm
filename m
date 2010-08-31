@@ -1,73 +1,271 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 34B4B6B01F0
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:42 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7V6RLAm022544
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:27:21 -0400
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ADA416B01F0
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:27 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7V6xO8W010937
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:59:24 -0400
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7V6XcdK315114
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:38 -0400
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7V7EN1T1978434
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:23 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7V6XctU020347
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:33:38 -0400
-Date: Tue, 31 Aug 2010 12:03:34 +0530
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7V7EMec006615
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:23 -0400
+Date: Tue, 31 Aug 2010 12:44:14 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/5] cgroup: do ID allocation under css allocator.
-Message-ID: <20100831063334.GM32680@balbir.in.ibm.com>
+Subject: Re: [PATCH 2/5] memcg: quick memcg lookup array
+Message-ID: <20100831071414.GN32680@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
- <20100825170640.5f365629.kamezawa.hiroyu@jp.fujitsu.com>
- <20100825141500.GA32680@balbir.in.ibm.com>
- <20100826091346.88eb3ecc.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100825170741.f1f0a220.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20100826091346.88eb3ecc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100825170741.f1f0a220.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-26 09:13:46]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:07:41]:
 
-> On Wed, 25 Aug 2010 19:45:00 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:06:40]:
-> > 
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > Now, css'id is allocated after ->create() is called. But to make use of ID
-> > > in ->create(), it should be available before ->create().
-> > > 
-> > > In another thinking, considering the ID is tightly coupled with "css",
-> > > it should be allocated when "css" is allocated.
-> > > This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
-> > > memory and blkio are useing ID. (To support complicated hierarchy walk.)
-> >                        ^^^^ typo
-> > > 
-> > > ID will be used in mem cgroup's ->create(), later.
-> > > 
-> > > Note:
-> > > If someone changes rules of css allocation, ID allocation should be moved too.
-> > > 
-> > 
-> > What rules? could you please elaborate?
-> > 
-> See Paul Menage's mail. He said "allocating css object under kernel/cgroup.c
-> will make kernel/cgroup.c cleaner." But it seems too big for my purpose.
+> Now, memory cgroup has an ID per cgroup and make use of it at
+>  - hierarchy walk,
+>  - swap recording.
 > 
-> > Seems cleaner, may be we need to update cgroups.txt?
+> This patch is for making more use of it. The final purpose is
+> to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
 > 
-> Hmm. will look into.
->
+> This patch caches a pointer of memcg in an array. By this, we
+> don't have to call css_lookup() which requires radix-hash walk.
+> This saves some amount of memory footprint at lookup memcg via id.
+> 
+> Changelog: 20100825
+>  - applied comments.
+> 
+> Changelog: 20100811
+>  - adjusted onto mmotm-2010-08-11
+>  - fixed RCU related parts.
+>  - use attach_id() callback.
+> 
+> Changelog: 20100804
+>  - fixed description in init/Kconfig
+> 
+> Changelog: 20100730
+>  - fixed rcu_read_unlock() placement.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  init/Kconfig    |   10 +++++++
+>  mm/memcontrol.c |   75 +++++++++++++++++++++++++++++++++++++++++---------------
+>  2 files changed, 65 insertions(+), 20 deletions(-)
+> 
+> Index: mmotm-0811/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-0811.orig/mm/memcontrol.c
+> +++ mmotm-0811/mm/memcontrol.c
+> @@ -195,6 +195,7 @@ static void mem_cgroup_oom_notify(struct
+>   */
+>  struct mem_cgroup {
+>  	struct cgroup_subsys_state css;
+> +	int	valid; /* for checking validness under RCU access.*/
+>  	/*
+>  	 * the counter to account for memory usage
+>  	 */
+> @@ -294,6 +295,29 @@ static bool move_file(void)
+>  					&mc.to->move_charge_at_immigrate);
+>  }
+> 
+> +/* 0 is unused */
+> +static atomic_t mem_cgroup_num;
+> +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
+> +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+> +
+> +/* Must be called under rcu_read_lock */
+> +static struct mem_cgroup *id_to_memcg(unsigned short id)
+> +{
+> +	struct mem_cgroup *mem;
+> +	/* see mem_cgroup_free() */
+> +	mem = rcu_dereference_check(mem_cgroups[id], rcu_read_lock_held());
+> +	if (likely(mem && mem->valid))
+> +		return mem;
+> +	return NULL;
+> +}
+> +
+> +static void register_memcg_id(struct mem_cgroup *mem)
+> +{
+> +	int id = css_id(&mem->css);
+> +	rcu_assign_pointer(mem_cgroups[id], mem);
+> +	VM_BUG_ON(!mem->valid);
+> +}
+> +
+>  /*
+>   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+>   * limit reclaim to prevent infinite loops, if they ever occur.
+> @@ -1847,18 +1871,7 @@ static void mem_cgroup_cancel_charge(str
+>   * it's concern. (dropping refcnt from swap can be called against removed
+>   * memcg.)
+>   */
+> -static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+> -{
+> -	struct cgroup_subsys_state *css;
+> 
+> -	/* ID 0 is unused ID */
+> -	if (!id)
+> -		return NULL;
+> -	css = css_lookup(&mem_cgroup_subsys, id);
+> -	if (!css)
+> -		return NULL;
+> -	return container_of(css, struct mem_cgroup, css);
+> -}
+> 
+>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  {
+> @@ -1879,7 +1892,7 @@ struct mem_cgroup *try_get_mem_cgroup_fr
+>  		ent.val = page_private(page);
+>  		id = lookup_swap_cgroup(ent);
+>  		rcu_read_lock();
+> -		mem = mem_cgroup_lookup(id);
+> +		mem = id_to_memcg(id);
+>  		if (mem && !css_tryget(&mem->css))
+>  			mem = NULL;
+>  		rcu_read_unlock();
+> @@ -2231,7 +2244,7 @@ __mem_cgroup_commit_charge_swapin(struct
+> 
+>  		id = swap_cgroup_record(ent, 0);
+>  		rcu_read_lock();
+> -		memcg = mem_cgroup_lookup(id);
+> +		memcg = id_to_memcg(id);
+>  		if (memcg) {
+>  			/*
+>  			 * This recorded memcg can be obsolete one. So, avoid
+> @@ -2240,9 +2253,10 @@ __mem_cgroup_commit_charge_swapin(struct
+>  			if (!mem_cgroup_is_root(memcg))
+>  				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  			mem_cgroup_swap_statistics(memcg, false);
+> +			rcu_read_unlock();
+>  			mem_cgroup_put(memcg);
+> -		}
+> -		rcu_read_unlock();
+> +		} else
+> +			rcu_read_unlock();
+>  	}
+>  	/*
+>  	 * At swapin, we may charge account against cgroup which has no tasks.
+> @@ -2495,7 +2509,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
+> 
+>  	id = swap_cgroup_record(ent, 0);
+>  	rcu_read_lock();
+> -	memcg = mem_cgroup_lookup(id);
+> +	memcg = id_to_memcg(id);
+>  	if (memcg) {
+>  		/*
+>  		 * We uncharge this because swap is freed.
+> @@ -2504,9 +2518,10 @@ void mem_cgroup_uncharge_swap(swp_entry_
+>  		if (!mem_cgroup_is_root(memcg))
+>  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  		mem_cgroup_swap_statistics(memcg, false);
+> +		rcu_read_unlock();
+>  		mem_cgroup_put(memcg);
+> -	}
+> -	rcu_read_unlock();
+> +	} else
+> +		rcu_read_unlock();
+>  }
+> 
+>  /**
+> @@ -4010,6 +4025,9 @@ static struct mem_cgroup *mem_cgroup_all
+>  	struct mem_cgroup *mem;
+>  	int size = sizeof(struct mem_cgroup);
+> 
+> +	if (atomic_read(&mem_cgroup_num) == NR_MEMCG_GROUPS)
+> +		return NULL;
+> +
+>  	/* Can be very big if MAX_NUMNODES is very big */
+>  	if (size < PAGE_SIZE)
+>  		mem = kmalloc(size, GFP_KERNEL);
+> @@ -4020,6 +4038,7 @@ static struct mem_cgroup *mem_cgroup_all
+>  		return NULL;
+> 
+>  	memset(mem, 0, size);
+> +	mem->valid = 1;
+>  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
+>  	if (!mem->stat) {
+>  		if (size < PAGE_SIZE)
+> @@ -4049,6 +4068,7 @@ static void __mem_cgroup_free(struct mem
+>  	mem_cgroup_remove_from_trees(mem);
+>  	free_css_id(&mem_cgroup_subsys, &mem->css);
+> 
+> +	atomic_dec(&mem_cgroup_num);
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		free_mem_cgroup_per_zone_info(mem, node);
+> 
+> @@ -4059,6 +4079,19 @@ static void __mem_cgroup_free(struct mem
+>  		vfree(mem);
+>  }
+> 
+> +static void mem_cgroup_free(struct mem_cgroup *mem)
+> +{
+> +	/* No more lookup */
+> +	mem->valid = 0;
+> +	rcu_assign_pointer(mem_cgroups[css_id(&mem->css)], NULL);
+> +	/*
+> +	 * Because we call vfree() etc...use synchronize_rcu() rather than
+> + 	 * call_rcu();
+> + 	 */
+> +	synchronize_rcu();
+> +	__mem_cgroup_free(mem);
+> +}
+> +
+>  static void mem_cgroup_get(struct mem_cgroup *mem)
+>  {
+>  	atomic_inc(&mem->refcnt);
+> @@ -4068,7 +4101,7 @@ static void __mem_cgroup_put(struct mem_
+>  {
+>  	if (atomic_sub_and_test(count, &mem->refcnt)) {
+>  		struct mem_cgroup *parent = parent_mem_cgroup(mem);
+> -		__mem_cgroup_free(mem);
+> +		mem_cgroup_free(mem);
+>  		if (parent)
+>  			mem_cgroup_put(parent);
+>  	}
+> @@ -4189,9 +4222,11 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	atomic_set(&mem->refcnt, 1);
+>  	mem->move_charge_at_immigrate = 0;
+>  	mutex_init(&mem->thresholds_lock);
+> +	atomic_inc(&mem_cgroup_num);
+> +	register_memcg_id(mem);
+>  	return &mem->css;
+>  free_out:
+> -	__mem_cgroup_free(mem);
+> +	mem_cgroup_free(mem);
+>  	root_mem_cgroup = NULL;
+>  	return ERR_PTR(error);
+>  }
+> Index: mmotm-0811/init/Kconfig
+> ===================================================================
+> --- mmotm-0811.orig/init/Kconfig
+> +++ mmotm-0811/init/Kconfig
+> @@ -594,6 +594,16 @@ config CGROUP_MEM_RES_CTLR_SWAP
+>  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+>  	  size is 4096bytes, 512k per 1Gbytes of swap.
+> 
+> +config MEM_CGROUP_MAX_GROUPS
+> +	int "Maximum number of memory cgroups on a system"
+> +	range 1 65535
+> +	default 8192 if 64BIT
+> +	default 2048 if 32BIT
+> +	help
+> +	  Memory cgroup has limitation of the number of groups created.
+> +	  Please select your favorite value. The more you allow, the more
+> +	  memory(a pointer per group) will be consumed.
+> +
 
-OK, the patch looks good to me otherwise
-
- 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+Looks good, quick thought - should we expost memcg->id to user space
+through a config file? I don't see any reason at this point, unless we
+do it for all controllers.
 
 -- 
 	Three Cheers,
