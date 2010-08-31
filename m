@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id ECA366B01F0
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 21:07:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7V17Yks022564
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 31 Aug 2010 10:07:34 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 60CF045DE50
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 10:07:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CAE245DE4E
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 10:07:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2557A1DB804B
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 10:07:34 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CF9071DB8047
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 10:07:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] writeback: Reporting dirty thresholds in /proc/vmstat
-In-Reply-To: <AANLkTimLwv04pvuz_AtSK3ASr-epD0PeA-vOCigFH8+0@mail.gmail.com>
-References: <20100830092446.524B.A69D9226@jp.fujitsu.com> <AANLkTimLwv04pvuz_AtSK3ASr-epD0PeA-vOCigFH8+0@mail.gmail.com>
-Message-Id: <20100831095932.87CD.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E15136B01F0
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 21:10:19 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so7436373iwn.14
+        for <linux-mm@kvack.org>; Mon, 30 Aug 2010 18:10:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 31 Aug 2010 10:07:32 +0900 (JST)
+In-Reply-To: <20100831095542.87CA.A69D9226@jp.fujitsu.com>
+References: <AANLkTinqm0o=AfmgFy+SpZ1mrdekRnjeXvs_7=OcLii8@mail.gmail.com>
+	<AANLkTikbs9sUVLhE4sWWVw8uEqY=v6SCdJ_6FLhXY6HW@mail.gmail.com>
+	<20100831095542.87CA.A69D9226@jp.fujitsu.com>
+Date: Tue, 31 Aug 2010 10:10:17 +0900
+Message-ID: <AANLkTi=NsY9T19rXuBWmeZ3Z2ayA=tHZ1+e=cEXuKVAt@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap system
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Sun, Aug 29, 2010 at 5:28 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > afaict, you and wu agreed /debug/bdi/default/stats is enough good.
-> > why do you change your mention?
-> 
-> I commented on this in the 0/4 email of the bug. I think these belong
-> in /proc/vmstat but I saw they exist in /debug/bdi/default/stats. I
-> figure they will probably not be accepted but I thought it was worth
-> attaching for consideration of upgrading from debugfs to /proc.
+Hi, KOSAKI.
 
-For reviewers view, we are reviewing your patch to merge immediately if all issue are fixed.
-Then, I'm unhappy if you don't drop merge blocker item even though you merely want asking.
-At least, you can make separate thread, no?
+On Tue, Aug 31, 2010 at 9:56 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 1b145e6..0b8a3ce 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1747,7 +1747,7 @@ static void shrink_zone(int priority, struct zone =
+*zone,
+>> =A0 =A0 =A0 =A0 =A0* Even if we did not try to evict anon pages at all, =
+we want to
+>> =A0 =A0 =A0 =A0 =A0* rebalance the anon lru active/inactive ratio.
+>> =A0 =A0 =A0 =A0 =A0*/
+>> - =A0 =A0 =A0 if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
+>> + =A0 =A0 =A0 if (nr_swap_pges > 0 && inactive_anon_is_low(zone, sc))
+>
+> Sorry, I don't find any difference. What is your intention?
+>
 
-Of cource, wen other user also want to expose via /proc interface, we are resume
-this discusstion gradly.
+My intention is that smart gcc can compile out inactive_anon_is_low
+call in case of non swap configurable system.
 
-
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
