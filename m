@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D940D6B0047
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 18:02:45 -0400 (EDT)
-Date: Wed, 1 Sep 2010 07:57:45 +1000
-From: Anton Blanchard <anton@samba.org>
-Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
- sections
-Message-ID: <20100831215745.GA7641@kryten>
-References: <4C60407C.2080608@austin.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id AEA856B0047
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 18:38:41 -0400 (EDT)
+Date: Tue, 31 Aug 2010 15:37:39 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 00/10] zram: various improvements and cleanups
+Message-ID: <20100831223739.GA345@kroah.com>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C60407C.2080608@austin.ibm.com>
+In-Reply-To: <1281374816-904-1-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, akpm@linux-foundation.org
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-
-Hi Nathan,
-
-> This set of patches de-couples the idea that there is a single
-> directory in sysfs for each memory section.  The intent of the
-> patches is to reduce the number of sysfs directories created to
-> resolve a boot-time performance issue.  On very large systems
-> boot time are getting very long (as seen on powerpc hardware)
-> due to the enormous number of sysfs directories being created.
-> On a system with 1 TB of memory we create ~63,000 directories.
-> For even larger systems boot times are being measured in hours.
+On Mon, Aug 09, 2010 at 10:56:46PM +0530, Nitin Gupta wrote:
+> The zram module creates RAM based block devices named /dev/zram<id>
+> (<id> = 0, 1, ...). Pages written to these disks are compressed and stored
+> in memory itself.
 > 
-> This set of patches allows for each directory created in sysfs
-> to cover more than one memory section.  The default behavior for
-> sysfs directory creation is the same, in that each directory
-> represents a single memory section.  A new file 'end_phys_index'
-> in each directory contains the physical_id of the last memory
-> section covered by the directory so that users can easily
-> determine the memory section range of a directory.
+> One of the major changes done is the replacement of ioctls with sysfs
+> interface. One of the advantages of this approach is we no longer depend on the
+> userspace tool (rzscontrol) which was used to set various parameters and check
+> statistics. Maintaining updated version of rzscontrol as changes were done to
+> ioctls, statistics exported etc. was a major pain.
+> 
+> Another significant change is the introduction of percpu stats and compression
+> buffers. Earlier, we had per-device buffers protected by a mutex. This was a
+> major bottleneck on multi-core systems. With these changes, benchmarks with
+> fio[1] showed a speedup of about 20% for write performance on dual-core
+> system (see patch 4/10 description for details).
+> 
+> 
+> For easier testing, a single patch against 2.6.35-git8 has been uploaded at:
+> http://compcache.googlecode.com/hg/sub-projects/mainline/zram_2.6.36-rc0.patch
 
-I tested this on a POWER7 with 2TB memory and the boot time improved from
-greater than 6 hours (I gave up), to under 5 minutes. Nice!
+I applied the first 2 and last 2 of these patches and they will show up
+in the linux-next tree tomorrow.  I stopped there due to Andrew's
+complaints about the per-cpu variable stuff.  Please resolve this and
+redo the patch set and I will be glad to apply them.
 
-Tested-by: Anton Blanchard <anton@samba.org>
+thanks,
 
-Anton
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
