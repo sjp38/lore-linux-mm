@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 923C66B01F1
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 14:19:05 -0400 (EDT)
-Date: Tue, 31 Aug 2010 13:17:44 -0500 (CDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8A9A26B01F1
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 14:21:54 -0400 (EDT)
+Date: Tue, 31 Aug 2010 13:20:45 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters after
- pages are placed on the free list
-In-Reply-To: <1283276257-1793-2-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1008311317160.867@router.home>
-References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+In-Reply-To: <1283276257-1793-3-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1008311320340.867@router.home>
+References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-3-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,11 +17,7 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@v
 List-ID: <linux-mm.kvack.org>
 
 
-I already did a
-
 Reviewed-by: Christoph Lameter <cl@linux.com>
-
-I believe?
 
 
 --
