@@ -1,275 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA416B01F0
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:27 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o7V6xO8W010937
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 02:59:24 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o7V7EN1T1978434
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:23 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o7V7EMec006615
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:14:23 -0400
-Date: Tue, 31 Aug 2010 12:44:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/5] memcg: quick memcg lookup array
-Message-ID: <20100831071414.GN32680@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
- <20100825170741.f1f0a220.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4C8A06B01F0
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 03:48:45 -0400 (EDT)
+Date: Tue, 31 Aug 2010 15:48:25 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in
+ /proc/vmstat
+Message-ID: <20100831074825.GA19358@localhost>
+References: <1282963227-31867-1-git-send-email-mrubin@google.com>
+ <1282963227-31867-4-git-send-email-mrubin@google.com>
+ <20100828235029.GA7071@localhost>
+ <AANLkTi=KjbfqzZsD6MOQG+4i7vHj6ZEh1_nF7DpwqeLV@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100825170741.f1f0a220.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <AANLkTi=KjbfqzZsD6MOQG+4i7vHj6ZEh1_nF7DpwqeLV@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Michael Rubin <mrubin@google.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-08-25 17:07:41]:
+> > The output format is quite different from /proc/vmstat.
+> > Do we really need to "Node X", ":" and "times" decorations?
+> 
+> Node X is based on the meminfo file but I agree it's redundant information.
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, memory cgroup has an ID per cgroup and make use of it at
->  - hierarchy walk,
->  - swap recording.
-> 
-> This patch is for making more use of it. The final purpose is
-> to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
-> 
-> This patch caches a pointer of memcg in an array. By this, we
-> don't have to call css_lookup() which requires radix-hash walk.
-> This saves some amount of memory footprint at lookup memcg via id.
-> 
-> Changelog: 20100825
->  - applied comments.
-> 
-> Changelog: 20100811
->  - adjusted onto mmotm-2010-08-11
->  - fixed RCU related parts.
->  - use attach_id() callback.
-> 
-> Changelog: 20100804
->  - fixed description in init/Kconfig
-> 
-> Changelog: 20100730
->  - fixed rcu_read_unlock() placement.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  init/Kconfig    |   10 +++++++
->  mm/memcontrol.c |   75 +++++++++++++++++++++++++++++++++++++++++---------------
->  2 files changed, 65 insertions(+), 20 deletions(-)
-> 
-> Index: mmotm-0811/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0811.orig/mm/memcontrol.c
-> +++ mmotm-0811/mm/memcontrol.c
-> @@ -195,6 +195,7 @@ static void mem_cgroup_oom_notify(struct
->   */
->  struct mem_cgroup {
->  	struct cgroup_subsys_state css;
-> +	int	valid; /* for checking validness under RCU access.*/
->  	/*
->  	 * the counter to account for memory usage
->  	 */
-> @@ -294,6 +295,29 @@ static bool move_file(void)
->  					&mc.to->move_charge_at_immigrate);
->  }
-> 
-> +/* 0 is unused */
-> +static atomic_t mem_cgroup_num;
-> +#define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
-> +static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
-> +
-> +/* Must be called under rcu_read_lock */
-> +static struct mem_cgroup *id_to_memcg(unsigned short id)
-> +{
-> +	struct mem_cgroup *mem;
-> +	/* see mem_cgroup_free() */
-> +	mem = rcu_dereference_check(mem_cgroups[id], rcu_read_lock_held());
-> +	if (likely(mem && mem->valid))
-> +		return mem;
-> +	return NULL;
-> +}
-> +
-> +static void register_memcg_id(struct mem_cgroup *mem)
-> +{
-> +	int id = css_id(&mem->css);
-> +	rcu_assign_pointer(mem_cgroups[id], mem);
-> +	VM_BUG_ON(!mem->valid);
-> +}
-> +
->  /*
->   * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
->   * limit reclaim to prevent infinite loops, if they ever occur.
-> @@ -1847,18 +1871,7 @@ static void mem_cgroup_cancel_charge(str
->   * it's concern. (dropping refcnt from swap can be called against removed
->   * memcg.)
->   */
-> -static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
-> -{
-> -	struct cgroup_subsys_state *css;
-> 
-> -	/* ID 0 is unused ID */
-> -	if (!id)
-> -		return NULL;
-> -	css = css_lookup(&mem_cgroup_subsys, id);
-> -	if (!css)
-> -		return NULL;
-> -	return container_of(css, struct mem_cgroup, css);
-> -}
-> 
->  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
->  {
-> @@ -1879,7 +1892,7 @@ struct mem_cgroup *try_get_mem_cgroup_fr
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup(ent);
->  		rcu_read_lock();
-> -		mem = mem_cgroup_lookup(id);
-> +		mem = id_to_memcg(id);
->  		if (mem && !css_tryget(&mem->css))
->  			mem = NULL;
->  		rcu_read_unlock();
-> @@ -2231,7 +2244,7 @@ __mem_cgroup_commit_charge_swapin(struct
-> 
->  		id = swap_cgroup_record(ent, 0);
->  		rcu_read_lock();
-> -		memcg = mem_cgroup_lookup(id);
-> +		memcg = id_to_memcg(id);
->  		if (memcg) {
->  			/*
->  			 * This recorded memcg can be obsolete one. So, avoid
-> @@ -2240,9 +2253,10 @@ __mem_cgroup_commit_charge_swapin(struct
->  			if (!mem_cgroup_is_root(memcg))
->  				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
->  			mem_cgroup_swap_statistics(memcg, false);
-> +			rcu_read_unlock();
->  			mem_cgroup_put(memcg);
-> -		}
-> -		rcu_read_unlock();
-> +		} else
-> +			rcu_read_unlock();
->  	}
->  	/*
->  	 * At swapin, we may charge account against cgroup which has no tasks.
-> @@ -2495,7 +2509,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
-> 
->  	id = swap_cgroup_record(ent, 0);
->  	rcu_read_lock();
-> -	memcg = mem_cgroup_lookup(id);
-> +	memcg = id_to_memcg(id);
->  	if (memcg) {
->  		/*
->  		 * We uncharge this because swap is freed.
-> @@ -2504,9 +2518,10 @@ void mem_cgroup_uncharge_swap(swp_entry_
->  		if (!mem_cgroup_is_root(memcg))
->  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
->  		mem_cgroup_swap_statistics(memcg, false);
-> +		rcu_read_unlock();
->  		mem_cgroup_put(memcg);
-> -	}
-> -	rcu_read_unlock();
-> +	} else
-> +		rcu_read_unlock();
->  }
-> 
->  /**
-> @@ -4010,6 +4025,9 @@ static struct mem_cgroup *mem_cgroup_all
->  	struct mem_cgroup *mem;
->  	int size = sizeof(struct mem_cgroup);
-> 
-> +	if (atomic_read(&mem_cgroup_num) == NR_MEMCG_GROUPS)
-> +		return NULL;
-> +
->  	/* Can be very big if MAX_NUMNODES is very big */
->  	if (size < PAGE_SIZE)
->  		mem = kmalloc(size, GFP_KERNEL);
-> @@ -4020,6 +4038,7 @@ static struct mem_cgroup *mem_cgroup_all
->  		return NULL;
-> 
->  	memset(mem, 0, size);
-> +	mem->valid = 1;
->  	mem->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
->  	if (!mem->stat) {
->  		if (size < PAGE_SIZE)
-> @@ -4049,6 +4068,7 @@ static void __mem_cgroup_free(struct mem
->  	mem_cgroup_remove_from_trees(mem);
->  	free_css_id(&mem_cgroup_subsys, &mem->css);
-> 
-> +	atomic_dec(&mem_cgroup_num);
->  	for_each_node_state(node, N_POSSIBLE)
->  		free_mem_cgroup_per_zone_info(mem, node);
-> 
-> @@ -4059,6 +4079,19 @@ static void __mem_cgroup_free(struct mem
->  		vfree(mem);
->  }
-> 
-> +static void mem_cgroup_free(struct mem_cgroup *mem)
-> +{
-> +	/* No more lookup */
-> +	mem->valid = 0;
-> +	rcu_assign_pointer(mem_cgroups[css_id(&mem->css)], NULL);
-> +	/*
-> +	 * Because we call vfree() etc...use synchronize_rcu() rather than
-> + 	 * call_rcu();
-> + 	 */
-> +	synchronize_rcu();
-> +	__mem_cgroup_free(mem);
-> +}
-> +
->  static void mem_cgroup_get(struct mem_cgroup *mem)
->  {
->  	atomic_inc(&mem->refcnt);
-> @@ -4068,7 +4101,7 @@ static void __mem_cgroup_put(struct mem_
->  {
->  	if (atomic_sub_and_test(count, &mem->refcnt)) {
->  		struct mem_cgroup *parent = parent_mem_cgroup(mem);
-> -		__mem_cgroup_free(mem);
-> +		mem_cgroup_free(mem);
->  		if (parent)
->  			mem_cgroup_put(parent);
->  	}
-> @@ -4189,9 +4222,11 @@ mem_cgroup_create(struct cgroup_subsys *
->  	atomic_set(&mem->refcnt, 1);
->  	mem->move_charge_at_immigrate = 0;
->  	mutex_init(&mem->thresholds_lock);
-> +	atomic_inc(&mem_cgroup_num);
-> +	register_memcg_id(mem);
->  	return &mem->css;
->  free_out:
-> -	__mem_cgroup_free(mem);
-> +	mem_cgroup_free(mem);
->  	root_mem_cgroup = NULL;
->  	return ERR_PTR(error);
->  }
-> Index: mmotm-0811/init/Kconfig
-> ===================================================================
-> --- mmotm-0811.orig/init/Kconfig
-> +++ mmotm-0811/init/Kconfig
-> @@ -594,6 +594,16 @@ config CGROUP_MEM_RES_CTLR_SWAP
->  	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
->  	  size is 4096bytes, 512k per 1Gbytes of swap.
-> 
-> +config MEM_CGROUP_MAX_GROUPS
-> +	int "Maximum number of memory cgroups on a system"
-> +	range 1 65535
-> +	default 8192 if 64BIT
-> +	default 2048 if 32BIT
-> +	help
-> +	  Memory cgroup has limitation of the number of groups created.
-> +	  Please select your favorite value. The more you allow, the more
-> +	  memory(a pointer per group) will be consumed.
-> +
+Thanks. In the same directory you can find a different style example
+/sys/devices/system/node/node0/numastat :) If ever the file was named
+vmstat! In the other hand, shall we put the numbers there? I'm confused..
 
-Looks good, quick thought - should we expost memcg->id to user space
-through a config file? I don't see any reason at this point, unless we
-do it for all controllers.
+> > And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
+> > the "_page" in node_page_state(). It's a bit long to be a pleasant
+> > name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
+> 
+> Yeah. Will fix.
 
--- 
-	Three Cheers,
-	Balbir
+Thanks. This is kind of nitpick, however here is another name by
+Jan Kara: BDI_WRITTEN. BDI_WRITTEN may not be a lot better than
+BDI_CLEANED, but here is a patch based on Jan's code. I'm cooking
+more patches that make use of this per-bdi counter to estimate the
+bdi's write bandwidth, and to further decide the optimal (large)
+writeback chunk size as well as to do IO-less balance_dirty_pages().
+
+Basically BDI_WRITTEN and NR_CLEANED are accounting for the same
+thing in different dimensions. So it would be good if we can use
+the same naming scheme to avoid confusing users: either to use
+BDI_WRITTEN and NR_WRITTEN, or use BDI_CLEANED and NR_CLEANED.
+What's your opinion?
+
+Thanks,
+Fengguang
+
+---
+writeback: account per-bdi accumulated written pages
+
+This steals code from Jan's balance_dirty_pages() patch.
+
+Signed-off-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/backing-dev.h |    1 +
+ mm/backing-dev.c            |    6 ++++--
+ mm/page-writeback.c         |    1 +
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+--- linux-next.orig/include/linux/backing-dev.h	2010-08-29 23:32:46.000000000 +0800
++++ linux-next/include/linux/backing-dev.h	2010-08-29 23:52:50.000000000 +0800
+@@ -40,6 +40,7 @@ typedef int (congested_fn)(void *, int);
+ enum bdi_stat_item {
+ 	BDI_RECLAIMABLE,
+ 	BDI_WRITEBACK,
++	BDI_WRITTEN,
+ 	NR_BDI_STAT_ITEMS
+ };
+ 
+--- linux-next.orig/mm/backing-dev.c	2010-08-29 23:32:46.000000000 +0800
++++ linux-next/mm/backing-dev.c	2010-08-29 23:52:50.000000000 +0800
+@@ -91,6 +91,7 @@ static int bdi_debug_stats_show(struct s
+ 		   "BdiDirtyThresh:   %8lu kB\n"
+ 		   "DirtyThresh:      %8lu kB\n"
+ 		   "BackgroundThresh: %8lu kB\n"
++		   "BdiWritten:       %8lu kB\n"
+ 		   "b_dirty:          %8lu\n"
+ 		   "b_io:             %8lu\n"
+ 		   "b_more_io:        %8lu\n"
+@@ -98,8 +99,9 @@ static int bdi_debug_stats_show(struct s
+ 		   "state:            %8lx\n",
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+ 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+-		   K(bdi_thresh), K(dirty_thresh),
+-		   K(background_thresh), nr_dirty, nr_io, nr_more_io,
++		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
++		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
++		   nr_dirty, nr_io, nr_more_io,
+ 		   !list_empty(&bdi->bdi_list), bdi->state);
+ #undef K
+ 
+--- linux-next.orig/mm/page-writeback.c	2010-08-29 23:52:47.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-29 23:52:50.000000000 +0800
+@@ -1305,6 +1305,7 @@ int test_clear_page_writeback(struct pag
+ 						PAGECACHE_TAG_WRITEBACK);
+ 			if (bdi_cap_account_writeback(bdi)) {
+ 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
++				__inc_bdi_stat(bdi, BDI_WRITTEN);
+ 				__bdi_writeout_inc(bdi);
+ 			}
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
