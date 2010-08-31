@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A11166B01F0
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 19:53:16 -0400 (EDT)
-Received: by gxk9 with SMTP id 9so2880661gxk.14
-        for <linux-mm@kvack.org>; Mon, 30 Aug 2010 16:53:17 -0700 (PDT)
-Date: Tue, 31 Aug 2010 07:53:06 +0800
-From: Wu Fengguang <fengguang.wu@gmail.com>
-Subject: Re: why are WB_SYNC_NONE COMMITs being done with FLUSH_SYNC set ?
-Message-ID: <20100830235306.GA5202@localhost>
-References: <20100819101525.076831ad@barsoom.rdu.redhat.com>
- <20100819143710.GA4752@infradead.org>
- <1282229905.6199.19.camel@heimdal.trondhjem.org>
- <20100819151618.5f769dc9@tlielax.poochiereds.net>
- <1282246999.7799.66.camel@heimdal.trondhjem.org>
- <20100820132309.GB20126@localhost>
- <1283196174.2920.4.camel@heimdal.trondhjem.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2D16B01F0
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 20:43:18 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <dbb9f012-c09a-438f-99d0-4fbc40428f58@default>
+Date: Mon, 30 Aug 2010 17:40:42 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V4 3/8] Cleancache: core ops functions and configuration
+References: <20100830223133.GA1272@ca-server1.us.oracle.com
+ 4C7C3521.7090403@goop.org>
+In-Reply-To: <4C7C3521.7090403@goop.org>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1283196174.2920.4.camel@heimdal.trondhjem.org>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Jeff Layton <jlayton@redhat.com>, Christoph Hellwig <hch@infradead.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 30, 2010 at 03:22:54PM -0400, Trond Myklebust wrote:
-> On Fri, 2010-08-20 at 21:23 +0800, Wu Fengguang wrote:
-> > > > Here's a lightly tested patch that turns the check for the two flags
-> > > > into a check for WB_SYNC_NONE. It seems to do the right thing, but I
-> > > > don't have a clear testcase for it. Does this look reasonable?
-> > > 
-> > > Looks fine to me. I'll queue it up for the post-2.6.36 merge window...
-> > 
-> > Trond, I just created a patch that removes the wbc->nonblocking
-> > definition and all its references except NFS. So there will be merge
-> > dependencies. What should we do?  To push both patches to Andrew's -mm
-> > tree?
-> > 
-> > Thanks,
-> > Fengguang
-> 
-> Do you want to include it as part of your series? Just remember to add
-> an
-> 
-> Acked-by: Trond Myklebust <Trond.Myklebust@netapp.com>
+> > +#ifdef CONFIG_CLEANCACHE
+> > +#define cleancache_enabled (cleancache_ops.init_fs)
+>=20
+> Pointers can be used in a boolean context, but it would probably be
+> cleaner to have this evaluate to a proper boolean type.  Also I'd
+> probably go with an all-caps macro name rather than making it look like
+> a variable.
 
-Thanks. Please keep the NFS patches in your tree. I've send a patch
-to Andrew Morton which removes the other references but keeps the
-definitions. So that there won't be compile errors when the patches
-are pushed at different time.
+OK, thanks, will fix.
+=20
+> > +/* useful stats available in /sys/kernel/mm/cleancache */
+> > +static unsigned long succ_gets;
+> > +static unsigned long failed_gets;
+> > +static unsigned long puts;
+> > +static unsigned long flushes;
+>=20
+> I'd probably give these very generic-sounding names some slightly
+> unique
+> prefix just to help out people looking at "nm" output or using ctags.
+>=20
+> > +static int get_key(struct inode *inode, struct cleancache_filekey
+> *key)
+>=20
+> Ditto.
 
-Thanks,
-Fengguang
+OK, will do.
+
+Thanks for the feedback!
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
