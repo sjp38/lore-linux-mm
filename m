@@ -1,132 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5644C6B007B
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 15:40:55 -0400 (EDT)
-Message-Id: <20100831193924.102875973@chello.nl>
-Date: Tue, 31 Aug 2010 21:26:18 +0200
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [RFC][PATCH 1/5] mm: strictly nested kmap_atomic
-References: <20100831192617.441439071@chello.nl>
-Content-Disposition: inline; filename=kmap-2.patch
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9BD716B007B
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 16:31:10 -0400 (EDT)
+Received: by gwj16 with SMTP id 16so3582928gwj.14
+        for <linux-mm@kvack.org>; Tue, 31 Aug 2010 13:31:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1008301114460.10316@router.home>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	<1281374816-904-4-git-send-email-ngupta@vflare.org>
+	<alpine.DEB.2.00.1008301114460.10316@router.home>
+Date: Tue, 31 Aug 2010 16:31:08 -0400
+Message-ID: <AANLkTikdhnr12uU8Wp60BygZwH770RBfxyfLNMzUsQje@mail.gmail.com>
+Subject: Re: [PATCH 03/10] Use percpu stats
+From: Nitin Gupta <ngupta@vflare.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Ensure kmap_atomic usage is strictly nested
+On Mon, Aug 30, 2010 at 12:20 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Mon, 9 Aug 2010, Nitin Gupta wrote:
+>
+>> -static void zram_stat_inc(u32 *v)
+>> +static void zram_add_stat(struct zram *zram,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 enum zram_stats_index idx, s64=
+ val)
+>> =A0{
+>> - =A0 =A0 *v =3D *v + 1;
+>> + =A0 =A0 struct zram_stats_cpu *stats;
+>> +
+>> + =A0 =A0 preempt_disable();
+>> + =A0 =A0 stats =3D __this_cpu_ptr(zram->stats);
+>> + =A0 =A0 u64_stats_update_begin(&stats->syncp);
+>> + =A0 =A0 stats->count[idx] +=3D val;
+>> + =A0 =A0 u64_stats_update_end(&stats->syncp);
+>> + =A0 =A0 preempt_enable();
+>
+> Maybe do
+>
+> #define zram_add_stat(zram, index, val)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0this_cpu_add(zram->stats->count[index], va=
+l)
+>
+> instead? It creates an add in a single "atomic" per cpu instruction and
+> deals with the fallback scenarios for processors that cannot handle 64
+> bit adds.
+>
+>
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Reviewed-by: Rik van Riel <riel@redhat.com>
----
- crypto/async_tx/async_memcpy.c |    2 +-
- crypto/blkcipher.c             |    2 +-
- drivers/block/loop.c           |    4 ++--
- include/linux/highmem.h        |    4 ++--
- kernel/power/snapshot.c        |    4 ++--
- 5 files changed, 8 insertions(+), 8 deletions(-)
+Yes, this_cpu_add() seems sufficient. I can't recall why I used u64_stats_*
+but if it's not required for atomic access to 64-bit then why was it added =
+to
+the mainline in the first place?
 
-Index: linux-2.6/crypto/async_tx/async_memcpy.c
-===================================================================
---- linux-2.6.orig/crypto/async_tx/async_memcpy.c
-+++ linux-2.6/crypto/async_tx/async_memcpy.c
-@@ -83,8 +83,8 @@ async_memcpy(struct page *dest, struct p
- 
- 		memcpy(dest_buf, src_buf, len);
- 
--		kunmap_atomic(dest_buf, KM_USER0);
- 		kunmap_atomic(src_buf, KM_USER1);
-+		kunmap_atomic(dest_buf, KM_USER0);
- 
- 		async_tx_sync_epilog(submit);
- 	}
-Index: linux-2.6/crypto/blkcipher.c
-===================================================================
---- linux-2.6.orig/crypto/blkcipher.c
-+++ linux-2.6/crypto/blkcipher.c
-@@ -89,9 +89,9 @@ static inline unsigned int blkcipher_don
- 		memcpy(walk->dst.virt.addr, walk->page, n);
- 		blkcipher_unmap_dst(walk);
- 	} else if (!(walk->flags & BLKCIPHER_WALK_PHYS)) {
--		blkcipher_unmap_src(walk);
- 		if (walk->flags & BLKCIPHER_WALK_DIFF)
- 			blkcipher_unmap_dst(walk);
-+		blkcipher_unmap_src(walk);
- 	}
- 
- 	scatterwalk_advance(&walk->in, n);
-Index: linux-2.6/drivers/block/loop.c
-===================================================================
---- linux-2.6.orig/drivers/block/loop.c
-+++ linux-2.6/drivers/block/loop.c
-@@ -99,8 +99,8 @@ static int transfer_none(struct loop_dev
- 	else
- 		memcpy(raw_buf, loop_buf, size);
- 
--	kunmap_atomic(raw_buf, KM_USER0);
- 	kunmap_atomic(loop_buf, KM_USER1);
-+	kunmap_atomic(raw_buf, KM_USER0);
- 	cond_resched();
- 	return 0;
- }
-@@ -128,8 +128,8 @@ static int transfer_xor(struct loop_devi
- 	for (i = 0; i < size; i++)
- 		*out++ = *in++ ^ key[(i & 511) % keysize];
- 
--	kunmap_atomic(raw_buf, KM_USER0);
- 	kunmap_atomic(loop_buf, KM_USER1);
-+	kunmap_atomic(raw_buf, KM_USER0);
- 	cond_resched();
- 	return 0;
- }
-Index: linux-2.6/include/linux/highmem.h
-===================================================================
---- linux-2.6.orig/include/linux/highmem.h
-+++ linux-2.6/include/linux/highmem.h
-@@ -191,8 +191,8 @@ static inline void copy_user_highpage(st
- 	vfrom = kmap_atomic(from, KM_USER0);
- 	vto = kmap_atomic(to, KM_USER1);
- 	copy_user_page(vto, vfrom, vaddr, to);
--	kunmap_atomic(vfrom, KM_USER0);
- 	kunmap_atomic(vto, KM_USER1);
-+	kunmap_atomic(vfrom, KM_USER0);
- }
- 
- #endif
-@@ -204,8 +204,8 @@ static inline void copy_highpage(struct 
- 	vfrom = kmap_atomic(from, KM_USER0);
- 	vto = kmap_atomic(to, KM_USER1);
- 	copy_page(vto, vfrom);
--	kunmap_atomic(vfrom, KM_USER0);
- 	kunmap_atomic(vto, KM_USER1);
-+	kunmap_atomic(vfrom, KM_USER0);
- }
- 
- #endif /* _LINUX_HIGHMEM_H */
-Index: linux-2.6/kernel/power/snapshot.c
-===================================================================
---- linux-2.6.orig/kernel/power/snapshot.c
-+++ linux-2.6/kernel/power/snapshot.c
-@@ -978,8 +978,8 @@ static void copy_data_page(unsigned long
- 		src = kmap_atomic(s_page, KM_USER0);
- 		dst = kmap_atomic(d_page, KM_USER1);
- 		do_copy_page(dst, src);
--		kunmap_atomic(src, KM_USER0);
- 		kunmap_atomic(dst, KM_USER1);
-+		kunmap_atomic(src, KM_USER0);
- 	} else {
- 		if (PageHighMem(d_page)) {
- 			/* Page pointed to by src may contain some kernel
-@@ -2253,8 +2253,8 @@ swap_two_pages_data(struct page *p1, str
- 	memcpy(buf, kaddr1, PAGE_SIZE);
- 	memcpy(kaddr1, kaddr2, PAGE_SIZE);
- 	memcpy(kaddr2, buf, PAGE_SIZE);
--	kunmap_atomic(kaddr1, KM_USER0);
- 	kunmap_atomic(kaddr2, KM_USER1);
-+	kunmap_atomic(kaddr1, KM_USER0);
- }
- 
- /**
-
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
