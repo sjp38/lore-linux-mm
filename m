@@ -1,47 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 67CEF6B01F0
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 22:16:30 -0400 (EDT)
-Date: Tue, 31 Aug 2010 11:14:48 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 3/5] memcg: use ID instead of pointer in page_cgroup
-Message-Id: <20100831111448.259e2d8c.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100825170900.3feababc.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100825170900.3feababc.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 94B376B01F0
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 22:31:02 -0400 (EDT)
+Message-ID: <4C7C6959.3030801@redhat.com>
+Date: Mon, 30 Aug 2010 22:30:49 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap
+ system
+References: <AANLkTi==mQh31PzuNa1efH2WM1s-VPKyZX0f5iwb54PD@mail.gmail.com>	<AANLkTinqm0o=AfmgFy+SpZ1mrdekRnjeXvs_7=OcLii8@mail.gmail.com>	<20100831095140.87C7.A69D9226@jp.fujitsu.com> <AANLkTin4-NomOoNFYCKgi7oE+MCUiC0o0ftAkOwLKez_@mail.gmail.com>
+In-Reply-To: <AANLkTin4-NomOoNFYCKgi7oE+MCUiC0o0ftAkOwLKez_@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Aug 2010 17:09:00 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On 08/30/2010 09:23 PM, Minchan Kim wrote:
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, addresses of memory cgroup can be calculated by their ID without complex.
-> This patch relplaces pc->mem_cgroup from a pointer to a unsigned short.
-> On 64bit architecture, this offers us more 6bytes room per page_cgroup.
-> Use 2bytes for blkio-cgroup's page tracking. More 4bytes will be used for
-> some light-weight concurrent access.
-> 
-> We may able to move this id onto flags field but ...go step by step.
-> 
-> Changelog: 20100824
->  - fixed comments, and typo.
-> Changelog: 20100811
->  - using new rcu APIs, as rcu_dereference_check() etc.
-> Changelog: 20100804
->  - added comments to page_cgroup.h
-> Changelog: 20100730
->  - fixed some garbage added by debug code in early stage
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Ying's one and mine both has a same effect.
+> Only difference happens swap is full. My version maintains old
+> behavior but Ying's one changes the behavior. I admit swap full is
+> rare event but I hoped not changed old behavior if we doesn't find any
+> problem.
+> If kswapd does aging when swap full happens, is it a problem?
 
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+It may be a good thing, since swap will often be freed again
+(when something is swapped in, or exits).
+
+Having some more anonymous pages sit on the inactive list
+gives them a chance to get used again, potentially giving
+us a better chance of preserving the working set when swap
+is full or near full a lot of the time.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
