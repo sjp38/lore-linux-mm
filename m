@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 111A16B01F0
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 00:35:24 -0400 (EDT)
-Date: Tue, 31 Aug 2010 13:33:29 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 5/5] memcg: generic file stat accounting interface
-Message-Id: <20100831133329.3c54b214.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20100825171140.69c1661a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100825171140.69c1661a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A17336B01F0
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 01:39:55 -0400 (EDT)
+Date: Tue, 31 Aug 2010 15:36:13 +1000
+From: Anton Blanchard <anton@samba.org>
+Subject: Re: [PATCH 03/10] Use percpu stats
+Message-ID: <20100831053613.GA14848@kryten>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+ <1281374816-904-4-git-send-email-ngupta@vflare.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1281374816-904-4-git-send-email-ngupta@vflare.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Aug 2010 17:11:40 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Preparing for adding new status arounf file caches.(dirty, writeback,etc..)
-> Using a unified macro and more generic names.
-> All counters will have the same rule for updating.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hi,
 
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> +	zram->stats = alloc_percpu(struct zram_stats_cpu);
+> +	if (!zram->stats) {
+> +		pr_err("Error allocating percpu stats\n");
+> +		ret = -ENOMEM;
+> +		goto fail;
+> +	}
 
-one nitpick.
+There doesn't seem to be a free_percpu() in the module exit path. Something
+like this perhaps?
 
-> @@ -2042,17 +2031,20 @@ static void __mem_cgroup_commit_charge(s
->  static void __mem_cgroup_move_account(struct page_cgroup *pc,
->  	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
->  {
-> +	int i;
->  	VM_BUG_ON(from == to);
->  	VM_BUG_ON(PageLRU(pc->page));
->  	VM_BUG_ON(!PageCgroupLocked(pc));
->  	VM_BUG_ON(!PageCgroupUsed(pc));
->  	VM_BUG_ON(id_to_memcg(pc->mem_cgroup, true) != from);
->  
-> -	if (PageCgroupFileMapped(pc)) {
-> +	for (i = MEM_CGROUP_FSTAT_BASE; i < MEM_CGROUP_FSTAT_END; ++i) {
-> +		if (!test_bit(fflag_idx(MEMCG_FSTAT_IDX(i)), &pc->flags))
-> +			continue;
->  		/* Update mapped_file data for mem_cgroup */
-It might be better to update this comment too.
+Anton
+--
 
-	/* Update file-stat data for mem_cgroup */
+zram: Free percpu data on module exit.
 
-or something ?
+Signed-off-by: Anton Blanchard <anton@samba.org>
+---
 
-Thanks,
-Daisuke Nishimura.
+Index: powerpc.git/drivers/staging/zram/zram_drv.c
+===================================================================
+--- powerpc.git.orig/drivers/staging/zram/zram_drv.c	2010-08-31 15:15:59.344290847 +1000
++++ powerpc.git/drivers/staging/zram/zram_drv.c	2010-08-31 15:17:00.383045836 +1000
+@@ -483,8 +483,7 @@ void zram_reset_device(struct zram *zram
+ 	xv_destroy_pool(zram->mem_pool);
+ 	zram->mem_pool = NULL;
+ 
+-	/* Reset stats */
+-	memset(&zram->stats, 0, sizeof(zram->stats));
++	free_percpu(&zram->stats);
+ 
+ 	zram->disksize = zram_default_disksize();
+ 	mutex_unlock(&zram->init_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
