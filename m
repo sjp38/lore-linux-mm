@@ -1,83 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D6DE6B01F3
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 13:37:42 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9826B01F2
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 13:37:43 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after direct reclaim allocation fails
-Date: Tue, 31 Aug 2010 18:37:37 +0100
-Message-Id: <1283276257-1793-4-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1283276257-1793-1-git-send-email-mel@csn.ul.ie>
-References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 0/3] Reduce watermark-related problems with the per-cpu allocator V3
+Date: Tue, 31 Aug 2010 18:37:34 +0100
+Message-Id: <1283276257-1793-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-When under significant memory pressure, a process enters direct reclaim
-and immediately afterwards tries to allocate a page. If it fails and no
-further progress is made, it's possible the system will go OOM. However,
-on systems with large amounts of memory, it's possible that a significant
-number of pages are on per-cpu lists and inaccessible to the calling
-process. This leads to a process entering direct reclaim more often than
-it should increasing the pressure on the system and compounding the problem.
+Changelog since V3
+  o Minor clarifications
+  o Rebase to 2.6.36-rc3
 
-This patch notes that if direct reclaim is making progress but
-allocations are still failing that the system is already under heavy
-pressure. In this case, it drains the per-cpu lists and tries the
-allocation a second time before continuing.
+Changelog since V1
+  o Fix for !CONFIG_SMP
+  o Correct spelling mistakes
+  o Clarify a ChangeLog
+  o Only check for counter drift on machines large enough for the counter
+    drift to breach the min watermark when NR_FREE_PAGES report the low
+    watermark is fine
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/page_alloc.c |   20 ++++++++++++++++----
- 1 files changed, 16 insertions(+), 4 deletions(-)
+Internal IBM test teams beta testing distribution kernels have reported
+problems on machines with a large number of CPUs whereby page allocator
+failure messages show huge differences between the nr_free_pages vmstat
+counter and what is available on the buddy lists. In an extreme example,
+nr_free_pages was above the min watermark but zero pages were on the buddy
+lists allowing the system to potentially livelock unable to make forward
+progress unless an allocation succeeds. There is no reason why the problems
+would not affect mainline so the following series mitigates the problems
+in the page allocator related to to per-cpu counter drift and lists.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bbaa959..750e1dc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1847,6 +1847,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	struct page *page = NULL;
- 	struct reclaim_state reclaim_state;
- 	struct task_struct *p = current;
-+	bool drained = false;
- 
- 	cond_resched();
- 
-@@ -1865,14 +1866,25 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 
- 	cond_resched();
- 
--	if (order != 0)
--		drain_all_pages();
-+	if (unlikely(!(*did_some_progress)))
-+		return NULL;
- 
--	if (likely(*did_some_progress))
--		page = get_page_from_freelist(gfp_mask, nodemask, order,
-+retry:
-+	page = get_page_from_freelist(gfp_mask, nodemask, order,
- 					zonelist, high_zoneidx,
- 					alloc_flags, preferred_zone,
- 					migratetype);
-+
-+	/*
-+	 * If an allocation failed after direct reclaim, it could be because
-+	 * pages are pinned on the per-cpu lists. Drain them and try again
-+	 */
-+	if (!page && !drained) {
-+		drain_all_pages();
-+		drained = true;
-+		goto retry;
-+	}
-+
- 	return page;
- }
- 
--- 
-1.7.1
+The first patch ensures that counters are updated after pages are added to
+free lists.
+
+The second patch notes that the counter drift between nr_free_pages and what
+is on the per-cpu lists can be very high. When memory is low and kswapd
+is awake, the per-cpu counters are checked as well as reading the value
+of NR_FREE_PAGES. This will slow the page allocator when memory is low and
+kswapd is awake but it will be much harder to breach the min watermark and
+potentially livelock the system.
+
+The third patch notes that after direct-reclaim an allocation can
+fail because the necessary pages are on the per-cpu lists. After a
+direct-reclaim-and-allocation-failure, the per-cpu lists are drained and
+a second attempt is made.
+
+Performance tests against 2.6.36-rc1 did not show up anything interesting. A
+version of this series that continually called vmstat_update() when
+memory was low was tested internally and found to help the counter drift
+problem. I described this during LSF/MM Summit and the potential for IPI
+storms was frowned upon. An alternative fix is in patch two which uses
+for_each_online_cpu() to read the vmstat deltas while memory is low and
+kswapd is awake. This should be functionally similar.
+
+Christoph Lameter made two suggestions that I did not take action on. The
+first was to make a generic helper that could be used to get a semi-accurate
+reading of any vmstat counter.  However, there is no evidence this is
+necessary and it would be better to get a clear understanding of what counter
+other than NR_FREE_PAGES would need special treatment by making it obvious
+when such a helper is introduced. The second suggestion was to shrink the
+threshold that vmstat got updated for affecting all counters. It was also
+unclear if this was sufficient or necessary as again. Only NR_FREE_PAGES
+is thhe problem counter so why affect every other counter? Also, shrinking
+the threshold just shrinks the window the race can occur in. Hence, I'm
+reposting the series as-is to see if there are any current objections to
+deal with or if we can close up this problem now.
+
+This patch should be merged after the patch "vmstat : update
+zone stat threshold at onlining a cpu" which is in mmotm as
+vmstat-update-zone-stat-threshold-when-onlining-a-cpu.patch . If we can
+agree on it, it's a stable candidate.
+
+ include/linux/mmzone.h |   13 +++++++++++++
+ mm/mmzone.c            |   29 +++++++++++++++++++++++++++++
+ mm/page_alloc.c        |   29 +++++++++++++++++++++--------
+ mm/vmstat.c            |   15 ++++++++++++++-
+ 4 files changed, 77 insertions(+), 9 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
