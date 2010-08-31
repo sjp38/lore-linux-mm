@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1DBEF6B01F2
-	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 20:56:53 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o7V0unGJ017985
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 31 Aug 2010 09:56:50 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DB8F45DE4E
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 09:56:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8260545DE4C
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 09:56:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 69E741DB8013
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 09:56:49 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 298071DB8012
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 09:56:49 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap system
-In-Reply-To: <AANLkTikbs9sUVLhE4sWWVw8uEqY=v6SCdJ_6FLhXY6HW@mail.gmail.com>
-References: <AANLkTinqm0o=AfmgFy+SpZ1mrdekRnjeXvs_7=OcLii8@mail.gmail.com> <AANLkTikbs9sUVLhE4sWWVw8uEqY=v6SCdJ_6FLhXY6HW@mail.gmail.com>
-Message-Id: <20100831095542.87CA.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 792096B01F0
+	for <linux-mm@kvack.org>; Mon, 30 Aug 2010 20:59:18 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 31 Aug 2010 09:56:48 +0900 (JST)
+Message-ID: <91408f0c-0135-427f-b148-446f54b232eb@default>
+Date: Mon, 30 Aug 2010 17:57:04 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH V4 5/8] Cleancache: ext3 hook for cleancache
+References: <20100830223233.GA1317@ca-server1.us.oracle.com
+ 4C7C3666.2080601@goop.org>
+In-Reply-To: <4C7C3666.2080601@goop.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Ying Han <yinghan@google.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Chris Mason <chris.mason@oracle.com>, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, Joel Becker <joel.becker@oracle.com>, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, JBeulich@novell.com, Kurt Hackel <kurt.hackel@oracle.com>, npiggin@kernel.dk, Dave Mccracken <dave.mccracken@oracle.com>, riel@redhat.com, avi@redhat.com, Konrad Wilk <konrad.wilk@oracle.com>, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com
 List-ID: <linux-mm.kvack.org>
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1b145e6..0b8a3ce 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1747,7 +1747,7 @@ static void shrink_zone(int priority, struct zone *zone,
->          * Even if we did not try to evict anon pages at all, we want to
->          * rebalance the anon lru active/inactive ratio.
->          */
-> -       if (inactive_anon_is_low(zone, sc) && nr_swap_pages > 0)
-> +       if (nr_swap_pges > 0 && inactive_anon_is_low(zone, sc))
+> > @@ -1349,6 +1350,7 @@ static int ext3_setup_super(struct super
+> >  =09} else {
+> >  =09=09ext3_msg(sb, KERN_INFO, "using internal journal");
+> >  =09}
+> > +=09sb->cleancache_poolid =3D cleancache_init_fs(PAGE_SIZE);
+>=20
+> Do you really need to pass in the page size?  What about just
+> "cleancache_init_fs(sb)" rather than exposing the
+> "sb->cleancache_poolid"?  In other words, what if you want to do
+> more/other per-filesystem init at some point?
 
-Sorry, I don't find any difference. What is your intention?
+IIRC, I think I was trying to stay away from including
+fs.h in cleancache.h (or one of its predecessors).  I
+agree that that no longer makes sense and it is cleaner
+as you suggest.  Will change.
 
-
->                 shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
-> 
->         throttle_vm_writeout(sc->gfp_mask);
-> 
-> But Andrew merged middle version.
-> I will send this patch again.
-> 
-> Thanks.
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-
-
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
