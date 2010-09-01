@@ -1,76 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E9ECA6B0047
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 21:37:53 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o811boIC015434
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Sep 2010 10:37:51 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BC34B45DE4E
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 10:37:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 94EB145DE51
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 10:37:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 61FCC1DB8038
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 10:37:50 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E3329E08001
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 10:37:49 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] vmscan,tmpfs: treat used once pages on tmpfs as used once
-Message-Id: <20100901103653.974C.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 792E36B0047
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 21:45:55 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so8734580iwn.14
+        for <linux-mm@kvack.org>; Tue, 31 Aug 2010 18:45:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  1 Sep 2010 10:37:49 +0900 (JST)
+In-Reply-To: <20100901092430.9741.A69D9226@jp.fujitsu.com>
+References: <20100901092430.9741.A69D9226@jp.fujitsu.com>
+Date: Wed, 1 Sep 2010 10:45:48 +0900
+Message-ID: <AANLkTikXfvEVXEyw_5_eJs2v-3J6Xhd=CT9X-0D+GMCA@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] vmscan: don't use return value trick when oom_killer_disabled
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-When a page has PG_referenced, shrink_page_list() discard it only
-if it is no dirty. This rule works completely fine if the backend
-filesystem is regular one. PG_dirty is good signal that it was used
-recently because flusher thread clean pages periodically. In addition,
-page writeback is costly rather than simple page discard.
+Hi KOSAKI,
 
-However, When a page is on tmpfs, this heuristic don't works because
-flusher thread don't writeback tmpfs pages. then, tmpfs pages always
-rotate lru twice at least and it makes unnecessary lru churn. Merely
-tmpfs streaming io shouldn't cause large anonymous page swap-out.
-
-This patch remove this unncessary reclaim bonus of tmpfs pages.
-
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1919d8a..aba3402 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -617,7 +617,7 @@ static enum page_references page_check_references(struct page *page,
- 	}
- 
- 	/* Reclaim if clean, defer dirty pages to writeback */
--	if (referenced_page)
-+	if (referenced_page && !PageSwapBacked(page))
- 		return PAGEREF_RECLAIM_CLEAN;
- 
- 	return PAGEREF_RECLAIM;
--- 
-1.6.5.2
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Wed, Sep 1, 2010 at 9:31 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+> M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
+> 32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=3D167=
+71)
+> Also he was bisected first bad commit is below
+>
+> =A0commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
+> =A0Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> =A0Date: =A0 Fri Jun 4 14:15:05 2010 -0700
+>
+> =A0 =A0 vmscan: fix do_try_to_free_pages() return value when priority=3D=
+=3D0 reclaim failure
+>
+> At first impression, this seemed very strange because the above commit on=
+ly
+> chenged function return value and hibernate_preallocate_memory() ignore
+> return value of shrink_all_memory(). But it's related.
+>
+> Now, page allocation from hibernation code may enter infinite loop if
+> the system has highmem.
+>
+> The reasons are two. 1) hibernate_preallocate_memory() call
+> alloc_pages() wrong order 2) vmscan don't care enough OOM case when
+> oom_killer_disabled.
+>
+> This patch only fix (2). Why is oom_killer_disabled so special?
+> because when hibernation case, zone->all_unreclaimable never be turned on=
