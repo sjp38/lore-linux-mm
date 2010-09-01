@@ -1,32 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 17BE56B008A
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 03:10:59 -0400 (EDT)
-Date: Wed, 1 Sep 2010 08:10:43 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 10C476B0047
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 03:24:18 -0400 (EDT)
+Date: Wed, 1 Sep 2010 08:24:02 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters
-	after pages are placed on the free list
-Message-ID: <20100901071042.GD13677@csn.ul.ie>
-References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-2-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1008311317160.867@router.home>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+	NR_FREE_PAGES when memory is low and kswapd is awake
+Message-ID: <20100901072402.GE13677@csn.ul.ie>
+References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-3-git-send-email-mel@csn.ul.ie> <20100901083425.971F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1008311317160.867@router.home>
+In-Reply-To: <20100901083425.971F.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 31, 2010 at 01:17:44PM -0500, Christoph Lameter wrote:
+On Wed, Sep 01, 2010 at 08:37:41AM +0900, KOSAKI Motohiro wrote:
+> > +#ifdef CONFIG_SMP
+> > +/* Called when a more accurate view of NR_FREE_PAGES is needed */
+> > +unsigned long zone_nr_free_pages(struct zone *zone)
+> > +{
+> > +	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
+> > +
+> > +	/*
+> > +	 * While kswapd is awake, it is considered the zone is under some
+> > +	 * memory pressure. Under pressure, there is a risk that
+> > +	 * per-cpu-counter-drift will allow the min watermark to be breached
+> > +	 * potentially causing a live-lock. While kswapd is awake and
+> > +	 * free pages are low, get a better estimate for free pages
+> > +	 */
+> > +	if (nr_free_pages < zone->percpu_drift_mark &&
+> > +			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
+> > +		int cpu;
+> > +
+> > +		for_each_online_cpu(cpu) {
+> > +			struct per_cpu_pageset *pset;
+> > +
+> > +			pset = per_cpu_ptr(zone->pageset, cpu);
+> > +			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
 > 
-> I already did a
-> 
-> Reviewed-by: Christoph Lameter <cl@linux.com>
-> 
-> I believe?
+> If my understanding is correct, we have no lock when reading pset->vm_stat_diff.
+> It mean nr_free_pages can reach negative value at very rarely race. boundary
+> check is necessary?
 > 
 
-You did and I omitted it. It's included now. Thanks
+True, well spotted.
+
+How about the following? It records a delta and checks if delta is negative
+and would cause underflow.
+
+unsigned long zone_nr_free_pages(struct zone *zone)
+{
+        unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
+        long delta = 0;
+
+        /*
+         * While kswapd is awake, it is considered the zone is under some
+         * memory pressure. Under pressure, there is a risk that
+         * per-cpu-counter-drift will allow the min watermark to be breached
+         * potentially causing a live-lock. While kswapd is awake and
+         * free pages are low, get a better estimate for free pages
+         */
+        if (nr_free_pages < zone->percpu_drift_mark &&
+                        !waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
+                int cpu;
+
+                for_each_online_cpu(cpu) {
+                        struct per_cpu_pageset *pset;
+
+                        pset = per_cpu_ptr(zone->pageset, cpu);
+                        delta += pset->vm_stat_diff[NR_FREE_PAGES];
+                }
+        }
+
+        /* Watch for underflow */
+        if (delta < 0 && abs(delta) > nr_free_pages)
+                delta = -nr_free_pages;
+
+        return nr_free_pages + delta;
+}
 
 -- 
 Mel Gorman
