@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A18616B0083
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 02:48:51 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id AD7D96B0087
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 02:50:23 -0400 (EDT)
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o816mnPv021476
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o816oKUL022323
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 1 Sep 2010 15:48:49 +0900
+	Wed, 1 Sep 2010 15:50:21 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 366FF45DE51
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:48:49 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77DA845DE52
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:50:20 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 129C745DE4E
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:48:49 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5662C45DE51
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:50:20 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E43111DB8045
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:48:48 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 93B311DB804A
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:48:48 +0900 (JST)
-Date: Wed, 1 Sep 2010 15:43:49 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DFCC1DB804F
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:50:20 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA2B01DB8045
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:50:19 +0900 (JST)
+Date: Wed, 1 Sep 2010 15:45:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/5] memcg: use ID in page cgroup
-Message-Id: <20100901154349.70f8f207.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 4/5] memcg: light weight file mapped update lock system
+Message-Id: <20100901154518.8faacc44.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100901153951.bc82c021.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100901153951.bc82c021.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,248 +34,216 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, addresses of memory cgroup can be calculated by their ID without complex.
-This patch relplaces pc->mem_cgroup from a pointer to a unsigned short.
-On 64bit architecture, this offers us more 6bytes room per page_cgroup.
-Use 2bytes for blkio-cgroup's page tracking. More 4bytes will be used for
-some light-weight concurrent access.
+At accounting file events per memory cgroup, we need to find memory cgroup
+via page_cgroup->mem_cgroup. Now, we use lock_page_cgroup().
 
-We may able to move this id onto flags field but ...go step by step.
+But, considering the context which page-cgroup for files are accessed,
+we can use alternative light-weight mutual execusion in the most case.
 
-Changelog: 20100824
- - fixed comments, and typo.
-Changelog: 20100811
- - using new rcu APIs, as rcu_dereference_check() etc.
+At handling file-caches, the only race we have to take care of is "moving"
+account, IOW, overwriting page_cgroup->mem_cgroup. 
+(See comment in the patch)
+
+Unlike charge/uncharge, "move" happens not so frequently. It happens only when
+rmdir() and task-moving (with a special settings.)
+This patch adds a race-checker for file-cache-status accounting v.s. account
+moving. The new per-cpu-per-memcg counter MEM_CGROUP_ON_MOVE is added.
+The routine for account move 
+  1. Increment it before start moving
+  2. Call synchronize_rcu()
+  3. Decrement it after the end of moving.
+By this, file-status-counting routine can check it needs to call
+lock_page_cgroup(). In most case, I doesn't need to call it.
+
+Changelog: 20100901
+ - changes id_to_memcg(pc, true) to be id_to_memcg(pc, false)
+   in update_file_mapped()
+ - updated comments on lock rule of update_file_mapped()
+Changelog: 20100825
+ - added a comment about mc.lock
+ - fixed bad lock.
 Changelog: 20100804
- - added comments to page_cgroup.h
+ - added a comment for possible optimization hint.
 Changelog: 20100730
- - fixed some garbage added by debug code in early stage
+ - some cleanup.
+Changelog: 20100729
+ - replaced __this_cpu_xxx() with this_cpu_xxx
+   (because we don't call spinlock)
+ - added VM_BUG_ON().
 
 Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/linux/page_cgroup.h |    6 ++++
- mm/memcontrol.c             |   53 ++++++++++++++++++++++++++++----------------
- mm/page_cgroup.c            |    2 -
- 3 files changed, 40 insertions(+), 21 deletions(-)
+ mm/memcontrol.c |   98 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 85 insertions(+), 13 deletions(-)
 
-Index: mmotm-0827/include/linux/page_cgroup.h
-===================================================================
---- mmotm-0827.orig/include/linux/page_cgroup.h
-+++ mmotm-0827/include/linux/page_cgroup.h
-@@ -9,10 +9,14 @@
-  * page_cgroup helps us identify information about the cgroup
-  * All page cgroups are allocated at boot or memory hotplug event,
-  * then the page cgroup for pfn always exists.
-+ *
-+ * TODO: It seems ID for cgroup can be packed into "flags". But there will
-+ * be race between assigning ID <-> set/clear flags. Please be careful.
-  */
- struct page_cgroup {
- 	unsigned long flags;
--	struct mem_cgroup *mem_cgroup;
-+	unsigned short mem_cgroup;	/* ID of assigned memory cgroup */
-+	unsigned short blk_cgroup;	/* Not Used..but will be. */
- 	struct page *page;
- 	struct list_head lru;		/* per cgroup LRU list */
- };
-Index: mmotm-0827/mm/page_cgroup.c
-===================================================================
---- mmotm-0827.orig/mm/page_cgroup.c
-+++ mmotm-0827/mm/page_cgroup.c
-@@ -15,7 +15,7 @@ static void __meminit
- __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
- {
- 	pc->flags = 0;
--	pc->mem_cgroup = NULL;
-+	pc->mem_cgroup = 0;
- 	pc->page = pfn_to_page(pfn);
- 	INIT_LIST_HEAD(&pc->lru);
- }
 Index: mmotm-0827/mm/memcontrol.c
 ===================================================================
 --- mmotm-0827.orig/mm/memcontrol.c
 +++ mmotm-0827/mm/memcontrol.c
-@@ -299,11 +299,15 @@ static atomic_t mem_cgroup_num;
- #define NR_MEMCG_GROUPS (CONFIG_MEM_CGROUP_MAX_GROUPS + 1)
- static struct mem_cgroup *mem_cgroups[NR_MEMCG_GROUPS] __read_mostly;
+@@ -90,6 +90,7 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
+ 	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
++	MEM_CGROUP_ON_MOVE,   /* A check for locking move account/status */
  
--/* Must be called under rcu_read_lock */
--static struct mem_cgroup *id_to_memcg(unsigned short id)
-+/*
-+ * Must be called under rcu_read_lock, Set safe==true if you're sure
-+ * you're in safe condition...under lock_page_cgroup() etc.
-+ */
-+static struct mem_cgroup *id_to_memcg(unsigned short id, bool safe)
- {
- 	struct mem_cgroup *mem;
--	mem = rcu_dereference_check(mem_cgroups[id], rcu_read_lock_held());
-+	mem = rcu_dereference_check(mem_cgroups[id],
-+				rcu_read_lock_held() || safe);
- 	return mem;
+ 	MEM_CGROUP_STAT_NSTATS,
+ };
+@@ -1092,7 +1093,52 @@ static unsigned int get_swappiness(struc
+ 	return swappiness;
  }
  
-@@ -384,7 +388,12 @@ struct cgroup_subsys_state *mem_cgroup_c
- static struct mem_cgroup_per_zone *
- page_cgroup_zoneinfo(struct page_cgroup *pc)
- {
--	struct mem_cgroup *mem = pc->mem_cgroup;
-+	/*
-+	 * The caller should guarantee this "pc" is under lock. In typical
-+	 * case, this function is called by lru function with zone->lru_lock.
-+	 * It is a safe access.
-+	 */
-+	struct mem_cgroup *mem = id_to_memcg(pc->mem_cgroup, true);
- 	int nid = page_cgroup_nid(pc);
- 	int zid = page_cgroup_zid(pc);
- 
-@@ -726,6 +735,11 @@ static inline bool mem_cgroup_is_root(st
- 	return (mem == root_mem_cgroup);
- }
- 
-+static inline bool mem_cgroup_is_rootid(unsigned short id)
+-/* A routine for testing mem is not under move_account */
++static void mem_cgroup_start_move(struct mem_cgroup *mem)
 +{
-+	return (id == 1);
++	int cpu;
++	/*
++	 * reuse mc.lock.
++	 */
++	spin_lock(&mc.lock);
++	/* TODO: Can we optimize this by for_each_online_cpu() ? */
++	for_each_possible_cpu(cpu)
++		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
++	spin_unlock(&mc.lock);
++
++	synchronize_rcu();
 +}
 +
- /*
-  * Following LRU functions are allowed to be used without PCG_LOCK.
-  * Operations are called by routine of global LRU independently from memcg.
-@@ -758,7 +772,7 @@ void mem_cgroup_del_lru_list(struct page
- 	 */
- 	mz = page_cgroup_zoneinfo(pc);
- 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
--	if (mem_cgroup_is_root(pc->mem_cgroup))
-+	if (mem_cgroup_is_rootid(pc->mem_cgroup))
- 		return;
- 	VM_BUG_ON(list_empty(&pc->lru));
- 	list_del_init(&pc->lru);
-@@ -785,7 +799,7 @@ void mem_cgroup_rotate_lru_list(struct p
- 	 */
- 	smp_rmb();
- 	/* unused or root page is not rotated. */
--	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
-+	if (!PageCgroupUsed(pc) || mem_cgroup_is_rootid(pc->mem_cgroup))
- 		return;
- 	mz = page_cgroup_zoneinfo(pc);
- 	list_move(&pc->lru, &mz->lists[lru]);
-@@ -811,7 +825,7 @@ void mem_cgroup_add_lru_list(struct page
- 	mz = page_cgroup_zoneinfo(pc);
- 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
- 	SetPageCgroupAcctLRU(pc);
--	if (mem_cgroup_is_root(pc->mem_cgroup))
-+	if (mem_cgroup_is_rootid(pc->mem_cgroup))
- 		return;
- 	list_add(&pc->lru, &mz->lists[lru]);
- }
-@@ -1500,7 +1514,7 @@ void mem_cgroup_update_file_mapped(struc
- 		return;
++static void mem_cgroup_end_move(struct mem_cgroup *mem)
++{
++	int cpu;
++
++	if (!mem)
++		return;
++	/* for fast checking in mem_cgroup_update_file_stat() etc..*/
++	spin_lock(&mc.lock);
++	for_each_possible_cpu(cpu)
++		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) -= 1;
++	spin_unlock(&mc.lock);
++}
++
++/*
++ * mem_cgroup_is_moved -- checking a cgroup is mc.from target or not.
++ *                          used for avoiding race.
++ * mem_cgroup_under_move -- checking a cgroup is mc.from or mc.to or
++ *			    under hierarchy of them. used for waiting at
++ *			    memory pressure.
++ * Result of is_moved can be trusted until the end of rcu_read_unlock().
++ * The caller must do
++ *	rcu_read_lock();
++ *	result = mem_cgroup_is_moved();
++ *	.....make use of result here....
++ *	rcu_read_unlock();
++ */
++static bool mem_cgroup_is_moved(struct mem_cgroup *mem)
++{
++	VM_BUG_ON(!rcu_read_lock_held());
++	return this_cpu_read(mem->stat->count[MEM_CGROUP_ON_MOVE]) > 0;
++}
  
- 	lock_page_cgroup(pc);
--	mem = pc->mem_cgroup;
-+	mem = id_to_memcg(pc->mem_cgroup, true);
- 	if (!mem || !PageCgroupUsed(pc))
- 		goto done;
- 
-@@ -1888,14 +1902,14 @@ struct mem_cgroup *try_get_mem_cgroup_fr
- 	pc = lookup_page_cgroup(page);
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc)) {
--		mem = pc->mem_cgroup;
-+		mem = id_to_memcg(pc->mem_cgroup, true);
- 		if (mem && !css_tryget(&mem->css))
- 			mem = NULL;
- 	} else if (PageSwapCache(page)) {
- 		ent.val = page_private(page);
- 		id = lookup_swap_cgroup(ent);
- 		rcu_read_lock();
--		mem = id_to_memcg(id);
-+		mem = id_to_memcg(id, false);
- 		if (mem && !css_tryget(&mem->css))
- 			mem = NULL;
- 		rcu_read_unlock();
-@@ -1924,7 +1938,7 @@ static void __mem_cgroup_commit_charge(s
- 		return;
- 	}
- 
--	pc->mem_cgroup = mem;
-+	pc->mem_cgroup = css_id(&mem->css);
- 	/*
- 	 * We access a page_cgroup asynchronously without lock_page_cgroup().
- 	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
-@@ -1982,7 +1996,7 @@ static void __mem_cgroup_move_account(st
- 	VM_BUG_ON(PageLRU(pc->page));
- 	VM_BUG_ON(!PageCgroupLocked(pc));
- 	VM_BUG_ON(!PageCgroupUsed(pc));
--	VM_BUG_ON(pc->mem_cgroup != from);
-+	VM_BUG_ON(id_to_memcg(pc->mem_cgroup, true) != from);
- 
- 	if (PageCgroupFileMapped(pc)) {
- 		/* Update mapped_file data for mem_cgroup */
-@@ -1997,7 +2011,7 @@ static void __mem_cgroup_move_account(st
- 		mem_cgroup_cancel_charge(from);
- 
- 	/* caller should have done css_get */
--	pc->mem_cgroup = to;
-+	pc->mem_cgroup = css_id(&to->css);
- 	mem_cgroup_charge_statistics(to, pc, true);
- 	/*
- 	 * We charges against "to" which may not have any tasks. Then, "to"
-@@ -2017,7 +2031,7 @@ static int mem_cgroup_move_account(struc
+ static bool mem_cgroup_under_move(struct mem_cgroup *mem)
  {
- 	int ret = -EINVAL;
- 	lock_page_cgroup(pc);
--	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-+	if (PageCgroupUsed(pc) && id_to_memcg(pc->mem_cgroup, true) == from) {
- 		__mem_cgroup_move_account(pc, from, to, uncharge);
- 		ret = 0;
- 	}
-@@ -2247,7 +2261,7 @@ __mem_cgroup_commit_charge_swapin(struct
+@@ -1503,34 +1549,56 @@ bool mem_cgroup_handle_oom(struct mem_cg
+ /*
+  * Currently used to update mapped file statistics, but the routine can be
+  * generalized to update other statistics as well.
++ *
++ * Notes: How to consider race conditions.
++ *
++ * Lock against "charge" is not required. All operations happens after the
++ * page is attached to address_space->mapping, charge must be finished.
++ *
++ * Rquired lock against "move" is held if necessary and account move code
++ * does proper move of statistics data.
++ *
++ * Lock against "uncharge" is not required. Because uncharge() doesn't clear
++ * pc->mem_cgroup, we can catch proper memcg even under race with truncation.
++ * Another thinking, while we call this, we grab a page_count of the page. So,
++ * the page will be never reused for other purpose and page_cgroup->mem_cgroup
++ * will contain the last data it had.
+  */
++
+ void mem_cgroup_update_file_mapped(struct page *page, int val)
+ {
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc;
++	bool need_lock = false;
  
- 		id = swap_cgroup_record(ent, 0);
- 		rcu_read_lock();
--		memcg = id_to_memcg(id);
-+		memcg = id_to_memcg(id, false);
- 		if (memcg) {
- 			/*
- 			 * This recorded memcg can be obsolete one. So, avoid
-@@ -2357,7 +2371,7 @@ __mem_cgroup_uncharge_common(struct page
- 
- 	lock_page_cgroup(pc);
- 
--	mem = pc->mem_cgroup;
-+	mem = id_to_memcg(pc->mem_cgroup, true);
- 
- 	if (!PageCgroupUsed(pc))
- 		goto unlock_out;
-@@ -2512,7 +2526,7 @@ void mem_cgroup_uncharge_swap(swp_entry_
- 
- 	id = swap_cgroup_record(ent, 0);
- 	rcu_read_lock();
--	memcg = id_to_memcg(id);
-+	memcg = id_to_memcg(id, false);
- 	if (memcg) {
- 		/*
- 		 * We uncharge this because swap is freed.
-@@ -2603,7 +2617,7 @@ int mem_cgroup_prepare_migration(struct 
  	pc = lookup_page_cgroup(page);
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc)) {
--		mem = pc->mem_cgroup;
-+		mem = id_to_memcg(pc->mem_cgroup, true);
- 		css_get(&mem->css);
- 		/*
- 		 * At migrating an anonymous page, its mapcount goes down
-@@ -4436,7 +4450,8 @@ static int is_target_pte_for_mc(struct v
- 		 * mem_cgroup_move_account() checks the pc is valid or not under
- 		 * the lock.
- 		 */
--		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-+		if (PageCgroupUsed(pc) &&
-+			id_to_memcg(pc->mem_cgroup, true) == mc.from) {
- 			ret = MC_TARGET_PAGE;
- 			if (target)
- 				target->page = page;
+ 	if (unlikely(!pc))
+ 		return;
+-
+-	lock_page_cgroup(pc);
+-	mem = id_to_memcg(pc->mem_cgroup, true);
+-	if (!mem || !PageCgroupUsed(pc))
++	rcu_read_lock();
++	mem = id_to_memcg(pc->mem_cgroup, false);
++	if (likely(mem)) {
++		if (mem_cgroup_is_moved(mem)) {
++			/* need to serialize with move_account */
++			lock_page_cgroup(pc);
++			need_lock = true;
++			mem = id_to_memcg(pc->mem_cgroup, true);
++			if (unlikely(!mem))
++				goto done;
++		}
++	}
++	if (unlikely(!PageCgroupUsed(pc)))
+ 		goto done;
+-
+-	/*
+-	 * Preemption is already disabled. We can use __this_cpu_xxx
+-	 */
+ 	if (val > 0) {
+-		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
++		this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 		SetPageCgroupFileMapped(pc);
+ 	} else {
+-		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
++		this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+ 		ClearPageCgroupFileMapped(pc);
+ 	}
+-
+ done:
+-	unlock_page_cgroup(pc);
++	if (need_lock)
++		unlock_page_cgroup(pc);
++	rcu_read_unlock();
+ }
+ 
+ /*
+@@ -3070,6 +3138,7 @@ move_account:
+ 		lru_add_drain_all();
+ 		drain_all_stock_sync();
+ 		ret = 0;
++		mem_cgroup_start_move(mem);
+ 		for_each_node_state(node, N_HIGH_MEMORY) {
+ 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
+ 				enum lru_list l;
+@@ -3083,6 +3152,7 @@ move_account:
+ 			if (ret)
+ 				break;
+ 		}
++		mem_cgroup_end_move(mem);
+ 		memcg_oom_recover(mem);
+ 		/* it seems parent cgroup doesn't have enough mem */
+ 		if (ret == -ENOMEM)
+@@ -4560,6 +4630,7 @@ static void mem_cgroup_clear_mc(void)
+ 	mc.to = NULL;
+ 	mc.moving_task = NULL;
+ 	spin_unlock(&mc.lock);
++	mem_cgroup_end_move(from);
+ 	memcg_oom_recover(from);
+ 	memcg_oom_recover(to);
+ 	wake_up_all(&mc.waitq);
+@@ -4590,6 +4661,7 @@ static int mem_cgroup_can_attach(struct 
+ 			VM_BUG_ON(mc.moved_charge);
+ 			VM_BUG_ON(mc.moved_swap);
+ 			VM_BUG_ON(mc.moving_task);
++			mem_cgroup_start_move(from);
+ 			spin_lock(&mc.lock);
+ 			mc.from = from;
+ 			mc.to = mem;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
