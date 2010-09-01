@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1806B007B
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 05:30:42 -0400 (EDT)
-Date: Wed, 1 Sep 2010 11:30:13 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan,tmpfs: treat used once pages on tmpfs as used once
-Message-ID: <20100901093013.GB4677@cmpxchg.org>
-References: <20100901103653.974C.A69D9226@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 2ECDD6B0047
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 08:19:57 -0400 (EDT)
+Date: Wed, 1 Sep 2010 14:19:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
+ offlining code
+Message-ID: <20100901121951.GC6663@tiehlicka.suse.cz>
+References: <20100820141400.GD4636@tiehlicka.suse.cz>
+ <20100822004232.GA11007@localhost>
+ <20100823092246.GA25772@tiehlicka.suse.cz>
+ <20100831141942.GA30353@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100901103653.974C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100831141942.GA30353@localhost>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 01, 2010 at 10:37:49AM +0900, KOSAKI Motohiro wrote:
-> When a page has PG_referenced, shrink_page_list() discard it only
-> if it is no dirty. This rule works completely fine if the backend
-> filesystem is regular one. PG_dirty is good signal that it was used
-> recently because flusher thread clean pages periodically. In addition,
-> page writeback is costly rather than simple page discard.
+On Tue 31-08-10 22:19:42, Wu Fengguang wrote:
+> On Mon, Aug 23, 2010 at 05:22:46PM +0800, Michal Hocko wrote:
+> > On Sun 22-08-10 08:42:32, Wu Fengguang wrote:
+> > > Hi Michal,
+> > 
+> > Hi,
+> > 
+> > > 
+> > > It helps to explain in changelog/code
+> > > 
+> > > - in what situation a ZONE_MOVABLE will contain !MIGRATE_MOVABLE
+> > >   pages? 
+> > 
+> > page can be MIGRATE_RESERVE IIUC.
 > 
-> However, When a page is on tmpfs, this heuristic don't works because
-> flusher thread don't writeback tmpfs pages. then, tmpfs pages always
-> rotate lru twice at least and it makes unnecessary lru churn. Merely
-> tmpfs streaming io shouldn't cause large anonymous page swap-out.
-> 
-> This patch remove this unncessary reclaim bonus of tmpfs pages.
-> 
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Yup, it may also be set to MIGRATE_ISOLATE by soft_offline_page().
 
-Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Doesn't it make sense to check for !MIGRATE_UNMOVABLE then?
 
-> ---
->  mm/vmscan.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1919d8a..aba3402 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -617,7 +617,7 @@ static enum page_references page_check_references(struct page *page,
->  	}
->  
->  	/* Reclaim if clean, defer dirty pages to writeback */
-> -	if (referenced_page)
-> +	if (referenced_page && !PageSwapBacked(page))
->  		return PAGEREF_RECLAIM_CLEAN;
->  
->  	return PAGEREF_RECLAIM;
-> -- 
-> 1.6.5.2
+> > >   And why the MIGRATE_MOVABLE test is still necessary given the
+> > >   ZONE_MOVABLE check?
+> > 
+> > I would assume that the MIGRATE_MOVABLE test is not necessary (given that
+> > the whole zone is set as movable) but this test is used also in the
+> > offlining path (in set_migratetype_isolate) and the primary reason for
+> > this patch is to sync those two checks. 
 > 
+> Merge the two checks into an inline function?
+
+This sounds reasonable. I will update my patch as soon as I find a
+proper place for the function (I guess include/linux/mmzone.h is the
+best place).
+
 > 
+> > I am not familiar with all the possible cases for migrate flags so the
+> > test reduction should be better done by someone more familiar with the
+> > code (the zone flag test is much more easier than the whole
+> > get_pageblock_migratetype so this could be a win in the end).
 > 
+> Feel free to swap the order of tests :)
 > 
+> > > 
+> > > - why do you think free pages are not removeable? Simply to cater for
+> > >   the set_migratetype_isolate() logic, or there are more fundamental
+> > >   reasons?
+> > 
+> > Free pages can be from non movable zone, right? I know that having a
+> > zone with the free page blocks in non-movable zone is extremely 
+> > improbable but what is the point of this check anyway? So yes, this is
+> > more to be in sync than anything more fundamental.
+> 
+> You don't have strong reasons to remove the free pages test, so why
+> not keep it? 
+
+OK, I think I do understand the free pages test. It just says that
+everyting that is free is potentially movable by definition because
+nobody uses this memory, right?
+
+> We never know what the user will do. He may regretted
+> immediately after onlining a node, and want to offline it..  Some
+> hackers may want to offline some 128MB memory blocks (by chance) with
+> the help of drop_caches.
+
+I am not sure I understand what you are saying here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
