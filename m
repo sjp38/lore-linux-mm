@@ -1,97 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D0C786B004D
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:34:37 -0400 (EDT)
-Date: Wed, 1 Sep 2010 21:34:22 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
-	NR_FREE_PAGES when memory is low and kswapd is awake
-Message-ID: <20100901203422.GA19519@csn.ul.ie>
-References: <20100901083425.971F.A69D9226@jp.fujitsu.com> <20100901072402.GE13677@csn.ul.ie> <20100901163146.9755.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011512190.16322@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1009011512190.16322@router.home>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DF8C56B004D
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:38:23 -0400 (EDT)
+Received: by wyb36 with SMTP id 36so11689277wyb.14
+        for <linux-mm@kvack.org>; Wed, 01 Sep 2010 13:38:21 -0700 (PDT)
+Subject: Re: [PATCH 03/10] Use percpu stats
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1009011501230.16013@router.home>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	 <1281374816-904-4-git-send-email-ngupta@vflare.org>
+	 <alpine.DEB.2.00.1008301114460.10316@router.home>
+	 <AANLkTikdhnr12uU8Wp60BygZwH770RBfxyfLNMzUsQje@mail.gmail.com>
+	 <1283290106.2198.26.camel@edumazet-laptop>
+	 <alpine.DEB.2.00.1008311635100.867@router.home>
+	 <1283290878.2198.28.camel@edumazet-laptop>
+	 <alpine.DEB.2.00.1009011501230.16013@router.home>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 Sep 2010 22:38:15 +0200
+Message-ID: <1283373495.2484.41.camel@edumazet-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 01, 2010 at 03:16:59PM -0500, Christoph Lameter wrote:
-> On Wed, 1 Sep 2010, KOSAKI Motohiro wrote:
+Le mercredi 01 septembre 2010 A  15:05 -0500, Christoph Lameter a A(C)crit :
+
+> The problem only exists on 32 bit platforms using 64 bit counters. If you
+> would provide this functionality for the fallback case of 64 bit counters
+> (here x86) in 32 bit arch code then you could use the this_cpu_*
+> operations in all context without your special code being replicated in
+> ohter places.
 > 
-> > > How about the following? It records a delta and checks if delta is negative
-> > > and would cause underflow.
-> > >
-> > > unsigned long zone_nr_free_pages(struct zone *zone)
-> > > {
-> > >         unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-> > >         long delta = 0;
-> > >
-> > >         /*
-> > >          * While kswapd is awake, it is considered the zone is under some
-> > >          * memory pressure. Under pressure, there is a risk that
-> > >          * per-cpu-counter-drift will allow the min watermark to be breached
-> > >          * potentially causing a live-lock. While kswapd is awake and
-> > >          * free pages are low, get a better estimate for free pages
-> > >          */
-> > >         if (nr_free_pages < zone->percpu_drift_mark &&
-> > >                         !waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
-> > >                 int cpu;
-> > >
-> > >                 for_each_online_cpu(cpu) {
-> > >                         struct per_cpu_pageset *pset;
-> > >
-> > >                         pset = per_cpu_ptr(zone->pageset, cpu);
-> > >                         delta += pset->vm_stat_diff[NR_FREE_PAGES];
-> > >                 }
-> > >         }
-> > >
-> > >         /* Watch for underflow */
-> > >         if (delta < 0 && abs(delta) > nr_free_pages)
-> > >                 delta = -nr_free_pages;
+> The additional advantage would be that for the 64bit case you would have
+> much faster and more compact code.
 > 
-> Not sure what the point here is. If the delta is going below zero then
-> there was a concurrent operation updating the counters negatively while
-> we summed up the counters.
-
-The point is if the negative delta is greater than the current value of
-nr_free_pages then nr_free_pages would underflow when delta is applied to it.
-
-> It is then safe to assume a value of zero. We
-> cannot really be more accurate than that.
-> 
-> so
-> 
-> 	if (delta < 0)
-> 		delta = 0;
-> 
-> would be correct.
-
-Lets say the reading at the start for nr_free_pages is 120 and the delta is
--20, then the estimated true value of nr_free_pages is 100. If we used your
-logic, the estimate would be 120. Maybe I'm missing what you're saying.
-
-> See also handling of counter underflow in
-> vmstat.h:zone_page_state().
-
-I'm not seeing the relation. zone_nr_free_pages() is trying to
-reconcile the reading from zone_page_state() with the contents of
-vm_stat_diff[].
-
-> As I have said before: I would rather have the
-> counter handling in one place to avoid creating differences in counter
-> handling.
 > 
 
-And I'd rather not hurt the paths for every counter unnecessarily
-without good cause. I can move zone_nr_free_pages() to mm/vmstat.c if
-you'd prefer?
+My implementation is portable and use existing infrastructure, at the
+time it was coded. BTW, its fast on 64bit too. As fast as previous
+implementation. No extra code added. Please double check.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+If you believe you can do better, please do so.
+
+Of course, we added 64bit network stats to all 32bit arches only because
+cost was acceptable. (I say all 32bit arches, because you seem to think
+only x86 was the target)
+
+Using this_cpu_{add|res}() fallback using atomic ops or spinlocks would
+be slower than actual implemenation (smp_wmb() (nops on x86) and
+increments).
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
