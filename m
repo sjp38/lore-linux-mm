@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 601676B004D
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 18:18:41 -0400 (EDT)
-Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
-	by smtp-out.google.com with ESMTP id o81MIdVM024454
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 15:18:40 -0700
-Received: from pwi4 (pwi4.prod.google.com [10.241.219.4])
-	by kpbe19.cbf.corp.google.com with ESMTP id o81MIc1u005889
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 15:18:38 -0700
-Received: by pwi4 with SMTP id 4so28274pwi.23
-        for <linux-mm@kvack.org>; Wed, 01 Sep 2010 15:18:38 -0700 (PDT)
-Date: Wed, 1 Sep 2010 15:18:35 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 752FE6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 19:41:20 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id o81NfG5T008875
+	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 16:41:17 -0700
+Received: from pwi1 (pwi1.prod.google.com [10.241.219.1])
+	by kpbe11.cbf.corp.google.com with ESMTP id o81Nf9sa004246
+	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 16:41:10 -0700
+Received: by pwi1 with SMTP id 1so50995pwi.17
+        for <linux-mm@kvack.org>; Wed, 01 Sep 2010 16:41:09 -0700 (PDT)
+Date: Wed, 1 Sep 2010 16:41:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [BUGFIX for 2.6.36][RESEND][PATCH 1/2] oom: remove totalpage
- normalization from oom_badness()
-In-Reply-To: <20100831181911.87E7.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1009011508440.29305@chino.kir.corp.google.com>
-References: <20100831181911.87E7.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 1/3 v3] oom: add per-mm oom disable count
+In-Reply-To: <20100901083841.9722.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1009011637000.8831@chino.kir.corp.google.com>
+References: <20100830130913.525F.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1008301409040.4852@chino.kir.corp.google.com> <20100901083841.9722.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 31 Aug 2010, KOSAKI Motohiro wrote:
+On Wed, 1 Sep 2010, KOSAKI Motohiro wrote:
 
-> ok, this one got no objection except original patch author.
-
-Would you care to respond to my objections?
-
-I replied to these two patches earlier with my nack, here they are:
-
-	http://marc.info/?l=linux-mm&m=128273555323993
-	http://marc.info/?l=linux-mm&m=128337879310476
-
-Please carry on a useful debate of the issues rather than continually 
-resending patches and labeling them as bugfixes, which they aren't.
-
-> then, I'll push it to mainline. I'm glad that I who stabilization
-> developer have finished this work.
+> > > > @@ -745,6 +746,10 @@ static int exec_mmap(struct mm_struct *mm)
+> > > >  	tsk->mm = mm;
+> > > >  	tsk->active_mm = mm;
+> > > >  	activate_mm(active_mm, mm);
+> > > > +	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> > > > +		atomic_dec(&active_mm->oom_disable_count);
+> > > 
+> > > When kernel thread makes user-land process (e.g. usermode-helper),
+> > > active_mm might point to unrelated process. active_mm is only meaningful
+> > > for scheduler code. please don't touch it. probably you intend to
+> > > change old_mm.
+> > 
+> > This is safe because kthreads never have non-zero 
+> > p->signal->oom_score_adj.
+> 
+> Hm? my example is wrong? my point is, you shouldn't touch active_mm.
 > 
 
-You're not the maintainer of this code, patches go through Andrew.
+Ok, I'll use old_mm instead as a cleanup.  Thanks!
 
-That said, I'm really tired of you trying to make this personal with me; 
-I've been very respectful and accomodating during this discussion and I 
-hope that you will be the same.
+> > > > @@ -1690,6 +1697,10 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
+> > > >  			active_mm = current->active_mm;
+> > > >  			current->mm = new_mm;
+> > > >  			current->active_mm = new_mm;
+> > > > +			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+> > > > +				atomic_dec(&mm->oom_disable_count);
+> > > > +				atomic_inc(&new_mm->oom_disable_count);
+> > > > +			}
+> > > >  			activate_mm(active_mm, new_mm);
+> > > >  			new_mm = mm;
+> > > >  		}
+> > > 
+> > > This place, we are grabbing task_lock(), but task_lock don't prevent
+> > > to change signal->oom_score_adj from another thread. This seems racy.
+> > > 
+> > 
+> > It does, task_lock(current) protects current->signal->oom_score_adj from 
+> > changing in oom-add-per-mm-oom-disable-count.patch.
+> > 
+> > I'll add the task_lock(p) in mm_init(), thanks for the review!
+> 
+> Wait, can you please elabolate more? task_lock() only lock one thread.
+> Why can it protect multi-thread race?
+> 
 
-Thanks.
+We take task_lock(tsk) whenever we change tsk->signal->oom_score_adj.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
