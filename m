@@ -1,78 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9F86B004D
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 15:44:45 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id o81Jifsk007251
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 12:44:42 -0700
-Received: from pvg12 (pvg12.prod.google.com [10.241.210.140])
-	by kpbe13.cbf.corp.google.com with ESMTP id o81Jie9Z025007
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 12:44:40 -0700
-Received: by pvg12 with SMTP id 12so4120623pvg.22
-        for <linux-mm@kvack.org>; Wed, 01 Sep 2010 12:44:39 -0700 (PDT)
-Date: Wed, 1 Sep 2010 12:44:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] transparent hugepage sysfs meminfo
-In-Reply-To: <20100901190859.GA20316@random.random>
-Message-ID: <alpine.DEB.2.00.1009011244130.4951@chino.kir.corp.google.com>
-References: <20100901190859.GA20316@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 27E566B004D
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:06:03 -0400 (EDT)
+Date: Wed, 1 Sep 2010 15:05:54 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 03/10] Use percpu stats
+In-Reply-To: <1283290878.2198.28.camel@edumazet-laptop>
+Message-ID: <alpine.DEB.2.00.1009011501230.16013@router.home>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>  <1281374816-904-4-git-send-email-ngupta@vflare.org>  <alpine.DEB.2.00.1008301114460.10316@router.home>  <AANLkTikdhnr12uU8Wp60BygZwH770RBfxyfLNMzUsQje@mail.gmail.com>  <1283290106.2198.26.camel@edumazet-laptop>
+  <alpine.DEB.2.00.1008311635100.867@router.home> <1283290878.2198.28.camel@edumazet-laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Add hugepage statistics to per-node sysfs meminfo
+On Tue, 31 Aug 2010, Eric Dumazet wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- drivers/base/node.c |   21 ++++++++++++++++++---
- 1 files changed, 18 insertions(+), 3 deletions(-)
+> > > Even for single counter, this_cpu_read(64bit) is not using an RMW
+> > > (cmpxchg8) instruction, so you can get very strange results when low
+> > > order 32bit wraps.
+> >
+> > How about fixing it so that everyone benefits?
+> >
+>
+> IMHO, this_cpu_read() is fine as is : a _read_ operation.
+>
+> Dont pretend it can be used in every context, its not true.
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -117,12 +117,21 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
- 		       "Node %d WritebackTmp:   %8lu kB\n"
- 		       "Node %d Slab:           %8lu kB\n"
- 		       "Node %d SReclaimable:   %8lu kB\n"
--		       "Node %d SUnreclaim:     %8lu kB\n",
-+		       "Node %d SUnreclaim:     %8lu kB\n"
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		       "Node %d AnonHugePages:  %8lu kB\n"
-+#endif
-+			,
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
- 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
- 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
--		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(nid, NR_ANON_PAGES)
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+			+ node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-+			HPAGE_PMD_NR
-+#endif
-+		       ),
- 		       nid, K(node_page_state(nid, NR_SHMEM)),
- 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
- 				THREAD_SIZE / 1024,
-@@ -133,7 +142,13 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
- 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-+		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+			, nid,
-+			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-+			HPAGE_PMD_NR)
-+#endif
-+		       );
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
- }
+The problem only exists on 32 bit platforms using 64 bit counters. If you
+would provide this functionality for the fallback case of 64 bit counters
+(here x86) in 32 bit arch code then you could use the this_cpu_*
+operations in all context without your special code being replicated in
+ohter places.
+
+The additional advantage would be that for the 64bit case you would have
+much faster and more compact code.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
