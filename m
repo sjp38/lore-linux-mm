@@ -1,96 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A8B666B0047
-	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 20:31:18 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o810VGY0026230
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Sep 2010 09:31:16 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2F4045DE60
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:31:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 991CF45DE5B
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:31:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F3DE1DB8064
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:31:15 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C8D7B1DB805F
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:31:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] vmscan: don't use return value trick when oom_killer_disabled
-Message-Id: <20100901092430.9741.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 235BF6B0047
+	for <linux-mm@kvack.org>; Tue, 31 Aug 2010 20:35:16 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o810YorF027568
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 1 Sep 2010 09:34:50 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AC7E45DE55
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:34:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3161045DE51
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:34:50 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1847F1DB803B
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:34:50 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B41C91DB803C
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 09:34:49 +0900 (JST)
+Date: Wed, 1 Sep 2010 09:29:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/5] memcg: quick memcg lookup array
+Message-Id: <20100901092948.a99c6a57.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100830170324.16933949.nishimura@mxp.nes.nec.co.jp>
+References: <20100825170435.15f8eb73.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100825170741.f1f0a220.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100830170324.16933949.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed,  1 Sep 2010 09:31:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, gthelen@google.com, m-ikeda@ds.jp.nec.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
-32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
-Also he was bisected first bad commit is below
+On Mon, 30 Aug 2010 17:03:24 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-  commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
-  Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-  Date:   Fri Jun 4 14:15:05 2010 -0700
+> > Index: mmotm-0811/mm/memcontrol.c
+> > ===================================================================
+> > --- mmotm-0811.orig/mm/memcontrol.c
+> > +++ mmotm-0811/mm/memcontrol.c
+> > @@ -195,6 +195,7 @@ static void mem_cgroup_oom_notify(struct
+> >   */
+> >  struct mem_cgroup {
+> >  	struct cgroup_subsys_state css;
+> > +	int	valid; /* for checking validness under RCU access.*/
+> >  	/*
+> >  	 * the counter to account for memory usage
+> >  	 */
+> Do we really need to add this new member ?
+> Can't we safely access "mem(=rcu_dereference(mem_cgroup[id]))" under rcu_read_lock() ?
+> (iow, "mem" is not freed ?)
+> 
 
-     vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
-
-At first impression, this seemed very strange because the above commit only
-chenged function return value and hibernate_preallocate_memory() ignore
-return value of shrink_all_memory(). But it's related.
-
-Now, page allocation from hibernation code may enter infinite loop if
-the system has highmem.
-
-The reasons are two. 1) hibernate_preallocate_memory() call
-alloc_pages() wrong order 2) vmscan don't care enough OOM case when
-oom_killer_disabled.
-
-This patch only fix (2). Why is oom_killer_disabled so special?
-because when hibernation case, zone->all_unreclaimable never be turned on.
-hibernation freeze all tasks at first, then kswapd can't works in this
-case, and zone->all_unreclaimable is only turned from kswapd.
-
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: M. Vefa Bicakci <bicave@superonline.com>
-Cc: stable@kernel.org
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c391c32..1919d8a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -40,6 +40,7 @@
- #include <linux/memcontrol.h>
- #include <linux/delayacct.h>
- #include <linux/sysctl.h>
-+#include <linux/oom.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -1931,7 +1932,7 @@ out:
- 		return sc->nr_reclaimed;
- 
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
--	if (scanning_global_lru(sc) && !all_unreclaimable)
-+	if (scanning_global_lru(sc) && !all_unreclaimable && !oom_killer_disabled)
- 		return 1;
- 
- 	return 0;
--- 
-1.6.5.2
+Maybe this can be removed. I'll check again.
 
 
+
+
+> 
+> > @@ -4049,6 +4068,7 @@ static void __mem_cgroup_free(struct mem
+> >  	mem_cgroup_remove_from_trees(mem);
+> >  	free_css_id(&mem_cgroup_subsys, &mem->css);
+> >  
+> > +	atomic_dec(&mem_cgroup_num);
+> >  	for_each_node_state(node, N_POSSIBLE)
+> >  		free_mem_cgroup_per_zone_info(mem, node);
+> >  
+> > @@ -4059,6 +4079,19 @@ static void __mem_cgroup_free(struct mem
+> >  		vfree(mem);
+> >  }
+> >  
+> > +static void mem_cgroup_free(struct mem_cgroup *mem)
+> > +{
+> > +	/* No more lookup */
+> > +	mem->valid = 0;
+> > +	rcu_assign_pointer(mem_cgroups[css_id(&mem->css)], NULL);
+> > +	/*
+> > +	 * Because we call vfree() etc...use synchronize_rcu() rather than
+> > + 	 * call_rcu();
+> > + 	 */
+> > +	synchronize_rcu();
+> > +	__mem_cgroup_free(mem);
+> > +}
+> > +
+> >  static void mem_cgroup_get(struct mem_cgroup *mem)
+> >  {
+> >  	atomic_inc(&mem->refcnt);
+> > @@ -4068,7 +4101,7 @@ static void __mem_cgroup_put(struct mem_
+> >  {
+> >  	if (atomic_sub_and_test(count, &mem->refcnt)) {
+> >  		struct mem_cgroup *parent = parent_mem_cgroup(mem);
+> > -		__mem_cgroup_free(mem);
+> > +		mem_cgroup_free(mem);
+> >  		if (parent)
+> >  			mem_cgroup_put(parent);
+> >  	}
+> > @@ -4189,9 +4222,11 @@ mem_cgroup_create(struct cgroup_subsys *
+> >  	atomic_set(&mem->refcnt, 1);
+> >  	mem->move_charge_at_immigrate = 0;
+> >  	mutex_init(&mem->thresholds_lock);
+> > +	atomic_inc(&mem_cgroup_num);
+> > +	register_memcg_id(mem);
+> >  	return &mem->css;
+> >  free_out:
+> > -	__mem_cgroup_free(mem);
+> > +	mem_cgroup_free(mem);
+> >  	root_mem_cgroup = NULL;
+> >  	return ERR_PTR(error);
+> >  }
+> I think mem_cgroup_num should be increased at mem_cgroup_alloc(), because it
+> is decreased at __mem_cgroup_free(). Otherwise, it can be decreased while it
+> has not been increased, if mem_cgroup_create() fails after mem_cgroup_alloc().
+> 
+
+Hmm. thank you for checking, I'll fix.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
