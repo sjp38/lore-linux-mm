@@ -1,109 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0F6916B0047
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 03:33:33 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o817XTFh008146
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 1 Sep 2010 16:33:30 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 84F4845DE6E
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:33:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 550E645DE60
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:33:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F6861DB8040
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:33:29 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AE2761DB8037
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 16:33:25 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
-In-Reply-To: <20100901072402.GE13677@csn.ul.ie>
-References: <20100901083425.971F.A69D9226@jp.fujitsu.com> <20100901072402.GE13677@csn.ul.ie>
-Message-Id: <20100901163146.9755.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DB36B0047
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 03:56:10 -0400 (EDT)
+Date: Wed, 1 Sep 2010 16:52:38 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 2/5] memcg: more use of css ID in memcg.
+Message-Id: <20100901165238.5086e67d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20100901154259.5b17bb87.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100901153951.bc82c021.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100901154259.5b17bb87.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed,  1 Sep 2010 16:33:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, gthelen@google.com, Munehiro Ikeda <m-ikeda@ds.jp.nec.com>, menage@google.com, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, Sep 01, 2010 at 08:37:41AM +0900, KOSAKI Motohiro wrote:
-> > > +#ifdef CONFIG_SMP
-> > > +/* Called when a more accurate view of NR_FREE_PAGES is needed */
-> > > +unsigned long zone_nr_free_pages(struct zone *zone)
-> > > +{
-> > > +	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
-> > > +
-> > > +	/*
-> > > +	 * While kswapd is awake, it is considered the zone is under some
-> > > +	 * memory pressure. Under pressure, there is a risk that
-> > > +	 * per-cpu-counter-drift will allow the min watermark to be breached
-> > > +	 * potentially causing a live-lock. While kswapd is awake and
-> > > +	 * free pages are low, get a better estimate for free pages
-> > > +	 */
-> > > +	if (nr_free_pages < zone->percpu_drift_mark &&
-> > > +			!waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
-> > > +		int cpu;
-> > > +
-> > > +		for_each_online_cpu(cpu) {
-> > > +			struct per_cpu_pageset *pset;
-> > > +
-> > > +			pset = per_cpu_ptr(zone->pageset, cpu);
-> > > +			nr_free_pages += pset->vm_stat_diff[NR_FREE_PAGES];
-> > 
-> > If my understanding is correct, we have no lock when reading pset->vm_stat_diff.
-> > It mean nr_free_pages can reach negative value at very rarely race. boundary
-> > check is necessary?
-> > 
-> 
-> True, well spotted.
-> 
-> How about the following? It records a delta and checks if delta is negative
-> and would cause underflow.
-> 
-> unsigned long zone_nr_free_pages(struct zone *zone)
-> {
->         unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
->         long delta = 0;
-> 
->         /*
->          * While kswapd is awake, it is considered the zone is under some
->          * memory pressure. Under pressure, there is a risk that
->          * per-cpu-counter-drift will allow the min watermark to be breached
->          * potentially causing a live-lock. While kswapd is awake and
->          * free pages are low, get a better estimate for free pages
->          */
->         if (nr_free_pages < zone->percpu_drift_mark &&
->                         !waitqueue_active(&zone->zone_pgdat->kswapd_wait)) {
->                 int cpu;
-> 
->                 for_each_online_cpu(cpu) {
->                         struct per_cpu_pageset *pset;
-> 
->                         pset = per_cpu_ptr(zone->pageset, cpu);
->                         delta += pset->vm_stat_diff[NR_FREE_PAGES];
->                 }
->         }
-> 
->         /* Watch for underflow */
->         if (delta < 0 && abs(delta) > nr_free_pages)
->                 delta = -nr_free_pages;
-> 
->         return nr_free_pages + delta;
-> }
+On Wed, 1 Sep 2010 15:42:59 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Looks good to me :)
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now, memory cgroup has an ID per cgroup and make use of it at
+>  - hierarchy walk,
+>  - swap recording.
+> 
+> This patch is for making more use of it. The final purpose is
+> to replace page_cgroup->mem_cgroup's pointer to an unsigned short.
+> 
+> This patch caches a pointer of memcg in an array. By this, we
+> don't have to call css_lookup() which requires radix-hash walk.
+> This saves some amount of memory footprint at lookup memcg via id.
+> 
+> Changelog: 20100901
+>  - added unregster_memcg_id() and did some clean up.
+>  - removed ->valid.
+>  - fixed mem_cgroup_num counter handling.
+> 
+> Changelog: 20100825
+>  - applied comments.
+> 
+> Changelog: 20100811
+>  - adjusted onto mmotm-2010-08-11
+>  - fixed RCU related parts.
+>  - use attach_id() callback.
+> 
+> Changelog: 20100804
+>  - fixed description in init/Kconfig
+> 
+> Changelog: 20100730
+>  - fixed rcu_read_unlock() placement.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks.
-
-
-
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
