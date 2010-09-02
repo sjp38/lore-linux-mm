@@ -1,51 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AB5526B0047
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 16:30:25 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH] vmscan: don't use return value trick when oom_killer_disabled
-Date: Thu, 2 Sep 2010 22:04:14 +0200
-References: <1283442461-16290-1-git-send-email-minchan.kim@gmail.com>
-In-Reply-To: <1283442461-16290-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id EEF796B0047
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 19:57:11 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o82Nv8ft018350
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 3 Sep 2010 08:57:09 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E406245DE53
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 08:57:07 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D76145DE50
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 08:57:06 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DEE91DB8038
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 08:57:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AB50A1DB803C
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 08:57:05 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v3] vmscan: prevent background aging of anon page in no swap system
+In-Reply-To: <1283441862-15855-1-git-send-email-minchan.kim@gmail.com>
+References: <1283441862-15855-1-git-send-email-minchan.kim@gmail.com>
+Message-Id: <20100903085612.B654.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-2"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201009022204.14661.rjw@sisk.pl>
+Date: Fri,  3 Sep 2010 08:57:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday, September 02, 2010, Minchan Kim wrote:
-> M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
-> 32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
-> Also he was bisected first bad commit is below
+> Ying Han reported that backing aging of anon pages in no swap system
+> causes unnecessary TLB flush.
 > 
->   commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
->   Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->   Date:   Fri Jun 4 14:15:05 2010 -0700
+> When I sent a patch(69c8548175), I wanted this patch but Rik pointed out
+> and allowed aging of anon pages to give a chance to promote from inactive
+> to active LRU.
 > 
->      vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
+> It has a two problem.
 > 
-> At first impression, this seemed very strange because the above commit only
-> chenged function return value and hibernate_preallocate_memory() ignore
-> return value of shrink_all_memory(). But it's related.
+> 1) non-swap system
 > 
-> Now, page allocation from hibernation code may enter infinite loop if
-> the system has highmem.
+> Never make sense to age anon pages.
 > 
-> The reasons are two. 1) hibernate_preallocate_memory() call
-> alloc_pages() wrong order
+> 2) swap configured but still doesn't swapon
+> 
+> It doesn't make sense to age anon pages until swap-on time.
+> But it's arguable. If we have aged anon pages by swapon, VM have moved
+> anon pages from active to inactive. And in the time swapon by admin,
+> the VM can't reclaim hot pages so we can protect hot pages swapout.
+> 
+> But let's think about it. When does swap-on happen? It depends on admin.
+> we can't expect it. Nonetheless, we have done aging of anon pages to
+> protect hot pages swapout. It means we lost run time overhead when
+> below high watermark but gain hot page swap-[in/out] overhead when VM
+> decide swapout. Is it true? Let's think more detail.
+> We don't promote anon pages in case of non-swap system. So even though
+> VM does aging of anon pages, the pages would be in inactive LRU for a long
+> time. It means many of pages in there would mark access bit again. So access
+> bit hot/code separation would be pointless.
+> 
+> This patch prevents unnecessary anon pages demotion in not-yet-swapon and
+> non-configured swap system. Even, in non-configuared swap system
+> inactive_anon_is_low can be compiled out.
+> 
+> It could make side effect that hot anon pages could swap out
+> when admin does swap on. But I think sooner or later it would be
+> steady state. So it's not a big problem.
+> 
+> We could lose someting but gain more thing(TLB flush and unnecessary
+> function call to demote anon pages).
+> 
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Ying Han <yinghan@google.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
 
-This isn't the case, as explained here: http://lkml.org/lkml/2010/9/1/316 .
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-The ordering of calls is correct, but it's better to check if there are any
-non-highmem pages to allocate from before the last call (for performance
-reasons, but that also would eliminate the failure in question).
 
-Thanks,
-Rafael
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
