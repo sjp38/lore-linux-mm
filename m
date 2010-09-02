@@ -1,98 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 24CAB6B004A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 04:28:42 -0400 (EDT)
-Date: Thu, 2 Sep 2010 10:28:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
- offlining code
-Message-ID: <20100902082829.GA10265@tiehlicka.suse.cz>
-References: <20100820141400.GD4636@tiehlicka.suse.cz>
- <20100822004232.GA11007@localhost>
- <20100823092246.GA25772@tiehlicka.suse.cz>
- <20100831141942.GA30353@localhost>
- <20100901121951.GC6663@tiehlicka.suse.cz>
- <20100901124138.GD6663@tiehlicka.suse.cz>
- <20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 19AA76B004D
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 04:51:34 -0400 (EDT)
+Date: Thu, 2 Sep 2010 09:51:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+	NR_FREE_PAGES when memory is low and kswapd is awake
+Message-ID: <20100902085118.GA7670@csn.ul.ie>
+References: <1283276257-1793-1-git-send-email-mel@csn.ul.ie> <1283276257-1793-3-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.1009011942150.21189@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1009011942150.21189@router.home>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 02-09-10 14:45:00, KAMEZAWA Hiroyuki wrote:
-> On Wed, 1 Sep 2010 14:41:38 +0200
-[...]
-> > From de85f1aa42115678d3340f0448cd798577036496 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Fri, 20 Aug 2010 15:39:16 +0200
-> > Subject: [PATCH] Make is_mem_section_removable more conformable with offlining code
-> > 
-> > Currently is_mem_section_removable checks whether each pageblock from
-> > the given pfn range is of MIGRATE_MOVABLE type or if it is free. If both
-> > are false then the range is considered non removable.
-> > 
-> > On the other hand, offlining code (more specifically
-> > set_migratetype_isolate) doesn't care whether a page is free and instead
-> > it just checks the migrate type of the page and whether the page's zone
-> > is movable.
-> > 
-> > This can lead into a situation when we can mark a node as not removable
-> > just because a pageblock is MIGRATE_RESERVE and it is not free.
-> > 
-> > Let's make a common helper is_page_removable which unifies both tests
-> > at one place. Also let's check for MIGRATE_UNMOVABLE rather than all
-> > possible MIGRATEable types.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+On Wed, Sep 01, 2010 at 07:43:41PM -0500, Christoph Lameter wrote:
+> On Tue, 31 Aug 2010, Mel Gorman wrote:
 > 
-> Hmm..Why MIGRATE_RECLAIMABLE is included ?
+> > +#ifdef CONFIG_SMP
+> > +/* Called when a more accurate view of NR_FREE_PAGES is needed */
+> > +unsigned long zone_nr_free_pages(struct zone *zone)
+> > +{
+> > +	unsigned long nr_free_pages = zone_page_state(zone, NR_FREE_PAGES);
+> 
+> You cannot call zone_page_state here because zone_page_state clips the
+> counter at zero. The nr_free_pages needs to reflect the unclipped state
+> and then the deltas need to be added. Then the clipping at zero can be
+> done.
+> 
 
-AFAIU the code, MIGRATE_RECLAIMABLE are movable as well (at least that
-is how I interpret #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)).
-Why should we prevent from memory offlining if we have some reclaimable
-pages? Or am I totally misinterpreting the meaning of this flag?
-
-> 
-> If MIGRATE_RCLAIMABLE is included, set_migrate_type() should check the
-> range of pages. Because it makes the pageblock as MIGRAGE_MOVABLE after
-> failure of memory hotplug.
-> 
-> Original code checks.
-> 
->  - the range is MIGRAGE_MOVABLE or
->  - the range includes only free pages and LRU pages.
-> 
-> Then, moving them back to MIGRAGE_MOVABLE after failure was correct.
-> Doesn't this makes changes MIGRATE_RECALIMABLE to be MIGRATE_MOVABLE and
-> leads us to more fragmentated situation ?
-
-Just to be sure that I understand you concern. We are talking about hot
-remove failure which can lead to higher fragmentation, right? 
-
-By the higher fragmentation you mean that all movable pageblocks (even
-reclaimable) gets to MIGRATE_MOVABLE until we get first failure. In the
-worst case, if we fail near the end of the zone then there is imbalance
-in MIGRATE_MOVABLE vs. MIGRATE_RECALIMABLE. Is that what you are
-thinking of? Doesn't this just gets the zone to the state after
-onlining? Or is the problem if we fail somewhere in the middle?
-
-> 
-> Thanks,
-> -Kame
-> 
-> 
+Good point. This justifies the use of a generic helper that is co-located
+with vmstat.h. I've taken your zone_page_state_snapshot() patch, am using
+the helper to take a more accurate reading of NR_FREE_PAGES and preparing
+for a test.  Thanks Christoph.
 
 -- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
