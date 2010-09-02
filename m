@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 969636B004D
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:01:03 -0400 (EDT)
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id o820105L026736
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 17:01:00 -0700
-Received: from pvg2 (pvg2.prod.google.com [10.241.210.130])
-	by wpaz1.hot.corp.google.com with ESMTP id o8200wgI008451
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2010 17:00:58 -0700
-Received: by pvg2 with SMTP id 2so3061285pvg.19
-        for <linux-mm@kvack.org>; Wed, 01 Sep 2010 17:00:58 -0700 (PDT)
-Date: Wed, 1 Sep 2010 17:00:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 2/2] oom: use old_mm for oom_disable_count in exec
-In-Reply-To: <alpine.DEB.2.00.1009011659020.14215@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1009011659490.14215@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1009011659020.14215@chino.kir.corp.google.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 47CCD6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:19:46 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o820JhkD031913
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 2 Sep 2010 09:19:43 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 56A0445DE5A
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 226CF45DE4F
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 01A8D1DB8043
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A99BD1DB8044
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:42 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] oom: filter unkillable tasks from tasklist dump
+In-Reply-To: <alpine.DEB.2.00.1009011426260.28408@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1009011426260.28408@chino.kir.corp.google.com>
+Message-Id: <20100902091916.D056.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu,  2 Sep 2010 09:19:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-active_mm in the exec() path can be for an unrelated thread, so the 
-oom_disable_count logic should use old_mm instead.
+> /proc/sys/vm/oom_dump_tasks is enabled by default, so it's necessary to
+> limit as much information as possible that it should emit.
+> 
+> The tasklist dump should be filtered to only those tasks that are
+> eligible for oom kill.  This is already done for memcg ooms, but this
+> patch extends it to both cpuset and mempolicy ooms as well as init.
+> 
+> In addition to suppressing irrelevant information, this also reduces
+> confusion since users currently don't know which tasks in the tasklist
+> aren't eligible for kill (such as those attached to cpusets or bound to
+> mempolicies with a disjoint set of mems or nodes, respectively) since
+> that information is not shown.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Reported-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- fs/exec.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+Looks good.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-diff --git a/fs/exec.c b/fs/exec.c
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -752,8 +752,8 @@ static int exec_mmap(struct mm_struct *mm)
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
- 	activate_mm(active_mm, mm);
--	if (tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
--		atomic_dec(&active_mm->oom_disable_count);
-+	if (old_mm && tsk->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-+		atomic_dec(&old_mm->oom_disable_count);
- 		atomic_inc(&tsk->mm->oom_disable_count);
- 	}
- 	task_unlock(tsk);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
