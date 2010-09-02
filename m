@@ -1,96 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 854626B004A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:48:31 -0400 (EDT)
-Received: by wyb36 with SMTP id 36so353271wyb.14
-        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 06:48:30 -0700 (PDT)
-Date: Thu, 2 Sep 2010 14:48:27 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9DDC76B004A
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:59:51 -0400 (EDT)
+Received: by wwb39 with SMTP id 39so424635wwb.2
+        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 06:59:49 -0700 (PDT)
 From: Eric B Munson <emunson@mgebm.net>
-Subject: Re: [PATCH 1/2] Add trace points to mmap, munmap, and brk
-Message-ID: <20100902134827.GA6957@mgebm.net>
-References: <20100721223359.8710.A69D9226@jp.fujitsu.com>
- <20100727110904.GA6519@mgebm.net>
- <20100727201644.2F46.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="VS++wcV0S1rZb1Fb"
-Content-Disposition: inline
-In-Reply-To: <20100727201644.2F46.A69D9226@jp.fujitsu.com>
+Subject: [PATCH 2/2] Add mremap trace point
+Date: Thu,  2 Sep 2010 14:59:45 +0100
+Message-Id: <1283435985-21934-3-git-send-email-emunson@mgebm.net>
+In-Reply-To: <1283435985-21934-1-git-send-email-emunson@mgebm.net>
+References: <1283435985-21934-1-git-send-email-emunson@mgebm.net>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, Eric B Munson <emunson@mgebm.net>
 List-ID: <linux-mm.kvack.org>
 
+This patch adds the trace point for mremap which reports relevant addresses
+and sizes when mremap exits successfully.
 
---VS++wcV0S1rZb1Fb
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Eric B Munson <emunson@mgebm.net>
+---
+ include/trace/events/mm.h |   22 ++++++++++++++++++++++
+ mm/mremap.c               |    4 ++++
+ 2 files changed, 26 insertions(+), 0 deletions(-)
 
-On Tue, 27 Jul 2010, KOSAKI Motohiro wrote:
-
-> > On Wed, 21 Jul 2010, KOSAKI Motohiro wrote:
-> >=20
-> > > > This patch adds trace points to mmap, munmap, and brk that will rep=
-ort
-> > > > relevant addresses and sizes before each function exits successfull=
-y.
-> > > >=20
-> > > > Signed-off-by: Eric B Munson <emunson@mgebm.net>
-> > >=20
-> > > I don't think this is good idea. if you need syscall result, you shou=
-ld=20
-> > > use syscall tracer. IOW, This tracepoint bring zero information.
-> > >=20
-> > > Please see perf_event_mmap() usage. Our kernel manage adress space by
-> > > vm_area_struct. we need to trace it if we need to know what kernel do=
-es.
-> > >=20
-> > > Thanks.
-> >=20
-> > The syscall tracer does not give you the address and size of the mmaped=
- areas
-> > so this does provide information above simply tracing the enter/exit po=
-ints
-> > for each call.
->=20
-> Why don't you fix this?
->=20
->=20
-
-Sorry for the long delay, the enter/exit routines are not compatible with t=
-he
-information that these new trace points provides.  When tracing mmap, for
-instance, the addr and len arguments can be altered by the function.  If you
-use the enter/exit trace points you would not see this as the arguments are
-sampled at function entrance and not given again on exit.  Also, the new
-trace points are only hit on function success, the exit trace point happens
-any time you leave the system call.
-
-I will send out a new series after a rebase.
-
-Thanks,
-Eric
-
-
---VS++wcV0S1rZb1Fb
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJMf6srAAoJEH65iIruGRnNFNcH+gIEP6H+KA0VeEfHdqpfcQPu
-ozIShtWVEOlr77x/d0aWpG2mweyGMD24JCAD8JVYYStUFbUxS0YxOVXBM4jmpmYm
-GOBkyDLYwi6iBY0c4k/3VxIakOkEl1yGr7WBCl4To0VbpWxK2JYJLpE8kCr94nh9
-Po6lIdOVNK6y42AcpbCm3MtFy3GdBEdz39ZbfrwY9v9/PfzHxUZZzdjmLKEaA7bJ
-fhCMgvMmGQU7P4rrzecsC43oqrKUE6beYZjSTTQeq3BgufV4quC3dYzmSycPwVxJ
-0NAcLCpMHSago/xGL3A+Ke+IxcL2MFxOfn1G0ybGV9SISo0FWRq393cgi5rCxow=
-=zNvZ
------END PGP SIGNATURE-----
-
---VS++wcV0S1rZb1Fb--
+diff --git a/include/trace/events/mm.h b/include/trace/events/mm.h
+index 892bbe3..16f8c36 100644
+--- a/include/trace/events/mm.h
++++ b/include/trace/events/mm.h
+@@ -69,6 +69,28 @@ TRACE_EVENT(
+ 		TP_printk("%u bytes at 0x%lx\n", __entry->len, __entry->start)
+ );
+ 
++TRACE_EVENT(
++		mremap,
++		TP_PROTO(unsigned long addr, unsigned long old_len,
++			 unsigned long new_addr, unsigned long new_len),
++		TP_ARGS(addr, old_len, new_addr, new_len),
++		TP_STRUCT__entry(
++			__field(unsigned long, addr)
++			__field(unsigned long, old_len)
++			__field(unsigned long, new_addr)
++			__field(unsigned long, new_len)
++		),
++		TP_fast_assign(
++			__entry->addr = addr;
++			__entry->old_len = old_len;
++			__entry->new_addr = new_addr;
++			__entry->new_len = new_len;
++		),
++		TP_printk("%lu bytes from 0x%lx to %lu bytes at 0x%lx\n",
++			__entry->old_len, __entry->addr, __entry->new_len,
++			__entry->new_addr)
++);
++
+ #endif /* _TRACE_MM_H */
+ 
+ #include <trace/define_trace.h>
+diff --git a/mm/mremap.c b/mm/mremap.c
+index cde56ee..4ef1dd3 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -20,6 +20,8 @@
+ #include <linux/syscalls.h>
+ #include <linux/mmu_notifier.h>
+ 
++#include <trace/events/mm.h>
++
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+@@ -504,6 +506,8 @@ unsigned long do_mremap(unsigned long addr,
+ out:
+ 	if (ret & ~PAGE_MASK)
+ 		vm_unacct_memory(charged);
++	else
++		trace_mremap(addr, old_len, new_addr, new_len);
+ 	return ret;
+ }
+ 
+-- 
+1.7.0.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
