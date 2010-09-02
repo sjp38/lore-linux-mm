@@ -1,38 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2FBE56B0078
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 11:41:05 -0400 (EDT)
-Message-ID: <4C7FC585.9090401@redhat.com>
-Date: Thu, 02 Sep 2010 11:40:53 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3] vmscan: prevent background aging of anon page in no
- swap system
-References: <1283441862-15855-1-git-send-email-minchan.kim@gmail.com>
-In-Reply-To: <1283441862-15855-1-git-send-email-minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 066BE6B0078
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 11:48:11 -0400 (EDT)
+Received: by qyk12 with SMTP id 12so2631441qyk.14
+        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 08:48:10 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] vmscan: don't use return value trick when oom_killer_disabled
+Date: Fri,  3 Sep 2010 00:47:41 +0900
+Message-Id: <1283442461-16290-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 09/02/2010 11:37 AM, Minchan Kim wrote:
+M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
+32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
+Also he was bisected first bad commit is below
 
-> This patch prevents unnecessary anon pages demotion in not-yet-swapon and
-> non-configured swap system. Even, in non-configuared swap system
-> inactive_anon_is_low can be compiled out.
+  commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
+  Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+  Date:   Fri Jun 4 14:15:05 2010 -0700
 
-> Cc: Rik van Riel<riel@redhat.com>
-> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner<hannes@cmpxchg.org>
-> Signed-off-by: Ying Han<yinghan@google.com>
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
+     vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+At first impression, this seemed very strange because the above commit only
+chenged function return value and hibernate_preallocate_memory() ignore
+return value of shrink_all_memory(). But it's related.
 
+Now, page allocation from hibernation code may enter infinite loop if
+the system has highmem.
+
+The reasons are two. 1) hibernate_preallocate_memory() call
+alloc_pages() wrong order 2) vmscan don't care enough OOM case when
+oom_killer_disabled.
+
+This patch only fix (2). Why is oom_killer_disabled so special?
+because when hibernation case, zone->all_unreclaimable never be turned on.
+hibernation freeze all tasks at first, then kswapd can't works in this
+case, and zone->all_unreclaimable is only turned from kswapd.
+
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: M. Vefa Bicakci <bicave@superonline.com>
+Cc: stable@kernel.org
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |   33 +++++++++++++++++++++++++++------
+ 1 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f620ab3..53b23a7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1893,12 +1893,11 @@ static void shrink_zone(int priority, struct zone *zone,
+  * If a zone is deemed to be full of pinned pages then just give it a light
+  * scan then give up on it.
+  */
+-static bool shrink_zones(int priority, struct zonelist *zonelist,
++static void shrink_zones(int priority, struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	bool all_unreclaimable = true;
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -1916,8 +1915,31 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+ 		}
+ 
+ 		shrink_zone(priority, zone, sc);
+-		all_unreclaimable = false;
+ 	}
++}
++
++static inline bool all_unreclaimable(struct zonelist *zonelist,
++		struct scan_control *sc)
++{
++	struct zoneref *z;
++	struct zone *zone;
++	bool all_unreclaimable = true;
++
++	if (!scanning_global_lru(sc))
++		return false;
++
++	for_each_zone_zonelist_nodemask(zone, z, zonelist,
++			gfp_zone(sc->gfp_mask), sc->nodemask) {
++		if (!populated_zone(zone))
++			continue;
++		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
++			continue;
++		if (zone->pages_scanned < (zone_reclaimable_pages(zone) * 6)) {
++			all_unreclaimable = false;
++			break;
++		}
++	}
++
+ 	return all_unreclaimable;
+ }
+ 
+@@ -1941,7 +1963,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	int priority;
+-	bool all_unreclaimable;
+ 	unsigned long total_scanned = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct zoneref *z;
+@@ -1958,7 +1979,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+-		all_unreclaimable = shrink_zones(priority, zonelist, sc);
++		shrink_zones(priority, zonelist, sc);
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+ 		 * over limit cgroups
+@@ -2020,7 +2041,7 @@ out:
+ 		return sc->nr_reclaimed;
+ 
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+-	if (scanning_global_lru(sc) && !all_unreclaimable)
++	if (!all_unreclaimable(zonelist, sc))
+ 		return 1;
+ 
+ 	return 0;
 -- 
-All rights reversed
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
