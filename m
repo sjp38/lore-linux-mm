@@ -1,83 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0C1E36B004A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:18:59 -0400 (EDT)
-Date: Thu, 2 Sep 2010 15:18:55 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
- offlining code
-Message-ID: <20100902131855.GC10265@tiehlicka.suse.cz>
-References: <20100822004232.GA11007@localhost>
- <20100823092246.GA25772@tiehlicka.suse.cz>
- <20100831141942.GA30353@localhost>
- <20100901121951.GC6663@tiehlicka.suse.cz>
- <20100901124138.GD6663@tiehlicka.suse.cz>
- <20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
- <20100902082829.GA10265@tiehlicka.suse.cz>
- <20100902180343.f4232c6e.kamezawa.hiroyu@jp.fujitsu.com>
- <20100902092454.GA17971@tiehlicka.suse.cz>
- <AANLkTi=cLzRGPCc3gCubtU7Ggws7yyAK5c7tp4iocv6u@mail.gmail.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 854626B004A
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:48:31 -0400 (EDT)
+Received: by wyb36 with SMTP id 36so353271wyb.14
+        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 06:48:30 -0700 (PDT)
+Date: Thu, 2 Sep 2010 14:48:27 +0100
+From: Eric B Munson <emunson@mgebm.net>
+Subject: Re: [PATCH 1/2] Add trace points to mmap, munmap, and brk
+Message-ID: <20100902134827.GA6957@mgebm.net>
+References: <20100721223359.8710.A69D9226@jp.fujitsu.com>
+ <20100727110904.GA6519@mgebm.net>
+ <20100727201644.2F46.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="VS++wcV0S1rZb1Fb"
 Content-Disposition: inline
-In-Reply-To: <AANLkTi=cLzRGPCc3gCubtU7Ggws7yyAK5c7tp4iocv6u@mail.gmail.com>
+In-Reply-To: <20100727201644.2F46.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 02-09-10 20:19:45, Hiroyuki Kamezawa wrote:
-> 2010/9/2 Michal Hocko <mhocko@suse.cz>:
-> > On Thu 02-09-10 18:03:43, KAMEZAWA Hiroyuki wrote:
-> >> On Thu, 2 Sep 2010 10:28:29 +0200
-> >> Michal Hocko <mhocko@suse.cz> wrote:
-> >>
-> >> > On Thu 02-09-10 14:45:00, KAMEZAWA Hiroyuki wrote:
-[...]
-> >> > By the higher fragmentation you mean that all movable pageblocks (even
-> >> > reclaimable) gets to MIGRATE_MOVABLE until we get first failure. In the
-> >> > worst case, if we fail near the end of the zone then there is imbalance
-> >> > in MIGRATE_MOVABLE vs. MIGRATE_RECALIMABLE. Is that what you are
-> >> > thinking of? Doesn't this just gets the zone to the state after
-> >> > onlining? Or is the problem if we fail somewhere in the middle?
-> >> >
-> >>
-> >> No. My concern is pageblock type changes before/after memory hotplug failure.
-> >> ? ? ? before isolation: MIGRATE_RECLAIMABLE
-> >> ? ? ? after isolation failure : MIGRATE_MOVABLE
-> >
-> > Ahh, OK I can see your point now. unset_migratetype_isolate called on
-> > the failure path sets migrate type unconditionally as it cannot know
-> > what was the original migration type.
-> >
-> Right.
-> 
-> > What about MIGRATE_RESERVE? Is there anything that can make those
-> > allocations fail offlining?
-> >
-> MIGRATE_RESERVE can contain several typs of pages, mixture of movable/unmovable
-> pages.
 
-Ahh, ok. This is just a fallback zone. I see.
+--VS++wcV0S1rZb1Fb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> 
-> IIRC, my 1st version of code of set_migratetype_isolate() just checks
-> zone_idx and
-> I think checking MIGRATE_TYPE is my mistake.
-> (As Mel explained, it can be a mixture of several types.)
-> 
-> So, how about using the latter half of set_migratetype_isolate()'s check ?
-> It checks that the given range just includes free pages and LRU pages.
-> It's 100% accurate and more trustable than migrate_type check.
-> 
-> Whatever migratetype the pageblock has, if the block only contains free pages
-> and lru pages, changing the type as MOVABLE (at failure) is not very bad.
-> 
-> (Or, checking contents of pageblock in failure path and set proper
-> MIGRATE type.)
-> 
-> Anyway, not very difficult. Just a bit larger patch than you have.
+On Tue, 27 Jul 2010, KOSAKI Motohiro wrote:
 
-What about this? Just compile tested.
+> > On Wed, 21 Jul 2010, KOSAKI Motohiro wrote:
+> >=20
+> > > > This patch adds trace points to mmap, munmap, and brk that will rep=
+ort
+> > > > relevant addresses and sizes before each function exits successfull=
+y.
+> > > >=20
+> > > > Signed-off-by: Eric B Munson <emunson@mgebm.net>
+> > >=20
+> > > I don't think this is good idea. if you need syscall result, you shou=
+ld=20
+> > > use syscall tracer. IOW, This tracepoint bring zero information.
+> > >=20
+> > > Please see perf_event_mmap() usage. Our kernel manage adress space by
+> > > vm_area_struct. we need to trace it if we need to know what kernel do=
+es.
+> > >=20
+> > > Thanks.
+> >=20
+> > The syscall tracer does not give you the address and size of the mmaped=
+ areas
+> > so this does provide information above simply tracing the enter/exit po=
+ints
+> > for each call.
+>=20
+> Why don't you fix this?
+>=20
+>=20
 
----
+Sorry for the long delay, the enter/exit routines are not compatible with t=
+he
+information that these new trace points provides.  When tracing mmap, for
+instance, the addr and len arguments can be altered by the function.  If you
+use the enter/exit trace points you would not see this as the arguments are
+sampled at function entrance and not given again on exit.  Also, the new
+trace points are only hit on function success, the exit trace point happens
+any time you leave the system call.
+
+I will send out a new series after a rebase.
+
+Thanks,
+Eric
+
+
+--VS++wcV0S1rZb1Fb
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.10 (GNU/Linux)
+
+iQEcBAEBAgAGBQJMf6srAAoJEH65iIruGRnNFNcH+gIEP6H+KA0VeEfHdqpfcQPu
+ozIShtWVEOlr77x/d0aWpG2mweyGMD24JCAD8JVYYStUFbUxS0YxOVXBM4jmpmYm
+GOBkyDLYwi6iBY0c4k/3VxIakOkEl1yGr7WBCl4To0VbpWxK2JYJLpE8kCr94nh9
+Po6lIdOVNK6y42AcpbCm3MtFy3GdBEdz39ZbfrwY9v9/PfzHxUZZzdjmLKEaA7bJ
+fhCMgvMmGQU7P4rrzecsC43oqrKUE6beYZjSTTQeq3BgufV4quC3dYzmSycPwVxJ
+0NAcLCpMHSago/xGL3A+Ke+IxcL2MFxOfn1G0ybGV9SISo0FWRq393cgi5rCxow=
+=zNvZ
+-----END PGP SIGNATURE-----
+
+--VS++wcV0S1rZb1Fb--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
