@@ -1,30 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 680146B0047
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 12:48:10 -0400 (EDT)
-Message-ID: <4C7FD548.5030109@tilera.com>
-Date: Thu, 2 Sep 2010 12:48:08 -0400
-From: Chris Metcalf <cmetcalf@tilera.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDB76B0047
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 13:39:53 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o82HTZNR021525
+	for <linux-mm@kvack.org>; Thu, 2 Sep 2010 11:29:35 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o82Hdmq2102628
+	for <linux-mm@kvack.org>; Thu, 2 Sep 2010 11:39:48 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o82HdmQA026134
+	for <linux-mm@kvack.org>; Thu, 2 Sep 2010 11:39:48 -0600
+Message-ID: <4C7FE163.4000906@austin.ibm.com>
+Date: Thu, 02 Sep 2010 12:39:47 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/5] mm: stack based kmap_atomic
-References: <20100831192617.441439071@chello.nl> <20100831193924.157667156@chello.nl>
-In-Reply-To: <20100831193924.157667156@chello.nl>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 0/8] v5 De-couple sysfs memory directories from memory
+ sections
+References: <4C60407C.2080608@austin.ibm.com> <20100831215745.GA7641@kryten>
+In-Reply-To: <20100831215745.GA7641@kryten>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Anton Blanchard <anton@samba.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Greg KH <greg@kroah.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
- Acked-by: Chris Metcalf <cmetcalf@tilera.com>
-for the series.
+On 08/31/2010 04:57 PM, Anton Blanchard wrote:
+> 
+> Hi Nathan,
+> 
+>> This set of patches de-couples the idea that there is a single
+>> directory in sysfs for each memory section.  The intent of the
+>> patches is to reduce the number of sysfs directories created to
+>> resolve a boot-time performance issue.  On very large systems
+>> boot time are getting very long (as seen on powerpc hardware)
+>> due to the enormous number of sysfs directories being created.
+>> On a system with 1 TB of memory we create ~63,000 directories.
+>> For even larger systems boot times are being measured in hours.
+>>
+>> This set of patches allows for each directory created in sysfs
+>> to cover more than one memory section.  The default behavior for
+>> sysfs directory creation is the same, in that each directory
+>> represents a single memory section.  A new file 'end_phys_index'
+>> in each directory contains the physical_id of the last memory
+>> section covered by the directory so that users can easily
+>> determine the memory section range of a directory.
+> 
+> I tested this on a POWER7 with 2TB memory and the boot time improved from
+> greater than 6 hours (I gave up), to under 5 minutes. Nice!
 
-Note that in patch 4/5 you can also remove the pte_*map_nested() #defines
-in arch/tile/include/asm/pgtable.h.
+Thanks for testing this out.  I was able to test this on a 1 TB system
+and saw memory sysfs creation times go from 10 minutes to a few seconds.
+It's good to see the difference for a 2 TB system.
 
--- 
-Chris Metcalf, Tilera Corp.
-http://www.tilera.com
+-Nathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
