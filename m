@@ -1,167 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 18A856B004A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:59:53 -0400 (EDT)
-Received: by wyb36 with SMTP id 36so367676wyb.14
-        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 06:59:50 -0700 (PDT)
-From: Eric B Munson <emunson@mgebm.net>
-Subject: [PATCH 1/2] Add trace points to mmap, munmap, and brk
-Date: Thu,  2 Sep 2010 14:59:44 +0100
-Message-Id: <1283435985-21934-2-git-send-email-emunson@mgebm.net>
-In-Reply-To: <1283435985-21934-1-git-send-email-emunson@mgebm.net>
-References: <1283435985-21934-1-git-send-email-emunson@mgebm.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 621E06B004A
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 10:19:29 -0400 (EDT)
+Received: by vws16 with SMTP id 16so507971vws.14
+        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 07:19:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100902131855.GC10265@tiehlicka.suse.cz>
+References: <20100822004232.GA11007@localhost>
+	<20100823092246.GA25772@tiehlicka.suse.cz>
+	<20100831141942.GA30353@localhost>
+	<20100901121951.GC6663@tiehlicka.suse.cz>
+	<20100901124138.GD6663@tiehlicka.suse.cz>
+	<20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100902082829.GA10265@tiehlicka.suse.cz>
+	<20100902180343.f4232c6e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100902092454.GA17971@tiehlicka.suse.cz>
+	<AANLkTi=cLzRGPCc3gCubtU7Ggws7yyAK5c7tp4iocv6u@mail.gmail.com>
+	<20100902131855.GC10265@tiehlicka.suse.cz>
+Date: Thu, 2 Sep 2010 23:19:18 +0900
+Message-ID: <AANLkTikYt3Hu_XeNuwAa9KjzfWgpC8cNen6q657ZKmm-@mail.gmail.com>
+Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
+ offlining code
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: mingo@redhat.com, hugh.dickins@tiscali.co.uk, riel@redhat.com, peterz@infradead.org, anton@samba.org, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, Eric B Munson <emunson@mgebm.net>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds trace points to mmap, munmap, and brk that will report
-relevant addresses and sizes before each function exits successfully.
+2010/9/2 Michal Hocko <mhocko@suse.cz>:
+> What about this? Just compile tested.
+>
+> ---
+> From a2aaeafbaeb5b195b699df25060128b9e547949c Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Fri, 20 Aug 2010 15:39:16 +0200
+> Subject: [PATCH] Make is_mem_section_removable more conformable with offl=
+ining code
+>
+> Currently is_mem_section_removable checks whether each pageblock from
+> the given pfn range is of MIGRATE_MOVABLE type or if it is free. If both
+> are false then the range is considered non removable.
+>
+> On the other hand, offlining code (more specifically
+> set_migratetype_isolate) doesn't care whether a page is free and instead
+> it just checks the migrate type of the page and whether the page's zone
+> is movable.
+>
+> This can lead into a situation when we can mark a node as not removable
+> just because a pageblock is MIGRATE_RESERVE and it is not free but still
+> movable.
+>
+> Let's make a common helper is_page_removable which unifies both tests
+> at one place.
+>
+> Do not rely on any of MIGRATE_* types as all others than MIGRATE_MOVABLE
+> may be tricky. MIGRATE_RESERVE can be anything that just happened to
+> fallback to that allocation, MIGRATE_RECLAIMABLE can be unmovable
+> because slab (or what ever) has this page currently in use. If we tried
+> to remove those pages and the isolation failed then those blocks
+> would get to the MIRAGTE_MOVABLE list and we will end up with the
+> unmovable pages in the movable zone.
+>
+> Let's, instead, check just whether a pageblock contains free or LRU
+> pages.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+> =A0include/linux/mmzone.h | =A0 24 ++++++++++++++++++++++++
+> =A0mm/memory_hotplug.c =A0 =A0| =A0 19 +------------------
+> =A0mm/page_alloc.c =A0 =A0 =A0 =A0| =A0 =A05 +----
+> =A03 files changed, 26 insertions(+), 22 deletions(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 6e6e626..0bd941b 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -669,6 +669,30 @@ unsigned long __init node_memmap_size_bytes(int, uns=
+igned long, unsigned long);
+> =A0*/
+> =A0#define zone_idx(zone) =A0 =A0 =A0 =A0 ((zone) - (zone)->zone_pgdat->n=
+ode_zones)
+>
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +/*
+> + * A free or LRU pages block are removable
+> + * Do not use MIGRATE_MOVABLE because it can be insufficient and
+> + * other MIGRATE types are tricky.
+> + */
+> +static inline bool is_page_removable(struct page *page)
+> +{
+> + =A0 =A0 =A0 int page_block =3D 1 << pageblock_order;
+> + =A0 =A0 =A0 for (page_block > 0) {
 
-Signed-off-by: Eric B Munson <emunson@mgebm.net>
----
- include/trace/events/mm.h |   75 +++++++++++++++++++++++++++++++++++++++++++++
- mm/mmap.c                 |   15 ++++++++-
- 2 files changed, 89 insertions(+), 1 deletions(-)
- create mode 100644 include/trace/events/mm.h
+for ?
 
-diff --git a/include/trace/events/mm.h b/include/trace/events/mm.h
-new file mode 100644
-index 0000000..892bbe3
---- /dev/null
-+++ b/include/trace/events/mm.h
-@@ -0,0 +1,75 @@
-+/*
-+ * Copyright (c) 2010, Eric Munson
-+ * All Rights Reserved.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it would be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write the Free Software Foundation,
-+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-+ */
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM mm
-+
-+#if !defined(_TRACE_MM_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_MM_H
-+
-+#include <linux/tracepoint.h>
-+
-+DECLARE_EVENT_CLASS(
-+		mm_mmap_class,
-+		TP_PROTO(unsigned long addr, unsigned long len),
-+		TP_ARGS(addr, len),
-+		TP_STRUCT__entry(
-+			__field(unsigned long, addr)
-+			__field(unsigned long, len)
-+		),
-+		TP_fast_assign(
-+			__entry->addr = addr;
-+			__entry->len = len;
-+		),
-+		TP_printk("%lu bytes at 0x%lx\n", __entry->len, __entry->addr)
-+);
-+
-+DEFINE_EVENT(
-+		mm_mmap_class,
-+		mmap,
-+		TP_PROTO(unsigned long addr, unsigned long len),
-+		TP_ARGS(addr, len)
-+);
-+
-+
-+DEFINE_EVENT(
-+		mm_mmap_class,
-+		brk,
-+		TP_PROTO(unsigned long addr, unsigned long len),
-+		TP_ARGS(addr, len)
-+);
-+
-+TRACE_EVENT(
-+		munmap,
-+		TP_PROTO(unsigned long start, size_t len),
-+		TP_ARGS(start, len),
-+		TP_STRUCT__entry(
-+			__field(unsigned long, start)
-+			__field(size_t, len)
-+		),
-+		TP_fast_assign(
-+			__entry->start = start;
-+			__entry->len = len;
-+		),
-+
-+		TP_printk("%u bytes at 0x%lx\n", __entry->len, __entry->start)
-+);
-+
-+#endif /* _TRACE_MM_H */
-+
-+#include <trace/define_trace.h>
-+
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 6128dc8..03f857b 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -29,6 +29,9 @@
- #include <linux/mmu_notifier.h>
- #include <linux/perf_event.h>
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/mm.h>
-+
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
- #include <asm/tlb.h>
-@@ -971,6 +974,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	unsigned int vm_flags;
- 	int error;
- 	unsigned long reqprot = prot;
-+	unsigned long ret;
- 
- 	/*
- 	 * Does the application expect PROT_READ to imply PROT_EXEC?
-@@ -1096,7 +1100,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	if (error)
- 		return error;
- 
--	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
-+	ret = mmap_region(file, addr, len, flags, vm_flags, pgoff);
-+
-+	if(!(ret & ~PAGE_MASK))
-+		trace_mmap(addr,len);
-+
-+	return ret;
- }
- EXPORT_SYMBOL(do_mmap_pgoff);
- 
-@@ -2104,6 +2113,8 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
- 		}
- 	}
- 
-+	trace_munmap(start, len);
-+
- 	/*
- 	 * Remove the vma's, and unmap the actual pages
- 	 */
-@@ -2239,6 +2250,8 @@ out:
- 		if (!mlock_vma_pages_range(vma, addr, addr + len))
- 			mm->locked_vm += (len >> PAGE_SHIFT);
- 	}
-+
-+	trace_brk(addr, len);
- 	return addr;
- }
- 
--- 
-1.7.0.4
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (PageBuddy(page)) {
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_block -=3D page_order(=
+page);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }else if (PageLRU(page))
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_block--;
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 else
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return false;
+> + =A0 =A0 =A0 }
+> +
+> + =A0 =A0 =A0 return true;
+> +}
+
+Hmm. above for is intending to check all pages in the block ?
+I'll look into details, tomorrow.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
