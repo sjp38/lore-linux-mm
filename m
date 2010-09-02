@@ -1,150 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A28946B0047
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 10:35:42 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so153413pvc.14
-        for <linux-mm@kvack.org>; Thu, 02 Sep 2010 07:35:30 -0700 (PDT)
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [RESEND PATCH v2] compaction: fix COMPACTPAGEFAILED counting
-Date: Thu,  2 Sep 2010 23:34:47 +0900
-Message-Id: <1283438087-11842-1-git-send-email-minchan.kim@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 538066B0047
+	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 10:39:46 -0400 (EDT)
+Date: Thu, 2 Sep 2010 16:39:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Make is_mem_section_removable more conformable with
+ offlining code
+Message-ID: <20100902143939.GD10265@tiehlicka.suse.cz>
+References: <20100831141942.GA30353@localhost>
+ <20100901121951.GC6663@tiehlicka.suse.cz>
+ <20100901124138.GD6663@tiehlicka.suse.cz>
+ <20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100902082829.GA10265@tiehlicka.suse.cz>
+ <20100902180343.f4232c6e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100902092454.GA17971@tiehlicka.suse.cz>
+ <AANLkTi=cLzRGPCc3gCubtU7Ggws7yyAK5c7tp4iocv6u@mail.gmail.com>
+ <20100902131855.GC10265@tiehlicka.suse.cz>
+ <AANLkTikYt3Hu_XeNuwAa9KjzfWgpC8cNen6q657ZKmm-@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <AANLkTikYt3Hu_XeNuwAa9KjzfWgpC8cNen6q657ZKmm-@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Minchan Kim <minchan.kim@gmail.com>
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Now update_nr_listpages doesn't have a role. That's because
-lists passed is always empty just after calling migrate_pages.
-The migrate_pages cleans up page list which have failed to migrate
-before returning by aaa994b3.
+On Thu 02-09-10 23:19:18, Hiroyuki Kamezawa wrote:
+[...]
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 6e6e626..0bd941b 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -669,6 +669,30 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+> > ?*/
+> > ?#define zone_idx(zone) ? ? ? ? ((zone) - (zone)->zone_pgdat->node_zones)
+> >
+> > +#ifdef CONFIG_MEMORY_HOTREMOVE
+> > +/*
+> > + * A free or LRU pages block are removable
+> > + * Do not use MIGRATE_MOVABLE because it can be insufficient and
+> > + * other MIGRATE types are tricky.
+> > + */
+> > +static inline bool is_page_removable(struct page *page)
+> > +{
+> > + ? ? ? int page_block = 1 << pageblock_order;
+> > + ? ? ? for (page_block > 0) {
+> 
+> for ?
 
- [PATCH] page migration: handle freeing of pages in migrate_pages()
+Bahh. The old and half backed patch. See the up-to-date one bellow.
 
- Do not leave pages on the lists passed to migrate_pages().  Seems that we will
- not need any postprocessing of pages.  This will simplify the handling of
- pages by the callers of migrate_pages().
+> > + ? ? ? ? ? ? ? if (PageBuddy(page)) {
+> > + ? ? ? ? ? ? ? ? ? ? ? page_block -= page_order(page);
+> > + ? ? ? ? ? ? ? }else if (PageLRU(page))
+> > + ? ? ? ? ? ? ? ? ? ? ? page_block--;
+> > + ? ? ? ? ? ? ? else
+> > + ? ? ? ? ? ? ? ? ? ? ? return false;
+> > + ? ? ? }
+> > +
+> > + ? ? ? return true;
+> > +}
+> 
+> Hmm. above for is intending to check all pages in the block ?
 
-At that time, we thought we don't need any postprocessing of pages.
-But the situation is changed. The compaction need to know the number of
-failed to migrate for COMPACTPAGEFAILED stat
+Yes, by their orders.
 
-This patch makes new rule for caller of migrate_pages to call putback_lru_pages.
-So caller need to clean up the lists so it has a chance to postprocess the pages.
-[suggested by Christoph Lameter]
+> I'll look into details, tomorrow.
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+Thanks!
+
 ---
- mm/memory-failure.c |    1 +
- mm/memory_hotplug.c |    2 ++
- mm/mempolicy.c      |   10 ++++++++--
- mm/migrate.c        |   12 +++++++-----
- 4 files changed, 18 insertions(+), 7 deletions(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9c26eec..5267861 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1339,6 +1339,7 @@ int soft_offline_page(struct page *page, int flags)
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
- 		if (ret) {
-+			putback_lru_pages(&pagelist);
- 			pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
- 				pfn, ret, page->flags);
- 			if (ret > 0)
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a4cfcdc..2638079 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -731,6 +731,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		goto out;
- 	/* this function returns # of failed pages */
- 	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-+	if (ret)
-+		putback_lru_pages(&source);
- 
- out:
- 	return ret;
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index f969da5..21243b2 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -931,8 +931,11 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
- 	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
- 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
- 
--	if (!list_empty(&pagelist))
-+	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_node_page, dest, 0);
-+		if (err)
-+			putback_lru_pages(&pagelist);
-+	}
- 
- 	return err;
- }
-@@ -1147,9 +1150,12 @@ static long do_mbind(unsigned long start, unsigned long len,
- 
- 		err = mbind_range(mm, start, end, new);
- 
--		if (!list_empty(&pagelist))
-+		if (!list_empty(&pagelist)) {
- 			nr_failed = migrate_pages(&pagelist, new_vma_page,
- 						(unsigned long)vma, 0);
-+			if (nr_failed)
-+				putback_lru_pages(&pagelist);
-+		}
- 
- 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
- 			err = -EIO;
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 38e7cad..ed38c22 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -732,8 +732,9 @@ move_newpage:
-  *
-  * The function returns after 10 attempts or if no pages
-  * are movable anymore because to has become empty
-- * or no retryable pages exist anymore. All pages will be
-- * returned to the LRU or freed.
-+ * or no retryable pages exist anymore.
-+ * Caller should call putback_lru_pages to return pages to the LRU
-+ * or free list.
-  *
-  * Return: Number of pages not migrated or error code.
-  */
-@@ -780,8 +781,6 @@ out:
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
- 
--	putback_lru_pages(from);
--
- 	if (rc)
- 		return rc;
- 
-@@ -890,9 +889,12 @@ set_status:
- 	}
- 
- 	err = 0;
--	if (!list_empty(&pagelist))
-+	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_page_node,
- 				(unsigned long)pm, 0);
-+		if (err)
-+			putback_lru_pages(&pagelist);
-+	}
- 
- 	up_read(&mm->mmap_sem);
- 	return err;
--- 
-1.7.0.5
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
