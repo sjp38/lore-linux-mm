@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 13B8B6B0078
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:50:32 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o820oTkN011601
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 2 Sep 2010 09:50:30 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2606E45DE7A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:50:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EFD5445DE70
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:50:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DF11AE38003
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:50:27 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 85EFDEF8001
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:50:27 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 1/3 v3] oom: add per-mm oom disable count
-In-Reply-To: <alpine.DEB.2.00.1009011637000.8831@chino.kir.corp.google.com>
-References: <20100901083841.9722.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011637000.8831@chino.kir.corp.google.com>
-Message-Id: <20100902092235.D062.A69D9226@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7803E6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:54:14 -0400 (EDT)
+Date: Wed, 1 Sep 2010 19:54:04 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+In-Reply-To: <alpine.DEB.2.00.1009011935040.20518@router.home>
+Message-ID: <alpine.DEB.2.00.1009011953280.21401@router.home>
+References: <20100901203422.GA19519@csn.ul.ie> <alpine.DEB.2.00.1009011919110.20518@router.home> <20100902092628.D065.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011935040.20518@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  2 Sep 2010 09:50:26 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> > > > > @@ -1690,6 +1697,10 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
-> > > > >  			active_mm = current->active_mm;
-> > > > >  			current->mm = new_mm;
-> > > > >  			current->active_mm = new_mm;
-> > > > > +			if (current->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
-> > > > > +				atomic_dec(&mm->oom_disable_count);
-> > > > > +				atomic_inc(&new_mm->oom_disable_count);
-> > > > > +			}
-> > > > >  			activate_mm(active_mm, new_mm);
-> > > > >  			new_mm = mm;
-> > > > >  		}
-> > > > 
-> > > > This place, we are grabbing task_lock(), but task_lock don't prevent
-> > > > to change signal->oom_score_adj from another thread. This seems racy.
-> > > > 
-> > > 
-> > > It does, task_lock(current) protects current->signal->oom_score_adj from 
-> > > changing in oom-add-per-mm-oom-disable-count.patch.
-> > > 
-> > > I'll add the task_lock(p) in mm_init(), thanks for the review!
-> > 
-> > Wait, can you please elabolate more? task_lock() only lock one thread.
-> > Why can it protect multi-thread race?
-> > 
-> 
-> We take task_lock(tsk) whenever we change tsk->signal->oom_score_adj.
+On Wed, 1 Sep 2010, Christoph Lameter wrote:
 
-example, Process P1 has threads T1 and T2.
-oom_score_adj_write() take task_lock(T1) and siglock(P1). unshare() take
-task_lock(T2). How protect?
+> The effect needs to be the same as retrieving a global or
+> zone ZVC counter. Which is currently implemented in the following way:
+>
+> static inline unsigned long zone_page_state(struct zone *zone,
+>                                         enum zone_stat_item item)
+> {
+>         long x = atomic_long_read(&zone->vm_stat[item]);
+> #ifdef CONFIG_SMP
+>         if (x < 0)
+>                 x = 0;
+> #endif
+>         return x;
+> }
+>
+
+Here is a patch that defined a snapshot function that works in the same
+way:
+
+Subject: Add a snapshot function for vm statistics
+
+Add a snapshot function that can more accurately determine
+the current value of a zone counter.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
 
+Index: linux-2.6/include/linux/vmstat.h
+===================================================================
+--- linux-2.6.orig/include/linux/vmstat.h	2010-09-01 19:45:23.506071189 -0500
++++ linux-2.6/include/linux/vmstat.h	2010-09-01 19:53:02.978979081 -0500
+@@ -170,6 +170,28 @@
+ 	return x;
+ }
 
-
++/*
++ * More accurate version that also considers the currently pending
++ * deltas. For that we need to loop over all cpus to find the current
++ * deltas. There is no synchronization so the result cannot be
++ * exactly accurate either.
++ */
++static inline unsigned long zone_page_state_snapshot(struct zone *zone,
++					enum zone_stat_item item)
++{
++	int cpu;
++	long x = atomic_long_read(&zone->vm_stat[item]);
++
++#ifdef CONFIG_SMP
++	for_each_online_cpu(cpu)
++		x += per_cpu_ptr(zone->pageset, cpu)->vm_stat_diff[item];
++
++	if (x < 0)
++		x = 0;
++#endif
++	return x;
++}
++
+ extern unsigned long global_reclaimable_pages(void);
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
