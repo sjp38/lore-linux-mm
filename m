@@ -1,56 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 47CCD6B004A
-	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:19:46 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o820JhkD031913
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 2 Sep 2010 09:19:43 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 56A0445DE5A
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 226CF45DE4F
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 01A8D1DB8043
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:43 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A99BD1DB8044
-	for <linux-mm@kvack.org>; Thu,  2 Sep 2010 09:19:42 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] oom: filter unkillable tasks from tasklist dump
-In-Reply-To: <alpine.DEB.2.00.1009011426260.28408@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1009011426260.28408@chino.kir.corp.google.com>
-Message-Id: <20100902091916.D056.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D5A8B6B004A
+	for <linux-mm@kvack.org>; Wed,  1 Sep 2010 20:24:57 -0400 (EDT)
+Date: Wed, 1 Sep 2010 19:24:52 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
+ NR_FREE_PAGES when memory is low and kswapd is awake
+In-Reply-To: <20100901203422.GA19519@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1009011919110.20518@router.home>
+References: <20100901083425.971F.A69D9226@jp.fujitsu.com> <20100901072402.GE13677@csn.ul.ie> <20100901163146.9755.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011512190.16322@router.home> <20100901203422.GA19519@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  2 Sep 2010 09:19:41 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> /proc/sys/vm/oom_dump_tasks is enabled by default, so it's necessary to
-> limit as much information as possible that it should emit.
-> 
-> The tasklist dump should be filtered to only those tasks that are
-> eligible for oom kill.  This is already done for memcg ooms, but this
-> patch extends it to both cpuset and mempolicy ooms as well as init.
-> 
-> In addition to suppressing irrelevant information, this also reduces
-> confusion since users currently don't know which tasks in the tasklist
-> aren't eligible for kill (such as those attached to cpusets or bound to
-> mempolicies with a disjoint set of mems or nodes, respectively) since
-> that information is not shown.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Wed, 1 Sep 2010, Mel Gorman wrote:
 
-Looks good.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > >         if (delta < 0 && abs(delta) > nr_free_pages)
+> > > >                 delta = -nr_free_pages;
+> >
+> > Not sure what the point here is. If the delta is going below zero then
+> > there was a concurrent operation updating the counters negatively while
+> > we summed up the counters.
+>
+> The point is if the negative delta is greater than the current value of
+> nr_free_pages then nr_free_pages would underflow when delta is applied to it.
 
+Ok. then
 
+	nr_free_pages += delta;
+	if (nr_free_pages < 0)
+		nr_free_pages = 0;
+
+> > would be correct.
+>
+> Lets say the reading at the start for nr_free_pages is 120 and the delta is
+> -20, then the estimated true value of nr_free_pages is 100. If we used your
+> logic, the estimate would be 120. Maybe I'm missing what you're saying.
+
+Well yes the sum of the counter needs to be checked not just the sum of
+the deltas. This is the same as the counter determination in vmstat.h
+
+> > See also handling of counter underflow in
+> > vmstat.h:zone_page_state().
+>
+> I'm not seeing the relation. zone_nr_free_pages() is trying to
+> reconcile the reading from zone_page_state() with the contents of
+> vm_stat_diff[].
+
+Both are determinations of a counter value. The global or zone counters
+can also temporarily go below zero due to deferred updates. If
+this happens then 0 will be returned(!). zonr_nr_free_pages need to work
+in the same way.
+
+> > As I have said before: I would rather have the
+> > counter handling in one place to avoid creating differences in counter
+> > handling.
+> >
+>
+> And I'd rather not hurt the paths for every counter unnecessarily
+> without good cause. I can move zone_nr_free_pages() to mm/vmstat.c if
+> you'd prefer?
+
+Generalize it on the way please to work with any counter?
 
 
 --
