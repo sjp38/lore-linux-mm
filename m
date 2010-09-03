@@ -1,34 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 733236B007B
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 16:03:38 -0400 (EDT)
-Date: Fri, 3 Sep 2010 13:02:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fix swapin race condition
-Message-Id: <20100903130259.b7dd8da5.akpm@linux-foundation.org>
-In-Reply-To: <20100903153958.GC16761@random.random>
-References: <20100903153958.GC16761@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 8A4F96B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 16:04:46 -0400 (EDT)
+Date: Fri, 3 Sep 2010 13:03:43 -0700
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH V5 5/8] Cleancache: ext3 hook for cleancache
+Message-ID: <20100903200343.GA4635@ca-server1.us.oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@Sun.COM, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Sep 2010 17:39:58 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+[PATCH V5 5/8] Cleancache: ext3 hook for cleancache
 
-> The pte_same check is reliable only if the swap entry remains pinned
-> (by the page lock on swapcache). We've also to ensure the swapcache
-> isn't removed before we take the lock as try_to_free_swap won't care
-> about the page pin.
+Filesystems must explicitly enable cleancache by calling
+cleancache_init_fs anytime a instance of the filesystem
+is mounted and must save the returned poolid.  For ext3,
+all other cleancache hooks are in the VFS layer including
+the matching cleancache_flush_fs hook which must be
+called on unmount.
 
-What were the end-user-observeable effects of this bug?
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Acked-by: Andreas Dilger <adilger@sun.com>
 
-Do we think the fix should be backported into earlier kernels?
+Diffstat:
+ super.c                                  |    2 ++
+ 1 file changed, 2 insertions(+)
 
-Thanks.
+--- linux-2.6.36-rc3/fs/ext3/super.c	2010-08-29 09:36:04.000000000 -0600
++++ linux-2.6.36-rc3-cleancache/fs/ext3/super.c	2010-08-31 10:26:09.000000000 -0600
+@@ -37,6 +37,7 @@
+ #include <linux/quotaops.h>
+ #include <linux/seq_file.h>
+ #include <linux/log2.h>
++#include <linux/cleancache.h>
+ 
+ #include <asm/uaccess.h>
+ 
+@@ -1349,6 +1350,7 @@ static int ext3_setup_super(struct super
+ 	} else {
+ 		ext3_msg(sb, KERN_INFO, "using internal journal");
+ 	}
++	cleancache_init_fs(sb);
+ 	return res;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
