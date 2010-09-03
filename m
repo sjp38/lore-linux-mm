@@ -1,98 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C99FC6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:47:33 -0400 (EDT)
-Date: Fri, 3 Sep 2010 16:00:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
- direct reclaim allocation fails
-Message-Id: <20100903160026.564fdcc9.akpm@linux-foundation.org>
-In-Reply-To: <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
-	<1283504926-2120-4-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 23B2F6B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:52:32 -0400 (EDT)
+Received: by vws16 with SMTP id 16so2088070vws.14
+        for <linux-mm@kvack.org>; Fri, 03 Sep 2010 15:05:48 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100903134814.b7129f7b.akpm@linux-foundation.org>
+References: <20100901121951.GC6663@tiehlicka.suse.cz>
+	<20100901124138.GD6663@tiehlicka.suse.cz>
+	<20100902144500.a0d05b08.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100902082829.GA10265@tiehlicka.suse.cz>
+	<20100902180343.f4232c6e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100902092454.GA17971@tiehlicka.suse.cz>
+	<AANLkTi=cLzRGPCc3gCubtU7Ggws7yyAK5c7tp4iocv6u@mail.gmail.com>
+	<20100902131855.GC10265@tiehlicka.suse.cz>
+	<AANLkTikYt3Hu_XeNuwAa9KjzfWgpC8cNen6q657ZKmm-@mail.gmail.com>
+	<20100902143939.GD10265@tiehlicka.suse.cz>
+	<20100902150554.GE10265@tiehlicka.suse.cz>
+	<20100903121003.e2b8993a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100903165713.88249349.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100903134814.b7129f7b.akpm@linux-foundation.org>
+Date: Sat, 4 Sep 2010 07:05:48 +0900
+Message-ID: <AANLkTi=vr+eb1GPCc6b20wAn00TDS-Tf8Zu7Y7z7p7i2@mail.gmail.com>
+Subject: Re: [PATCH 3/2][BUGFIX] fix memory isolation notifier return value check
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  3 Sep 2010 10:08:46 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+2010/9/4 Andrew Morton <akpm@linux-foundation.org>:
+> On Fri, 3 Sep 2010 16:57:13 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+>> Sorry, the 3rd patch for this set.
+>
+> What happened with "[PATCH 2/2] Make is_mem_section_removable more
+> conformable with offlining code"? =A0You mentioned sending an updated
+> one, but I can't immediately find it.
+>
+Sorry, I couldn't. (and I will not able to do until Monday.)
 
-> When under significant memory pressure, a process enters direct reclaim
-> and immediately afterwards tries to allocate a page. If it fails and no
-> further progress is made, it's possible the system will go OOM. However,
-> on systems with large amounts of memory, it's possible that a significant
-> number of pages are on per-cpu lists and inaccessible to the calling
-> process. This leads to a process entering direct reclaim more often than
-> it should increasing the pressure on the system and compounding the problem.
-> 
-> This patch notes that if direct reclaim is making progress but
-> allocations are still failing that the system is already under heavy
-> pressure. In this case, it drains the per-cpu lists and tries the
-> allocation a second time before continuing.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Christoph Lameter <cl@linux.com>
-> ---
->  mm/page_alloc.c |   20 ++++++++++++++++----
->  1 files changed, 16 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bbaa959..750e1dc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1847,6 +1847,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  	struct page *page = NULL;
->  	struct reclaim_state reclaim_state;
->  	struct task_struct *p = current;
-> +	bool drained = false;
->  
->  	cond_resched();
->  
-> @@ -1865,14 +1866,25 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  
->  	cond_resched();
->  
-> -	if (order != 0)
-> -		drain_all_pages();
-> +	if (unlikely(!(*did_some_progress)))
-> +		return NULL;
->  
-> -	if (likely(*did_some_progress))
-> -		page = get_page_from_freelist(gfp_mask, nodemask, order,
-> +retry:
-> +	page = get_page_from_freelist(gfp_mask, nodemask, order,
->  					zonelist, high_zoneidx,
->  					alloc_flags, preferred_zone,
->  					migratetype);
-> +
-> +	/*
-> +	 * If an allocation failed after direct reclaim, it could be because
-> +	 * pages are pinned on the per-cpu lists. Drain them and try again
-> +	 */
-> +	if (!page && !drained) {
-> +		drain_all_pages();
-> +		drained = true;
-> +		goto retry;
-> +	}
-> +
->  	return page;
->  }
+> Also, please do describe the impact of the problems which are being
+> fixed. =A0It helps me decide on priority and on
+> which-kernels-need-the-patch and it helps others when deciding
+> should-i-backport-this-into-my-kernel.
+>
+Ah,yes
+  - Before the patch [2/2], the code is buggy but works.
+    (Because of not-precise test of pre-memory-hotplug.)
 
-The patch looks reasonable.
+    IOW, patch [2/2] is not buggy but make the bug  be apparent and
+    evenryone will hit this.
 
-But please take a look at the recent thread "mm: minute-long livelocks
-in memory reclaim".  There, people are pointing fingers at that
-drain_all_pages() call, suspecting that it's causing huge IPI storms.
+    Influence is very small and maybe no need for backport.
 
-Dave was going to test this theory but afaik hasn't yet done so.  It
-would be nice to tie these threads together if poss?
+
+> I think it'd be best to resend all of this, please.
+>
+I'll do in the next week. Sorry for annoying.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
