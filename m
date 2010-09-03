@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5AA6B007B
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:41:04 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3CD6B007B
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:41:15 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 05/10] HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
-Date: Fri,  3 Sep 2010 13:37:33 +0900
-Message-Id: <1283488658-23137-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 07/10] HWPOSION, hugetlb: recover from free hugepage error when !MF_COUNT_INCREASED
+Date: Fri,  3 Sep 2010 13:37:35 +0900
+Message-Id: <1283488658-23137-8-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,111 +13,97 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This check is necessary to avoid race between dequeue and allocation,
-which can cause a free hugepage to be dequeued twice and get kernel unstable.
+Currently error recovery for free hugepage works only for MF_COUNT_INCREASED.
+This patch enables !MF_COUNT_INCREASED case.
+
+Free hugepages can be handled directly by alloc_huge_page() and
+dequeue_hwpoisoned_huge_page(), and both of them are protected
+by hugetlb_lock, so there is no race between them.
+
+Note that this patch defines the refcount of HWPoisoned hugepage
+dequeued from freelist is 1, deviated from present 0, thereby we
+can avoid race between unpoison and memory failure on free hugepage.
+This is reasonable because unlikely to free buddy pages, free hugepage
+is governed by hugetlbfs even after error handling finishes.
+And it also makes unpoison code added in the later patch cleaner.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- include/linux/hugetlb.h |    4 ++--
- mm/hugetlb.c            |   29 +++++++++++++++++++++++++----
- mm/memory-failure.c     |    6 ++++--
- 3 files changed, 31 insertions(+), 8 deletions(-)
+ mm/hugetlb.c        |    1 +
+ mm/memory-failure.c |   33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 1 deletions(-)
 
-diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-index 9e51f77..796f30e 100644
---- v2.6.36-rc2/include/linux/hugetlb.h
-+++ v2.6.36-rc2/include/linux/hugetlb.h
-@@ -43,7 +43,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						struct vm_area_struct *vma,
- 						int acctflags);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
--void __isolate_hwpoisoned_huge_page(struct page *page);
-+int dequeue_hwpoisoned_huge_page(struct page *page);
- void copy_huge_page(struct page *dst, struct page *src);
- 
- extern unsigned long hugepages_treat_as_movable;
-@@ -102,7 +102,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
--#define __isolate_hwpoisoned_huge_page(page)	0
-+#define dequeue_hwpoisoned_huge_page(page)	0
- static inline void copy_huge_page(struct page *dst, struct page *src)
- {
- }
 diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index d3e9d29..7cf9225 100644
+index 8ecae16..ad7d175 100644
 --- v2.6.36-rc2/mm/hugetlb.c
 +++ v2.6.36-rc2/mm/hugetlb.c
-@@ -2952,18 +2952,39 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	hugetlb_acct_memory(h, -(chg - freed));
- }
- 
-+/* Should be called in hugetlb_lock */
-+static int is_hugepage_on_freelist(struct page *hpage)
-+{
-+	struct page *page;
-+	struct page *tmp;
-+	struct hstate *h = page_hstate(hpage);
-+	int nid = page_to_nid(hpage);
-+
-+	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru)
-+		if (page == hpage)
-+			return 1;
-+	return 0;
-+}
-+
-+#ifdef CONFIG_MEMORY_FAILURE
- /*
-  * This function is called from memory failure code.
-  * Assume the caller holds page lock of the head page.
-  */
--void __isolate_hwpoisoned_huge_page(struct page *hpage)
-+int dequeue_hwpoisoned_huge_page(struct page *hpage)
- {
- 	struct hstate *h = page_hstate(hpage);
- 	int nid = page_to_nid(hpage);
-+	int ret = -EBUSY;
- 
+@@ -2971,6 +2971,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
  	spin_lock(&hugetlb_lock);
--	list_del(&hpage->lru);
--	h->free_huge_pages--;
--	h->free_huge_pages_node[nid]--;
-+	if (is_hugepage_on_freelist(hpage)) {
-+		list_del(&hpage->lru);
-+		h->free_huge_pages--;
-+		h->free_huge_pages_node[nid]--;
-+		ret = 0;
-+	}
- 	spin_unlock(&hugetlb_lock);
-+	return ret;
- }
-+#endif
+ 	if (is_hugepage_on_freelist(hpage)) {
+ 		list_del(&hpage->lru);
++		set_page_refcounted(hpage);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
+ 		ret = 0;
 diff --git v2.6.36-rc2/mm/memory-failure.c v2.6.36-rc2/mm/memory-failure.c
-index 9c26eec..c67f801 100644
+index c67f801..dfeb8b8 100644
 --- v2.6.36-rc2/mm/memory-failure.c
 +++ v2.6.36-rc2/mm/memory-failure.c
-@@ -698,6 +698,7 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
-  */
- static int me_huge_page(struct page *p, unsigned long pfn)
- {
-+	int res = 0;
- 	struct page *hpage = compound_head(p);
- 	/*
- 	 * We can safely recover from error on free or reserved (i.e.
-@@ -710,8 +711,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
- 	 * so there is no race between isolation and mapping/unmapping.
- 	 */
- 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
--		__isolate_hwpoisoned_huge_page(hpage);
--		return RECOVERED;
-+		res = dequeue_hwpoisoned_huge_page(hpage);
-+		if (!res)
-+			return RECOVERED;
- 	}
- 	return DELAYED;
- }
+@@ -983,7 +983,10 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	 * We need/can do nothing about count=0 pages.
+ 	 * 1) it's a free page, and therefore in safe hand:
+ 	 *    prep_new_page() will be the gate keeper.
+-	 * 2) it's part of a non-compound high order page.
++	 * 2) it's a free hugepage, which is also safe:
++	 *    an affected hugepage will be dequeued from hugepage freelist,
++	 *    so there's no concern about reusing it ever after.
++	 * 3) it's part of a non-compound high order page.
+ 	 *    Implies some kernel user: cannot stop them from
+ 	 *    R/W the page; let's pray that the page has been
+ 	 *    used and will be freed some time later.
+@@ -995,6 +998,24 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 		if (is_free_buddy_page(p)) {
+ 			action_result(pfn, "free buddy", DELAYED);
+ 			return 0;
++		} else if (PageHuge(hpage)) {
++			/*
++			 * Check "just unpoisoned", "filter hit", and
++			 * "race with other subpage."
++			 */
++			lock_page_nosync(hpage);
++			if (!PageHWPoison(hpage)
++			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
++			    || (p != hpage && TestSetPageHWPoison(hpage))) {
++				atomic_long_sub(nr_pages, &mce_bad_pages);
++				return 0;
++			}
++			set_page_hwpoison_huge_page(hpage);
++			res = dequeue_hwpoisoned_huge_page(hpage);
++			action_result(pfn, "free huge",
++				      res ? IGNORED : DELAYED);
++			unlock_page(hpage);
++			return res;
+ 		} else {
+ 			action_result(pfn, "high order kernel", IGNORED);
+ 			return -EBUSY;
+@@ -1156,6 +1177,16 @@ int unpoison_memory(unsigned long pfn)
+ 	nr_pages = 1 << compound_order(page);
+ 
+ 	if (!get_page_unless_zero(page)) {
++		/*
++		 * Since HWPoisoned hugepage should have non-zero refcount,
++		 * race between memory failure and unpoison seems to happen.
++		 * In such case unpoison fails and memory failure runs
++		 * to the end.
++		 */
++		if (PageHuge(page)) {
++			pr_debug("MCE: Memory failure is now running on free hugepage %#lx\n", pfn);
++			return 0;
++		}
+ 		if (TestClearPageHWPoison(p))
+ 			atomic_long_sub(nr_pages, &mce_bad_pages);
+ 		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
 -- 
 1.7.2.2
 
