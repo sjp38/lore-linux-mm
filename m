@@ -1,66 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C27736B004D
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:40:34 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 12C376B0078
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:40:51 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 0/10] Hugepage migration (v4)
-Date: Fri,  3 Sep 2010 13:37:28 +0900
-Message-Id: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 06/10] hugetlb: move refcounting in hugepage allocation inside hugetlb_lock
+Date: Fri,  3 Sep 2010 13:37:34 +0900
+Message-Id: <1283488658-23137-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Currently alloc_huge_page() raises page refcount outside hugetlb_lock.
+but it causes race when dequeue_hwpoison_huge_page() runs concurrently
+with alloc_huge_page().
+To avoid it, this patch moves set_page_refcounted() in hugetlb_lock.
 
-This is the 4th version of "hugepage migration" set.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/hugetlb.c |   35 +++++++++++++----------------------
+ 1 files changed, 13 insertions(+), 22 deletions(-)
 
-Major changes: (see individual patches for more details)
-- Folded alloc_buddy_huge_page_node() into alloc_buddy_huge_page().
-- Fixed race condition between dequeue function and allocate function.
-  This is based on the draft patch from Wu Fengguang. Thank you.
-- Enabled missing path of recovery from uncorrected error on free hugepage.
-- Change semantics of refcount of isolated hugepage from freelist.
-
-
-Future works:
-
-- Migration can fail for various reasons depending on various factors,
-  so it's useful if soft offline can be retried when it noticed migration
-  fails. This problem is a more general one because it's applied for
-  soft offline of normal-sized pages. So we leave it as a future work.
-  
-- Corrupted hugepage counter implemeted in the previous version was dropped
-  because it's not directly related to migration topic and have no serious
-  impact on kernel behavior. We also leave it as the next work.
-
-
-Summary:
-
- [PATCH 01/10] hugetlb: fix metadata corruption in hugetlb_fault()
- [PATCH 02/10] hugetlb: add allocate function for hugepage migration
- [PATCH 03/10] hugetlb: redefine hugepage copy functions
- [PATCH 04/10] hugetlb: hugepage migration core
- [PATCH 05/10] HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
- [PATCH 06/10] hugetlb: move refcounting in hugepage allocation inside hugetlb_lock
- [PATCH 07/10] HWPOSION, hugetlb: recover from free hugepage error when !MF_COUNT_INCREASED
- [PATCH 08/10] HWPOISON, hugetlb: soft offlining for hugepage
- [PATCH 09/10] HWPOISON, hugetlb: fix unpoison for hugepage
- [PATCH 10/10] page-types.c: fix name of unpoison interface
-
- Documentation/vm/page-types.c |    2 +-
- fs/hugetlbfs/inode.c          |   15 +++
- include/linux/hugetlb.h       |   11 ++-
- include/linux/migrate.h       |   12 ++
- mm/hugetlb.c                  |  225 ++++++++++++++++++++++++++++------------
- mm/memory-failure.c           |   93 +++++++++++++----
- mm/migrate.c                  |  192 +++++++++++++++++++++++++++++++----
- mm/vmscan.c                   |    9 ++-
- 8 files changed, 446 insertions(+), 113 deletions(-)
-
-
-Thanks,
-Naoya
+diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
+index 7cf9225..8ecae16 100644
+--- v2.6.36-rc2/mm/hugetlb.c
++++ v2.6.36-rc2/mm/hugetlb.c
+@@ -508,6 +508,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+ 		return NULL;
+ 	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
+ 	list_del(&page->lru);
++	set_page_refcounted(page);
+ 	h->free_huge_pages--;
+ 	h->free_huge_pages_node[nid]--;
+ 	return page;
+@@ -867,12 +868,6 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (page) {
+-		/*
+-		 * This page is now managed by the hugetlb allocator and has
+-		 * no users -- drop the buddy allocator's reference.
+-		 */
+-		put_page_testzero(page);
+-		VM_BUG_ON(page_count(page));
+ 		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		/*
+@@ -935,16 +930,13 @@ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+-		if (!page) {
++		if (!page)
+ 			/*
+ 			 * We were not able to allocate enough pages to
+ 			 * satisfy the entire reservation so we free what
+ 			 * we've allocated so far.
+ 			 */
+-			spin_lock(&hugetlb_lock);
+-			needed = 0;
+ 			goto free;
+-		}
+ 
+ 		list_add(&page->lru, &surplus_list);
+ 	}
+@@ -971,31 +963,31 @@ retry:
+ 	needed += allocated;
+ 	h->resv_huge_pages += delta;
+ 	ret = 0;
+-free:
++
++	spin_unlock(&hugetlb_lock);
+ 	/* Free the needed pages to the hugetlb pool */
+ 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 		if ((--needed) < 0)
+ 			break;
+ 		list_del(&page->lru);
++		/*
++		 * This page is now managed by the hugetlb allocator and has
++		 * no users -- drop the buddy allocator's reference.
++		 */
++		put_page_testzero(page);
++		VM_BUG_ON(page_count(page));
+ 		enqueue_huge_page(h, page);
+ 	}
+ 
+ 	/* Free unnecessary surplus pages to the buddy allocator */
++free:
+ 	if (!list_empty(&surplus_list)) {
+-		spin_unlock(&hugetlb_lock);
+ 		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 			list_del(&page->lru);
+-			/*
+-			 * The page has a reference count of zero already, so
+-			 * call free_huge_page directly instead of using
+-			 * put_page.  This must be done with hugetlb_lock
+-			 * unlocked which is safe because free_huge_page takes
+-			 * hugetlb_lock before deciding how to free the page.
+-			 */
+-			free_huge_page(page);
++			put_page(page);
+ 		}
+-		spin_lock(&hugetlb_lock);
+ 	}
++	spin_lock(&hugetlb_lock);
+ 
+ 	return ret;
+ }
+@@ -1122,7 +1114,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 		}
+ 	}
+ 
+-	set_page_refcounted(page);
+ 	set_page_private(page, (unsigned long) mapping);
+ 
+ 	vma_commit_reservation(h, vma, addr);
+-- 
+1.7.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
