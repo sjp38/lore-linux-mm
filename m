@@ -1,89 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F01E6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 21:12:09 -0400 (EDT)
-Received: from kpbe20.cbf.corp.google.com (kpbe20.cbf.corp.google.com [172.25.105.84])
-	by smtp-out.google.com with ESMTP id o841C4H1028459
-	for <linux-mm@kvack.org>; Fri, 3 Sep 2010 18:12:05 -0700
-Received: from yxm8 (yxm8.prod.google.com [10.190.4.8])
-	by kpbe20.cbf.corp.google.com with ESMTP id o841C3PS009562
-	for <linux-mm@kvack.org>; Fri, 3 Sep 2010 18:12:03 -0700
-Received: by yxm8 with SMTP id 8so1394261yxm.15
-        for <linux-mm@kvack.org>; Fri, 03 Sep 2010 18:12:03 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100903145646.15063c1d.akpm@linux-foundation.org>
-References: <1283096628-4450-1-git-send-email-minchan.kim@gmail.com>
-	<20100903140649.09dee316.akpm@linux-foundation.org>
-	<AANLkTimTpj+CSvGx=HC4qnArBV9jxORkKoDA9eap3_cN@mail.gmail.com>
-	<20100903145646.15063c1d.akpm@linux-foundation.org>
-Date: Fri, 3 Sep 2010 18:12:03 -0700
-Message-ID: <AANLkTi=gDnMjTfC756wABD_K6evk+hEOtp_7JVvnwjki@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no swap system
-From: Venkatesh Pallipadi <venki@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4AD6B0078
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 21:13:40 -0400 (EDT)
+Date: Fri, 3 Sep 2010 14:12:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC]mm: batch activate_page() to reduce lock contention
+Message-Id: <20100903141258.6f178934.akpm@linux-foundation.org>
+In-Reply-To: <1282897070.30698.5.camel@sli10-conroe.sh.intel.com>
+References: <1279610324.17101.9.camel@sli10-desk.sh.intel.com>
+	<20100723234938.88EB.A69D9226@jp.fujitsu.com>
+	<20100726050827.GA24047@sli10-desk.sh.intel.com>
+	<20100805140755.501af8a7.akpm@linux-foundation.org>
+	<20100806030805.GA10038@sli10-desk.sh.intel.com>
+	<20100825130318.93c03403.akpm@linux-foundation.org>
+	<20100826075910.GA2189@sli10-conroe.sh.intel.com>
+	<20100826143052.f079e43c.akpm@linux-foundation.org>
+	<1282897070.30698.5.camel@sli10-conroe.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "Wu, Fengguang" <fengguang.wu@intel.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 3, 2010 at 2:56 PM, Andrew Morton <akpm@linux-foundation.org> w=
-rote:
-> On Fri, 3 Sep 2010 14:47:03 -0700
-> Ying Han <yinghan@google.com> wrote:
->
->> > We don't have any quantitative data on the effect of these excess tlb
->> > flushes, which makes it difficult to decide which kernel versions
->> > should receive this patch.
->> >
->> > Help?
->>
->> Andrew:
->>
->> We observed the degradation on 2.6.34 compared to 2.6.26 kernel. The
->> workload we are running is doing 4k-random-write which runs about 3-4
->> minutes. We captured the TLB shootsdowns before/after:
->>
->> Before the change:
->> TLB: 29435 22208 37146 25332 47952 43698 43545 40297 49043 44843 46127
->> 50959 47592 46233 43698 44690 TLB shootdowns [HSUM =3D =A0662798 ]
->>
->> After the change:
->> TLB: 2340 3113 1547 1472 2944 4194 2181 1212 2607 4373 1690 1446 2310
->> 3784 1744 1134 TLB shootdowns [HSUM =3D =A038091 ]
->
-> Do you have data on how much additional CPU time (and/or wall time) was
-> consumed?
->
+On Fri, 27 Aug 2010 16:17:50 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
 
-Just reran the workload to get this data
-- after - before of /proc/interrupts:TLB
-- after - before of /proc/stat:cpu
-  (output is: "cpu" user nice sys idle iowait irq softirq steal guest guest=
-nice)
+> On Fri, 2010-08-27 at 05:30 +0800, Andrew Morton wrote:
+> > On Thu, 26 Aug 2010 15:59:10 +0800
+> > Shaohua Li <shaohua.li@intel.com> wrote:
+> > 
+> > > On Thu, Aug 26, 2010 at 04:03:18AM +0800, Andrew Morton wrote:
+> > > > On Fri, 6 Aug 2010 11:08:05 +0800
+> > > > Shaohua Li <shaohua.li@intel.com> wrote:
+> > > > 
+> > > > > Subject: mm: batch activate_page() to reduce lock contention
+> > > > 
+> > > ...
+> > >
+> > > > This function is pretty bizarre.  It really really needs some comments
+> > > > explaining what it's doing and most especially *why* it's doing it.
+> > > > 
+> > > > It's a potential O(n*nr_zones) search (I think)!  We demand proof that
+> > > > it's worthwhile!
+> > > > 
+> > > > Yes, if the pagevec is filled with pages from different zones then it
+> > > > will reduce the locking frequency.  But in the common case where the
+> > > > pagevec has pages all from the same zone, or has contiguous runs of
+> > > > pages from different zones then all that extra bitmap fiddling gained
+> > > > us nothing.
+> > > > 
+> > > > (I think the search could be made more efficient by advancing `i' when
+> > > > we first see last_zone!=page_zone(page), but that'd just make the code
+> > > > even worse).
+> > > Thanks for pointing this out. Then we can simplify things a little bit.
+> > > the 144 bytes footprint is because of this too, then we can remove it.
+> > 
+> > ok..
+> > 
+> > > > 
+> > > > There's a downside/risk to this code.  A billion years ago I found
+> > > > that it was pretty important that if we're going to batch pages in this
+> > > > manner, it's important that ALL pages be batched via the same means. 
+> > > > If 99% of the pages go through the pagevec and 1% of pages bypass the
+> > > > pagevec, the LRU order gets scrambled and we can end up causing
+> > > > additional disk seeks when the time comes to write things out.  The
+> > > > effect was measurable.
+> > > > 
+> > > > And lo, putback_lru_pages() (at least) bypasses your new pagevecs,
+> > > > potentially scrambling the LRU ordering.  Admittedly, if we're putting
+> > > > back unreclaimable pages in there, the LRU is probably already pretty
+> > > > scrambled.  But that's just a guess.
+> > > ok, we can drain the pagevecs in putback_lru_pages() or add active page
+> > > to the new pagevecs.
+> > 
+> > The latter I guess?
+> hi,
+> looks the lru_add_pvecs pagevecs is bypassed too in putback_lru_pages().
+> Assume the bypass doesn't has obvious impact? each pagevec stores 14
+> pages, it should be < 1/1000 total memory in typical systems. so I
+> wonder if we really need handle the active page pagevecs bypass.
 
-Without this change
-TLB: 28550 21232 33876 14300 40661 43118 38227 34887 34376 38208 35735
-33591 36305 43649 36558 42013 TLB shootdowns [HSUM =3D  555286 ]
-cpu 41056 381 17945 308706 26447 39 9713 0 0 0
+I think it would be best to always use the batched API.  Just from a
+cleanliness point of view: send all the pages through the same path,
+through the same official API rather than occasionally bypassing it.
 
-With this change
-TLB: 660 1088 761 474 778 1050 697 551 712 1353 651 730 788 1419 574
-521 TLB shootdowns [HSUM =3D  12807 ]
-cpu 40375 231 16622 204115 19317 36 9464 0 0 0
-
-This is on a 16 way system, so 16 * 100 count in cpu line above counts as 1=
-s.
-
-I don't think all the reduction in CPU time (especially idle time!)
-can be attributed to this change. There is some run to run variation
-especially with the setup and teardown of the tests. But, there is a
-notable reduction in user, system and irq time. For what its worth,
-for this particular workload, throughput number reported by the run is
-4% up.
-
-Thanks,
-Venki
+Unless there's some real downside to doing it that way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
