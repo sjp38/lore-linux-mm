@@ -1,53 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D628F6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:43:42 -0400 (EDT)
-Date: Fri, 3 Sep 2010 14:56:46 -0700
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C99FC6B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:47:33 -0400 (EDT)
+Date: Fri, 3 Sep 2010 16:00:26 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: prevent background aging of anon page in no
- swap system
-Message-Id: <20100903145646.15063c1d.akpm@linux-foundation.org>
-In-Reply-To: <AANLkTimTpj+CSvGx=HC4qnArBV9jxORkKoDA9eap3_cN@mail.gmail.com>
-References: <1283096628-4450-1-git-send-email-minchan.kim@gmail.com>
-	<20100903140649.09dee316.akpm@linux-foundation.org>
-	<AANLkTimTpj+CSvGx=HC4qnArBV9jxORkKoDA9eap3_cN@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
+ direct reclaim allocation fails
+Message-Id: <20100903160026.564fdcc9.akpm@linux-foundation.org>
+In-Reply-To: <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
+	<1283504926-2120-4-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Venkatesh Pallipadi <venki@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Sep 2010 14:47:03 -0700
-Ying Han <yinghan@google.com> wrote:
+On Fri,  3 Sep 2010 10:08:46 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> > We don't have any quantitative data on the effect of these excess tlb
-> > flushes, which makes it difficult to decide which kernel versions
-> > should receive this patch.
-> >
-> > Help?
+> When under significant memory pressure, a process enters direct reclaim
+> and immediately afterwards tries to allocate a page. If it fails and no
+> further progress is made, it's possible the system will go OOM. However,
+> on systems with large amounts of memory, it's possible that a significant
+> number of pages are on per-cpu lists and inaccessible to the calling
+> process. This leads to a process entering direct reclaim more often than
+> it should increasing the pressure on the system and compounding the problem.
 > 
-> Andrew:
+> This patch notes that if direct reclaim is making progress but
+> allocations are still failing that the system is already under heavy
+> pressure. In this case, it drains the per-cpu lists and tries the
+> allocation a second time before continuing.
 > 
-> We observed the degradation on 2.6.34 compared to 2.6.26 kernel. The
-> workload we are running is doing 4k-random-write which runs about 3-4
-> minutes. We captured the TLB shootsdowns before/after:
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Christoph Lameter <cl@linux.com>
+> ---
+>  mm/page_alloc.c |   20 ++++++++++++++++----
+>  1 files changed, 16 insertions(+), 4 deletions(-)
 > 
-> Before the change:
-> TLB: 29435 22208 37146 25332 47952 43698 43545 40297 49043 44843 46127
-> 50959 47592 46233 43698 44690 TLB shootdowns [HSUM =  662798 ]
-> 
-> After the change:
-> TLB: 2340 3113 1547 1472 2944 4194 2181 1212 2607 4373 1690 1446 2310
-> 3784 1744 1134 TLB shootdowns [HSUM =  38091 ]
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bbaa959..750e1dc 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1847,6 +1847,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	struct page *page = NULL;
+>  	struct reclaim_state reclaim_state;
+>  	struct task_struct *p = current;
+> +	bool drained = false;
+>  
+>  	cond_resched();
+>  
+> @@ -1865,14 +1866,25 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  
+>  	cond_resched();
+>  
+> -	if (order != 0)
+> -		drain_all_pages();
+> +	if (unlikely(!(*did_some_progress)))
+> +		return NULL;
+>  
+> -	if (likely(*did_some_progress))
+> -		page = get_page_from_freelist(gfp_mask, nodemask, order,
+> +retry:
+> +	page = get_page_from_freelist(gfp_mask, nodemask, order,
+>  					zonelist, high_zoneidx,
+>  					alloc_flags, preferred_zone,
+>  					migratetype);
+> +
+> +	/*
+> +	 * If an allocation failed after direct reclaim, it could be because
+> +	 * pages are pinned on the per-cpu lists. Drain them and try again
+> +	 */
+> +	if (!page && !drained) {
+> +		drain_all_pages();
+> +		drained = true;
+> +		goto retry;
+> +	}
+> +
+>  	return page;
+>  }
 
-Do you have data on how much additional CPU time (and/or wall time) was
-consumed?
+The patch looks reasonable.
 
-> Also worthy to mention, we are running in fake numa system where each
-> fake node is 128M size. That makes differences on the check
-> inactive_anon_is_low() since the active/inactive ratio falls to 1.
+But please take a look at the recent thread "mm: minute-long livelocks
+in memory reclaim".  There, people are pointing fingers at that
+drain_all_pages() call, suspecting that it's causing huge IPI storms.
+
+Dave was going to test this theory but afaik hasn't yet done so.  It
+would be nice to tie these threads together if poss?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
