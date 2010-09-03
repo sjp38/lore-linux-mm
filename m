@@ -1,51 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CEA976B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 16:06:54 -0400 (EDT)
-Date: Fri, 3 Sep 2010 13:06:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] avoid warning when COMPACTION is selected
-Message-Id: <20100903130623.00da1f96.akpm@linux-foundation.org>
-In-Reply-To: <20100903153826.GB16761@random.random>
-References: <20100903153826.GB16761@random.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C976B004D
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 16:07:05 -0400 (EDT)
+Date: Fri, 3 Sep 2010 13:04:43 -0700
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH V5 7/8] Cleancache: ext4 hook for cleancache
+Message-ID: <20100903200443.GA4728@ca-server1.us.oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+To: chris.mason@oracle.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, adilger@sun.com, tytso@mit.edu, mfasheh@suse.com, joel.becker@oracle.com, matthew@wil.cx, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org, ngupta@vflare.org, jeremy@goop.org, JBeulich@novell.com, kurt.hackel@oracle.com, npiggin@kernel.dk, dave.mccracken@oracle.com, riel@redhat.com, avi@redhat.com, konrad.wilk@oracle.com, dan.magenheimer@oracle.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Sep 2010 17:38:26 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+[PATCH V5 7/8] Cleancache: ext4 hook for cleancache
 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> 
-> COMPACTION enables MIGRATION, but MIGRATION spawns a warning if numa
-> or memhotplug aren't selected. However MIGRATION doesn't depend on
-> them. I guess it's just trying to be strict doing a double check on
-> who's enabling it, but it doesn't know that compaction also enables
-> MIGRATION.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -189,7 +189,7 @@ config COMPACTION
->  config MIGRATION
->  	bool "Page migration"
->  	def_bool y
-> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
-> +	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
->  	help
->  	  Allows the migration of the physical location of pages of processes
->  	  while the virtual addresses are not changed. This is useful in
+Filesystems must explicitly enable cleancache by calling
+cleancache_init_fs anytime a instance of the filesystem
+is mounted and must save the returned poolid.  For ext4,
+all other cleancache hooks are in the VFS layer including
+the matching cleancache_flush_fs hook which must be
+called on unmount.
 
-Could you please send along a copy of the warning?  It's unclear
-whether it's a compiler warning or a Kconfig warning or a runtime
-warning or what.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Acked-by: Andreas Dilger <adilger@sun.com>
+
+Diffstat:
+ super.c                                  |    2 ++
+ 1 file changed, 2 insertions(+)
+
+--- linux-2.6.36-rc3/fs/ext4/super.c	2010-08-29 09:36:04.000000000 -0600
++++ linux-2.6.36-rc3-cleancache/fs/ext4/super.c	2010-08-31 10:27:04.000000000 -0600
+@@ -39,6 +39,7 @@
+ #include <linux/ctype.h>
+ #include <linux/log2.h>
+ #include <linux/crc16.h>
++#include <linux/cleancache.h>
+ #include <asm/uaccess.h>
+ 
+ #include "ext4.h"
+@@ -1849,6 +1850,7 @@ static int ext4_setup_super(struct super
+ 			EXT4_INODES_PER_GROUP(sb),
+ 			sbi->s_mount_opt);
+ 
++	cleancache_init_fs(sb);
+ 	return res;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
