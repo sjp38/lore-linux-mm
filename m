@@ -1,62 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 356B46B004D
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 10:10:07 -0400 (EDT)
-Date: Fri, 3 Sep 2010 09:10:03 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 04/10] hugetlb: hugepage migration core
-In-Reply-To: <1283488658-23137-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.00.1009030907080.5633@router.home>
-References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283488658-23137-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+	by kanga.kvack.org (Postfix) with SMTP id 1E62C6B0047
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 11:38:53 -0400 (EDT)
+Date: Fri, 3 Sep 2010 17:38:26 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH] avoid warning when COMPACTION is selected
+Message-ID: <20100903153826.GB16761@random.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Sep 2010, Naoya Horiguchi wrote:
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-> diff --git v2.6.36-rc2/mm/vmscan.c v2.6.36-rc2/mm/vmscan.c
-> index c391c32..69ce2a3 100644
-> --- v2.6.36-rc2/mm/vmscan.c
-> +++ v2.6.36-rc2/mm/vmscan.c
-> @@ -40,6 +40,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/delayacct.h>
->  #include <linux/sysctl.h>
-> +#include <linux/hugetlb.h>
->
->  #include <asm/tlbflush.h>
->  #include <asm/div64.h>
-> @@ -508,6 +509,10 @@ void putback_lru_page(struct page *page)
->
->  	VM_BUG_ON(PageLRU(page));
->
-> +	if (PageHuge(page)) {
-> +		put_page(page);
-> +		return;
-> +	}
->  redo:
->  	ClearPageUnevictable(page);
->
-> @@ -1112,7 +1117,9 @@ int isolate_lru_page(struct page *page)
->  {
->  	int ret = -EBUSY;
->
-> -	if (PageLRU(page)) {
-> +	if (PageHuge(page) && get_page_unless_zero(compound_head(page)))
-> +		ret = 0;
-> +	else if (PageLRU(page)) {
->  		struct zone *zone = page_zone(page);
->
->  		spin_lock_irq(&zone->lru_lock);
->
+COMPACTION enables MIGRATION, but MIGRATION spawns a warning if numa
+or memhotplug aren't selected. However MIGRATION doesn't depend on
+them. I guess it's just trying to be strict doing a double check on
+who's enabling it, but it doesn't know that compaction also enables
+MIGRATION.
 
-Huge pages are not on the LRU right? So why use the lru functions for
-them and then not use the lru? Its a bit stranger. The caller must aware
-of the different handling of huge pages since there is no toying around
-with the lru. So just have the caller do a put or get page instead.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -189,7 +189,7 @@ config COMPACTION
+ config MIGRATION
+ 	bool "Page migration"
+ 	def_bool y
+-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
++	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
+ 	help
+ 	  Allows the migration of the physical location of pages of processes
+ 	  while the virtual addresses are not changed. This is useful in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
