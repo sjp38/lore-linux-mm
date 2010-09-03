@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B18016B007B
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:41:03 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5AA6B007B
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:41:04 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 03/10] hugetlb: redefine hugepage copy functions
-Date: Fri,  3 Sep 2010 13:37:31 +0900
-Message-Id: <1283488658-23137-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 05/10] HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
+Date: Fri,  3 Sep 2010 13:37:33 +0900
+Message-Id: <1283488658-23137-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,126 +13,111 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch modifies hugepage copy functions to have only destination
-and source hugepages as arguments for later use.
-The old ones are renamed from copy_{gigantic,huge}_page() to
-copy_user_{gigantic,huge}_page().
-This naming convention is consistent with that between copy_highpage()
-and copy_user_highpage().
-
-ChangeLog since v2:
-- change copy_huge_page() from macro to inline dummy function
-  to avoid compile warning when !CONFIG_HUGETLB_PAGE.
+This check is necessary to avoid race between dequeue and allocation,
+which can cause a free hugepage to be dequeued twice and get kernel unstable.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/hugetlb.h |    4 ++++
- mm/hugetlb.c            |   43 +++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 43 insertions(+), 4 deletions(-)
+ include/linux/hugetlb.h |    4 ++--
+ mm/hugetlb.c            |   29 +++++++++++++++++++++++++----
+ mm/memory-failure.c     |    6 ++++--
+ 3 files changed, 31 insertions(+), 8 deletions(-)
 
 diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-index 0b73c53..9e51f77 100644
+index 9e51f77..796f30e 100644
 --- v2.6.36-rc2/include/linux/hugetlb.h
 +++ v2.6.36-rc2/include/linux/hugetlb.h
-@@ -44,6 +44,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+@@ -43,7 +43,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+ 						struct vm_area_struct *vma,
  						int acctflags);
  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
- void __isolate_hwpoisoned_huge_page(struct page *page);
-+void copy_huge_page(struct page *dst, struct page *src);
+-void __isolate_hwpoisoned_huge_page(struct page *page);
++int dequeue_hwpoisoned_huge_page(struct page *page);
+ void copy_huge_page(struct page *dst, struct page *src);
  
  extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
-@@ -102,6 +103,9 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+@@ -102,7 +102,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+ #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
  #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
  #define huge_pte_offset(mm, address)	0
- #define __isolate_hwpoisoned_huge_page(page)	0
-+static inline void copy_huge_page(struct page *dst, struct page *src)
-+{
-+}
- 
- #define hugetlb_change_protection(vma, address, end, newprot)
- 
+-#define __isolate_hwpoisoned_huge_page(page)	0
++#define dequeue_hwpoisoned_huge_page(page)	0
+ static inline void copy_huge_page(struct page *dst, struct page *src)
+ {
+ }
 diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index d12431b..c3f2ec6 100644
+index d3e9d29..7cf9225 100644
 --- v2.6.36-rc2/mm/hugetlb.c
 +++ v2.6.36-rc2/mm/hugetlb.c
-@@ -423,7 +423,7 @@ static void clear_huge_page(struct page *page,
- 	}
+@@ -2952,18 +2952,39 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
+ 	hugetlb_acct_memory(h, -(chg - freed));
  }
  
--static void copy_gigantic_page(struct page *dst, struct page *src,
-+static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
-@@ -440,14 +440,15 @@ static void copy_gigantic_page(struct page *dst, struct page *src,
- 		src = mem_map_next(src, src_base, i);
- 	}
- }
--static void copy_huge_page(struct page *dst, struct page *src,
-+
-+static void copy_user_huge_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
- 	struct hstate *h = hstate_vma(vma);
- 
- 	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
-+		copy_user_gigantic_page(dst, src, addr, vma);
- 		return;
- 	}
- 
-@@ -458,6 +459,40 @@ static void copy_huge_page(struct page *dst, struct page *src,
- 	}
- }
- 
-+static void copy_gigantic_page(struct page *dst, struct page *src)
++/* Should be called in hugetlb_lock */
++static int is_hugepage_on_freelist(struct page *hpage)
 +{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page(h); ) {
-+		cond_resched();
-+		copy_highpage(dst, src);
++	struct page *page;
++	struct page *tmp;
++	struct hstate *h = page_hstate(hpage);
++	int nid = page_to_nid(hpage);
 +
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
++	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru)
++		if (page == hpage)
++			return 1;
++	return 0;
 +}
 +
-+void copy_huge_page(struct page *dst, struct page *src)
-+{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+
-+	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page(h); i++) {
-+		cond_resched();
-+		copy_highpage(dst + i, src + i);
-+	}
-+}
-+
- static void enqueue_huge_page(struct hstate *h, struct page *page)
++#ifdef CONFIG_MEMORY_FAILURE
+ /*
+  * This function is called from memory failure code.
+  * Assume the caller holds page lock of the head page.
+  */
+-void __isolate_hwpoisoned_huge_page(struct page *hpage)
++int dequeue_hwpoisoned_huge_page(struct page *hpage)
  {
- 	int nid = page_to_nid(page);
-@@ -2414,7 +2449,7 @@ retry_avoidcopy:
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
+ 	struct hstate *h = page_hstate(hpage);
+ 	int nid = page_to_nid(hpage);
++	int ret = -EBUSY;
  
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_user_huge_page(new_page, old_page, address, vma);
- 	__SetPageUptodate(new_page);
- 
+ 	spin_lock(&hugetlb_lock);
+-	list_del(&hpage->lru);
+-	h->free_huge_pages--;
+-	h->free_huge_pages_node[nid]--;
++	if (is_hugepage_on_freelist(hpage)) {
++		list_del(&hpage->lru);
++		h->free_huge_pages--;
++		h->free_huge_pages_node[nid]--;
++		ret = 0;
++	}
+ 	spin_unlock(&hugetlb_lock);
++	return ret;
+ }
++#endif
+diff --git v2.6.36-rc2/mm/memory-failure.c v2.6.36-rc2/mm/memory-failure.c
+index 9c26eec..c67f801 100644
+--- v2.6.36-rc2/mm/memory-failure.c
++++ v2.6.36-rc2/mm/memory-failure.c
+@@ -698,6 +698,7 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
+  */
+ static int me_huge_page(struct page *p, unsigned long pfn)
+ {
++	int res = 0;
+ 	struct page *hpage = compound_head(p);
  	/*
+ 	 * We can safely recover from error on free or reserved (i.e.
+@@ -710,8 +711,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
+ 	 * so there is no race between isolation and mapping/unmapping.
+ 	 */
+ 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
+-		__isolate_hwpoisoned_huge_page(hpage);
+-		return RECOVERED;
++		res = dequeue_hwpoisoned_huge_page(hpage);
++		if (!res)
++			return RECOVERED;
+ 	}
+ 	return DELAYED;
+ }
 -- 
 1.7.2.2
 
