@@ -1,31 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BC95B6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:54:06 -0400 (EDT)
-Date: Fri, 3 Sep 2010 19:54:01 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm: page allocator: Calculate a better estimate of
- NR_FREE_PAGES when memory is low and kswapd is awake
-In-Reply-To: <20100903162821.48ec57cc.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1009031950100.18051@router.home>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <1283504926-2120-3-git-send-email-mel@csn.ul.ie> <20100903155537.41f1a3a7.akpm@linux-foundation.org> <alpine.DEB.2.00.1009031811090.16264@router.home>
- <20100903162821.48ec57cc.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0DD816B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:57:28 -0400 (EDT)
+Message-ID: <4C818B5E.5080507@redhat.com>
+Date: Fri, 03 Sep 2010 19:57:18 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] fix swapin race condition
+References: <20100903153958.GC16761@random.random>
+In-Reply-To: <20100903153958.GC16761@random.random>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Sep 2010, Andrew Morton wrote:
-
-> > percpu counters must always be added up when their value is determined.
+On 09/03/2010 11:39 AM, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli<aarcange@redhat.com>
 >
-> Nope.  That's the difference between percpu_counter_read() and
-> percpu_counter_sum().
+> The pte_same check is reliable only if the swap entry remains pinned
+> (by the page lock on swapcache). We've also to ensure the swapcache
+> isn't removed before we take the lock as try_to_free_swap won't care
+> about the page pin.
+>
+> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
 
-Hmmm... Okay you can fold them therefore. That is analogous to what we do
-in the _snapshot function now.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+Andrew, one of the possible impacts of this patch is that a
+KSM-shared page can point to the anon_vma of another process,
+which could exit before the page is freed.
+
+This can leave a page with a pointer to a recycled anon_vma
+object, or worse, a pointer to something that is no longer
+an anon_vma.
+
+Backporting this patch to -stable is worthwhile, IMHO.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
