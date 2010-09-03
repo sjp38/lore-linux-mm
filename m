@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DF3DC6B0047
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:40:31 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C27736B004D
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 00:40:34 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 01/10] hugetlb: fix metadata corruption in hugetlb_fault()
-Date: Fri,  3 Sep 2010 13:37:29 +0900
-Message-Id: <1283488658-23137-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 0/10] Hugepage migration (v4)
+Date: Fri,  3 Sep 2010 13:37:28 +0900
+Message-Id: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Since the PageHWPoison() check is for avoiding hwpoisoned page remained
-in pagecache mapping to the process, it should be done in "found in pagecache"
-branch, not in the common path.
-Otherwise, metadata corruption occurs if memory failure happens between
-alloc_huge_page() and lock_page() because page fault fails with metadata
-changes remained (such as refcount, mapcount, etc.)
+Hi,
 
-This patch moves the check to "found in pagecache" branch and fix the problem.
+This is the 4th version of "hugepage migration" set.
 
-ChangeLog since v2:
-- remove retry check in "new allocation" path.
-- make description more detailed
-- change patch name from "HWPOISON, hugetlb: move PG_HWPoison bit check"
+Major changes: (see individual patches for more details)
+- Folded alloc_buddy_huge_page_node() into alloc_buddy_huge_page().
+- Fixed race condition between dequeue function and allocate function.
+  This is based on the draft patch from Wu Fengguang. Thank you.
+- Enabled missing path of recovery from uncorrected error on free hugepage.
+- Change semantics of refcount of isolated hugepage from freelist.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/hugetlb.c |   21 +++++++++------------
- 1 files changed, 9 insertions(+), 12 deletions(-)
 
-diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index cc5be78..6871b41 100644
---- v2.6.36-rc2/mm/hugetlb.c
-+++ v2.6.36-rc2/mm/hugetlb.c
-@@ -2518,22 +2518,19 @@ retry:
- 			hugepage_add_new_anon_rmap(page, vma, address);
- 		}
- 	} else {
-+		/*
-+		 * If memory error occurs between mmap() and fault, some process
-+		 * don't have hwpoisoned swap entry for errored virtual address.
-+		 * So we need to block hugepage fault by PG_hwpoison bit check.
-+		 */
-+		if (unlikely(PageHWPoison(page))) {
-+			ret = VM_FAULT_HWPOISON;
-+			goto backout_unlocked;
-+		}
- 		page_dup_rmap(page);
- 	}
- 
- 	/*
--	 * Since memory error handler replaces pte into hwpoison swap entry
--	 * at the time of error handling, a process which reserved but not have
--	 * the mapping to the error hugepage does not have hwpoison swap entry.
--	 * So we need to block accesses from such a process by checking
--	 * PG_hwpoison bit here.
--	 */
--	if (unlikely(PageHWPoison(page))) {
--		ret = VM_FAULT_HWPOISON;
--		goto backout_unlocked;
--	}
--
--	/*
- 	 * If we are going to COW a private mapping later, we examine the
- 	 * pending reservations for this page now. This will ensure that
- 	 * any allocations necessary to record that reservation occur outside
--- 
-1.7.2.2
+Future works:
+
+- Migration can fail for various reasons depending on various factors,
+  so it's useful if soft offline can be retried when it noticed migration
+  fails. This problem is a more general one because it's applied for
+  soft offline of normal-sized pages. So we leave it as a future work.
+  
+- Corrupted hugepage counter implemeted in the previous version was dropped
+  because it's not directly related to migration topic and have no serious
+  impact on kernel behavior. We also leave it as the next work.
+
+
+Summary:
+
+ [PATCH 01/10] hugetlb: fix metadata corruption in hugetlb_fault()
+ [PATCH 02/10] hugetlb: add allocate function for hugepage migration
+ [PATCH 03/10] hugetlb: redefine hugepage copy functions
+ [PATCH 04/10] hugetlb: hugepage migration core
+ [PATCH 05/10] HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
+ [PATCH 06/10] hugetlb: move refcounting in hugepage allocation inside hugetlb_lock
+ [PATCH 07/10] HWPOSION, hugetlb: recover from free hugepage error when !MF_COUNT_INCREASED
+ [PATCH 08/10] HWPOISON, hugetlb: soft offlining for hugepage
+ [PATCH 09/10] HWPOISON, hugetlb: fix unpoison for hugepage
+ [PATCH 10/10] page-types.c: fix name of unpoison interface
+
+ Documentation/vm/page-types.c |    2 +-
+ fs/hugetlbfs/inode.c          |   15 +++
+ include/linux/hugetlb.h       |   11 ++-
+ include/linux/migrate.h       |   12 ++
+ mm/hugetlb.c                  |  225 ++++++++++++++++++++++++++++------------
+ mm/memory-failure.c           |   93 +++++++++++++----
+ mm/migrate.c                  |  192 +++++++++++++++++++++++++++++++----
+ mm/vmscan.c                   |    9 ++-
+ 8 files changed, 446 insertions(+), 113 deletions(-)
+
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
