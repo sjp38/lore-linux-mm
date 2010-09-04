@@ -1,88 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A57B6B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 21:27:12 -0400 (EDT)
-Date: Fri, 3 Sep 2010 15:38:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mm: page allocator: Update free page counters after
- pages are placed on the free list
-Message-Id: <20100903153859.52cd1b97.akpm@linux-foundation.org>
-In-Reply-To: <1283504926-2120-2-git-send-email-mel@csn.ul.ie>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
-	<1283504926-2120-2-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 2AFA46B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 22:05:14 -0400 (EDT)
+Date: Sat, 4 Sep 2010 10:04:53 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [RESEND PATCH v2] compaction: fix COMPACTPAGEFAILED counting
+Message-ID: <20100904020452.GA7788@localhost>
+References: <1283438087-11842-1-git-send-email-minchan.kim@gmail.com>
+ <20100903170227.b2f18ba4.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100903170227.b2f18ba4.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri,  3 Sep 2010 10:08:44 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
+On Sat, Sep 04, 2010 at 08:02:27AM +0800, Andrew Morton wrote:
+> On Thu,  2 Sep 2010 23:34:47 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+> 
+> > Now update_nr_listpages doesn't have a role. That's because
+> > lists passed is always empty just after calling migrate_pages.
+> > The migrate_pages cleans up page list which have failed to migrate
+> > before returning by aaa994b3.
+> > 
+> >  [PATCH] page migration: handle freeing of pages in migrate_pages()
+> > 
+> >  Do not leave pages on the lists passed to migrate_pages().  Seems that we will
+> >  not need any postprocessing of pages.  This will simplify the handling of
+> >  pages by the callers of migrate_pages().
+> > 
+> > At that time, we thought we don't need any postprocessing of pages.
+> > But the situation is changed. The compaction need to know the number of
+> > failed to migrate for COMPACTPAGEFAILED stat
+> > 
+> > This patch makes new rule for caller of migrate_pages to call putback_lru_pages.
+> > So caller need to clean up the lists so it has a chance to postprocess the pages.
+> > [suggested by Christoph Lameter]
+> 
+> I'm having trouble predicting what the user-visible effects of this bug
+> might be.  Just an inaccuracy in the COMPACTPAGEFAILED vm event?
 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -588,12 +588,12 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  {
->  	int migratetype = 0;
->  	int batch_free = 0;
-> +	int freed = count;
->  
->  	spin_lock(&zone->lock);
->  	zone->all_unreclaimable = 0;
->  	zone->pages_scanned = 0;
->  
-> -	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
->  	while (count) {
->  		struct page *page;
->  		struct list_head *list;
-> @@ -621,6 +621,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			trace_mm_page_pcpu_drain(page, 0, page_private(page));
->  		} while (--count && --batch_free && !list_empty(list));
->  	}
-> +	__mod_zone_page_state(zone, NR_FREE_PAGES, freed);
->  	spin_unlock(&zone->lock);
->  }
->  
+Right, it's an accounting fix. Before patch COMPACTPAGEFAILED will
+remain 0 regardless of how many migration failures.
 
-nit: this is why it's evil to modify the value of incoming args.  It's
-nicer to leave them alone and treat them as const across the lifetime
-of the callee.
+The patch does slightly add dependency for migrate_pages() to return
+error code properly. Before patch, migrate_pages() calls
+putback_lru_pages() regardless of the error code. After patch, the
+migrate_pages() callers will check its return value before calling
+putback_lru_pages().
 
-Can I do this?
+In current code, the two conditions do seem to match:
 
---- a/mm/page_alloc.c~mm-page-allocator-update-free-page-counters-after-pages-are-placed-on-the-free-list-fix
-+++ a/mm/page_alloc.c
-@@ -588,13 +588,13 @@ static void free_pcppages_bulk(struct zo
- {
- 	int migratetype = 0;
- 	int batch_free = 0;
--	int freed = count;
-+	int to_free = count;
- 
- 	spin_lock(&zone->lock);
- 	zone->all_unreclaimable = 0;
- 	zone->pages_scanned = 0;
- 
--	while (count) {
-+	while (to_free) {
- 		struct page *page;
- 		struct list_head *list;
- 
-@@ -619,9 +619,9 @@ static void free_pcppages_bulk(struct zo
- 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
- 			__free_one_page(page, zone, 0, page_private(page));
- 			trace_mm_page_pcpu_drain(page, 0, page_private(page));
--		} while (--count && --batch_free && !list_empty(list));
-+		} while (--to_free && --batch_free && !list_empty(list));
- 	}
--	__mod_zone_page_state(zone, NR_FREE_PAGES, freed);
-+	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
- 	spin_unlock(&zone->lock);
- }
- 
-_
+"some pages remained in the *from list" == "migrate_pages() returns an error code".
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
