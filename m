@@ -1,126 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 477066B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 22:27:04 -0400 (EDT)
-Date: Sat, 4 Sep 2010 12:25:45 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
- direct reclaim allocation fails
-Message-ID: <20100904022545.GD705@dastard>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
- <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
- <20100903160026.564fdcc9.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 7F5436B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 22:55:50 -0400 (EDT)
+Date: Sat, 4 Sep 2010 10:55:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 2/2] Make is_mem_section_removable more conformable
+ with offlining code v3
+Message-ID: <20100904025516.GB7788@localhost>
+References: <AANLkTikYt3Hu_XeNuwAa9KjzfWgpC8cNen6q657ZKmm-@mail.gmail.com>
+ <20100902143939.GD10265@tiehlicka.suse.cz>
+ <20100902150554.GE10265@tiehlicka.suse.cz>
+ <20100903121003.e2b8993a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100903121452.2d22b3aa.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100903082558.GC10686@tiehlicka.suse.cz>
+ <20100903181327.7dad3f84.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100903095049.GG10686@tiehlicka.suse.cz>
+ <20100903190520.8751aab6.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100903114213.GI10686@tiehlicka.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100903160026.564fdcc9.akpm@linux-foundation.org>
+In-Reply-To: <20100903114213.GI10686@tiehlicka.suse.cz>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 03, 2010 at 04:00:26PM -0700, Andrew Morton wrote:
-> On Fri,  3 Sep 2010 10:08:46 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > When under significant memory pressure, a process enters direct reclaim
-> > and immediately afterwards tries to allocate a page. If it fails and no
-> > further progress is made, it's possible the system will go OOM. However,
-> > on systems with large amounts of memory, it's possible that a significant
-> > number of pages are on per-cpu lists and inaccessible to the calling
-> > process. This leads to a process entering direct reclaim more often than
-> > it should increasing the pressure on the system and compounding the problem.
-> > 
-> > This patch notes that if direct reclaim is making progress but
-> > allocations are still failing that the system is already under heavy
-> > pressure. In this case, it drains the per-cpu lists and tries the
-> > allocation a second time before continuing.
-....
-> The patch looks reasonable.
-> 
-> But please take a look at the recent thread "mm: minute-long livelocks
-> in memory reclaim".  There, people are pointing fingers at that
-> drain_all_pages() call, suspecting that it's causing huge IPI storms.
-> 
-> Dave was going to test this theory but afaik hasn't yet done so.  It
-> would be nice to tie these threads together if poss?
+On Fri, Sep 03, 2010 at 07:42:13PM +0800, Michal Hocko wrote:
 
-It's been my "next-thing-to-do" since David suggested I try it -
-tracking down other problems has got in the way, though. I
-just ran my test a couple of times through:
+> +/*
+> + * A free or LRU pages block are removable
+> + * Do not use MIGRATE_MOVABLE because it can be insufficient and
+> + * other MIGRATE types are tricky.
+> + * Do not hold zone->lock as this is used from user space by the
+> + * sysfs interface.
+> + */
+> +bool is_page_removable(struct page *page)
+> +{
+> +	int page_block = 1 << pageblock_order;
+> +
+> +	/* All pages from the MOVABLE zone are movable */
+> +	if (zone_idx(page_zone(page)) == ZONE_MOVABLE)
+> +		return true;
+> +
+> +	while (page_block > 0) {
+> +		int order = 0;
+> +
+> +		if (pfn_valid_within(page_to_pfn(page))) {
+> +			if (!page_count(page) && PageBuddy(page)) {
 
-$ ./fs_mark -D 10000 -L 63 -S0 -n 100000 -s 0 \
-	-d /mnt/scratch/0 -d /mnt/scratch/1 \
-	-d /mnt/scratch/3 -d /mnt/scratch/2 \
-	-d /mnt/scratch/4 -d /mnt/scratch/5 \
-	-d /mnt/scratch/6 -d /mnt/scratch/7
+PageBuddy() is true only for the head page and false for all tail
+pages. So when is_page_removable() is given a random 4k page
+(get_any_page() will exactly do that), the above test is not enough.
 
-To create millions of inodes in parallel on an 8p/4G RAM VM.
-The filesystem is ~1.1TB XFS:
+It's recommended to reuse is_free_buddy_page(). (Need to do some
+cleanup work first: remove the "#ifdef CONFIG_MEMORY_FAILURE" and
+abstract out an __is_free_buddy_page() that takes no lock.)
 
-# mkfs.xfs -f -d agcount=16 /dev/vdb
-meta-data=/dev/vdb               isize=256    agcount=16, agsize=16777216 blks
-         =                       sectsz=512   attr=2
-data     =                       bsize=4096   blocks=268435456, imaxpct=5
-         =                       sunit=0      swidth=0 blks
-naming   =version 2              bsize=4096   ascii-ci=0
-log      =internal log           bsize=4096   blocks=131072, version=2
-         =                       sectsz=512   sunit=0 blks, lazy-count=1
-realtime =none                   extsz=4096   blocks=0, rtextents=0
-# mount -o inode64,delaylog,logbsize=262144,nobarrier /dev/vdb /mnt/scratch
+> @@ -5277,14 +5277,11 @@ int set_migratetype_isolate(struct page *page)
+>  	struct memory_isolate_notify arg;
+>  	int notifier_ret;
+>  	int ret = -EBUSY;
+> -	int zone_idx;
+>  
+>  	zone = page_zone(page);
+> -	zone_idx = zone_idx(zone);
+>  
+>  	spin_lock_irqsave(&zone->lock, flags);
+> -	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
+> -	    zone_idx == ZONE_MOVABLE) {
+> +	if (is_page_removable(page)) {
+>  		ret = 0;
+>  		goto out;
 
-Performance prior to this patch was that each iteration resulted in
-~65k files/s, with occassionaly peaks to 90k files/s, but drops to
-frequently 45k files/s when reclaim ran to reclaim the inode
-caches. This load ran permanently at 800% CPU usage.
+The above check only applies to the first page in the page block.
+The following "if (!page_count(curr_page) || PageLRU(curr_page))"
+check in the same function should be converted too (and that's another
+reason to use __is_free_buddy_page(): it will be tested for every 4k
+pages, including both the head and tail pages).
 
-Every so often (may once or twice a 50M inode create run) all 8 CPUs
-would remain pegged but the create rate would drop to zero for a few
-seconds to a couple of minutes. that was the livelock issues I
-reported.
-
-With this patchset, I'm seeing a per-iteration average of ~77k
-files/s, with only a couple of iterations dropping down to ~55k
-file/s and a significantly number above 90k/s. The runtime to 50M
-inodes is down by ~30% and the average CPU usage across the run is
-around 700%. IOWs, there a significant gain in performance there is
-a significant drop in CPU usage. I've done two runs to 50m inodes,
-and not seen any sign of a livelock, even for short periods of time.
-
-Ah, spoke too soon - I let the second run keep going, and at ~68M
-inodes it's just pegged all the CPUs and is pretty much completely
-wedged. Serial console is not responding, I can't get a new login,
-and the only thing responding that tells me the machine is alive is
-the remote PCP monitoring. It's been stuck for 5 minutes .... and
-now it is back. Here's what I saw:
-
-http://userweb.kernel.org/~dgc/shrinker-2.6.36/fs_mark-wedge-1.png
-
-The livelock is at the right of the charts, where the top chart is
-all red (system CPU time), and the other charts flat line to zero.
-
-And according to fsmark:
-
-     1     66400000            0      64554.2          7705926
-     1     67200000            0      64836.1          7573013
-<hang happened here>
-     2     68000000            0      69472.8          7941399
-     2     68800000            0      85017.5          7585203
-
-it didn't record any change in performance, which means the livelock
-probably occurred between iterations.  I couldn't get any info on
-what caused the livelock this time so I can only assume it has the
-same cause....
-
-Still, given the improvements in performance from this patchset,
-I'd say inclusion is a no-braniner....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
