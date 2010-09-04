@@ -1,45 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0DD816B004A
-	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 20:57:28 -0400 (EDT)
-Message-ID: <4C818B5E.5080507@redhat.com>
-Date: Fri, 03 Sep 2010 19:57:18 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] fix swapin race condition
-References: <20100903153958.GC16761@random.random>
-In-Reply-To: <20100903153958.GC16761@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 051C56B004A
+	for <linux-mm@kvack.org>; Fri,  3 Sep 2010 21:04:08 -0400 (EDT)
+Date: Fri, 3 Sep 2010 17:02:27 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH v2] compaction: fix COMPACTPAGEFAILED counting
+Message-Id: <20100903170227.b2f18ba4.akpm@linux-foundation.org>
+In-Reply-To: <1283438087-11842-1-git-send-email-minchan.kim@gmail.com>
+References: <1283438087-11842-1-git-send-email-minchan.kim@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 09/03/2010 11:39 AM, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> The pte_same check is reliable only if the swap entry remains pinned
-> (by the page lock on swapcache). We've also to ensure the swapcache
-> isn't removed before we take the lock as try_to_free_swap won't care
-> about the page pin.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+On Thu,  2 Sep 2010 23:34:47 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> Now update_nr_listpages doesn't have a role. That's because
+> lists passed is always empty just after calling migrate_pages.
+> The migrate_pages cleans up page list which have failed to migrate
+> before returning by aaa994b3.
+> 
+>  [PATCH] page migration: handle freeing of pages in migrate_pages()
+> 
+>  Do not leave pages on the lists passed to migrate_pages().  Seems that we will
+>  not need any postprocessing of pages.  This will simplify the handling of
+>  pages by the callers of migrate_pages().
+> 
+> At that time, we thought we don't need any postprocessing of pages.
+> But the situation is changed. The compaction need to know the number of
+> failed to migrate for COMPACTPAGEFAILED stat
+> 
+> This patch makes new rule for caller of migrate_pages to call putback_lru_pages.
+> So caller need to clean up the lists so it has a chance to postprocess the pages.
+> [suggested by Christoph Lameter]
 
-Andrew, one of the possible impacts of this patch is that a
-KSM-shared page can point to the anon_vma of another process,
-which could exit before the page is freed.
-
-This can leave a page with a pointer to a recycled anon_vma
-object, or worse, a pointer to something that is no longer
-an anon_vma.
-
-Backporting this patch to -stable is worthwhile, IMHO.
-
--- 
-All rights reversed
+I'm having trouble predicting what the user-visible effects of this bug
+might be.  Just an inaccuracy in the COMPACTPAGEFAILED vm event?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
