@@ -1,62 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9BF566B0047
-	for <linux-mm@kvack.org>; Sat,  4 Sep 2010 04:15:17 -0400 (EDT)
-Date: Sat, 4 Sep 2010 18:14:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
- direct reclaim allocation fails
-Message-ID: <20100904081414.GF705@dastard>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
- <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
- <20100903160026.564fdcc9.akpm@linux-foundation.org>
- <20100904022545.GD705@dastard>
- <20100903202101.f937b0bb.akpm@linux-foundation.org>
- <20100904075840.GE705@dastard>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B6D1D6B0047
+	for <linux-mm@kvack.org>; Sat,  4 Sep 2010 06:30:04 -0400 (EDT)
+Date: Sat, 4 Sep 2010 11:29:46 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] avoid warning when COMPACTION is selected
+Message-ID: <20100904102946.GD8384@csn.ul.ie>
+References: <20100903153826.GB16761@random.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20100904075840.GE705@dastard>
+In-Reply-To: <20100903153826.GB16761@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 04, 2010 at 05:58:40PM +1000, Dave Chinner wrote:
-> On Fri, Sep 03, 2010 at 08:21:01PM -0700, Andrew Morton wrote:
-> > On Sat, 4 Sep 2010 12:25:45 +1000 Dave Chinner <david@fromorbit.com> wrote:
-> > 
-> > > Still, given the improvements in performance from this patchset,
-> > > I'd say inclusion is a no-braniner....
-> > 
-> > OK, thanks.
-> > 
-> > It'd be interesting to check the IPI frequency with and without -
-> > /proc/interrupts "CAL" field.  Presumably it went down a lot.
+On Fri, Sep 03, 2010 at 05:38:26PM +0200, Andrea Arcangeli wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Maybe I suspected you would ask for this. I happened to dump
-> /proc/interrupts after the livelock run finished, so you're in
-> luck :)
-....
+> COMPACTION enables MIGRATION, but MIGRATION spawns a warning if numa
+> or memhotplug aren't selected. However MIGRATION doesn't depend on
+> them. I guess it's just trying to be strict doing a double check on
+> who's enabling it, but it doesn't know that compaction also enables
+> MIGRATION.
 > 
-> livelock:  59458 58367 58559 59493 59614 57970 59060 58207
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+This was the way an earlier version of compaction had Kconfig. I'm not sure
+at what point the "|| COMPACTION" got dropped.
+
+> ---
 > 
-> So the livelock case tends to indicate roughly 40,000 more IPI
-> interrupts per CPU occurred.  The livelock occurred for close to 5
-> minutes, so that's roughly 130 IPIs per second per CPU....
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -189,7 +189,7 @@ config COMPACTION
+>  config MIGRATION
+>  	bool "Page migration"
+>  	def_bool y
+> -	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
+>  	help
+>  	  Allows the migration of the physical location of pages of processes
+>  	  while the virtual addresses are not changed. This is useful in
+> 
 
-And just to confuse the issue further, I just had a livelock on a
-vanilla kernel that did *not* cause the CAL counts to increase.
-Hence it appears that the IPI storms are not the cause of the
-livelocks D?'m triggering....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
