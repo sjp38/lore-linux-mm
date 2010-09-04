@@ -1,148 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4CA9A6B0047
-	for <linux-mm@kvack.org>; Sat,  4 Sep 2010 00:37:25 -0400 (EDT)
-Date: Sat, 4 Sep 2010 12:37:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 115496B0047
+	for <linux-mm@kvack.org>; Sat,  4 Sep 2010 04:00:28 -0400 (EDT)
+Date: Sat, 4 Sep 2010 17:58:40 +1000
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
  direct reclaim allocation fails
-Message-ID: <20100904043712.GA17217@localhost>
+Message-ID: <20100904075840.GE705@dastard>
 References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
  <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
  <20100903160026.564fdcc9.akpm@linux-foundation.org>
  <20100904022545.GD705@dastard>
- <20100904032311.GA14222@localhost>
- <20100903205945.44e1aa38.akpm@linux-foundation.org>
+ <20100903202101.f937b0bb.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100903205945.44e1aa38.akpm@linux-foundation.org>
+In-Reply-To: <20100903202101.f937b0bb.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 04, 2010 at 11:59:45AM +0800, Andrew Morton wrote:
-> On Sat, 4 Sep 2010 11:23:11 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Fri, Sep 03, 2010 at 08:21:01PM -0700, Andrew Morton wrote:
+> On Sat, 4 Sep 2010 12:25:45 +1000 Dave Chinner <david@fromorbit.com> wrote:
 > 
-> > > Still, given the improvements in performance from this patchset,
-> > > I'd say inclusion is a no-braniner....
-> > 
-> > In your case it's not really high memory pressure, but maybe too many
-> > concurrent direct reclaimers, so that when one reclaimed some free
-> > pages, others kick in and "steal" the free pages. So we need to kill
-> > the second cond_resched() call (which effectively gives other tasks a
-> > good chance to steal this task's vmscan fruits), and only do
-> > drain_all_pages() when nothing was reclaimed (instead of allocated).
+> > Still, given the improvements in performance from this patchset,
+> > I'd say inclusion is a no-braniner....
 > 
-> Well...  cond_resched() will only resched when this task has been
-> marked for preemption.  If that's happening at such a high frequency
-> then Something Is Up with the scheduler, and the reported context
-> switch rate will be high.
-
-Yes it may not necessarily schedule away. But if ever this happens,
-the task will likely run into drain_all_pages() when re-gain CPU.
-Because the drain_all_pages() cost is very high, it don't need too
-many reschedules to create the IPI storm..
-
-> > Dave, will you give a try of this patch? It's based on Mel's.
-> > 
-> > 
-> > --- linux-next.orig/mm/page_alloc.c	2010-09-04 11:08:03.000000000 +0800
-> > +++ linux-next/mm/page_alloc.c	2010-09-04 11:16:33.000000000 +0800
-> > @@ -1850,6 +1850,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
-> >  
-> >  	cond_resched();
-> >  
-> > +retry:
-> >  	/* We now go into synchronous reclaim */
-> >  	cpuset_memory_pressure_bump();
-> >  	p->flags |= PF_MEMALLOC;
-> > @@ -1863,26 +1864,23 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
-> >  	lockdep_clear_current_reclaim_state();
-> >  	p->flags &= ~PF_MEMALLOC;
-> >  
-> > -	cond_resched();
-> > -
-> > -	if (unlikely(!(*did_some_progress)))
-> > +	if (unlikely(!(*did_some_progress))) {
-> > +		if (!drained) {
-> > +			drain_all_pages();
-> > +			drained = true;
-> > +			goto retry;
-> > +		}
-> >  		return NULL;
-> > +	}
-> >  
-> > -retry:
-> >  	page = get_page_from_freelist(gfp_mask, nodemask, order,
-> >  					zonelist, high_zoneidx,
-> >  					alloc_flags, preferred_zone,
-> >  					migratetype);
-> >  
-> > -	/*
-> > -	 * If an allocation failed after direct reclaim, it could be because
-> > -	 * pages are pinned on the per-cpu lists. Drain them and try again
-> > -	 */
-> > -	if (!page && !drained) {
-> > -		drain_all_pages();
-> > -		drained = true;
-> > +	/* someone steal our vmscan fruits? */
-> > +	if (!page && *did_some_progress)
-> >  		goto retry;
-> > -	}
+> OK, thanks.
 > 
-> Perhaps the fruit-stealing event is worth adding to the
-> userspace-exposed vm stats somewhere.  But not in /proc - somewhere
-> more temporary, in debugfs.
+> It'd be interesting to check the IPI frequency with and without -
+> /proc/interrupts "CAL" field.  Presumably it went down a lot.
 
-There are no existing debugfs interfaces for vm stats, and I need to
-go out right now.. So I did the following quick (and temporary) hack
-to allow Dave to collect the information. Will revisit the proper
-interface to use later :)
+Maybe I suspected you would ask for this. I happened to dump
+/proc/interrupts after the livelock run finished, so you're in
+luck :)
 
-Thanks,
-Fengguang
----
- include/linux/mmzone.h |    1 +
- mm/page_alloc.c        |    4 +++-
- mm/vmstat.c            |    1 +
- 3 files changed, 5 insertions(+), 1 deletion(-)
+The lines below are:
 
---- linux-next.orig/include/linux/mmzone.h	2010-09-04 12:30:26.000000000 +0800
-+++ linux-next/include/linux/mmzone.h	2010-09-04 12:30:36.000000000 +0800
-@@ -104,6 +104,7 @@ enum zone_stat_item {
- 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
- 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
-+	NR_RECLAIM_STEAL,
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
---- linux-next.orig/mm/page_alloc.c	2010-09-04 12:28:09.000000000 +0800
-+++ linux-next/mm/page_alloc.c	2010-09-04 12:33:39.000000000 +0800
-@@ -1879,8 +1879,10 @@ retry:
- 					migratetype);
- 
- 	/* someone steal our vmscan fruits? */
--	if (!page && *did_some_progress)
-+	if (!page && *did_some_progress) {
-+		inc_zone_state(preferred_zone, NR_RECLAIM_STEAL);
- 		goto retry;
-+	}
- 
- 	return page;
- }
---- linux-next.orig/mm/vmstat.c	2010-09-04 12:31:30.000000000 +0800
-+++ linux-next/mm/vmstat.c	2010-09-04 12:31:42.000000000 +0800
-@@ -732,6 +732,7 @@ static const char * const vmstat_text[] 
- 	"nr_isolated_anon",
- 	"nr_isolated_file",
- 	"nr_shmem",
-+	"nr_reclaim_steal",
- #ifdef CONFIG_NUMA
- 	"numa_hit",
- 	"numa_miss",
+before: before running the single 50M inode create workload
+after: the numbers after the run completes
+livelock: the numbers after two runs with a livelock in the second
+
+Vanilla 2.6.36-rc3:
+
+before:      561   350   614   282   559   335   365   363
+after:	   10472 10473 10544 10681  9818 10837 10187  9923
+
+.36-rc3 With patchset:
+
+before:      452   426   441   337   748   321   498   357
+after:      9463  9112  8671  8830  9391  8684  9768  8971
+
+The numbers aren't that different - roughly 10% lower on average
+with the patchset. I will state that vanilla kernel runs I ijust did
+had noticably more consistent performance than the previous results
+I had acheived, so perhaps it wasn't triggering the livelock
+conditions as effectively this time through.
+
+And finally:
+
+livelock:  59458 58367 58559 59493 59614 57970 59060 58207
+
+So the livelock case tends to indicate roughly 40,000 more IPI
+interrupts per CPU occurred.  The livelock occurred for close to 5
+minutes, so that's roughly 130 IPIs per second per CPU....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
