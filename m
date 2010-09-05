@@ -1,142 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9C0946B0047
-	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 10:41:09 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so1398346pvc.14
-        for <linux-mm@kvack.org>; Sun, 05 Sep 2010 07:41:08 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3802D6B0047
+	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 11:58:05 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so1416521pvc.14
+        for <linux-mm@kvack.org>; Sun, 05 Sep 2010 08:58:04 -0700 (PDT)
+Date: Mon, 6 Sep 2010 00:57:53 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] vmscan: check all_unreclaimable in direct reclaim path
-Date: Sun,  5 Sep 2010 23:40:37 +0900
-Message-Id: <1283697637-3117-1-git-send-email-minchan.kim@gmail.com>
+Subject: Re: [PATCH/RFCv4 0/6] The Contiguous Memory Allocator framework
+Message-ID: <20100905155753.GA3611@barrios-desktop>
+References: <20100826095857.5b821d7f.kamezawa.hiroyu@jp.fujitsu.com>
+ <op.vh0wektv7p4s8u@localhost>
+ <20100826115017.04f6f707.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100826124434.6089630d.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTi=T1y+sQuqVTYgOkYvqrxdYB1bZmCpKafN5jPqi@mail.gmail.com>
+ <20100826133028.39d731da.kamezawa.hiroyu@jp.fujitsu.com>
+ <AANLkTimB+s0tO=wrODAU4qCaZnCBoLZ2A9pGjR_jheOj@mail.gmail.com>
+ <20100827171639.83c8642c.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100902175424.5849c197.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100903192943.f4f74136.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100903192943.f4f74136.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Micha?? Nazarewicz <m.nazarewicz@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Hans Verkuil <hverkuil@xs4all.nl>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Pawel Osciak <p.osciak@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Mark Brown <broonie@opensource.wolfsonmicro.com>, Mel Gorman <mel@csn.ul.ie>, linux-media@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Marek Szyprowski <m.szyprowski@samsung.com>
 List-ID: <linux-mm.kvack.org>
 
-M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
-32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
-Also he was bisected first bad commit is below
+On Fri, Sep 03, 2010 at 07:29:43PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Thu, 2 Sep 2010 17:54:24 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> > Here is a rough code for this.
+> 
+> here is a _tested_ one. 
+> If I tested correctly, I allocated 40MB of contigous pages by the new funciton.
+> I'm grad this can be some hints for people.
 
-  commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
-  Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-  Date:   Fri Jun 4 14:15:05 2010 -0700
+Great!
 
-     vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
+I didn't look into the detail but the concept seems to be good.
+If someone doesn't need complex intelligent(ex, shared, private, [first|best] fit, buddy), 
+this is enough for that. So I think this will be good regardless of CMA.
 
-At first impression, this seemed very strange because the above commit only
-chenged function return value and hibernate_preallocate_memory() ignore
-return value of shrink_all_memory(). But it's related.
+I will look into this more detaily and think idea to improve. 
+Thanks, Kame. :)
 
-Now, page allocation from hibernation code may enter infinite loop if
-the system has highmem. The reasons are that vmscan don't care enough 
-OOM case when oom_killer_disabled. 
+> 
+> Thanks,
+> -Kame
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> This patch as a memory allocator for contiguous memory larger than MAX_ORDER.
+> 
+>   alloc_contig_pages(hint, size, list);
+> 
+>   This function allocates 'size' of contigoues pages, whose physical address
+>   is higher than 'hint'. size is specicied in byte unit.
 
-The problem sequence is following as. 
+size is byte, hint is pfn?
 
-1. hibernation
-2. oom_disable
-3. alloc_pages
-4. do_try_to_free_pages
-       if (scanning_global_lru(sc) && !all_unreclaimable)
-               return 1;
+>   Allocated pages are all linked into the list and all of their page_count()
+>   are set to 1. Return value is the top page. 
+> 
+>  free_contig_pages(list)
+>  returns all pages in the list.
+> 
+> This patch does
+>   - find an area which can be ISOLATED.
+>   - migrate remaining pages in the area.
 
-If kswapd is not freezed, it would set zone->all_unreclaimable to 1 and then
-shrink_zones maybe return true(ie, all_unreclaimable is true). 
-so at last, alloc_pages could go to _nopage_. If it is, it should have no problem.
+Migrate from there to where?
 
-This patch adds all_unreclaimable check to protect in direct reclaim path, too.
-It can care of hibernation OOM case and help bailout all_unreclaimable case slightly.
+>   - steal chunk of pages from allocator.
+> 
+> Limitation is:
+>   - retruned pages will be aligend to MAX_ORDER.
+>   - returned length of page will be aligned to MAX_ORDER.
+>     (so, the caller may have to return tails of pages by itself.)
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: M. Vefa Bicakci <bicave@superonline.com>
-Cc: stable@kernel.org
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
----
- mm/vmscan.c |   33 +++++++++++++++++++++++++++------
- 1 files changed, 27 insertions(+), 6 deletions(-)
+What do you mean tail?
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f620ab3..53b23a7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1893,12 +1893,11 @@ static void shrink_zone(int priority, struct zone *zone,
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  */
--static bool shrink_zones(int priority, struct zonelist *zonelist,
-+static void shrink_zones(int priority, struct zonelist *zonelist,
- 					struct scan_control *sc)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
--	bool all_unreclaimable = true;
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
-@@ -1916,8 +1915,31 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
- 		}
- 
- 		shrink_zone(priority, zone, sc);
--		all_unreclaimable = false;
- 	}
-+}
-+
-+static inline bool all_unreclaimable(struct zonelist *zonelist,
-+		struct scan_control *sc)
-+{
-+	struct zoneref *z;
-+	struct zone *zone;
-+	bool all_unreclaimable = true;
-+
-+	if (!scanning_global_lru(sc))
-+		return false;
-+
-+	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-+			gfp_zone(sc->gfp_mask), sc->nodemask) {
-+		if (!populated_zone(zone))
-+			continue;
-+		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-+			continue;
-+		if (zone->pages_scanned < (zone_reclaimable_pages(zone) * 6)) {
-+			all_unreclaimable = false;
-+			break;
-+		}
-+	}
-+
- 	return all_unreclaimable;
- }
- 
-@@ -1941,7 +1963,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 					struct scan_control *sc)
- {
- 	int priority;
--	bool all_unreclaimable;
- 	unsigned long total_scanned = 0;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct zoneref *z;
-@@ -1958,7 +1979,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
--		all_unreclaimable = shrink_zones(priority, zonelist, sc);
-+		shrink_zones(priority, zonelist, sc);
- 		/*
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
-@@ -2020,7 +2041,7 @@ out:
- 		return sc->nr_reclaimed;
- 
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
--	if (scanning_global_lru(sc) && !all_unreclaimable)
-+	if (!all_unreclaimable(zonelist, sc))
- 		return 1;
- 
- 	return 0;
+>   - may allocate contiguous pages which overlap node/zones.
+
+Hmm.. Do we really need this?
+
+> 
+> This is fully experimental and written as example.
+> (Maybe need more patches to make this complete.)
+
+Yes. But first impression of this patch is good to me. 
+
+> 
+> This patch moves some amount of codes from memory_hotplug.c to
+> page_isolation.c and based on page-offline technique used by
+> memory_hotplug.c 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/page-isolation.h |   10 +
+>  mm/memory_hotplug.c            |   84 --------------
+>  mm/page_alloc.c                |   32 +++++
+>  mm/page_isolation.c            |  244 +++++++++++++++++++++++++++++++++++++++++
+>  4 files changed, 287 insertions(+), 83 deletions(-)
+> 
+> Index: mmotm-0827/mm/page_isolation.c
+> ===================================================================
+> --- mmotm-0827.orig/mm/page_isolation.c
+> +++ mmotm-0827/mm/page_isolation.c
+> @@ -3,8 +3,11 @@
+>   */
+>  
+>  #include <linux/mm.h>
+> +#include <linux/swap.h>
+>  #include <linux/page-isolation.h>
+>  #include <linux/pageblock-flags.h>
+> +#include <linux/mm_inline.h>
+> +#include <linux/migrate.h>
+>  #include "internal.h"
+>  
+>  static inline struct page *
+> @@ -140,3 +143,244 @@ int test_pages_isolated(unsigned long st
+>  	spin_unlock_irqrestore(&zone->lock, flags);
+>  	return ret ? 0 : -EBUSY;
+>  }
+> +
+> +#define CONTIG_ALLOC_MIGRATION_RETRY	(5)
+> +
+> +/*
+> + * Scanning pfn is much easier than scanning lru list.
+> + * Scan pfn from start to end and Find LRU page.
+> + */
+> +unsigned long scan_lru_pages(unsigned long start, unsigned long end)
+> +{
+> +	unsigned long pfn;
+> +	struct page *page;
+> +	for (pfn = start; pfn < end; pfn++) {
+> +		if (pfn_valid(pfn)) {
+> +			page = pfn_to_page(pfn);
+> +			if (PageLRU(page))
+> +				return pfn;
+> +		}
+> +	}
+> +	return 0;
+> +}
+> +
+> +/* Migrate all LRU pages in the range to somewhere else */
+> +static struct page *
+> +hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
+> +{
+> +	/* This should be improooooved!! */
+
+Yeb. 
+
+> +	return alloc_page(GFP_HIGHUSER_MOVABLE);
+> +}
+
+<snip>
+
+> +struct page *alloc_contig_pages(unsigned long long hint,
+> +		unsigned long size, struct list_head *list)
+> +{
+> +	unsigned long base, found, end, pages, start;
+> +	struct page *ret = NULL;
+> +	int nid, retry;
+> +
+> +	if (hint)
+> +		hint = ALIGN(hint, MAX_ORDER_NR_PAGES);
+> +	/* request size should be aligned to pageblock */
+> +	size >>= PAGE_SHIFT;
+> +	pages = ALIGN(size, MAX_ORDER_NR_PAGES);
+> +	found = 0;
+> +retry:
+> +	for_each_node_state(nid, N_HIGH_MEMORY) {
+> +		unsigned long node_end;
+> +		pg_data_t *node = NODE_DATA(nid);
+> +
+> +		node_end = node->node_start_pfn + node->node_spanned_pages;
+> +		/* does this node have proper range of memory ? */
+> +		if (node_end < hint + pages)
+> +			continue;
+> +		base = hint;
+> +		if (base < node->node_start_pfn)
+> +			base = node->node_start_pfn;
+> +
+> +		base = ALIGN(base, MAX_ORDER_NR_PAGES);
+> +		found = 0;
+> +		end = node_end & ~(MAX_ORDER_NR_PAGES -1);
+> +		/* Maybe we can use this Node */
+> +		if (base + pages < end)
+> +			found = __find_contig_block(base, end, pages);
+> +		if (found) /* Found ? */
+> +			break;
+> +		base = hint;
+> +	}
+> +	if (!found)
+> +		goto out;
+> +	/*
+> +	 * Ok, here, we have contiguous pageblock marked as "isolated"
+> +	 * try migration.
+> + 	 */
+> +	retry = CONTIG_ALLOC_MIGRATION_RETRY;
+> +	end = found + pages;
+
+Hmm.. I can't understand below loop. 
+Maybe need refactoring.
+
+> +	for (start = scan_lru_pages(found, end); start < end;) {
+> +
+> +		if (do_migrate_range(found, end)) {
+> +			/* migration failure ... */
+> +			if (retry-- < 0)
+> +				break;
+> +			/* take a rest and synchronize LRU etc. */
+> +			lru_add_drain_all();
+> +			flush_scheduled_work();
+> +			cond_resched();
+> +			drain_all_pages();
+> +		}
+> +		start = scan_lru_pages(start, end);
+> +		if (!start)
+> +			break;
+> +	}
+
+<snip>
+
+> +void alloc_contig_freed_pages(unsigned long pfn,  unsigned long end,
+> +	struct list_head *list)
+> +{
+> +	struct page *page;
+> +	struct zone *zone;
+> +	int i, order;
+> +
+> +	zone = page_zone(pfn_to_page(pfn));
+> +	spin_lock_irq(&zone->lock);
+> +	while (pfn < end) {
+> +		VM_BUG_ON(!pfn_valid(pfn));
+> +		page = pfn_to_page(pfn);
+> +		VM_BUG_ON(page_count(page));
+> +		VM_BUG_ON(!PageBuddy(page));
+> +		list_del(&page->lru);
+> +		order = page_order(page);
+> +		zone->free_area[order].nr_free--;
+> +		rmv_page_order(page);
+> +		__mod_zone_page_state(zone, NR_FREE_PAGES, - (1UL << order));
+> +		for (i = 0;i < (1 << order); i++) {
+> +			struct page *x = page + i;
+> +			list_add(&x->lru, list);
+> +		}
+> +		page += 1 << order;
+                ^ pfn?
+
+> +	}
+> +	spin_unlock_irq(&zone->lock);
+> +
+> +	/*After this, pages on the list can be freed one be one */
+> +	list_for_each_entry(page, list, lru)
+> +		prep_new_page(page, 0, 0);
+> +}
+> +
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  /*
+>   * All pages in the range must be isolated before calling this.
+> 
+
 -- 
-1.7.0.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
