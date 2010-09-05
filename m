@@ -1,84 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0C25D6B0047
-	for <linux-mm@kvack.org>; Sat,  4 Sep 2010 22:51:20 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so3935551iwn.14
-        for <linux-mm@kvack.org>; Sat, 04 Sep 2010 19:51:19 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 070C96B0047
+	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 09:46:19 -0400 (EDT)
+Date: Sun, 5 Sep 2010 21:45:54 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
+ direct reclaim allocation fails
+Message-ID: <20100905134554.GA7083@localhost>
+References: <1283504926-2120-4-git-send-email-mel@csn.ul.ie>
+ <20100903160026.564fdcc9.akpm@linux-foundation.org>
+ <20100904022545.GD705@dastard>
+ <20100903202101.f937b0bb.akpm@linux-foundation.org>
+ <20100904075840.GE705@dastard>
+ <20100904081414.GF705@dastard>
+ <20100905015400.GA10714@localhost>
+ <20100905021555.GG705@dastard>
+ <20100905060539.GA17450@localhost>
+ <20100905131447.GJ705@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20100904020452.GA7788@localhost>
-References: <1283438087-11842-1-git-send-email-minchan.kim@gmail.com>
-	<20100903170227.b2f18ba4.akpm@linux-foundation.org>
-	<20100904020452.GA7788@localhost>
-Date: Sun, 5 Sep 2010 11:51:19 +0900
-Message-ID: <AANLkTimzDkU-XqpFRTxB7Y0+q1vfs-o4pd8UrG7HPcNX@mail.gmail.com>
-Subject: Re: [RESEND PATCH v2] compaction: fix COMPACTPAGEFAILED counting
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100905131447.GJ705@dastard>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 4, 2010 at 11:04 AM, Wu Fengguang <fengguang.wu@intel.com> wrot=
-e:
-> On Sat, Sep 04, 2010 at 08:02:27AM +0800, Andrew Morton wrote:
->> On Thu, =A02 Sep 2010 23:34:47 +0900
->> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->> > Now update_nr_listpages doesn't have a role. That's because
->> > lists passed is always empty just after calling migrate_pages.
->> > The migrate_pages cleans up page list which have failed to migrate
->> > before returning by aaa994b3.
->> >
->> > =A0[PATCH] page migration: handle freeing of pages in migrate_pages()
->> >
->> > =A0Do not leave pages on the lists passed to migrate_pages(). =A0Seems=
- that we will
->> > =A0not need any postprocessing of pages. =A0This will simplify the han=
-dling of
->> > =A0pages by the callers of migrate_pages().
->> >
->> > At that time, we thought we don't need any postprocessing of pages.
->> > But the situation is changed. The compaction need to know the number o=
-f
->> > failed to migrate for COMPACTPAGEFAILED stat
->> >
->> > This patch makes new rule for caller of migrate_pages to call putback_=
-lru_pages.
->> > So caller need to clean up the lists so it has a chance to postprocess=
- the pages.
->> > [suggested by Christoph Lameter]
->>
->> I'm having trouble predicting what the user-visible effects of this bug
->> might be. =A0Just an inaccuracy in the COMPACTPAGEFAILED vm event?
->
-> Right, it's an accounting fix. Before patch COMPACTPAGEFAILED will
-> remain 0 regardless of how many migration failures.
->
-> The patch does slightly add dependency for migrate_pages() to return
-> error code properly. Before patch, migrate_pages() calls
-> putback_lru_pages() regardless of the error code. After patch, the
-> migrate_pages() callers will check its return value before calling
-> putback_lru_pages().
->
-> In current code, the two conditions do seem to match:
->
-> "some pages remained in the *from list" =3D=3D "migrate_pages() returns a=
-n error code".
+[restoring CC list]
 
-Exactly.
-Thanks for the answering instead of me, Wu. :)
+On Sun, Sep 05, 2010 at 09:14:47PM +0800, Dave Chinner wrote:
+> On Sun, Sep 05, 2010 at 02:05:39PM +0800, Wu Fengguang wrote:
+> > On Sun, Sep 05, 2010 at 10:15:55AM +0800, Dave Chinner wrote:
+> > > On Sun, Sep 05, 2010 at 09:54:00AM +0800, Wu Fengguang wrote:
+> > > > Dave, could you post (publicly) the kconfig and /proc/vmstat?
+> > > > 
+> > > > I'd like to check if you have swap or memory compaction enabled..
+> > > 
+> > > Swap is enabled - it has 512MB of swap space:
+> > > 
+> > > $ free
+> > >              total       used       free     shared    buffers     cached
+> > > Mem:       4054304     100928    3953376          0       4096      43108
+> > > -/+ buffers/cache:      53724    4000580
+> > > Swap:       497976          0     497976
+> > 
+> > It looks swap is not used at all.
+> 
+> It isn't 30s after boot, abut I haven't checked after a livelock.
 
-> Thanks,
-> Fengguang
->
+That's fine. I see in your fs_mark-wedge-1.png that there are no
+read/write IO at all when CPUs are 100% busy. So there should be no
+swap IO at "livelock" time.
 
+> > > And memory compaction is not enabled:
+> > > 
+> > > $ grep COMPACT .config
+> > > # CONFIG_COMPACTION is not set
 
+Memory compaction is not likely the cause too. It will only kick in for
+order > 3 allocations.
 
---=20
-Kind regards,
-Minchan Kim
+> > > 
+> > > The .config is pretty much a 'make defconfig' and then enabling XFS and
+> > > whatever debug I need (e.g. locking, memleak, etc).
+> > 
+> > Thanks! The problem seems hard to debug -- you cannot login at all
+> > when it is doing lock contentions, so cannot get sysrq call traces.
+> 
+> Well, I don't know whether it is lock contention at all. The sets of
+> traces I have got previously have shown backtraces on all CPUs in
+> direct reclaim with several in draining queues, but no apparent lock
+> contention.
+
+That's interesting. Do you still have the full backtraces?
+
+Maybe your system eats too much slab cache (icache/dcache) by creating
+so many zero-sized files. The system may run into problems reclaiming
+so many (dirty) slab pages.
+
+> > How about enabling CONFIG_LOCK_STAT? Then you can check
+> > /proc/lock_stat when the contentions are over.
+> 
+> Enabling the locking debug/stats gathering slows the workload
+> by a factor of 3 and doesn't produce the livelock....
+
+Oh sorry.. but it would still be interesting to check the top
+contended locks for this workload without any livelocks :)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
