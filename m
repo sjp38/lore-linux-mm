@@ -1,73 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id E5C296B0047
-	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 10:17:36 -0400 (EDT)
-Date: Sun, 5 Sep 2010 22:17:15 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in
- /proc/vmstat
-Message-ID: <20100905141715.GA9024@localhost>
-References: <1282963227-31867-1-git-send-email-mrubin@google.com>
- <1282963227-31867-4-git-send-email-mrubin@google.com>
- <20100828235029.GA7071@localhost>
- <AANLkTi=KjbfqzZsD6MOQG+4i7vHj6ZEh1_nF7DpwqeLV@mail.gmail.com>
- <20100831074825.GA19358@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100831074825.GA19358@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9C0946B0047
+	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 10:41:09 -0400 (EDT)
+Received: by pvc30 with SMTP id 30so1398346pvc.14
+        for <linux-mm@kvack.org>; Sun, 05 Sep 2010 07:41:08 -0700 (PDT)
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] vmscan: check all_unreclaimable in direct reclaim path
+Date: Sun,  5 Sep 2010 23:40:37 +0900
+Message-Id: <1283697637-3117-1-git-send-email-minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Rubin <mrubin@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 31, 2010 at 03:48:25PM +0800, Wu Fengguang wrote:
-> > > The output format is quite different from /proc/vmstat.
-> > > Do we really need to "Node X", ":" and "times" decorations?
-> > 
-> > Node X is based on the meminfo file but I agree it's redundant information.
-> 
-> Thanks. In the same directory you can find a different style example
-> /sys/devices/system/node/node0/numastat :) If ever the file was named
-> vmstat! In the other hand, shall we put the numbers there? I'm confused..
+M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
+32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
+Also he was bisected first bad commit is below
 
-With wider use of NUMA, I'm expecting more interests to put
-/proc/vmstat items into /sys/devices/system/node/node0/.
+  commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
+  Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+  Date:   Fri Jun 4 14:15:05 2010 -0700
 
-What shall we do then? There are several possible options:
-- just put the /proc/vmstat items into nodeX/numastat
-- create nodeX/vmstat and make numastat a symlink to vmstat
-- create nodeX/vmstat and remove numastat in future
+     vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
 
-Any suggestions?
+At first impression, this seemed very strange because the above commit only
+chenged function return value and hibernate_preallocate_memory() ignore
+return value of shrink_all_memory(). But it's related.
 
-> > > And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
-> > > the "_page" in node_page_state(). It's a bit long to be a pleasant
-> > > name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
-> > 
-> > Yeah. Will fix.
-> 
-> Thanks. This is kind of nitpick, however here is another name by
-> Jan Kara: BDI_WRITTEN. BDI_WRITTEN may not be a lot better than
-> BDI_CLEANED, but here is a patch based on Jan's code. I'm cooking
-> more patches that make use of this per-bdi counter to estimate the
-> bdi's write bandwidth, and to further decide the optimal (large)
-> writeback chunk size as well as to do IO-less balance_dirty_pages().
-> 
-> Basically BDI_WRITTEN and NR_CLEANED are accounting for the same
-> thing in different dimensions. So it would be good if we can use
-> the same naming scheme to avoid confusing users: either to use
-> BDI_WRITTEN and NR_WRITTEN, or use BDI_CLEANED and NR_CLEANED.
-> What's your opinion?
+Now, page allocation from hibernation code may enter infinite loop if
+the system has highmem. The reasons are that vmscan don't care enough 
+OOM case when oom_killer_disabled. 
 
-I tend to prefer *_WRITTEN now.
-- *_WRITTEN reminds the users about IO, *_CLEANED is less so obvious.
-- *_CLEANED seems to be paired with NR_DIRTIED, this could be
-  misleading to the users. The fact is, dirty pages may either be
-  written to disk, or dropped (by truncate).
+The problem sequence is following as. 
 
-Thanks,
-Fengguang
+1. hibernation
+2. oom_disable
+3. alloc_pages
+4. do_try_to_free_pages
+       if (scanning_global_lru(sc) && !all_unreclaimable)
+               return 1;
+
+If kswapd is not freezed, it would set zone->all_unreclaimable to 1 and then
+shrink_zones maybe return true(ie, all_unreclaimable is true). 
+so at last, alloc_pages could go to _nopage_. If it is, it should have no problem.
+
+This patch adds all_unreclaimable check to protect in direct reclaim path, too.
+It can care of hibernation OOM case and help bailout all_unreclaimable case slightly.
+
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: M. Vefa Bicakci <bicave@superonline.com>
+Cc: stable@kernel.org
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |   33 +++++++++++++++++++++++++++------
+ 1 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index f620ab3..53b23a7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1893,12 +1893,11 @@ static void shrink_zone(int priority, struct zone *zone,
+  * If a zone is deemed to be full of pinned pages then just give it a light
+  * scan then give up on it.
+  */
+-static bool shrink_zones(int priority, struct zonelist *zonelist,
++static void shrink_zones(int priority, struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	bool all_unreclaimable = true;
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -1916,8 +1915,31 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+ 		}
+ 
+ 		shrink_zone(priority, zone, sc);
+-		all_unreclaimable = false;
+ 	}
++}
++
++static inline bool all_unreclaimable(struct zonelist *zonelist,
++		struct scan_control *sc)
++{
++	struct zoneref *z;
++	struct zone *zone;
++	bool all_unreclaimable = true;
++
++	if (!scanning_global_lru(sc))
++		return false;
++
++	for_each_zone_zonelist_nodemask(zone, z, zonelist,
++			gfp_zone(sc->gfp_mask), sc->nodemask) {
++		if (!populated_zone(zone))
++			continue;
++		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
++			continue;
++		if (zone->pages_scanned < (zone_reclaimable_pages(zone) * 6)) {
++			all_unreclaimable = false;
++			break;
++		}
++	}
++
+ 	return all_unreclaimable;
+ }
+ 
+@@ -1941,7 +1963,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 					struct scan_control *sc)
+ {
+ 	int priority;
+-	bool all_unreclaimable;
+ 	unsigned long total_scanned = 0;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct zoneref *z;
+@@ -1958,7 +1979,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+-		all_unreclaimable = shrink_zones(priority, zonelist, sc);
++		shrink_zones(priority, zonelist, sc);
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+ 		 * over limit cgroups
+@@ -2020,7 +2041,7 @@ out:
+ 		return sc->nr_reclaimed;
+ 
+ 	/* top priority shrink_zones still had more to do? don't OOM, then */
+-	if (scanning_global_lru(sc) && !all_unreclaimable)
++	if (!all_unreclaimable(zonelist, sc))
+ 		return 1;
+ 
+ 	return 0;
+-- 
+1.7.0.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
