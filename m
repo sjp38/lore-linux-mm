@@ -1,85 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D591C6B0047
-	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 20:48:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o860mr0W027989
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5CD626B0047
+	for <linux-mm@kvack.org>; Sun,  5 Sep 2010 21:00:41 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8610bHk030207
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 6 Sep 2010 09:48:54 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B331F45DE4F
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 09:48:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BB3345DE52
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 09:48:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB9781DB8044
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 09:48:52 +0900 (JST)
+	Mon, 6 Sep 2010 10:00:37 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CEB5327163
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 10:00:37 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D3A6345DE55
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 10:00:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B24741DB8040
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 10:00:36 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 729391DB803C
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 09:48:52 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C7171DB803B
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 10:00:36 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 14/14] mm: oom_kill: use IS_ERR() instead of strict checking
-In-Reply-To: <1283711592-7669-1-git-send-email-segooon@gmail.com>
-References: <1283711592-7669-1-git-send-email-segooon@gmail.com>
-Message-Id: <20100906094555.C8BB.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 3/4] writeback: nr_dirtied and nr_cleaned in /proc/vmstat
+In-Reply-To: <20100905141715.GA9024@localhost>
+References: <20100831074825.GA19358@localhost> <20100905141715.GA9024@localhost>
+Message-Id: <20100906095414.C8BE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  6 Sep 2010 09:48:51 +0900 (JST)
+Date: Mon,  6 Sep 2010 10:00:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Kulikov Vasiliy <segooon@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, kernel-janitors@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "david@fromorbit.com" <david@fromorbit.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-> From: Vasiliy Kulikov <segooon@gmail.com>
+> On Tue, Aug 31, 2010 at 03:48:25PM +0800, Wu Fengguang wrote:
+> > > > The output format is quite different from /proc/vmstat.
+> > > > Do we really need to "Node X", ":" and "times" decorations?
+> > > 
+> > > Node X is based on the meminfo file but I agree it's redundant information.
+> > 
+> > Thanks. In the same directory you can find a different style example
+> > /sys/devices/system/node/node0/numastat :) If ever the file was named
+> > vmstat! In the other hand, shall we put the numbers there? I'm confused..
 > 
-> Use IS_ERR() instead of strict checking.
+> With wider use of NUMA, I'm expecting more interests to put
+> /proc/vmstat items into /sys/devices/system/node/node0/.
+
+I prefer to create /sys/devices/system/node/node0/zones/zone-DMA32/vmstat
+because the VM is managing pages as per-zones.
+but /sys/devices/system/node/node0/vmstat is also useful.
+
+
+> 
+> What shall we do then? There are several possible options:
+> - just put the /proc/vmstat items into nodeX/numastat
+> - create nodeX/vmstat and make numastat a symlink to vmstat
+> - create nodeX/vmstat and remove numastat in future
+> 
+> Any suggestions?
+
+
+I like 3rd option :)
+In addition, I doubt we really need to remove numastat. It's not
+so harmful.
+
+
+
+> 
+> > > > And the "_PAGES" in NR_FILE_PAGES_DIRTIED looks redundant to
+> > > > the "_page" in node_page_state(). It's a bit long to be a pleasant
+> > > > name. NR_FILE_DIRTIED/NR_CLEANED looks nicer.
+> > > 
+> > > Yeah. Will fix.
+> > 
+> > Thanks. This is kind of nitpick, however here is another name by
+> > Jan Kara: BDI_WRITTEN. BDI_WRITTEN may not be a lot better than
+> > BDI_CLEANED, but here is a patch based on Jan's code. I'm cooking
+> > more patches that make use of this per-bdi counter to estimate the
+> > bdi's write bandwidth, and to further decide the optimal (large)
+> > writeback chunk size as well as to do IO-less balance_dirty_pages().
+> > 
+> > Basically BDI_WRITTEN and NR_CLEANED are accounting for the same
+> > thing in different dimensions. So it would be good if we can use
+> > the same naming scheme to avoid confusing users: either to use
+> > BDI_WRITTEN and NR_WRITTEN, or use BDI_CLEANED and NR_CLEANED.
+> > What's your opinion?
+> 
+> I tend to prefer *_WRITTEN now.
+> - *_WRITTEN reminds the users about IO, *_CLEANED is less so obvious.
+> - *_CLEANED seems to be paired with NR_DIRTIED, this could be
+>   misleading to the users. The fact is, dirty pages may either be
+>   written to disk, or dropped (by truncate).
 
 Umm...
-
-I don't like this. IS_ERR() imply an argument is error code. but in
-this case, we don't use error code. -1 mean oom special purpose meaning
-value.
-
-So, if we take this direction, It would be better to use EAGAIN or something
-instead -1.
-
-
-
-> 
-> Signed-off-by: Vasiliy Kulikov <segooon@gmail.com>
-> ---
->  Compile tested.
-> 
->  mm/oom_kill.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index fc81cb2..2ee3350 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -514,7 +514,7 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
->  	read_lock(&tasklist_lock);
->  retry:
->  	p = select_bad_process(&points, limit, mem, NULL);
-> -	if (!p || PTR_ERR(p) == -1UL)
-> +	if (IS_ERR_OR_NULL(p))
->  		goto out;
->  
->  	if (oom_kill_process(p, gfp_mask, 0, points, limit, mem, NULL,
-> @@ -691,7 +691,7 @@ retry:
->  	p = select_bad_process(&points, totalpages, NULL,
->  			constraint == CONSTRAINT_MEMORY_POLICY ? nodemask :
->  								 NULL);
-> -	if (PTR_ERR(p) == -1UL)
-> +	if (IS_ERR(p))
->  		goto out;
->  
->  	/* Found nothing?!?! Either we hang forever, or we panic. */
-> -- 
-> 1.7.0.4
-> 
+If my understanding is correct, Michael really need *_CLEANED because
+he want to compare NR_DIRTIED and *_CLEANED. That said, we need to
+change counter implementation itself instead a name?
 
 
 
