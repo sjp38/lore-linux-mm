@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 727996B0047
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 01:47:42 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o865ldHK015259
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A39576B0047
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 01:49:40 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o865nbAb031308
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 6 Sep 2010 14:47:39 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 115D845DE60
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:47:39 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E53A845DE4D
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:47:38 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CFEA31DB803A
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:47:38 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 844DE1DB8041
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:47:35 +0900 (JST)
-Date: Mon, 6 Sep 2010 14:42:28 +0900
+	Mon, 6 Sep 2010 14:49:37 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2574845DE52
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:49:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0187545DE4F
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:49:37 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DC1261DB8043
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:49:36 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 969D11DB803F
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:49:36 +0900 (JST)
+Date: Mon, 6 Sep 2010 14:44:28 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH 1/3] memory hotplug: fix next block calculation in
- is_removable
-Message-Id: <20100906144228.4ee5a738.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/3] memory hotplug: fix set_migratetype_isolate wrong
+ callback result check
+Message-Id: <20100906144428.d6d4bfd3.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -30,57 +30,40 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>, stable@kernel.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
-
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-next_active_pageblock() is for finding next _used_ freeblock. It skips
-several blocks when it finds there are a chunk of free pages lager than
-pageblock. But it has 2 bugs.
+Even if notifier cannot find any pages, it doesn't mean
+no pages are available...And, if there are no notifiers registered,
+this condition will be always true and memory hotplug will show -EBUSY.
 
-  1. We have no lock. page_order(page) - pageblock_order can be minus.
-  2. pageblocks_stride += is wrong. it should skip page_order(p) of pages.
+Clarification:This is a bug but not critical
 
-CC: stable@kernel.org
+In most case, a pageblock which will be offlined is MIGRATE_MOVABLE
+This "notifier" is called only when the pageblock is _not_ MIGRATE_MOVABLE.
+If not MIGRATE_MOVABLE, it's common case that memory hotplug will fail.
+So, no one notice this bug.
+
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: kametest/mm/memory_hotplug.c
+Index: kametest/mm/page_alloc.c
 ===================================================================
---- kametest.orig/mm/memory_hotplug.c
-+++ kametest/mm/memory_hotplug.c
-@@ -584,19 +584,19 @@ static inline int pageblock_free(struct 
- /* Return the start of the next active pageblock after a given page */
- static struct page *next_active_pageblock(struct page *page)
- {
--	int pageblocks_stride;
--
- 	/* Ensure the starting page is pageblock-aligned */
- 	BUG_ON(page_to_pfn(page) & (pageblock_nr_pages - 1));
+--- kametest.orig/mm/page_alloc.c
++++ kametest/mm/page_alloc.c
+@@ -5313,7 +5313,7 @@ int set_migratetype_isolate(struct page 
+ 	 */
+ 	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
+ 	notifier_ret = notifier_to_errno(notifier_ret);
+-	if (notifier_ret || !arg.pages_found)
++	if (notifier_ret)
+ 		goto out;
  
--	/* Move forward by at least 1 * pageblock_nr_pages */
--	pageblocks_stride = 1;
--
- 	/* If the entire pageblock is free, move to the end of free page */
--	if (pageblock_free(page))
--		pageblocks_stride += page_order(page) - pageblock_order;
-+	if (pageblock_free(page)) {
-+		int order;
-+		/* be careful. we don't have locks, page_order can be changed.*/
-+		order = page_order(page);
-+		if (order > pageblock_order)
-+			return page + (1 << order);
-+	}
- 
--	return page + (pageblocks_stride * pageblock_nr_pages);
-+	return page + pageblock_nr_pages;
- }
- 
- /* Checks if this range of memory is likely to be hot-removable. */
+ 	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
