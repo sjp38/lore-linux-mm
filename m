@@ -1,68 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A19A16B0093
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 02:35:18 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L8B002GHBMS8N40@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 06 Sep 2010 07:35:16 +0100 (BST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 599CC6B0099
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 02:36:06 -0400 (EDT)
+Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+ by mailout1.w1.samsung.com
+ (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
+ with ESMTP id <0L8B002YHBN060@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Mon, 06 Sep 2010 07:35:24 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
  by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L8B00IWLBMSPV@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 06 Sep 2010 07:35:16 +0100 (BST)
-Date: Mon, 06 Sep 2010 08:33:58 +0200
+ 2004)) with ESMTPA id <0L8B00LDLBN0QN@spt1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 06 Sep 2010 07:35:24 +0100 (BST)
+Date: Mon, 06 Sep 2010 08:33:59 +0200
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [RFCv5 8/9] mm: vcm: Sample driver added
+Subject: [RFCv5 9/9] mm: vcm: vcm-cma: VCM CMA driver added
 In-reply-to: <cover.1283749231.git.mina86@mina86.com>
 Message-id: 
- <262a5a5019c1f1a44d5793f7e69776e56f27af06.1283749231.git.mina86@mina86.com>
+ <01be3a37af9569f711ad18c4b868cd4708da19e4.1283749231.git.mina86@mina86.com>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN
+Content-transfer-encoding: 7BIT
 References: <cover.1283749231.git.mina86@mina86.com>
 Sender: owner-linux-mm@kvack.org
 To: linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Pawel Osciak <p.osciak@samsung.com>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This commit adds a sample Virtual Contiguous Memory framework
-driver.  It handles no real hardware and is there only for
-demonstrating purposes.
+This commit adds a VCM driver that instead of using real
+hardware MMU emulates one and uses CMA for allocating
+contiguous memory chunks.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/virtual-contiguous-memory.txt |    3 +
- include/linux/vcm-sample.h                  |   30 +++++++
- mm/Kconfig                                  |    9 ++
+ Documentation/virtual-contiguous-memory.txt |   12 ++++-
+ include/linux/vcm-cma.h                     |   38 ++++++++++++
+ mm/Kconfig                                  |   14 +++++
  mm/Makefile                                 |    1 +
- mm/vcm-sample.c                             |  120 +++++++++++++++++++++++++++
- 5 files changed, 163 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/vcm-sample.h
- create mode 100644 mm/vcm-sample.c
+ mm/vcm-cma.c                                |   84 +++++++++++++++++++++++++++
+ 5 files changed, 148 insertions(+), 1 deletions(-)
+ create mode 100644 include/linux/vcm-cma.h
+ create mode 100644 mm/vcm-cma.c
 
 diff --git a/Documentation/virtual-contiguous-memory.txt b/Documentation/virtual-contiguous-memory.txt
-index 0c0e90c..6d1014c 100644
+index 6d1014c..01e2e6c 100644
 --- a/Documentation/virtual-contiguous-memory.txt
 +++ b/Documentation/virtual-contiguous-memory.txt
-@@ -730,6 +730,9 @@ already there.
- If you want to use this wrapper, you need to select VCM_MMU Kconfig
- option.
+@@ -496,7 +496,17 @@ able to run with One-to-One driver you should limit operations to:
  
-+There is a sample driver provided which provides a template for real
-+drivers.  It can be found in [[file:../mm/vcm-sample.c][mm/vcm-sample.c]] file.
+ under some conditions, vcm_map() may also work.
+ 
+-There are no One-to-One drivers at this time.
++*** VCM CMA
 +
- *** Context creation
++VCM CMA driver is a One-to-One driver which uses CMA (see
++[[file:contiguous-memory.txt][contiguous-memory.txt]]) to allocate physically contiguous memory.  VCM
++CMA context is created by calling:
++
++	struct vcm *__must_check
++	vcm_cma_create(const char *regions, dma_addr_t alignment);
++
++Its first argument is the list of regions that CMA should try to
++allocate memory from.  The second argument is required alignment.
  
- Similarly to normal drivers, MMU driver needs to provide a context
-diff --git a/include/linux/vcm-sample.h b/include/linux/vcm-sample.h
+ * Writing a VCM driver
+ 
+diff --git a/include/linux/vcm-cma.h b/include/linux/vcm-cma.h
 new file mode 100644
-index 0000000..9a79403
+index 0000000..bc06767
 --- /dev/null
-+++ b/include/linux/vcm-sample.h
-@@ -0,0 +1,30 @@
++++ b/include/linux/vcm-cma.h
+@@ -0,0 +1,38 @@
 +/*
-+ * Virtual Contiguous Memory driver driver template header
++ * Virtual Contiguous Memory driver for CMA header
 + * Copyright (c) 2010 by Samsung Electronics.
 + * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
 + *
@@ -76,55 +86,68 @@ index 0000000..9a79403
 + * See Documentation/virtual-contiguous-memory.txt for details.
 + */
 +
-+#ifndef __LINUX_VCM_SAMPLE_H
-+#define __LINUX_VCM_SAMPLE_H
++#ifndef __LINUX_VCM_CMA_H
++#define __LINUX_VCM_CMA_H
 +
-+#include <linux/vcm.h>
++#include <linux/types.h>
 +
 +struct vcm;
 +
 +/**
-+ * vcm_samp_create() - creates a VCM context
++ * vcm_cma_create() - creates a VCM context that fakes a hardware MMU
++ * @regions:	list of CMA regions physical allocations should be done
++ *		from.
++ * @alignment:	required alignment of allocations.
 + *
-+ * ... Documentation goes here ...
++ * This creates VCM context that can be used on platforms with no
++ * hardware MMU or for devices that aro conected to the bus directly.
++ * Because it does not represent real MMU it has some limitations:
++ * basically, vcm_alloc(), vcm_reserve() and vcm_bind() are likely to
++ * fail so vcm_make_binding() should be used instead.
 + */
-+struct vcm *__must_check vcm_samp_create(/* ... */);
++struct vcm *__must_check
++vcm_cma_create(const char *regions, dma_addr_t alignment);
 +
 +#endif
 diff --git a/mm/Kconfig b/mm/Kconfig
-index 0445f68..be040e7 100644
+index be040e7..bf0c7f6 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -401,3 +401,12 @@ config VCM_O2O
- # Select if you need vcm_phys_alloc() or vcm_phys_walk() functions
- config VCM_PHYS
- 	bool
+@@ -410,3 +410,17 @@ config VCM_SAMP
+ 	  This enables a sample driver for the VCM framework.  This driver
+ 	  does not handle any real harwdare.  It's merely an template of
+ 	  how for real drivers.
 +
-+config VCM_SAMP
-+	bool "VCM sample driver"
-+	depends on VCM
-+	select VCM_MMU
++config VCM_CMA
++	bool "VCM CMA driver"
++	depends on VCM && CMA
++	select VCM_O2O
 +	help
-+	  This enables a sample driver for the VCM framework.  This driver
-+	  does not handle any real harwdare.  It's merely an template of
-+	  how for real drivers.
++	  This enables VCM driver that instead of using a real hardware
++	  MMU fakes one and uses a direct mapping.  It provides a subset
++	  of functionalities of a real MMU but if drivers limits their
++	  use of VCM to only supported operations they can work on
++	  both systems with and without MMU with no changes.
++
++	  For more information see
++	  <Documentation/virtual-contiguous-memory-cma.txt>.
 diff --git a/mm/Makefile b/mm/Makefile
-index e908202..c465dfa 100644
+index c465dfa..e376eef 100644
 --- a/mm/Makefile
 +++ b/mm/Makefile
-@@ -50,3 +50,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
- obj-$(CONFIG_CMA) += cma.o
+@@ -51,3 +51,4 @@ obj-$(CONFIG_CMA) += cma.o
  obj-$(CONFIG_CMA_BEST_FIT) += cma-best-fit.o
  obj-$(CONFIG_VCM) += vcm.o
-+obj-$(CONFIG_VCM_SAMPLE) += vcm-sample.o
-diff --git a/mm/vcm-sample.c b/mm/vcm-sample.c
+ obj-$(CONFIG_VCM_SAMPLE) += vcm-sample.o
++obj-$(CONFIG_VCM_CMA) += vcm-cma.o
+diff --git a/mm/vcm-cma.c b/mm/vcm-cma.c
 new file mode 100644
-index 0000000..e265a73
+index 0000000..177041a
 --- /dev/null
-+++ b/mm/vcm-sample.c
-@@ -0,0 +1,120 @@
++++ b/mm/vcm-cma.c
+@@ -0,0 +1,84 @@
 +/*
-+ * Virtual Contiguous Memory driver template
++ * Virtual Contiguous Memory driver for CMA
 + * Copyright (c) 2010 by Samsung Electronics.
 + * Written by Michal Nazarewicz (m.nazarewicz@samsung.com)
 + *
@@ -135,114 +158,78 @@ index 0000000..e265a73
 + */
 +
 +/*
-+ * This is just a sample code.  It does nothing useful other then
-+ * presenting a template for VCM driver.
-+ */
-+
-+/*
 + * See Documentation/virtual-contiguous-memory.txt for details.
 + */
 +
++#include <linux/vcm-cma.h>
 +#include <linux/vcm-drv.h>
-+#include <linux/vcm-sample.h>
++#include <linux/cma.h>
++#include <linux/module.h>
++#include <linux/err.h>
++#include <linux/slab.h>
 +
-+struct vcm_samp {
-+	struct vcm_mmu	mmu;
-+	/* ... */
++struct vcm_cma {
++	struct vcm_o2o	o2o;
++	const char	*regions;
++	dma_addr_t	alignment;
 +};
 +
-+static const unsigned vcm_samp_orders[] = {
-+	4 + 20 - PAGES_SHIFT,	/* 16MiB pages */
-+	0 + 20 - PAGES_SHIFT,	/*  1MiB pages */
-+	6 + 10 - PAGES_SHIFT,	/* 64KiB pages */
-+	2 + 10 - PAGES_SHIFT,	/*  4KiB pages */
-+};
-+
-+static int vcm_samp_activate_page(dma_addr_t vaddr, dma_addr_t paddr,
-+				  unsigned order, void *priv)
++static void *
++vcm_cma_alloc(struct vcm *vcm, struct vcm_phys_part *part, unsigned flags)
 +{
-+	struct vcm_samp *samp =
-+		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
++	struct vcm_cma *cma = container_of(vcm, struct vcm_cma, o2o.vcm);
++	dma_addr_t addr;
 +
-+	/*
-+	 * Handle adding a mapping from virtual page at @vaddr to
-+	 * physical page ad @paddr.  The page is of order @order which
-+	 * means that it's (PAGE_SIZE << @order) bytes.
-+	 */
++	addr = cma_alloc_from(cma->regions, part->size, cma->alignment);
++	if (IS_ERR_VALUE(addr))
++		return ERR_PTR(addr);
 +
-+	return -EOPNOTSUPP;
++	part->start = addr;
++	return NULL;
 +}
 +
-+static int vcm_samp_deactivate_page(dma_addr_t vaddr, dma_addr_t paddr,
-+				    unsigned order, void *priv)
++static void vcm_cma_free(struct vcm_phys_part *part, void *priv)
 +{
-+	struct vcm_samp *samp =
-+		container_of((struct vcm *)priv, struct vcm_samp, mmu.vcm);
-+
-+	/*
-+	 * Handle removing a mapping from virtual page at @vaddr to
-+	 * physical page ad @paddr.  The page is of order @order which
-+	 * means that it's (PAGE_SIZE << @order) bytes.
-+	 */
-+
-+	/* It's best not to fail here */
-+	return 0;
++	cma_free(part->start);
 +}
 +
-+static void vcm_samp_cleanup(struct vcm *vcm)
++struct vcm *__must_check
++vcm_cma_create(const char *regions, dma_addr_t alignment)
 +{
-+	struct vcm_samp *samp =
-+		container_of(res->vcm, struct vcm_samp, mmu.vcm);
-+
-+	/* Clean ups ... */
-+
-+	kfree(samp);
-+}
-+
-+struct vcm *__must_check vcm_samp_create(/* ... */)
-+{
-+	static const struct vcm_mmu_driver driver = {
-+		.order           = vcm_samp_orders,
-+		.cleanup         = vcm_samp_cleanup,
-+		.activate_page   = vcm_samp_activate_page,
-+		.deactivate_page = vcm_samp_deactivate_page,
++	static const struct vcm_o2o_driver driver = {
++		.alloc	= vcm_cma_alloc,
++		.free	= vcm_cma_free,
 +	};
 +
-+	struct vcm_samp *samp;
++	struct cma_info info;
++	struct vcm_cma *cma;
 +	struct vcm *vcm;
++	int ret;
 +
-+	switch (0) {
-+	case 0:
-+	case PAGE_SHIFT == 12:
-+		/*
-+		 * If you have a compilation error here it means you
-+		 * are compiling for a very strange platfrom where
-+		 * PAGE_SHIFT is not 12 (ie. PAGE_SIZE is not 4KiB).
-+		 * This driver assumes PAGE_SHIFT is 12.
-+		 */
-+	};
++	if (alignment & (alignment - 1))
++		return ERR_PTR(-EINVAL);
 +
-+	samp = kzalloc(sizeof *samp, GFP_KERNEL);
-+	if (!samp)
++	ret = cma_info_about(&info, regions);
++	if (ret < 0)
++		return ERR_PTR(ret);
++	if (info.count == 0)
++		return ERR_PTR(-ENOENT);
++
++	cma = kmalloc(sizeof *cma, GFP_KERNEL);
++	if (!cma)
 +		return ERR_PTR(-ENOMEM);
 +
-+	/* ... Set things up ... */
-+
-+	samp->mmu.driver    = &driver;
-+	/* skip first 64K so that zero address will be a NULL pointer */
-+	samp->mmu.vcm.start =  (64 << 10);
-+	samp->mmu.vcm.size  = -(64 << 10);
-+
-+	vcm = vcm_mmu_init(&samp->mmu);
-+	if (!IS_ERR(vcm))
-+		return vcm;
-+
-+	/* ... Error recovery ... */
-+
-+	kfree(samp);
++	cma->o2o.driver    = &driver;
++	cma->o2o.vcm.start = info.lower_bound;
++	cma->o2o.vcm.size  = info.upper_bound - info.lower_bound;
++	cma->regions       = regions;
++	cma->alignment     = alignment;
++	vcm = vcm_o2o_init(&cma->o2o);
++	if (IS_ERR(vcm))
++		kfree(cma);
 +	return vcm;
 +}
-+EXPORT_SYMBOL_GPL(vcm_samp_create);
++EXPORT_SYMBOL_GPL(vcm_cma_create);
 -- 
 1.7.1
 
