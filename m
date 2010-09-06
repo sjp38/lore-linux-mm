@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5269A6B0082
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C97AD6B0047
 	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 06:47:41 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 07/10] vmscan: Remove dead code in shrink_inactive_list()
-Date: Mon,  6 Sep 2010 11:47:30 +0100
-Message-Id: <1283770053-18833-8-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 05/10] vmscan: Synchrounous lumpy reclaim use lock_page() instead trylock_page()
+Date: Mon,  6 Sep 2010 11:47:28 +0100
+Message-Id: <1283770053-18833-6-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
 References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -15,42 +15,31 @@ List-ID: <linux-mm.kvack.org>
 
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-After synchrounous lumpy reclaim, the page_list is guaranteed to not
-have active pages as page activation in shrink_page_list() disables lumpy
-reclaim. Remove the dead code.
+With synchrounous lumpy reclaim, there is no reason to give up to reclaim
+pages even if page is locked. This patch uses lock_page() instead of
+trylock_page() in this case.
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/vmscan.c |    8 --------
- 1 files changed, 0 insertions(+), 8 deletions(-)
+ mm/vmscan.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 21d1153..64f9ca5 100644
+index 5979850..79bd812 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1334,7 +1334,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 	unsigned long nr_scanned;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_taken;
--	unsigned long nr_active;
- 	unsigned long nr_anon;
- 	unsigned long nr_file;
+@@ -665,7 +665,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		page = lru_to_page(page_list);
+ 		list_del(&page->lru);
  
-@@ -1389,13 +1388,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+-		if (!trylock_page(page))
++		if (sync_writeback == PAGEOUT_IO_SYNC)
++			lock_page(page);
++		else if (!trylock_page(page))
+ 			goto keep;
  
- 	/* Check if we should syncronously wait for writeback */
- 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
--		/*
--		 * The attempt at page out may have made some
--		 * of the pages active, mark them inactive again.
--		 */
--		nr_active = clear_active_flags(&page_list, NULL);
--		count_vm_events(PGDEACTIVATE, nr_active);
--
- 		set_lumpy_reclaim_mode(priority, sc, true);
- 		nr_reclaimed += shrink_page_list(&page_list, sc);
- 	}
+ 		VM_BUG_ON(PageActive(page));
 -- 
 1.7.1
 
