@@ -1,84 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 57CA96B0047
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 04:16:58 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o868GqNi028235
-	for <linux-mm@kvack.org>; Mon, 6 Sep 2010 01:16:53 -0700
-Received: from pwj10 (pwj10.prod.google.com [10.241.219.74])
-	by wpaz13.hot.corp.google.com with ESMTP id o868Goo8017517
-	for <linux-mm@kvack.org>; Mon, 6 Sep 2010 01:16:51 -0700
-Received: by pwj10 with SMTP id 10so984618pwj.39
-        for <linux-mm@kvack.org>; Mon, 06 Sep 2010 01:16:50 -0700 (PDT)
-Date: Mon, 6 Sep 2010 01:17:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 3/4] swap: do not send discards as barriers
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6BA906B0078
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 04:18:25 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o868IMt2003091
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 6 Sep 2010 17:18:23 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C11545DE79
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 17:18:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 242C845DE6F
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 17:18:22 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F2A5B1DB8040
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 17:18:21 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ABA051DB803B
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 17:18:21 +0900 (JST)
+Date: Mon, 6 Sep 2010 17:13:07 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/4] swap: revert special hibernation allocation
+Message-Id: <20100906171307.9e8d9637.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <alpine.LSU.2.00.1009060104410.13600@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1009060112470.13600@sister.anvils>
 References: <alpine.LSU.2.00.1009060104410.13600@sister.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>, Tejun Heo <tj@kernel.org>, Jens Axboe <jaxboe@fusionio.com>, James Bottomley <James.Bottomley@hansenpartnership.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Nigel Cunningham <nigel@tuxonice.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Ondrej Zary <linux@rainbow-software.org>, Andrea Gelmini <andrea.gelmini@gmail.com>, Balbir Singh <balbir@in.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Nigel Cunningham <nigel@tuxonice.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Christoph Hellwig <hch@infradead.org>
+On Mon, 6 Sep 2010 01:10:55 -0700 (PDT)
+Hugh Dickins <hughd@google.com> wrote:
 
-The swap code already uses synchronous discards, no need to add I/O
-barriers.
+> Please revert 2.6.36-rc commit d2997b1042ec150616c1963b5e5e919ffd0b0ebf
+> "hibernation: freeze swap at hibernation".  It complicated matters by
+> adding a second swap allocation path, just for hibernation; without in
+> any way fixing the issue that it was intended to address - page reclaim
+> after fixing the hibernation image might free swap from a page already
+> imaged as swapcache, letting its swap be reallocated to store a different
+> page of the image: resulting in data corruption if the imaged page were
+> freed as clean then swapped back in.  Pages freed to si->swap_map were
+> still in danger of being reallocated by the alternative allocation path.
+> 
+> I guess it inadvertently fixed slow SSD swap allocation for hibernation,
+> as reported by Nigel Cunningham: by missing out the discards that occur
+> on the usual swap allocation path; but that was unintentional, and needs
+> a separate fix.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+> Cc: Ondrej Zary <linux@rainbow-software.org>
+> Cc: Andrea Gelmini <andrea.gelmini@gmail.com>
+> Cc: Balbir Singh <balbir@in.ibm.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Nigel Cunningham <nigel@tuxonice.net>
 
-This fixes the worst of the terrible slowdown in swap allocation for
-hibernation, reported on 2.6.35 by Nigel Cunningham; but does not
-entirely eliminate that regression.
-
-tj: superflous newlines removed.
-
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Tested-by: Nigel Cunningham <nigel@tuxonice.net>
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: Jens Axboe <jaxboe@fusionio.com>
-Cc: James Bottomley <James.Bottomley@hansenpartnership.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>
-Cc: stable@kernel.org
----
-
- mm/swapfile.c |    9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
-
---- swap2/mm/swapfile.c	2010-09-05 22:45:54.000000000 -0700
-+++ swap3/mm/swapfile.c	2010-09-05 22:47:21.000000000 -0700
-@@ -139,8 +139,7 @@ static int discard_swap(struct swap_info
- 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
- 	if (nr_blocks) {
- 		err = blkdev_issue_discard(si->bdev, start_block,
--				nr_blocks, GFP_KERNEL,
--				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
-+				nr_blocks, GFP_KERNEL, BLKDEV_IFL_WAIT);
- 		if (err)
- 			return err;
- 		cond_resched();
-@@ -151,8 +150,7 @@ static int discard_swap(struct swap_info
- 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
- 
- 		err = blkdev_issue_discard(si->bdev, start_block,
--				nr_blocks, GFP_KERNEL,
--				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
-+				nr_blocks, GFP_KERNEL, BLKDEV_IFL_WAIT);
- 		if (err)
- 			break;
- 
-@@ -191,8 +189,7 @@ static void discard_swap_cluster(struct
- 			start_block <<= PAGE_SHIFT - 9;
- 			nr_blocks <<= PAGE_SHIFT - 9;
- 			if (blkdev_issue_discard(si->bdev, start_block,
--				    nr_blocks, GFP_NOIO, BLKDEV_IFL_WAIT |
--							BLKDEV_IFL_BARRIER))
-+				    nr_blocks, GFP_NOIO, BLKDEV_IFL_WAIT))
- 				break;
- 		}
- 
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
