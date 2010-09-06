@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 305C26B0047
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 00:49:44 -0400 (EDT)
-Received: from out.poczta.wp.pl (HELO localhost) ([212.77.101.240])
-          (envelope-sender <zenblu@wp.pl>)
-          by smtp.wp.pl (WP-SMTPD) with SMTP
-          for <linux-mm@kvack.org>; 6 Sep 2010 06:49:41 +0200
-Date: Mon, 06 Sep 2010 06:49:41 +0200
-From: "zenek blus" <zenblu@wp.pl>
-Subject: Calling vm_ops->open from a driver / reusing vma memory with
- vm_ops in other drivers
-Message-ID: <4c8472e5c36922.92225774@wp.pl>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 8bit
-Content-Disposition: inline
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id CB7D66B0047
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 01:45:31 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o865jTwd018833
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 6 Sep 2010 14:45:29 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 310F945DE53
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:45:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D7FA45DE4E
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:45:29 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E2AA51DB8037
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:45:28 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 33EB91DB803C
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 14:45:28 +0900 (JST)
+Date: Mon, 6 Sep 2010 14:40:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/3] memory hotplug: updates and bugfix for is_removable
+Message-Id: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-I have the following problem:
 
-Driver A has a custom mmap() implementation and assigns own vm_ops to a 
-created vma.
-The process which called mmap() passes the resulting userspace address 
-to another
-driver, driver B.
+Problem:
 
-Driver B would then like to increment usage count on that memory for a 
-duration of
-some operation, i.e. call vm_ops->open(). It can find_vma() for the 
-userspace address
-it was given and call vm_ops->open() on found vma. It can then call 
-vm_ops->close()
-when finished.
+/sys/devices/system/memory/memoryX/removable file shows whether the section
+can be offlined or not. Returns "1" if it seems removable.
 
-The problem here though is that the found vm_area_struct (and the 
-userspace address
-for that matter) might not be valid anymore by the time driver B wants 
-to call close().
-There can be three possibilities here:
+Now, the file uses a similar logic to one offline_pages() uses.
+Problem here is.
+ 
+  - removable detection logics of is_removable() and offline_pages() is
+    different from each other.
+  - The logic, which check MIGRATE_TYPE, tend to be incorrect once fragmented.
+    MIGRATE_TYPE of a pageblock is just a hint, no guarantee.
 
-a) vm_area_struct used for open() is still present and can be reused for 
-close()
-- that looks ok, but storing a pointer to that vma is risky, driver B 
-has no way to
-know whether the pointer is still valid.
+Then, this patch set does.
 
-b) some other vm_area_structs are still present, but driver B has no 
-knowledge
-about them - so it does not have anything to pass to close().
+  - use the same logic between is_removable() and offline_pages().
+  - don't use MIGRATE_TYPE, check the memmap itself directly rather than hint.
 
-c) no vm_area_structs remain, but since we called open() before, driver 
-A is still
-waiting for driver B to call close(); driver B does not have anything to 
-pass to
-close() and there is nothing in the system that could be passed to it 
-anyway.
+Brief patch description:
+ 1. bugfix for is_removable() check. I think this should be back ported.
+ 2. bugfix for callback at counting immobile pages.
+    I think the old logic rarely hits this bug..so, not necessary to backport.
+ 3. the unified new logic for is_remobable.
 
-I don't suppose copying aside the whoe vm_area_struct used for open() 
-call and passing
-it back to close() is a good idea. Is there any way to do this? Or maybe 
-I have it all
-wrong?
+Only patch1 is CCed to stable for now and the patch series itself is onto
+mmotm-08-27.
 
-Thank you,
-Zenek
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
