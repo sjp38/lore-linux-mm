@@ -1,66 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B3D4A6B0047
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 05:16:40 -0400 (EDT)
-Date: Mon, 6 Sep 2010 11:16:33 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 24F486B007B
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 05:30:48 -0400 (EDT)
+Date: Mon, 6 Sep 2010 11:30:42 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] Make is_mem_section_removable more conformable
- with offlining code v3
-Message-ID: <20100906091633.GA23089@tiehlicka.suse.cz>
-References: <20100902143939.GD10265@tiehlicka.suse.cz>
- <20100902150554.GE10265@tiehlicka.suse.cz>
- <20100903121003.e2b8993a.kamezawa.hiroyu@jp.fujitsu.com>
- <20100903121452.2d22b3aa.kamezawa.hiroyu@jp.fujitsu.com>
- <20100903082558.GC10686@tiehlicka.suse.cz>
- <20100903181327.7dad3f84.kamezawa.hiroyu@jp.fujitsu.com>
- <20100903095049.GG10686@tiehlicka.suse.cz>
- <20100903190520.8751aab6.kamezawa.hiroyu@jp.fujitsu.com>
- <20100903114213.GI10686@tiehlicka.suse.cz>
- <20100904025516.GB7788@localhost>
+Subject: Re: [PATCH 3/3] memory hotplug: use unified logic for is_removable
+ and offline_pages
+Message-ID: <20100906093042.GB23089@tiehlicka.suse.cz>
+References: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
+ <20100906144716.dfd6d536.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100904025516.GB7788@localhost>
+In-Reply-To: <20100906144716.dfd6d536.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>, Haicheng Li <haicheng.li@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat 04-09-10 10:55:16, Wu Fengguang wrote:
-> On Fri, Sep 03, 2010 at 07:42:13PM +0800, Michal Hocko wrote:
+On Mon 06-09-10 14:47:16, KAMEZAWA Hiroyuki wrote:
 > 
-> > +/*
-> > + * A free or LRU pages block are removable
-> > + * Do not use MIGRATE_MOVABLE because it can be insufficient and
-> > + * other MIGRATE types are tricky.
-> > + * Do not hold zone->lock as this is used from user space by the
-> > + * sysfs interface.
-> > + */
-> > +bool is_page_removable(struct page *page)
-> > +{
-> > +	int page_block = 1 << pageblock_order;
-> > +
-> > +	/* All pages from the MOVABLE zone are movable */
-> > +	if (zone_idx(page_zone(page)) == ZONE_MOVABLE)
-> > +		return true;
-> > +
-> > +	while (page_block > 0) {
-> > +		int order = 0;
-> > +
-> > +		if (pfn_valid_within(page_to_pfn(page))) {
-> > +			if (!page_count(page) && PageBuddy(page)) {
+> Now, sysfs interface of memory hotplug shows whether the section is
+> removable or not. But it checks only migrateype of pages and doesn't
+> check details of cluster of pages.
 > 
-> PageBuddy() is true only for the head page and false for all tail
-> pages. So when is_page_removable() is given a random 4k page
-> (get_any_page() will exactly do that), the above test is not enough.
+> Next, memory hotplug's set_migratetype_isolate() has the same kind
+> of check, too. But the migrate-type is just a "hint" and the pageblock
+> can contain several types of pages if fragmentation is very heavy.
+> 
+> To get precise information, we need to check
+>  - the pageblock only contains free pages or LRU pages.
+> 
+> This patch adds the function __count_unmovable_pages() and makes
+> above 2 checks to use the same logic. This will improve user experience
+> of memory hotplug because sysfs interface tells accurate information.
+> 
+> Note:
+> it may be better to check MIGRATE_UNMOVABLE for making failure case quick.
+> 
+> Changelog: 2010/09/06
+>  - added comments.
+>  - removed zone->lock.
+>  - changed the name of the function to be is_pageblock_removable_async().
+>    because I removed the zone->lock.
 
-OK, I haven't noticed that set_migratetype_isolate (which calls
-is_page_removable in my patch - bellow) is called from that context.
-is_mem_section_removable goes by pageblocks so we are always checking
-the head.
+wouldn't be __is_pageblock_removable a better name? _async suffix is
+usually used for asynchronous operations and this is just a function
+withtout locks.
 
-Anyway, I can see why you are counting unmovable pages in your patch
-now. You need it for notifier logic, so my approach is not usable.
+> 
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/memory_hotplug.h |    1 
+>  mm/memory_hotplug.c            |   15 -------
+>  mm/page_alloc.c                |   77 ++++++++++++++++++++++++++++++-----------
+>  3 files changed, 60 insertions(+), 33 deletions(-)
+> 
+> Index: kametest/mm/page_alloc.c
+> ===================================================================
+> --- kametest.orig/mm/page_alloc.c
+> +++ kametest/mm/page_alloc.c
+> @@ -5274,11 +5274,61 @@ void set_pageblock_flags_group(struct pa
+>   * page allocater never alloc memory from ISOLATE block.
+>   */
+>  
+
+Can we add a comment on the locking? Something like:
+Caller should hold zone->lock if he needs consistent results.
+
+> +static int __count_immobile_pages(struct zone *zone, struct page *page)
+> +{
+> +	unsigned long pfn, iter, found;
+> +	/*
+> +	 * For avoiding noise data, lru_add_drain_all() should be called
+> + 	 * If ZONE_MOVABLE, the zone never contains immobile pages
+> + 	 */
+> +	if (zone_idx(zone) == ZONE_MOVABLE)
+> +		return 0;
+> +
+> +	pfn = page_to_pfn(page);
+> +	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+> +		unsigned long check = pfn + iter;
+> +
+> +		if (!pfn_valid_within(check)) {
+> +			iter++;
+> +			continue;
+> +		}
+> +		page = pfn_to_page(check);
+> +		if (!page_count(page)) {
+> +			if (PageBuddy(page))
+> +				iter += (1 << page_order(page)) - 1;
+> +			continue;
+> +		}
+> +		if (!PageLRU(page))
+> +			found++;
+> +		/*
+> +		 * If the page is not RAM, page_count()should be 0.
+> +		 * we don't need more check. This is an _used_ not-movable page.
+> +		 *
+> +		 * The problematic thing here is PG_reserved pages. PG_reserved
+> +		 * is set to both of a memory hole page and a _used_ kernel
+> +		 * page at boot.
+> +		 */
+> +	}
+> +	return found;
+> +}
+> +
+> +bool is_pageblock_removable_async(struct page *page)
+> +{
+> +	struct zone *zone = page_zone(page);
+> +	unsigned long flags;
+> +	int num;
+> +	/* Don't take zone->lock interntionally. */
+
+Could you add the reason?
+Don't take zone-> lock intentionally because we are called from the
+userspace (sysfs interface). 
+
+[...]
+>  	/* All pageblocks in the memory block are likely to be hot-removable */
+> Index: kametest/include/linux/memory_hotplug.h
+> ===================================================================
+> --- kametest.orig/include/linux/memory_hotplug.h
+> +++ kametest/include/linux/memory_hotplug.h
+> @@ -69,6 +69,7 @@ extern void online_page(struct page *pag
+>  /* VM interface that may be used by firmware interface */
+>  extern int online_pages(unsigned long, unsigned long);
+>  extern void __offline_isolated_pages(unsigned long, unsigned long);
+
+#ifdef CONFIG_HOTREMOVE
+
+> +extern bool is_pageblock_removable_async(struct page *page);
+
+#else
+#define is_pageblock_removable_async(p) 0
+#endif
+?
 
 Thanks!
 -- 
