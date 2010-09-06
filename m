@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 7BA696B0082
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 02:34:44 -0400 (EDT)
-Received: from eu_spt1 (mailout1.w1.samsung.com [210.118.77.11])
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B91686B0083
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 02:34:52 -0400 (EDT)
+Received: from eu_spt2 (mailout1.w1.samsung.com [210.118.77.11])
  by mailout1.w1.samsung.com
  (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14 2004))
- with ESMTP id <0L8B002XLBLT60@mailout1.w1.samsung.com> for linux-mm@kvack.org;
- Mon, 06 Sep 2010 07:34:41 +0100 (BST)
+ with ESMTP id <0L8B0078QBM0BE@mailout1.w1.samsung.com> for linux-mm@kvack.org;
+ Mon, 06 Sep 2010 07:34:49 +0100 (BST)
 Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L8B00LBHBLSQN@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 06 Sep 2010 07:34:41 +0100 (BST)
-Date: Mon, 06 Sep 2010 08:33:53 +0200
+ by spt2.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
+ 2004)) with ESMTPA id <0L8B003GTBLZT4@spt2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 06 Sep 2010 07:34:48 +0100 (BST)
+Date: Mon, 06 Sep 2010 08:33:54 +0200
 From: Michal Nazarewicz <m.nazarewicz@samsung.com>
-Subject: [RFCv5 3/9] mm: cma: Added SysFS support
+Subject: [RFCv5 4/9] mm: cma: Added command line parameters support
 In-reply-to: <cover.1283749231.git.mina86@mina86.com>
 Message-id: 
- <9771a9c07874a642bb587f4c0ebf886d720332b6.1283749231.git.mina86@mina86.com>
+ <ce06c9c347168e5e3de83d55655cb73b7583bef5.1283749231.git.mina86@mina86.com>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN
 Content-transfer-encoding: 7BIT
@@ -26,548 +26,333 @@ To: linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@
 Cc: Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Pawel Osciak <p.osciak@samsung.com>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The SysFS development interface lets one change the map attribute
-at run time as well as observe what regions have been reserved.
+This patch adds a pair of early parameters ("cma" and
+"cma.map") which let one override the CMA configuration
+given by platform without the need to recompile the kernel.
 
 Signed-off-by: Michal Nazarewicz <m.nazarewicz@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- .../ABI/testing/sysfs-kernel-mm-contiguous         |   53 +++
- Documentation/contiguous-memory.txt                |    4 +
- include/linux/cma.h                                |    7 +
- mm/Kconfig                                         |   26 ++-
- mm/cma.c                                           |  345 +++++++++++++++++++-
- 5 files changed, 430 insertions(+), 5 deletions(-)
- create mode 100644 Documentation/ABI/testing/sysfs-kernel-mm-contiguous
+ Documentation/contiguous-memory.txt |   85 ++++++++++++++++++++++--
+ Documentation/kernel-parameters.txt |    7 ++
+ mm/Kconfig                          |    9 +++
+ mm/cma.c                            |  125 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 221 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/ABI/testing/sysfs-kernel-mm-contiguous b/Documentation/ABI/testing/sysfs-kernel-mm-contiguous
-new file mode 100644
-index 0000000..8df15bc
---- /dev/null
-+++ b/Documentation/ABI/testing/sysfs-kernel-mm-contiguous
-@@ -0,0 +1,53 @@
-+What:		/sys/kernel/mm/contiguous/
-+Date:		August 2010
-+Contact:	Michal Nazarewicz <m.nazarewicz@samsung.com>
-+Description:
-+		If CMA has been built with SysFS support,
-+		/sys/kernel/mm/contiguous/ contains a file called
-+		"map", a file called "allocators" and a directory
-+		called "regions".
-+
-+		The "map" file lets one change the CMA's map attribute
-+		at run-time.
-+
-+		The "allocators" file list all registered allocators.
-+		Allocators with no name are listed as a single minus
-+		sign.
-+
-+		The "regions" directory list all reserved regions.
-+
-+		For more details see
-+		Documentation/contiguous-memory.txt.
-+
-+What:		/sys/kernel/mm/contiguous/regions/
-+Date:		August 2010
-+Contact:	Michal Nazarewicz <m.nazarewicz@samsung.com>
-+Description:
-+		The /sys/kernel/mm/contiguous/regions/ directory
-+		contain directories for each registered CMA region.
-+		The name of the directory is the same as the start
-+		address of the region.
-+
-+		If region is named there is also a symbolic link named
-+		like the region pointing to the region's directory.
-+
-+		Such directory contains the following files:
-+
-+		* "name"  -- the name of the region or an empty file
-+		* "start" -- starting address of the region (formatted
-+		            with %p, ie. hex).
-+		* "size"  -- size of the region (in bytes).
-+		* "free"  -- free space in the region (in bytes).
-+		* "users" -- number of chunks allocated in the region.
-+		* "alloc" -- name of the allocator.
-+
-+		If allocator is not attached to the region, "alloc" is
-+		either the name of desired allocator in square
-+		brackets (ie. "[foo]") or an empty file if region is
-+		to be attached to default allocator.  If an allocator
-+		is attached to the region. "alloc" is either its name
-+		or "-" if attached allocator has no name.
-+
-+		If there are no chunks allocated in given region
-+		("users" is "0") then a name of desired allocator can
-+		be written to "alloc".
 diff --git a/Documentation/contiguous-memory.txt b/Documentation/contiguous-memory.txt
-index e470c6f..15aff7a 100644
+index 15aff7a..3d9d42c 100644
 --- a/Documentation/contiguous-memory.txt
 +++ b/Documentation/contiguous-memory.txt
-@@ -256,6 +256,10 @@
-      iff it matched in previous pattern.  If the second part is
-      omitted it will mach any type of memory requested by device.
+@@ -88,6 +88,20 @@
+            early region and the framework will handle the rest
+            including choosing the right early allocator.
  
-+     If SysFS support is enabled, this attribute is accessible via
-+     SysFS and can be changed at run-time by writing to
-+     /sys/kernel/mm/contiguous/map.
++    4. CMA allows a run-time configuration of the memory regions it
++       will use to allocate chunks of memory from.  The set of memory
++       regions is given on command line so it can be easily changed
++       without the need for recompiling the kernel.
++
++       Each region has it's own size, alignment demand, a start
++       address (physical address where it should be placed) and an
++       allocator algorithm assigned to the region.
++
++       This means that there can be different algorithms running at
++       the same time, if different devices on the platform have
++       distinct memory usage characteristics and different algorithm
++       match those the best way.
++
+ ** Use cases
+ 
+     Let's analyse some imaginary system that uses the CMA to see how
+@@ -162,7 +176,6 @@
+     This solution also shows how with CMA you can assign private pools
+     of memory to each device if that is required.
+ 
+-
+     Allocation mechanisms can be replaced dynamically in a similar
+     manner as well. Let's say that during testing, it has been
+     discovered that, for a given shared region of 40 MiB,
+@@ -217,6 +230,42 @@
+      it will be set to a PAGE_SIZE.  start will be aligned to
+      alignment.
+ 
++     If command line parameter support is enabled, this attribute can
++     also be overriden by a command line "cma" parameter.  When given
++     on command line its forrmat is as follows:
++
++         regions-attr  ::= [ regions [ ';' ] ]
++         regions       ::= region [ ';' regions ]
++
++         region        ::= REG-NAME
++                             '=' size
++                           [ '@' start ]
++                           [ '/' alignment ]
++                           [ ':' ALLOC-NAME ]
++
++         size          ::= MEMSIZE   // size of the region
++         start         ::= MEMSIZE   // desired start address of
++                                     // the region
++         alignment     ::= MEMSIZE   // alignment of the start
++                                     // address of the region
++
++     REG-NAME specifies the name of the region.  All regions given at
++     via the regions attribute need to have a name.  Moreover, all
++     regions need to have a unique name.  If two regions have the same
++     name it is unspecified which will be used when requesting to
++     allocate memory from region with given name.
++
++     ALLOC-NAME specifies the name of allocator to be used with the
++     region.  If no allocator name is provided, the "default"
++     allocator will be used with the region.  The "default" allocator
++     is, of course, the first allocator that has been registered. ;)
++
++     size, start and alignment are specified in bytes with suffixes
++     that memparse() accept.  If start is given, the region will be
++     reserved on given starting address (or at close to it as
++     possible).  If alignment is specified, the region will be aligned
++     to given value.
++
+ **** Map
+ 
+      The format of the "map" attribute is as follows:
+@@ -260,8 +309,33 @@
+      SysFS and can be changed at run-time by writing to
+      /sys/kernel/mm/contiguous/map.
+ 
++     If command line parameter support is enabled, this attribute can
++     also be overriden by a command line "cma.map" parameter.
++
++**** Examples
 +
       Some examples (whitespace added for better readability):
  
-          cma_map = foo/quaz = r1;
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index f6f9cb5..d0f41f4 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -18,6 +18,9 @@
- #include <linux/rbtree.h>
- #include <linux/list.h>
- #include <linux/init.h>
-+#if defined CONFIG_CMA_SYSFS
-+#  include <linux/kobject.h>
-+#endif
- 
- 
- struct device;
-@@ -204,6 +207,10 @@ struct cma_region {
- 	unsigned users;
- 	struct list_head list;
- 
-+#if defined CONFIG_CMA_SYSFS
-+	struct kobject kobj;
-+#endif
++         cma = r1 = 64M       // 64M region
++                    @512M       // starting at address 512M
++                                // (or at least as near as possible)
++                    /1M         // make sure it's aligned to 1M
++                    :foo(bar);  // uses allocator "foo" with "bar"
++                                // as parameters for it
++               r2 = 64M       // 64M region
++                    /1M;        // make sure it's aligned to 1M
++                                // uses the first available allocator
++               r3 = 64M       // 64M region
++                    @512M       // starting at address 512M
++                    :foo;       // uses allocator "foo" with no parameters
 +
- 	unsigned used:1;
- 	unsigned registered:1;
- 	unsigned reserved:1;
++         cma_map = foo = r1;
++                       // device foo with kind==NULL uses region r1
++
++                   foo/quaz = r2;  // OR:
++                   /quaz = r2;
++                       // device foo with kind == "quaz" uses region r2
++
+          cma_map = foo/quaz = r1;
+                        // device foo with type == "quaz" uses region r1
+ 
+@@ -529,10 +603,11 @@
+ 
+         int cma_set_defaults(struct cma_region *regions, const char *map)
+ 
+-    It needs to be called prior to reserving regions.  It let one
+-    specify the list of regions defined by platform and the map
+-    attribute.  The map may point to a string in __initdata.  See
+-    above in this document for example usage of this function.
++    It needs to be called after early params have been parsed but
++    prior to reserving regions.  It let one specify the list of
++    regions defined by platform and the map attribute.  The map may
++    point to a string in __initdata.  See above in this document for
++    example usage of this function.
+ 
+ ** Future work
+ 
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index b7eb33f..015e458 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -43,6 +43,7 @@ parameter is applicable:
+ 	AVR32	AVR32 architecture is enabled.
+ 	AX25	Appropriate AX.25 support is enabled.
+ 	BLACKFIN Blackfin architecture is enabled.
++	CMA	Contiguous Memory Allocator is enabled.
+ 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
+ 	EFI	EFI Partitioning (GPT) is enabled
+ 	EIDE	EIDE/ATAPI support is enabled.
+@@ -478,6 +479,12 @@ and is between 256 and 4096 characters. It is defined in the file
+ 			Also note the kernel might malfunction if you disable
+ 			some critical bits.
+ 
++	cma=		[CMA] List of CMA regions.
++			See Documentation/contiguous-memory.txt for details.
++
++	cma.map=	[CMA] CMA mapping
++			See Documentation/contiguous-memory.txt for details.
++
+ 	cmo_free_hint=	[PPC] Format: { yes | no }
+ 			Specify whether pages are marked as being inactive
+ 			when they are freed.  This is used in CMO environments
 diff --git a/mm/Kconfig b/mm/Kconfig
-index 86043a3..8bed799 100644
+index 8bed799..b410910 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -322,16 +322,36 @@ config CMA
- 	  For more information see <Documentation/contiguous-memory.txt>.
- 	  If unsure, say "n".
+@@ -353,6 +353,15 @@ config CMA_SYSFS
+ 	  <Documentation/contiguous-memory.txt> and
+ 	  <Documentation/ABI/testing/sysfs-kernel-mm-contiguous> files.
  
--config CMA_DEBUG
--	bool "CMA debug messages (DEVELOPEMENT)"
-+config CMA_DEVELOPEMENT
-+	bool "Include CMA developement features"
- 	depends on CMA
- 	help
-+	  This lets you enable some developement features of the CMA
-+	  framework.  It does not add any code to the kernel.
-+
-+	  Those options are mostly usable during development and testing.
-+	  If unsure, say "n".
-+
-+config CMA_DEBUG
-+	bool "CMA debug messages"
++config CMA_CMDLINE
++	bool "CMA command line parameters support"
 +	depends on CMA_DEVELOPEMENT
 +	help
- 	  Turns on debug messages in CMA.  This produces KERN_DEBUG
- 	  messages for every CMA call as well as various messages while
- 	  processing calls such as cma_alloc().  This option does not
- 	  affect warning and error messages.
- 
--	  This is mostly used during development.  If unsure, say "n".
-+config CMA_SYSFS
-+	bool "CMA SysFS interface support"
-+	depends on CMA_DEVELOPEMENT
-+	help
-+	  Enable support for SysFS interface.  The interface is available
-+	  under /sys/kernel/mm/contiguous.  Each region and allocator is
-+	  represented there.
++	  Enable support for cma and cma.map command line parameters.
++	  This lets overwrite the CMA defaults defined by for the
++	  platform.  This should only be usable during development and
++	  testing.
 +
-+	  For more information consult
-+	  <Documentation/contiguous-memory.txt> and
-+	  <Documentation/ABI/testing/sysfs-kernel-mm-contiguous> files.
- 
  config CMA_BEST_FIT
  	bool "CMA best-fit allocator"
+ 	depends on CMA
 diff --git a/mm/cma.c b/mm/cma.c
-index 06d0d5a..955f08c 100644
+index 955f08c..8191c97 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
-@@ -38,8 +38,8 @@
+@@ -103,6 +103,12 @@ static int __init cma_map_param(char *param)
+ 	return 0;
+ }
  
- 
- /*
-- * Protects cma_regions, cma_allocators, cma_map, cma_map_length, and
-- * cma_chunks_by_start.
-+ * Protects cma_regions, cma_allocators, cma_map, cma_map_length,
-+ * cma_kobj, cma_sysfs_regions and cma_chunks_by_start.
-  */
- static DEFINE_MUTEX(cma_mutex);
- 
-@@ -143,7 +143,11 @@ int __init __must_check cma_early_region_register(struct cma_region *reg)
- 
- /************************* Regions & Allocators *************************/
- 
-+static void __cma_sysfs_region_add(struct cma_region *reg);
++#if defined CONFIG_CMA_CMDLINE
 +
- static int __cma_region_attach_alloc(struct cma_region *reg);
-+static void __maybe_unused __cma_region_detach_alloc(struct cma_region *reg);
-+
- 
- /* List of all regions.  Named regions are kept before unnamed. */
- static LIST_HEAD(cma_regions);
-@@ -226,6 +230,8 @@ int __must_check cma_region_register(struct cma_region *reg)
- 	else
- 		list_add_tail(&reg->list, &cma_regions);
- 
-+	__cma_sysfs_region_add(reg);
-+
- done:
- 	mutex_unlock(&cma_mutex);
- 
-@@ -482,6 +488,329 @@ subsys_initcall(cma_init);
- 
- 
- 
-+/************************* SysFS *************************/
-+
-+#if defined CONFIG_CMA_SYSFS
-+
-+static struct kobject cma_sysfs_regions;
-+static int cma_sysfs_regions_ready;
-+
-+
-+#define CMA_ATTR_INLINE(_type, _name)					\
-+	(&((struct cma_ ## _type ## _attribute){			\
-+		.attr	= {						\
-+			.name	= __stringify(_name),			\
-+			.mode	= 0644,					\
-+		},							\
-+		.show	= cma_sysfs_ ## _type ## _ ## _name ## _show,	\
-+		.store	= cma_sysfs_ ## _type ## _ ## _name ## _store,	\
-+	}).attr)
-+
-+#define CMA_ATTR_RO_INLINE(_type, _name)				\
-+	(&((struct cma_ ## _type ## _attribute){			\
-+		.attr	= {						\
-+			.name	= __stringify(_name),			\
-+			.mode	= 0444,					\
-+		},							\
-+		.show	= cma_sysfs_ ## _type ## _ ## _name ## _show,	\
-+	}).attr)
-+
-+
-+struct cma_root_attribute {
-+	struct attribute attr;
-+	ssize_t (*show)(char *buf);
-+	int (*store)(const char *buf);
-+};
-+
-+static ssize_t cma_sysfs_root_map_show(char *page)
-+{
-+	ssize_t len;
-+
-+	len = cma_map_length;
-+	if (!len) {
-+		*page = 0;
-+		len = 0;
-+	} else {
-+		if (len > (size_t)PAGE_SIZE - 1)
-+			len = (size_t)PAGE_SIZE - 1;
-+		memcpy(page, cma_map, len);
-+		page[len++] = '\n';
-+	}
-+
-+	return len;
-+}
-+
-+static int cma_sysfs_root_map_store(const char *page)
-+{
-+	ssize_t len = cma_map_validate(page);
-+	char *val = NULL;
-+
-+	if (len < 0)
-+		return len;
-+
-+	if (len) {
-+		val = kmemdup(page, len + 1, GFP_KERNEL);
-+		if (!val)
-+			return -ENOMEM;
-+		val[len] = '\0';
-+	}
-+
-+	kfree(cma_map);
-+	cma_map = val;
-+	cma_map_length = len;
-+
-+	return 0;
-+}
-+
-+static ssize_t cma_sysfs_root_allocators_show(char *page)
-+{
-+	struct cma_allocator *alloc;
-+	size_t left = PAGE_SIZE;
-+	char *ch = page;
-+
-+	cma_foreach_allocator(alloc) {
-+		ssize_t l = snprintf(ch, left, "%s ", alloc->name ?: "-");
-+		ch   += l;
-+		left -= l;
-+	}
-+
-+	if (ch != page)
-+		ch[-1] = '\n';
-+	return ch - page;
-+}
-+
-+static ssize_t
-+cma_sysfs_root_show(struct kobject *kobj, struct attribute *attr, char *buf)
-+{
-+	struct cma_root_attribute *rattr =
-+		container_of(attr, struct cma_root_attribute, attr);
-+	ssize_t ret;
-+
-+	mutex_lock(&cma_mutex);
-+	ret = rattr->show(buf);
-+	mutex_unlock(&cma_mutex);
-+
-+	return ret;
-+}
-+
-+static ssize_t
-+cma_sysfs_root_store(struct kobject *kobj, struct attribute *attr,
-+		       const char *buf, size_t count)
-+{
-+	struct cma_root_attribute *rattr =
-+		container_of(attr, struct cma_root_attribute, attr);
-+	int ret;
-+
-+	mutex_lock(&cma_mutex);
-+	ret = rattr->store(buf);
-+	mutex_unlock(&cma_mutex);
-+
-+	return ret < 0 ? ret : count;
-+}
-+
-+static struct kobj_type cma_sysfs_root_type = {
-+	.sysfs_ops	= &(const struct sysfs_ops){
-+		.show	= cma_sysfs_root_show,
-+		.store	= cma_sysfs_root_store,
-+	},
-+	.default_attrs	= (struct attribute * []) {
-+		CMA_ATTR_INLINE(root, map),
-+		CMA_ATTR_RO_INLINE(root, allocators),
-+		NULL
-+	},
-+};
-+
-+static int __init cma_sysfs_init(void)
-+{
-+	static struct kobject root;
-+	static struct kobj_type fake_type;
-+
-+	struct cma_region *reg;
-+	int ret;
-+
-+	/* Root */
-+	ret = kobject_init_and_add(&root, &cma_sysfs_root_type,
-+				   mm_kobj, "contiguous");
-+	if (unlikely(ret < 0)) {
-+		pr_err("init: unable to add root kobject: %d\n", ret);
-+		return ret;
-+	}
-+
-+	/* Regions */
-+	ret = kobject_init_and_add(&cma_sysfs_regions, &fake_type,
-+				   &root, "regions");
-+	if (unlikely(ret < 0)) {
-+		pr_err("init: unable to add regions kobject: %d\n", ret);
-+		return ret;
-+	}
-+
-+	mutex_lock(&cma_mutex);
-+	cma_sysfs_regions_ready = 1;
-+	cma_foreach_region(reg)
-+		__cma_sysfs_region_add(reg);
-+	mutex_unlock(&cma_mutex);
-+
-+	return 0;
-+}
-+device_initcall(cma_sysfs_init);
-+
-+
-+
-+struct cma_region_attribute {
-+	struct attribute attr;
-+	ssize_t (*show)(struct cma_region *reg, char *buf);
-+	int (*store)(struct cma_region *reg, const char *buf);
-+};
-+
-+
-+static ssize_t cma_sysfs_region_name_show(struct cma_region *reg, char *page)
-+{
-+	return reg->name ? snprintf(page, PAGE_SIZE, "%s\n", reg->name) : 0;
-+}
-+
-+static ssize_t cma_sysfs_region_start_show(struct cma_region *reg, char *page)
-+{
-+	return snprintf(page, PAGE_SIZE, "%p\n", (void *)reg->start);
-+}
-+
-+static ssize_t cma_sysfs_region_size_show(struct cma_region *reg, char *page)
-+{
-+	return snprintf(page, PAGE_SIZE, "%zu\n", reg->size);
-+}
-+
-+static ssize_t cma_sysfs_region_free_show(struct cma_region *reg, char *page)
-+{
-+	return snprintf(page, PAGE_SIZE, "%zu\n", reg->free_space);
-+}
-+
-+static ssize_t cma_sysfs_region_users_show(struct cma_region *reg, char *page)
-+{
-+	return snprintf(page, PAGE_SIZE, "%u\n", reg->users);
-+}
-+
-+static ssize_t cma_sysfs_region_alloc_show(struct cma_region *reg, char *page)
-+{
-+	if (reg->alloc)
-+		return snprintf(page, PAGE_SIZE, "%s\n",
-+				reg->alloc->name ?: "-");
-+	else if (reg->alloc_name)
-+		return snprintf(page, PAGE_SIZE, "[%s]\n", reg->alloc_name);
-+	else
-+		return 0;
-+}
-+
-+static int
-+cma_sysfs_region_alloc_store(struct cma_region *reg, const char *page)
-+{
-+	char *s;
-+
-+	if (reg->alloc && reg->users)
-+		return -EBUSY;
-+
-+	if (!*page || *page == '\n') {
-+		s = NULL;
-+	} else {
-+		size_t len;
-+
-+		for (s = (char *)page; *++s && *s != '\n'; )
-+			/* nop */;
-+
-+		len = s - page;
-+		s = kmemdup(page, len + 1, GFP_KERNEL);
-+		if (!s)
-+			return -ENOMEM;
-+		s[len] = '\0';
-+	}
-+
-+	if (reg->alloc)
-+		__cma_region_detach_alloc(reg);
-+
-+	if (reg->free_alloc_name)
-+		kfree(reg->alloc_name);
-+
-+	reg->alloc_name = s;
-+	reg->free_alloc_name = !!s;
-+
-+	return 0;
-+}
-+
-+
-+static ssize_t
-+cma_sysfs_region_show(struct kobject *kobj, struct attribute *attr,
-+		      char *buf)
-+{
-+	struct cma_region *reg = container_of(kobj, struct cma_region, kobj);
-+	struct cma_region_attribute *rattr =
-+		container_of(attr, struct cma_region_attribute, attr);
-+	ssize_t ret;
-+
-+	mutex_lock(&cma_mutex);
-+	ret = rattr->show(reg, buf);
-+	mutex_unlock(&cma_mutex);
-+
-+	return ret;
-+}
-+
-+static int
-+cma_sysfs_region_store(struct kobject *kobj, struct attribute *attr,
-+		       const char *buf, size_t count)
-+{
-+	struct cma_region *reg = container_of(kobj, struct cma_region, kobj);
-+	struct cma_region_attribute *rattr =
-+		container_of(attr, struct cma_region_attribute, attr);
-+	int ret;
-+
-+	mutex_lock(&cma_mutex);
-+	ret = rattr->store(reg, buf);
-+	mutex_unlock(&cma_mutex);
-+
-+	return ret < 0 ? ret : count;
-+}
-+
-+static struct kobj_type cma_sysfs_region_type = {
-+	.sysfs_ops	= &(const struct sysfs_ops){
-+		.show	= cma_sysfs_region_show,
-+		.store	= cma_sysfs_region_store,
-+	},
-+	.default_attrs	= (struct attribute * []) {
-+		CMA_ATTR_RO_INLINE(region, name),
-+		CMA_ATTR_RO_INLINE(region, start),
-+		CMA_ATTR_RO_INLINE(region, size),
-+		CMA_ATTR_RO_INLINE(region, free),
-+		CMA_ATTR_RO_INLINE(region, users),
-+		CMA_ATTR_INLINE(region, alloc),
-+		NULL
-+	},
-+};
-+
-+static void __cma_sysfs_region_add(struct cma_region *reg)
-+{
-+	int ret;
-+
-+	if (!cma_sysfs_regions_ready)
-+		return;
-+
-+	memset(&reg->kobj, 0, sizeof reg->kobj);
-+
-+	ret = kobject_init_and_add(&reg->kobj, &cma_sysfs_region_type,
-+				   &cma_sysfs_regions,
-+				   "%p", (void *)reg->start);
-+
-+	if (reg->name &&
-+	    sysfs_create_link(&cma_sysfs_regions, &reg->kobj, reg->name) < 0)
-+		/* Ignore any errors. */;
-+}
-+
-+#else
-+
-+static void __cma_sysfs_region_add(struct cma_region *reg)
-+{
-+	/* nop */
-+}
++early_param("cma.map", cma_map_param);
 +
 +#endif
 +
+ 
+ 
+ /************************* Early regions *************************/
+@@ -110,6 +116,125 @@ static int __init cma_map_param(char *param)
+ struct list_head cma_early_regions __initdata =
+ 	LIST_HEAD_INIT(cma_early_regions);
+ 
++#ifdef CONFIG_CMA_CMDLINE
 +
- /************************* Chunks *************************/
- 
- /* All chunks sorted by start address. */
-@@ -785,6 +1114,18 @@ static int __cma_region_attach_alloc(struct cma_region *reg)
- 	return ret;
- }
- 
-+static void __cma_region_detach_alloc(struct cma_region *reg)
++/*
++ * regions-attr ::= [ regions [ ';' ] ]
++ * regions      ::= region [ ';' regions ]
++ *
++ * region       ::= [ '-' ] reg-name
++ *                    '=' size
++ *                  [ '@' start ]
++ *                  [ '/' alignment ]
++ *                  [ ':' alloc-name ]
++ *
++ * See Documentation/contiguous-memory.txt for details.
++ *
++ * Example:
++ * cma=reg1=64M:bf;reg2=32M@0x100000:bf;reg3=64M/1M:bf
++ *
++ * If allocator is ommited the first available allocater will be used.
++ */
++
++#define NUMPARSE(cond_ch, type, cond) ({				\
++		unsigned long long v = 0;				\
++		if (*param == (cond_ch)) {				\
++			const char *const msg = param + 1;		\
++			v = memparse(msg, &param);			\
++			if (!v || v > ~(type)0 || !(cond)) {		\
++				pr_err("param: invalid value near %s\n", msg); \
++				ret = -EINVAL;				\
++				break;					\
++			}						\
++		}							\
++		v;							\
++	})
++
++static int __init cma_param_parse(char *param)
 +{
-+	if (!reg->alloc)
-+		return;
++	static struct cma_region regions[16];
 +
-+	if (reg->alloc->cleanup)
-+		reg->alloc->cleanup(reg);
++	size_t left = ARRAY_SIZE(regions);
++	struct cma_region *reg = regions;
++	int ret = 0;
 +
-+	reg->alloc = NULL;
-+	reg->used = 1;
++	pr_debug("param: %s\n", param);
++
++	for (; *param; ++reg) {
++		dma_addr_t start, alignment;
++		size_t size;
++
++		if (unlikely(!--left)) {
++			pr_err("param: too many early regions\n");
++			return -ENOSPC;
++		}
++
++		/* Parse name */
++		reg->name = param;
++		param = strchr(param, '=');
++		if (!param || param == reg->name) {
++			pr_err("param: expected \"<name>=\" near %s\n",
++			       reg->name);
++			ret = -EINVAL;
++			break;
++		}
++		*param = '\0';
++
++		/* Parse numbers */
++		size      = NUMPARSE('\0', size_t, true);
++		start     = NUMPARSE('@', dma_addr_t, true);
++		alignment = NUMPARSE('/', dma_addr_t, (v & (v - 1)) == 0);
++
++		alignment = max(alignment, (dma_addr_t)PAGE_SIZE);
++		start     = ALIGN(start, alignment);
++		size      = PAGE_ALIGN(size);
++		if (start + size < start) {
++			pr_err("param: invalid start, size combination\n");
++			ret = -EINVAL;
++			break;
++		}
++
++		/* Parse allocator */
++		if (*param == ':') {
++			reg->alloc_name = ++param;
++			while (*param && *param != ';')
++				++param;
++			if (param == reg->alloc_name)
++				reg->alloc_name = NULL;
++		}
++
++		/* Go to next */
++		if (*param == ';') {
++			*param = '\0';
++			++param;
++		} else if (*param) {
++			pr_err("param: expecting ';' or end of parameter near %s\n",
++			       param);
++			ret = -EINVAL;
++			break;
++		}
++
++		/* Add */
++		reg->size      = size;
++		reg->start     = start;
++		reg->alignment = alignment;
++		reg->copy_name = 1;
++
++		list_add_tail(&reg->list, &cma_early_regions);
++
++		pr_debug("param: registering early region %s (%p@%p/%p)\n",
++			 reg->name, (void *)reg->size, (void *)reg->start,
++			 (void *)reg->alignment);
++	}
++
++	return ret;
 +}
++early_param("cma", cma_param_parse);
++
++#undef NUMPARSE
++
++#endif
 +
  
- /*
-  * s            ::= rules
+ int __init __must_check cma_early_region_register(struct cma_region *reg)
+ {
 -- 
 1.7.1
 
