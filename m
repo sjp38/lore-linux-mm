@@ -1,130 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 18FD86B008C
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 06:47:42 -0400 (EDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D46A6B0078
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 06:50:04 -0400 (EDT)
+Date: Mon, 6 Sep 2010 11:49:50 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 10/10] vmscan: Kick flusher threads to clean pages when reclaim is encountering dirty pages
-Date: Mon,  6 Sep 2010 11:47:33 +0100
-Message-Id: <1283770053-18833-11-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 0/9] Reduce latencies and improve overall reclaim
+	efficiency v1
+Message-ID: <20100906104950.GK8384@csn.ul.ie>
 References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-There are a number of cases where pages get cleaned but two of concern
-to this patch are;
-  o When dirtying pages, processes may be throttled to clean pages if
-    dirty_ratio is not met.
-  o Pages belonging to inodes dirtied longer than
-    dirty_writeback_centisecs get cleaned.
+*sigh*
 
-The problem for reclaim is that dirty pages can reach the end of the LRU if
-pages are being dirtied slowly so that neither the throttling or a flusher
-thread waking periodically cleans them.
+The subject should have been [PATCH 0/10] of course.
 
-Background flush is already cleaning old or expired inodes first but the
-expire time is too far in the future at the time of page reclaim. To mitigate
-future problems, this patch wakes flusher threads to clean 4M of data -
-an amount that should be manageable without causing congestion in many cases.
-
-Ideally, the background flushers would only be cleaning pages belonging
-to the zone being scanned but it's not clear if this would be of benefit
-(less IO) or not (potentially less efficient IO if an inode is scattered
-across multiple zones).
-
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/vmscan.c |   32 ++++++++++++++++++++++++++++++--
- 1 files changed, 30 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 408c101..33d27a4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -148,6 +148,18 @@ static DECLARE_RWSEM(shrinker_rwsem);
- /* Direct lumpy reclaim waits up to five seconds for background cleaning */
- #define MAX_SWAP_CLEAN_WAIT 50
- 
-+/*
-+ * When reclaim encounters dirty data, wakeup flusher threads to clean
-+ * a maximum of 4M of data.
-+ */
-+#define MAX_WRITEBACK (4194304UL >> PAGE_SHIFT)
-+#define WRITEBACK_FACTOR (MAX_WRITEBACK / SWAP_CLUSTER_MAX)
-+static inline long nr_writeback_pages(unsigned long nr_dirty)
-+{
-+	return laptop_mode ? 0 :
-+			min(MAX_WRITEBACK, (nr_dirty * WRITEBACK_FACTOR));
-+}
-+
- static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
- 						  struct scan_control *sc)
- {
-@@ -686,12 +698,14 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
- 					struct scan_control *sc,
-+					int file,
- 					unsigned long *nr_still_dirty)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
- 	unsigned long nr_dirty = 0;
-+	unsigned long nr_dirty_seen = 0;
- 	unsigned long nr_reclaimed = 0;
- 
- 	cond_resched();
-@@ -790,6 +804,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		}
- 
- 		if (PageDirty(page)) {
-+			nr_dirty_seen++;
-+
- 			/*
- 			 * Only kswapd can writeback filesystem pages to
- 			 * avoid risk of stack overflow
-@@ -923,6 +939,18 @@ keep_lumpy:
- 
- 	list_splice(&ret_pages, page_list);
- 
-+	/*
-+	 * If reclaim is encountering dirty pages, it may be because
-+	 * dirty pages are reaching the end of the LRU even though the
-+	 * dirty_ratio may be satisified. In this case, wake flusher
-+	 * threads to pro-actively clean up to a maximum of
-+	 * 4 * SWAP_CLUSTER_MAX amount of data (usually 1/2MB) unless
-+	 * !may_writepage indicates that this is a direct reclaimer in
-+	 * laptop mode avoiding disk spin-ups
-+	 */
-+	if (file && nr_dirty_seen && sc->may_writepage)
-+		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
-+
- 	*nr_still_dirty = nr_dirty;
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	return nr_reclaimed;
-@@ -1414,7 +1442,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 
- 	spin_unlock_irq(&zone->lru_lock);
- 
--	nr_reclaimed = shrink_page_list(&page_list, sc, &nr_dirty);
-+	nr_reclaimed = shrink_page_list(&page_list, sc, file, &nr_dirty);
- 
- 	/* Check if we should syncronously wait for writeback */
- 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
-@@ -1437,7 +1465,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
- 			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
- 
- 			nr_reclaimed = shrink_page_list(&page_list, sc,
--							&nr_dirty);
-+							file, &nr_dirty);
- 		}
- 	}
- 
 -- 
-1.7.1
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
