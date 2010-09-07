@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1DFF46B004A
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 04:37:28 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so6893056iwn.14
-        for <linux-mm@kvack.org>; Tue, 07 Sep 2010 01:37:27 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 7 Sep 2010 01:37:27 -0700
-Message-ID: <AANLkTintQqzx50Jp_zyKQMaAfhSEFah3HhseNmNfNMjB@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B24D66B004A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 04:46:40 -0400 (EDT)
+Date: Tue, 7 Sep 2010 10:46:35 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [RFC][PATCH] big continuous memory allocator v2
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20100907104635.2a02a1ca@basil.nowhere.org>
+In-Reply-To: <20100907172559.496554d8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
+	<87occa9fla.fsf@basil.nowhere.org>
+	<20100907172559.496554d8.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Nice cleanup.
-There are some comments in below.
+On Tue, 7 Sep 2010 17:25:59 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-On Mon, Sep 6, 2010 at 7:45 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
-> This is a page allcoator based on memory migration/hotplug code.
-> passed some small tests, and maybe easier to read than previous one.
->
-> =3D=3D
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> This patch as a memory allocator for contiguous memory larger than MAX_OR=
-DER.
->
-> =A0alloc_contig_pages(hint, size, node);
+> On Tue, 07 Sep 2010 09:29:21 +0200
+> Andi Kleen <andi@firstfloor.org> wrote:
+> 
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> > 
+> > > This is a page allcoator based on memory migration/hotplug code.
+> > > passed some small tests, and maybe easier to read than previous
+> > > one.
+> > 
+> > Maybe I'm missing context here, but what is the use case for this?
+> > 
+> 
+> I hear some drivers want to allocate xxMB of continuous area.(camera?)
+> Maybe embeded guys can answer the question.
 
-I have thought this patch is to be good for dumb device drivers which
-want big contiguous
-memory. So if some device driver want big memory and they can tolerate
-latency or fail,
-this is good solution, I think.
-And some device driver can't tolerate fail, they have to use MOVABLE zone.
+Ok what I wanted to say -- assuming you can make this work
+nicely, and the delays (swap storms?) likely caused by this are not
+too severe, it would be interesting for improving the 1GB pages on x86.
 
-For it, I hope we have a option like ALLOC_FIXED(like MAP_FIXED).
-That's because embedded people wanted to aware BANK of memory.
-So if they get free page which they don't want, it can be pointless.
+This would be a major use case and probably be enough
+to keep the code around.
 
-In addition, I hope it can support CROSS_ZONE migration mode.
-Most of small system can't support swap system. So if we can't migrate
-anon pages into other zones, external fragment problem still happens.
+But it depends on how well it works.
 
-I think reclaim(ex, discard file-backed pages) can become one option to pre=
-vent
-the problem. But it's more cost so we can support it by calling mode.
-(But it could be trivial since caller should know this function is very cos=
-t)
+e.g. when the zone is already fully filled how long
+does the allocation of 1GB take?
 
-ex) alloc_contig_pages(hint, size, node, ALLOC_FIXED|ALLOC_RECLAIM);
+How about when parallel programs are allocating/freeing
+in it too?
 
+What's the worst case delay under stress?
 
-Thanks, Kame.
+Does it cause swap storms?
 
+One issue is also that it would be good to be able to decide
+in advance if the OOM killer is likely triggered (and if yes
+reject the allocation in the first place). 
 
+-Andi
 
---=20
-Kind regards,
-Minchan Kim
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
