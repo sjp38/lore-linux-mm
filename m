@@ -1,79 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 168A66B0078
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 21:26:54 -0400 (EDT)
-Date: Tue, 7 Sep 2010 10:25:23 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 04/10] hugetlb: hugepage migration core
-Message-ID: <20100907012522.GA7672@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1283488658-23137-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1283488658-23137-5-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.00.1009030907080.5633@router.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1009030907080.5633@router.home>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 697F36B004A
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 21:33:21 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o871XJ7u018427
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 7 Sep 2010 10:33:19 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A5C045DE7D
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 10:33:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 098A345DE7C
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 10:33:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E06B91DB803A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 10:33:18 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A16741DB803B
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 10:33:15 +0900 (JST)
+Date: Tue, 7 Sep 2010 10:28:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/3] memory hotplug: updates and bugfix for is_removable v3
+Message-Id: <20100907102813.d633b8ef.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 03, 2010 at 09:10:03AM -0500, Christoph Lameter wrote:
-> On Fri, 3 Sep 2010, Naoya Horiguchi wrote:
-> 
-> > diff --git v2.6.36-rc2/mm/vmscan.c v2.6.36-rc2/mm/vmscan.c
-> > index c391c32..69ce2a3 100644
-> > --- v2.6.36-rc2/mm/vmscan.c
-> > +++ v2.6.36-rc2/mm/vmscan.c
-> > @@ -40,6 +40,7 @@
-> >  #include <linux/memcontrol.h>
-> >  #include <linux/delayacct.h>
-> >  #include <linux/sysctl.h>
-> > +#include <linux/hugetlb.h>
-> >
-> >  #include <asm/tlbflush.h>
-> >  #include <asm/div64.h>
-> > @@ -508,6 +509,10 @@ void putback_lru_page(struct page *page)
-> >
-> >  	VM_BUG_ON(PageLRU(page));
-> >
-> > +	if (PageHuge(page)) {
-> > +		put_page(page);
-> > +		return;
-> > +	}
-> >  redo:
-> >  	ClearPageUnevictable(page);
-> >
-> > @@ -1112,7 +1117,9 @@ int isolate_lru_page(struct page *page)
-> >  {
-> >  	int ret = -EBUSY;
-> >
-> > -	if (PageLRU(page)) {
-> > +	if (PageHuge(page) && get_page_unless_zero(compound_head(page)))
-> > +		ret = 0;
-> > +	else if (PageLRU(page)) {
-> >  		struct zone *zone = page_zone(page);
-> >
-> >  		spin_lock_irq(&zone->lru_lock);
-> >
-> 
-> Huge pages are not on the LRU right?
 
-Yes.
+Thank you for review and comments. totally updated.
 
-> So why use the lru functions for
-> them and then not use the lru? Its a bit stranger. The caller must aware
-> of the different handling of huge pages since there is no toying around
-> with the lru. So just have the caller do a put or get page instead.
+Problem:
 
-So, you mean we should copy migrate_huge_pages() from migrate_pages() and
-make two changes on new function
-  1. unmap_and_move() -> unmap_and_move_huge_page()
-  2. putback_lru_pages() -> put_page()
-, right?
+/sys/devices/system/memory/memoryX/removable file shows whether the section
+can be offlined or not. Returns "1" if it seems removable.
+ 
+Now, the file uses a similar logic to one offline_pages() uses.
+Then, it's better to use unified logic.
+
+The biggest change from previous one is this patch just unifies is_removable()
+and offline code's logic. No functional change in offline() code.
+(is_removable code is updated to be better.)
+
+
+Brief patch description:
+1. bugfix for is_removable() check. I think this should be back ported. (updated)
+2. bugfix for callback at counting immobile pages. (no change)
+3. the unified new logic for is_remobable. (updated)
+
+Because I'm moving house, my response may be delayd.
 
 Thanks,
-Naoya Horiguchi
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
