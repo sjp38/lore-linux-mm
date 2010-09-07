@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 41FEF6B004A
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 02:56:04 -0400 (EDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8; format=flowed; delsp=yes
-Received: from eu_spt1 ([210.118.77.14]) by mailout4.w1.samsung.com
- (Sun Java(tm) System Messaging Server 6.3-8.04 (built Jul 29 2009; 32bit))
- with ESMTP id <0L8D009XM79BYL80@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 07 Sep 2010 07:56:00 +0100 (BST)
-Received: from linux.samsung.com ([106.116.38.10])
- by spt1.w1.samsung.com (iPlanet Messaging Server 5.2 Patch 2 (built Jul 14
- 2004)) with ESMTPA id <0L8D00ESL79BSK@spt1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 07 Sep 2010 07:55:59 +0100 (BST)
-Date: Tue, 07 Sep 2010 08:55:12 +0200
-From: =?utf-8?B?TWljaGHFgiBOYXphcmV3aWN6?= <m.nazarewicz@samsung.com>
-Subject: Re: [RFCv5 3/9] mm: cma: Added SysFS support
-In-reply-to: <20100907060818.GA2609@kroah.com>
-Message-id: <op.vinhiabu7p4s8u@localhost>
-Content-transfer-encoding: Quoted-Printable
-References: <cover.1283749231.git.mina86@mina86.com>
- <9771a9c07874a642bb587f4c0ebf886d720332b6.1283749231.git.mina86@mina86.com>
- <20100906210747.GA5863@kroah.com> <op.vindmsj07p4s8u@localhost>
- <20100907060818.GA2609@kroah.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 029106B004A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 03:29:30 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] big continuous memory allocator v2
+References: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 07 Sep 2010 09:29:21 +0200
+In-Reply-To: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
+	(KAMEZAWA Hiroyuki's message of "Tue, 7 Sep 2010 11:45:05 +0900")
+Message-ID: <87occa9fla.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: linux-arm-kernel@lists.infradead.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Daniel Walker <dwalker@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, Jonathan Corbet <corbet@lwn.net>, Peter Zijlstra <peterz@infradead.org>, Pawel Osciak <p.osciak@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, Mel Gorman <mel@csn.ul.ie>, Kyungmin Park <kyungmin.park@samsung.com>, Zach Pfeffer <zpfeffer@codeaurora.org>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-media@vger.kernel.org, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Sep 07, 2010 at 07:31:30AM +0200, Micha?? Nazarewicz wrote:
->> Thanks for reviewing the sysfs part.  Actually, I was never really su=
-re
->> if I shouldn't rather put this code to debugfs and you got me convinc=
-ed
->> that I should.  Sysfs somehow looked more appealing from kernel's API=
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
 
->> point of view -- things seem to be more organised in sysfs than in
->> debugfs.  It seems I'll have to port it to debugfs after all
+> This is a page allcoator based on memory migration/hotplug code.
+> passed some small tests, and maybe easier to read than previous one.
 
-On Tue, 07 Sep 2010 08:08:18 +0200, Greg KH <greg@kroah.com> wrote:
-> Yes, debugfs looks like a much better place for this.
+Maybe I'm missing context here, but what is the use case for this?
 
-I'll fix that in v6 then.
+If this works well enough the 1GB page code for x86, which currently
+only supports allocating at boot time due to the MAX_ORDER problem,
+could be moved over to runtime allocation. This would make
+GB pages a lot nicer to use.
 
->>>> +static ssize_t cma_sysfs_region_name_show(struct cma_region *reg, =
-char *page)
->>>> +{
->>>> +	return reg->name ? snprintf(page, PAGE_SIZE, "%s\n", reg->name) :=
- 0;
->>>> +}
+I think it would still need declaring a large moveable
+area at boot right? (but moveable area is better than
+prereserved memory)
 
->>> Is a name field ever really going to be bigger than a page?
+On the other hand I'm not sure the VM is really up to speed
+in managing such large areas.
 
->> For numeric values you are right that snprintf() is a bit paranoid,
->> still I see no good reason why not to use it.
+-Andi
 
-> Same goes for no good reason to use it :)
-
-I somehow prefer to always use "safe" versions of the string manipulatio=
-n
-functions -- it's better to use it everywhere then to forget it in one
-place.  Call to sprintf() is translated to vsnprintf() anyway so there's=
-
-no performance gain.
-
--- =
-
-Best regards,                                        _     _
-| Humble Liege of Serenely Enlightened Majesty of  o' \,=3D./ `o
-| Computer Science,  Micha=C5=82 "mina86" Nazarewicz       (o o)
-+----[mina86*mina86.com]---[mina86*jabber.org]----ooO--(_)--Ooo--
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
