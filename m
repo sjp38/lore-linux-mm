@@ -1,97 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A40186B004A
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 10:51:36 -0400 (EDT)
-Received: by pxi5 with SMTP id 5so1602410pxi.14
-        for <linux-mm@kvack.org>; Tue, 07 Sep 2010 07:51:36 -0700 (PDT)
-Date: Tue, 7 Sep 2010 23:51:26 +0900
+	by kanga.kvack.org (Postfix) with SMTP id 850F16B004A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 11:25:45 -0400 (EDT)
+Received: by pzk33 with SMTP id 33so2100092pzk.14
+        for <linux-mm@kvack.org>; Tue, 07 Sep 2010 08:25:43 -0700 (PDT)
+Date: Wed, 8 Sep 2010 00:25:33 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC][PATCH] big continuous memory allocator v2
-Message-ID: <20100907145126.GA4620@barrios-desktop>
-References: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
- <AANLkTintQqzx50Jp_zyKQMaAfhSEFah3HhseNmNfNMjB@mail.gmail.com>
- <20100907174743.2efa34bd.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
+ no congested BDIs or significant writeback
+Message-ID: <20100907152533.GB4620@barrios-desktop>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+ <1283770053-18833-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100907174743.2efa34bd.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1283770053-18833-4-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 07, 2010 at 05:47:43PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Tue, 7 Sep 2010 01:37:27 -0700
-> Minchan Kim <minchan.kim@gmail.com> wrote:
+On Mon, Sep 06, 2010 at 11:47:26AM +0100, Mel Gorman wrote:
+> If congestion_wait() is called with no BDIs congested, the caller will sleep
+> for the full timeout and this may be an unnecessary sleep. This patch adds
+> a wait_iff_congested() that checks congestion and only sleeps if a BDI is
+> congested or if there is a significant amount of writeback going on in an
+> interesting zone. Else, it calls cond_resched() to ensure the caller is
+> not hogging the CPU longer than its quota but otherwise will not sleep.
 > 
-> > Nice cleanup.
-> > There are some comments in below.
-> > 
-> > On Mon, Sep 6, 2010 at 7:45 PM, KAMEZAWA Hiroyuki
-> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > >
-> > > This is a page allcoator based on memory migration/hotplug code.
-> > > passed some small tests, and maybe easier to read than previous one.
-> > >
-> > > ==
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > >
-> > > This patch as a memory allocator for contiguous memory larger than MAX_ORDER.
-> > >
-> > > ??alloc_contig_pages(hint, size, node);
-> > 
-> > I have thought this patch is to be good for dumb device drivers which
-> > want big contiguous
-> > memory. So if some device driver want big memory and they can tolerate
-> > latency or fail,
-> > this is good solution, I think.
-> > And some device driver can't tolerate fail, they have to use MOVABLE zone.
-> > 
-> > For it, I hope we have a option like ALLOC_FIXED(like MAP_FIXED).
-> > That's because embedded people wanted to aware BANK of memory.
-> > So if they get free page which they don't want, it can be pointless.
-> > 
-> Okay.
+> This is aimed at reducing some of the major desktop stalls reported during
+> IO. For example, while kswapd is operating, it calls congestion_wait()
+> but it could just have been reclaiming clean page cache pages with no
+> congestion. Without this patch, it would sleep for a full timeout but after
+> this patch, it'll just call schedule() if it has been on the CPU too long.
+> Similar logic applies to direct reclaimers that are not making enough
+> progress.
 > 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  include/linux/backing-dev.h      |    2 +-
+>  include/trace/events/writeback.h |    7 ++++
+>  mm/backing-dev.c                 |   66 ++++++++++++++++++++++++++++++++++++-
+>  mm/page_alloc.c                  |    4 +-
+>  mm/vmscan.c                      |   26 ++++++++++++--
+>  5 files changed, 96 insertions(+), 9 deletions(-)
 > 
-> > In addition, I hope it can support CROSS_ZONE migration mode.
-> > Most of small system can't support swap system. So if we can't migrate
-> > anon pages into other zones, external fragment problem still happens.
-> > 
-> Now, this code migrates pages to somewhere, including crossing zone, node etc..
-> (because it just use GFP_HIGHUSER_MOVABLE)
-> 
-> > I think reclaim(ex, discard file-backed pages) can become one option to prevent
-> > the problem. But it's more cost so we can support it by calling mode.
-> > (But it could be trivial since caller should know this function is very cost)
-> > 
-> 
-> > ex) alloc_contig_pages(hint, size, node, ALLOC_FIXED|ALLOC_RECLAIM);
-> > 
-> 
-> This migration's page allocation code will cause memory reclaim and
-> kswapd wakeup if memory is in short. But hmm, there are no codes as
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 35b0074..f1b402a 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -285,7 +285,7 @@ enum {
+>  void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
+>  void set_bdi_congested(struct backing_dev_info *bdi, int sync);
+>  long congestion_wait(int sync, long timeout);
+> -
+> +long wait_iff_congested(struct zone *zone, int sync, long timeout);
+>  
+>  static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
+>  {
+> diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+> index 275d477..eeaf1f5 100644
+> --- a/include/trace/events/writeback.h
+> +++ b/include/trace/events/writeback.h
+> @@ -181,6 +181,13 @@ DEFINE_EVENT(writeback_congest_waited_template, writeback_congestion_wait,
+>  	TP_ARGS(usec_timeout, usec_delayed)
+>  );
+>  
+> +DEFINE_EVENT(writeback_congest_waited_template, writeback_wait_iff_congested,
+> +
+> +	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+> +
+> +	TP_ARGS(usec_timeout, usec_delayed)
+> +);
+> +
+>  #endif /* _TRACE_WRITEBACK_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 298975a..94b5433 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -724,6 +724,7 @@ static wait_queue_head_t congestion_wqh[2] = {
+>  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+>  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+>  	};
+> +static atomic_t nr_bdi_congested[2];
+>  
+>  void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  {
+> @@ -731,7 +732,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  	wait_queue_head_t *wqh = &congestion_wqh[sync];
+>  
+>  	bit = sync ? BDI_sync_congested : BDI_async_congested;
+> -	clear_bit(bit, &bdi->state);
+> +	if (test_and_clear_bit(bit, &bdi->state))
+> +		atomic_dec(&nr_bdi_congested[sync]);
+>  	smp_mb__after_clear_bit();
+>  	if (waitqueue_active(wqh))
+>  		wake_up(wqh);
+> @@ -743,7 +745,8 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  	enum bdi_state bit;
+>  
+>  	bit = sync ? BDI_sync_congested : BDI_async_congested;
+> -	set_bit(bit, &bdi->state);
+> +	if (!test_and_set_bit(bit, &bdi->state))
+> +		atomic_inc(&nr_bdi_congested[sync]);
+>  }
+>  EXPORT_SYMBOL(set_bdi_congested);
+>  
+> @@ -774,3 +777,62 @@ long congestion_wait(int sync, long timeout)
+>  }
+>  EXPORT_SYMBOL(congestion_wait);
+>  
+> +/**
+> + * congestion_wait - wait for a backing_dev to become uncongested
+      wait_iff_congested
 
-Yes. But it's useless. That's because it's not a zone/node we want to reclaim.
-The zone we want to reclaim is not alloc failed zone but the zone which include 
-alloc_contig_pages's hint address. 
+> + * @zone: A zone to consider the number of being being written back from
+> + * @sync: SYNC or ASYNC IO
+> + * @timeout: timeout in jiffies
+> + *
+> + * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
+> + * write congestion.  If no backing_devs are congested then the number of
+> + * writeback pages in the zone are checked and compared to the inactive
+> + * list. If there is no sigificant writeback or congestion, there is no point
+                                                and 
 
-> 
->  reclaim_memory_within(start, end).
-> 
-> But I guess if there are LRU pages within the range which cannot be migrated,
-> they can't be dropped. In another consideration, 
-> 
->   shrink_slab_within(start, end)
-> will be able to make success-rate better. (and this is good for memory hotplug, too)
+> + * in sleeping but cond_resched() is called in case the current process has
+> + * consumed its CPU quota.
+> + */
+> +long wait_iff_congested(struct zone *zone, int sync, long timeout)
+> +{
+> +	long ret;
+> +	unsigned long start = jiffies;
+> +	DEFINE_WAIT(wait);
+> +	wait_queue_head_t *wqh = &congestion_wqh[sync];
+> +
+> +	/*
+> +	 * If there is no congestion, check the amount of writeback. If there
+> +	 * is no significant writeback and no congestion, just cond_resched
+> +	 */
+> +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
+> +		unsigned long inactive, writeback;
+> +
+> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+> +				zone_page_state(zone, NR_INACTIVE_ANON);
+> +		writeback = zone_page_state(zone, NR_WRITEBACK);
+> +
+> +		/*
+> +		 * If less than half the inactive list is being written back,
+> +		 * reclaim might as well continue
+> +		 */
+> +		if (writeback < inactive / 2) {
 
-And it can help normal external memory fragement, too. 
+I am not sure this is best.
 
-> 
-> I'll start from adding ALLOC_FIXED.
+1. Without considering various speed class storage, could we fix it as half of inactive?
+2. Isn't there any writeback throttling on above layer? Do we care of it in here?
 
-I am looking forward to seeing your next version. :)
-Thanks, Kame. 
+Just out of curiosity. 
+
 -- 
 Kind regards,
 Minchan Kim
