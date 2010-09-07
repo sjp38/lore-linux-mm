@@ -1,102 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2CF2A6B004A
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 09:16:16 -0400 (EDT)
-Date: Tue, 7 Sep 2010 15:16:12 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] memory hotplug: use unified logic for is_removable
- and offline_pages
-Message-ID: <20100907131612.GA23617@tiehlicka.suse.cz>
-References: <20100906144019.946d3c49.kamezawa.hiroyu@jp.fujitsu.com>
- <20100906144716.dfd6d536.kamezawa.hiroyu@jp.fujitsu.com>
- <20100906093042.GB23089@tiehlicka.suse.cz>
- <AANLkTikOi6BqXs2wiLetFP9OgYtXD+vbC+Ez8a7z0dcU@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D0546B004A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 09:34:44 -0400 (EDT)
+Date: Tue, 7 Sep 2010 15:34:29 +0200
+From: Johannes Stezenbach <js@sig21.net>
+Subject: block cache replacement strategy?
+Message-ID: <20100907133429.GB3430@sig21.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AANLkTikOi6BqXs2wiLetFP9OgYtXD+vbC+Ez8a7z0dcU@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, fengguang.wu@intel.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, andi.kleen@intel.com, Dave Hansen <dave@linux.vnet.ibm.com>
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 06-09-10 22:30:43, Hiroyuki Kamezawa wrote:
-> 2010/9/6 Michal Hocko <mhocko@suse.cz>:
-> > On Mon 06-09-10 14:47:16, KAMEZAWA Hiroyuki wrote:
-[...]
-> >> Changelog: 2010/09/06
-> >> ?- added comments.
-> >> ?- removed zone->lock.
-> >> ?- changed the name of the function to be is_pageblock_removable_async().
-> >> ? ?because I removed the zone->lock.
-> >
-> > wouldn't be __is_pageblock_removable a better name? _async suffix is
-> > usually used for asynchronous operations and this is just a function
-> > withtout locks.
-> >
-> rename as _is_pagebloc_removable_nolock().
+Hi,
 
-Sounds good as well.
+during some simple disk read throughput testing I observed
+caching behaviour that doesn't seem right.  The machine
+has 2G of RAM and AMD Athlon 4850e, x86_64 kernel but 32bit
+userspace, Linux 2.6.35.4.  It seems that contents of the
+block cache are not evicted to make room for other blocks.
+(Or something like that, I have no real clue about this.)
 
-[...]
-> >> +bool is_pageblock_removable_async(struct page *page)
-> >> +{
-> >> + ? ? struct zone *zone = page_zone(page);
-> >> + ? ? unsigned long flags;
-> >> + ? ? int num;
-> >> + ? ? /* Don't take zone->lock interntionally. */
-> >
-> > Could you add the reason?
-> > Don't take zone-> lock intentionally because we are called from the
-> > userspace (sysfs interface).
-> >
-> I don't like to assume caller context which will limit the callers.
-> 
-> /* holding zone->lock or not is caller's job. */
+Since this is a rather artificial test I'm not too worried,
+but it looks strange to me so I thought I better report it.
 
-Sure, but I think that if you explicitely mention that the lock is not
-held intentionaly then it would be good to provide some reasonining.
 
-> 
-> 
-> > [...]
-> >> ? ? ? /* All pageblocks in the memory block are likely to be hot-removable */
-> >> Index: kametest/include/linux/memory_hotplug.h
-> >> ===================================================================
-> >> --- kametest.orig/include/linux/memory_hotplug.h
-> >> +++ kametest/include/linux/memory_hotplug.h
-> >> @@ -69,6 +69,7 @@ extern void online_page(struct page *pag
-> >> ?/* VM interface that may be used by firmware interface */
-> >> ?extern int online_pages(unsigned long, unsigned long);
-> >> ?extern void __offline_isolated_pages(unsigned long, unsigned long);
-> >
-> > #ifdef CONFIG_HOTREMOVE
-> >
-> >> +extern bool is_pageblock_removable_async(struct page *page);
-> >
-> > #else
-> > #define is_pageblock_removable_async(p) 0
-> > #endif
-> > ?
-> 
-> Is this function is called even if HOTREMOVE is off ?
-> If so, the caller is buggy. I'll check tomorrow.
+zzz:~# echo 3 >/proc/sys/vm/drop_caches 
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.9454 s, 75.2 MB/s
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 0.92799 s, 1.1 GB/s
 
-It is not, but then it should be defined under CONFIG_HOTREMOVE without
-#else part, shoudln't it?
+OK, seems like the blocks are cached. But:
 
-> 
-> Thanks,
-> -Kame
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.8375 s, 75.8 MB/s
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.8429 s, 75.7 MB/s
 
-Thanks!
--- 
-Michal Hocko
-L3 team 
-SUSE LINUX s.r.o.
-Lihovarska 1060/12
-190 00 Praha 9    
-Czech Republic
+Even if I let 15min pass and repeat the dd command
+several times, I cannot see any caching effects, it
+stays at ~75 MB/s.
+
+zzz:~# cat /proc/meminfo 
+MemTotal:        1793272 kB
+MemFree:           15216 kB
+Buffers:         1378820 kB
+Cached:            20080 kB
+SwapCached:            0 kB
+Active:           792720 kB
+Inactive:         758832 kB
+Active(anon):      91716 kB
+Inactive(anon):    64652 kB
+Active(file):     701004 kB
+Inactive(file):   694180 kB
+
+But then:
+
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 5.23983 s, 200 MB/s
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 0.908284 s, 1.2 GB/s
+
+zzz:~# cat /proc/meminfo 
+MemTotal:        1793272 kB
+MemFree:           16168 kB
+Buffers:         1377308 kB
+Cached:            20660 kB
+SwapCached:            0 kB
+Active:          1140384 kB
+Inactive:         410236 kB
+Active(anon):      91716 kB
+Inactive(anon):    64652 kB
+Active(file):    1048668 kB
+Inactive(file):   345584 kB
+
+
+And finally:
+
+zzz:~# echo 3 >/proc/sys/vm/drop_caches
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.948 s, 75.2 MB/s
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 0.985031 s, 1.1 GB/s
+
+
+Now these blocks get cached but then the others don't:
+
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.9394 s, 75.2 MB/s
+zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+1000+0 records in
+1000+0 records out
+1048576000 bytes (1.0 GB) copied, 13.9403 s, 75.2 MB/s
+
+
+Best Regards,
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
