@@ -1,98 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB1E6B004A
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 04:52:54 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o878qkDM027903
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 55C236B004A
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 05:09:04 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o87990r6007649
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 7 Sep 2010 17:52:46 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F27F45DE50
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 17:52:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C0A145DE4E
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 17:52:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 068A81DB8048
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 17:52:46 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B4D481DB804E
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 17:52:45 +0900 (JST)
-Date: Tue, 7 Sep 2010 17:47:43 +0900
+	Tue, 7 Sep 2010 18:09:01 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 72DC045DE4F
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 18:09:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CC9845DE4C
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 18:09:00 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 32B271DB8013
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 18:09:00 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DFCF31DB8014
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 18:08:56 +0900 (JST)
+Date: Tue, 7 Sep 2010 18:03:54 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH] big continuous memory allocator v2
-Message-Id: <20100907174743.2efa34bd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTintQqzx50Jp_zyKQMaAfhSEFah3HhseNmNfNMjB@mail.gmail.com>
+Message-Id: <20100907180354.a8dd5669.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100907104635.2a02a1ca@basil.nowhere.org>
 References: <20100907114505.fc40ea3d.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTintQqzx50Jp_zyKQMaAfhSEFah3HhseNmNfNMjB@mail.gmail.com>
+	<87occa9fla.fsf@basil.nowhere.org>
+	<20100907172559.496554d8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100907104635.2a02a1ca@basil.nowhere.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Sep 2010 01:37:27 -0700
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Tue, 7 Sep 2010 10:46:35 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-> Nice cleanup.
-> There are some comments in below.
+> On Tue, 7 Sep 2010 17:25:59 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> On Mon, Sep 6, 2010 at 7:45 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > This is a page allcoator based on memory migration/hotplug code.
-> > passed some small tests, and maybe easier to read than previous one.
-> >
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >
-> > This patch as a memory allocator for contiguous memory larger than MAX_ORDER.
-> >
-> > A alloc_contig_pages(hint, size, node);
+> > On Tue, 07 Sep 2010 09:29:21 +0200
+> > Andi Kleen <andi@firstfloor.org> wrote:
+> > 
+> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> > > 
+> > > > This is a page allcoator based on memory migration/hotplug code.
+> > > > passed some small tests, and maybe easier to read than previous
+> > > > one.
+> > > 
+> > > Maybe I'm missing context here, but what is the use case for this?
+> > > 
+> > 
+> > I hear some drivers want to allocate xxMB of continuous area.(camera?)
+> > Maybe embeded guys can answer the question.
 > 
-> I have thought this patch is to be good for dumb device drivers which
-> want big contiguous
-> memory. So if some device driver want big memory and they can tolerate
-> latency or fail,
-> this is good solution, I think.
-> And some device driver can't tolerate fail, they have to use MOVABLE zone.
-> 
-> For it, I hope we have a option like ALLOC_FIXED(like MAP_FIXED).
-> That's because embedded people wanted to aware BANK of memory.
-> So if they get free page which they don't want, it can be pointless.
-> 
-Okay.
-
-
-> In addition, I hope it can support CROSS_ZONE migration mode.
-> Most of small system can't support swap system. So if we can't migrate
-> anon pages into other zones, external fragment problem still happens.
-> 
-Now, this code migrates pages to somewhere, including crossing zone, node etc..
-(because it just use GFP_HIGHUSER_MOVABLE)
-
-> I think reclaim(ex, discard file-backed pages) can become one option to prevent
-> the problem. But it's more cost so we can support it by calling mode.
-> (But it could be trivial since caller should know this function is very cost)
+> Ok what I wanted to say -- assuming you can make this work
+> nicely, and the delays (swap storms?) likely caused by this are not
+> too severe, it would be interesting for improving the 1GB pages on x86.
 > 
 
-> ex) alloc_contig_pages(hint, size, node, ALLOC_FIXED|ALLOC_RECLAIM);
+Oh, I didn't consider that. Hmm. If x86 really wants to support 1GB page,
+MAX_ORDER should be raised. (I'm sorry if it was already disccused.)
+
+
+> This would be a major use case and probably be enough
+> to keep the code around.
+> 
+> But it depends on how well it works.
+> 
+Sure.
+
+> e.g. when the zone is already fully filled how long
+> does the allocation of 1GB take?
+> 
+Maybe not very quick, even slow.
+
+> How about when parallel programs are allocating/freeing
+> in it too?
+> 
+This code doesn't assume that. I wonder I should add mutex because this code
+generates IPI for draining some per-cpu lists.
+
+I think 1GB pages should be preallocated as current hugepage does.
+
+
+> What's the worst case delay under stress?
+> 
+memory offline itself is robust against stress because it make
+pageblock ISOLATED. But memory allocation of 1GB is problem.
+I have an idea (see below).
+
+> Does it cause swap storms?
+> 
+Maybe same as allocating 1GB of memory when memory is full.
+It's LRU matter.
+
+
+> One issue is also that it would be good to be able to decide
+> in advance if the OOM killer is likely triggered (and if yes
+> reject the allocation in the first place). 
 > 
 
-This migration's page allocation code will cause memory reclaim and
-kswapd wakeup if memory is in short. But hmm, there are no codes as
+Checking the amount of memory and swap before starts ? 
+It sounds nice. I'd like to add something.
 
- reclaim_memory_within(start, end).
+Or changing my patche's logic as..
 
-But I guess if there are LRU pages within the range which cannot be migrated,
-they can't be dropped. In another consideration, 
+  1. allocates required migration target pages (of 1GB)
+  2. start migration to allocated pages.
+  3. create a big page. 
 
-  shrink_slab_within(start, end)
-will be able to make success-rate better. (and this is good for memory hotplug, too)
-
-I'll start from adding ALLOC_FIXED.
+Then, we can use some GFP_XXXX at (1) and can do some tuning as usual
+vm codes.
 
 Thanks,
 -Kame
