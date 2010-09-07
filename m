@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 952686B004A
-	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 22:04:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o87249OS028697
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 7 Sep 2010 11:04:09 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 97C5045DE4E
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 11:04:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 528DD45DE51
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 11:04:08 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E80FE18003
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 11:04:08 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DAC2D1DB803E
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 11:04:07 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 13/14] mm: mempolicy: Check return code of check_range
-In-Reply-To: <alpine.DEB.2.00.1009062058270.1485@router.home>
-References: <20100906093610.C8B5.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009062058270.1485@router.home>
-Message-Id: <20100907110254.C8F2.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A3E9F6B004A
+	for <linux-mm@kvack.org>; Mon,  6 Sep 2010 22:36:26 -0400 (EDT)
+Date: Mon, 6 Sep 2010 19:34:31 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [RFCv5 0/9] CMA + VCMM integration
+Message-ID: <20100907023431.GB11972@kroah.com>
+References: <cover.1283749231.git.mina86@mina86.com> <20100906210905.GB5863@kroah.com> <op.vim2x8i87p4s8u@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  7 Sep 2010 11:04:07 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <op.vim2x8i87p4s8u@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Kulikov Vasiliy <segooon@gmail.com>, kernel-janitors@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Micha?? Nazarewicz <m.nazarewicz@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-media@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Daniel Walker <dwalker@codeaurora.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Hans Verkuil <hverkuil@xs4all.nl>, Jonathan Corbet <corbet@lwn.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Kyungmin Park <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan.kim@gmail.com>, Pawel Osciak <p.osciak@samsung.com>, Peter Zijlstra <peterz@infradead.org>, Russell King <linux@arm.linux.org.uk>, Zach Pfeffer <zpfeffer@codeaurora.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 6 Sep 2010, KOSAKI Motohiro wrote:
-> 
-> > I think both case is not happen in real. Am I overlooking anything?
-> 
-> Its good to check the return code regardless. There is a lot of tinkering
-> going on with that code.
+On Tue, Sep 07, 2010 at 03:40:46AM +0200, Micha?? Nazarewicz wrote:
+> On Mon, 06 Sep 2010 23:09:05 +0200, Greg KH <greg@kroah.com> wrote:
+>
+>> On Mon, Sep 06, 2010 at 08:33:50AM +0200, Michal Nazarewicz wrote:
+>>> Hello everyone,
+>>>
+>>> This patchset introduces a draft of a redesign of Zach Pfeffer's
+>>> VCMM.
+>>
+>> What is a VCMM?
+>
+> Virtual Contiguous Memory Manager.  The version posted by Zach can
+> be found at: <http://article.gmane.org/gmane.linux.kernel.mm/50090>.
+> It is an API for managing IO MMU and IO MMU mappings.
+>
+>> What is a CMA?
+>
+> Contiguous Memory Manager.  The v4 version can be found at
+> <http://marc.info/?l=linux-mm&m=128229799415817&w=2>.  It is an API for
+> allocating large, physically contiguous blocks of memory.
+>
+> I haven't expected that anyone who haven't already participated in the
+> discussion about CMA and VCMM will get interested by this patchset
+> so I was a bit vague in the cover letter.  Sorry about that.
+>
+>>> Not all of the functionality of the original VCMM has been
+>>> ported into this patchset.  This is mostly meant as RFC.  Moreover,
+>>> the code for VCMM implementation in this RFC has not been tested.
+>
+>> If you haven't even tested it, why should we review it?
+>
+> Ignore the code then and look just at the documentation, please.
+> I wanted to post what I have to receive comments about the general
+> idea and not necessarily the code itself.  Code is just a mean to show
+> how I see the implementation of the idea described in the documentation.
+> Because of all that, I marked the patchset as a RFC rather than a PATCH.
 
-OK. so, I'm convinced this is not -stable material.
+Oops, I looked at the code, sorry :)
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
