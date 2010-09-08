@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 756BF6B0078
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:28:36 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BC26B007B
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:28:41 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 01/10] hugetlb: fix metadata corruption in hugetlb_fault()
-Date: Wed,  8 Sep 2010 10:19:32 +0900
-Message-Id: <1283908781-13810-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 02/10] hugetlb: add allocate function for hugepage migration
+Date: Wed,  8 Sep 2010 10:19:33 +0900
+Message-Id: <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,63 +13,197 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Since the PageHWPoison() check is for avoiding hwpoisoned page remained
-in pagecache mapping to the process, it should be done in "found in pagecache"
-branch, not in the common path.
-Otherwise, metadata corruption occurs if memory failure happens between
-alloc_huge_page() and lock_page() because page fault fails with metadata
-changes remained (such as refcount, mapcount, etc.)
+We can't use existing hugepage allocation functions to allocate hugepage
+for page migration, because page migration can happen asynchronously with
+the running processes and page migration users should call the allocation
+function with physical addresses (not virtual addresses) as arguments.
 
-This patch moves the check to "found in pagecache" branch and fix the problem.
+ChangeLog since v3:
+- unify alloc_buddy_huge_page() and alloc_buddy_huge_page_node()
 
 ChangeLog since v2:
-- remove retry check in "new allocation" path.
-- make description more detailed
-- change patch name from "HWPOISON, hugetlb: move PG_HWPoison bit check"
+- remove unnecessary get/put_mems_allowed() (thanks to David Rientjes)
+
+ChangeLog since v1:
+- add comment on top of alloc_huge_page_no_vma()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/hugetlb.c |   21 +++++++++------------
- 1 files changed, 9 insertions(+), 12 deletions(-)
+ include/linux/hugetlb.h |    3 ++
+ mm/hugetlb.c            |   79 ++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 57 insertions(+), 25 deletions(-)
 
+diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
+index f479700..0b73c53 100644
+--- v2.6.36-rc2/include/linux/hugetlb.h
++++ v2.6.36-rc2/include/linux/hugetlb.h
+@@ -228,6 +228,8 @@ struct huge_bootmem_page {
+ 	struct hstate *hstate;
+ };
+ 
++struct page *alloc_huge_page_node(struct hstate *h, int nid);
++
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
+ 
+@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
+ 
+ #else
+ struct hstate {};
++#define alloc_huge_page_node(h, nid) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
 diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index cc5be78..6871b41 100644
+index 6871b41..f526228 100644
 --- v2.6.36-rc2/mm/hugetlb.c
 +++ v2.6.36-rc2/mm/hugetlb.c
-@@ -2518,22 +2518,19 @@ retry:
- 			hugepage_add_new_anon_rmap(page, vma, address);
- 		}
- 	} else {
-+		/*
-+		 * If memory error occurs between mmap() and fault, some process
-+		 * don't have hwpoisoned swap entry for errored virtual address.
-+		 * So we need to block hugepage fault by PG_hwpoison bit check.
-+		 */
-+		if (unlikely(PageHWPoison(page))) {
-+			ret = VM_FAULT_HWPOISON;
-+			goto backout_unlocked;
-+		}
- 		page_dup_rmap(page);
- 	}
+@@ -466,11 +466,23 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
+ 	h->free_huge_pages_node[nid]++;
+ }
  
- 	/*
--	 * Since memory error handler replaces pte into hwpoison swap entry
--	 * at the time of error handling, a process which reserved but not have
--	 * the mapping to the error hugepage does not have hwpoison swap entry.
--	 * So we need to block accesses from such a process by checking
--	 * PG_hwpoison bit here.
--	 */
--	if (unlikely(PageHWPoison(page))) {
--		ret = VM_FAULT_HWPOISON;
--		goto backout_unlocked;
--	}
++static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	if (list_empty(&h->hugepage_freelists[nid]))
++		return NULL;
++	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
++	list_del(&page->lru);
++	h->free_huge_pages--;
++	h->free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+ {
+-	int nid;
+ 	struct page *page = NULL;
+ 	struct mempolicy *mpol;
+ 	nodemask_t *nodemask;
+@@ -496,19 +508,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						MAX_NR_ZONES - 1, nodemask) {
+-		nid = zone_to_nid(zone);
+-		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
+-		    !list_empty(&h->hugepage_freelists[nid])) {
+-			page = list_entry(h->hugepage_freelists[nid].next,
+-					  struct page, lru);
+-			list_del(&page->lru);
+-			h->free_huge_pages--;
+-			h->free_huge_pages_node[nid]--;
 -
--	/*
- 	 * If we are going to COW a private mapping later, we examine the
- 	 * pending reservations for this page now. This will ensure that
- 	 * any allocations necessary to record that reservation occur outside
+-			if (!avoid_reserve)
+-				decrement_hugepage_resv_vma(h, vma);
+-
+-			break;
++		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
++			page = dequeue_huge_page_node(h, zone_to_nid(zone));
++			if (page) {
++				if (!avoid_reserve)
++					decrement_hugepage_resv_vma(h, vma);
++				break;
++			}
+ 		}
+ 	}
+ err:
+@@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+ 	return ret;
+ }
+ 
+-static struct page *alloc_buddy_huge_page(struct hstate *h,
+-			struct vm_area_struct *vma, unsigned long address)
++static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+ {
+ 	struct page *page;
+-	unsigned int nid;
++	unsigned int r_nid;
+ 
+ 	if (h->order >= MAX_ORDER)
+ 		return NULL;
+@@ -812,9 +817,14 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+-					__GFP_REPEAT|__GFP_NOWARN,
+-					huge_page_order(h));
++	if (nid == NUMA_NO_NODE)
++		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
++				   __GFP_REPEAT|__GFP_NOWARN,
++				   huge_page_order(h));
++	else
++		page = alloc_pages_exact_node(nid,
++			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
++			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
+ 
+ 	if (page && arch_prepare_hugepage(page)) {
+ 		__free_pages(page, huge_page_order(h));
+@@ -829,13 +839,13 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 		 */
+ 		put_page_testzero(page);
+ 		VM_BUG_ON(page_count(page));
+-		nid = page_to_nid(page);
++		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		/*
+ 		 * We incremented the global counters already
+ 		 */
+-		h->nr_huge_pages_node[nid]++;
+-		h->surplus_huge_pages_node[nid]++;
++		h->nr_huge_pages_node[r_nid]++;
++		h->surplus_huge_pages_node[r_nid]++;
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC);
+ 	} else {
+ 		h->nr_huge_pages--;
+@@ -848,6 +858,25 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ }
+ 
+ /*
++ * This allocation function is useful in the context where vma is irrelevant.
++ * E.g. soft-offlining uses this function because it only cares physical
++ * address of error page.
++ */
++struct page *alloc_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	spin_lock(&hugetlb_lock);
++	page = dequeue_huge_page_node(h, nid);
++	spin_unlock(&hugetlb_lock);
++
++	if (!page)
++		page = alloc_buddy_huge_page(h, nid);
++
++	return page;
++}
++
++/*
+  * Increase the hugetlb pool such that it can accomodate a reservation
+  * of size 'delta'.
+  */
+@@ -871,7 +900,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = alloc_buddy_huge_page(h, NULL, 0);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+ 			/*
+ 			 * We were not able to allocate enough pages to
+@@ -1052,7 +1081,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page) {
+-		page = alloc_buddy_huge_page(h, vma, addr);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+ 			hugetlb_put_quota(inode->i_mapping, chg);
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
 -- 
 1.7.2.2
 
