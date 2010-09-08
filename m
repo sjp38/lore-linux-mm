@@ -1,105 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C367E6B0047
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 23:13:11 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o883D8ZY018890
-	for <linux-mm@kvack.org>; Tue, 7 Sep 2010 20:13:08 -0700
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by hpaq1.eem.corp.google.com with ESMTP id o883D6iG020192
-	for <linux-mm@kvack.org>; Tue, 7 Sep 2010 20:13:07 -0700
-Received: by pwj6 with SMTP id 6so3285439pwj.0
-        for <linux-mm@kvack.org>; Tue, 07 Sep 2010 20:13:06 -0700 (PDT)
-Date: Tue, 7 Sep 2010 20:12:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2][BUGFIX] oom: remove totalpage normalization from
- oom_badness()
-In-Reply-To: <20100907112756.C904.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1009071954080.4790@chino.kir.corp.google.com>
-References: <20100830113007.525A.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011436390.29305@chino.kir.corp.google.com> <20100907112756.C904.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C6DA76B0078
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 23:14:33 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o883EVZN014774
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 8 Sep 2010 12:14:31 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6480645DE55
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 12:14:31 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4399A45DE4F
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 12:14:31 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 23BC11DB803C
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 12:14:31 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DAFD61DB803A
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 12:14:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 0/9] Reduce latencies and improve overall reclaim efficiency v1
+In-Reply-To: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+Message-Id: <20100908115807.C916.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  8 Sep 2010 12:14:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Sep 2010, KOSAKI Motohiro wrote:
-
-> Of cource, there is simply just zero justification. Who ask google usage?
-> Every developer have their own debugging and machine administate patches.
-> Don't you concern why we don't push them into upstream? only one usage is
-> not good reason to make kernel bloat. Need to generalize.
+> There have been numerous reports of stalls that pointed at the problem being
+> somewhere in the VM. There are multiple roots to the problems which means
+> dealing with any of the root problems in isolation is tricky to justify on
+> their own and they would still need integration testing. This patch series
+> gathers together three different patch sets which in combination should
+> tackle some of the root causes of latency problems being reported.
 > 
-
-/proc/pid/oom_adj was introduced before cpusets or memcg, so we were 
-dealing with a static amount of system resources that would not change out 
-from underneath an application.  Although that's not a defense of using a 
-bitshift on a heuristic that included many arbitrary selections, it was 
-reasonable to make it only a scalar that didn't consider the amount of 
-resources that an application was allowed to access.
-
-As time moved on, cgroups such as cpusets and memcg were introduced (and 
-mempolicies became much more popular as larger NUMA machines became more 
-popular in the industry) that bound or restricted the amount of memory 
-that an aggregate of tasks could access.  Each of those methods may change 
-the amount of memory resources that an application has available to it at 
-any time without knowledge of that application, job scheduler, or system 
-daemon.  Therefore, it's important to define a more powerful oom_adj 
-mechanism that can properly attribute the oom killing priority of a task 
-in comparison to others that are bound to the same resources without 
-causing a regression on users who don't use those mechanisms that allow 
-that working set size to be dynamic.  That's what oom_score_adj does.
-
-> > We are certainly looking forward to using this when 2.6.36 is released 
-> > since we work with both cpusets and memcg.
+> The first patch improves vmscan latency by tracking when pages get reclaimed
+> by shrink_inactive_list. For this series, the most important results is
+> being able to calculate the scanning/reclaim ratio as a measure of the
+> amount of work being done by page reclaim.
 > 
-> Could you please be serious? We are not making a sand castle, we are making
-> a kernel. You have to understand the difference of them. Zero user feature
-> trial don't have any good reason to make userland breakage.
+> Patches 2 and 3 account for the time spent in congestion_wait() and avoids
+> calling going to sleep on congestion when it is unnecessary. This is expected
+> to reduce stalls in situations where the system is under memory pressure
+> but not due to congestion.
 > 
+> Patches 4-8 were originally developed by Kosaki Motohiro but reworked for
+> this series. It has been noted that lumpy reclaim is far too aggressive and
+> trashes the system somewhat. As SLUB uses high-order allocations, a large
+> cost incurred by lumpy reclaim will be noticeable. It was also reported
+> during transparent hugepage support testing that lumpy reclaim was trashing
+> the system and these patches should mitigate that problem without disabling
+> lumpy reclaim.
 
-With respect to memory isolation and the oom killer, we want to follow the 
-upstream behavior as much as possible.  We are looking forward to this 
-interface being available in 2.6.36 and will begin to actively use it once 
-it is released.  So although there is no existing user today, there will 
-be when 2.6.36 is released.  I also hope that other users of cpusets or 
-memcg will find it helpful to define oom killing priority with a unit 
-rather than a bitshift and that understands the dynamic nature of resource 
-isolation that they both imply.
+Wow, I'm sorry my lazyness bother you. I'll join to test this patch series
+ASAP and take a feedback soon.
 
-> > Basically, it comes down to this: few users actually tune their oom 
-> > killing priority, period.  That's partly because they accept the oom 
-> > killer's heuristics to kill a memory-hogging task or use panic_on_oom, or 
-> > because the old interface, /proc/pid/oom_adj, had no unit and no logical 
-> > way of using it other than polarizing it (either +15 or -17).
-> 
-> Unrelated. We already have oom notifier. we have no reason to add new knob
-> even though oom_adj is suck. We are not necessary to break userland application.
-> 
 
-There is no generic oom notifier solution other than what is implemented 
-in the memory controller, and that comes at a cost of roughly 1% of system 
-RAM since that's the amount of metadata that the memcg requires.  
-oom_score_adj works for cpusets, memcg, and mempolicies.
 
-Now you may insist that the fact that very few users actually use 
-/proc/pid/oom_adj for _anything_ other than -17, -15 or +15 is unrelated, 
-but in fact it provides a very nice context for your objections that it 
-introduces all sorts of regressions and bugs that will break everybody's 
-system.  Show me a single example of an application that tunes its oom_adj 
-value based on any formula whatsoever that includes its own anticipated 
-RAM usage or system capacity (which is required to make the bitshift make 
-any sense).
-
-> More importantly, We already have oom notifier. and It is most powerful
-> infrastructure. It can be constructed any oom policy freely. It's not 
-> restricted kernel implementaion.
-> 
-
-A generic oom notifier would be very nice to have in the kernel that 
-isn't dependent on memory controller.  Unfortunately, many users cannot 
-incur the 1% of memory penalty that it comes with.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
