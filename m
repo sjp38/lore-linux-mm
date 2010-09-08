@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4A26B007D
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:29:23 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 604EB6B007E
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:29:34 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 05/10] HWPOISON, hugetlb: add free check to dequeue_hwpoison_huge_page()
-Date: Wed,  8 Sep 2010 10:19:36 +0900
-Message-Id: <1283908781-13810-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 06/10] hugetlb: move refcounting in hugepage allocation inside hugetlb_lock
+Date: Wed,  8 Sep 2010 10:19:37 +0900
+Message-Id: <1283908781-13810-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,111 +13,111 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This check is necessary to avoid race between dequeue and allocation,
-which can cause a free hugepage to be dequeued twice and get kernel unstable.
+Currently alloc_huge_page() raises page refcount outside hugetlb_lock.
+but it causes race when dequeue_hwpoison_huge_page() runs concurrently
+with alloc_huge_page().
+To avoid it, this patch moves set_page_refcounted() in hugetlb_lock.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/hugetlb.h |    4 ++--
- mm/hugetlb.c            |   29 +++++++++++++++++++++++++----
- mm/memory-failure.c     |    6 ++++--
- 3 files changed, 31 insertions(+), 8 deletions(-)
+ mm/hugetlb.c |   35 +++++++++++++----------------------
+ 1 files changed, 13 insertions(+), 22 deletions(-)
 
-diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-index 9e51f77..796f30e 100644
---- v2.6.36-rc2/include/linux/hugetlb.h
-+++ v2.6.36-rc2/include/linux/hugetlb.h
-@@ -43,7 +43,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						struct vm_area_struct *vma,
- 						int acctflags);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
--void __isolate_hwpoisoned_huge_page(struct page *page);
-+int dequeue_hwpoisoned_huge_page(struct page *page);
- void copy_huge_page(struct page *dst, struct page *src);
- 
- extern unsigned long hugepages_treat_as_movable;
-@@ -102,7 +102,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
--#define __isolate_hwpoisoned_huge_page(page)	0
-+#define dequeue_hwpoisoned_huge_page(page)	0
- static inline void copy_huge_page(struct page *dst, struct page *src)
- {
- }
 diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index 55f3e2d..8948abc 100644
+index 8948abc..adb5dfa 100644
 --- v2.6.36-rc2/mm/hugetlb.c
 +++ v2.6.36-rc2/mm/hugetlb.c
-@@ -2953,18 +2953,39 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	hugetlb_acct_memory(h, -(chg - freed));
- }
- 
-+/* Should be called in hugetlb_lock */
-+static int is_hugepage_on_freelist(struct page *hpage)
-+{
-+	struct page *page;
-+	struct page *tmp;
-+	struct hstate *h = page_hstate(hpage);
-+	int nid = page_to_nid(hpage);
-+
-+	list_for_each_entry_safe(page, tmp, &h->hugepage_freelists[nid], lru)
-+		if (page == hpage)
-+			return 1;
-+	return 0;
-+}
-+
-+#ifdef CONFIG_MEMORY_FAILURE
- /*
-  * This function is called from memory failure code.
-  * Assume the caller holds page lock of the head page.
-  */
--void __isolate_hwpoisoned_huge_page(struct page *hpage)
-+int dequeue_hwpoisoned_huge_page(struct page *hpage)
- {
- 	struct hstate *h = page_hstate(hpage);
- 	int nid = page_to_nid(hpage);
-+	int ret = -EBUSY;
+@@ -509,6 +509,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+ 		return NULL;
+ 	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
+ 	list_del(&page->lru);
++	set_page_refcounted(page);
+ 	h->free_huge_pages--;
+ 	h->free_huge_pages_node[nid]--;
+ 	return page;
+@@ -868,12 +869,6 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
  
  	spin_lock(&hugetlb_lock);
--	list_del(&hpage->lru);
--	h->free_huge_pages--;
--	h->free_huge_pages_node[nid]--;
-+	if (is_hugepage_on_freelist(hpage)) {
-+		list_del(&hpage->lru);
-+		h->free_huge_pages--;
-+		h->free_huge_pages_node[nid]--;
-+		ret = 0;
-+	}
+ 	if (page) {
+-		/*
+-		 * This page is now managed by the hugetlb allocator and has
+-		 * no users -- drop the buddy allocator's reference.
+-		 */
+-		put_page_testzero(page);
+-		VM_BUG_ON(page_count(page));
+ 		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		/*
+@@ -936,16 +931,13 @@ retry:
  	spin_unlock(&hugetlb_lock);
-+	return ret;
- }
-+#endif
-diff --git v2.6.36-rc2/mm/memory-failure.c v2.6.36-rc2/mm/memory-failure.c
-index 9c26eec..c67f801 100644
---- v2.6.36-rc2/mm/memory-failure.c
-+++ v2.6.36-rc2/mm/memory-failure.c
-@@ -698,6 +698,7 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
-  */
- static int me_huge_page(struct page *p, unsigned long pfn)
- {
-+	int res = 0;
- 	struct page *hpage = compound_head(p);
- 	/*
- 	 * We can safely recover from error on free or reserved (i.e.
-@@ -710,8 +711,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
- 	 * so there is no race between isolation and mapping/unmapping.
- 	 */
- 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
--		__isolate_hwpoisoned_huge_page(hpage);
--		return RECOVERED;
-+		res = dequeue_hwpoisoned_huge_page(hpage);
-+		if (!res)
-+			return RECOVERED;
+ 	for (i = 0; i < needed; i++) {
+ 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+-		if (!page) {
++		if (!page)
+ 			/*
+ 			 * We were not able to allocate enough pages to
+ 			 * satisfy the entire reservation so we free what
+ 			 * we've allocated so far.
+ 			 */
+-			spin_lock(&hugetlb_lock);
+-			needed = 0;
+ 			goto free;
+-		}
+ 
+ 		list_add(&page->lru, &surplus_list);
  	}
- 	return DELAYED;
+@@ -972,31 +964,31 @@ retry:
+ 	needed += allocated;
+ 	h->resv_huge_pages += delta;
+ 	ret = 0;
+-free:
++
++	spin_unlock(&hugetlb_lock);
+ 	/* Free the needed pages to the hugetlb pool */
+ 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 		if ((--needed) < 0)
+ 			break;
+ 		list_del(&page->lru);
++		/*
++		 * This page is now managed by the hugetlb allocator and has
++		 * no users -- drop the buddy allocator's reference.
++		 */
++		put_page_testzero(page);
++		VM_BUG_ON(page_count(page));
+ 		enqueue_huge_page(h, page);
+ 	}
+ 
+ 	/* Free unnecessary surplus pages to the buddy allocator */
++free:
+ 	if (!list_empty(&surplus_list)) {
+-		spin_unlock(&hugetlb_lock);
+ 		list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
+ 			list_del(&page->lru);
+-			/*
+-			 * The page has a reference count of zero already, so
+-			 * call free_huge_page directly instead of using
+-			 * put_page.  This must be done with hugetlb_lock
+-			 * unlocked which is safe because free_huge_page takes
+-			 * hugetlb_lock before deciding how to free the page.
+-			 */
+-			free_huge_page(page);
++			put_page(page);
+ 		}
+-		spin_lock(&hugetlb_lock);
+ 	}
++	spin_lock(&hugetlb_lock);
+ 
+ 	return ret;
  }
+@@ -1123,7 +1115,6 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 		}
+ 	}
+ 
+-	set_page_refcounted(page);
+ 	set_page_private(page, (unsigned long) mapping);
+ 
+ 	vma_commit_reservation(h, vma, addr);
 -- 
 1.7.2.2
 
