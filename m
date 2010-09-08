@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 76AFC6B0047
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 22:44:12 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 76B5C6B0047
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 22:44:13 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o882i8OV013787
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o882i9cK029580
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 8 Sep 2010 11:44:08 +0900
+	Wed, 8 Sep 2010 11:44:10 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 53B2545DE57
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:08 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7284945DE4D
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:09 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 29CB645DE52
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:08 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 45B1B45DE50
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:09 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F35341DB8046
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:07 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 20E6F1DB8037
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:09 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A9C4C1DB8038
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:07 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C50C41DB803B
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 11:44:08 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch -mm 2/2] oom: use old_mm for oom_disable_count in exec
-In-Reply-To: <alpine.DEB.2.00.1009011748190.22920@chino.kir.corp.google.com>
-References: <20100902092039.D05C.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009011748190.22920@chino.kir.corp.google.com>
-Message-Id: <20100907102532.C8EC.A69D9226@jp.fujitsu.com>
+Subject: Re: [BUGFIX for 2.6.36][RESEND][PATCH 1/2] oom: remove totalpage normalization from oom_badness()
+In-Reply-To: <20100831181911.87E7.A69D9226@jp.fujitsu.com>
+References: <20100831181911.87E7.A69D9226@jp.fujitsu.com>
+Message-Id: <20100907120046.C90A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Wed,  8 Sep 2010 11:44:06 +0900 (JST)
+Date: Wed,  8 Sep 2010 11:44:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Looks good. However you need to use tsk->signal->oom_adj == OOM_DISABLE because
-> > I removed OOM_SCORE_ADJ_MIN.
-> > 
+> ok, this one got no objection except original patch author.
+> then, I'll push it to mainline. I'm glad that I who stabilization
+> developer have finished this work.
 > 
-> KOSAKI, I'm not going to argue this with you.  VM patches, like where you 
-> revert oom_score_adj, go through Andrew.  That's not up for debate.
-> 
-> Thanks for the review.
+> If you think this patch is slightly large, please run,
+>  % git diff a63d83f42^ mm/oom_kill.c
+> you'll understand this is minimal revert of unnecessary change.
 
 
-Don't mind. but general warning: If you continue to crappy objection, We
-are going to revert full of your userland breakage entirely instead minimum fix. 
+Andrew, please don't be lazy this one. I don't hope to slip this anymore.
+I was making the patch as you requested. but no responce. I who stabilization
+developr can't permit this userland breakage and sucky status. please
+join to fix it. Sadly, The delay will be increase, I have to switch 
+full revert entirely instead your opinion.
+
+Spell out: I don't hope to continus this crazy discussion. a userland 
+breakage bug is a bug, not anything else. I don't hope to talk this 
+one anymore even though it's only 5 miniture. I don't think any rare
+usecase feature should die. but ZERO USER FEATURE SHOULDN'T BREAK USERLAND.
+
+
 
 
 --
