@@ -1,76 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9DE616B007B
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 15:49:42 -0400 (EDT)
-Message-ID: <4C87E8D2.4050005@kernel.dk>
-Date: Wed, 08 Sep 2010 21:49:38 +0200
-From: Jens Axboe <axboe@kernel.dk>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E89376B007B
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 16:05:53 -0400 (EDT)
+Date: Wed, 8 Sep 2010 15:05:47 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after direct
+ reclaim allocation fails
+In-Reply-To: <20100908163956.C930.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1009081500070.14871@router.home>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <1283504926-2120-4-git-send-email-mel@csn.ul.ie> <20100908163956.C930.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] bounce: call flush_dcache_page after bounce_copy_vec
-References: <1283892334-9238-1-git-send-email-gking@nvidia.com> <20100908124716.830a0055.akpm@linux-foundation.org>
-In-Reply-To: <20100908124716.830a0055.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gary King <gking@nvidia.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, tj@kernel.org, linux-kernel@vger.kernel.org, stable@kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 09/08/2010 09:47 PM, Andrew Morton wrote:
-> On Tue,  7 Sep 2010 13:45:34 -0700
-> Gary King <gking@nvidia.com> wrote:
-> 
->> I have been seeing problems on Tegra 2 (ARMv7 SMP) systems with HIGHMEM
->> enabled on 2.6.35 (plus some patches targetted at 2.6.36 to perform
->> cache maintenance lazily), and the root cause appears to be that the
->> mm bouncing code is calling flush_dcache_page before it copies the
->> bounce buffer into the bio.
->>
->> The patch below reorders these two operations, and eliminates numerous
->> arbitrary application crashes on my dev system.
->>
->> Gary
->>
->> --
->> >From 678c9bca8d8a8f254f28af91e69fad3aa1be7593 Mon Sep 17 00:00:00 2001
->> From: Gary King <gking@nvidia.com>
->> Date: Mon, 6 Sep 2010 15:37:12 -0700
->> Subject: bounce: call flush_dcache_page after bounce_copy_vec
->>
->> the bounced page needs to be flushed after data is copied into it,
->> to ensure that architecture implementations can synchronize
->> instruction and data caches if necessary.
->>
->> Signed-off-by: Gary King <gking@nvidia.com>
->> ---
->>  mm/bounce.c |    2 +-
->>  1 files changed, 1 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/bounce.c b/mm/bounce.c
->> index 13b6dad..1481de6 100644
->> --- a/mm/bounce.c
->> +++ b/mm/bounce.c
->> @@ -116,8 +116,8 @@ static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
->>  		 */
->>  		vfrom = page_address(fromvec->bv_page) + tovec->bv_offset;
->>  
->> -		flush_dcache_page(tovec->bv_page);
->>  		bounce_copy_vec(tovec, vfrom);
->> +		flush_dcache_page(tovec->bv_page);
->>  	}
->>  }
-> 
-> Oh my, that was bad.
+On Wed, 8 Sep 2010, KOSAKI Motohiro wrote:
 
-Indeed, I wonder how that could have been wrong for so long.
+> nit: when slub, get_page_from_freelist() failure is frequently happen
+> than slab because slub try to allocate high order page at first.
+> So, I guess we have to avoid drain_all_pages() if __GFP_NORETRY is passed.
 
-> I queued your fix for 2.6.36 and tagged it for -stable backporting,
-> thanks.
+SLAB also tries to allocate higher order pages for many slabs but not as
+high as SLUB (SLAB does not support fallback to order 0). SLAB also always
+uses GFP_THISNODE (which include GFP_NORETRY).
 
-Thanks, you can add my acked-by.
-
--- 
-Jens Axboe
+Your patch will make SLAB's initial call to the page allocator fail more
+frequently and therefore will increase the use of fallback_alloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
