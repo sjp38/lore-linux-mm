@@ -1,152 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBC46B0047
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:31:38 -0400 (EDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 03/10] hugetlb: redefine hugepage copy functions
-Date: Wed,  8 Sep 2010 10:19:34 +0900
-Message-Id: <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	by kanga.kvack.org (Postfix) with SMTP id F04C76B0047
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 22:13:46 -0400 (EDT)
+Date: Wed, 8 Sep 2010 10:13:41 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
+ direct reclaim allocation fails
+Message-ID: <20100908021341.GA6182@localhost>
+References: <20100903202101.f937b0bb.akpm@linux-foundation.org>
+ <20100904075840.GE705@dastard>
+ <20100904081414.GF705@dastard>
+ <20100905015400.GA10714@localhost>
+ <20100905021555.GG705@dastard>
+ <20100905060539.GA17450@localhost>
+ <20100905131447.GJ705@dastard>
+ <20100905134554.GA7083@localhost>
+ <20100906040243.GA7362@dastard>
+ <alpine.DEB.2.00.1009070918030.14634@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1009070918030.14634@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Linux Kernel List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch modifies hugepage copy functions to have only destination
-and source hugepages as arguments for later use.
-The old ones are renamed from copy_{gigantic,huge}_page() to
-copy_user_{gigantic,huge}_page().
-This naming convention is consistent with that between copy_highpage()
-and copy_user_highpage().
+On Tue, Sep 07, 2010 at 10:23:48PM +0800, Christoph Lameter wrote:
+> On Mon, 6 Sep 2010, Dave Chinner wrote:
+> 
+> > [  596.628086]  [<ffffffff81108a8c>] ? drain_all_pages+0x1c/0x20
+> > [  596.628086]  [<ffffffff81108fad>] ? __alloc_pages_nodemask+0x42d/0x700
+> > [  596.628086]  [<ffffffff8113d0f2>] ? kmem_getpages+0x62/0x160
+> > [  596.628086]  [<ffffffff8113dce6>] ? fallback_alloc+0x196/0x240
+> 
+> fallback_alloc() showing up here means that one page allocator call from
+> SLAB has already failed.
 
-ChangeLog since v4:
-- add blank line between local declaration and code
-- remove unnecessary might_sleep()
+That may be due to the GFP_THISNODE flag which includes __GFP_NORETRY
+which may fail the allocation simply because there are many concurrent
+page allocating tasks, but not necessary in real short of memory.
 
-ChangeLog since v2:
-- change copy_huge_page() from macro to inline dummy function
-  to avoid compile warning when !CONFIG_HUGETLB_PAGE.
+The concurrent page allocating tasks may consume all the pages freed
+by try_to_free_pages() inside __alloc_pages_direct_reclaim(), before
+the direct reclaim task is able to get it's page with
+get_page_from_freelist(). Then should_alloc_retry() returns 0 for
+__GFP_NORETRY which stops further retries.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- include/linux/hugetlb.h |    4 ++++
- mm/hugetlb.c            |   45 ++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 44 insertions(+), 5 deletions(-)
+In theory, __GFP_NORETRY might fail even without other tasks
+concurrently stealing current task's direct reclaimed pages. The pcp
+lists might happen to be low populated (pcp.count ranges 0 to pcp.batch),
+and try_to_free_pages() might not free enough pages to fill them to
+the pcp.high watermark, hence no pages are freed into the buddy system
+and NR_FREE_PAGES increased. Then zone_watermark_ok() will remain
+false and allocation fails. Mel's patch to increase accuracy of
+zone_watermark_ok() should help this case.
 
-diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-index 0b73c53..9e51f77 100644
---- v2.6.36-rc2/include/linux/hugetlb.h
-+++ v2.6.36-rc2/include/linux/hugetlb.h
-@@ -44,6 +44,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
- 						int acctflags);
- void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
- void __isolate_hwpoisoned_huge_page(struct page *page);
-+void copy_huge_page(struct page *dst, struct page *src);
- 
- extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
-@@ -102,6 +103,9 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
- #define huge_pte_offset(mm, address)	0
- #define __isolate_hwpoisoned_huge_page(page)	0
-+static inline void copy_huge_page(struct page *dst, struct page *src)
-+{
-+}
- 
- #define hugetlb_change_protection(vma, address, end, newprot)
- 
-diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-index f526228..351f8d1 100644
---- v2.6.36-rc2/mm/hugetlb.c
-+++ v2.6.36-rc2/mm/hugetlb.c
-@@ -423,14 +423,14 @@ static void clear_huge_page(struct page *page,
- 	}
- }
- 
--static void copy_gigantic_page(struct page *dst, struct page *src,
-+static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
- 	struct hstate *h = hstate_vma(vma);
- 	struct page *dst_base = dst;
- 	struct page *src_base = src;
--	might_sleep();
-+
- 	for (i = 0; i < pages_per_huge_page(h); ) {
- 		cond_resched();
- 		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-@@ -440,14 +440,15 @@ static void copy_gigantic_page(struct page *dst, struct page *src,
- 		src = mem_map_next(src, src_base, i);
- 	}
- }
--static void copy_huge_page(struct page *dst, struct page *src,
-+
-+static void copy_user_huge_page(struct page *dst, struct page *src,
- 			   unsigned long addr, struct vm_area_struct *vma)
- {
- 	int i;
- 	struct hstate *h = hstate_vma(vma);
- 
- 	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
--		copy_gigantic_page(dst, src, addr, vma);
-+		copy_user_gigantic_page(dst, src, addr, vma);
- 		return;
- 	}
- 
-@@ -458,6 +459,40 @@ static void copy_huge_page(struct page *dst, struct page *src,
- 	}
- }
- 
-+static void copy_gigantic_page(struct page *dst, struct page *src)
-+{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+	struct page *dst_base = dst;
-+	struct page *src_base = src;
-+
-+	for (i = 0; i < pages_per_huge_page(h); ) {
-+		cond_resched();
-+		copy_highpage(dst, src);
-+
-+		i++;
-+		dst = mem_map_next(dst, dst_base, i);
-+		src = mem_map_next(src, src_base, i);
-+	}
-+}
-+
-+void copy_huge_page(struct page *dst, struct page *src)
-+{
-+	int i;
-+	struct hstate *h = page_hstate(src);
-+
-+	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
-+		copy_gigantic_page(dst, src);
-+		return;
-+	}
-+
-+	might_sleep();
-+	for (i = 0; i < pages_per_huge_page(h); i++) {
-+		cond_resched();
-+		copy_highpage(dst + i, src + i);
-+	}
-+}
-+
- static void enqueue_huge_page(struct hstate *h, struct page *page)
- {
- 	int nid = page_to_nid(page);
-@@ -2415,7 +2450,7 @@ retry_avoidcopy:
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
- 
--	copy_huge_page(new_page, old_page, address, vma);
-+	copy_user_huge_page(new_page, old_page, address, vma);
- 	__SetPageUptodate(new_page);
- 
- 	/*
--- 
-1.7.2.2
+> SLAB then did an expensive search through all
+> object caches on all nodes to find some available object. There were no
+> objects in queues at all therefore SLAB called the page allocator again
+> (kmem_getpages()).
+> 
+> As soon as memory is available (on any node or any cpu, they are all
+> empty) SLAB will repopulate its queues(!).
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
