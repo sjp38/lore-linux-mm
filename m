@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D28DB6B0083
-	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:29:45 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FAAF6B0085
+	for <linux-mm@kvack.org>; Tue,  7 Sep 2010 21:29:46 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 08/10] HWPOISON, hugetlb: soft offlining for hugepage
-Date: Wed,  8 Sep 2010 10:19:39 +0900
-Message-Id: <1283908781-13810-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 07/10] HWPOSION, hugetlb: recover from free hugepage error when !MF_COUNT_INCREASED
+Date: Wed,  8 Sep 2010 10:19:38 +0900
+Message-Id: <1283908781-13810-8-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,130 +13,97 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch extends soft offlining framework to support hugepage.
-When memory corrected errors occur repeatedly on a hugepage,
-we can choose to stop using it by migrating data onto another hugepage
-and disabling the original (maybe half-broken) one.
+Currently error recovery for free hugepage works only for MF_COUNT_INCREASED.
+This patch enables !MF_COUNT_INCREASED case.
 
-ChangeLog since v4:
-- branch soft_offline_page() for hugepage
+Free hugepages can be handled directly by alloc_huge_page() and
+dequeue_hwpoisoned_huge_page(), and both of them are protected
+by hugetlb_lock, so there is no race between them.
 
-ChangeLog since v3:
-- remove comment about "ToDo: hugepage soft-offline"
-
-ChangeLog since v2:
-- move refcount handling into isolate_lru_page()
-
-ChangeLog since v1:
-- add double check in isolating hwpoisoned hugepage
-- define free/non-free checker for hugepage
-- postpone calling put_page() for hugepage in soft_offline_page()
+Note that this patch defines the refcount of HWPoisoned hugepage
+dequeued from freelist is 1, deviated from present 0, thereby we
+can avoid race between unpoison and memory failure on free hugepage.
+This is reasonable because unlikely to free buddy pages, free hugepage
+is governed by hugetlbfs even after error handling finishes.
+And it also makes unpoison code added in the later patch cleaner.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 ---
- mm/memory-failure.c |   59 +++++++++++++++++++++++++++++++++++++++++++++++---
- 1 files changed, 55 insertions(+), 4 deletions(-)
+ mm/hugetlb.c        |    1 +
+ mm/memory-failure.c |   33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 1 deletions(-)
 
+diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
+index adb5dfa..79a049a 100644
+--- v2.6.36-rc2/mm/hugetlb.c
++++ v2.6.36-rc2/mm/hugetlb.c
+@@ -2972,6 +2972,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
+ 	spin_lock(&hugetlb_lock);
+ 	if (is_hugepage_on_freelist(hpage)) {
+ 		list_del(&hpage->lru);
++		set_page_refcounted(hpage);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
+ 		ret = 0;
 diff --git v2.6.36-rc2/mm/memory-failure.c v2.6.36-rc2/mm/memory-failure.c
-index dfeb8b8..1d0392d 100644
+index c67f801..dfeb8b8 100644
 --- v2.6.36-rc2/mm/memory-failure.c
 +++ v2.6.36-rc2/mm/memory-failure.c
-@@ -693,8 +693,6 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
-  * Issues:
-  * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
-  *   To narrow down kill region to one page, we need to break up pmd.
-- * - To support soft-offlining for hugepage, we need to support hugepage
-- *   migration.
-  */
- static int me_huge_page(struct page *p, unsigned long pfn)
- {
-@@ -1220,7 +1218,11 @@ EXPORT_SYMBOL(unpoison_memory);
- static struct page *new_page(struct page *p, unsigned long private, int **x)
- {
- 	int nid = page_to_nid(p);
--	return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-+	if (PageHuge(p))
-+		return alloc_huge_page_node(page_hstate(compound_head(p)),
-+						   nid);
-+	else
-+		return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
- }
+@@ -983,7 +983,10 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 	 * We need/can do nothing about count=0 pages.
+ 	 * 1) it's a free page, and therefore in safe hand:
+ 	 *    prep_new_page() will be the gate keeper.
+-	 * 2) it's part of a non-compound high order page.
++	 * 2) it's a free hugepage, which is also safe:
++	 *    an affected hugepage will be dequeued from hugepage freelist,
++	 *    so there's no concern about reusing it ever after.
++	 * 3) it's part of a non-compound high order page.
+ 	 *    Implies some kernel user: cannot stop them from
+ 	 *    R/W the page; let's pray that the page has been
+ 	 *    used and will be freed some time later.
+@@ -995,6 +998,24 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
+ 		if (is_free_buddy_page(p)) {
+ 			action_result(pfn, "free buddy", DELAYED);
+ 			return 0;
++		} else if (PageHuge(hpage)) {
++			/*
++			 * Check "just unpoisoned", "filter hit", and
++			 * "race with other subpage."
++			 */
++			lock_page_nosync(hpage);
++			if (!PageHWPoison(hpage)
++			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
++			    || (p != hpage && TestSetPageHWPoison(hpage))) {
++				atomic_long_sub(nr_pages, &mce_bad_pages);
++				return 0;
++			}
++			set_page_hwpoison_huge_page(hpage);
++			res = dequeue_hwpoisoned_huge_page(hpage);
++			action_result(pfn, "free huge",
++				      res ? IGNORED : DELAYED);
++			unlock_page(hpage);
++			return res;
+ 		} else {
+ 			action_result(pfn, "high order kernel", IGNORED);
+ 			return -EBUSY;
+@@ -1156,6 +1177,16 @@ int unpoison_memory(unsigned long pfn)
+ 	nr_pages = 1 << compound_order(page);
  
- /*
-@@ -1248,8 +1250,15 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 	 * was free.
- 	 */
- 	set_migratetype_isolate(p);
-+	/*
-+	 * When the target page is a free hugepage, just remove it
-+	 * from free hugepage list.
-+	 */
- 	if (!get_page_unless_zero(compound_head(p))) {
--		if (is_free_buddy_page(p)) {
-+		if (PageHuge(p)) {
-+			pr_debug("get_any_page: %#lx free huge page\n", pfn);
-+			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
-+		} else if (is_free_buddy_page(p)) {
- 			pr_debug("get_any_page: %#lx free buddy page\n", pfn);
- 			/* Set hwpoison bit while page is still isolated */
- 			SetPageHWPoison(p);
-@@ -1268,6 +1277,45 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 	return ret;
- }
- 
-+static int soft_offline_huge_page(struct page *page, int flags)
-+{
-+	int ret;
-+	unsigned long pfn = page_to_pfn(page);
-+	struct page *hpage = compound_head(page);
-+	LIST_HEAD(pagelist);
-+
-+	ret = get_any_page(page, pfn, flags);
-+	if (ret < 0)
-+		return ret;
-+	if (ret == 0)
-+		goto done;
-+
-+	if (PageHWPoison(hpage)) {
-+		put_page(hpage);
-+		pr_debug("soft offline: %#lx hugepage already poisoned\n", pfn);
-+		return -EBUSY;
-+	}
-+
-+	/* Keep page count to indicate a given hugepage is isolated. */
-+
-+	list_add(&hpage->lru, &pagelist);
-+	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
-+	if (ret) {
-+		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
-+			 pfn, ret, page->flags);
-+		if (ret > 0)
-+			ret = -EIO;
-+		return ret;
-+	}
-+done:
-+	if (!PageHWPoison(hpage))
-+		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
-+	set_page_hwpoison_huge_page(hpage);
-+	dequeue_hwpoisoned_huge_page(hpage);
-+	/* keep elevated page count for bad page */
-+	return ret;
-+}
-+
- /**
-  * soft_offline_page - Soft offline a page.
-  * @page: page to offline
-@@ -1295,6 +1343,9 @@ int soft_offline_page(struct page *page, int flags)
- 	int ret;
- 	unsigned long pfn = page_to_pfn(page);
- 
-+	if (PageHuge(page))
-+		return soft_offline_huge_page(page, flags);
-+
- 	ret = get_any_page(page, pfn, flags);
- 	if (ret < 0)
- 		return ret;
+ 	if (!get_page_unless_zero(page)) {
++		/*
++		 * Since HWPoisoned hugepage should have non-zero refcount,
++		 * race between memory failure and unpoison seems to happen.
++		 * In such case unpoison fails and memory failure runs
++		 * to the end.
++		 */
++		if (PageHuge(page)) {
++			pr_debug("MCE: Memory failure is now running on free hugepage %#lx\n", pfn);
++			return 0;
++		}
+ 		if (TestClearPageHWPoison(p))
+ 			atomic_long_sub(nr_pages, &mce_bad_pages);
+ 		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
 -- 
 1.7.2.2
 
