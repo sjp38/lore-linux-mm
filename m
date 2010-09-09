@@ -1,63 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E773B6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 05:22:19 -0400 (EDT)
-Date: Thu, 9 Sep 2010 10:22:03 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 400646B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 05:32:27 -0400 (EDT)
+Date: Thu, 9 Sep 2010 10:32:11 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 05/10] vmscan: Synchrounous lumpy reclaim use
-	lock_page() instead trylock_page()
-Message-ID: <20100909092203.GL29263@csn.ul.ie>
-References: <20100909120448.58acc9a6.kamezawa.hiroyu@jp.fujitsu.com> <20100909121547.2e69735a.kamezawa.hiroyu@jp.fujitsu.com> <20100909131211.C93C.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 10/10] vmscan: Kick flusher threads to clean pages when
+	reclaim is encountering dirty pages
+Message-ID: <20100909093211.GM29263@csn.ul.ie>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie> <1283770053-18833-11-git-send-email-mel@csn.ul.ie> <20100909122228.3db2b95c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100909131211.C93C.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100909122228.3db2b95c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 09, 2010 at 01:13:22PM +0900, KOSAKI Motohiro wrote:
-> > On Thu, 9 Sep 2010 12:04:48 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, Sep 09, 2010 at 12:22:28PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Mon,  6 Sep 2010 11:47:33 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > There are a number of cases where pages get cleaned but two of concern
+> > to this patch are;
+> >   o When dirtying pages, processes may be throttled to clean pages if
+> >     dirty_ratio is not met.
+> >   o Pages belonging to inodes dirtied longer than
+> >     dirty_writeback_centisecs get cleaned.
 > > 
-> > > On Mon,  6 Sep 2010 11:47:28 +0100
-> > > Mel Gorman <mel@csn.ul.ie> wrote:
-> > > 
-> > > > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > 
-> > > > With synchrounous lumpy reclaim, there is no reason to give up to reclaim
-> > > > pages even if page is locked. This patch uses lock_page() instead of
-> > > > trylock_page() in this case.
-> > > > 
-> > > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > 
-> > > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > Ah......but can't this change cause dead lock ??
+> > The problem for reclaim is that dirty pages can reach the end of the LRU if
+> > pages are being dirtied slowly so that neither the throttling or a flusher
+> > thread waking periodically cleans them.
+> > 
+> > Background flush is already cleaning old or expired inodes first but the
+> > expire time is too far in the future at the time of page reclaim. To mitigate
+> > future problems, this patch wakes flusher threads to clean 4M of data -
+> > an amount that should be manageable without causing congestion in many cases.
+> > 
+> > Ideally, the background flushers would only be cleaning pages belonging
+> > to the zone being scanned but it's not clear if this would be of benefit
+> > (less IO) or not (potentially less efficient IO if an inode is scattered
+> > across multiple zones).
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  mm/vmscan.c |   32 ++++++++++++++++++++++++++++++--
+> >  1 files changed, 30 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 408c101..33d27a4 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -148,6 +148,18 @@ static DECLARE_RWSEM(shrinker_rwsem);
+> >  /* Direct lumpy reclaim waits up to five seconds for background cleaning */
+> >  #define MAX_SWAP_CLEAN_WAIT 50
+> >  
+> > +/*
+> > + * When reclaim encounters dirty data, wakeup flusher threads to clean
+> > + * a maximum of 4M of data.
+> > + */
+> > +#define MAX_WRITEBACK (4194304UL >> PAGE_SHIFT)
+> > +#define WRITEBACK_FACTOR (MAX_WRITEBACK / SWAP_CLUSTER_MAX)
+> > +static inline long nr_writeback_pages(unsigned long nr_dirty)
+> > +{
+> > +	return laptop_mode ? 0 :
+> > +			min(MAX_WRITEBACK, (nr_dirty * WRITEBACK_FACTOR));
+> > +}
+> > +
+> >  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+> >  						  struct scan_control *sc)
+> >  {
+> > @@ -686,12 +698,14 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
+> >   */
+> >  static unsigned long shrink_page_list(struct list_head *page_list,
+> >  					struct scan_control *sc,
+> > +					int file,
+> >  					unsigned long *nr_still_dirty)
+> >  {
+> >  	LIST_HEAD(ret_pages);
+> >  	LIST_HEAD(free_pages);
+> >  	int pgactivate = 0;
+> >  	unsigned long nr_dirty = 0;
+> > +	unsigned long nr_dirty_seen = 0;
+> >  	unsigned long nr_reclaimed = 0;
+> >  
+> >  	cond_resched();
+> > @@ -790,6 +804,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		}
+> >  
+> >  		if (PageDirty(page)) {
+> > +			nr_dirty_seen++;
+> > +
+> >  			/*
+> >  			 * Only kswapd can writeback filesystem pages to
+> >  			 * avoid risk of stack overflow
+> > @@ -923,6 +939,18 @@ keep_lumpy:
+> >  
+> >  	list_splice(&ret_pages, page_list);
+> >  
+> > +	/*
+> > +	 * If reclaim is encountering dirty pages, it may be because
+> > +	 * dirty pages are reaching the end of the LRU even though the
+> > +	 * dirty_ratio may be satisified. In this case, wake flusher
+> > +	 * threads to pro-actively clean up to a maximum of
+> > +	 * 4 * SWAP_CLUSTER_MAX amount of data (usually 1/2MB) unless
+> > +	 * !may_writepage indicates that this is a direct reclaimer in
+> > +	 * laptop mode avoiding disk spin-ups
+> > +	 */
+> > +	if (file && nr_dirty_seen && sc->may_writepage)
+> > +		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
+> > +
 > 
-> Yes, this patch is purely crappy. please drop. I guess I was poisoned
-> by poisonous mushroom of Mario Bros.
+> Thank you. Ok, I'll check what happens in memcg.
 > 
 
-Lets be clear on what the exact dead lock conditions are. The ones I had
-thought about when I felt this patch was ok were;
+Thanks
 
-o We are not holding the LRU lock (or any lock, we just called cond_resched())
-o We do not have another page locked because we cannot lock multiple pages
-o Kswapd will never be in LUMPY_MODE_SYNC so it is not getting blocked
-o lock_page() itself is not allocating anything that we could recurse on
+> Can I add
+> 	if (sc->memcg) {
+> 		memcg_check_flusher_wakeup()
+> 	}
+> or some here ?
+> 
 
-One potential dead lock would be if the direct reclaimer held a page
-lock and ended up here but is that situation even allowed? I did not
-think of an obvious example of when this would happen. Similarly,
-deadlock situations with mmap_sem shouldn't happen unless multiple page
-locks are being taken.
+It seems reasonable.
 
-(prepares to feel foolish)
+> Hm, maybe memcg should wake up flusher at starting try_to_free_memory_cgroup_pages().
+> 
 
-What did I miss?
+I'm afraid I cannot make a judgement call on which is the best as I am
+not very familiar with how cgroups behave in comparison to normal
+reclaim. There could easily be a follow-on patch though that was cgroup
+specific?
 
 -- 
 Mel Gorman
