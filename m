@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8DA3F6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 07:06:40 -0400 (EDT)
-Date: Thu, 9 Sep 2010 21:06:24 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 08/43] memblock/microblaze: Use new accessors
-Message-Id: <20100909210624.713183ed.sfr@canb.auug.org.au>
-In-Reply-To: <4C88BD8F.5080208@monstr.eu>
-References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
-	<1281071724-28740-9-git-send-email-benh@kernel.crashing.org>
-	<4C5BCD41.3040501@monstr.eu>
-	<1281135046.2168.40.camel@pasglop>
-	<4C88BD8F.5080208@monstr.eu>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA1";
- boundary="Signature=_Thu__9_Sep_2010_21_06_24_+1000_3GV7i0YsjOJR2V1T"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CE56B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 07:11:49 -0400 (EDT)
+Date: Thu, 9 Sep 2010 12:11:32 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [RFC PATCH] fs,xfs: Use __GFP_MOVABLE for XFS buffers
+Message-ID: <20100909111131.GO29263@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: monstr@monstr.eu
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: xfs@oss.sgi.com
+Cc: Alex Elder <aelder@sgi.com>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Signature=_Thu__9_Sep_2010_21_06_24_+1000_3GV7i0YsjOJR2V1T
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Fragmentation avoidance in the kernel depends on reclaimable and movable
+allocations being marked-up at page allocation time. Reclaimable allocations
+refer to slab caches such as inode caches which can be reclaimed although
+not necessarily in a targetted fashion. Movable pages are those pages that
+can be moved to backing storage (during page reclaim) or migrated.
 
-Hi Michal,
+When testing against XFS, it was noticed that large page allocation rates
+against XFS were far lower than expected in comparison to ext3. Investigation
+showed that buffer pages allocated by XFS are placed on the LRU but not
+marked __GFP_MOVABLE at allocation time.
 
-On Thu, 09 Sep 2010 12:57:19 +0200 Michal Simek <monstr@monstr.eu> wrote:
->
-> Benjamin Herrenschmidt wrote:
-> > On Fri, 2010-08-06 at 10:52 +0200, Michal Simek wrote:
-> >> Benjamin Herrenschmidt wrote:
-> >>> CC: Michal Simek <monstr@monstr.eu>
-> >>> Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> >> This patch remove bug which I reported but there is another place whic=
-h=20
-> >> needs to be changed.
-> >>
-> >> I am not sure if my patch is correct but at least point you on places=
-=20
-> >> which is causing compilation errors.
-> >>
-> >> I tested your memblock branch with this fix and microblaze can boot.
-> >=20
-> > Ok, that's missing in my initial rename patch. I'll fix it up. Thanks.
-> >=20
-> > Cheers,
-> > Ben.
->=20
-> I don't know why but this unfixed old patch is in linux-next today. Not=20
-> sure which tree contains it.
+This patch updates xb_to_gfp() to specify __GFP_MOVABLE and is correct iff
+all pages allocated from a mask derived from xb_to_gfp() are guaranteed to
+be movable be it via page reclaim or page migration. It needs an XFS expert
+to make that determination but when applied, huge page allocation success
+rates are similar to those seen on tests backed by ext3.
 
-It came in via the tip tree.
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-http://www.canb.auug.org.au/~sfr/
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ fs/xfs/linux-2.6/xfs_buf.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
---Signature=_Thu__9_Sep_2010_21_06_24_+1000_3GV7i0YsjOJR2V1T
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.10 (GNU/Linux)
-
-iQEcBAEBAgAGBQJMiL+wAAoJEDMEi1NhKgbsDcwIAIybFy2fc20CUeAlDh11uDKn
-Ns72FQioH6oK2G+3pF3xCADKFRVkF1U3oEz0sw7clNtfUy05H5JUdYRkXjlbM/Df
-CgQDDubV5cty8qRq4LAV4jfEWEmFDbnmthUZXSjPcwkEgwhJp3L4+VD/nYwa16GD
-i3unmEmBO8T6YoQ8LAup/C6Z8RhLRu+9qRh+QwJh1knK+7U5nKpqDUQbtb6OGvXf
-tQPfOrBlRwNNWIbl7zPEYqzEL//so7WfqI2AQkmnZLTV4fHSjLUFKhZyO15hqU7J
-iIIeP8emzCnQ5JXqdeQGoewbQqTslIPwicNuByS5+25sdpkmAOCf+mebw3ugLpQ=
-=g82Z
------END PGP SIGNATURE-----
-
---Signature=_Thu__9_Sep_2010_21_06_24_+1000_3GV7i0YsjOJR2V1T--
+diff --git a/fs/xfs/linux-2.6/xfs_buf.c b/fs/xfs/linux-2.6/xfs_buf.c
+index ea79072..93f3fb0 100644
+--- a/fs/xfs/linux-2.6/xfs_buf.c
++++ b/fs/xfs/linux-2.6/xfs_buf.c
+@@ -67,7 +67,7 @@ struct workqueue_struct *xfsconvertd_workqueue;
+ 
+ #define xb_to_gfp(flags) \
+ 	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : \
+-	  ((flags) & XBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN)
++	  ((flags) & XBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN | __GFP_MOVABLE)
+ 
+ #define xb_to_km(flags) \
+ 	 (((flags) & XBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
