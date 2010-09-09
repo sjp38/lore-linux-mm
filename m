@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9538B6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:05:22 -0400 (EDT)
-Received: by qyk2 with SMTP id 2so2005558qyk.14
-        for <linux-mm@kvack.org>; Thu, 09 Sep 2010 09:05:21 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 14ADE6B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:16:06 -0400 (EDT)
+Received: by qyk8 with SMTP id 8so544910qyk.14
+        for <linux-mm@kvack.org>; Thu, 09 Sep 2010 09:16:05 -0700 (PDT)
 MIME-Version: 1.0
 Reply-To: sedat.dilek@gmail.com
 In-Reply-To: <20100909082331.7278e76b.randy.dunlap@oracle.com>
 References: <AANLkTi=uzLJxDbd+uJAww-b5aP10gd8gbGVG19HS46ue@mail.gmail.com>
 	<20100909082331.7278e76b.randy.dunlap@oracle.com>
-Date: Thu, 9 Sep 2010 18:05:20 +0200
-Message-ID: <AANLkTi=iVDfmCSmHSW2ArZ4MO0k+zDQU9WMy7TvSwhBe@mail.gmail.com>
+Date: Thu, 9 Sep 2010 18:16:04 +0200
+Message-ID: <AANLkTi=KQ1HJ8s7NcTGHRKsj+wriH4uqWUi43LZnqUFv@mail.gmail.com>
 Subject: Re: mm/Kconfig: warning: (COMPACTION && EXPERIMENTAL && HUGETLB_PAGE
  && MMU) selects MIGRATION which has unmet direct dependencies (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE)
 From: Sedat Dilek <sedat.dilek@googlemail.com>
@@ -20,12 +20,6 @@ Sender: owner-linux-mm@kvack.org
 To: Randy Dunlap <randy.dunlap@oracle.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-Hey Randy!
-
-thanks for the quick response... wanted to start a new build :-).
-
-- Sedat -
 
 On Thu, Sep 9, 2010 at 5:23 PM, Randy Dunlap <randy.dunlap@oracle.com> wrot=
 e:
@@ -107,6 +101,14 @@ cation of pages of processes
 > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0while the virtual addresses are not cha=
 nged. This is useful in
 >
+
+Below is the URL for...
+
+"[PATCH] avoid warning when COMPACTION is selected"
+
+- Sedat -
+
+[1] http://marc.info/?l=3Dlinux-mm&m=3D128352833826498&w=3D2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
