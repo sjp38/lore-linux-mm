@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 198AB6B0078
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 23:21:00 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o893Kvul014759
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 507936B004A
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 23:23:15 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o893NCts008295
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 9 Sep 2010 12:20:58 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D855D45DD71
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:20:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B60E245DE4E
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:20:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FD241DB8017
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:20:56 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B7701DB8012
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:20:56 +0900 (JST)
-Date: Thu, 9 Sep 2010 12:15:47 +0900
+	Thu, 9 Sep 2010 12:23:13 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CB71045DE57
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:23:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A93D445DE4F
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:23:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8590C1DB803C
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:23:12 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E0481DB8042
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:23:12 +0900 (JST)
+Date: Thu, 9 Sep 2010 12:17:59 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 05/10] vmscan: Synchrounous lumpy reclaim use
- lock_page() instead trylock_page()
-Message-Id: <20100909121547.2e69735a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100909120448.58acc9a6.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 08/10] vmscan: isolated_lru_pages() stop neighbour
+ search if neighbour cannot be isolated
+Message-Id: <20100909121759.d66fb89a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1283770053-18833-9-git-send-email-mel@csn.ul.ie>
 References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
-	<1283770053-18833-6-git-send-email-mel@csn.ul.ie>
-	<20100909120448.58acc9a6.kamezawa.hiroyu@jp.fujitsu.com>
+	<1283770053-18833-9-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Sep 2010 12:04:48 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Mon,  6 Sep 2010 11:47:31 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-> On Mon,  6 Sep 2010 11:47:28 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > 
-> > With synchrounous lumpy reclaim, there is no reason to give up to reclaim
-> > pages even if page is locked. This patch uses lock_page() instead of
-> > trylock_page() in this case.
-> > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> isolate_lru_pages() does not just isolate LRU tail pages, but also isolate
+> neighbour pages of the eviction page. The neighbour search does not stop even
+> if neighbours cannot be isolated which is excessive as the lumpy reclaim will
+> no longer result in a successful higher order allocation. This patch stops
+> the PFN neighbour pages if an isolation fails and moves on to the next block.
 > 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-Ah......but can't this change cause dead lock ??
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-Thanks,
--Kame
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
