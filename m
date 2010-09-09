@@ -1,82 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2716B004A
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 20:50:01 -0400 (EDT)
-Received: by vws16 with SMTP id 16so926334vws.14
-        for <linux-mm@kvack.org>; Wed, 08 Sep 2010 17:49:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1283892334-9238-1-git-send-email-gking@nvidia.com>
-References: <1283892334-9238-1-git-send-email-gking@nvidia.com>
-Date: Thu, 9 Sep 2010 08:49:59 +0800
-Message-ID: <AANLkTi=GiU+N-1a00qxSFpDL8tz0_W3dpc32VXZBs9yZ@mail.gmail.com>
-Subject: Re: [PATCH] bounce: call flush_dcache_page after bounce_copy_vec
-From: Bryan Wu <bryan.wu@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id AD0EA6B004A
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 23:07:49 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8937kRi010060
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 9 Sep 2010 12:07:46 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DB1F45DE65
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D12A745DE57
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B76021DB8049
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4588C1DB8040
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
+Date: Thu, 9 Sep 2010 12:02:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
+ no congested BDIs or significant writeback
+Message-Id: <20100909120231.fe6d3078.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1283770053-18833-4-git-send-email-mel@csn.ul.ie>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+	<1283770053-18833-4-git-send-email-mel@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gary King <gking@nvidia.com>
-Cc: linux-mm@kvack.org, tj@kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "Jan, Sebastien" <s-jan@ti.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 8, 2010 at 4:45 AM, Gary King <gking@nvidia.com> wrote:
-> I have been seeing problems on Tegra 2 (ARMv7 SMP) systems with HIGHMEM
-> enabled on 2.6.35 (plus some patches targetted at 2.6.36 to perform
-> cache maintenance lazily), and the root cause appears to be that the
-> mm bouncing code is calling flush_dcache_page before it copies the
-> bounce buffer into the bio.
->
-> The patch below reorders these two operations, and eliminates numerous
-> arbitrary application crashes on my dev system.
->
+On Mon,  6 Sep 2010 11:47:26 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-We also experience the package building failure on OMAP4 SMP system
-with HIGHMEM enabled
-on 2.6.35. Thanks a lot for this fixing, we will try it later soon.
-
--Bryan
-
-> Gary
->
-> --
-> From 678c9bca8d8a8f254f28af91e69fad3aa1be7593 Mon Sep 17 00:00:00 2001
-> From: Gary King <gking@nvidia.com>
-> Date: Mon, 6 Sep 2010 15:37:12 -0700
-> Subject: bounce: call flush_dcache_page after bounce_copy_vec
->
-> the bounced page needs to be flushed after data is copied into it,
-> to ensure that architecture implementations can synchronize
-> instruction and data caches if necessary.
->
-> Signed-off-by: Gary King <gking@nvidia.com>
+> If congestion_wait() is called with no BDIs congested, the caller will sleep
+> for the full timeout and this may be an unnecessary sleep. This patch adds
+> a wait_iff_congested() that checks congestion and only sleeps if a BDI is
+> congested or if there is a significant amount of writeback going on in an
+> interesting zone. Else, it calls cond_resched() to ensure the caller is
+> not hogging the CPU longer than its quota but otherwise will not sleep.
+> 
+> This is aimed at reducing some of the major desktop stalls reported during
+> IO. For example, while kswapd is operating, it calls congestion_wait()
+> but it could just have been reclaiming clean page cache pages with no
+> congestion. Without this patch, it would sleep for a full timeout but after
+> this patch, it'll just call schedule() if it has been on the CPU too long.
+> Similar logic applies to direct reclaimers that are not making enough
+> progress.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > ---
-> =A0mm/bounce.c | =A0 =A02 +-
-> =A01 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/bounce.c b/mm/bounce.c
-> index 13b6dad..1481de6 100644
-> --- a/mm/bounce.c
-> +++ b/mm/bounce.c
-> @@ -116,8 +116,8 @@ static void copy_to_high_bio_irq(struct bio *to, stru=
-ct bio *from)
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0vfrom =3D page_address(fromvec->bv_page) +=
- tovec->bv_offset;
->
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(tovec->bv_page);
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bounce_copy_vec(tovec, vfrom);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(tovec->bv_page);
-> =A0 =A0 =A0 =A0}
-> =A0}
->
-> --
-> 1.7.0.4
->
->
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
->
+>  include/linux/backing-dev.h      |    2 +-
+>  include/trace/events/writeback.h |    7 ++++
+>  mm/backing-dev.c                 |   66 ++++++++++++++++++++++++++++++++++++-
+>  mm/page_alloc.c                  |    4 +-
+>  mm/vmscan.c                      |   26 ++++++++++++--
+>  5 files changed, 96 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 35b0074..f1b402a 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -285,7 +285,7 @@ enum {
+>  void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
+>  void set_bdi_congested(struct backing_dev_info *bdi, int sync);
+>  long congestion_wait(int sync, long timeout);
+> -
+> +long wait_iff_congested(struct zone *zone, int sync, long timeout);
+>  
+>  static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
+>  {
+> diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+> index 275d477..eeaf1f5 100644
+> --- a/include/trace/events/writeback.h
+> +++ b/include/trace/events/writeback.h
+> @@ -181,6 +181,13 @@ DEFINE_EVENT(writeback_congest_waited_template, writeback_congestion_wait,
+>  	TP_ARGS(usec_timeout, usec_delayed)
+>  );
+>  
+> +DEFINE_EVENT(writeback_congest_waited_template, writeback_wait_iff_congested,
+> +
+> +	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
+> +
+> +	TP_ARGS(usec_timeout, usec_delayed)
+> +);
+> +
+>  #endif /* _TRACE_WRITEBACK_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 298975a..94b5433 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -724,6 +724,7 @@ static wait_queue_head_t congestion_wqh[2] = {
+>  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
+>  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
+>  	};
+> +static atomic_t nr_bdi_congested[2];
+>  
+>  void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  {
+> @@ -731,7 +732,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  	wait_queue_head_t *wqh = &congestion_wqh[sync];
+>  
+>  	bit = sync ? BDI_sync_congested : BDI_async_congested;
+> -	clear_bit(bit, &bdi->state);
+> +	if (test_and_clear_bit(bit, &bdi->state))
+> +		atomic_dec(&nr_bdi_congested[sync]);
+>  	smp_mb__after_clear_bit();
+>  	if (waitqueue_active(wqh))
+>  		wake_up(wqh);
+> @@ -743,7 +745,8 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+>  	enum bdi_state bit;
+>  
+>  	bit = sync ? BDI_sync_congested : BDI_async_congested;
+> -	set_bit(bit, &bdi->state);
+> +	if (!test_and_set_bit(bit, &bdi->state))
+> +		atomic_inc(&nr_bdi_congested[sync]);
+>  }
+>  EXPORT_SYMBOL(set_bdi_congested);
+>  
+> @@ -774,3 +777,62 @@ long congestion_wait(int sync, long timeout)
+>  }
+>  EXPORT_SYMBOL(congestion_wait);
+>  
+> +/**
+> + * congestion_wait - wait for a backing_dev to become uncongested
+> + * @zone: A zone to consider the number of being being written back from
+> + * @sync: SYNC or ASYNC IO
+> + * @timeout: timeout in jiffies
+> + *
+> + * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
+> + * write congestion.  If no backing_devs are congested then the number of
+> + * writeback pages in the zone are checked and compared to the inactive
+> + * list. If there is no sigificant writeback or congestion, there is no point
+> + * in sleeping but cond_resched() is called in case the current process has
+> + * consumed its CPU quota.
+> + */
+> +long wait_iff_congested(struct zone *zone, int sync, long timeout)
+> +{
+> +	long ret;
+> +	unsigned long start = jiffies;
+> +	DEFINE_WAIT(wait);
+> +	wait_queue_head_t *wqh = &congestion_wqh[sync];
+> +
+> +	/*
+> +	 * If there is no congestion, check the amount of writeback. If there
+> +	 * is no significant writeback and no congestion, just cond_resched
+> +	 */
+> +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
+> +		unsigned long inactive, writeback;
+> +
+> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+> +				zone_page_state(zone, NR_INACTIVE_ANON);
+> +		writeback = zone_page_state(zone, NR_WRITEBACK);
+> +
+> +		/*
+> +		 * If less than half the inactive list is being written back,
+> +		 * reclaim might as well continue
+> +		 */
+> +		if (writeback < inactive / 2) {
+
+Hmm..can't we have a way that "find a page which can be just dropped without writeback"
+rather than sleeping ? I think we can throttole the number of victims for avoidng I/O
+congestion as pages/tick....if exhausted, ok, we should sleep.
+
+Thanks,
+-Kame
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
