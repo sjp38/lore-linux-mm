@@ -1,109 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 31E8C6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 06:46:55 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o89Aki03010747
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 06:46:44 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o89Aknux1773806
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 06:46:49 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o89Akmkw004811
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 07:46:49 -0300
-Date: Thu, 9 Sep 2010 16:16:30 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: Transparent Hugepage Support #30
-Message-ID: <20100909104630.GO4443@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100901190859.GA20316@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100901190859.GA20316@random.random>
+	by kanga.kvack.org (Postfix) with ESMTP id 91DF96B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 11:25:30 -0400 (EDT)
+Date: Thu, 9 Sep 2010 08:23:31 -0700
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: mm/Kconfig: warning: (COMPACTION && EXPERIMENTAL &&
+ HUGETLB_PAGE && MMU) selects MIGRATION which has unmet direct dependencies
+ (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE)
+Message-Id: <20100909082331.7278e76b.randy.dunlap@oracle.com>
+In-Reply-To: <AANLkTi=uzLJxDbd+uJAww-b5aP10gd8gbGVG19HS46ue@mail.gmail.com>
+References: <AANLkTi=uzLJxDbd+uJAww-b5aP10gd8gbGVG19HS46ue@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: sedat.dilek@gmail.com
+Cc: Sedat Dilek <sedat.dilek@googlemail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Andrea Arcangeli <aarcange@redhat.com> [2010-09-01 21:08:59]:
+On Thu, 9 Sep 2010 17:10:34 +0200 Sedat Dilek wrote:
 
-> http://www.linux-kvm.org/wiki/images/9/9e/2010-forum-thp.pdf
+> Hi,
 > 
-> http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
+> while build latest 2.6.36-rc3 I get this warning:
 > 
-> first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-> or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-> later: git fetch; git checkout -f origin/master
+> [ build.log]
+> ...
+> warning: (COMPACTION && EXPERIMENTAL && HUGETLB_PAGE && MMU) selects
+> MIGRATION which has unmet direct dependencies (NUMA ||
+> ARCH_ENABLE_MEMORY_HOTREMOVE)
+> ...
 > 
-> The tree is rebased and git pull won't work.
+> Here the excerpt of...
 > 
-> http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.36-rc3/transparent_hugepage-30/
-> http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.36-rc3/transparent_hugepage-30.gz
+> [ mm/Kconfig ]
+> ...
+> # support for memory compaction
+> config COMPACTION
+>         bool "Allow for memory compaction"
+>         select MIGRATION
+>         depends on EXPERIMENTAL && HUGETLB_PAGE && MMU
+>         help
+>           Allows the compaction of memory for the allocation of huge pages.
+> ...
 > 
-> Diff #29 -> #30:
+> I have set the following kernel-config parameters:
 > 
->  b/compaction-migration-warning               |   25 +++
+> $ egrep 'COMPACTION|HUGETLB_PAGE|MMU|MIGRATION|NUMA|ARCH_ENABLE_MEMORY_HOTREMOVE'
+> linux-2.6.36-rc3/debian/build/build_i386_none_686/.config
+> CONFIG_MMU=y
+> # CONFIG_IOMMU_HELPER is not set
+> CONFIG_IOMMU_API=y
+> CONFIG_COMPACTION=y
+> CONFIG_MIGRATION=y
+> CONFIG_MMU_NOTIFIER=y
+> CONFIG_HUGETLB_PAGE=y
+> # CONFIG_IOMMU_STRESS is not set
 > 
-> Avoid MIGRATION config warning when COMPACTION is selected but numa
-> and memhotplug aren't.
+> Looks like I have no NUMA or ARCH_ENABLE_MEMORY_HOTREMOVE set.
 > 
->  do_swap_page-VM_FAULT_WRITE                  |   21 --
->  kvm-huge-spte-wrprotect                      |   48 ------
->  kvm-mmu-notifier-huge-spte                   |   29 ---
->  root_anon_vma-anon_vma_lock                  |  208 ---------------------------
->  root_anon_vma-avoid-ksm-hang                 |   30 ---
->  root_anon_vma-bugchecks                      |   37 ----
->  root_anon_vma-in_vma                         |   27 ---
->  root_anon_vma-ksm_refcount                   |  169 ---------------------
->  root_anon_vma-lock_root                      |  127 ----------------
->  root_anon_vma-memory-compaction              |   36 ----
->  root_anon_vma-mm_take_all_locks              |   81 ----------
->  root_anon_vma-oldest_root                    |   81 ----------
->  root_anon_vma-refcount                       |   29 ---
->  root_anon_vma-swapin                         |   91 -----------
->  root_anon_vma-use-root                       |   66 --------
->  root_anon_vma-vma_lock_anon_vma              |   94 ------------
-> 
-> merged upstream.
-> 
->  b/memcg_compound                             |  166 ++++++++++-----------
->  b/memcg_compound_tail                        |   31 +---
->  b/memcg_consume_stock                        |   31 ++--
->  memcg_check_room                             |   88 -----------
->  memcg_oom                                    |   34 ----
-> 
-> These had heavy rejects, the last two patches and other bits got
-> removed. memcg code is rewritten so fast it's hard to justify to keep
-> up with it. It's simpler and less time consuming to fix it just once
-> than over and over again. Likely memcg in this release isn't too
-> stable with THP on (it'll definitely work fine if you disable THP at
-> compile time or at boot time with the kernel parameter). Especially
-> all get_css/put_css will have to be re-audited after these new
-> changes. For now it builds just fine and the basics to support THP and
-> to show the direction are in. Nevertheless I welcome patches to fix
-> this up.
-> 
-> btw, memcg developers could already support THP inside memcg even if
-> THP is not included yet without any sort of problem, so it's also
+> Ok, it is a *warning*...
 
-Could you elaborate by what you mean here?
 
-> partly up to them to want to support THP in memcg, but it's also
-> perfectly ok to catch up with memcg externally, but it'd be also nice
-> to know when memcg reaches a milestone and so when it's time to
-> re-audit it all for THP.
->
+Andrea Arcangeli posted a patch for this on linux-mm on 2010-SEP-03.
+(below)
 
-We try not to change too drastically, but several of the current
-changes are fixes, we are currently contemplating some more changes to
-support the I/O control. Some of the recent changes have been driven
-by tracing. We will pay closer attention to THP changes, thanks for
-bring your concern to our notice.
+---
+From: Andrea Arcangeli <aarcange@redhat.com>
 
--- 
-	Three Cheers,
-	Balbir
+COMPACTION enables MIGRATION, but MIGRATION spawns a warning if numa
+or memhotplug aren't selected. However MIGRATION doesn't depend on
+them. I guess it's just trying to be strict doing a double check on
+who's enabling it, but it doesn't know that compaction also enables
+MIGRATION.
+
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -189,7 +189,7 @@ config COMPACTION
+ config MIGRATION
+ 	bool "Page migration"
+ 	def_bool y
+-	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
++	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION
+ 	help
+ 	  Allows the migration of the physical location of pages of processes
+ 	  while the virtual addresses are not changed. This is useful in
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
