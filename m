@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AD0EA6B004A
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 23:07:49 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8937kRi010060
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id D01EF6B0078
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 23:08:57 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8938tc4002319
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 9 Sep 2010 12:07:46 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DB1F45DE65
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D12A745DE57
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B76021DB8049
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4588C1DB8040
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:07:45 +0900 (JST)
-Date: Thu, 9 Sep 2010 12:02:31 +0900
+	Thu, 9 Sep 2010 12:08:55 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B41ED45DE79
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:08:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 913FF45DE70
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:08:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 64F5A1DB8041
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:08:54 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B5B31DB803F
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 12:08:54 +0900 (JST)
+Date: Thu, 9 Sep 2010 12:03:45 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
- no congested BDIs or significant writeback
-Message-Id: <20100909120231.fe6d3078.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1283770053-18833-4-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 04/10] vmscan: Synchronous lumpy reclaim should not call
+ congestion_wait()
+Message-Id: <20100909120345.4a7cf87c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1283770053-18833-5-git-send-email-mel@csn.ul.ie>
 References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
-	<1283770053-18833-4-git-send-email-mel@csn.ul.ie>
+	<1283770053-18833-5-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,147 +34,20 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  6 Sep 2010 11:47:26 +0100
+On Mon,  6 Sep 2010 11:47:27 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> If congestion_wait() is called with no BDIs congested, the caller will sleep
-> for the full timeout and this may be an unnecessary sleep. This patch adds
-> a wait_iff_congested() that checks congestion and only sleeps if a BDI is
-> congested or if there is a significant amount of writeback going on in an
-> interesting zone. Else, it calls cond_resched() to ensure the caller is
-> not hogging the CPU longer than its quota but otherwise will not sleep.
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> This is aimed at reducing some of the major desktop stalls reported during
-> IO. For example, while kswapd is operating, it calls congestion_wait()
-> but it could just have been reclaiming clean page cache pages with no
-> congestion. Without this patch, it would sleep for a full timeout but after
-> this patch, it'll just call schedule() if it has been on the CPU too long.
-> Similar logic applies to direct reclaimers that are not making enough
-> progress.
+> congestion_wait() mean "waiting queue congestion is cleared".  However,
+> synchronous lumpy reclaim does not need this congestion_wait() as
+> shrink_page_list(PAGEOUT_IO_SYNC) uses wait_on_page_writeback()
+> and it provides the necessary waiting.
 > 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/backing-dev.h      |    2 +-
->  include/trace/events/writeback.h |    7 ++++
->  mm/backing-dev.c                 |   66 ++++++++++++++++++++++++++++++++++++-
->  mm/page_alloc.c                  |    4 +-
->  mm/vmscan.c                      |   26 ++++++++++++--
->  5 files changed, 96 insertions(+), 9 deletions(-)
-> 
-> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> index 35b0074..f1b402a 100644
-> --- a/include/linux/backing-dev.h
-> +++ b/include/linux/backing-dev.h
-> @@ -285,7 +285,7 @@ enum {
->  void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
->  void set_bdi_congested(struct backing_dev_info *bdi, int sync);
->  long congestion_wait(int sync, long timeout);
-> -
-> +long wait_iff_congested(struct zone *zone, int sync, long timeout);
->  
->  static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
->  {
-> diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
-> index 275d477..eeaf1f5 100644
-> --- a/include/trace/events/writeback.h
-> +++ b/include/trace/events/writeback.h
-> @@ -181,6 +181,13 @@ DEFINE_EVENT(writeback_congest_waited_template, writeback_congestion_wait,
->  	TP_ARGS(usec_timeout, usec_delayed)
->  );
->  
-> +DEFINE_EVENT(writeback_congest_waited_template, writeback_wait_iff_congested,
-> +
-> +	TP_PROTO(unsigned int usec_timeout, unsigned int usec_delayed),
-> +
-> +	TP_ARGS(usec_timeout, usec_delayed)
-> +);
-> +
->  #endif /* _TRACE_WRITEBACK_H */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index 298975a..94b5433 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -724,6 +724,7 @@ static wait_queue_head_t congestion_wqh[2] = {
->  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
->  		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
->  	};
-> +static atomic_t nr_bdi_congested[2];
->  
->  void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
->  {
-> @@ -731,7 +732,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
->  	wait_queue_head_t *wqh = &congestion_wqh[sync];
->  
->  	bit = sync ? BDI_sync_congested : BDI_async_congested;
-> -	clear_bit(bit, &bdi->state);
-> +	if (test_and_clear_bit(bit, &bdi->state))
-> +		atomic_dec(&nr_bdi_congested[sync]);
->  	smp_mb__after_clear_bit();
->  	if (waitqueue_active(wqh))
->  		wake_up(wqh);
-> @@ -743,7 +745,8 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
->  	enum bdi_state bit;
->  
->  	bit = sync ? BDI_sync_congested : BDI_async_congested;
-> -	set_bit(bit, &bdi->state);
-> +	if (!test_and_set_bit(bit, &bdi->state))
-> +		atomic_inc(&nr_bdi_congested[sync]);
->  }
->  EXPORT_SYMBOL(set_bdi_congested);
->  
-> @@ -774,3 +777,62 @@ long congestion_wait(int sync, long timeout)
->  }
->  EXPORT_SYMBOL(congestion_wait);
->  
-> +/**
-> + * congestion_wait - wait for a backing_dev to become uncongested
-> + * @zone: A zone to consider the number of being being written back from
-> + * @sync: SYNC or ASYNC IO
-> + * @timeout: timeout in jiffies
-> + *
-> + * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
-> + * write congestion.  If no backing_devs are congested then the number of
-> + * writeback pages in the zone are checked and compared to the inactive
-> + * list. If there is no sigificant writeback or congestion, there is no point
-> + * in sleeping but cond_resched() is called in case the current process has
-> + * consumed its CPU quota.
-> + */
-> +long wait_iff_congested(struct zone *zone, int sync, long timeout)
-> +{
-> +	long ret;
-> +	unsigned long start = jiffies;
-> +	DEFINE_WAIT(wait);
-> +	wait_queue_head_t *wqh = &congestion_wqh[sync];
-> +
-> +	/*
-> +	 * If there is no congestion, check the amount of writeback. If there
-> +	 * is no significant writeback and no congestion, just cond_resched
-> +	 */
-> +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
-> +		unsigned long inactive, writeback;
-> +
-> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
-> +				zone_page_state(zone, NR_INACTIVE_ANON);
-> +		writeback = zone_page_state(zone, NR_WRITEBACK);
-> +
-> +		/*
-> +		 * If less than half the inactive list is being written back,
-> +		 * reclaim might as well continue
-> +		 */
-> +		if (writeback < inactive / 2) {
 
-Hmm..can't we have a way that "find a page which can be just dropped without writeback"
-rather than sleeping ? I think we can throttole the number of victims for avoidng I/O
-congestion as pages/tick....if exhausted, ok, we should sleep.
-
-Thanks,
--Kame
-
-
-
-
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
