@@ -1,91 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D4BF46B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 07:55:01 -0400 (EDT)
-Date: Thu, 9 Sep 2010 13:54:45 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 08/43] memblock/microblaze: Use new accessors
-Message-ID: <20100909115445.GB16157@elte.hu>
-References: <1281071724-28740-1-git-send-email-benh@kernel.crashing.org>
- <1281071724-28740-9-git-send-email-benh@kernel.crashing.org>
- <4C5BCD41.3040501@monstr.eu>
- <1281135046.2168.40.camel@pasglop>
- <4C88BD8F.5080208@monstr.eu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7ED6B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 08:00:55 -0400 (EDT)
+Date: Thu, 9 Sep 2010 14:00:44 +0200
+From: Johannes Stezenbach <js@sig21.net>
+Subject: Re: block cache replacement strategy?
+Message-ID: <20100909120044.GA27765@sig21.net>
+References: <20100907133429.GB3430@sig21.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C88BD8F.5080208@monstr.eu>
+In-Reply-To: <20100907133429.GB3430@sig21.net>
 Sender: owner-linux-mm@kvack.org
-To: Michal Simek <monstr@monstr.eu>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-* Michal Simek <monstr@monstr.eu> wrote:
-
-> Benjamin Herrenschmidt wrote:
-> >On Fri, 2010-08-06 at 10:52 +0200, Michal Simek wrote:
-> >>Benjamin Herrenschmidt wrote:
-> >>>CC: Michal Simek <monstr@monstr.eu>
-> >>>Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> >>This patch remove bug which I reported but there is another
-> >>place which needs to be changed.
-> >>
-> >>I am not sure if my patch is correct but at least point you on
-> >>places which is causing compilation errors.
-> >>
-> >>I tested your memblock branch with this fix and microblaze can boot.
-> >
-> >Ok, that's missing in my initial rename patch. I'll fix it up. Thanks.
-> >
-> >Cheers,
-> >Ben.
+On Tue, Sep 07, 2010 at 03:34:29PM +0200, Johannes Stezenbach wrote:
 > 
-> I don't know why but this unfixed old patch is in linux-next today.
-
-Yep, i asked benh to have a look (see the mail below) but got no 
-response, as i assumed it had all been taken care of.
-
-Ben, Peter?
-
-	Ingo
-
------ Forwarded message from Ingo Molnar <mingo@elte.hu> -----
-
-Date: Tue, 31 Aug 2010 09:29:47 +0200
-From: Ingo Molnar <mingo@elte.hu>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, hpa@zytor.com,
-	tglx@linutronix.de, linux-tip-commits@vger.kernel.org
-Subject: Re: [tip:core/memblock] memblock: Rename memblock_region to
-	memblock_type and memblock_property to memblock_region
-
-
-* Benjamin Herrenschmidt <benh@kernel.crashing.org> wrote:
-
-> On Sat, 2010-08-28 at 00:37 +0000, tip-bot for Benjamin Herrenschmidt
-> wrote:
-> > Commit-ID:  e3239ff92a17976ac5d26fa0fe40ef3a9daf2523
-> > Gitweb:     http://git.kernel.org/tip/e3239ff92a17976ac5d26fa0fe40ef3a9daf2523
-> > Author:     Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> > AuthorDate: Wed, 4 Aug 2010 14:06:41 +1000
-> > Committer:  Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> > CommitDate: Wed, 4 Aug 2010 14:21:49 +1000
-> > 
-> > memblock: Rename memblock_region to memblock_type and memblock_property to memblock_region
+> during some simple disk read throughput testing I observed
+> caching behaviour that doesn't seem right.  The machine
+> has 2G of RAM and AMD Athlon 4850e, x86_64 kernel but 32bit
+> userspace, Linux 2.6.35.4.  It seems that contents of the
+> block cache are not evicted to make room for other blocks.
+> (Or something like that, I have no real clue about this.)
 > 
-> He, I was just about to rebase them :-)
+> Since this is a rather artificial test I'm not too worried,
+> but it looks strange to me so I thought I better report it.
+
+C'mon guys, please comment.  Is this a bug or not?
+Or is my question too silly?
+
+
+Johannes
+
+> zzz:~# echo 3 >/proc/sys/vm/drop_caches 
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.9454 s, 75.2 MB/s
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 0.92799 s, 1.1 GB/s
 > 
-> Do you still need me to do that ?
-
-Btw., because this is an older base, before we can push this to 
-linux-next i suspect we'll need fixes for those architectures that did a 
-memblock conversion in this cycle?
-
-Thanks,
-
-	Ingo
-	
+> OK, seems like the blocks are cached. But:
+> 
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.8375 s, 75.8 MB/s
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.8429 s, 75.7 MB/s
+> 
+> Even if I let 15min pass and repeat the dd command
+> several times, I cannot see any caching effects, it
+> stays at ~75 MB/s.
+> 
+> zzz:~# cat /proc/meminfo 
+> MemTotal:        1793272 kB
+> MemFree:           15216 kB
+> Buffers:         1378820 kB
+> Cached:            20080 kB
+> SwapCached:            0 kB
+> Active:           792720 kB
+> Inactive:         758832 kB
+> Active(anon):      91716 kB
+> Inactive(anon):    64652 kB
+> Active(file):     701004 kB
+> Inactive(file):   694180 kB
+> 
+> But then:
+> 
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 5.23983 s, 200 MB/s
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 0.908284 s, 1.2 GB/s
+> 
+> zzz:~# cat /proc/meminfo 
+> MemTotal:        1793272 kB
+> MemFree:           16168 kB
+> Buffers:         1377308 kB
+> Cached:            20660 kB
+> SwapCached:            0 kB
+> Active:          1140384 kB
+> Inactive:         410236 kB
+> Active(anon):      91716 kB
+> Inactive(anon):    64652 kB
+> Active(file):    1048668 kB
+> Inactive(file):   345584 kB
+> 
+> 
+> And finally:
+> 
+> zzz:~# echo 3 >/proc/sys/vm/drop_caches
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.948 s, 75.2 MB/s
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000 skip=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 0.985031 s, 1.1 GB/s
+> 
+> 
+> Now these blocks get cached but then the others don't:
+> 
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.9394 s, 75.2 MB/s
+> zzz:~# dd if=/dev/sda2 of=/dev/null bs=1M count=1000
+> 1000+0 records in
+> 1000+0 records out
+> 1048576000 bytes (1.0 GB) copied, 13.9403 s, 75.2 MB/s
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
