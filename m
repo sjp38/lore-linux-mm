@@ -1,68 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 423186B004A
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 18:19:43 -0400 (EDT)
-Date: Wed, 8 Sep 2010 15:19:29 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: check all_unreclaimable in direct reclaim path
-Message-Id: <20100908151929.2586ace5.akpm@linux-foundation.org>
-In-Reply-To: <20100908154527.GA5936@barrios-desktop>
-References: <1283697637-3117-1-git-send-email-minchan.kim@gmail.com>
-	<20100908054831.GB20955@cmpxchg.org>
-	<20100908154527.GA5936@barrios-desktop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6D2716B004A
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2010 20:50:01 -0400 (EDT)
+Received: by vws16 with SMTP id 16so926334vws.14
+        for <linux-mm@kvack.org>; Wed, 08 Sep 2010 17:49:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1283892334-9238-1-git-send-email-gking@nvidia.com>
+References: <1283892334-9238-1-git-send-email-gking@nvidia.com>
+Date: Thu, 9 Sep 2010 08:49:59 +0800
+Message-ID: <AANLkTi=GiU+N-1a00qxSFpDL8tz0_W3dpc32VXZBs9yZ@mail.gmail.com>
+Subject: Re: [PATCH] bounce: call flush_dcache_page after bounce_copy_vec
+From: Bryan Wu <bryan.wu@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
+To: Gary King <gking@nvidia.com>
+Cc: linux-mm@kvack.org, tj@kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, "Jan, Sebastien" <s-jan@ti.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Sep 2010 00:45:27 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Wed, Sep 8, 2010 at 4:45 AM, Gary King <gking@nvidia.com> wrote:
+> I have been seeing problems on Tegra 2 (ARMv7 SMP) systems with HIGHMEM
+> enabled on 2.6.35 (plus some patches targetted at 2.6.36 to perform
+> cache maintenance lazily), and the root cause appears to be that the
+> mm bouncing code is calling flush_dcache_page before it copies the
+> bounce buffer into the bio.
+>
+> The patch below reorders these two operations, and eliminates numerous
+> arbitrary application crashes on my dev system.
+>
 
-> +static inline bool zone_reclaimable(struct zone *zone)
-> +{
-> +	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
-> +}
-> +
-> +static inline bool all_unreclaimable(struct zonelist *zonelist,
-> +		struct scan_control *sc)
-> +{
-> +	struct zoneref *z;
-> +	struct zone *zone;
-> +	bool all_unreclaimable = true;
-> +
-> +	if (!scanning_global_lru(sc))
-> +		return false;
-> +
-> +	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> +			gfp_zone(sc->gfp_mask), sc->nodemask) {
-> +		if (!populated_zone(zone))
-> +			continue;
-> +		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-> +			continue;
-> +		if (zone_reclaimable(zone)) {
-> +			all_unreclaimable = false;
-> +			break;
-> +		}
-> +	}
-> +
->  	return all_unreclaimable;
->  }
+We also experience the package building failure on OMAP4 SMP system
+with HIGHMEM enabled
+on 2.6.35. Thanks a lot for this fixing, we will try it later soon.
 
-Could we have some comments over these functions please?  Why they
-exist, what problem they solve, how they solve them, etc.  Stuff which
-will be needed for maintaining this code three years from now.
+-Bryan
 
-We may as well remove the `inline's too.  gcc will tkae care of that.
-
-> -		if (nr_slab == 0 &&
-> -		   zone->pages_scanned >= (zone_reclaimable_pages(zone) * 6))
-> +		if (nr_slab == 0 && !zone_reclaimable(zone))
-
-Extra marks for working out and documenting how we decided on the value
-of "6".  Sigh.  It's hopefully in the git record somewhere.
+> Gary
+>
+> --
+> From 678c9bca8d8a8f254f28af91e69fad3aa1be7593 Mon Sep 17 00:00:00 2001
+> From: Gary King <gking@nvidia.com>
+> Date: Mon, 6 Sep 2010 15:37:12 -0700
+> Subject: bounce: call flush_dcache_page after bounce_copy_vec
+>
+> the bounced page needs to be flushed after data is copied into it,
+> to ensure that architecture implementations can synchronize
+> instruction and data caches if necessary.
+>
+> Signed-off-by: Gary King <gking@nvidia.com>
+> ---
+> =A0mm/bounce.c | =A0 =A02 +-
+> =A01 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/bounce.c b/mm/bounce.c
+> index 13b6dad..1481de6 100644
+> --- a/mm/bounce.c
+> +++ b/mm/bounce.c
+> @@ -116,8 +116,8 @@ static void copy_to_high_bio_irq(struct bio *to, stru=
+ct bio *from)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0vfrom =3D page_address(fromvec->bv_page) +=
+ tovec->bv_offset;
+>
+> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(tovec->bv_page);
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0bounce_copy_vec(tovec, vfrom);
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 flush_dcache_page(tovec->bv_page);
+> =A0 =A0 =A0 =A0}
+> =A0}
+>
+> --
+> 1.7.0.4
+>
+>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
