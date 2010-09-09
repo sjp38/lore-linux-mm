@@ -1,118 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A253A6B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 08:39:26 -0400 (EDT)
-Date: Thu, 9 Sep 2010 13:39:10 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 781186B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 08:41:54 -0400 (EDT)
+Date: Thu, 9 Sep 2010 13:41:38 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 3/3] mm: page allocator: Drain per-cpu lists after
 	direct reclaim allocation fails
-Message-ID: <20100909123910.GP29263@csn.ul.ie>
-References: <20100904081414.GF705@dastard> <20100905015400.GA10714@localhost> <20100905021555.GG705@dastard> <20100905060539.GA17450@localhost> <20100905131447.GJ705@dastard> <20100905134554.GA7083@localhost> <20100906040243.GA7362@dastard> <20100906084015.GJ8384@csn.ul.ie> <20100906215023.GC7362@dastard> <20100908084923.GW705@dastard>
+Message-ID: <20100909124138.GQ29263@csn.ul.ie>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <1283504926-2120-4-git-send-email-mel@csn.ul.ie> <20100908163956.C930.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100908084923.GW705@dastard>
+In-Reply-To: <20100908163956.C930.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Chinner <david@fromorbit.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 08, 2010 at 06:49:23PM +1000, Dave Chinner wrote:
-> On Tue, Sep 07, 2010 at 07:50:23AM +1000, Dave Chinner wrote:
-> > On Mon, Sep 06, 2010 at 09:40:15AM +0100, Mel Gorman wrote:
-> > > On Mon, Sep 06, 2010 at 02:02:43PM +1000, Dave Chinner wrote:
-> > > > I just went to grab the CAL counters, and found the system in
-> > > > another livelock.  This time I managed to start the sysrq-trigger
-> > > > dump while the livelock was in progress - I bas??cally got one shot
-> > > > at a command before everything stopped responding. Now I'm waiting
-> > > > for the livelock to pass.... 5min.... the fs_mark workload
-> > > > has stopped (ctrl-c finally responded), still livelocked....
-> > > > 10min.... 15min.... 20min.... OK, back now.
-> > > > 
-> > > > Interesting - all the fs_mark processes are in D state waiting on IO
-> > > > completion processing.
-> > > 
-> > > Very interesting, maybe they are all stuck in congestion_wait() this
-> > > time? There are a few sources where that is possible.
-> > 
-> > No, they are waiting on log IO completion, not doing allocation or
-> > in the VM at all.  They stuck in xlog_get_iclog_state() waiting for
-> > all the log IO buffers to be processed which are stuck behind the
-> > inode buffer IO completions in th kworker threads that I posted. 
-> > 
-> > This potentially is caused by the kworker thread consolidation - log
-> > IO completion processing used to be in a separate workqueue for
-> > processing latency and deadlock prevention reasons - the data and
-> > metadata IO completion can block, whereas we need the log IO
-> > completion to occur as quickly as possible. I've seen one deadlock
-> > that the separate work queues solved w.r.t. loop devices, and I
-> > suspect that part of the problem here is that transaction completion
-> > cannot occur (and free the memory it and the CIL holds) because log IO
-> > completion processing is being delayed significantly by metadata IO
-> > completion...
-> .....
-> > > > Which shows that this wasn't an IPI storm that caused this
-> > > > particular livelock.
-> > > 
-> > > No, but it's possible we got stuck somewhere like too_many_isolated() or
-> > > in congestion_wait. One thing at a time though, would you mind testing
-> > > the following patch? I haven't tested this *at all* but it should reduce
-> > > the number of times drain_all_pages() are called further while not
-> > > eliminating them entirely.
-> > 
-> > Ok, I'll try it later today, but first I think I need to do some
-> > deeper investigation on the kworker thread behaviour....
+On Wed, Sep 08, 2010 at 04:43:03PM +0900, KOSAKI Motohiro wrote:
+> > +	/*
+> > +	 * If an allocation failed after direct reclaim, it could be because
+> > +	 * pages are pinned on the per-cpu lists. Drain them and try again
+> > +	 */
+> > +	if (!page && !drained) {
+> > +		drain_all_pages();
+> > +		drained = true;
+> > +		goto retry;
+> > +	}
 > 
-> Ok, so an update is needed here. I have confirmed that the above
-> livelock was caused by the kworker thread consolidation, and I have
-> a fix for it (make the log IO completion processing queue WQ_HIGHPRI
-> so it gets queued ahead of the data/metadata IO completions), and
-> I've been able to create over a billion inodes now without a
-> livelock occurring. See the thread titled "[2.6.36-rc3] Workqueues,
-> XFS, dependencies and deadlock" if you want more details.
+> nit: when slub, get_page_from_freelist() failure is frequently happen
+> than slab because slub try to allocate high order page at first.
+> So, I guess we have to avoid drain_all_pages() if __GFP_NORETRY is passed.
 > 
 
-Good stuff. I read through the thread and it seemed reasonable.
-
-> To make sure I've been seeing two different livelocks, I removed
-> Mel's series from my tree (which still contained the above workqueue
-> fix), and I started seeing short memory allocation livelocks (10-15s
-> at most) with abnormal increases in CAL counts indication an
-> increase in IPIs during the short livelocks.  IOWs, the livelock
-> was't as severe as before the workqueue fix, but still present.
-> Hence the workqueue issue was definitely a contributing factor to
-> the severity of the memory allocation triggered issue.
-> 
-
-Good. Considering that this class of bugs in either the page allocator
-or page reclaim can be down to timing, it makes sense that a big change
-in ordering of events could compound problems in the VM.
-
-> It is clear that there have been two different livelocks with
-> different caused by the same test, which has led to a lot of
-> confusion in this thread. It appears that Mel's patch series as
-> originally posted in this thread is all that is necessary to avoid
-> the memory allocation livelock issue I was seeing. The workqueue
-> fix solves the other livelock I was seeing once Mel's patches were
-> in place.
-> 
-> Thanks to everyone for helping me track these livelocks down and
-> providing lots of suggestions for things to try. I'll keep testing
-> and looking for livelocks, but my confidence is increasing that
-> we've got to the root of them now. 
-> 
-
-It has been pointed out that the fix potentially increases the number of
-IPIs sent. On larger machines, I worry that these delays could be severe
-and we'll see other problems down the line. Hence, I'd like to reduce
-the number of calls to drain_all_pages() without eliminating them
-entirely. I'm currently in the process of testing the following patch
-but can you try it as well please?
-
-In particular, I am curious to see if the performance of fs_mark
-improves any and if the interrupt counts drop as a result of the patch.
-
-Thanks
+Old behaviour was for high-order allocations which one would assume did
+not have __GFP_NORETRY specified except in very rare cases. Still, calling
+drain_all_pages() raises interrupt counts and I worried that large machines
+might exhibit some livelock-like problem. I'm considering the following patch,
+what do you think?
 
 ==== CUT HERE ====
 mm: page allocator: Reduce the instances where drain_all_pages() is called
