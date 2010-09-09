@@ -1,79 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id E64896B004A
-	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 13:24:46 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o89H6Kjt028470
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 13:06:20 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o89HOimL127262
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 13:24:44 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o89HOhOL003845
-	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 13:24:44 -0400
-Subject: OOM panics with zram
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1281374816-904-1-git-send-email-ngupta@vflare.org>
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Thu, 09 Sep 2010 10:24:41 -0700
-Message-ID: <1284053081.7586.7910.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 198D66B004A
+	for <linux-mm@kvack.org>; Thu,  9 Sep 2010 15:07:53 -0400 (EDT)
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out.google.com with ESMTP id o89J7oBO019646
+	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 12:07:51 -0700
+Received: from pvc21 (pvc21.prod.google.com [10.241.209.149])
+	by wpaz1.hot.corp.google.com with ESMTP id o89J7mw7010037
+	for <linux-mm@kvack.org>; Thu, 9 Sep 2010 12:07:49 -0700
+Received: by pvc21 with SMTP id 21so114160pvc.13
+        for <linux-mm@kvack.org>; Thu, 09 Sep 2010 12:07:48 -0700 (PDT)
+Date: Thu, 9 Sep 2010 12:07:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -rc] oom: always return a badness score of non-zero for
+ eligible tasks
+In-Reply-To: <1284053081.7586.7910.camel@nimitz>
+Message-ID: <alpine.DEB.2.00.1009091152090.5556@chino.kir.corp.google.com>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1284053081.7586.7910.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nitin,
+On Thu, 9 Sep 2010, Dave Hansen wrote:
 
-I've been playing with using zram (from -staging) to back some qemu
-guest memory directly.  Basically mmap()'ing the device in instead of
-using anonymous memory.  The old code with the backing swap devices
-seemed to work pretty well, but I'm running into a problem with the new
-code.
+> Hi Nitin,
+> 
+> I've been playing with using zram (from -staging) to back some qemu
+> guest memory directly.  Basically mmap()'ing the device in instead of
+> using anonymous memory.  The old code with the backing swap devices
+> seemed to work pretty well, but I'm running into a problem with the new
+> code.
+> 
+> I have plenty of swap on the system, and I'd been running with compcache
+> nicely for a while.  But, I went to go tar up (and gzip) a pretty large
+> directory in my qemu guest.  It panic'd the qemu host system:
+> 
+> [703826.003126] Kernel panic - not syncing: Out of memory and no killable processes...
+> [703826.003127] 
+> [703826.012350] Pid: 25508, comm: cat Not tainted 2.6.36-rc3-00114-g9b9913d #29
 
-I have plenty of swap on the system, and I'd been running with compcache
-nicely for a while.  But, I went to go tar up (and gzip) a pretty large
-directory in my qemu guest.  It panic'd the qemu host system:
+I'm curious why there are no killable processes on the system; it seems 
+like the triggering task here, cat, would at least be killable itself.  
+Could you post the tasklist dump that preceeds this (or, if you've 
+disabled it try echo 1 > /proc/sys/vm/oom_dump_tasks first)?
 
-[703826.003126] Kernel panic - not syncing: Out of memory and no killable processes...
-[703826.003127] 
-[703826.012350] Pid: 25508, comm: cat Not tainted 2.6.36-rc3-00114-g9b9913d #29
-[703826.019385] Call Trace:
-[703826.021928]  [<ffffffff8104032a>] panic+0xba/0x1e0
-[703826.026801]  [<ffffffff810bb4a1>] ? next_online_pgdat+0x21/0x50
-[703826.032799]  [<ffffffff810a7713>] ? find_lock_task_mm+0x23/0x60
-[703826.038795]  [<ffffffff810a79ab>] ? dump_header+0x19b/0x1b0
-[703826.044446]  [<ffffffff810a8157>] out_of_memory+0x297/0x2d0
-[703826.050098]  [<ffffffff810abbaf>] __alloc_pages_nodemask+0x72f/0x740
-[703826.056528]  [<ffffffff81110d4e>] ? __set_page_dirty+0x6e/0xc0
-[703826.062438]  [<ffffffff810da477>] alloc_pages_current+0x87/0xd0
-[703826.068438]  [<ffffffff810a533b>] __page_cache_alloc+0xb/0x10
-[703826.074263]  [<ffffffff810ae2ff>] __do_page_cache_readahead+0xdf/0x220
-[703826.080865]  [<ffffffff810ae45c>] ra_submit+0x1c/0x20
-[703826.085998]  [<ffffffff810ae5f8>] ondemand_readahead+0xa8/0x1d0
-[703826.091994]  [<ffffffff810ae797>] page_cache_async_readahead+0x77/0xc0
-[703826.098595]  [<ffffffff810a6489>] generic_file_aio_read+0x259/0x6d0
-[703826.104941]  [<ffffffff810eac21>] do_sync_read+0xd1/0x110
-[703826.110418]  [<ffffffff810eb3f6>] vfs_read+0xc6/0x170
-[703826.115547]  [<ffffffff810eb860>] sys_read+0x50/0x90
-[703826.120591]  [<ffffffff81002c2b>] system_call_fastpath+0x16/0x1b
+It's possible that if you have enough swap that none of the eligible tasks 
+actually have non-zero badness scores either because they are being run as 
+root or because the amount of RAM or swap is sufficiently high such that 
+(task's rss + swap) / (total rss + swap) is never non-zero.  And, since 
+root tasks have a 3% bonus, it's possible these are all root tasks and no 
+single task uses more than 3% of rss and swap.
 
-I have the feeling that the compcache device all of a sudden lost its
-efficiency.  It can't do much about having non-compressible data stuck
-in it, of course.
+While this may not be the issue in your case, and can be confirmed with 
+the tasklist dump if you can get it, we need to protect against these 
+situations where eligible tasks may not be killed.
 
-But, it used to be able to write things out to backing storage.  It
-tries to return I/O errors when it runs out of space, but my system
-didn't get that far.  It panic'd before it got the chance.
+Andrew, I'd like to propose this patch for 2.6.36-rc-series since the 
+worst case is that the machine will panic if there are an exceptionally 
+large number of tasks, each with little memory usage at the time of oom.
 
-This seems like an issue that will probably crop up when we use zram as
-a swap device too.  A panic seems like pretty undesirable behavior when
-you've simply changed the kind of data being used.  Have you run into
-this at all?
 
--- Dave
+
+oom: always return a badness score of non-zero for eligible tasks
+
+A task's badness score is roughly a proportion of its rss and swap
+compared to the system's capacity.  The scale ranges from 0 to 1000 with
+the highest score chosen for kill.  Thus, this scale operates on a
+resolution of 0.1% of RAM + swap.  Admin tasks are also given a 3% bonus,
+so the badness score of an admin task using 3% of memory, for example,
+would still be 0.
+
+It's possible that an exceptionally large number of tasks will combine to 
+exhaust all resources but never have a single task that uses more than
+0.1% of RAM and swap (or 3.0% for admin tasks).
+
+This patch ensures that the badness score of any eligible task is never 0
+so the machine doesn't unnecessarily panic because it cannot find a task
+to kill.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -208,8 +208,13 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 	 */
+ 	points += p->signal->oom_score_adj;
+ 
+-	if (points < 0)
+-		return 0;
++	/*
++	 * Never return 0 for an eligible task that may be killed since it's
++	 * possible that no single user task uses more than 0.1% of memory and
++	 * no single admin tasks uses more than 3.0%.
++	 */
++	if (points <= 0)
++		return 1;
+ 	return (points < 1000) ? points : 1000;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
