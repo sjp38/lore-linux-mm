@@ -1,67 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B2BB96B00A1
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 06:33:37 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8AAXYUH031279
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 10 Sep 2010 19:33:34 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E354445DE4F
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 19:33:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C24B745DE4E
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 19:33:33 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA3171DB8037
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 19:33:33 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 445301DB803E
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 19:33:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 05/10] vmscan: Synchrounous lumpy reclaim use lock_page() instead trylock_page()
-In-Reply-To: <20100909182649.C94F.A69D9226@jp.fujitsu.com>
-References: <20100909092203.GL29263@csn.ul.ie> <20100909182649.C94F.A69D9226@jp.fujitsu.com>
-Message-Id: <20100910193307.C97B.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C97DF6B0087
+	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 07:48:07 -0400 (EDT)
+Received: by pxi5 with SMTP id 5so1105738pxi.14
+        for <linux-mm@kvack.org>; Fri, 10 Sep 2010 04:48:06 -0700 (PDT)
+Date: Fri, 10 Sep 2010 20:47:59 +0900
+From: Naoya Horiguchi <nao.horiguchi@gmail.com>
+Subject: Re: [PATCH 0/4] hugetlb, rmap: fixes and cleanups
+Message-ID: <20100910114759.GA5687@hammershoi.dip.jp>
+References: <1284092586-1179-1-git-send-email-n-horiguchi@ah.jp.nec.com> <20100910110438.6aaf181e@basil.nowhere.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 10 Sep 2010 19:33:32 +0900 (JST)
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100910110438.6aaf181e@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Afaik, detailed rule is,
+On Fri, Sep 10, 2010 at 11:04:38AM +0200, Andi Kleen wrote:
+> On Fri, 10 Sep 2010 13:23:02 +0900
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 > 
-> o kswapd can call lock_page() because they never take page lock outside vmscan
-
-s/lock_page()/lock_page_nosync()/
-
-
-
-> o if try_lock() is successed, we can call lock_page_nosync() against its page after unlock.
->   because the task have gurantee of no lock taken.
-> o otherwise, direct reclaimer can't call lock_page(). the task may have a lock already.
-> 
-> I think.
-> 
-> 
-> >  I did not
-> > think of an obvious example of when this would happen. Similarly,
-> > deadlock situations with mmap_sem shouldn't happen unless multiple page
-> > locks are being taken.
+> > Hi,
 > > 
-> > (prepares to feel foolish)
+> > These are fix and cleanup patches for hugepage rmapping.
+> > All these were pointed out in the following thread (last 4 messages.)
 > > 
-> > What did I miss?
+> >   http://thread.gmane.org/gmane.linux.kernel.mm/52334
 > 
-> 
-> 
-> 
-> 
+> Looks all good to me. It's not strictly hwpoison related
+> though, so I assume they are better with Andrew than my tree.
 
+Agreed.
 
+> I assume they do not depend on the earlier patchkit?
+
+No, all changes on this patchset update code merged with
+"HWPOISON for hugepage" patchset.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
