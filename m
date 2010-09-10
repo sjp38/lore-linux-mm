@@ -1,34 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 84D5D6B00A7
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 10:39:39 -0400 (EDT)
-Date: Fri, 10 Sep 2010 16:39:46 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/4] hugetlb, rmap: use hugepage_add_new_anon_rmap() in
- hugetlb_cow()
-Message-ID: <20100910143946.GW8925@random.random>
-References: <1284092586-1179-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1284092586-1179-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6ABCC6B00A8
+	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 10:40:02 -0400 (EDT)
+Message-ID: <4C8A4353.5050802@redhat.com>
+Date: Fri, 10 Sep 2010 10:40:19 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1284092586-1179-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/4] hugetlb, rmap: always use anon_vma root pointer
+References: <1284092586-1179-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1284092586-1179-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1284092586-1179-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 10, 2010 at 01:23:04PM +0900, Naoya Horiguchi wrote:
-> Obviously, setting anon_vma for COWed hugepage should be done
-> by hugepage_add_new_anon_rmap() to scan vmas faster.
-> This patch fixes it.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  mm/hugetlb.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+On 09/10/2010 12:23 AM, Naoya Horiguchi wrote:
+> This patch applies Andrea's fix given by the following patch into hugepage
+> rmapping code:
+>
+>    commit 288468c334e98aacbb7e2fb8bde6bc1adcd55e05
+>    Author: Andrea Arcangeli<aarcange@redhat.com>
+>    Date:   Mon Aug 9 17:19:09 2010 -0700
+>
+> This patch uses anon_vma->root and avoids unnecessary overwriting when
+> anon_vma is already set up.
+>
+> Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
 
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
