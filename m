@@ -1,57 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6F46B00BB
-	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 17:50:28 -0400 (EDT)
-Date: Fri, 10 Sep 2010 23:50:22 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 1/4] hugetlb, rmap: always use anon_vma root pointer
-Message-ID: <20100910235022.74ec04de@basil.nowhere.org>
-In-Reply-To: <AANLkTikV9nXxMW8X9Wq+wGaJfzMEAmzTFrDNf8Aq4cTs@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7595A6B00BC
+	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 18:08:01 -0400 (EDT)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o8AM7Sh9006646
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Fri, 10 Sep 2010 15:07:29 -0700
+Received: by iwn33 with SMTP id 33so3428935iwn.14
+        for <linux-mm@kvack.org>; Fri, 10 Sep 2010 15:07:28 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100910235022.74ec04de@basil.nowhere.org>
 References: <1284092586-1179-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1284092586-1179-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<AANLkTikV9nXxMW8X9Wq+wGaJfzMEAmzTFrDNf8Aq4cTs@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+ <1284092586-1179-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <AANLkTikV9nXxMW8X9Wq+wGaJfzMEAmzTFrDNf8Aq4cTs@mail.gmail.com> <20100910235022.74ec04de@basil.nowhere.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 10 Sep 2010 15:07:08 -0700
+Message-ID: <AANLkTinFqM4BSD0jkrqkrNxg-o+3eC6QQ6zq8jKdaLJx@mail.gmail.com>
+Subject: Re: [PATCH 1/4] hugetlb, rmap: always use anon_vma root pointer
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Sep 2010 10:19:24 -0700
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Fri, Sep 10, 2010 at 2:50 PM, Andi Kleen <andi@firstfloor.org> wrote:
+>> Btw, why isn't the code in __page_set_anon_rmap() also doing this
+>> cleaner version (ie a single "if (PageAnon(page)) return;" up front)?
+>
+> Perhaps I misunderstand the question, but __page_set_anon_rmap
+> should handle Anon pages, shouldn't it?
 
-> On Thu, Sep 9, 2010 at 9:23 PM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
-> > This patch applies Andrea's fix given by the following patch into
-> > hugepage rmapping code:
-> >
-> > =C2=A0commit 288468c334e98aacbb7e2fb8bde6bc1adcd55e05
-> > =C2=A0Author: Andrea Arcangeli <aarcange@redhat.com>
-> > =C2=A0Date: =C2=A0 Mon Aug 9 17:19:09 2010 -0700
-> >
-> > This patch uses anon_vma->root and avoids unnecessary overwriting
-> > when anon_vma is already set up.
->=20
-> Btw, why isn't the code in __page_set_anon_rmap() also doing this
-> cleaner version (ie a single "if (PageAnon(page)) return;" up front)?
+I'm talking about this:
 
-Perhaps I misunderstand the question, but __page_set_anon_rmap
-should handle Anon pages, shouldn't it?
+    if (!exclusive) {
+        if (PageAnon(page))
+            return;
+        anon_vma = anon_vma->root;
+    } else {
+        .. big bad comment ...
+        if (PageAnon(page))
+            return;
+    }
 
->=20
-> The comments in that function are also some alien language translated
-> to english by some broken automatic translation service. Could
-> somebody clean up that function and come up with a comment that
-> actually parses as English and makes sense?
+where both sides of the if-statement start off doing the same thing.
 
-I'll do that.
+It would be much cleaner to just do
 
--Andi
+    ... big _comprehensible_ comment ...
+    if (PageAnon(page))
+        return;
 
+    if (!exclusive)
+        anon_vma = anon_vma->root;
 
---=20
-ak@linux.intel.com -- Speaking for myself only.
+which avoids that silly else that just does something that we always do.
+
+The reason I reacted is that Naoya-san's patch did that cleaner
+version for the hugetlb case. So when I compared it to the non-hugetlb
+case I just went "Ewww..."
+
+                             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
