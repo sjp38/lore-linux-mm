@@ -1,134 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id BAFAA6B00B2
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 12:20:57 -0400 (EDT)
-Received: by mail-iw0-f169.google.com with SMTP id 33so5526979iwn.14
-        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 09:20:56 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <AANLkTi=4kwu0Y5-MDye3TD+zZiku62NtNCMtWLn==p12@mail.gmail.com>
-References: <1283697637-3117-1-git-send-email-minchan.kim@gmail.com>
-	<20100908054831.GB20955@cmpxchg.org>
-	<20100908154527.GA5936@barrios-desktop>
-	<20100908151929.2586ace5.akpm@linux-foundation.org>
-	<AANLkTi=4kwu0Y5-MDye3TD+zZiku62NtNCMtWLn==p12@mail.gmail.com>
-Date: Mon, 13 Sep 2010 01:20:56 +0900
-Message-ID: <AANLkTimzidMtKs073bxrYz8GsenRNuAAnQMy7a=FS5Sf@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: check all_unreclaimable in direct reclaim path
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id C51966B00B5
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 12:32:09 -0400 (EDT)
+Received: by pzk26 with SMTP id 26so1449379pzk.14
+        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 09:32:08 -0700 (PDT)
+Date: Mon, 13 Sep 2010 01:32:00 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v2] vmscan: check all_unreclaimable in direct reclaim path
+Message-ID: <20100912163200.GA4098@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Dave Young <hidave.darkstar@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Thanks, Dave.
+Adnrew, Please drop my old version and merge this verstion.
+(old : vmscan-check-all_unreclaimable-in-direct-reclaim-path.patch)
+   
+ * Changelog from v2 
+   * remove inline - suggested by Andrew
+   * add function desription - suggeseted by Adnrew
 
-On Fri, Sep 10, 2010 at 5:24 PM, Dave Young <hidave.darkstar@gmail.com> wro=
-te:
-> On Thu, Sep 9, 2010 at 6:19 AM, Andrew Morton <akpm@linux-foundation.org>=
- wrote:
->> On Thu, 9 Sep 2010 00:45:27 +0900
->> Minchan Kim <minchan.kim@gmail.com> wrote:
->>
->>> +static inline bool zone_reclaimable(struct zone *zone)
->>> +{
->>> + =A0 =A0 return zone->pages_scanned < zone_reclaimable_pages(zone) * 6=
-;
->>> +}
->>> +
->>> +static inline bool all_unreclaimable(struct zonelist *zonelist,
->>> + =A0 =A0 =A0 =A0 =A0 =A0 struct scan_control *sc)
->>> +{
->>> + =A0 =A0 struct zoneref *z;
->>> + =A0 =A0 struct zone *zone;
->>> + =A0 =A0 bool all_unreclaimable =3D true;
->>> +
->>> + =A0 =A0 if (!scanning_global_lru(sc))
->>> + =A0 =A0 =A0 =A0 =A0 =A0 return false;
->>> +
->>> + =A0 =A0 for_each_zone_zonelist_nodemask(zone, z, zonelist,
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 gfp_zone(sc->gfp_mask), sc->n=
-odemask) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!populated_zone(zone))
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!cpuset_zone_allowed_hardwall(zone, GFP_K=
-ERNEL))
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 if (zone_reclaimable(zone)) {
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 all_unreclaimable =3D false;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 }
->>> + =A0 =A0 }
->>> +
->>> =A0 =A0 =A0 return all_unreclaimable;
->>> =A0}
->>
->> Could we have some comments over these functions please? =A0Why they
->> exist, what problem they solve, how they solve them, etc. =A0Stuff which
->> will be needed for maintaining this code three years from now.
->>
->> We may as well remove the `inline's too. =A0gcc will tkae care of that.
->>
->>> - =A0 =A0 =A0 =A0 =A0 =A0 if (nr_slab =3D=3D 0 &&
->>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->pages_scanned >=3D (zone_reclaim=
-able_pages(zone) * 6))
->>> + =A0 =A0 =A0 =A0 =A0 =A0 if (nr_slab =3D=3D 0 && !zone_reclaimable(zon=
-e))
->>
->> Extra marks for working out and documenting how we decided on the value
->> of "6". =A0Sigh. =A0It's hopefully in the git record somewhere.
->
-> Here it is (necessary to add additional comment?):
->
-> commit 4ff1ffb4870b007b86f21e5f27eeb11498c4c077
-> Author: Nick Piggin <npiggin@suse.de>
-> Date: =A0 Mon Sep 25 23:31:28 2006 -0700
->
-> =A0 =A0[PATCH] oom: reclaim_mapped on oom
->
-> =A0 =A0Potentially it takes several scans of the lru lists before we can =
-even start
-> =A0 =A0reclaiming pages.
->
-> =A0 =A0mapped pages, with young ptes can take 2 passes on the active list=
- + one on
-> =A0 =A0the inactive list. =A0But reclaim_mapped may not always kick in
-> instantly, so it
-> =A0 =A0could take even more than that.
->
-> =A0 =A0Raise the threshold for marking a zone as all_unreclaimable from a
-> factor of 4
-> =A0 =A0time the pages in the zone to 6. =A0Introduce a mechanism to force
-> =A0 =A0reclaim_mapped if we've reached a factor 3 and still haven't made =
-progress.
->
-> =A0 =A0Previously, a customer doing stress testing was able to easily OOM=
- the box
-> =A0 =A0after using only a small fraction of its swap (~100MB). =A0After t=
-he
-> patches, it
-> =A0 =A0would only OOM after having used up all swap (~800MB).
->
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org. =A0For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->>
->>
->
->
->
-> --
-> Regards
-> dave
->
+== CUT HERE == 
+
+Subject: [PATCH v2] vmscan: check all_unreclaimable in direct reclaim path
+
+M. Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his 
+32bit 3GB mem machine. (https://bugzilla.kernel.org/show_bug.cgi?id=16771)
+Also he was bisected first bad commit is below
+
+  commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
+  Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+  Date:   Fri Jun 4 14:15:05 2010 -0700
+
+     vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
+
+At first impression, this seemed very strange because the above commit only
+chenged function return value and hibernate_preallocate_memory() ignore
+return value of shrink_all_memory(). But it's related.
+
+Now, page allocation from hibernation code may enter infinite loop if
+the system has highmem. The reasons are that vmscan don't care enough
+OOM case when oom_killer_disabled.
+
+The problem sequence is following as. 
+
+1. hibernation
+2. oom_disable
+3. alloc_pages
+4. do_try_to_free_pages
+       if (scanning_global_lru(sc) && !all_unreclaimable)
+               return 1;
+
+If kswapd is not freezed, it would set zone->all_unreclaimable to 1 and then
+shrink_zones maybe return true(ie, all_unreclaimable is true).
+so at last, alloc_pages could go to _nopage_. If it is, it should have no problem.
+
+This patch adds all_unreclaimable check to protect in direct reclaim path, too.
+It can care of hibernation OOM case and help bailout all_unreclaimable case slightly.
+
+Cc: Rik van Riel <riel@redhat.com>
+Cc: M. Vefa Bicakci <bicave@superonline.com>
+Cc: stable@kernel.org
+Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+---
+ mm/vmscan.c |   46 ++++++++++++++++++++++++++++++++++++++--------
+ 1 files changed, 38 insertions(+), 8 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7870893..ecae0ef 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1877,12 +1877,11 @@ static void shrink_zone(int priority, struct zone *zone,
+  * If a zone is deemed to be full of pinned pages then just give it a light
+  * scan then give up on it.
+  */
+-static bool shrink_zones(int priority, struct zonelist *zonelist,
++static void shrink_zones(int priority, struct zonelist *zonelist,
+                                        struct scan_control *sc)
+ {
+        struct zoneref *z;
+        struct zone *zone;
+-       bool all_unreclaimable = true;
+
+        for_each_zone_zonelist_nodemask(zone, z, zonelist,
+                                        gfp_zone(sc->gfp_mask), sc->nodemask) {
+@@ -1900,8 +1899,41 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+                }
+
+                shrink_zone(priority, zone, sc);
+-               all_unreclaimable = false;
+        }
++}
++
++static bool zone_reclaimable(struct zone *zone)
++{
++       return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
++}
++
++/*
++ * As hibernation is going on, kswapd is freezed so that it can't mark
++ * the zone into all_unreclaimable. It can't handle OOM during hibernation.
++ * So let's check zone's unreclaimable in direct reclaim as well as kswapd.
++ */
++static bool all_unreclaimable(struct zonelist *zonelist,
++               struct scan_control *sc)
++{
++       struct zoneref *z;
++       struct zone *zone;
++       bool all_unreclaimable = true;
++
++       if (!scanning_global_lru(sc))
++               return false;
++
++       for_each_zone_zonelist_nodemask(zone, z, zonelist,
++                       gfp_zone(sc->gfp_mask), sc->nodemask) {
++               if (!populated_zone(zone))
++                       continue;
++               if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
++                       continue;
++               if (zone_reclaimable(zone)) {
++                       all_unreclaimable = false;
++                       break;
++               }
++       }
++
+        return all_unreclaimable;
+ }
+
+@@ -1925,7 +1957,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+                                        struct scan_control *sc)
+ {
+        int priority;
+-       bool all_unreclaimable;
+        unsigned long total_scanned = 0;
+        struct reclaim_state *reclaim_state = current->reclaim_state;
+        struct zoneref *z;
+@@ -1942,7 +1973,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+                sc->nr_scanned = 0;
+                if (!priority)
+                        disable_swap_token();
+-               all_unreclaimable = shrink_zones(priority, zonelist, sc);
++               shrink_zones(priority, zonelist, sc);
+                /*
+                 * Don't shrink slabs when reclaiming memory from
+                 * over limit cgroups
+@@ -2004,7 +2035,7 @@ out:
+                return sc->nr_reclaimed;
+
+        /* top priority shrink_zones still had more to do? don't OOM, then */
+-       if (scanning_global_lru(sc) && !all_unreclaimable)
++       if (!all_unreclaimable(zonelist, sc))
+                return 1;
+
+        return 0;
+@@ -2270,8 +2301,7 @@ loop_again:
+                        total_scanned += sc.nr_scanned;
+                        if (zone->all_unreclaimable)
+                                continue;
+-                       if (nr_slab == 0 &&
+-                           zone->pages_scanned >= (zone_reclaimable_pages(zone) * 6))
++                       if (nr_slab == 0 && !zone_reclaimable(zone))
+                                zone->all_unreclaimable = 1;
+                        /*
+                         * If we've done a decent amount of scanning and
+-- 
+1.7.0.5
 
 
-
---=20
+-- 
 Kind regards,
 Minchan Kim
 
