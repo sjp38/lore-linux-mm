@@ -1,178 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9EA5A6B008C
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id CEE0A6B0095
 	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:55:02 -0400 (EDT)
-Message-Id: <20100912155203.970578882@intel.com>
-Date: Sun, 12 Sep 2010 23:49:54 +0800
+Message-Id: <20100912155204.296003287@intel.com>
+Date: Sun, 12 Sep 2010 23:49:56 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 09/17] writeback: bdi write bandwidth estimation
+Subject: [PATCH 11/17] writeback: make nr_to_write a per-file limit
 References: <20100912154945.758129106@intel.com>
-Content-Disposition: inline; filename=writeback-bandwidth-estimation-in-flusher.patch
+Content-Disposition: inline; filename=writeback-single-file-limit.patch
 Sender: owner-linux-mm@kvack.org
 To: linux-mm <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Li Shaohua <shaohua.li@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-The estimation value will start from 100MB/s and adapt to the real
-bandwidth in seconds.  It's pretty accurate for common filesystems.
+This ensures full 4MB (or larger) writeback size for large dirty files.
 
-As the first use case, it replaces the static 100MB/s value used for
-'bw' calculation in balance_dirty_pages().
-
-The overheads won't be high because the bdi bandwidth udpate only occurs
-in >10ms intervals.
-
-Initially it's only estimated in balance_dirty_pages() because this is
-the most reliable place to get reasonable large bandwidth -- the bdi is
-normally fully utilized when bdi_thresh is reached.
-
-Then Shaohua recommends to also do it in the flusher thread, to keep the
-value updated when there are only periodic/background writeback and no
-tasks throttled.
-
-The estimation cannot be done purely in the flusher thread because it's
-not sufficient for NFS. NFS writeback won't block at get_request_wait(),
-so tend to complete quickly. Another problem is, slow devices may take
-dozens of seconds to write the initial 64MB chunk (write_bandwidth
-starts with 100MB/s, this translates to 64MB nr_to_write). So it may
-take more than 1 minute to adapt to the smallish bandwidth if the
-bandwidth is only updated in the flusher thread.
-
-CC: Li Shaohua <shaohua.li@intel.com>
+CC: Jan Kara <jack@suse.cz>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- fs/fs-writeback.c           |    4 ++++
- include/linux/backing-dev.h |    1 +
- include/linux/writeback.h   |    3 +++
- mm/backing-dev.c            |    1 +
- mm/page-writeback.c         |   33 ++++++++++++++++++++++++++++++++-
- 5 files changed, 41 insertions(+), 1 deletion(-)
+ fs/fs-writeback.c         |   11 +++++++++++
+ include/linux/writeback.h |    1 +
+ 2 files changed, 12 insertions(+)
 
---- linux-next.orig/include/linux/backing-dev.h	2010-09-09 16:02:43.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-09-09 16:02:45.000000000 +0800
-@@ -76,6 +76,7 @@ struct backing_dev_info {
+--- linux-next.orig/fs/fs-writeback.c	2010-09-08 13:50:32.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-09-08 13:50:35.000000000 +0800
+@@ -304,6 +304,8 @@ static int
+ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
++	long per_file_limit = wbc->per_file_limit;
++	long nr_to_write;
+ 	unsigned dirty;
+ 	int ret;
  
- 	struct prop_local_percpu completions;
- 	int dirty_exceeded;
-+	int write_bandwidth;
+@@ -339,8 +341,16 @@ writeback_single_inode(struct inode *ino
+ 	inode->i_state &= ~I_DIRTY_PAGES;
+ 	spin_unlock(&inode_lock);
  
- 	unsigned int min_ratio;
- 	unsigned int max_ratio, max_prop_frac;
---- linux-next.orig/mm/backing-dev.c	2010-09-09 16:02:43.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-09-09 16:02:45.000000000 +0800
-@@ -658,6 +658,7 @@ int bdi_init(struct backing_dev_info *bd
- 			goto err;
- 	}
- 
-+	bdi->write_bandwidth = 100 << 20;
- 	bdi->dirty_exceeded = 0;
- 	err = prop_local_init_percpu(&bdi->completions);
- 
---- linux-next.orig/fs/fs-writeback.c	2010-09-09 14:13:21.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-09-09 16:02:46.000000000 +0800
-@@ -603,6 +603,8 @@ static long wb_writeback(struct bdi_writ
- 		.range_cyclic		= work->range_cyclic,
- 	};
- 	unsigned long oldest_jif;
-+	unsigned long bw_time;
-+	s64 bw_written = 0;
- 	long wrote = 0;
- 	struct inode *inode;
- 
-@@ -616,6 +618,7 @@ static long wb_writeback(struct bdi_writ
- 		wbc.range_end = LLONG_MAX;
- 	}
- 
-+	bdi_update_write_bandwidth(wb->bdi, &bw_time, &bw_written);
- 	wbc.wb_start = jiffies; /* livelock avoidance */
- 	for (;;) {
- 		/*
-@@ -641,6 +644,7 @@ static long wb_writeback(struct bdi_writ
- 		else
- 			writeback_inodes_wb(wb, &wbc);
- 		trace_wbc_writeback_written(&wbc, wb->bdi);
-+		bdi_update_write_bandwidth(wb->bdi, &bw_time, &bw_written);
- 
- 		work->nr_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
- 		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
---- linux-next.orig/mm/page-writeback.c	2010-09-09 16:02:43.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-09-09 16:04:23.000000000 +0800
-@@ -449,6 +449,32 @@ unsigned long bdi_dirty_limit(struct bac
- 	return bdi_dirty;
- }
- 
-+void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
-+				unsigned long *bw_time,
-+				s64 *bw_written)
-+{
-+	unsigned long pages;
-+	unsigned long time;
-+	unsigned long bw;
-+	unsigned long w;
++	if (per_file_limit) {
++		nr_to_write = wbc->nr_to_write;
++		wbc->nr_to_write = per_file_limit;
++	}
 +
-+	if (*bw_written == 0)
-+		goto start_over;
-+
-+	time = jiffies - *bw_time;
-+	if (time < HZ/100)
-+		return;
-+
-+	pages = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]) - *bw_written;
-+	bw = HZ * PAGE_CACHE_SIZE * pages / time;
-+	w = clamp_t(unsigned long, time / (HZ/100), 1, 128);
-+
-+	bdi->write_bandwidth = (bdi->write_bandwidth * (1024-w) + bw * w) >> 10;
-+start_over:
-+	*bw_written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
-+	*bw_time = jiffies;
-+}
-+
- /*
-  * balance_dirty_pages() must be called by processes which are generating dirty
-  * data.  It looks at the number of dirty pages in the machine and will force
-@@ -471,6 +497,8 @@ static void balance_dirty_pages(struct a
- 	bool dirty_exceeded = false;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
- 	long numerator, denominator;
-+	unsigned long bw_time;
-+	s64 bw_written = 0;
+ 	ret = do_writepages(mapping, wbc);
  
- 	for (;;) {
- 		/*
-@@ -536,10 +564,12 @@ static void balance_dirty_pages(struct a
- 			bdi_thresh - bdi_thresh / DIRTY_SOFT_THROTTLE_RATIO)
- 			goto check_exceeded;
- 
-+		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
++	if (per_file_limit)
++		wbc->nr_to_write += nr_to_write - per_file_limit;
 +
- 		gap = bdi_thresh > (bdi_nr_reclaimable + bdi_nr_writeback) ?
- 		      bdi_thresh - (bdi_nr_reclaimable + bdi_nr_writeback) : 0;
- 
--		bw = (100 << 20) * gap /
-+		bw = bdi->write_bandwidth * gap /
- 				(bdi_thresh / DIRTY_SOFT_THROTTLE_RATIO + 1);
- 
- 		pause = HZ * (pages_dirtied << PAGE_CACHE_SHIFT) / (bw + 1);
-@@ -562,6 +592,7 @@ static void balance_dirty_pages(struct a
- 		if (signal_pending(current))
+ 	/*
+ 	 * Make sure to wait on the data before writing out the metadata.
+ 	 * This is important for filesystems that modify metadata on data
+@@ -635,6 +645,7 @@ static long wb_writeback(struct bdi_writ
  			break;
  
-+		bdi_update_write_bandwidth(bdi, &bw_time, &bw_written);
- check_exceeded:
- 		/*
- 		 * The bdi thresh is somehow "soft" limit derived from the
---- linux-next.orig/include/linux/writeback.h	2010-09-09 15:51:38.000000000 +0800
-+++ linux-next/include/linux/writeback.h	2010-09-09 16:02:46.000000000 +0800
-@@ -136,6 +136,9 @@ int dirty_writeback_centisecs_handler(st
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
- unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
- 			       unsigned long dirty);
-+void bdi_update_write_bandwidth(struct backing_dev_info *bdi,
-+				unsigned long *bw_time,
-+				s64 *bw_written);
+ 		wbc.more_io = 0;
++		wbc.per_file_limit = MAX_WRITEBACK_PAGES;
+ 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
+ 		wbc.pages_skipped = 0;
  
- void page_writeback_init(void);
- void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+--- linux-next.orig/include/linux/writeback.h	2010-09-08 13:50:32.000000000 +0800
++++ linux-next/include/linux/writeback.h	2010-09-08 13:50:35.000000000 +0800
+@@ -44,6 +44,7 @@ struct writeback_control {
+ 					   extra jobs and livelock */
+ 	long nr_to_write;		/* Write this many pages, and decrement
+ 					   this for each page written */
++	long per_file_limit;		/* Write this many pages for one file */
+ 	long pages_skipped;		/* Pages which were not written */
+ 
+ 	/*
 
 
 --
