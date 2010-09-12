@@ -1,71 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A1CB36B0092
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5A5366B0087
 	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:55:02 -0400 (EDT)
-Message-Id: <20100912155204.121142951@intel.com>
-Date: Sun, 12 Sep 2010 23:49:55 +0800
+Message-Id: <20100912155203.524811417@intel.com>
+Date: Sun, 12 Sep 2010 23:49:51 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 10/17] writeback: show bdi write bandwidth in debugfs
+Subject: [PATCH 06/17] writeback: move task dirty fraction to balance_dirty_pages()
 References: <20100912154945.758129106@intel.com>
-Content-Disposition: inline; filename=writeback-bandwidth-show.patch
+Content-Disposition: inline; filename=writeback-task-weight.patch
 Sender: owner-linux-mm@kvack.org
 To: linux-mm <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Theodore Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Add a "BdiWriteBandwidth" entry (and indent others) in /debug/bdi/*/stats.
+This is simple code refactor preparing for a trace event that exposes
+the fraction info. It may be merged with the next patch eventually.
 
-btw increase digital field width to 10, for keeping the possibly
-huge BdiWritten number aligned at least for desktop systems.
-
-This will break user space tools if they are dumb enough to depend on
-the number of white spaces.
-
-CC: Theodore Ts'o <tytso@mit.edu>
-CC: Jan Kara <jack@suse.cz>
 CC: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/backing-dev.c |   24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ mm/page-writeback.c |   11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
---- linux-next.orig/mm/backing-dev.c	2010-09-11 08:42:31.000000000 +0800
-+++ linux-next/mm/backing-dev.c	2010-09-12 11:13:49.000000000 +0800
-@@ -86,21 +86,23 @@ static int bdi_debug_stats_show(struct s
+--- linux-next.orig/mm/page-writeback.c	2010-09-09 16:02:27.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-09-09 16:02:30.000000000 +0800
+@@ -260,14 +260,12 @@ static inline void task_dirties_fraction
+  * effectively curb the growth of dirty pages. Light dirtiers with high enough
+  * dirty threshold may never get throttled.
+  */
+-static unsigned long task_dirty_limit(struct task_struct *tsk,
+-				       unsigned long bdi_dirty)
++static unsigned long task_dirty_limit(unsigned long bdi_dirty,
++				      long numerator, long denominator)
+ {
+-	long numerator, denominator;
+ 	unsigned long dirty = bdi_dirty;
+ 	u64 inv = dirty / DIRTY_SOFT_THROTTLE_RATIO;
  
- #define K(x) ((x) << (PAGE_SHIFT - 10))
- 	seq_printf(m,
--		   "BdiWriteback:     %8lu kB\n"
--		   "BdiReclaimable:   %8lu kB\n"
--		   "BdiDirtyThresh:   %8lu kB\n"
--		   "DirtyThresh:      %8lu kB\n"
--		   "BackgroundThresh: %8lu kB\n"
--		   "BdiWritten:       %8lu kB\n"
--		   "b_dirty:          %8lu\n"
--		   "b_io:             %8lu\n"
--		   "b_more_io:        %8lu\n"
--		   "bdi_list:         %8u\n"
--		   "state:            %8lx\n",
-+		   "BdiWriteback:       %10lu kB\n"
-+		   "BdiReclaimable:     %10lu kB\n"
-+		   "BdiDirtyThresh:     %10lu kB\n"
-+		   "DirtyThresh:        %10lu kB\n"
-+		   "BackgroundThresh:   %10lu kB\n"
-+		   "BdiWritten:         %10lu kB\n"
-+		   "BdiWriteBandwidth:  %10lu kBps\n"
-+		   "b_dirty:            %10lu\n"
-+		   "b_io:               %10lu\n"
-+		   "b_more_io:          %10lu\n"
-+		   "bdi_list:           %10u\n"
-+		   "state:              %10lx\n",
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
- 		   K(bdi_thresh), K(dirty_thresh), K(background_thresh),
- 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
-+		   (unsigned long) bdi->write_bandwidth >> 10,
- 		   nr_dirty, nr_io, nr_more_io,
- 		   !list_empty(&bdi->bdi_list), bdi->state);
- #undef K
+-	task_dirties_fraction(tsk, &numerator, &denominator);
+ 	inv *= numerator;
+ 	do_div(inv, denominator);
+ 
+@@ -472,6 +470,7 @@ static void balance_dirty_pages(struct a
+ 	unsigned long bw;
+ 	bool dirty_exceeded = false;
+ 	struct backing_dev_info *bdi = mapping->backing_dev_info;
++	long numerator, denominator;
+ 
+ 	for (;;) {
+ 		/*
+@@ -496,8 +495,10 @@ static void balance_dirty_pages(struct a
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
+ 
++		task_dirties_fraction(current, &numerator, &denominator);
+ 		bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+-		bdi_thresh = task_dirty_limit(current, bdi_thresh);
++		bdi_thresh = task_dirty_limit(bdi_thresh,
++					      numerator, denominator);
+ 
+ 		/*
+ 		 * In order to avoid the stacked BDI deadlock we need
 
 
 --
