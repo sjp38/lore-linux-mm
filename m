@@ -1,97 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB576B00AE
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 12:15:16 -0400 (EDT)
-Date: Mon, 13 Sep 2010 00:15:07 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 13/17] writeback: reduce per-bdi dirty threshold ramp
- up time
-Message-ID: <20100912161507.GA5247@localhost>
-References: <20100912154945.758129106@intel.com>
- <20100912155204.602761236@intel.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5293F6B00B1
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 12:20:38 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so5526979iwn.14
+        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 09:20:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100912155204.602761236@intel.com>
+In-Reply-To: <20100908151929.2586ace5.akpm@linux-foundation.org>
+References: <1283697637-3117-1-git-send-email-minchan.kim@gmail.com>
+	<20100908054831.GB20955@cmpxchg.org>
+	<20100908154527.GA5936@barrios-desktop>
+	<20100908151929.2586ace5.akpm@linux-foundation.org>
+Date: Mon, 13 Sep 2010 01:20:36 +0900
+Message-ID: <AANLkTi=jmV=x2rJ=G4iicYFO6UqPbfob_VnkY7VNbP3X@mail.gmail.com>
+Subject: Re: [PATCH] vmscan: check all_unreclaimable in direct reclaim path
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Richard Kennedy <richard@rsk.demon.co.uk>, "Martin J. Bligh" <mbligh@google.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 12, 2010 at 11:49:58PM +0800, Wu, Fengguang wrote:
-> Reduce the dampening for the control system, yielding faster
-> convergence.
-> 
-> Currently it converges at a snail's pace for slow devices (in order of
-> minutes).  For really fast storage, the convergence speed should be fine.
-> 
-> It makes sense to make it reasonably fast for typical desktops.
-> 
-> After patch, it converges in ~10 seconds for 60MB/s writes and 4GB mem.
-> So expect ~1s for a fast 600MB/s storage under 4GB mem, or ~4s under
-> 16GB mem, which looks good.
-> 
-> $ while true; do grep BdiDirtyThresh /debug/bdi/8:0/stats; sleep 1; done
-> BdiDirtyThresh:            0 kB
-> BdiDirtyThresh:       118748 kB
-> BdiDirtyThresh:       214280 kB
-> BdiDirtyThresh:       303868 kB
-> BdiDirtyThresh:       376528 kB
-> BdiDirtyThresh:       411180 kB
-> BdiDirtyThresh:       448636 kB
-> BdiDirtyThresh:       472260 kB
-> BdiDirtyThresh:       490924 kB
-> BdiDirtyThresh:       499596 kB
-> BdiDirtyThresh:       507068 kB
-> ...
-> DirtyThresh:          530392 kB
+On Thu, Sep 9, 2010 at 7:19 AM, Andrew Morton <akpm@linux-foundation.org> w=
+rote:
+> On Thu, 9 Sep 2010 00:45:27 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> +static inline bool zone_reclaimable(struct zone *zone)
+>> +{
+>> + =A0 =A0 return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
+>> +}
+>> +
+>> +static inline bool all_unreclaimable(struct zonelist *zonelist,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 struct scan_control *sc)
+>> +{
+>> + =A0 =A0 struct zoneref *z;
+>> + =A0 =A0 struct zone *zone;
+>> + =A0 =A0 bool all_unreclaimable =3D true;
+>> +
+>> + =A0 =A0 if (!scanning_global_lru(sc))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 return false;
+>> +
+>> + =A0 =A0 for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 gfp_zone(sc->gfp_mask), sc->no=
+demask) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!populated_zone(zone))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (!cpuset_zone_allowed_hardwall(zone, GFP_KE=
+RNEL))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (zone_reclaimable(zone)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 all_unreclaimable =3D false;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 }
+>> +
+>> =A0 =A0 =A0 return all_unreclaimable;
+>> =A0}
+>
+> Could we have some comments over these functions please? =A0Why they
+> exist, what problem they solve, how they solve them, etc. =A0Stuff which
+> will be needed for maintaining this code three years from now.
+>
+> We may as well remove the `inline's too. =A0gcc will tkae care of that.
 
-One related observation is, the task fraction may suddenly drop:
+Okay. I will resend.
 
-dd-4323  [004] 21608.535781: balance_dirty_pages: bdi=8:0 weight=97% thresh=124863 gap=7071 dirtied=513 pause=44 bw=44677838
-dd-4323  [004] 21608.579568: balance_dirty_pages: bdi=8:0 weight=97% thresh=124851 gap=7315 dirtied=513 pause=44 bw=46321077
-dd-4323  [004] 21608.623586: balance_dirty_pages: bdi=8:0 weight=97% thresh=124852 gap=7156 dirtied=513 pause=44 bw=45199674
-dd-4323  [000] 21608.667526: balance_dirty_pages: bdi=8:0 weight=97% thresh=124853 gap=7029 dirtied=513 pause=44 bw=44337926
-dd-4323  [000] 21608.711259: balance_dirty_pages: bdi=8:0 weight=97% thresh=124842 gap=7146 dirtied=513 pause=44 bw=45074728
-dd-4323  [000] 21608.755051: balance_dirty_pages: bdi=8:0 weight=97% thresh=124843 gap=6891 dirtied=513 pause=48 bw=43356794
-dd-4323  [000] 21608.802953: balance_dirty_pages: bdi=8:0 weight=97% thresh=124834 gap=6722 dirtied=513 pause=48 bw=42211067
-dd-4323  [000] 21608.850745: balance_dirty_pages: bdi=8:0 weight=97% thresh=124834 gap=6594 dirtied=513 pause=48 bw=41326916
-dd-4323  [004] 21608.900524: balance_dirty_pages: bdi=8:0 weight=62% thresh=127735 gap=7575 dirtied=513 pause=40 bw=47863047
-dd-4323  [004] 21608.990461: balance_dirty_pages: bdi=8:0 weight=22% thresh=131040 gap=8064 dirtied=513 pause=40 bw=49548668
-dd-4323  [004] 21609.030239: balance_dirty_pages: bdi=8:0 weight=23% thresh=130971 gap=7739 dirtied=513 pause=44 bw=47469455
-dd-4323  [004] 21609.074075: balance_dirty_pages: bdi=8:0 weight=23% thresh=130915 gap=7427 dirtied=513 pause=44 bw=45455503
-dd-4323  [004] 21609.117927: balance_dirty_pages: bdi=8:0 weight=24% thresh=130849 gap=7105 dirtied=513 pause=48 bw=43394683
-dd-4323  [004] 21609.165843: balance_dirty_pages: bdi=8:0 weight=25% thresh=130770 gap=6898 dirtied=513 pause=48 bw=42071194
-dd-4323  [004] 21609.213769: balance_dirty_pages: bdi=8:0 weight=26% thresh=130719 gap=7103 dirtied=513 pause=48 bw=43366955
-dd-4323  [004] 21609.261483: balance_dirty_pages: bdi=8:0 weight=26% thresh=130655 gap=6911 dirtied=513 pause=48 bw=42130514
-...
-dd-4323  [001] 21619.473748: balance_dirty_pages: bdi=8:0 weight=96% thresh=124200 gap=7656 dirtied=513 pause=36 bw=55354531
-dd-4323  [000] 21619.762110: balance_dirty_pages: bdi=8:0 weight=96% thresh=124148 gap=7540 dirtied=513 pause=36 bw=54586428
-dd-4323  [000] 21619.804259: balance_dirty_pages: bdi=8:0 weight=96% thresh=124145 gap=7281 dirtied=513 pause=36 bw=52772359
-dd-4323  [004] 21619.840740: balance_dirty_pages: bdi=8:0 weight=96% thresh=124133 gap=7397 dirtied=513 pause=36 bw=53627516
-dd-4323  [004] 21619.876600: balance_dirty_pages: bdi=8:0 weight=96% thresh=124133 gap=7493 dirtied=513 pause=36 bw=54331060
-dd-4323  [004] 21619.912482: balance_dirty_pages: bdi=8:0 weight=97% thresh=124133 gap=7621 dirtied=513 pause=36 bw=55266828
-dd-4323  [007] 21619.955231: balance_dirty_pages: bdi=8:0 weight=95% thresh=124242 gap=7410 dirtied=513 pause=36 bw=53695642
-dd-4323  [007] 21619.992100: balance_dirty_pages: bdi=8:0 weight=95% thresh=124246 gap=7542 dirtied=513 pause=36 bw=54714918
-dd-4323  [007] 21620.028048: balance_dirty_pages: bdi=8:0 weight=95% thresh=124232 gap=7656 dirtied=513 pause=36 bw=55612568
-dd-4323  [007] 21620.067278: balance_dirty_pages: bdi=8:0 weight=95% thresh=124217 gap=7257 dirtied=513 pause=36 bw=52780982
-dd-4323  [007] 21620.103783: balance_dirty_pages: bdi=8:0 weight=95% thresh=124219 gap=7387 dirtied=513 pause=36 bw=53787250
-dd-4323  [003] 21620.143069: balance_dirty_pages: bdi=8:0 weight=84% thresh=125141 gap=7253 dirtied=513 pause=36 bw=53982296
-dd-4323  [000] 21620.259771: balance_dirty_pages: bdi=8:0 weight=21% thresh=130291 gap=7955 dirtied=513 pause=36 bw=56894085
-dd-4323  [004] 21620.295309: balance_dirty_pages: bdi=8:0 weight=22% thresh=130210 gap=7746 dirtied=513 pause=36 bw=55325100
-dd-4323  [004] 21620.331046: balance_dirty_pages: bdi=8:0 weight=22% thresh=130145 gap=7425 dirtied=513 pause=36 bw=52955050
-dd-4323  [004] 21620.367022: balance_dirty_pages: bdi=8:0 weight=23% thresh=130070 gap=7222 dirtied=513 pause=40 bw=51489214
-dd-4323  [004] 21620.406877: balance_dirty_pages: bdi=8:0 weight=24% thresh=130004 gap=6900 dirtied=513 pause=40 bw=49086099
-dd-4323  [004] 21620.446702: balance_dirty_pages: bdi=8:0 weight=25% thresh=129935 gap=6831 dirtied=513 pause=40 bw=48603064
-dd-4323  [007] 21620.486673: balance_dirty_pages: bdi=8:0 weight=26% thresh=129873 gap=6641 dirtied=513 pause=44 bw=47142569
-dd-4323  [007] 21620.530438: balance_dirty_pages: bdi=8:0 weight=26% thresh=129802 gap=6442 dirtied=513 pause=44 bw=45673274
-dd-4323  [007] 21620.574312: balance_dirty_pages: bdi=8:0 weight=27% thresh=129743 gap=6415 dirtied=513 pause=44 bw=45466202
-dd-4323  [007] 21620.618182: balance_dirty_pages: bdi=8:0 weight=28% thresh=129685 gap=6197 dirtied=513 pause=44 bw=43856286
+>
+>> - =A0 =A0 =A0 =A0 =A0 =A0 if (nr_slab =3D=3D 0 &&
+>> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0zone->pages_scanned >=3D (zone_reclaima=
+ble_pages(zone) * 6))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (nr_slab =3D=3D 0 && !zone_reclaimable(zone=
+))
+>
+> Extra marks for working out and documenting how we decided on the value
+> of "6". =A0Sigh. =A0It's hopefully in the git record somewhere.
+>
+Originally it is just following as.
 
-I've not looked into this yet.. need to go to bed now :)
+                if (zone->pages_scanned > zone->present_pages * 2)
+                        zone->all_unreclaimable =3D 1;
 
-Thanks,
-Fengguang
+Nick change it with remained lru * 4 [1] and increased 6 [2].
+But the description doesn't have why we determine it by "4".
+So I can't handle it in my patch.
+
+I don't like undocumented magic value. :(
+
+[1]
+commit 9d0aa0f7a99c88dd20bc188756b892f174d93fc1
+Author: nickpiggin <nickpiggin>
+Date:   Sun Oct 17 16:20:56 2004 +0000
+
+    [PATCH] kswapd lockup fix
+
+    Fix some bugs in the kswapd logic which can cause kswapd lockups.
+
+
+[2]
+commit 4ff1ffb4870b007b86f21e5f27eeb11498c4c077
+Author: Nick Piggin <npiggin@suse.de>
+Date:   Mon Sep 25 23:31:28 2006 -0700
+
+    [PATCH] oom: reclaim_mapped on oom
+
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
