@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B321B6B00BD
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 16:31:14 -0400 (EDT)
-From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 3/5] writeback: nr_dirtied and nr_written in /proc/vmstat
-Date: Sun, 12 Sep 2010 13:30:38 -0700
-Message-Id: <1284323440-23205-4-git-send-email-mrubin@google.com>
-In-Reply-To: <1284323440-23205-1-git-send-email-mrubin@google.com>
-References: <1284323440-23205-1-git-send-email-mrubin@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D14586B00C5
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 16:47:14 -0400 (EDT)
+Date: Mon, 13 Sep 2010 06:46:54 +1000
+From: Neil Brown <neilb@suse.de>
+Subject: Re: [PATCH 05/17] writeback: quit throttling when signal pending
+Message-ID: <20100913064654.3cce885c@notabene>
+In-Reply-To: <20100912155203.355459925@intel.com>
+References: <20100912154945.758129106@intel.com>
+	<20100912155203.355459925@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kosaki.motohiro@jp.fujitsu.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-To help developers and applications gain visibility into writeback
-behaviour adding two entries to vm_stat_items and /proc/vmstat. This
-will allow us to track the "written" and "dirtied" counts.
+On Sun, 12 Sep 2010 23:49:50 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-   # grep nr_dirtied /proc/vmstat
-   nr_dirtied 3747
-   # grep nr_written /proc/vmstat
-   nr_cleaned 3618
+> This allows quick response to Ctrl-C etc. for impatient users.
+> 
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> ---
+>  mm/page-writeback.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> --- linux-next.orig/mm/page-writeback.c	2010-09-09 16:01:14.000000000 +0800
+> +++ linux-next/mm/page-writeback.c	2010-09-09 16:02:27.000000000 +0800
+> @@ -553,6 +553,9 @@ static void balance_dirty_pages(struct a
+>  		__set_current_state(TASK_INTERRUPTIBLE);
+>  		io_schedule_timeout(pause);
+>  
+> +		if (signal_pending(current))
+> +			break;
+> +
 
-Signed-off-by: Michael Rubin <mrubin@google.com>
----
- include/linux/mmzone.h |    2 ++
- mm/page-writeback.c    |    2 ++
- mm/vmstat.c            |    3 +++
- 3 files changed, 7 insertions(+), 0 deletions(-)
+Given the patch description,  I think you might want "fatal_signal_pending()"
+here ???
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 6e6e626..d0d7454 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -104,6 +104,8 @@ enum zone_stat_item {
- 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
- 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
- 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
-+	NR_FILE_DIRTIED,	/* accumulated dirty pages */
-+	NR_WRITTEN,		/* accumulated written pages */
- #ifdef CONFIG_NUMA
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index ae5f5d5..4d6ef9c 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1126,6 +1126,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- {
- 	if (mapping_cap_account_dirty(mapping)) {
- 		__inc_zone_page_state(page, NR_FILE_DIRTY);
-+		__inc_zone_page_state(page, NR_FILE_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 		task_dirty_inc(current);
- 		task_io_account_write(PAGE_CACHE_SIZE);
-@@ -1141,6 +1142,7 @@ EXPORT_SYMBOL(account_page_dirtied);
- void account_page_writeback(struct page *page)
- {
- 	inc_zone_page_state(page, NR_WRITEBACK);
-+	inc_zone_page_state(page, NR_WRITTEN);
- }
- EXPORT_SYMBOL(account_page_writeback);
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index f389168..d448ef4 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -732,6 +732,9 @@ static const char * const vmstat_text[] = {
- 	"nr_isolated_anon",
- 	"nr_isolated_file",
- 	"nr_shmem",
-+	"nr_dirtied",
-+	"nr_written",
-+
- #ifdef CONFIG_NUMA
- 	"numa_hit",
- 	"numa_miss",
--- 
-1.7.1
+NeilBrown
+
+>  check_exceeded:
+>  		/*
+>  		 * The bdi thresh is somehow "soft" limit derived from the
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
