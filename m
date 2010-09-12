@@ -1,173 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AC82C6B004A
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:37:58 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so2070057pvc.14
-        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 08:37:56 -0700 (PDT)
-Date: Mon, 13 Sep 2010 00:37:44 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
- no congested BDIs or significant writeback
-Message-ID: <20100912153744.GA3563@barrios-desktop>
-References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
- <1283770053-18833-4-git-send-email-mel@csn.ul.ie>
- <20100907152533.GB4620@barrios-desktop>
- <20100908110403.GB29263@csn.ul.ie>
- <20100908145245.GG4620@barrios-desktop>
- <20100909085436.GJ29263@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100909085436.GJ29263@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DF81D6B007B
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:55:01 -0400 (EDT)
+Message-Id: <20100912155202.733389420@intel.com>
+Date: Sun, 12 Sep 2010 23:49:46 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 01/17] writeback: remove the internal 5% low bound on dirty_ratio
+References: <20100912154945.758129106@intel.com>
+Content-Disposition: inline; filename=writeback-remove-dirty_ratio-low-bound.patch
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 09, 2010 at 09:54:36AM +0100, Mel Gorman wrote:
-> On Wed, Sep 08, 2010 at 11:52:45PM +0900, Minchan Kim wrote:
-> > On Wed, Sep 08, 2010 at 12:04:03PM +0100, Mel Gorman wrote:
-> > > On Wed, Sep 08, 2010 at 12:25:33AM +0900, Minchan Kim wrote:
-> > > > > + * @zone: A zone to consider the number of being being written back from
-> > > > > + * @sync: SYNC or ASYNC IO
-> > > > > + * @timeout: timeout in jiffies
-> > > > > + *
-> > > > > + * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
-> > > > > + * write congestion.  If no backing_devs are congested then the number of
-> > > > > + * writeback pages in the zone are checked and compared to the inactive
-> > > > > + * list. If there is no sigificant writeback or congestion, there is no point
-> > > >                                                 and 
-> > > > 
-> > > 
-> > > Why and? "or" makes sense because we avoid sleeping on either condition.
-> > 
-> > if (nr_bdi_congested[sync]) == 0) {
-> >         if (writeback < inactive / 2) {
-> >                 cond_resched();
-> >                 ..
-> >                 goto out
-> >         }
-> > }
-> > 
-> > for avoiding sleeping, above two condition should meet. 
-> 
-> This is a terrible comment that is badly written. Is this any clearer?
-> 
-> /**
->  * wait_iff_congested - Conditionally wait for a backing_dev to become uncongested or a zone to complete writes
->  * @zone: A zone to consider the number of being being written back from
->  * @sync: SYNC or ASYNC IO
->  * @timeout: timeout in jiffies
->  *
->  * In the event of a congested backing_dev (any backing_dev) or a given @zone
->  * having a large number of pages in writeback, this waits for up to @timeout
->  * jiffies for either a BDI to exit congestion or a write to complete.
->  *
->  * If there is no congestion and few pending writes, then cond_resched()
->  * is called to yield the processor if necessary but otherwise does not
->  * sleep.
->  */
+The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
+This is not a user expected behavior. And it's inconsistent with
+calc_period_shift(), which uses the plain vm_dirty_ratio value.
 
-Looks good.
+Let's rip the arbitrary internal bound. It may impact some very weird
+user space applications. However we are going to dynamicly sizing the
+dirty limits anyway, which may well break such applications, too.
 
-> 
-> > > 
-> > > > > + * in sleeping but cond_resched() is called in case the current process has
-> > > > > + * consumed its CPU quota.
-> > > > > + */
-> > > > > +long wait_iff_congested(struct zone *zone, int sync, long timeout)
-> > > > > +{
-> > > > > +	long ret;
-> > > > > +	unsigned long start = jiffies;
-> > > > > +	DEFINE_WAIT(wait);
-> > > > > +	wait_queue_head_t *wqh = &congestion_wqh[sync];
-> > > > > +
-> > > > > +	/*
-> > > > > +	 * If there is no congestion, check the amount of writeback. If there
-> > > > > +	 * is no significant writeback and no congestion, just cond_resched
-> > > > > +	 */
-> > > > > +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
-> > > > > +		unsigned long inactive, writeback;
-> > > > > +
-> > > > > +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
-> > > > > +				zone_page_state(zone, NR_INACTIVE_ANON);
-> > > > > +		writeback = zone_page_state(zone, NR_WRITEBACK);
-> > > > > +
-> > > > > +		/*
-> > > > > +		 * If less than half the inactive list is being written back,
-> > > > > +		 * reclaim might as well continue
-> > > > > +		 */
-> > > > > +		if (writeback < inactive / 2) {
-> > > > 
-> > > > I am not sure this is best.
-> > > > 
-> > > 
-> > > I'm not saying it is. The objective is to identify a situation where
-> > > sleeping until the next write or congestion clears is pointless. We have
-> > > already identified that we are not congested so the question is "are we
-> > > writing a lot at the moment?". The assumption is that if there is a lot
-> > > of writing going on, we might as well sleep until one completes rather
-> > > than reclaiming more.
-> > > 
-> > > This is the first effort at identifying pointless sleeps. Better ones
-> > > might be identified in the future but that shouldn't stop us making a
-> > > semi-sensible decision now.
-> > 
-> > nr_bdi_congested is no problem since we have used it for a long time.
-> > But you added new rule about writeback. 
-> > 
-> 
-> Yes, I'm trying to add a new rule about throttling in the page allocator
-> and from vmscan. As you can see from the results in the leader, we are
-> currently sleeping more than we need to.
+At the same time, fix balance_dirty_pages() to work with the
+dirty_thresh=0 case. This allows applications to proceed when
+dirty+writeback pages are all cleaned.
 
-I can see the about avoiding congestion_wait but can't find about 
-(writeback < incative / 2) hueristic result. 
+And ">" fits with the name "exceeded" better than ">=" does. Neil
+think it is an aesthetic improvement as well as a functional one :)
 
-> 
-> > Why I pointed out is that you added new rule and I hope let others know
-> > this change since they have a good idea or any opinions. 
-> > I think it's a one of roles as reviewer.
-> > 
-> 
-> Of course.
-> 
-> > > 
-> > > > 1. Without considering various speed class storage, could we fix it as half of inactive?
-> > > 
-> > > We don't really have a good means of identifying speed classes of
-> > > storage. Worse, we are considering on a zone-basis here, not a BDI
-> > > basis. The pages being written back in the zone could be backed by
-> > > anything so we cannot make decisions based on BDI speed.
-> > 
-> > True. So it's why I have below question.
-> > As you said, we don't have enough information in vmscan.
-> > So I am not sure how effective such semi-sensible decision is. 
-> > 
-> 
-> What additional metrics would you apply than the ones I used in the
-> leader mail?
+CC: Jan Kara <jack@suse.cz>
+Proposed-by: Con Kolivas <kernel@kolivas.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Neil Brown <neilb@suse.de>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/fs-writeback.c   |    2 +-
+ mm/page-writeback.c |   16 +++++-----------
+ 2 files changed, 6 insertions(+), 12 deletions(-)
 
-effectiveness of (writeback < inactive / 2) heuristic. 
+--- linux-next.orig/mm/page-writeback.c	2010-08-29 08:10:30.000000000 +0800
++++ linux-next/mm/page-writeback.c	2010-08-29 08:12:08.000000000 +0800
+@@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
+ 
+ 	if (vm_dirty_bytes)
+ 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+-	else {
+-		int dirty_ratio;
+-
+-		dirty_ratio = vm_dirty_ratio;
+-		if (dirty_ratio < 5)
+-			dirty_ratio = 5;
+-		dirty = (dirty_ratio * available_memory) / 100;
+-	}
++	else
++		dirty = (vm_dirty_ratio * available_memory) / 100;
+ 
+ 	if (dirty_background_bytes)
+ 		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
+@@ -510,7 +504,7 @@ static void balance_dirty_pages(struct a
+ 		 * catch-up. This avoids (excessively) small writeouts
+ 		 * when the bdi limits are ramping up.
+ 		 */
+-		if (nr_reclaimable + nr_writeback <
++		if (nr_reclaimable + nr_writeback <=
+ 				(background_thresh + dirty_thresh) / 2)
+ 			break;
+ 
+@@ -542,8 +536,8 @@ static void balance_dirty_pages(struct a
+ 		 * the last resort safeguard.
+ 		 */
+ 		dirty_exceeded =
+-			(bdi_nr_reclaimable + bdi_nr_writeback >= bdi_thresh)
+-			|| (nr_reclaimable + nr_writeback >= dirty_thresh);
++			(bdi_nr_reclaimable + bdi_nr_writeback > bdi_thresh)
++			|| (nr_reclaimable + nr_writeback > dirty_thresh);
+ 
+ 		if (!dirty_exceeded)
+ 			break;
+--- linux-next.orig/fs/fs-writeback.c	2010-08-29 08:12:51.000000000 +0800
++++ linux-next/fs/fs-writeback.c	2010-08-29 08:12:53.000000000 +0800
+@@ -574,7 +574,7 @@ static inline bool over_bground_thresh(v
+ 	global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+ 	return (global_page_state(NR_FILE_DIRTY) +
+-		global_page_state(NR_UNSTABLE_NFS) >= background_thresh);
++		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
+ }
+ 
+ /*
 
-> 
-> > I think best is to throttle in page-writeback well. 
-> 
-> I do not think there is a problem as such in page writeback throttling.
-> The problem is that we are going to sleep without any congestion or without
-> writes in progress. We sleep for a full timeout in this case for no reason
-> and this is what I'm trying to avoid.
-
-Yes. I agree. 
-Just my concern is heuristic accuarcy I mentioned.
-In your previous verstion, you don't add the heuristic.
-But suddenly you added it in this version. 
-So I think you have any clue to add it in this version.
-Please, write down cause and data if you have. 
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
