@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1C2F06B0082
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:55:01 -0400 (EDT)
-Message-Id: <20100912155203.206486412@intel.com>
-Date: Sun, 12 Sep 2010 23:49:49 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 739906B0088
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 11:55:02 -0400 (EDT)
+Message-Id: <20100912155204.774257544@intel.com>
+Date: Sun, 12 Sep 2010 23:49:59 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 04/17] writeback: quit throttling when bdi dirty/writeback pages go down
+Subject: [PATCH 14/17] vmscan: add scan_control.priority
 References: <20100912154945.758129106@intel.com>
-Content-Disposition: inline; filename=writeback-bdi-throttle-break.patch
+Content-Disposition: inline; filename=mm-sc-priority.patch
 Sender: owner-linux-mm@kvack.org
 To: linux-mm <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Tests show that bdi_thresh may take minutes to ramp up on a typical
-desktop. The time should be improvable but cannot be eliminated totally.
-So when (background_thresh + dirty_thresh)/2 is reached and
-balance_dirty_pages() starts to throttle the task, it will suddenly find
-the (still low and ramping up) bdi_thresh is exceeded _excessively_. Here
-we definitely don't want to stall the task for one minute. So introduce
-an alternative way to break out of the loop when the bdi dirty/write
-pages has dropped by a reasonable amount.
+It seems most vmscan functions need the priority parameter.
+It will simplify code to put it into scan_control.
 
-When dirty_background_ratio is set close to dirty_ratio, bdi_thresh may
-also be constantly exceeded due to the task_dirty_limit() gap.
-
-It will take at least 200ms before trying to break out.
-
-(pages_dirtied * 8) is used because in this situation pages_dirtied will
-typically be small numbers (eg. 3 pages) due to the fast back off logic.
+It will be referenced in the next patch. This patch could convert
+the many exising functnions, but let's keep it simple at first.
 
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/page-writeback.c |   15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ mm/vmscan.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
---- linux-next.orig/mm/page-writeback.c	2010-09-09 15:51:38.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-09-12 13:10:02.000000000 +0800
-@@ -463,6 +463,7 @@ static void balance_dirty_pages(struct a
- {
- 	long nr_reclaimable, bdi_nr_reclaimable;
- 	long nr_writeback, bdi_nr_writeback;
-+	long bdi_prev_dirty3 = 0;
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
- 	unsigned long bdi_thresh;
-@@ -516,6 +517,20 @@ static void balance_dirty_pages(struct a
- 			bdi_nr_writeback = bdi_stat(bdi, BDI_WRITEBACK);
- 		}
+--- linux-next.orig/mm/vmscan.c	2010-09-10 13:13:41.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-09-10 13:17:01.000000000 +0800
+@@ -78,6 +78,8 @@ struct scan_control {
  
-+		/*
-+		 * bdi_thresh could get exceeded for long time:
-+		 * - bdi_thresh takes some time to ramp up from the initial 0
-+		 * - users may set dirty_background_ratio close to dirty_ratio
-+		 *   (at least 1/8 gap is preferred)
-+		 * So offer a complementary way to break out of the loop when
-+		 * enough bdi pages have been cleaned during our pause time.
-+		 */
-+		if (nr_reclaimable + nr_writeback <= dirty_thresh &&
-+		    bdi_prev_dirty3 - (bdi_nr_reclaimable + bdi_nr_writeback) >
-+							(long)pages_dirtied * 8)
-+			break;
-+		bdi_prev_dirty3 = bdi_nr_reclaimable + bdi_nr_writeback;
+ 	int order;
+ 
++	int priority;
 +
- 		if (bdi_nr_reclaimable + bdi_nr_writeback <=
- 			bdi_thresh - bdi_thresh / DIRTY_SOFT_THROTTLE_RATIO)
- 			goto check_exceeded;
+ 	/*
+ 	 * Intend to reclaim enough continuous memory rather than reclaim
+ 	 * enough amount of memory. i.e, mode for high order allocation.
+@@ -1875,6 +1877,7 @@ static unsigned long do_try_to_free_page
+ 
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+ 		sc->nr_scanned = 0;
++		sc->priority = priority;
+ 		if (!priority)
+ 			disable_swap_token();
+ 		all_unreclaimable = shrink_zones(priority, zonelist, sc);
+@@ -2127,6 +2130,7 @@ loop_again:
+ 			disable_swap_token();
+ 
+ 		all_zones_ok = 1;
++		sc.priority = priority;
+ 
+ 		/*
+ 		 * Scan in the highmem->dma direction for the highest
 
 
 --
