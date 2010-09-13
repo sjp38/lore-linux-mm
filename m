@@ -1,153 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2DA0B6B00AF
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 10:33:10 -0400 (EDT)
-Date: Mon, 13 Sep 2010 22:33:01 +0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C896F6B009A
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 10:42:00 -0400 (EDT)
+Date: Mon, 13 Sep 2010 22:41:01 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 09/10] vmscan: Do not writeback filesystem pages in
- direct reclaim
-Message-ID: <20100913143301.GB14158@localhost>
+Subject: Re: [PATCH 10/10] vmscan: Kick flusher threads to clean pages when
+ reclaim is encountering dirty pages
+Message-ID: <20100913144101.GA15130@localhost>
 References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
- <1283770053-18833-10-git-send-email-mel@csn.ul.ie>
- <20100913133156.GA12355@localhost>
- <20100913135510.GH23508@csn.ul.ie>
+ <1283770053-18833-11-git-send-email-mel@csn.ul.ie>
+ <20100913134845.GB12355@localhost>
+ <20100913141046.GI23508@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100913135510.GH23508@csn.ul.ie>
+In-Reply-To: <20100913141046.GI23508@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> > >  	/* Check if we should syncronously wait for writeback */
-> > >  	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
+On Mon, Sep 13, 2010 at 10:10:46PM +0800, Mel Gorman wrote:
+> On Mon, Sep 13, 2010 at 09:48:45PM +0800, Wu Fengguang wrote:
+> > > +	/*
+> > > +	 * If reclaim is encountering dirty pages, it may be because
+> > > +	 * dirty pages are reaching the end of the LRU even though the
+> > > +	 * dirty_ratio may be satisified. In this case, wake flusher
+> > > +	 * threads to pro-actively clean up to a maximum of
+> > > +	 * 4 * SWAP_CLUSTER_MAX amount of data (usually 1/2MB) unless
+> > > +	 * !may_writepage indicates that this is a direct reclaimer in
+> > > +	 * laptop mode avoiding disk spin-ups
+> > > +	 */
+> > > +	if (file && nr_dirty_seen && sc->may_writepage)
+> > > +		wakeup_flusher_threads(nr_writeback_pages(nr_dirty));
 > > 
-> > It is possible to OOM if the LRU list is small and/or the storage is slow, so
-> > that the flusher cannot clean enough pages before the LRU is fully scanned.
+> > wakeup_flusher_threads() works, but seems not the pertinent one.
 > > 
+> > - locally, it needs some luck to clean the pages that direct reclaim is waiting on
 > 
-> To go OOM, nr_reclaimed would have to be 0 and for that, the entire list
-> would have to be dirty or unreclaimable. If that situation happens, is
-> the dirty throttling not also broken?
+> There is a certain amount of luck involved but it's depending on there being a
+> correlation between old inodes and old pages on the LRU list. As long as that
+> correlation is accurate, some relevant pages will get cleaned.  Testing on
+> previously released versions of this patch did show that the percentage of
+> dirty pages encountered during reclaim were reduced as a result of this patch.
 
-My worry is, even if the dirty throttling limit is instantly set to 0,
-it may still take time to knock down the number of dirty pages. Think
-about 500MB dirty pages waiting to be flushed to a slow USB stick.
+Yup.
 
-> > So we may need do waits on dirty/writeback pages on *order-0*
-> > direct reclaims, when priority goes rather low (such as < 3).
+> > - globally, it cleans up some dirty pages, however some heavy dirtier
+> >   may quickly create new ones..
 > > 
-> 
-> In case this is really necessary, the necessary stalling could be done by
-> removing the check for lumpy reclaim in should_reclaim_stall().  What do
-> you think of the following replacement?
-
-I merely want to provide a guarantee, so it may be enough to add this:
-
-        if (nr_freed == nr_taken)
-                return false;
-
-+       if (!priority)
-+               return true;
-
-This ensures the last full LRU scan will do necessary waits to prevent
-the OOM.
-
-> /*
->  * Returns true if the caller should wait to clean dirty/writeback pages.
->  *
->  * If we are direct reclaiming for contiguous pages and we do not reclaim
->  * everything in the list, try again and wait for writeback IO to complete.
->  * This will stall high-order allocations noticeably. Only do that when really
->  * need to free the pages under high memory pressure.
->  *
->  * Alternatively, if priority is getting high, it may be because there are
->  * too many dirty pages on the LRU. Rather than returning nr_reclaimed == 0
->  * and potentially causing an OOM, we stall on writeback.
->  */
-> static inline bool should_reclaim_stall(unsigned long nr_taken,
->                                         unsigned long nr_freed,
->                                         int priority,
->                                         struct scan_control *sc)
-> {
->         int stall_priority;
-> 
->         /* kswapd should not stall on sync IO */
->         if (current_is_kswapd())
->                 return false;
-> 
->         /* If we cannot writeback, there is no point stalling */
->         if (!sc->may_writepage)
->                 return false;
-> 
->         /* If we have relaimed everything on the isolated list, no stall */
->         if (nr_freed == nr_taken)
->                 return false;
-> 
->         /*
->          * For high-order allocations, there are two stall thresholds.
->          * High-cost allocations stall immediately where as lower
->          * order allocations such as stacks require the scanning
->          * priority to be much higher before stalling.
->          */
->         if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
->                 stall_priority = DEF_PRIORITY;
->         else
->                 stall_priority = DEF_PRIORITY / 3;
-> 
->         return priority <= stall_priority;
-> }
-> 
-> 
-> > > +		int dirty_retry = MAX_SWAP_CLEAN_WAIT;
-> > >  		set_lumpy_reclaim_mode(priority, sc, true);
-> > > -		nr_reclaimed += shrink_page_list(&page_list, sc);
-> > > +
-> > > +		while (nr_reclaimed < nr_taken && nr_dirty && dirty_retry--) {
-> > > +			struct page *page, *tmp;
-> > > +
+> > So how about taking the approaches in these patches?
 > > 
-> > > +			/* Take off the clean pages marked for activation */
-> > > +			list_for_each_entry_safe(page, tmp, &page_list, lru) {
-> > > +				if (PageDirty(page) || PageWriteback(page))
-> > > +					continue;
-> > > +
-> > > +				list_del(&page->lru);
-> > > +				list_add(&page->lru, &putback_list);
-> > > +			}
-> > 
-> > nitpick: I guess the above loop is optional code to avoid overheads
-> > of shrink_page_list() repeatedly going through some unfreeable pages?
-> 
-> Pretty much, if they are to be activated, there is no point trying to reclaim
-> them again. It's unnecessary overhead. A strong motivation for this
-> series is to reduce overheads in the reclaim paths and unnecessary
-> retrying of unfreeable pages.
-
-We do so much waits in this loop, so that users will get upset by the
-iowait stalls much much more than the CPU overheads.. best option is
-always to avoid entering this loop in the first place, and if we
-succeeded on that, these lines of optimizations will be nothing but
-mind destroyers for newbie developers.
-
-> > Considering this is the slow code path, I'd prefer to keep the code
-> > simple than to do such optimizations.
-> > 
-> > > +			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
-> > 
-> > how about 
-> >                         if (!laptop_mode)
-> >                                 wakeup_flusher_threads(nr_dirty);
+> > - "[PATCH 4/4] vmscan: transfer async file writeback to the flusher"
+> > - "[PATCH 15/17] mm: lower soft dirty limits on memory pressure"
 > > 
 > 
-> It's not the same thing. wakeup_flusher_threads(0) in laptop_mode is to
-> clean all pages if some need dirtying. laptop_mode cleans all pages to
-> minimise disk spinups.
+> There is a lot going on in those patches. It's going to take me a while to
+> figure them out and formulate an opinion.
 
-Ah.. that's sure fine. I wonder if the flusher could be more smart to
-automatically extend the number of pages to write in laptop mode. This
-could simplify some callers.
+OK. I also need some time off for doing other works :)
+
+> > In particular the first patch should work very nicely with memcg, as
+> > all pages of an inode typically belong to the same memcg. So doing
+> > write-around helps clean lots of dirty pages in the target LRU list in
+> > one shot.
+> > 
+> 
+> It might but as there is also a correlation between old dirty inodes and
+> the location of dirty pages, it is tricky to predict if it is better and
+> if so, by how much.
+
+It at least guarantees to clean the one page pageout() is running into :)
+Others will depend on the locality/sequentiality of the workload. But
+as the write-around pages are in the same LRU lists, the vmscan code
+will hit them sooner or later.
 
 Thanks,
 Fengguang
