@@ -1,111 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D09C66B00D7
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 23:48:15 -0400 (EDT)
-Date: Mon, 13 Sep 2010 11:48:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 05/17] writeback: quit throttling when signal pending
-Message-ID: <20100913034808.GA9196@localhost>
-References: <20100912154945.758129106@intel.com>
- <20100912155203.355459925@intel.com>
- <20100913064654.3cce885c@notabene>
- <20100913015529.GB5312@localhost>
- <20100913132116.3917e5d5@notabene>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C91E6B00D9
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 01:45:54 -0400 (EDT)
+Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
+	by smtp-out.google.com with ESMTP id o8D5joAJ025999
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 22:45:52 -0700
+Received: from pwi3 (pwi3.prod.google.com [10.241.219.3])
+	by hpaq14.eem.corp.google.com with ESMTP id o8D5jmHo011480
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 22:45:49 -0700
+Received: by pwi3 with SMTP id 3so2037078pwi.19
+        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 22:45:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100913132116.3917e5d5@notabene>
+In-Reply-To: <20100913031524.GD7697@localhost>
+References: <1284323440-23205-1-git-send-email-mrubin@google.com>
+ <1284323440-23205-6-git-send-email-mrubin@google.com> <20100913031524.GD7697@localhost>
+From: Michael Rubin <mrubin@google.com>
+Date: Sun, 12 Sep 2010 22:45:28 -0700
+Message-ID: <AANLkTimCh=10XzoHYtW+3TdejbwXu_x-t8NVV5HXCgsA@mail.gmail.com>
+Subject: Re: [PATCH 5/5] writeback: Reporting dirty thresholds in /proc/vmstat
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Neil Brown <neilb@suse.de>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 13, 2010 at 11:21:16AM +0800, Neil Brown wrote:
-> On Mon, 13 Sep 2010 09:55:29 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Mon, Sep 13, 2010 at 04:46:54AM +0800, Neil Brown wrote:
-> > > On Sun, 12 Sep 2010 23:49:50 +0800
-> > > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > This allows quick response to Ctrl-C etc. for impatient users.
-> > > > 
-> > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > ---
-> > > >  mm/page-writeback.c |    3 +++
-> > > >  1 file changed, 3 insertions(+)
-> > > > 
-> > > > --- linux-next.orig/mm/page-writeback.c	2010-09-09 16:01:14.000000000 +0800
-> > > > +++ linux-next/mm/page-writeback.c	2010-09-09 16:02:27.000000000 +0800
-> > > > @@ -553,6 +553,9 @@ static void balance_dirty_pages(struct a
-> > > >  		__set_current_state(TASK_INTERRUPTIBLE);
-> > > >  		io_schedule_timeout(pause);
-> > > >  
-> > > > +		if (signal_pending(current))
-> > > > +			break;
-> > > > +
-> > > 
-> > > Given the patch description,  I think you might want "fatal_signal_pending()"
-> > > here ???
-> > 
-> > __fatal_signal_pending() tests SIGKILL only, while the one often used
-> > and need more quick responding is SIGINT..
-> >
-> 
-> I thought that at first too....  but I don't think that is the case.
-> 
-> In kernel/signal.c, in complete_signal, we have
->   if (sig_fatal() ...)
->            ....
-> 		sigaddset(&t->pending.signal, SIGKILL);
-> 
-> where sig_fatal is
-> 
-> #define sig_fatal(t, signr) \
-> 	(!siginmask(signr, SIG_KERNEL_IGNORE_MASK|SIG_KERNEL_STOP_MASK) && \
-> 	 (t)->sighand->action[(signr)-1].sa.sa_handler == SIG_DFL)
-> 
-> 
-> so (if I'm reading the code correctly), if a process receives a signal for
-> which the handler is SIG_DFL, then SIGKILL is set in the pending mask, so
-> __fatal_signal_pending will be true.
-> 
-> So it fatal_signal_pending should catch any signal that will cause the
-> process to exit.  I assume that it what you want...
+On Sun, Sep 12, 2010 at 8:15 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Ah yes, it does look so. Thanks for the detailed explanation!
-Here is the updated patch.
+> But technical wise, the above two enum items should better be removed
+> to avoid possibly eating one more cache line. The two items can be
+> printed by explicit code.
 
-Thanks,
-Fengguang
----
-Subject: writeback: quit throttling when fatal signal pending
-From: Wu Fengguang <fengguang.wu@intel.com>
-Date: Wed Sep 08 17:40:22 CST 2010
+Done. Patch coming.
 
-This allows quick response to Ctrl-C etc. for impatient users.
-
-It mainly helps the rare bdi/global dirty exceeded cases.
-In the normal case of not exceeded, it will quit the loop anyway. 
-
-CC: Neil Brown <neilb@suse.de>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/page-writeback.c |    3 +++
- 1 file changed, 3 insertions(+)
-
---- linux-next.orig/mm/page-writeback.c	2010-09-12 13:25:23.000000000 +0800
-+++ linux-next/mm/page-writeback.c	2010-09-13 11:39:33.000000000 +0800
-@@ -552,6 +552,9 @@ static void balance_dirty_pages(struct a
- 		__set_current_state(TASK_INTERRUPTIBLE);
- 		io_schedule_timeout(pause);
- 
-+		if (fatal_signal_pending(current))
-+			break;
-+
- check_exceeded:
- 		/*
- 		 * The bdi thresh is somehow "soft" limit derived from the
+mrubin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
