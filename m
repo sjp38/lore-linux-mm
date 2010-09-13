@@ -1,85 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 265B96B00FE
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 05:57:14 -0400 (EDT)
-Date: Mon, 13 Sep 2010 17:57:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 01/17] writeback: remove the internal 5% low bound on
- dirty_ratio
-Message-ID: <20100913095708.GA31310@localhost>
-References: <20100912154945.758129106@intel.com>
- <20100912155202.733389420@intel.com>
- <20100913095130.GD23508@csn.ul.ie>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF626B0100
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 06:08:15 -0400 (EDT)
+Date: Mon, 13 Sep 2010 11:07:59 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
+	no congested BDIs or significant writeback
+Message-ID: <20100913100759.GE23508@csn.ul.ie>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie> <1283770053-18833-4-git-send-email-mel@csn.ul.ie> <20100907152533.GB4620@barrios-desktop> <20100908110403.GB29263@csn.ul.ie> <20100908145245.GG4620@barrios-desktop> <20100909085436.GJ29263@csn.ul.ie> <20100912153744.GA3563@barrios-desktop> <20100913085549.GA23508@csn.ul.ie> <AANLkTimkSU5G1qO0JDp8An5ofM2BPoPY0SGUOuTvSuOL@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100913095130.GD23508@csn.ul.ie>
+In-Reply-To: <AANLkTimkSU5G1qO0JDp8An5ofM2BPoPY0SGUOuTvSuOL@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 13, 2010 at 05:51:30PM +0800, Mel Gorman wrote:
-> On Sun, Sep 12, 2010 at 11:49:46PM +0800, Wu Fengguang wrote:
-> > The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
-> > This is not a user expected behavior. And it's inconsistent with
-> > calc_period_shift(), which uses the plain vm_dirty_ratio value.
-> > 
-> > Let's rip the arbitrary internal bound. It may impact some very weird
-> > user space applications. However we are going to dynamicly sizing the
-> > dirty limits anyway, which may well break such applications, too.
-> > 
-> > At the same time, fix balance_dirty_pages() to work with the
-> > dirty_thresh=0 case. This allows applications to proceed when
-> > dirty+writeback pages are all cleaned.
-> > 
-> > And ">" fits with the name "exceeded" better than ">=" does. Neil
-> > think it is an aesthetic improvement as well as a functional one :)
-> > 
-> > CC: Jan Kara <jack@suse.cz>
-> > Proposed-by: Con Kolivas <kernel@kolivas.org>
-> > Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Reviewed-by: Rik van Riel <riel@redhat.com>
-> > Reviewed-by: Neil Brown <neilb@suse.de>
-> > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  fs/fs-writeback.c   |    2 +-
-> >  mm/page-writeback.c |   16 +++++-----------
-> >  2 files changed, 6 insertions(+), 12 deletions(-)
-> > 
-> > --- linux-next.orig/mm/page-writeback.c	2010-08-29 08:10:30.000000000 +0800
-> > +++ linux-next/mm/page-writeback.c	2010-08-29 08:12:08.000000000 +0800
-> > @@ -415,14 +415,8 @@ void global_dirty_limits(unsigned long *
-> >  
-> >  	if (vm_dirty_bytes)
-> >  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-> > -	else {
-> > -		int dirty_ratio;
-> > -
-> > -		dirty_ratio = vm_dirty_ratio;
-> > -		if (dirty_ratio < 5)
-> > -			dirty_ratio = 5;
-> > -		dirty = (dirty_ratio * available_memory) / 100;
-> > -	}
-> > +	else
-> > +		dirty = (vm_dirty_ratio * available_memory) / 100;
-> >  
+On Mon, Sep 13, 2010 at 06:48:10PM +0900, Minchan Kim wrote:
+> >> > > > <SNIP>
+> >> > > > I'm not saying it is. The objective is to identify a situation where
+> >> > > > sleeping until the next write or congestion clears is pointless. We have
+> >> > > > already identified that we are not congested so the question is "are we
+> >> > > > writing a lot at the moment?". The assumption is that if there is a lot
+> >> > > > of writing going on, we might as well sleep until one completes rather
+> >> > > > than reclaiming more.
+> >> > > >
+> >> > > > This is the first effort at identifying pointless sleeps. Better ones
+> >> > > > might be identified in the future but that shouldn't stop us making a
+> >> > > > semi-sensible decision now.
+> >> > >
+> >> > > nr_bdi_congested is no problem since we have used it for a long time.
+> >> > > But you added new rule about writeback.
+> >> > >
+> >> >
+> >> > Yes, I'm trying to add a new rule about throttling in the page allocator
+> >> > and from vmscan. As you can see from the results in the leader, we are
+> >> > currently sleeping more than we need to.
+> >>
+> >> I can see the about avoiding congestion_wait but can't find about
+> >> (writeback < incative / 2) hueristic result.
+> >>
+> >
+> > See the leader and each of the report sections entitled
+> > "FTrace Reclaim Statistics: congestion_wait". It provides a measure of
+> > how sleep times are affected.
+> >
+> > "congest waited" are waits due to calling congestion_wait. "conditional waited"
+> > are those related to wait_iff_congested(). As you will see from the reports,
+> > sleep times are reduced overall while callers of wait_iff_congested() still
+> > go to sleep. The reports entitled "FTrace Reclaim Statistics: vmscan" show
+> > how reclaim is behaving and indicators so far are that reclaim is not hurt
+> > by introducing wait_iff_congested().
 > 
-> What kernel is this? In a recent mainline kernel and on linux-next, this
-> is
+> I saw  the result.
+> It was a result about effectiveness _both_ nr_bdi_congested and
+> (writeback < inactive/2).
+> What I mean is just effectiveness (writeback < inactive/2) _alone_.
 
-It applies to linux-next 20100903.
+I didn't measured it because such a change means that wait_iff_congested()
+ignored BDI congestion. If we were reclaiming on a NUMA machine for example,
+it could mean that a BDI gets flooded with requests if we only checked the
+ratios of one zone if little writeback was happening in that zone at the
+time. It did not seem like a good idea to ignore congestion.
 
-> dirty = (dirty_ratio * available_memory) / 100;
+> If we remove (writeback < inactive / 2) check and unconditionally
+> return, how does the behavior changed?
 > 
-> i.e. * instead of +. With +, the value for dirty is almost always going
-> to be simply 1%.
 
-Where's the "+" come from?
+Based on just the workload Johannes sent, scanning and completion times both
+increased without any improvement in the scanning/reclaim ratio (a bad result)
+hence why this logic was introduced to back off where there is some
+writeback taking place even if the BDI is not congested.
 
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
