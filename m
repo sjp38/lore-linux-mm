@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D14586B00C5
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 16:47:14 -0400 (EDT)
-Date: Mon, 13 Sep 2010 06:46:54 +1000
-From: Neil Brown <neilb@suse.de>
-Subject: Re: [PATCH 05/17] writeback: quit throttling when signal pending
-Message-ID: <20100913064654.3cce885c@notabene>
-In-Reply-To: <20100912155203.355459925@intel.com>
-References: <20100912154945.758129106@intel.com>
-	<20100912155203.355459925@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 62CD36B00C7
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 20:47:03 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so5990018iwn.14
+        for <linux-mm@kvack.org>; Sun, 12 Sep 2010 17:47:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <201009121942.53543.rjw@sisk.pl>
+References: <20100912163200.GA4098@barrios-desktop>
+	<201009121942.53543.rjw@sisk.pl>
+Date: Mon, 13 Sep 2010 09:47:02 +0900
+Message-ID: <AANLkTimzby23QO4w0o1vSHnin9AakoG+cp9zd6a8T6FA@mail.gmail.com>
+Subject: Re: [PATCH v2] vmscan: check all_unreclaimable in direct reclaim path
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "M. Vefa Bicakci" <bicave@superonline.com>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 12 Sep 2010 23:49:50 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+On Mon, Sep 13, 2010 at 2:42 AM, Rafael J. Wysocki <rjw@sisk.pl> wrote:
+> On Sunday, September 12, 2010, Minchan Kim wrote:
+>> Adnrew, Please drop my old version and merge this verstion.
+>> (old : vmscan-check-all_unreclaimable-in-direct-reclaim-path.patch)
+>>
+>> =A0* Changelog from v2
+>> =A0 =A0* remove inline - suggested by Andrew
+>> =A0 =A0* add function desription - suggeseted by Adnrew
+>>
+>> =3D=3D CUT HERE =3D=3D
+>
+> For the record, this commit:
+>
+> http://git.kernel.org/?p=3Dlinux/kernel/git/torvalds/linux-2.6.git;a=3Dco=
+mmit;h=3D6715045ddc7472a22be5e49d4047d2d89b391f45
+>
+> is reported to fix the problem without the $subject patch (see
+> http://lkml.org/lkml/2010/9/11/129). =A0So, I'm not sure if it's still ne=
+cessary
+> to special case this particular situation?
 
-> This allows quick response to Ctrl-C etc. for impatient users.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/page-writeback.c |    3 +++
->  1 file changed, 3 insertions(+)
-> 
-> --- linux-next.orig/mm/page-writeback.c	2010-09-09 16:01:14.000000000 +0800
-> +++ linux-next/mm/page-writeback.c	2010-09-09 16:02:27.000000000 +0800
-> @@ -553,6 +553,9 @@ static void balance_dirty_pages(struct a
->  		__set_current_state(TASK_INTERRUPTIBLE);
->  		io_schedule_timeout(pause);
->  
-> +		if (signal_pending(current))
-> +			break;
-> +
 
-Given the patch description,  I think you might want "fatal_signal_pending()"
-here ???
+I didn't follow your patch.
+If your patch can fix the problem, We don't need new overhead direct
+reclaim without big benefit. So I don't care of dropping this patch.
 
-NeilBrown
+We need agreement of another author KOSAKI.
 
->  check_exceeded:
->  		/*
->  		 * The bdi thresh is somehow "soft" limit derived from the
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks for the information, Rafael. :)
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
