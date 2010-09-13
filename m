@@ -1,264 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1656B00EF
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 04:48:14 -0400 (EDT)
-Date: Mon, 13 Sep 2010 18:45:34 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 02/17] writeback: IO-less balance_dirty_pages()
-Message-ID: <20100913084534.GE411@dastard>
-References: <20100912154945.758129106@intel.com>
- <20100912155202.887304459@intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 97FE46B00EE
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 04:56:06 -0400 (EDT)
+Date: Mon, 13 Sep 2010 09:55:50 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 03/10] writeback: Do not congestion sleep if there are
+	no congested BDIs or significant writeback
+Message-ID: <20100913085549.GA23508@csn.ul.ie>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie> <1283770053-18833-4-git-send-email-mel@csn.ul.ie> <20100907152533.GB4620@barrios-desktop> <20100908110403.GB29263@csn.ul.ie> <20100908145245.GG4620@barrios-desktop> <20100909085436.GJ29263@csn.ul.ie> <20100912153744.GA3563@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100912155202.887304459@intel.com>
+In-Reply-To: <20100912153744.GA3563@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Chris Mason <chris.mason@oracle.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Jens Axboe <jens.axboe@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 12, 2010 at 11:49:47PM +0800, Wu Fengguang wrote:
-> As proposed by Chris, Dave and Jan, don't start foreground writeback IO
-> inside balance_dirty_pages(). Instead, simply let it idle sleep for some
-> time to throttle the dirtying task. In the mean while, kick off the
-> per-bdi flusher thread to do background writeback IO.
+On Mon, Sep 13, 2010 at 12:37:44AM +0900, Minchan Kim wrote:
+> > > > > > <SNIP>
+> > > > > >
+> > > > > > + * in sleeping but cond_resched() is called in case the current process has
+> > > > > > + * consumed its CPU quota.
+> > > > > > + */
+> > > > > > +long wait_iff_congested(struct zone *zone, int sync, long timeout)
+> > > > > > +{
+> > > > > > +	long ret;
+> > > > > > +	unsigned long start = jiffies;
+> > > > > > +	DEFINE_WAIT(wait);
+> > > > > > +	wait_queue_head_t *wqh = &congestion_wqh[sync];
+> > > > > > +
+> > > > > > +	/*
+> > > > > > +	 * If there is no congestion, check the amount of writeback. If there
+> > > > > > +	 * is no significant writeback and no congestion, just cond_resched
+> > > > > > +	 */
+> > > > > > +	if (atomic_read(&nr_bdi_congested[sync]) == 0) {
+> > > > > > +		unsigned long inactive, writeback;
+> > > > > > +
+> > > > > > +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+> > > > > > +				zone_page_state(zone, NR_INACTIVE_ANON);
+> > > > > > +		writeback = zone_page_state(zone, NR_WRITEBACK);
+> > > > > > +
+> > > > > > +		/*
+> > > > > > +		 * If less than half the inactive list is being written back,
+> > > > > > +		 * reclaim might as well continue
+> > > > > > +		 */
+> > > > > > +		if (writeback < inactive / 2) {
+> > > > > 
+> > > > > I am not sure this is best.
+> > > > > 
+> > > > 
+> > > > I'm not saying it is. The objective is to identify a situation where
+> > > > sleeping until the next write or congestion clears is pointless. We have
+> > > > already identified that we are not congested so the question is "are we
+> > > > writing a lot at the moment?". The assumption is that if there is a lot
+> > > > of writing going on, we might as well sleep until one completes rather
+> > > > than reclaiming more.
+> > > > 
+> > > > This is the first effort at identifying pointless sleeps. Better ones
+> > > > might be identified in the future but that shouldn't stop us making a
+> > > > semi-sensible decision now.
+> > > 
+> > > nr_bdi_congested is no problem since we have used it for a long time.
+> > > But you added new rule about writeback. 
+> > > 
+> > 
+> > Yes, I'm trying to add a new rule about throttling in the page allocator
+> > and from vmscan. As you can see from the results in the leader, we are
+> > currently sleeping more than we need to.
 > 
-> This patch introduces the basic framework, which will be further
-> consolidated by the next patches.
-
-Can you put all this documentation into, say,
-Documentation/filesystems/writeback-throttling-design.txt?
-
-FWIW, I'm reading this and commenting without having looked at the
-code - I want to understand the design, not the implementation ;)
-
-> RATIONALS
-> =========
-> 
-> The current balance_dirty_pages() is rather IO inefficient.
-> 
-> - concurrent writeback of multiple inodes (Dave Chinner)
-> 
->   If every thread doing writes and being throttled start foreground
->   writeback, it leads to N IO submitters from at least N different
->   inodes at the same time, end up with N different sets of IO being
->   issued with potentially zero locality to each other, resulting in
->   much lower elevator sort/merge efficiency and hence we seek the disk
->   all over the place to service the different sets of IO.
->   OTOH, if there is only one submission thread, it doesn't jump between
->   inodes in the same way when congestion clears - it keeps writing to
->   the same inode, resulting in large related chunks of sequential IOs
->   being issued to the disk. This is more efficient than the above
->   foreground writeback because the elevator works better and the disk
->   seeks less.
-> 
-> - small nr_to_write for fast arrays
-> 
->   The write_chunk used by current balance_dirty_pages() cannot be
->   directly set to some large value (eg. 128MB) for better IO efficiency.
->   Because it could lead to more than 1 second user perceivable stalls.
->   This limits current balance_dirty_pages() to small inefficient IOs.
-
-Contrary to popular belief, I don't think nr_to_write is too small.
-It's slow devices that cause problems with large chunks, not fast
-arrays.
-
-> For the above two reasons, it's much better to shift IO to the flusher
-> threads and let balance_dirty_pages() just wait for enough time or progress.
-> 
-> Jan Kara, Dave Chinner and me explored the scheme to let
-> balance_dirty_pages() wait for enough writeback IO completions to
-> safeguard the dirty limit. This is found to have two problems:
-> 
-> - in large NUMA systems, the per-cpu counters may have big accounting
->   errors, leading to big throttle wait time and jitters.
-> 
-> - NFS may kill large amount of unstable pages with one single COMMIT.
->   Because NFS server serves COMMIT with expensive fsync() IOs, it is
->   desirable to delay and reduce the number of COMMITs. So it's not
->   likely to optimize away such kind of bursty IO completions, and the
->   resulted large (and tiny) stall times in IO completion based throttling.
-> 
-> So here is a pause time oriented approach, which tries to control
-> 
-> - the pause time in each balance_dirty_pages() invocations
-> - the number of pages dirtied before calling balance_dirty_pages()
-> 
-> for smooth and efficient dirty throttling:
-> 
-> - avoid useless (eg. zero pause time) balance_dirty_pages() calls
-> - avoid too small pause time (less than  10ms, which burns CPU power)
-
-For fast arrays, 10ms may be to high a lower bound. e.g. at 1GB/s,
-10ms = 10MB written, at 10GB/s it is 100MB, so lower bounds for
-faster arrays might be necessary to prevent unneccessarily long
-wakeup latencies....
-
-> CONTROL SYSTEM
-> ==============
-> 
-> The current task_dirty_limit() adjusts bdi_thresh according to the dirty
-> "weight" of the current task, which is the percent of pages recently
-> dirtied by the task. If 100% pages are recently dirtied by the task, it
-> will lower bdi_thresh by 1/8. If only 1% pages are dirtied by the task,
-> it will return almost unmodified bdi_thresh. In this way, a heavy
-> dirtier will get blocked at (bdi_thresh-bdi_thresh/8) while allowing a
-> light dirtier to progress (the latter won't be blocked because R << B in
-> fig.1).
-> 
-> Fig.1 before patch, a heavy dirtier and a light dirtier
->                                                 R
-> ----------------------------------------------+-o---------------------------*--|
->                                               L A                           B  T
->   T: bdi_dirty_limit
->   L: bdi_dirty_limit - bdi_dirty_limit/8
-> 
->   R: bdi_reclaimable + bdi_writeback
-> 
->   A: bdi_thresh for a heavy dirtier ~= R ~= L
->   B: bdi_thresh for a light dirtier ~= T
-
-Let me get your terminology straight:
-
-	T = throttle threshold
-	L = lower throttle bound
-	R = reclaimable pages
-
-	A/B: two dritying processes
-
-> 
-> If B is a newly started heavy dirtier, then it will slowly gain weight
-> and A will lose weight.  The bdi_thresh for A and B will be approaching
-> the center of region (L, T) and eventually stabilize there.
-> 
-> Fig.2 before patch, two heavy dirtiers converging to the same threshold
->                                                              R
-> ----------------------------------------------+--------------o-*---------------|
->                                               L              A B               T
-> 
-> Now for IO-less balance_dirty_pages(), let's do it in a "bandwidth control"
-> way. In fig.3, a soft dirty limit region (L, A) is introduced. When R enters
-> this region, the task may be throttled for T seconds on every N pages it dirtied.
-> Let's call (N/T) the "throttle bandwidth". It is computed by the following fomula:
+> I can see the about avoiding congestion_wait but can't find about 
+> (writeback < incative / 2) hueristic result. 
 > 
 
-Now you've redefined R, L, T and A to mean completely different
-things. That's kind of confusing, because you use them in similar
-graphs
+See the leader and each of the report sections entitled 
+"FTrace Reclaim Statistics: congestion_wait". It provides a measure of
+how sleep times are affected.
 
->         throttle_bandwidth = bdi_bandwidth * (A - R) / (A - L)
-> where
->         L = A - A/16
-> 	A = T - T/16
+"congest waited" are waits due to calling congestion_wait. "conditional waited"
+are those related to wait_iff_congested(). As you will see from the reports,
+sleep times are reduced overall while callers of wait_iff_congested() still
+go to sleep. The reports entitled "FTrace Reclaim Statistics: vmscan" show
+how reclaim is behaving and indicators so far are that reclaim is not hurt
+by introducing wait_iff_congested().
 
-That means A and L are constants, so your algorithm comes down to
-a first-order linear system:
-
-	throttle_bandwidth = bdi_bandwidth * (15 - 16R/T)
-
-that will only work in the range of 7/8T < R < 15/16T. That is,
-for R < L, throttle bandwidth will be calculated to be greater than
-bdi_bandwidth, and for R > A, throttle bandwidth will be negative.
-
-> So when there is only one heavy dirtier (fig.3),
+> > 
+> > > Why I pointed out is that you added new rule and I hope let others know
+> > > this change since they have a good idea or any opinions. 
+> > > I think it's a one of roles as reviewer.
+> > > 
+> > 
+> > Of course.
+> > 
+> > > > 
+> > > > > 1. Without considering various speed class storage, could we fix it as half of inactive?
+> > > > 
+> > > > We don't really have a good means of identifying speed classes of
+> > > > storage. Worse, we are considering on a zone-basis here, not a BDI
+> > > > basis. The pages being written back in the zone could be backed by
+> > > > anything so we cannot make decisions based on BDI speed.
+> > > 
+> > > True. So it's why I have below question.
+> > > As you said, we don't have enough information in vmscan.
+> > > So I am not sure how effective such semi-sensible decision is. 
+> > > 
+> > 
+> > What additional metrics would you apply than the ones I used in the
+> > leader mail?
 > 
->         R ~= L
->         throttle_bandwidth ~= bdi_bandwidth
+> effectiveness of (writeback < inactive / 2) heuristic. 
 > 
-> It's a stable balance:
-> - when R > L, then throttle_bandwidth < bdi_bandwidth, so R will decrease to L
-> - when R < L, then throttle_bandwidth > bdi_bandwidth, so R will increase to L
 
-That does not imply stability. First-order control algorithms are
-generally unstable - they have trouble with convergence and tend to
-overshoot and oscillate - because you can't easily control the rate
-of change of the controlled variable.
+Define effectiveness.
 
-> Fig.3 after patch, one heavy dirtier
+In the reports I gave, I reported on the sleep times and whether the full
+timeout was slept or not. Sleep times are reduced while not negatively
+impacting reclaim.
+
+> > 
+> > > I think best is to throttle in page-writeback well. 
+> > 
+> > I do not think there is a problem as such in page writeback throttling.
+> > The problem is that we are going to sleep without any congestion or without
+> > writes in progress. We sleep for a full timeout in this case for no reason
+> > and this is what I'm trying to avoid.
 > 
->                                                 |
->     throttle_bandwidth ~= bdi_bandwidth  =>     o
->                                                 | o
->                                                 |   o
->                                                 |     o
->                                                 |       o
->                                                 |         o
->                                               L |           o
-> ----------------------------------------------+-+-------------o----------------|
->                                                 R             A                T
->   T: bdi_dirty_limit
->   A: task_dirty_limit = bdi_dirty_limit - bdi_dirty_limit/16
->   L: task_dirty_limit - task_dirty_limit/16
+> Yes. I agree. 
+> Just my concern is heuristic accuarcy I mentioned.
+> In your previous verstion, you don't add the heuristic.
+
+In the previous version, I also changed all callers to congestion_wait(). V1
+simply was not that great a patch and Johannes pointed out that I wasn't
+measuring the scanning/reclaim ratios to see how reclaim was impacted. The
+reports now include this data and things are looking better.
+
+> But suddenly you added it in this version. 
+> So I think you have any clue to add it in this version.
+> Please, write down cause and data if you have. 
 > 
->   R: bdi_reclaimable + bdi_writeback ~= L
-> 
-> When there comes a new cp task, its weight will grow from 0 to 50%.
 
-While the other decreases from 100% to 50%? What causes this?
+The leader has a large amount of data on how this and the other patches
+affected results for a good variety of workloads.
 
-> When the weight is still small, it's considered a light dirtier and it's
-> allowed to dirty pages much faster than the bdi write bandwidth. In fact
-> initially it won't be throttled at all when R < Lb where Lb=B-B/16 and B~=T.
-
-I'm missing something - if the task_dirty_limit is T/16, then the
-the first task will have consumed all the dirty pages up to this
-point (i.e. R ~= T/16). The then second task starts, and while it is
-unthrottled, it will push R well past T. That will cause the first
-task to throttle hard almost immediately, and effectively get
-throttled until the weight of the second task passes the "heavy"
-threshold.  The first task won't get unthrottled until R passes back
-down below T. That seems undesirable....
-
-> Fig.4 after patch, an old cp + a newly started cp
-> 
->                      (throttle bandwidth) =>    *
->                                                 | *
->                                                 |   *
->                                                 |     *
->                                                 |       *
->                                                 |         *
->                                                 |           *
->                                                 |             *
->                       throttle bandwidth  =>    o               *
->                                                 | o               *
->                                                 |   o               *
->                                                 |     o               *
->                                                 |       o               *
->                                                 |         o               *
->                                                 |           o               *
-> ------------------------------------------------+-------------o---------------*|
->                                                 R             A               BT
-> 
-> So R will quickly grow large (fig.5). As the two heavy dirtiers' weight
-> converge to 50%, the points A, B will go towards each other and
-
-This assumes that the two processes are reaching equal amount sof
-dirty pages in the page cache? (weight is not defined anywhere, so I
-can't tell from reading the document how it is calculated)
-
-> eventually become one in fig.5. R will stabilize around A-A/32 where
-> A=B=T-T/16. throttle_bandwidth will stabilize around bdi_bandwidth/2.
-
-Why? You haven't explained how weight affects any of the defined
-variables
-
-> There won't be big oscillations between A and B, because as long as A
-> coincides with B, their throttle_bandwidth and dirtied pages will be
-> equal, A's weight will stop decreasing and B's weight will stop growing,
-> so the two points won't keep moving and cross each other. So it's a
-> pretty stable control system. The only problem is, it converges a bit
-> slow (except for really fast storage array).
-
-Convergence should really be independent of the write speed,
-otherwise we'll be forever trying to find the "best" value for
-different configurations.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
