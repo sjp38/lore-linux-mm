@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 37C026B00D2
-	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 23:15:31 -0400 (EDT)
-Date: Mon, 13 Sep 2010 11:15:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] writeback: Reporting dirty thresholds in
- /proc/vmstat
-Message-ID: <20100913031524.GD7697@localhost>
-References: <1284323440-23205-1-git-send-email-mrubin@google.com>
- <1284323440-23205-6-git-send-email-mrubin@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1284323440-23205-6-git-send-email-mrubin@google.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 626436B00D4
+	for <linux-mm@kvack.org>; Sun, 12 Sep 2010 23:21:38 -0400 (EDT)
+Date: Mon, 13 Sep 2010 13:21:16 +1000
+From: Neil Brown <neilb@suse.de>
+Subject: Re: [PATCH 05/17] writeback: quit throttling when signal pending
+Message-ID: <20100913132116.3917e5d5@notabene>
+In-Reply-To: <20100913015529.GB5312@localhost>
+References: <20100912154945.758129106@intel.com>
+	<20100912155203.355459925@intel.com>
+	<20100913064654.3cce885c@notabene>
+	<20100913015529.GB5312@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michael Rubin <mrubin@google.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jack@suse.cz" <jack@suse.cz>, "riel@redhat.com" <riel@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "david@fromorbit.com" <david@fromorbit.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@kernel.dk" <npiggin@kernel.dk>, "hch@lst.de" <hch@lst.de>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li,  Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 13, 2010 at 04:30:40AM +0800, Michael Rubin wrote:
-> The kernel already exposes the user desired thresholds in /proc/sys/vm
-> with dirty_background_ratio and background_ratio. But the kernel may
-> alter the number requested without giving the user any indication that
-> is the case.
+On Mon, 13 Sep 2010 09:55:29 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
+
+> On Mon, Sep 13, 2010 at 04:46:54AM +0800, Neil Brown wrote:
+> > On Sun, 12 Sep 2010 23:49:50 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > 
+> > > This allows quick response to Ctrl-C etc. for impatient users.
+> > > 
+> > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > > ---
+> > >  mm/page-writeback.c |    3 +++
+> > >  1 file changed, 3 insertions(+)
+> > > 
+> > > --- linux-next.orig/mm/page-writeback.c	2010-09-09 16:01:14.000000000 +0800
+> > > +++ linux-next/mm/page-writeback.c	2010-09-09 16:02:27.000000000 +0800
+> > > @@ -553,6 +553,9 @@ static void balance_dirty_pages(struct a
+> > >  		__set_current_state(TASK_INTERRUPTIBLE);
+> > >  		io_schedule_timeout(pause);
+> > >  
+> > > +		if (signal_pending(current))
+> > > +			break;
+> > > +
+> > 
+> > Given the patch description,  I think you might want "fatal_signal_pending()"
+> > here ???
 > 
-> Knowing the actual ratios the kernel is honoring can help app developers
-> understand how their buffered IO will be sent to the disk.
-> 
->         $ grep threshold /proc/vmstat
->         nr_dirty_threshold 409111
->         nr_dirty_background_threshold 818223
-> 
-> Signed-off-by: Michael Rubin <mrubin@google.com>
-> ---
->  include/linux/mmzone.h |    2 ++
->  mm/vmstat.c            |    4 ++++
->  2 files changed, 6 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index d0d7454..1e87936 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -106,6 +106,8 @@ enum zone_stat_item {
->  	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
->  	NR_FILE_DIRTIED,	/* accumulated dirty pages */
->  	NR_WRITTEN,		/* accumulated written pages */
-> +	NR_DIRTY_THRESHOLD,	/* writeback threshold */
+> __fatal_signal_pending() tests SIGKILL only, while the one often used
+> and need more quick responding is SIGINT..
+>
 
-s/writeback/dirty throttling/
+I thought that at first too....  but I don't think that is the case.
 
-> +	NR_DIRTY_BG_THRESHOLD,	/* bg writeback threshold */
+In kernel/signal.c, in complete_signal, we have
+  if (sig_fatal() ...)
+           ....
+		sigaddset(&t->pending.signal, SIGKILL);
 
-I have no idea about this interface change. No ACK or NAK.
+where sig_fatal is
 
-But technical wise, the above two enum items should better be removed
-to avoid possibly eating one more cache line. The two items can be
-printed by explicit code.
+#define sig_fatal(t, signr) \
+	(!siginmask(signr, SIG_KERNEL_IGNORE_MASK|SIG_KERNEL_STOP_MASK) && \
+	 (t)->sighand->action[(signr)-1].sa.sa_handler == SIG_DFL)
 
-Thanks,
-Fengguang
+
+so (if I'm reading the code correctly), if a process receives a signal for
+which the handler is SIG_DFL, then SIGKILL is set in the pending mask, so
+__fatal_signal_pending will be true.
+
+So it fatal_signal_pending should catch any signal that will cause the
+process to exit.  I assume that it what you want...
+
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
