@@ -1,115 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F34A46B00F3
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 05:14:21 -0400 (EDT)
-Date: Mon, 13 Sep 2010 10:14:05 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 05/10] vmscan: Synchrounous lumpy reclaim use
-	lock_page() instead trylock_page()
-Message-ID: <20100913091405.GB23508@csn.ul.ie>
-References: <20100909131211.C93C.A69D9226@jp.fujitsu.com> <20100909092203.GL29263@csn.ul.ie> <20100909182649.C94F.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5286B00F4
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 05:24:07 -0400 (EDT)
+Date: Mon, 13 Sep 2010 11:23:55 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 01/17] writeback: remove the internal 5% low bound on
+ dirty_ratio
+Message-ID: <20100913092355.GA20954@cmpxchg.org>
+References: <20100912154945.758129106@intel.com>
+ <20100912155202.733389420@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100909182649.C94F.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100912155202.733389420@intel.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 10, 2010 at 07:25:43PM +0900, KOSAKI Motohiro wrote:
-> > On Thu, Sep 09, 2010 at 01:13:22PM +0900, KOSAKI Motohiro wrote:
-> > > > On Thu, 9 Sep 2010 12:04:48 +0900
-> > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > 
-> > > > > On Mon,  6 Sep 2010 11:47:28 +0100
-> > > > > Mel Gorman <mel@csn.ul.ie> wrote:
-> > > > > 
-> > > > > > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > > > 
-> > > > > > With synchrounous lumpy reclaim, there is no reason to give up to reclaim
-> > > > > > pages even if page is locked. This patch uses lock_page() instead of
-> > > > > > trylock_page() in this case.
-> > > > > > 
-> > > > > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > > > 
-> > > > > Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > 
-> > > > Ah......but can't this change cause dead lock ??
-> > > 
-> > > Yes, this patch is purely crappy. please drop. I guess I was poisoned
-> > > by poisonous mushroom of Mario Bros.
-> > > 
-> > 
-> > Lets be clear on what the exact dead lock conditions are. The ones I had
-> > thought about when I felt this patch was ok were;
-> > 
-> > o We are not holding the LRU lock (or any lock, we just called cond_resched())
-> > o We do not have another page locked because we cannot lock multiple pages
-> > o Kswapd will never be in LUMPY_MODE_SYNC so it is not getting blocked
-> > o lock_page() itself is not allocating anything that we could recurse on
+On Sun, Sep 12, 2010 at 11:49:46PM +0800, Wu Fengguang wrote:
+> The dirty_ratio was siliently limited in global_dirty_limits() to >= 5%.
+> This is not a user expected behavior. And it's inconsistent with
+> calc_period_shift(), which uses the plain vm_dirty_ratio value.
 > 
-> True, all.
+> Let's rip the arbitrary internal bound. It may impact some very weird
+> user space applications. However we are going to dynamicly sizing the
+> dirty limits anyway, which may well break such applications, too.
 > 
-> > 
-> > One potential dead lock would be if the direct reclaimer held a page
-> > lock and ended up here but is that situation even allowed?
+> At the same time, fix balance_dirty_pages() to work with the
+> dirty_thresh=0 case. This allows applications to proceed when
+> dirty+writeback pages are all cleaned.
 > 
-> example, 
+> And ">" fits with the name "exceeded" better than ">=" does. Neil
+> think it is an aesthetic improvement as well as a functional one :)
 > 
-> __do_fault()
-> {
-> (snip)
->         if (unlikely(!(ret & VM_FAULT_LOCKED)))
->                 lock_page(vmf.page);
->         else
->                 VM_BUG_ON(!PageLocked(vmf.page));
-> 
->         /*
->          * Should we do an early C-O-W break?
->          */
->         page = vmf.page;
->         if (flags & FAULT_FLAG_WRITE) {
->                 if (!(vma->vm_flags & VM_SHARED)) {
->                         anon = 1;
->                         if (unlikely(anon_vma_prepare(vma))) {
->                                 ret = VM_FAULT_OOM;
->                                 goto out;
->                         }
->                         page = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
->                                                 vma, address);
-> 
+> CC: Jan Kara <jack@suse.cz>
+> Proposed-by: Con Kolivas <kernel@kolivas.org>
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: Neil Brown <neilb@suse.de>
+> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Correct, this is a problem. I already had dropped the patch but thanks for
-pointing out a deadlock because I was missing this case. Nothing stops the
-page being faulted being sent to shrink_page_list() when alloc_page_vma()
-is called. The deadlock might be hard to hit, but it's there.
-
-> 
-> Afaik, detailed rule is,
-> 
-> o kswapd can call lock_page() because they never take page lock outside vmscan
-
-lock_page_nosync as you point out in your next mail. While it can call
-it, kswapd shouldn't because normally it avoids stalls but it would not
-deadlock as a result of calling it.
-
-> o if try_lock() is successed, we can call lock_page_nosync() against its page after unlock.
->   because the task have gurantee of no lock taken.
-> o otherwise, direct reclaimer can't call lock_page(). the task may have a lock already.
-> 
-
-I think the safer bet is simply to say "direct reclaimers should not
-call lock_page() because the fault path could be holding a lock on that
-page already".
-
-Thanks.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
