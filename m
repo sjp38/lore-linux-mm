@@ -1,216 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A74C56B0166
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 09:08:20 -0400 (EDT)
-Message-Id: <20100913130150.138758012@intel.com>
-Date: Mon, 13 Sep 2010 20:31:13 +0800
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6087C6B0168
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 09:32:02 -0400 (EDT)
+Date: Mon, 13 Sep 2010 21:31:56 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 3/4] writeback: introduce bdi_start_inode_writeback()
-References: <20100913123110.372291929@intel.com>
-Content-Disposition: inline; filename=writeback-bdi_start_inode_writeback.patch
+Subject: Re: [PATCH 09/10] vmscan: Do not writeback filesystem pages in
+ direct reclaim
+Message-ID: <20100913133156.GA12355@localhost>
+References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
+ <1283770053-18833-10-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1283770053-18833-10-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This is to transfer dirty pages encountered in page reclaim to the
-flusher threads for writeback.
+Mel,
 
-The flusher will piggy back more dirty pages for IO
-- it's more IO efficient
-- it helps clean more pages, a good number of them may sit in the same
-  LRU list that is being scanned.
+Sorry for being late, I'm doing pretty much prework these days ;)
 
-To avoid memory allocations at page reclaim, a mempool is created.
+On Mon, Sep 06, 2010 at 06:47:32PM +0800, Mel Gorman wrote:
+> When memory is under enough pressure, a process may enter direct
+> reclaim to free pages in the same manner kswapd does. If a dirty page is
+> encountered during the scan, this page is written to backing storage using
+> mapping->writepage. This can result in very deep call stacks, particularly
+> if the target storage or filesystem are complex. It has already been observed
+> on XFS that the stack overflows but the problem is not XFS-specific.
+> 
+> This patch prevents direct reclaim writing back filesystem pages by checking
+> if current is kswapd or the page is anonymous before writing back.  If the
+> dirty pages cannot be written back, they are placed back on the LRU lists
+> for either background writing by the BDI threads or kswapd. If in direct
+> lumpy reclaim and dirty pages are encountered, the process will stall for
+> the background flusher before trying to reclaim the pages again.
+> 
+> As the call-chain for writing anonymous pages is not expected to be deep
+> and they are not cleaned by flusher threads, anonymous pages are still
+> written back in direct reclaim.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c |   49 ++++++++++++++++++++++++++++++++++++++++++++++---
+>  1 files changed, 46 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ff52b46..408c101 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -145,6 +145,9 @@ static DECLARE_RWSEM(shrinker_rwsem);
+>  #define scanning_global_lru(sc)	(1)
+>  #endif
+>  
+> +/* Direct lumpy reclaim waits up to five seconds for background cleaning */
+> +#define MAX_SWAP_CLEAN_WAIT 50
+> +
+>  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+>  						  struct scan_control *sc)
+>  {
+> @@ -682,11 +685,13 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+>  static unsigned long shrink_page_list(struct list_head *page_list,
+> -				      struct scan_control *sc)
+> +					struct scan_control *sc,
+> +					unsigned long *nr_still_dirty)
+>  {
+>  	LIST_HEAD(ret_pages);
+>  	LIST_HEAD(free_pages);
+>  	int pgactivate = 0;
+> +	unsigned long nr_dirty = 0;
+>  	unsigned long nr_reclaimed = 0;
+>  
+>  	cond_resched();
+> @@ -785,6 +790,15 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		}
+>  
+>  		if (PageDirty(page)) {
+> +			/*
+> +			 * Only kswapd can writeback filesystem pages to
+> +			 * avoid risk of stack overflow
+> +			 */
+> +			if (page_is_file_cache(page) && !current_is_kswapd()) {
+> +				nr_dirty++;
+> +				goto keep_locked;
+> +			}
+> +
+>  			if (references == PAGEREF_RECLAIM_CLEAN)
+>  				goto keep_locked;
+>  			if (!may_enter_fs)
+> @@ -908,6 +922,8 @@ keep_lumpy:
+>  	free_page_list(&free_pages);
+>  
+>  	list_splice(&ret_pages, page_list);
+> +
+> +	*nr_still_dirty = nr_dirty;
+>  	count_vm_events(PGACTIVATE, pgactivate);
+>  	return nr_reclaimed;
+>  }
+> @@ -1312,6 +1328,10 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
+>  	if (sc->lumpy_reclaim_mode == LUMPY_MODE_NONE)
+>  		return false;
+>  
+> +	/* If we cannot writeback, there is no point stalling */
+> +	if (!sc->may_writepage)
+> +		return false;
+> +
+>  	/* If we have relaimed everything on the isolated list, no stall */
+>  	if (nr_freed == nr_taken)
+>  		return false;
+> @@ -1339,11 +1359,13 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  			struct scan_control *sc, int priority, int file)
+>  {
+>  	LIST_HEAD(page_list);
+> +	LIST_HEAD(putback_list);
+>  	unsigned long nr_scanned;
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_taken;
+>  	unsigned long nr_anon;
+>  	unsigned long nr_file;
+> +	unsigned long nr_dirty;
+>  
+>  	while (unlikely(too_many_isolated(zone, file, sc))) {
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+> @@ -1392,14 +1414,35 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+>  
+>  	spin_unlock_irq(&zone->lru_lock);
+>  
+> -	nr_reclaimed = shrink_page_list(&page_list, sc);
+> +	nr_reclaimed = shrink_page_list(&page_list, sc, &nr_dirty);
+>  
+>  	/* Check if we should syncronously wait for writeback */
+>  	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
 
-Background/periodic works will quit automatically, so as to clean the
-pages under reclaim ASAP. However the sync work can still block us for
-long time.
+It is possible to OOM if the LRU list is small and/or the storage is slow, so
+that the flusher cannot clean enough pages before the LRU is fully scanned.
 
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- fs/fs-writeback.c           |  103 +++++++++++++++++++++++++++++++++-
- include/linux/backing-dev.h |    2 
- 2 files changed, 102 insertions(+), 3 deletions(-)
+So we may need do waits on dirty/writeback pages on *order-0*
+direct reclaims, when priority goes rather low (such as < 3).
 
---- linux-next.orig/fs/fs-writeback.c	2010-09-13 20:06:09.000000000 +0800
-+++ linux-next/fs/fs-writeback.c	2010-09-13 20:24:03.000000000 +0800
-@@ -30,11 +30,20 @@
- #include "internal.h"
- 
- /*
-+ * When flushing an inode page (for page reclaim), try to piggy back more
-+ * nearby pages for IO efficiency. These pages will have good opportunity
-+ * to be in the same LRU list.
-+ */
-+#define WRITE_AROUND_PAGES	(1UL << (20 - PAGE_CACHE_SHIFT))
-+
-+/*
-  * Passed into wb_writeback(), essentially a subset of writeback_control
-  */
- struct wb_writeback_work {
- 	long nr_pages;
- 	struct super_block *sb;
-+	struct inode *inode;
-+	pgoff_t offset;
- 	enum writeback_sync_modes sync_mode;
- 	unsigned int for_kupdate:1;
- 	unsigned int range_cyclic:1;
-@@ -59,6 +68,27 @@ struct wb_writeback_work {
-  */
- int nr_pdflush_threads;
- 
-+static mempool_t *wb_work_mempool;
-+
-+static void *wb_work_alloc(gfp_t gfp_mask, void *pool_data)
-+{
-+	/*
-+	 * bdi_start_inode_writeback() may be called on page reclaim
-+	 */
-+	if (current->flags & PF_MEMALLOC)
-+		return NULL;
-+
-+	return kmalloc(sizeof(struct wb_writeback_work), gfp_mask);
-+}
-+
-+static __init int wb_work_init(void)
-+{
-+	wb_work_mempool = mempool_create(1024,
-+					 wb_work_alloc, mempool_kfree, NULL);
-+	return wb_work_mempool ? 0 : -ENOMEM;
-+}
-+fs_initcall(wb_work_init);
-+
- /**
-  * writeback_in_progress - determine whether there is writeback in progress
-  * @bdi: the device's backing_dev_info structure.
-@@ -101,7 +131,7 @@ __bdi_start_writeback(struct backing_dev
- 	 * This is WB_SYNC_NONE writeback, so if allocation fails just
- 	 * wakeup the thread for old dirty data writeback
- 	 */
--	work = kzalloc(sizeof(*work), GFP_ATOMIC);
-+	work = mempool_alloc(wb_work_mempool, GFP_NOWAIT);
- 	if (!work) {
- 		if (bdi->wb.task) {
- 			trace_writeback_nowork(bdi);
-@@ -110,6 +140,7 @@ __bdi_start_writeback(struct backing_dev
- 		return;
- 	}
- 
-+	memset(work, 0, sizeof(*work));
- 	work->sync_mode	= WB_SYNC_NONE;
- 	work->nr_pages	= nr_pages;
- 	work->range_cyclic = range_cyclic;
-@@ -148,6 +179,55 @@ void bdi_start_background_writeback(stru
- 	__bdi_start_writeback(bdi, LONG_MAX, true, true);
- }
- 
-+int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-+			      struct inode *inode, pgoff_t offset)
-+{
-+	struct wb_writeback_work *work;
-+
-+	spin_lock_bh(&bdi->wb_lock);
-+	list_for_each_entry_reverse(work, &bdi->work_list, list) {
-+		unsigned long end;
-+		if (work->inode != inode)
-+			continue;
-+		end = work->offset + work->nr_pages;
-+		if (work->offset - offset < WRITE_AROUND_PAGES) {
-+			work->nr_pages += work->offset - offset;
-+			work->offset = offset;
-+			inode = NULL;
-+			break;
-+		} else if (offset - end < WRITE_AROUND_PAGES) {
-+			work->nr_pages += offset - end;
-+			inode = NULL;
-+			break;
-+		} else if (offset > work->offset &&
-+			   offset < end) {
-+			inode = NULL;
-+			break;
-+		}
-+	}
-+	spin_unlock_bh(&bdi->wb_lock);
-+
-+	if (!inode)
-+		return 0;
-+
-+	if (!igrab(inode))
-+		return -ENOENT;
-+
-+	work = mempool_alloc(wb_work_mempool, GFP_NOWAIT);
-+	if (!work)
-+		return -ENOMEM;
-+
-+	memset(work, 0, sizeof(*work));
-+	work->sync_mode		= WB_SYNC_NONE;
-+	work->inode		= inode;
-+	work->offset		= offset;
-+	work->nr_pages		= 1;
-+
-+	bdi_queue_work(inode->i_sb->s_bdi, work);
-+
-+	return 0;
-+}
-+
- /*
-  * Redirty an inode: set its when-it-was dirtied timestamp and move it to the
-  * furthest end of its superblock's dirty-inode list.
-@@ -724,6 +804,20 @@ get_next_work_item(struct backing_dev_in
- 	return work;
- }
- 
-+static long wb_flush_inode(struct bdi_writeback *wb,
-+			   struct wb_writeback_work *work)
-+{
-+	pgoff_t start = round_down(work->offset, WRITE_AROUND_PAGES);
-+	pgoff_t end = round_up(work->offset + work->nr_pages,
-+			       WRITE_AROUND_PAGES);
-+	int wrote;
-+
-+	wrote = __filemap_fdatawrite_range(work->inode->i_mapping,
-+					   start, end, WB_SYNC_NONE);
-+	iput(work->inode);
-+	return wrote;
-+}
-+
- static long wb_check_background_flush(struct bdi_writeback *wb)
- {
- 	if (over_bground_thresh()) {
-@@ -796,7 +890,10 @@ long wb_do_writeback(struct bdi_writebac
- 
- 		trace_writeback_exec(bdi, work);
- 
--		wrote += wb_writeback(wb, work);
-+		if (work->inode)
-+			wrote += wb_flush_inode(wb, work);
-+		else
-+			wrote += wb_writeback(wb, work);
- 
- 		/*
- 		 * Notify the caller of completion if this is a synchronous
-@@ -805,7 +902,7 @@ long wb_do_writeback(struct bdi_writebac
- 		if (work->done)
- 			complete(work->done);
- 		else
--			kfree(work);
-+			mempool_free(work, wb_work_mempool);
- 	}
- 
- 	/*
---- linux-next.orig/include/linux/backing-dev.h	2010-09-13 19:48:16.000000000 +0800
-+++ linux-next/include/linux/backing-dev.h	2010-09-13 20:20:59.000000000 +0800
-@@ -106,6 +106,8 @@ void bdi_unregister(struct backing_dev_i
- int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
- void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages);
- void bdi_start_background_writeback(struct backing_dev_info *bdi);
-+int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-+			      struct inode *inode, pgoff_t offset);
- int bdi_writeback_thread(void *data);
- int bdi_has_dirty_io(struct backing_dev_info *bdi);
- void bdi_arm_supers_timer(void);
+> +		int dirty_retry = MAX_SWAP_CLEAN_WAIT;
+>  		set_lumpy_reclaim_mode(priority, sc, true);
+> -		nr_reclaimed += shrink_page_list(&page_list, sc);
+> +
+> +		while (nr_reclaimed < nr_taken && nr_dirty && dirty_retry--) {
+> +			struct page *page, *tmp;
+> +
 
+> +			/* Take off the clean pages marked for activation */
+> +			list_for_each_entry_safe(page, tmp, &page_list, lru) {
+> +				if (PageDirty(page) || PageWriteback(page))
+> +					continue;
+> +
+> +				list_del(&page->lru);
+> +				list_add(&page->lru, &putback_list);
+> +			}
+
+nitpick: I guess the above loop is optional code to avoid overheads
+of shrink_page_list() repeatedly going through some unfreeable pages?
+Considering this is the slow code path, I'd prefer to keep the code
+simple than to do such optimizations.
+
+> +			wakeup_flusher_threads(laptop_mode ? 0 : nr_dirty);
+
+how about 
+                        if (!laptop_mode)
+                                wakeup_flusher_threads(nr_dirty);
+
+> +			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+> +
+> +			nr_reclaimed = shrink_page_list(&page_list, sc,
+> +							&nr_dirty);
+> +		}
+>  	}
+>  
+> +	list_splice(&putback_list, &page_list);
+> +
+>  	local_irq_disable();
+>  	if (current_is_kswapd())
+>  		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
+> -- 
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
