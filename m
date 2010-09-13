@@ -1,29 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 28A7A6B00E9
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 03:19:02 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8D7IGed003320
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4C5FA6B00EA
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 04:07:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8D86xCn023769
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 13 Sep 2010 16:18:17 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC31E45DE6F
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 16:18:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9934B45DE4D
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 16:18:16 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 81FB61DB8037
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 16:18:16 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DCC5B1DB803A
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 16:18:12 +0900 (JST)
-Date: Mon, 13 Sep 2010 16:13:09 +0900
+	Mon, 13 Sep 2010 17:06:59 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DD1B045DE4D
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:06:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ADF8145DE4F
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:06:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DCDC1DB803B
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:06:58 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 41E271DB803E
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:06:58 +0900 (JST)
+Date: Mon, 13 Sep 2010 17:01:51 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: fix race in file_mapped accouting flag management
-Message-Id: <20100913161309.9d733e6b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memcg: avoid lock in updating file_mapped (Was fix race in
+ file_mapped accouting flag management
+Message-Id: <20100913170151.aef94e26.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100913161309.9d733e6b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100913161309.9d733e6b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -32,8 +34,9 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Based on mmtom + fix-race-in-file_mapped-accounting flag management patch.
-This patch is not for bug fix but for performance improvement.
+
+Very sorry, subject was wrong..(reposting).
+
 ==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
@@ -282,7 +285,6 @@ Index: lockless-update/mm/memcontrol.c
  			spin_lock(&mc.lock);
  			mc.from = from;
  			mc.to = mem;
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
