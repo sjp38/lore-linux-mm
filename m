@@ -1,38 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E454E6B004A
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 11:29:02 -0400 (EDT)
-Received: by vws16 with SMTP id 16so6277787vws.14
-        for <linux-mm@kvack.org>; Mon, 13 Sep 2010 08:28:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20100913084741.GD17950@balbir.in.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B0746B0047
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 13:17:50 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8DHBGm7009854
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 13:11:16 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8DHHmYT269362
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 13:17:48 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8DHHl3s011886
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 14:17:48 -0300
+Date: Mon, 13 Sep 2010 22:47:41 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag
+ management
+Message-ID: <20100913171741.GM17950@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100913084741.GD17950@balbir.in.ibm.com>
-Date: Tue, 14 Sep 2010 00:28:30 +0900
-Message-ID: <AANLkTimsUQuEeS2QvSwY_WhnQY7n=D73fNmOoqgrTqbZ@mail.gmail.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag management
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+ <20100913084741.GD17950@balbir.in.ibm.com>
+ <AANLkTimsUQuEeS2QvSwY_WhnQY7n=D73fNmOoqgrTqbZ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <AANLkTimsUQuEeS2QvSwY_WhnQY7n=D73fNmOoqgrTqbZ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
+To: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-2010/9/13 Balbir Singh <balbir@linux.vnet.ibm.com>:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-09-13 16:08:22=
-]:
+* Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com> [2010-09-14 00:28:30]:
+
+> > In the situation above who has the PTE lock? Are we not synchronized
+> > via the PTE lock such that add rmap and rm rmap, will not happen
+> > simultaneously?
+> >
+> In this case, a process for map and one for unmap can be different.
+> 
+> Assume process A maps a file cache and process B not.
+> While process A unmap a file, process B can map it.
+> pte lock is no help.
 >
->>
->> I think this small race is not very critical but it's bug.
->> We have this race since 2.6.34.
->> =3D
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> Now. memory cgroup accounts file-mapped by counter and flag.
->> counter is working in the same way with zone_stat but FileMapped flag on=
-ly
->> exists in memcg (for helping move_account).
->>
->> This flag can be updated wrongly in a case. Assume CPU0 and CPU1
->> and a thread mapping a page on CPU0, another thread unmapping it on CPU1=
+
+Correct, so while the accounting is correct, the flag can definitely
+go wrong. I misread your race description earlier.
+
+Thanks! 
+
+-- 
+	Three Cheers,
+	Balbir
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
