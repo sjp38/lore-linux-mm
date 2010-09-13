@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 34A0D6B0047
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:08:43 -0400 (EDT)
-Date: Mon, 13 Sep 2010 14:08:03 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D4F6B007B
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:20:47 -0400 (EDT)
+Date: Mon, 13 Sep 2010 14:20:17 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag
- management
-Message-Id: <20100913140803.b83d3fe1.akpm@linux-foundation.org>
-In-Reply-To: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] writeback: nr_dirtied and nr_written in
+ /proc/vmstat
+Message-Id: <20100913142017.2a426365.akpm@linux-foundation.org>
+In-Reply-To: <1284357493-20078-4-git-send-email-mrubin@google.com>
+References: <1284357493-20078-1-git-send-email-mrubin@google.com>
+	<1284357493-20078-4-git-send-email-mrubin@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable@kernel.org
+To: Michael Rubin <mrubin@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, david@fromorbit.com, kosaki.motohiro@jp.fujitsu.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Sep 2010 16:08:22 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Sun, 12 Sep 2010 22:58:11 -0700
+Michael Rubin <mrubin@google.com> wrote:
 
+> To help developers and applications gain visibility into writeback
+> behaviour adding two entries to vm_stat_items and /proc/vmstat. This
+> will allow us to track the "written" and "dirtied" counts.
 > 
-> I think this small race is not very critical but it's bug.
-> We have this race since 2.6.34. 
-> =
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>    # grep nr_dirtied /proc/vmstat
+>    nr_dirtied 3747
+>    # grep nr_written /proc/vmstat
+>    nr_written 3618
 > 
-> Now. memory cgroup accounts file-mapped by counter and flag.
-> counter is working in the same way with zone_stat but FileMapped flag only
-> exists in memcg (for helping move_account).
-> 
-> This flag can be updated wrongly in a case. Assume CPU0 and CPU1
-> and a thread mapping a page on CPU0, another thread unmapping it on CPU1.
-> 
->     CPU0                   		CPU1
-> 				rmv rmap (mapcount 1->0)
->    add rmap (mapcount 0->1)
->    lock_page_cgroup()
->    memcg counter+1		(some delay)
->    set MAPPED FLAG.
->    unlock_page_cgroup()
-> 				lock_page_cgroup()
-> 				memcg counter-1
-> 				clear MAPPED flag
-> 
-> In above sequence, counter is properly updated but FLAG is not.
-> This means that representing a state by a flag which is maintained by
-> counter needs some specail care.
-> 
-> To handle this, at claering a flag, this patch check mapcount directly and
-> clear the flag only when mapcount == 0. (if mapcount >0, someone will make
-> it to zero later and flag will be cleared.)
-> 
-> Reverse case, dec-after-inc cannot be a problem because page_table_lock()
-> works well for it. (IOW, to make above sequence, 2 processes should touch
-> the same page at once with map/unmap.)
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Michael Rubin <mrubin@google.com>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 > ---
->  mm/memcontrol.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  include/linux/mmzone.h |    2 ++
+>  mm/page-writeback.c    |    2 ++
+>  mm/vmstat.c            |    3 +++
+>  3 files changed, 7 insertions(+), 0 deletions(-)
 > 
-> Index: lockless-update/mm/memcontrol.c
-> ===================================================================
-> --- lockless-update.orig/mm/memcontrol.c
-> +++ lockless-update/mm/memcontrol.c
-> @@ -1485,7 +1485,8 @@ void mem_cgroup_update_file_mapped(struc
->  		SetPageCgroupFileMapped(pc);
->  	} else {
->  		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		ClearPageCgroupFileMapped(pc);
-> +		if (page_mapped(page)) /* for race between dec->inc counter */
-> +			ClearPageCgroupFileMapped(pc);
->  	}
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 6e6e626..d0d7454 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -104,6 +104,8 @@ enum zone_stat_item {
+>  	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+>  	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+>  	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+> +	NR_FILE_DIRTIED,	/* accumulated dirty pages */
+> +	NR_WRITTEN,		/* accumulated written pages */
 
-This should be !page_mapped(), shouldn't it?
+I think we can make those comments less ambiguous>
 
-And your second patch _does_ have !page_mapped() here, which is why the
-second patch didn't apply.
+--- a/include/linux/mmzone.h
++++ a/include/linux/mmzone.h
+@@ -104,8 +104,8 @@ enum zone_stat_item {
+ 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+ 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
+ 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+-	NR_FILE_DIRTIED,	/* accumulated dirty pages */
+-	NR_WRITTEN,		/* accumulated written pages */
++	NR_FILE_DIRTIED,	/* page dirtyings since bootup */
++	NR_WRITTEN,		/* page writings since bootup */
+ #ifdef CONFIG_NUMA
+ 	NUMA_HIT,		/* allocated in intended node */
+ 	NUMA_MISS,		/* allocated in non intended node */
 
-I tried to fix things up.  Please check.
+>
+> ...
+>
+> index f389168..d448ef4 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -732,6 +732,9 @@ static const char * const vmstat_text[] = {
+>  	"nr_isolated_anon",
+>  	"nr_isolated_file",
+>  	"nr_shmem",
+> +	"nr_dirtied",
+> +	"nr_written",
+> +
 
+The mismatch between "NR_FILE_DIRTIED" and "nr_dirtied" is a bit, umm,
+dirty.  I can kinda see the logic in the naming but still..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
