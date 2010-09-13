@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F466B0047
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 15:26:33 -0400 (EDT)
-Date: Mon, 13 Sep 2010 21:26:26 +0200
-From: Johannes Stezenbach <js@sig21.net>
-Subject: Re: block cache replacement strategy?
-Message-ID: <20100913192626.GA15092@sig21.net>
-References: <20100907133429.GB3430@sig21.net>
- <20100909120044.GA27765@sig21.net>
- <20100910120235.455962c4@schatten.dmk.lab>
- <20100910160247.GA637@sig21.net>
- <20100913152138.GA16334@sig21.net>
- <AANLkTikoUAgRV18axesaiYnpBWe2V-xhALgh7dtF7p3Y@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTikoUAgRV18axesaiYnpBWe2V-xhALgh7dtF7p3Y@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 34A0D6B0047
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 17:08:43 -0400 (EDT)
+Date: Mon, 13 Sep 2010 14:08:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag
+ management
+Message-Id: <20100913140803.b83d3fe1.akpm@linux-foundation.org>
+In-Reply-To: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: dave b <db.pub.mail@gmail.com>
-Cc: Florian Mickler <florian@mickler.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 14, 2010 at 05:09:31AM +1000, dave b wrote:
-> On 14 September 2010 01:21, Johannes Stezenbach <js@sig21.net> wrote:
-> > On Fri, Sep 10, 2010 at 06:02:48PM +0200, Johannes Stezenbach wrote:
-> >>
-> >> Linear read heuristic might be a good guess, but it would
-> >> be nice to hear a comment from a vm/fs expert which
-> >> confirms this works as intended.
-> >
-> > Anyway I found lmdd (from lmbench) can do random reads,
-> > and indeed causes the data to enter the block (page?) cache,
-> > replacing the previous data.
+On Mon, 13 Sep 2010 16:08:22 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
 > 
-> I am no expert, but what did you think would happen if you did dd
-> twice from /dev/zero?
-> but... Honestly what do you think will be cached?
+> I think this small race is not very critical but it's bug.
+> We have this race since 2.6.34. 
+> =
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Now. memory cgroup accounts file-mapped by counter and flag.
+> counter is working in the same way with zone_stat but FileMapped flag only
+> exists in memcg (for helping move_account).
+> 
+> This flag can be updated wrongly in a case. Assume CPU0 and CPU1
+> and a thread mapping a page on CPU0, another thread unmapping it on CPU1.
+> 
+>     CPU0                   		CPU1
+> 				rmv rmap (mapcount 1->0)
+>    add rmap (mapcount 0->1)
+>    lock_page_cgroup()
+>    memcg counter+1		(some delay)
+>    set MAPPED FLAG.
+>    unlock_page_cgroup()
+> 				lock_page_cgroup()
+> 				memcg counter-1
+> 				clear MAPPED flag
+> 
+> In above sequence, counter is properly updated but FLAG is not.
+> This means that representing a state by a flag which is maintained by
+> counter needs some specail care.
+> 
+> To handle this, at claering a flag, this patch check mapcount directly and
+> clear the flag only when mapcount == 0. (if mapcount >0, someone will make
+> it to zero later and flag will be cleared.)
+> 
+> Reverse case, dec-after-inc cannot be a problem because page_table_lock()
+> works well for it. (IOW, to make above sequence, 2 processes should touch
+> the same page at once with map/unmap.)
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> Index: lockless-update/mm/memcontrol.c
+> ===================================================================
+> --- lockless-update.orig/mm/memcontrol.c
+> +++ lockless-update/mm/memcontrol.c
+> @@ -1485,7 +1485,8 @@ void mem_cgroup_update_file_mapped(struc
+>  		SetPageCgroupFileMapped(pc);
+>  	} else {
+>  		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> -		ClearPageCgroupFileMapped(pc);
+> +		if (page_mapped(page)) /* for race between dec->inc counter */
+> +			ClearPageCgroupFileMapped(pc);
+>  	}
 
-It's not from /dev/zero, it is from file to /dev/null.
+This should be !page_mapped(), shouldn't it?
 
-It all started with me wanting to compare disk read bandwidth
-vs. read bandwidth of my root partition via dm-crypt + LVM,
-and then wondering why dd from raw disk seemed to be
-cached while dd from crypted root partition didn't.
+And your second patch _does_ have !page_mapped() here, which is why the
+second patch didn't apply.
 
+I tried to fix things up.  Please check.
 
-Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
