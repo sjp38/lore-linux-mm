@@ -1,62 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 1246A6B004A
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 11:21:48 -0400 (EDT)
-Date: Mon, 13 Sep 2010 17:21:38 +0200
-From: Johannes Stezenbach <js@sig21.net>
-Subject: Re: block cache replacement strategy?
-Message-ID: <20100913152138.GA16334@sig21.net>
-References: <20100907133429.GB3430@sig21.net>
- <20100909120044.GA27765@sig21.net>
- <20100910120235.455962c4@schatten.dmk.lab>
- <20100910160247.GA637@sig21.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E454E6B004A
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 11:29:02 -0400 (EDT)
+Received: by vws16 with SMTP id 16so6277787vws.14
+        for <linux-mm@kvack.org>; Mon, 13 Sep 2010 08:28:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100910160247.GA637@sig21.net>
+In-Reply-To: <20100913084741.GD17950@balbir.in.ibm.com>
+References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100913084741.GD17950@balbir.in.ibm.com>
+Date: Tue, 14 Sep 2010 00:28:30 +0900
+Message-ID: <AANLkTimsUQuEeS2QvSwY_WhnQY7n=D73fNmOoqgrTqbZ@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag management
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Florian Mickler <florian@mickler.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 10, 2010 at 06:02:48PM +0200, Johannes Stezenbach wrote:
-> 
-> Linear read heuristic might be a good guess, but it would
-> be nice to hear a comment from a vm/fs expert which
-> confirms this works as intended.
-
-Apparently I'm unworthy to get a response from someone knowledgable :-(
-
-Anyway I found lmdd (from lmbench) can do random reads,
-and indeed causes the data to enter the block (page?) cache,
-replacing the previous data.
-
-
-Johannes
-
-
-zzz:~# echo 3 >/proc/sys/vm/drop_caches
-
-zzz:~# ./lmdd if=~js/qemu/test.img bs=1M count=1000
-1000.0000 MB in 17.7554 secs, 56.3210 MB/sec
-zzz:~# ./lmdd if=~js/qemu/test.img bs=1M count=1000
-1000.0000 MB in 0.9112 secs, 1097.4178 MB/sec
-
-zzz:~# ./lmdd if=~js/qemu/test2.img bs=1M count=1000 rand=1G norepeat=
-norepeat on 238035072
-norepeat on 724579648
-1000.0000 MB in 21.4419 secs, 46.6376 MB/sec
-zzz:~# ./lmdd if=~js/qemu/test2.img bs=1M count=1000 rand=1G norepeat=
-norepeat on 238035072
-norepeat on 724579648
-1000.0000 MB in 14.3859 secs, 69.5125 MB/sec
-zzz:~# ./lmdd if=~js/qemu/test2.img bs=1M count=1000 rand=1G norepeat=
-norepeat on 238035072
-norepeat on 724579648
-1000.0000 MB in 0.8764 secs, 1141.0810 MB/sec
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+2010/9/13 Balbir Singh <balbir@linux.vnet.ibm.com>:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-09-13 16:08:22=
+]:
+>
+>>
+>> I think this small race is not very critical but it's bug.
+>> We have this race since 2.6.34.
+>> =3D
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> Now. memory cgroup accounts file-mapped by counter and flag.
+>> counter is working in the same way with zone_stat but FileMapped flag on=
+ly
+>> exists in memcg (for helping move_account).
+>>
+>> This flag can be updated wrongly in a case. Assume CPU0 and CPU1
+>> and a thread mapping a page on CPU0, another thread unmapping it on CPU1=
