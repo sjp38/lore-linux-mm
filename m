@@ -1,129 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1FD706B0047
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 19:10:23 -0400 (EDT)
-Received: by iwn33 with SMTP id 33so7224175iwn.14
-        for <linux-mm@kvack.org>; Mon, 13 Sep 2010 16:10:21 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E3E956B0047
+	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 20:53:50 -0400 (EDT)
+Date: Tue, 14 Sep 2010 08:53:41 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/4] writeback: integrated background work
+Message-ID: <20100914005341.GA5377@localhost>
+References: <20100913123110.372291929@intel.com>
+ <20100913130149.849935145@intel.com>
+ <AANLkTi=JuBKdqbGrukVwfVfgs1gixdRd3t77ZGEUL9wj@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
-References: <1283770053-18833-1-git-send-email-mel@csn.ul.ie>
-Date: Tue, 14 Sep 2010 08:10:21 +0900
-Message-ID: <AANLkTinq6v3-NKjszYVOR3qxr-UVNoGw0uQjBGcoifVs@mail.gmail.com>
-Subject: Re: [PATCH 0/9] Reduce latencies and improve overall reclaim
- efficiency v1
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTi=JuBKdqbGrukVwfVfgs1gixdRd3t77ZGEUL9wj@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Chinner <david@fromorbit.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 6, 2010 at 7:47 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+On Tue, Sep 14, 2010 at 06:46:01AM +0800, Minchan Kim wrote:
+> Hi Wu,
+> 
+> On Mon, Sep 13, 2010 at 9:31 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > Check background work whenever the flusher thread wakes up. A The page
+> > reclaim code may lower the soft dirty limit immediately before sending
+> > some work to the flusher thread.
+> 
+> I looked over this series. First impression is the approach is good. :)
 
-<snip>
+Thanks :)
 
->
-> These are just the raw figures taken from /proc/vmstat. It's a rough meas=
-ure
-> of reclaim activity. Note that allocstall counts are higher because we
-> are entering direct reclaim more often as a result of not sleeping in
-> congestion. In itself, it's not necessarily a bad thing. It's easier to
-> get a view of what happened from the vmscan tracepoint report.
->
-> FTrace Reclaim Statistics: vmscan
-> =A0 =A0 =A0 =A0 =A0 =A0micro-traceonly-v1r5-micromicro-nocongest-v1r5-mic=
-romicro-lowlumpy-v1r5-micromicro-nodirect-v1r5-micro
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0traceonly-v1r5 =A0 =A0nocongest-v1r5 =A0 =
-=A0 lowlumpy-v1r5 =A0 =A0 nodirect-v1r5
-> Direct reclaims =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0152 =A0 =A0 =A0 =A0941 =A0 =A0 =A0 =A0967 =A0 =A0 =A0 =A0729
-> Direct reclaim pages scanned =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0507377 =A0 =
-=A01404350 =A0 =A01332420 =A0 =A01450213
-> Direct reclaim pages reclaimed =A0 =A0 =A0 =A0 =A0 =A0 =A0 10968 =A0 =A0 =
-=A072042 =A0 =A0 =A077186 =A0 =A0 =A041097
-> Direct reclaim write file async I/O =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Direct reclaim write anon async I/O =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Direct reclaim write file sync I/O =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Direct reclaim write anon sync I/O =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Wake kswapd requests =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A012719=
-5 =A0 =A0 241025 =A0 =A0 254825 =A0 =A0 188846
-> Kswapd wakeups =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
-=A0 =A0 =A0 6 =A0 =A0 =A0 =A0 =A01 =A0 =A0 =A0 =A0 =A01 =A0 =A0 =A0 =A0 =A0=
-1
-> Kswapd pages scanned =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 4210101 =
-=A0 =A03345122 =A0 =A03427915 =A0 =A03306356
-> Kswapd pages reclaimed =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 2228073 =
-=A0 =A02165721 =A0 =A02143876 =A0 =A02194611
-> Kswapd reclaim write file async I/O =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Kswapd reclaim write anon async I/O =A0 =A0 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Kswapd reclaim write file sync I/O =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Kswapd reclaim write anon sync I/O =A0 =A0 =A0 =A0 =A0 =A0 =A0 0 =A0 =A0 =
-=A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00 =A0 =A0 =A0 =A0 =A00
-> Time stalled direct reclaim (seconds) =A0 =A0 =A0 =A0 7.60 =A0 =A0 =A0 3.=
-03 =A0 =A0 =A0 3.24 =A0 =A0 =A0 3.43
-> Time kswapd awake (seconds) =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A012.46 =A0 =
-=A0 =A0 9.46 =A0 =A0 =A0 9.56 =A0 =A0 =A0 9.40
->
-> Total pages scanned =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0471747=
-8 =A0 4749472 =A0 4760335 =A0 4756569
-> Total pages reclaimed =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A02239041 =
-=A0 2237763 =A0 2221062 =A0 2235708
-> %age total pages scanned/reclaimed =A0 =A0 =A0 =A0 =A047.46% =A0 =A047.12=
-% =A0 =A046.66% =A0 =A047.00%
-> %age total pages scanned/written =A0 =A0 =A0 =A0 =A0 =A0 0.00% =A0 =A0 0.=
-00% =A0 =A0 0.00% =A0 =A0 0.00%
-> %age =A0file pages scanned/written =A0 =A0 =A0 =A0 =A0 =A0 0.00% =A0 =A0 =
-0.00% =A0 =A0 0.00% =A0 =A0 0.00%
-> Percentage Time Spent Direct Reclaim =A0 =A0 =A0 =A043.80% =A0 =A021.38% =
-=A0 =A022.34% =A0 =A023.46%
-> Percentage Time kswapd Awake =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A079.92% =A0 =
-=A079.56% =A0 =A079.20% =A0 =A080.48%
+> But let me have a question.
+> I can't find things about soft dirty limit.
+> Maybe it's a thing based on your another patch series.
 
+Yes, it's in the series "[RFC] soft and dynamic dirty throttling
+limits", in particular the patch "[PATCH 15/17] mm: lower soft dirty
+limits on memory pressure". https://patchwork.kernel.org/patch/173232/
 
-There is a nitpick about stalled reclaim time.
-For example, In direct reclaim
+> But at least, could you explain it in this series if it is really
+> related to this series?
 
-=3D=3D=3D
-       trace_mm_vmscan_direct_reclaim_begin(order,
-                               sc.may_writepage,
-                               gfp_mask);
+The above patch with URL has a chunk:
 
-       nr_reclaimed =3D do_try_to_free_pages(zonelist, &sc);
+@@ -745,6 +745,16 @@  static unsigned long shrink_page_list(st
+                }
+ 
+                if (PageDirty(page)) {
++
++                       if (file && scanning_global_lru(sc)) {
++                               int dp = VM_DIRTY_PRESSURE >>
++                                       (DEF_PRIORITY + 1 - sc->priority);
++                               if (vm_dirty_pressure > dp) {
++                                       vm_dirty_pressure = dp;
++                                       vm_dirty_pressure_node = numa_node_id();
++                               }
++                       }
++
 
-       trace_mm_vmscan_direct_reclaim_end(nr_reclaimed);
-=3D=3D=3D
+which lowers the soft dirty limits. It could explicitly check and
+start background work, however doesn't do so because this patchset
+will take care of it, by adding this chunk immediately after the above
+code:
 
-In this case, Isn't this time accumulated value?
-My point is following as.
+@@ -756,6 +756,19 @@ static unsigned long shrink_page_list(st
+                                }
+                        }
 
-Process A                                                       Process B
-direct reclaim begin
-do_try_to_free_pages
-cond_resched
++                       if (page_is_file_cache(page) && mapping &&
++                           sync_writeback == PAGEOUT_IO_ASYNC) {
++                               if (!bdi_start_inode_writeback(
++                                       mapping->backing_dev_info,
++                                       mapping->host, page_index(page))) {
++                                       SetPageReclaim(page);
++                                       goto keep_locked;
++                               } else if (!current_is_kswapd() &&
++                                          printk_ratelimit()) {
++                                       printk(KERN_INFO "cannot pageout\n");
++                               }
++                       }
++                       
 
-                direct reclaim begin
+The bdi_start_inode_writeback() will wake up the flusher thread, which
+will then check for background writeback (behavior added by this patch).
 
-                do_try_to_free_pages
+> >
+> > This is also the prerequisite of next patch.
+> 
+> I can't understand why is the prerequisite of next patch.
+> Please specify it.
 
-                direct reclaim end
-direct reclaim end
+Because the next patch breaks out of the background work (to serve
+other works first). The code in this patch will resume the background
+work when other works are done.
 
-
-So A's result includes B's time so total stall time would be bigger than re=
-al.
-
-
---=20
-Kind regards,
-Minchan Kim
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
