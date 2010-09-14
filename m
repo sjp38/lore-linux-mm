@@ -1,89 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 862946B004A
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 08:46:46 -0400 (EDT)
-Date: Tue, 14 Sep 2010 14:45:55 +0200
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D7A856B004A
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 09:37:43 -0400 (EDT)
+Date: Tue, 14 Sep 2010 15:36:52 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/4] writeback: integrated background work
-Message-ID: <20100914124555.GB4874@quack.suse.cz>
+Subject: Re: [PATCH 3/4] writeback: introduce bdi_start_inode_writeback()
+Message-ID: <20100914133652.GC4874@quack.suse.cz>
 References: <20100913123110.372291929@intel.com>
- <20100913130149.849935145@intel.com>
+ <20100913130150.138758012@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="yEPQxsgoJgBvi8ip"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100913130149.849935145@intel.com>
+In-Reply-To: <20100913130150.138758012@intel.com>
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-
---yEPQxsgoJgBvi8ip
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Mon 13-09-10 20:31:11, Wu Fengguang wrote:
-> Check background work whenever the flusher thread wakes up.  The page
-> reclaim code may lower the soft dirty limit immediately before sending
-> some work to the flusher thread.
+On Mon 13-09-10 20:31:13, Wu Fengguang wrote:
+> This is to transfer dirty pages encountered in page reclaim to the
+> flusher threads for writeback.
 > 
-> This is also the prerequisite of next patch.
-  I have a patch doing something functionally rather similar but it also
-cleans up the code which isn't necessary after this patch. So could you
-maybe consider using that one?
-  BTW: What has happened with your patch which started writing back old
-inodes?
-
-								Honza
+> The flusher will piggy back more dirty pages for IO
+> - it's more IO efficient
+> - it helps clean more pages, a good number of them may sit in the same
+>   LRU list that is being scanned.
+> 
+> To avoid memory allocations at page reclaim, a mempool is created.
+> 
+> Background/periodic works will quit automatically, so as to clean the
+> pages under reclaim ASAP. However the sync work can still block us for
+> long time.
 > 
 > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 > ---
->  fs/fs-writeback.c |   18 ++++++++++++++++++
->  1 file changed, 18 insertions(+)
+>  fs/fs-writeback.c           |  103 +++++++++++++++++++++++++++++++++-
+>  include/linux/backing-dev.h |    2 
+>  2 files changed, 102 insertions(+), 3 deletions(-)
 > 
-> --- linux-next.orig/fs/fs-writeback.c	2010-09-13 19:41:21.000000000 +0800
-> +++ linux-next/fs/fs-writeback.c	2010-09-13 19:49:11.000000000 +0800
-> @@ -716,6 +716,23 @@ get_next_work_item(struct backing_dev_in
->  	return work;
->  }
->  
-> +static long wb_check_background_flush(struct bdi_writeback *wb)
+...
+> +int bdi_start_inode_writeback(struct backing_dev_info *bdi,
+> +			      struct inode *inode, pgoff_t offset)
 > +{
-> +	if (over_bground_thresh()) {
+> +	struct wb_writeback_work *work;
 > +
-> +		struct wb_writeback_work work = {
-> +			.nr_pages	= LONG_MAX,
-> +			.sync_mode	= WB_SYNC_NONE,
-> +			.for_background	= 1,
-> +			.range_cyclic	= 1,
-> +		};
-> +
-> +		return wb_writeback(wb, &work);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
->  static long wb_check_old_data_flush(struct bdi_writeback *wb)
->  {
->  	unsigned long expired;
-> @@ -787,6 +804,7 @@ long wb_do_writeback(struct bdi_writebac
->  	 * Check for periodic writeback, kupdated() style
->  	 */
->  	wrote += wb_check_old_data_flush(wb);
-> +	wrote += wb_check_background_flush(wb);
->  	clear_bit(BDI_writeback_running, &wb->bdi->state);
->  
->  	return wrote;
-> 
-> 
+> +	spin_lock_bh(&bdi->wb_lock);
+> +	list_for_each_entry_reverse(work, &bdi->work_list, list) {
+> +		unsigned long end;
+> +		if (work->inode != inode)
+> +			continue;
+  Hmm, this looks rather inefficient. I can imagine the list of work items
+can grow rather large on memory stressed machine and the linear scan does
+not play well with that (and contention on wb_lock would make it even
+worse). I'm not sure how to best handle your set of intervals... RB tree
+attached to an inode is an obvious choice but it seems too expensive
+(memory spent for every inode) for such a rare use. Maybe you could have
+a per-bdi mapping (hash table) from ino to it's tree of intervals for
+reclaim... But before going for this, probably measuring how many intervals
+are we going to have under memory pressure would be good.
+
+> +		end = work->offset + work->nr_pages;
+> +		if (work->offset - offset < WRITE_AROUND_PAGES) {
+       It's slightly unclear what's intended here when offset >
+work->offset. Could you make that explicit?
+
+								Honza
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
 
---yEPQxsgoJgBvi8ip
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0001-mm-Check-whether-background-writeback-is-needed-afte.patch"
-
-
---yEPQxsgoJgBvi8ip--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
