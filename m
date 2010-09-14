@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8B31B6B0047
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 00:41:07 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8E4f4jx012600
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 96FFA6B0047
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 00:43:33 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8E4hUCN016373
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 14 Sep 2010 13:41:04 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7488345DE4E
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ECED45DE4F
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 33A30E08003
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
+	Tue, 14 Sep 2010 13:43:31 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 826DC45DE7B
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:43:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 58D5B45DE6E
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:43:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 010F51DB803F
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:43:30 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DF1C8E18001
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:03 +0900 (JST)
-Date: Tue, 14 Sep 2010 13:35:46 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 355811DB803E
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:43:29 +0900 (JST)
+Date: Tue, 14 Sep 2010 13:38:22 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag
  management
-Message-Id: <20100914133546.35d90726.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20100914133822.d2fcf65f.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100913140803.b83d3fe1.akpm@linux-foundation.org>
 References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
 	<20100913140803.b83d3fe1.akpm@linux-foundation.org>
@@ -34,6 +34,9 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
+
+Sorry, reposting..(because mail client died while sending..)
+==
 On Mon, 13 Sep 2010 14:08:03 -0700
 Andrew Morton <akpm@linux-foundation.org> wrote:
 
