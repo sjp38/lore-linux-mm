@@ -1,102 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id E3E956B0047
-	for <linux-mm@kvack.org>; Mon, 13 Sep 2010 20:53:50 -0400 (EDT)
-Date: Tue, 14 Sep 2010 08:53:41 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 1/4] writeback: integrated background work
-Message-ID: <20100914005341.GA5377@localhost>
-References: <20100913123110.372291929@intel.com>
- <20100913130149.849935145@intel.com>
- <AANLkTi=JuBKdqbGrukVwfVfgs1gixdRd3t77ZGEUL9wj@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTi=JuBKdqbGrukVwfVfgs1gixdRd3t77ZGEUL9wj@mail.gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8B31B6B0047
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 00:41:07 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8E4f4jx012600
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 14 Sep 2010 13:41:04 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7488345DE4E
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4ECED45DE4F
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 33A30E08003
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:04 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DF1C8E18001
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:41:03 +0900 (JST)
+Date: Tue, 14 Sep 2010 13:35:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix race in file_mapped accouting flag
+ management
+Message-Id: <20100914133546.35d90726.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100913140803.b83d3fe1.akpm@linux-foundation.org>
+References: <20100913160822.0c2cd732.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100913140803.b83d3fe1.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, gthelen@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 14, 2010 at 06:46:01AM +0800, Minchan Kim wrote:
-> Hi Wu,
+On Mon, 13 Sep 2010 14:08:03 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Mon, 13 Sep 2010 16:08:22 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+<snip>
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  mm/memcontrol.c |    3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > Index: lockless-update/mm/memcontrol.c
+> > ===================================================================
+> > --- lockless-update.orig/mm/memcontrol.c
+> > +++ lockless-update/mm/memcontrol.c
+> > @@ -1485,7 +1485,8 @@ void mem_cgroup_update_file_mapped(struc
+> >  		SetPageCgroupFileMapped(pc);
+> >  	} else {
+> >  		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+> > -		ClearPageCgroupFileMapped(pc);
+> > +		if (page_mapped(page)) /* for race between dec->inc counter */
+> > +			ClearPageCgroupFileMapped(pc);
+> >  	}
 > 
-> On Mon, Sep 13, 2010 at 9:31 PM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > Check background work whenever the flusher thread wakes up. A The page
-> > reclaim code may lower the soft dirty limit immediately before sending
-> > some work to the flusher thread.
+> This should be !page_mapped(), shouldn't it?
 > 
-> I looked over this series. First impression is the approach is good. :)
 
-Thanks :)
+Ahhhh, yes. reflesh miss..
 
-> But let me have a question.
-> I can't find things about soft dirty limit.
-> Maybe it's a thing based on your another patch series.
-
-Yes, it's in the series "[RFC] soft and dynamic dirty throttling
-limits", in particular the patch "[PATCH 15/17] mm: lower soft dirty
-limits on memory pressure". https://patchwork.kernel.org/patch/173232/
-
-> But at least, could you explain it in this series if it is really
-> related to this series?
-
-The above patch with URL has a chunk:
-
-@@ -745,6 +745,16 @@  static unsigned long shrink_page_list(st
-                }
- 
-                if (PageDirty(page)) {
-+
-+                       if (file && scanning_global_lru(sc)) {
-+                               int dp = VM_DIRTY_PRESSURE >>
-+                                       (DEF_PRIORITY + 1 - sc->priority);
-+                               if (vm_dirty_pressure > dp) {
-+                                       vm_dirty_pressure = dp;
-+                                       vm_dirty_pressure_node = numa_node_id();
-+                               }
-+                       }
-+
-
-which lowers the soft dirty limits. It could explicitly check and
-start background work, however doesn't do so because this patchset
-will take care of it, by adding this chunk immediately after the above
-code:
-
-@@ -756,6 +756,19 @@ static unsigned long shrink_page_list(st
-                                }
-                        }
-
-+                       if (page_is_file_cache(page) && mapping &&
-+                           sync_writeback == PAGEOUT_IO_ASYNC) {
-+                               if (!bdi_start_inode_writeback(
-+                                       mapping->backing_dev_info,
-+                                       mapping->host, page_index(page))) {
-+                                       SetPageReclaim(page);
-+                                       goto keep_locked;
-+                               } else if (!current_is_kswapd() &&
-+                                          printk_ratelimit()) {
-+                                       printk(KERN_INFO "cannot pageout\n");
-+                               }
-+                       }
-+                       
-
-The bdi_start_inode_writeback() will wake up the flusher thread, which
-will then check for background writeback (behavior added by this patch).
-
-> >
-> > This is also the prerequisite of next patch.
+> And your second patch _does_ have !page_mapped() here, which is why the
+> second patch didn't apply.
 > 
-> I can't understand why is the prerequisite of next patch.
-> Please specify it.
+Very sorry.
 
-Because the next patch breaks out of the background work (to serve
-other works first). The code in this patch will resume the background
-work when other works are done.
+> I tried to fix things up.  Please check.
 
-Thanks,
-Fengguang
+Thank you. 
+
+-Kame
+
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
