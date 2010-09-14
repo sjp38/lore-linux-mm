@@ -1,73 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A856B004A
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 09:37:43 -0400 (EDT)
-Date: Tue, 14 Sep 2010 15:36:52 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/4] writeback: introduce bdi_start_inode_writeback()
-Message-ID: <20100914133652.GC4874@quack.suse.cz>
-References: <20100913123110.372291929@intel.com>
- <20100913130150.138758012@intel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 31BCC6B004A
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 13:13:41 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: [PATCH v2] After swapout/swapin private dirty mappings are reported clean in smaps
+Date: Tue, 14 Sep 2010 22:44:59 +0530
+References: <201009141640.55650.knikanth@suse.de> <alpine.LNX.2.00.1009141330030.28912@zhemvz.fhfr.qr> <201009142242.29245.knikanth@suse.de>
+In-Reply-To: <201009142242.29245.knikanth@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100913130150.138758012@intel.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201009142244.59080.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Richard Guenther <rguenther@suse.de>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, Michael Matz <matz@novell.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 13-09-10 20:31:13, Wu Fengguang wrote:
-> This is to transfer dirty pages encountered in page reclaim to the
-> flusher threads for writeback.
-> 
-> The flusher will piggy back more dirty pages for IO
-> - it's more IO efficient
-> - it helps clean more pages, a good number of them may sit in the same
->   LRU list that is being scanned.
-> 
-> To avoid memory allocations at page reclaim, a mempool is created.
-> 
-> Background/periodic works will quit automatically, so as to clean the
-> pages under reclaim ASAP. However the sync work can still block us for
-> long time.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/fs-writeback.c           |  103 +++++++++++++++++++++++++++++++++-
->  include/linux/backing-dev.h |    2 
->  2 files changed, 102 insertions(+), 3 deletions(-)
-> 
-...
-> +int bdi_start_inode_writeback(struct backing_dev_info *bdi,
-> +			      struct inode *inode, pgoff_t offset)
-> +{
-> +	struct wb_writeback_work *work;
-> +
-> +	spin_lock_bh(&bdi->wb_lock);
-> +	list_for_each_entry_reverse(work, &bdi->work_list, list) {
-> +		unsigned long end;
-> +		if (work->inode != inode)
-> +			continue;
-  Hmm, this looks rather inefficient. I can imagine the list of work items
-can grow rather large on memory stressed machine and the linear scan does
-not play well with that (and contention on wb_lock would make it even
-worse). I'm not sure how to best handle your set of intervals... RB tree
-attached to an inode is an obvious choice but it seems too expensive
-(memory spent for every inode) for such a rare use. Maybe you could have
-a per-bdi mapping (hash table) from ino to it's tree of intervals for
-reclaim... But before going for this, probably measuring how many intervals
-are we going to have under memory pressure would be good.
+/proc/$pid/smaps broken: After swapout/swapin private dirty mappings become
+clean.
 
-> +		end = work->offset + work->nr_pages;
-> +		if (work->offset - offset < WRITE_AROUND_PAGES) {
-       It's slightly unclear what's intended here when offset >
-work->offset. Could you make that explicit?
+When a page with private file mapping becomes dirty, the vma will be in both
+i_mmap tree and anon_vma list. The /proc/$pid/smaps will account these pages
+as dirty and backed by the file.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+But when those dirty pages gets swapped out, and when they are read back from
+swap, they would be marked as clean, as it should be, as they are part of swap
+cache now.
+
+But the /proc/$pid/smaps would report the vma as a mapping of a file and it is
+clean. The pages are actually in same state i.e., dirty with respect to file
+still, but which was once reported as dirty is now being reported as clean to
+user-space.
+
+This confuses tools like gdb which uses this information. Those tools think
+that those pages were never modified and it creates problem when they create
+dumps.
+
+The file mapping of the vma also cannot be broken as pages never read earlier,
+will still have to come from the file. Just that those dirty pages have become
+clean anonymous pages.
+
+So instead when a file backed vma has anonymous pages report them as dirty
+pages. As those pages are dirty with respect to the backing file.
+
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+
+---
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 439fc1f..06fc468 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -368,7 +368,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 				mss->shared_clean += PAGE_SIZE;
+ 			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+ 		} else {
+-			if (pte_dirty(ptent))
++			/*
++			 * File-backed pages, now anonymous are dirty
++			 * with respect to the file.
++			 */
++			if (pte_dirty(ptent) || (vma->vm_file && PageAnon(page)))
+ 				mss->private_dirty += PAGE_SIZE;
+ 			else
+ 				mss->private_clean += PAGE_SIZE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
