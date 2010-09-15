@@ -1,34 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 00EC46B007D
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:38:48 -0400 (EDT)
-Message-ID: <4C912ED1.9040309@redhat.com>
-Date: Wed, 15 Sep 2010 16:38:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 969836B0078
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:34:20 -0400 (EDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
+	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100915135016.C9F1.A69D9226@jp.fujitsu.com>
+	<1284531262.27089.15725.camel@nimitz>
+	<m1d3se7t0h.fsf@fess.ebiederm.org>
+	<1284578821.27089.17409.camel@nimitz>
+Date: Wed, 15 Sep 2010 14:34:12 -0700
+In-Reply-To: <1284578821.27089.17409.camel@nimitz> (Dave Hansen's message of
+	"Wed, 15 Sep 2010 12:27:01 -0700")
+Message-ID: <m17him4ror.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] unlink_anon_vmas in __split_vma in case of error
-References: <20100915171816.GQ5981@random.random>
-In-Reply-To: <20100915171816.GQ5981@random.random>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On 09/15/2010 01:18 PM, Andrea Arcangeli wrote:
-> From: Andrea Arcangeli<aarcange@redhat.com>
->
-> If __split_vma fails because of an out of memory condition the
-> anon_vma_chain isn't teardown and freed potentially leading to rmap
-> walks accessing freed vma information plus there's a memleak.
->
-> Signed-off-by: Andrea Arcangeli<aarcange@redhat.com>
+Dave Hansen <dave@linux.vnet.ibm.com> writes:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> On Wed, 2010-09-15 at 11:37 -0700, Eric W. Biederman wrote:
+>> > I'm worried that there are users out there experiencing real problems
+>> > that aren't reporting it because "workarounds" like this just paper over
+>> > the issue.
+>> 
+>> For what it is worth.  I had a friend ask me about a system that had 50%
+>> of it's memory consumed by slab caches.  20GB out of 40GB.  The kernel
+>> was suse? 2.6.27 so it's old, but if you are curious.
+>> /proc/sys/vm/drop_caches does nothing in that case. 
+>
+> Was it the reclaimable caches doing it, though?  The other really common
+> cause is kmalloc() leaks.
 
--- 
-All rights reversed
+It was reclaimable caches.  He kept seeing the cache sizes of the
+problem caches shrink.  On an idle system he said he was seeing
+about 16MB/min getting free or something like that.  Something
+that would take hours and hours before things freed up.
+
+I asked and my friend told me that according to slabtop the slab
+with the most memory used kept changing dramatically and he could
+not see a pattern.
+
+So at least on one old kernel on one strange workload there was a problem.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
