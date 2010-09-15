@@ -1,57 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 9C4BA6B007D
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 06:58:38 -0400 (EDT)
-Message-ID: <4C90A6C7.9050607@redhat.com>
-Date: Wed, 15 Sep 2010 12:58:15 +0200
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] Cross Memory Attach
-References: <20100915104855.41de3ebf@lilo>
-In-Reply-To: <20100915104855.41de3ebf@lilo>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A8DE6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 08:27:58 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 3/8] vmscan: Synchronous lumpy reclaim should not call congestion_wait()
+Date: Wed, 15 Sep 2010 13:27:46 +0100
+Message-Id: <1284553671-31574-4-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1284553671-31574-1-git-send-email-mel@csn.ul.ie>
+References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-  On 09/15/2010 03:18 AM, Christopher Yeoh wrote:
-> The basic idea behind cross memory attach is to allow MPI programs doing
-> intra-node communication to do a single copy of the message rather than
-> a double copy of the message via shared memory.
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-If the host has a dma engine (many modern ones do) you can reduce this 
-to zero copies (at least, zero processor copies).
+congestion_wait() mean "waiting queue congestion is cleared".  However,
+synchronous lumpy reclaim does not need this congestion_wait() as
+shrink_page_list(PAGEOUT_IO_SYNC) uses wait_on_page_writeback()
+and it provides the necessary waiting.
 
-> The following patch attempts to achieve this by allowing a
-> destination process, given an address and size from a source process, to
-> copy memory directly from the source process into its own address space
-> via a system call. There is also a symmetrical ability to copy from
-> the current process's address space into a destination process's
-> address space.
->
->
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/vmscan.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-Instead of those two syscalls, how about a vmfd(pid_t pid, ulong start, 
-ulong len) system call which returns an file descriptor that represents 
-a portion of the process address space.  You can then use preadv() and 
-pwritev() to copy memory, and io_submit(IO_CMD_PREADV) and 
-io_submit(IO_CMD_PWRITEV) for asynchronous variants (especially useful 
-with a dma engine, since that adds latency).
-
-With some care (and use of mmu_notifiers) you can even mmap() your vmfd 
-and access remote process memory directly.
-
-A nice property of file descriptors is that you can pass them around 
-securely via SCM_RIGHTS.  So a process can create a window into its 
-address space and pass it to other processes.
-
-(or you could just use a shared memory object and pass it around)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 652650f..e8b5224 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1341,8 +1341,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
+ 
+ 	/* Check if we should syncronously wait for writeback */
+ 	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
+-		congestion_wait(BLK_RW_ASYNC, HZ/10);
+-
+ 		/*
+ 		 * The attempt at page out may have made some
+ 		 * of the pages active, mark them inactive again.
 -- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
