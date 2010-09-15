@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8736B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 02:08:36 -0400 (EDT)
-From: Michael Rubin <mrubin@google.com>
-Subject: [PATCH 4/5] writeback: Adding /sys/devices/system/node/<node>/vmstat
-Date: Tue, 14 Sep 2010 23:08:28 -0700
-Message-Id: <1284530908-13430-2-git-send-email-mrubin@google.com>
-In-Reply-To: <1284530908-13430-1-git-send-email-mrubin@google.com>
-References: <1284530908-13430-1-git-send-email-mrubin@google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1135B6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 02:14:14 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8F69LXN027194
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 00:09:21 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8F6EOCS207726
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 00:14:24 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8F6ENU6018174
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 00:14:24 -0600
+Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100915135016.C9F1.A69D9226@jp.fujitsu.com>
+References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
+	 <20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20100915135016.C9F1.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Tue, 14 Sep 2010 23:14:22 -0700
+Message-ID: <1284531262.27089.15725.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com, jack@suse.cz, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kosaki.motohiro@jp.fujitsu.com, npiggin@kernel.dk, hch@lst.de, axboe@kernel.dk, Michael Rubin <mrubin@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-For NUMA node systems it is important to have visibility in memory
-characteristics. Two of the /proc/vmstat values "nr_written" and
-"nr_dirtied" are added here.
+On Wed, 2010-09-15 at 13:53 +0900, KOSAKI Motohiro wrote:
+> > >  ==============================================================
+> > >  
+> > > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
+> > > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-14 15:44:29.000000000 -0700
+> > > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-14 15:58:31.000000000 -0700
+> > > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
+> > >  {
+> > >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
+> > >  	if (write) {
+> > > +		WARN_ONCE(1, "kernel caches forcefully dropped, "
+> > > +			     "see Documentation/sysctl/vm.txt\n");
+> > 
+> > Documentation updeta seems good but showing warning seems to be meddling to me.
+> 
+> Agreed.
+> 
+> If the motivation is blog's bogus rumor, this is no effective. I easily
+> imazine they will write "Hey, drop_caches may output strange message, 
+> but please ignore it!".
 
-	# cat /sys/devices/system/node/node20/vmstat
-	nr_written 0
-	nr_dirtied 0
+Fair enough.  But, is there a point that we _should_ be warning?  If
+someone is doing this every minute, or every hour, something is pretty
+broken.  Should we at least be doing a WARN_ON() so that the TAINT_WARN
+is set?
 
-Signed-off-by: Michael Rubin <mrubin@google.com>
----
- drivers/base/node.c |   14 ++++++++++++++
- 1 files changed, 14 insertions(+), 0 deletions(-)
+I'm worried that there are users out there experiencing real problems
+that aren't reporting it because "workarounds" like this just paper over
+the issue.
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 2872e86..2832ebd 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -160,6 +160,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
- }
- static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
- 
-+static ssize_t node_read_vmstat(struct sys_device *dev,
-+				struct sysdev_attribute *attr, char *buf)
-+{
-+	int nid = dev->id;
-+	return sprintf(buf,
-+		"nr_written %lu\n"
-+		"nr_dirtied %lu\n",
-+		node_page_state(nid, NR_WRITTEN),
-+		node_page_state(nid, NR_DIRTIED));
-+}
-+static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
-+
- static ssize_t node_read_distance(struct sys_device * dev,
- 			struct sysdev_attribute *attr, char * buf)
- {
-@@ -243,6 +255,7 @@ int register_node(struct node *node, int num, struct node *parent)
- 		sysdev_create_file(&node->sysdev, &attr_meminfo);
- 		sysdev_create_file(&node->sysdev, &attr_numastat);
- 		sysdev_create_file(&node->sysdev, &attr_distance);
-+		sysdev_create_file(&node->sysdev, &attr_vmstat);
- 
- 		scan_unevictable_register_node(node);
- 
-@@ -267,6 +280,7 @@ void unregister_node(struct node *node)
- 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
- 	sysdev_remove_file(&node->sysdev, &attr_numastat);
- 	sysdev_remove_file(&node->sysdev, &attr_distance);
-+	sysdev_remove_file(&node->sysdev, &attr_vmstat);
- 
- 	scan_unevictable_unregister_node(node);
- 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
--- 
-1.7.1
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
