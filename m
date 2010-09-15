@@ -1,93 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 45E096B0047
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 19:47:17 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8ENddd6027329
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 17:39:39 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8ENlFNW162940
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 17:47:15 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8ENlFmT032738
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 17:47:15 -0600
-Subject: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Tue, 14 Sep 2010 16:47:14 -0700
-Message-Id: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 96BD56B0047
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 20:24:47 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8F0OiJD015995
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 15 Sep 2010 09:24:44 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2347C45DE4F
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 09:24:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EDCE445DE4E
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 09:24:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D6B3E1DB803B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 09:24:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 912C81DB8038
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 09:24:43 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] After swapout/swapin private dirty mappings become clean
+In-Reply-To: <201009141640.55650.knikanth@suse.de>
+References: <201009141640.55650.knikanth@suse.de>
+Message-Id: <20100915092239.C9D9.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 15 Sep 2010 09:24:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, balbir@linux.vnet.ibm.com, rguenther@novell.com, matz@novell.com
 List-ID: <linux-mm.kvack.org>
 
+> /proc/$pid/smaps broken: After swapout/swapin private dirty mappings become
+> clean.
+> 
+> When a page with private file mapping becomes dirty, the vma will be in both
+> i_mmap tree and anon_vma list. The /proc/$pid/smaps will account these pages
+> as dirty and backed by the file.
+> 
+> But when those dirty pages gets swapped out, and when they are read back from
+> swap, they would be marked as clean, as it should be, as they are part of swap
+> cache now.
+> 
+> But the /proc/$pid/smaps would report the vma as a mapping of a file and it is
+> clean. The pages are actually in same state i.e., dirty with respect to file
+> still, but which was once reported as dirty is now being reported as clean to
+> user-space.
+> 
+> This confuses tools like gdb which uses this information. Those tools think
+> that those pages were never modified and it creates problem when they create
+> dumps.
+> 
+> The file mapping of the vma also cannot be broken as pages never read earlier,
+> will still have to come from the file. Just that those dirty pages have become
+> clean anonymous pages.
+> 
+> During swaping in, restoring the exact state as dirty file-backed pages before
+> swapout would be useless, as there in no real bug. Breaking the vma with only
+> anonymous pages as seperate vmas unnecessary may not be a good thing as well.
+> So let us just export the information that a file-backed vma has anonymous
+> dirty pages.
 
-There seems to be an epidemic spreading around.  People get the idea
-in their heads that the kernel caches are evil.  They eat too much
-memory, and there's no way to set a size limit on them!  Stupid
-kernel!
+Why can't gdb check Swap: field in smaps? I think Swap!=0 mean we need dump out.
 
-There is plenty of anecdotal evidence and a load of blog posts
-suggesting that using "drop_caches" periodically keeps your system
-running in "tip top shape".  I do not think that is true.
+Am I missing anything?
 
-If we are not shrinking caches effectively, then we have real bugs.
-Using drop_caches will simply mask the bugs and make them harder
-to find, but certainly does not fix them, nor is it an appropriate
-"workaround" to limit the size of the caches.
+ - kosaki
 
-It's a great debugging tool, and is really handy for doing things
-like repeatable benchmark runs.  So, add a bit more documentation
-about it, and add a WARN_ONCE().  Maybe the warning will scare
-some sense into people.
+> 
+> Export this information in smaps by prepending file-names with "[anon]+", when
+> some of the pages in a file backed vma become anonymous.
+> 
+> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+> 
+> ---
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 439fc1f..68f9806 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -242,6 +242,8 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+>  	 */
+>  	if (file) {
+>  		pad_len_spaces(m, len);
+> +		if (vma->anon_vma)
+> +			seq_puts(m, "[anon]+");
+>  		seq_path(m, &file->f_path, "\n");
+>  	} else {
+>  		const char *name = arch_vma_name(vma);
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/Documentation/sysctl/vm.txt |   14 ++++++++++++--
- linux-2.6.git-dave/fs/drop_caches.c            |    2 ++
- 2 files changed, 14 insertions(+), 2 deletions(-)
-
-diff -puN Documentation/sysctl/vm.txt~update-drop_caches-documentation Documentation/sysctl/vm.txt
---- linux-2.6.git/Documentation/sysctl/vm.txt~update-drop_caches-documentation	2010-09-14 15:30:19.000000000 -0700
-+++ linux-2.6.git-dave/Documentation/sysctl/vm.txt	2010-09-14 16:40:58.000000000 -0700
-@@ -145,8 +145,18 @@ To free dentries and inodes:
- To free pagecache, dentries and inodes:
- 	echo 3 > /proc/sys/vm/drop_caches
- 
--As this is a non-destructive operation and dirty objects are not freeable, the
--user should run `sync' first.
-+This is a non-destructive operation and will not free any dirty objects.
-+To increase the number of objects freed by this operation, the user may run
-+`sync' prior to writing to /proc/sys/vm/drop_caches.  This will minimize the
-+number of dirty objects on the system and create more candidates to be
-+dropped.
-+
-+This file is not a means to control the growth of the various kernel caches
-+(inodes, dentries, pagecache, etc...)  These objects are automatically
-+reclaimed by the kernel when memory is needed elsewhere on the system.
-+
-+Outside of a testing or debugging environment, use of
-+/proc/sys/vm/drop_caches is not recommended.
- 
- ==============================================================
- 
-diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
---- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-14 15:44:29.000000000 -0700
-+++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-14 15:58:31.000000000 -0700
-@@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
- {
- 	proc_dointvec_minmax(table, write, buffer, length, ppos);
- 	if (write) {
-+		WARN_ONCE(1, "kernel caches forcefully dropped, "
-+			     "see Documentation/sysctl/vm.txt\n");
- 		if (sysctl_drop_caches & 1)
- 			iterate_supers(drop_pagecache_sb, NULL);
- 		if (sysctl_drop_caches & 2)
-diff -puN include/linux/kernel.h~update-drop_caches-documentation include/linux/kernel.h
-diff -puN drivers/pci/intel-iommu.c~update-drop_caches-documentation drivers/pci/intel-iommu.c
-diff -puN drivers/pci/dmar.c~update-drop_caches-documentation drivers/pci/dmar.c
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
