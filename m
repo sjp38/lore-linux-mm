@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 647776B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 00:57:46 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C95DB6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 01:01:35 -0400 (EDT)
 From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: Re: [PATCH] After swapout/swapin private dirty mappings become clean
-Date: Wed, 15 Sep 2010 10:30:35 +0530
-References: <20100915092239.C9D9.A69D9226@jp.fujitsu.com> <201009151007.43232.knikanth@suse.de> <20100915134347.C9EB.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20100915134347.C9EB.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are reported clean in smaps
+Date: Wed, 15 Sep 2010 10:34:22 +0530
+References: <20100915092504.C9DC.A69D9226@jp.fujitsu.com> <201009151008.05129.knikanth@suse.de> <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: Text/Plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <201009151030.36012.knikanth@suse.de>
+Message-Id: <201009151034.22497.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, balbir@linux.vnet.ibm.com, rguenther@novell.com, matz@novell.com
+Cc: Richard Guenther <rguenther@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, Michael Matz <matz@novell.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 15 September 2010 10:16:36 KOSAKI Motohiro wrote:
-> > On Wednesday 15 September 2010 05:54:31 KOSAKI Motohiro wrote:
-> > > > /proc/$pid/smaps broken: After swapout/swapin private dirty mappings
-> > > > become clean.
-> > > >
-> > > > When a page with private file mapping becomes dirty, the vma will be
-> > > > in both i_mmap tree and anon_vma list. The /proc/$pid/smaps will
-> > > > account these pages as dirty and backed by the file.
-> > > >
-> > > > But when those dirty pages gets swapped out, and when they are read
-> > > > back from swap, they would be marked as clean, as it should be, as
-> > > > they are part of swap cache now.
-> > > >
-> > > > But the /proc/$pid/smaps would report the vma as a mapping of a file
-> > > > and it is clean. The pages are actually in same state i.e., dirty
-> > > > with respect to file still, but which was once reported as dirty is
-> > > > now being reported as clean to user-space.
-> > > >
-> > > > This confuses tools like gdb which uses this information. Those tools
-> > > > think that those pages were never modified and it creates problem
-> > > > when they create dumps.
-> > > >
-> > > > The file mapping of the vma also cannot be broken as pages never read
-> > > > earlier, will still have to come from the file. Just that those dirty
-> > > > pages have become clean anonymous pages.
-> > > >
-> > > > During swaping in, restoring the exact state as dirty file-backed
-> > > > pages before swapout would be useless, as there in no real bug.
-> > > > Breaking the vma with only anonymous pages as seperate vmas
-> > > > unnecessary may not be a good thing as well. So let us just export
-> > > > the information that a file-backed vma has anonymous dirty pages.
+On Wednesday 15 September 2010 10:18:11 KOSAKI Motohiro wrote:
+> > On Wednesday 15 September 2010 05:56:36 KOSAKI Motohiro wrote:
+> > > > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > > > index 439fc1f..06fc468 100644
+> > > > --- a/fs/proc/task_mmu.c
+> > > > +++ b/fs/proc/task_mmu.c
+> > > > @@ -368,7 +368,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned
+> > > > long addr, unsigned long end, mss->shared_clean += PAGE_SIZE;
+> > > >  			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+> > > >  		} else {
+> > > > -			if (pte_dirty(ptent))
+> > > > +			/*
+> > > > +			 * File-backed pages, now anonymous are dirty
+> > > > +			 * with respect to the file.
+> > > > +			 */
+> > > > +			if (pte_dirty(ptent) || (vma->vm_file && PageAnon(page)))
+> > > >  				mss->private_dirty += PAGE_SIZE;
+> > > >  			else
+> > > >  				mss->private_clean += PAGE_SIZE;
 > > >
-> > > Why can't gdb check Swap: field in smaps? I think Swap!=0 mean we need
-> > > dump out.
+> > > This is risky than v1. number of dirties are used a lot of application.
 > >
-> > Yes. When the page is swapped out it is accounted in "Swap:".
-> >
-> > > Am I missing anything?
-> >
-> > But when it gets swapped in back to memory, it is removed from "Swap:"
-> > and added to "Private_Clean:" instead of "Private_Dirty:".
+> > This is exactly to help those applications, as currently after swap-out
+> > and swap-in, the same pages are accounted as "Private_Clean:" instead of
+> > "Private_Dirty:".
 > 
-> Here is the code.
-> I think the page will become dirty, again.
-> 
-> --------------------------------------------------------------
-> int try_to_free_swap(struct page *page)
-> {
->         VM_BUG_ON(!PageLocked(page));
-> 
->         if (!PageSwapCache(page))
->                 return 0;
->         if (PageWriteback(page))
->                 return 0;
->         if (page_swapcount(page))
->                 return 0;
-> 
->         delete_from_swap_cache(page);
->         SetPageDirty(page);
->         return 1;
-> }
-> 
+> I don't think so.
 
-I think this gets called only when the swap space gets freed. But when the 
-page is just swapped out and swapped in, and the page is still part of 
-SwapCache, it will be marked as clean, when the I/O read from swap completes.
+Actually this behaviour is observed. With a simple memhog, you can see pages 
+which are "Private_Dirty:", become "Swap:" and then to "Private_Clean:". And 
+that confused GDB.
 
 Thanks
 Nikanth
+
+> incorrect infomation bring a lot of confusion rather than
+>  its worth.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
