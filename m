@@ -1,70 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 930516B004A
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 10:53:17 -0400 (EDT)
-Received: from mail-pv0-f169.google.com (mail-pv0-f169.google.com [74.125.83.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o8FEr7Kb026515
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 07:53:14 -0700
-Received: by pvc30 with SMTP id 30so99426pvc.14
-        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 07:53:01 -0700 (PDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 190B96B004A
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 10:53:26 -0400 (EDT)
+Date: Wed, 15 Sep 2010 16:53:21 +0200 (CEST)
+From: Richard Guenther <rguenther@suse.de>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
+ reported clean in smaps
+In-Reply-To: <1284561982.21906.280.camel@calx>
+Message-ID: <alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>  <201009151034.22497.knikanth@suse.de>  <20100915141710.C9F7.A69D9226@jp.fujitsu.com>  <201009151201.11359.knikanth@suse.de>  <20100915140911.GC4383@balbir.in.ibm.com>  <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+ <1284561982.21906.280.camel@calx>
 MIME-Version: 1.0
-In-Reply-To: <20100916001232.0c496b02@lilo>
-References: <20100915104855.41de3ebf@lilo> <4C90A6C7.9050607@redhat.com> <20100916001232.0c496b02@lilo>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 15 Sep 2010 07:52:39 -0700
-Message-ID: <AANLkTikkAs5jUPhsq5=_Efv-MbbfCNmT10rcV6VUc54D@mail.gmail.com>
-Subject: Re: [RFC][PATCH] Cross Memory Attach
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 15, 2010 at 7:42 AM, Christopher Yeoh <cyeoh@au1.ibm.com> wrote=
-:
-> On Wed, 15 Sep 2010 12:58:15 +0200
-> Avi Kivity <avi@redhat.com> wrote:
+On Wed, 15 Sep 2010, Matt Mackall wrote:
+
+> On Wed, 2010-09-15 at 16:14 +0200, Richard Guenther wrote:
+> > On Wed, 15 Sep 2010, Balbir Singh wrote:
+> > 
+> > > * Nikanth Karthikesan <knikanth@suse.de> [2010-09-15 12:01:11]:
+> > > 
+> > > > How? Current smaps information without this patch provides incorrect 
+> > > > information. Just because a private dirty page became part of swap cache, it 
+> > > > shown as clean and backed by a file. If it is shown as clean and backed by 
+> > > > swap then it is fine.
+> > > >
+> > > 
+> > > How is GDB using this information?  
+> > 
+> > GDB counts the number of dirty and swapped pages in a private mapping and
+> > based on that decides whether it needs to dump it to a core file or not.
+> > If there are no dirty or swapped pages gdb assumes it can reconstruct
+> > the mapping from the original backing file.  This way for example
+> > shared libraries do not end up in the core file.
+> 
+> This whole discussion is a little disturbing.
 >
->> =A0 On 09/15/2010 03:18 AM, Christopher Yeoh wrote:
->> > The basic idea behind cross memory attach is to allow MPI programs
->> > doing intra-node communication to do a single copy of the message
->> > rather than a double copy of the message via shared memory.
->>
->> If the host has a dma engine (many modern ones do) you can reduce
->> this to zero copies (at least, zero processor copies).
->
-> Yes, this interface doesn't really support that. I've tried to keep
-> things really simple here, but I see potential for increasing
-> level/complexity of support with diminishing returns:
+> The page is being reported clean as per the kernel's definition of
+> clean, full stop.
+> 
+> So either there's a latent bug/inconsistency in the kernel VM or
+> external tools are misinterpreting this data. But smaps is just
+> reporting what's there, the fault doesn't lie in smaps. So fixing smaps
+> just hides the problem, wherever it is.
+> 
+> Richard's report that the page is still clean after swapoff suggests the
+> inconsistency lies in the VM.
 
-I think keeping things simple is a good goal. The vmfd() approach
-might be worth looking into, but your patch certainly is pretty simple
-as-is.
+Well - the discussion is about the /proc/smaps interface and
+inconsistencies in what it reports.  In particular the interface
+does not have the capability of reporting all details the kernel
+has, so it might make sense to not "report a page clean as per
+the kernel's definition of clean", but only in a /proc/smaps
+context definition of clean that makes sense.
 
-That said, it's also buggy. You can't just get a task and then do
+So, for
 
-  down_read(task->mm->mmap_sem)
+7ffff81ff000-7ffff8201000 r--p 000a8000 08:01 16376 /bin/bash
+Size:                  8 kB
+Rss:                   8 kB
+Pss:                   8 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         8 kB
+Private_Dirty:         0 kB
+Referenced:            4 kB
+Swap:                  0 kB
 
-on it. Not even if you have a refcount. The mm may well go away. You
-need to do the same thing "get_task_mm()" does, ie look up the mm
-under task_lock, and get a reference to it. You already get the
-task-lock for permission testing, so it looks like doing it there
-would likely work out.
+I expect both pages of that mapping to be file-backed by /bin/bash.
+But surprisingly one page is actually backed by anonymous memory
+(it was changed, then mapped readonly, swapped out and swapped in
+again).
 
-> 3. ability to map part of another process's address space directly into
-> =A0 the current one. Would have setup/tear down overhead, but this would
-> =A0 be useful specifically for reduction operations where we don't even
-> =A0 need to really copy the data once at all, but use it directly in
-> =A0 arithmetic/logical operations on the receiver.
+Thus, the bug is the above inconsistency in /proc/smaps.  Whether
+there are internal kernel inconsistencies as well doesn't really
+matter to this problem (as there is no way to distinguish
+pages that are now backed by anonymous memory in that interface).
 
-Don't even think about this. If you want to map another tasks memory,
-use shared memory. The shared memory code knows about that. The races
-for anything else are crazy.
-
-                   Linus
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
