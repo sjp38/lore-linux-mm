@@ -1,121 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 951206B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 15:08:28 -0400 (EDT)
-Date: Wed, 15 Sep 2010 21:08:21 +0200 (CEST)
-From: Richard Guenther <rguenther@suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2CA6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 15:18:37 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o8FJIXmt006232
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 12:18:33 -0700
+Received: from vws18 (vws18.prod.google.com [10.241.21.146])
+	by wpaz5.hot.corp.google.com with ESMTP id o8FJI7YB026452
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 12:18:32 -0700
+Received: by vws18 with SMTP id 18so316170vws.29
+        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 12:18:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1284571473.21906.428.camel@calx>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
+	<201009151034.22497.knikanth@suse.de>
+	<20100915141710.C9F7.A69D9226@jp.fujitsu.com>
+	<201009151201.11359.knikanth@suse.de>
+	<20100915140911.GC4383@balbir.in.ibm.com>
+	<alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+	<1284561982.21906.280.camel@calx>
+	<alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr>
+	<1284571473.21906.428.camel@calx>
+Date: Wed, 15 Sep 2010 12:18:29 -0700
+Message-ID: <AANLkTimYQgm6nKZ4TantPiL4kmUP9FtMQwzqeetVnGrr@mail.gmail.com>
 Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
  reported clean in smaps
-In-Reply-To: <1284571473.21906.428.camel@calx>
-Message-ID: <alpine.LNX.2.00.1009152103470.28912@zhemvz.fhfr.qr>
-References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>  <201009151034.22497.knikanth@suse.de>  <20100915141710.C9F7.A69D9226@jp.fujitsu.com>  <201009151201.11359.knikanth@suse.de>  <20100915140911.GC4383@balbir.in.ibm.com>  <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
-  <1284561982.21906.280.camel@calx>  <alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr> <1284571473.21906.428.camel@calx>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 To: Matt Mackall <mpm@selenic.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Sep 2010, Matt Mackall wrote:
+On Wed, Sep 15, 2010 at 10:24 AM, Matt Mackall <mpm@selenic.com> wrote:
 
-> [adding Hugh]
-> 
-> On Wed, 2010-09-15 at 16:53 +0200, Richard Guenther wrote:
-> > On Wed, 15 Sep 2010, Matt Mackall wrote:
-> > 
-> > > On Wed, 2010-09-15 at 16:14 +0200, Richard Guenther wrote:
-> > > > On Wed, 15 Sep 2010, Balbir Singh wrote:
-> > > > 
-> > > > > * Nikanth Karthikesan <knikanth@suse.de> [2010-09-15 12:01:11]:
-> > > > > 
-> > > > > > How? Current smaps information without this patch provides incorrect 
-> > > > > > information. Just because a private dirty page became part of swap cache, it 
-> > > > > > shown as clean and backed by a file. If it is shown as clean and backed by 
-> > > > > > swap then it is fine.
-> > > > > >
-> > > > > 
-> > > > > How is GDB using this information?  
-> > > > 
-> > > > GDB counts the number of dirty and swapped pages in a private mapping and
-> > > > based on that decides whether it needs to dump it to a core file or not.
-> > > > If there are no dirty or swapped pages gdb assumes it can reconstruct
-> > > > the mapping from the original backing file.  This way for example
-> > > > shared libraries do not end up in the core file.
-> > > 
-> > > This whole discussion is a little disturbing.
-> > >
-> > > The page is being reported clean as per the kernel's definition of
-> > > clean, full stop.
-> > > 
-> > > So either there's a latent bug/inconsistency in the kernel VM or
-> > > external tools are misinterpreting this data. But smaps is just
-> > > reporting what's there, the fault doesn't lie in smaps. So fixing smaps
-> > > just hides the problem, wherever it is.
-> > > 
-> > > Richard's report that the page is still clean after swapoff suggests the
-> > > inconsistency lies in the VM.
-> > 
-> > Well - the discussion is about the /proc/smaps interface and
-> > inconsistencies in what it reports.  In particular the interface
-> > does not have the capability of reporting all details the kernel
-> > has, so it might make sense to not "report a page clean as per
-> > the kernel's definition of clean", but only in a /proc/smaps
-> > context definition of clean that makes sense.
-> > 
-> > So, for
-> > 
-> > 7ffff81ff000-7ffff8201000 r--p 000a8000 08:01 16376 /bin/bash
-> > Size:                  8 kB
-> > Rss:                   8 kB
-> > Pss:                   8 kB
-> > Shared_Clean:          0 kB
-> > Shared_Dirty:          0 kB
-> > Private_Clean:         8 kB
-> > Private_Dirty:         0 kB
-> > Referenced:            4 kB
-> > Swap:                  0 kB
-> > 
-> > I expect both pages of that mapping to be file-backed by /bin/bash.
-> > But surprisingly one page is actually backed by anonymous memory
-> > (it was changed, then mapped readonly, swapped out and swapped in
-> > again).
-> > 
-> > Thus, the bug is the above inconsistency in /proc/smaps.
-> 
 > But that's my point: the consistency problem is NOT in smaps. The page
 > is NOT marked dirty, ergo smaps doesn't report it as dirty. Whether or
 > not there is MORE information smaps could be reporting is irrelevant,
 > the information it IS reporting is consistent with the underlying VM
 > data. If there's an inconsistency about what it means to be clean, it's
 > either in the VM or in your head.
-> 
+>
 > And I frankly think it's in the VM.
-> 
+
+I don't believe there's any problem in the VM here, we'd be having
+SIGSEGVs all over if there were.
+
+The problem is that /proc/pid/smaps exports a simplified view of the
+VM, and Richard and Nikanth were hoping that it gave them some info
+which it has never pretended to give them,
+
+It happens to use a pte_dirty(ptent) test: you could argue that that
+should be pte_dirty(ptent) || PageDirty(page) (which would then "fix
+the issue" which Richard sees with swapoff/swapon), or you could argue
+that it should be pte_dirty(ptent) || PageDirty(page) ||
+PageSwapCache(page) (which would then note clean copies of swap cache
+as dirty in the sense which Richard and Nikanth are interested in).
+
+But after these years, we should probably assume that most users of
+/proc/pid/smaps are used to the existing pte_dirty(ptent) test, and
+would be troubled by a departure from it.
+
+>
 > In any case, I don't think Nikanth's fix is the right fix, as it
 > basically says "you can't trust any of this". Either swap should return
 > the pages to their pre-swap dirty state in the VM, or we should add
 > another field here:
-> 
-> Weird_Anon_Page_You_Should_Pretend_Is_Private_Dirty: 8 kB 
-> 
-> See?
+>
+> Weird_Anon_Page_You_Should_Pretend_Is_Private_Dirty: 8 kB
 
-Well.  There is also the case where the page is swapped in again
-but still allocated in the swap cache.  So it's swap-backed,
-private and clean (because the copy in swap is still valid).  But
-in that case it's not accounted to "Swap:" (presumably because
-Rss + Swap wouldn't add to the mappings size).
+I think that the most widely useful but simple extension of
+/proc/pid/smaps, that would give them the info they want, would indeed
+be to counts ptes pointing to PageAnon pages and report that total on
+an additional line (say, just before "Swap:"); but there's no need for
+the derogatory name you propose there, "Anon:" would suit fine!
 
-I only care about consistency in /proc/smaps, but agree that
-an anonymous page that is not backed by swap-cache should always
-be dirty (in case it was cowed from the zero page at any point
-of course).  Probably that inconsistency doesn't matter, as if it
-isn't swap-backed even a clean anonmous page can't be simply thrown 
-away (in fact, "clean" or "dirty" doesn't have a meaningful
-semantics for anonymous memory IMHO).
+The original idea of testing for vma->anon_vma was a good one, but it
+doesn't fit so well into the /proc/pid/smaps layout; and showing the
+actual count of Anon pages could be useful to others (though generally
+it would be Anon+Swap they'd be interested in).
 
-Richard.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
