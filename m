@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AAB56B0078
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:47:45 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id o8FLlfK8027202
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:41 -0700
-Received: from vws9 (vws9.prod.google.com [10.241.21.137])
-	by wpaz5.hot.corp.google.com with ESMTP id o8FLldt6006236
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:40 -0700
-Received: by vws9 with SMTP id 9so441491vws.20
-        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:39 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C0EA36B0078
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 19:02:44 -0400 (EDT)
+Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
+	by smtp-out.google.com with ESMTP id o8FN2YNV017900
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:41 -0700
+Received: from gxk10 (gxk10.prod.google.com [10.202.11.10])
+	by kpbe12.cbf.corp.google.com with ESMTP id o8FN2F5d003053
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:32 -0700
+Received: by gxk10 with SMTP id 10so319150gxk.34
+        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:32 -0700 (PDT)
+Date: Wed, 15 Sep 2010 16:02:24 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] fix swapin race condition
+In-Reply-To: <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
+Message-ID: <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com>
+References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1284579969.21906.451.camel@calx>
-References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
-	<201009151034.22497.knikanth@suse.de>
-	<20100915141710.C9F7.A69D9226@jp.fujitsu.com>
-	<201009151201.11359.knikanth@suse.de>
-	<20100915140911.GC4383@balbir.in.ibm.com>
-	<alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
-	<1284561982.21906.280.camel@calx>
-	<alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr>
-	<1284571473.21906.428.camel@calx>
-	<AANLkTimYQgm6nKZ4TantPiL4kmUP9FtMQwzqeetVnGrr@mail.gmail.com>
-	<1284579969.21906.451.camel@calx>
-Date: Wed, 15 Sep 2010 14:47:39 -0700
-Message-ID: <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com>
-Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
- reported clean in smaps
-From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 15, 2010 at 12:46 PM, Matt Mackall <mpm@selenic.com> wrote:
-> On Wed, 2010-09-15 at 12:18 -0700, Hugh Dickins wrote:
->> The problem is that /proc/pid/smaps exports a simplified view of the
->> VM, and Richard and Nikanth were hoping that it gave them some info
->> which it has never pretended to give them,
->>
->> It happens to use a pte_dirty(ptent) test: you could argue that that
->> should be pte_dirty(ptent) || PageDirty(page) (which would then "fix
->> the issue" which Richard sees with swapoff/swapon),
->
-> That might be interesting. Are there any other notable cases where
-> pte_dirty() differs from PageDirty()?
+On Sun, 5 Sep 2010, Hugh Dickins wrote:
+> On Fri, 3 Sep 2010, Andrea Arcangeli wrote:
+> > From: Andrea Arcangeli <aarcange@redhat.com>
+> > 
+> > The pte_same check is reliable only if the swap entry remains pinned
+> > (by the page lock on swapcache). We've also to ensure the swapcache
+> > isn't removed before we take the lock as try_to_free_swap won't care
+> > about the page pin.
+> > 
+> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Acked-by: Hugh Dickins <hughd@google.com>
+> 
+> Yes, it's a great little find, and long predates the KSM hooks you've
+> had to adjust.  It does upset me (aesthetically) that the KSM case now
+> intrudes into do_swap_swap() much more than it used to; but I have not
+> come up with a better solution, so yes, let's go forward with this.
 
-I don't know about "other notable".  A page may very well be PageDirty
-(e.g. modified by a write system call) without any of the ptes
-pointing to it (if there even are any) marked as pte_dirty.  A page
-may very well not be marked PageDirty yet, though one or more of the
-ptes pointing to it have been marked pte_dirty when userspace made a
-write access to the page via that pte.   Traditionally (when
-/proc/pid/smaps was first reporting dirty versus clean ptes) the pte
-dirtiness would later be found and propagated through to PageDirtiness
-(clearing the pte dirtiness), which would later be cleaned when the
-page was written out to backing store (file or swap).
+I had an afterthought, something I've not thought through fully, but am
+reminded of by Greg's mail for stable: is your patch incomplete?  Just
+as it's very unlikely but conceivable the pte_same() test is inadequate,
+isn't the PageSwapCache() test you've added to do_swap_page() inadequate?
+Doesn't it need a "page_private(page) == entry.val" test too?
 
-PeterZ's writeback work in 2.6.19 (set_page_dirty_balance,
-clear_page_dirty_for_io etc.) tightened up writeback from (most: tmpfs
-is one exception) shared file mmaps, synchronizing the PageDirty more
-carefully with the pte_dirty; and perhaps there is some inconsistency
-there, that we never felt compelled to keep pte and Page so tightly in
-synch in the anonymous/Swap case - it would have been unnecessary
-overhead (though I repeatedly forget the essence of why not - file
-syncing, and pdflush activity,  were relevant considerations; but I
-cannot now put my finger on precisely why shared file writing needed
-to be fixed, but anonymous dirtying could be left unchanged).
+Just as it's conceivable that the same swap has got reused (either via
+try_to_free_swap or via swapoff+swapon) for a COWed version of the page
+in that pte slot meanwhile, isn't it conceivable that the page we hold
+while waiting for pagelock, has got freed from swap then reallocated to
+elsewhere on swap meanwhile?  Which, together with your scenario (and I
+suspect the two unlikelihoods are not actually to be multiplied), would
+still lead to the wrong result, unless we add the further test.
 
-But even if you replace smaps's pte_dirty(ptent) tests by
-pte_dirty(ptent) || PageDirty(page) tests, it wouldn't be doing what
-Richard and Nikanth want - they want clean ptes of clean PageSwapCache
-to be reported as dirty, despite being clean copies of backing store;
-and I can understand your reluctance to go that far.  I think
-reporting "Anon:" pages is more useful - in part because we have no
-counts of Anon+Swap, yet that's the quantity which vm_enough_memory
-may place a limit upon (but beware, it does of course get more
-complicated: tmpfs files come out of that tally too, but would not
-show up in this way).
+I apologize if I'm holding up your stable fix, and just vying against
+you in a "world's most unlikely VM race" competition, but I don't at
+present see what prevents this variant.
 
 Hugh
 
