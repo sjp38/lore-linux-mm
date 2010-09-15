@@ -1,134 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C5D256B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 15:35:21 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20100915104855.41de3ebf@lilo> <4C90A6C7.9050607@redhat.com>
-	<AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com>
-	<4C90F09F.9080307@redhat.com>
-Date: Wed, 15 Sep 2010 12:35:02 -0700
-In-Reply-To: <4C90F09F.9080307@redhat.com> (Avi Kivity's message of "Wed, 15
-	Sep 2010 18:13:19 +0200")
-Message-ID: <m1pqwe6brt.fsf@fess.ebiederm.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [RFC][PATCH] Cross Memory Attach
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C3E2B6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 15:46:18 -0400 (EDT)
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
+ reported clean in smaps
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <AANLkTimYQgm6nKZ4TantPiL4kmUP9FtMQwzqeetVnGrr@mail.gmail.com>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
+	 <201009151034.22497.knikanth@suse.de>
+	 <20100915141710.C9F7.A69D9226@jp.fujitsu.com>
+	 <201009151201.11359.knikanth@suse.de>
+	 <20100915140911.GC4383@balbir.in.ibm.com>
+	 <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+	 <1284561982.21906.280.camel@calx>
+	 <alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr>
+	 <1284571473.21906.428.camel@calx>
+	 <AANLkTimYQgm6nKZ4TantPiL4kmUP9FtMQwzqeetVnGrr@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 15 Sep 2010 14:46:09 -0500
+Message-ID: <1284579969.21906.451.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Bryan Donlan <bdonlan@gmail.com>, Christopher Yeoh <cyeoh@au1.ibm.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Valdis.Kletnieks@vt.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, Robin Holt <holt@sgi.com>
+To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Cc: Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity <avi@redhat.com> writes:
+On Wed, 2010-09-15 at 12:18 -0700, Hugh Dickins wrote:
+> On Wed, Sep 15, 2010 at 10:24 AM, Matt Mackall <mpm@selenic.com> wrote:
+> 
+> > But that's my point: the consistency problem is NOT in smaps. The page
+> > is NOT marked dirty, ergo smaps doesn't report it as dirty. Whether or
+> > not there is MORE information smaps could be reporting is irrelevant,
+> > the information it IS reporting is consistent with the underlying VM
+> > data. If there's an inconsistency about what it means to be clean, it's
+> > either in the VM or in your head.
+> >
+> > And I frankly think it's in the VM.
+> 
+> I don't believe there's any problem in the VM here, we'd be having
+> SIGSEGVs all over if there were.
 
->  On 09/15/2010 04:46 PM, Bryan Donlan wrote:
->> On Wed, Sep 15, 2010 at 19:58, Avi Kivity<avi@redhat.com>  wrote:
->>
->>> Instead of those two syscalls, how about a vmfd(pid_t pid, ulong start,
->>> ulong len) system call which returns an file descriptor that represents a
->>> portion of the process address space.  You can then use preadv() and
->>> pwritev() to copy memory, and io_submit(IO_CMD_PREADV) and
->>> io_submit(IO_CMD_PWRITEV) for asynchronous variants (especially useful with
->>> a dma engine, since that adds latency).
->>>
->>> With some care (and use of mmu_notifiers) you can even mmap() your vmfd and
->>> access remote process memory directly.
->> Rather than introducing a new vmfd() API for this, why not just add
->> implementations for these more efficient operations to the existing
->> /proc/$pid/mem interface?
->
-> Yes, opening that file should be equivalent (and you could certainly implement
-> aio via dma for it).
+Of course it works. It's just not as orthogonal (aka consistent) as it
+could be in this case: it's not actually reflecting any of the usual
+meanings of dirtiness here.
 
-I will second this /proc/$pid/mem is semantically the same and it would
-really be good if this patch became a patch optimizing that case.
+> The problem is that /proc/pid/smaps exports a simplified view of the
+> VM, and Richard and Nikanth were hoping that it gave them some info
+> which it has never pretended to give them,
+> 
+> It happens to use a pte_dirty(ptent) test: you could argue that that
+> should be pte_dirty(ptent) || PageDirty(page) (which would then "fix
+> the issue" which Richard sees with swapoff/swapon),
 
-Otherwise we have code duplication and thus dilution of knowledge in
-two different places for no discernable reason.  Hindering long term
-maintenance.
+That might be interesting. Are there any other notable cases where
+pte_dirty() differs from PageDirty()?
 
-+int copy_to_from_process_allowed(struct task_struct *task)
-+{
-+	/* Allow copy_to_from_process to access another process using
-+	   the same critera  as a process would be allowed to ptrace
-+	   that same process */
-+	const struct cred *cred = current_cred(), *tcred;
-+
-+	rcu_read_lock();
-+	tcred = __task_cred(task);
-+	if ((cred->uid != tcred->euid ||
-+	     cred->uid != tcred->suid ||
-+	     cred->uid != tcred->uid  ||
-+	     cred->gid != tcred->egid ||
-+	     cred->gid != tcred->sgid ||
-+	     cred->gid != tcred->gid) &&
-+	    !capable(CAP_SYS_PTRACE)) {
-+		rcu_read_unlock();
-+		return 0;
-+	}
-+	rcu_read_unlock();
-+	return 1;
-+}
+>  or you could argue
+> that it should be pte_dirty(ptent) || PageDirty(page) ||
+> PageSwapCache(page) (which would then note clean copies of swap cache
+> as dirty in the sense which Richard and Nikanth are interested in).
+> 
+> But after these years, we should probably assume that most users of
+> /proc/pid/smaps are used to the existing pte_dirty(ptent) test, and
+> would be troubled by a departure from it.
 
-This hunk of the patch is a copy of __ptrace_may_access without security
-hooks removed.  Both the code duplication, the removal of the dumpable
-check and the removal of the security hooks look like a bad idea.
+Dunno, my smem tool[1] is probably also expecting too much here and I
+should know better!
 
-Removing the other checks in check_mem_permission seems reasonable as
-those appear to be overly paranoid.
+> > In any case, I don't think Nikanth's fix is the right fix, as it
+> > basically says "you can't trust any of this". Either swap should return
+> > the pages to their pre-swap dirty state in the VM, or we should add
+> > another field here:
+> >
+> > Weird_Anon_Page_You_Should_Pretend_Is_Private_Dirty: 8 kB
+> 
+> I think that the most widely useful but simple extension of
+> /proc/pid/smaps, that would give them the info they want, would indeed
+> be to counts ptes pointing to PageAnon pages and report that total on
+> an additional line (say, just before "Swap:"); but there's no need for
+> the derogatory name you propose there, "Anon:" would suit fine!
 
-Hmm.  This is weird:
+Yes, that wasn't a serious suggestion.
 
-+	/* Get the pages we're interested in */
-+	pages_pinned = get_user_pages(task, task->mm, pa,
-+				      nr_pages_to_copy,
-+				      copy_to, 0, process_pages, NULL);
-+
-+	if (pages_pinned != nr_pages_to_copy)
-+		goto end;
-+
-+	/* Do the copy for each page */
-+	for (i = 0; i < nr_pages_to_copy; i++) {
-+		target_kaddr = kmap(process_pages[i]) + start_offset;
-+		bytes_to_copy = min(PAGE_SIZE - start_offset,
-+				    len - *bytes_copied);
-+		if (start_offset)
-+			start_offset = 0;
-+
-+		if (copy_to) {
-+			ret = copy_from_user(target_kaddr,
-+					     user_buf + *bytes_copied,
-+					     bytes_to_copy);
-+			if (ret) {
-+				kunmap(process_pages[i]);
-+				goto end;
-+			}
-+		} else {
-+			ret = copy_to_user(user_buf + *bytes_copied,
-+					   target_kaddr, bytes_to_copy);
-+			if (ret) {
-+				kunmap(process_pages[i]);
-+				goto end;
-+			}
-+		}
-+		kunmap(process_pages[i]);
-+		*bytes_copied += bytes_to_copy;
-+	}
-+
-
-That hunk of code appears to be an copy of mm/memmory.c:access_process_vm.
-A little more optimized by taking the get_user_pages out of the inner
-loop but otherwise pretty much the same code.
-
-So I would argue it makes sense to optimize access_process_vm.
-
-So unless there are fundamental bottlenecks to performance I am not
-seeing please optimize the existing code paths in the kernel that do
-exactly what you are trying to do.
-
-Thanks,
-Eric
-
-
+[1] http://www.selenic.com/smem/
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 
 --
