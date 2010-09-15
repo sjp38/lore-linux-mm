@@ -1,80 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5C7586B004A
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:37:27 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
-	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100915135016.C9F1.A69D9226@jp.fujitsu.com>
-	<1284531262.27089.15725.camel@nimitz>
-Date: Wed, 15 Sep 2010 11:37:18 -0700
-In-Reply-To: <1284531262.27089.15725.camel@nimitz> (Dave Hansen's message of
-	"Tue, 14 Sep 2010 23:14:22 -0700")
-Message-ID: <m1d3se7t0h.fsf@fess.ebiederm.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 951206B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 15:08:28 -0400 (EDT)
+Date: Wed, 15 Sep 2010 21:08:21 +0200 (CEST)
+From: Richard Guenther <rguenther@suse.de>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
+ reported clean in smaps
+In-Reply-To: <1284571473.21906.428.camel@calx>
+Message-ID: <alpine.LNX.2.00.1009152103470.28912@zhemvz.fhfr.qr>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>  <201009151034.22497.knikanth@suse.de>  <20100915141710.C9F7.A69D9226@jp.fujitsu.com>  <201009151201.11359.knikanth@suse.de>  <20100915140911.GC4383@balbir.in.ibm.com>  <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+  <1284561982.21906.280.camel@calx>  <alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr> <1284571473.21906.428.camel@calx>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com
+To: Matt Mackall <mpm@selenic.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh.dickins@tiscali.co.uk>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen <dave@linux.vnet.ibm.com> writes:
+On Wed, 15 Sep 2010, Matt Mackall wrote:
 
-> On Wed, 2010-09-15 at 13:53 +0900, KOSAKI Motohiro wrote:
->> > >  ==============================================================
->> > >  
->> > > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
->> > > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-14 15:44:29.000000000 -0700
->> > > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-14 15:58:31.000000000 -0700
->> > > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
->> > >  {
->> > >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
->> > >  	if (write) {
->> > > +		WARN_ONCE(1, "kernel caches forcefully dropped, "
->> > > +			     "see Documentation/sysctl/vm.txt\n");
->> > 
->> > Documentation updeta seems good but showing warning seems to be meddling to me.
->> 
->> Agreed.
->> 
->> If the motivation is blog's bogus rumor, this is no effective. I easily
->> imazine they will write "Hey, drop_caches may output strange message, 
->> but please ignore it!".
->
-> Fair enough.  But, is there a point that we _should_ be warning?  If
-> someone is doing this every minute, or every hour, something is pretty
-> broken.  Should we at least be doing a WARN_ON() so that the TAINT_WARN
-> is set?
->
-> I'm worried that there are users out there experiencing real problems
-> that aren't reporting it because "workarounds" like this just paper over
-> the issue.
+> [adding Hugh]
+> 
+> On Wed, 2010-09-15 at 16:53 +0200, Richard Guenther wrote:
+> > On Wed, 15 Sep 2010, Matt Mackall wrote:
+> > 
+> > > On Wed, 2010-09-15 at 16:14 +0200, Richard Guenther wrote:
+> > > > On Wed, 15 Sep 2010, Balbir Singh wrote:
+> > > > 
+> > > > > * Nikanth Karthikesan <knikanth@suse.de> [2010-09-15 12:01:11]:
+> > > > > 
+> > > > > > How? Current smaps information without this patch provides incorrect 
+> > > > > > information. Just because a private dirty page became part of swap cache, it 
+> > > > > > shown as clean and backed by a file. If it is shown as clean and backed by 
+> > > > > > swap then it is fine.
+> > > > > >
+> > > > > 
+> > > > > How is GDB using this information?  
+> > > > 
+> > > > GDB counts the number of dirty and swapped pages in a private mapping and
+> > > > based on that decides whether it needs to dump it to a core file or not.
+> > > > If there are no dirty or swapped pages gdb assumes it can reconstruct
+> > > > the mapping from the original backing file.  This way for example
+> > > > shared libraries do not end up in the core file.
+> > > 
+> > > This whole discussion is a little disturbing.
+> > >
+> > > The page is being reported clean as per the kernel's definition of
+> > > clean, full stop.
+> > > 
+> > > So either there's a latent bug/inconsistency in the kernel VM or
+> > > external tools are misinterpreting this data. But smaps is just
+> > > reporting what's there, the fault doesn't lie in smaps. So fixing smaps
+> > > just hides the problem, wherever it is.
+> > > 
+> > > Richard's report that the page is still clean after swapoff suggests the
+> > > inconsistency lies in the VM.
+> > 
+> > Well - the discussion is about the /proc/smaps interface and
+> > inconsistencies in what it reports.  In particular the interface
+> > does not have the capability of reporting all details the kernel
+> > has, so it might make sense to not "report a page clean as per
+> > the kernel's definition of clean", but only in a /proc/smaps
+> > context definition of clean that makes sense.
+> > 
+> > So, for
+> > 
+> > 7ffff81ff000-7ffff8201000 r--p 000a8000 08:01 16376 /bin/bash
+> > Size:                  8 kB
+> > Rss:                   8 kB
+> > Pss:                   8 kB
+> > Shared_Clean:          0 kB
+> > Shared_Dirty:          0 kB
+> > Private_Clean:         8 kB
+> > Private_Dirty:         0 kB
+> > Referenced:            4 kB
+> > Swap:                  0 kB
+> > 
+> > I expect both pages of that mapping to be file-backed by /bin/bash.
+> > But surprisingly one page is actually backed by anonymous memory
+> > (it was changed, then mapped readonly, swapped out and swapped in
+> > again).
+> > 
+> > Thus, the bug is the above inconsistency in /proc/smaps.
+> 
+> But that's my point: the consistency problem is NOT in smaps. The page
+> is NOT marked dirty, ergo smaps doesn't report it as dirty. Whether or
+> not there is MORE information smaps could be reporting is irrelevant,
+> the information it IS reporting is consistent with the underlying VM
+> data. If there's an inconsistency about what it means to be clean, it's
+> either in the VM or in your head.
+> 
+> And I frankly think it's in the VM.
+> 
+> In any case, I don't think Nikanth's fix is the right fix, as it
+> basically says "you can't trust any of this". Either swap should return
+> the pages to their pre-swap dirty state in the VM, or we should add
+> another field here:
+> 
+> Weird_Anon_Page_You_Should_Pretend_Is_Private_Dirty: 8 kB 
+> 
+> See?
 
-For what it is worth.  I had a friend ask me about a system that had 50%
-of it's memory consumed by slab caches.  20GB out of 40GB.  The kernel
-was suse? 2.6.27 so it's old, but if you are curious.
-/proc/sys/vm/drop_caches does nothing in that case.
+Well.  There is also the case where the page is swapped in again
+but still allocated in the swap cache.  So it's swap-backed,
+private and clean (because the copy in swap is still valid).  But
+in that case it's not accounted to "Swap:" (presumably because
+Rss + Swap wouldn't add to the mappings size).
 
-Thinking about it drop_caches is sufficiently limited I don't see
-drop_caches being even to mask problems so Dave I think your basic
-concern is overrated.
+I only care about consistency in /proc/smaps, but agree that
+an anonymous page that is not backed by swap-cache should always
+be dirty (in case it was cowed from the zero page at any point
+of course).  Probably that inconsistency doesn't matter, as if it
+isn't swap-backed even a clean anonmous page can't be simply thrown 
+away (in fact, "clean" or "dirty" doesn't have a meaningful
+semantics for anonymous memory IMHO).
 
-As for your documentation update your wording change seems to me to be
-more obtuse, and in a scolding tone.  If you want people not to use
-this facility you should educate people not scold them.
-
-Perhaps something like:
-
-Calling /proc/sys/vm/drop_caches pessimizes system performance.  The
-pages freed by writing to drop_caches are easily repurposed when the
-need arises, but the kernel instead of wasting those pages by leaving
-them holding nothing, instead uses those pages to increase the size
-of the filesystem cache.  The larger filesystem cache increases
-the likely hood any filesystem access will get a cache hit and will not
-need to read from disk.
-
-Eric
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
