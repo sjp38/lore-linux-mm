@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C0EA36B0078
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 19:02:44 -0400 (EDT)
-Received: from kpbe12.cbf.corp.google.com (kpbe12.cbf.corp.google.com [172.25.105.76])
-	by smtp-out.google.com with ESMTP id o8FN2YNV017900
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:41 -0700
-Received: from gxk10 (gxk10.prod.google.com [10.202.11.10])
-	by kpbe12.cbf.corp.google.com with ESMTP id o8FN2F5d003053
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:32 -0700
-Received: by gxk10 with SMTP id 10so319150gxk.34
-        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:02:32 -0700 (PDT)
-Date: Wed, 15 Sep 2010 16:02:24 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D5D586B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 19:42:45 -0400 (EDT)
+Date: Thu, 16 Sep 2010 01:42:37 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH] fix swapin race condition
-In-Reply-To: <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
-Message-ID: <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com>
-References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
+Message-ID: <20100915234237.GR5981@random.random>
+References: <20100903153958.GC16761@random.random>
+ <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
+ <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Hugh Dickins <hughd@google.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 5 Sep 2010, Hugh Dickins wrote:
-> On Fri, 3 Sep 2010, Andrea Arcangeli wrote:
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> > 
-> > The pte_same check is reliable only if the swap entry remains pinned
-> > (by the page lock on swapcache). We've also to ensure the swapcache
-> > isn't removed before we take the lock as try_to_free_swap won't care
-> > about the page pin.
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+On Wed, Sep 15, 2010 at 04:02:24PM -0700, Hugh Dickins wrote:
+> I had an afterthought, something I've not thought through fully, but am
+> reminded of by Greg's mail for stable: is your patch incomplete?  Just
+> as it's very unlikely but conceivable the pte_same() test is inadequate,
+> isn't the PageSwapCache() test you've added to do_swap_page() inadequate?
+> Doesn't it need a "page_private(page) == entry.val" test too?
 > 
-> Acked-by: Hugh Dickins <hughd@google.com>
-> 
-> Yes, it's a great little find, and long predates the KSM hooks you've
-> had to adjust.  It does upset me (aesthetically) that the KSM case now
-> intrudes into do_swap_swap() much more than it used to; but I have not
-> come up with a better solution, so yes, let's go forward with this.
+> Just as it's conceivable that the same swap has got reused (either via
+> try_to_free_swap or via swapoff+swapon) for a COWed version of the page
+> in that pte slot meanwhile, isn't it conceivable that the page we hold
 
-I had an afterthought, something I've not thought through fully, but am
-reminded of by Greg's mail for stable: is your patch incomplete?  Just
-as it's very unlikely but conceivable the pte_same() test is inadequate,
-isn't the PageSwapCache() test you've added to do_swap_page() inadequate?
-Doesn't it need a "page_private(page) == entry.val" test too?
+Yes, before the fix, the page could be removed from swapcache despite
+being pinned, and the cow copy could reuse the same swap entry and be
+unmapped again so breaking the pte_same check.
 
-Just as it's conceivable that the same swap has got reused (either via
-try_to_free_swap or via swapoff+swapon) for a COWed version of the page
-in that pte slot meanwhile, isn't it conceivable that the page we hold
-while waiting for pagelock, has got freed from swap then reallocated to
-elsewhere on swap meanwhile?  Which, together with your scenario (and I
-suspect the two unlikelihoods are not actually to be multiplied), would
-still lead to the wrong result, unless we add the further test.
+> while waiting for pagelock, has got freed from swap then reallocated to
+> elsewhere on swap meanwhile?  Which, together with your scenario (and I
+> suspect the two unlikelihoods are not actually to be multiplied), would
+> still lead to the wrong result, unless we add the further test.
 
-I apologize if I'm holding up your stable fix, and just vying against
-you in a "world's most unlikely VM race" competition, but I don't at
-present see what prevents this variant.
-
-Hugh
+For this to happen the page would need to be removed from swapcache
+and then added back to swapcache to a different swap entry. But if
+that happens the "page_table" pointer would be set to a different swap
+entry too, so failing the pte_same check. If the swap entry of the
+page changes the page_table will change with it, so the pte_same check
+will fail in the first place, so at first glance it looks like
+checking the page_private isn't necessary and the pte_same check on
+the page_table is enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
