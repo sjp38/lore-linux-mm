@@ -1,47 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 83B1A6B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 04:17:01 -0400 (EDT)
-Date: Wed, 15 Sep 2010 10:16:53 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC][PATCH] Cross Memory Attach
-Message-ID: <20100915081653.GA16406@elte.hu>
-References: <20100915104855.41de3ebf@lilo>
- <20100915080235.GA13152@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2193A6B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 04:29:03 -0400 (EDT)
+Date: Wed, 15 Sep 2010 16:28:43 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+Message-ID: <20100915082843.GA17252@localhost>
+References: <20100915091118.3dbdc961@notabene>
+ <4C90139A.1080809@redhat.com>
+ <20100915122334.3fa7b35f@notabene>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100915080235.GA13152@elte.hu>
+In-Reply-To: <20100915122334.3fa7b35f@notabene>
 Sender: owner-linux-mm@kvack.org
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
+To: Neil Brown <neilb@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
+Neil,
 
-> > NPB:
-> > ====
-> > BT - 12% improvement
-> > FT - 15% improvement
-> > IS - 30% improvement
-> > SP - 34% improvement
-> > 
-> > IMB:
-> > ===
-> > 		
-> > Ping Pong - ~30% improvement
-> > Ping Ping - ~120% improvement
-> > SendRecv - ~100% improvement
-> > Exchange - ~150% improvement
-> > Gather(v) - ~20% improvement
-> > Scatter(v) - ~20% improvement
-> > AlltoAll(v) - 30-50% improvement
+Sorry for the rushed and imaginary ideas this morning..
 
-btw., how does OpenMPI signal the target tasks that something happened 
-to their address space - is there some pipe/socket side-channel, or 
-perhaps purely based on flags in the modified memory areas, which are 
-polled?
+> @@ -1101,6 +1101,12 @@ static unsigned long shrink_inactive_lis
+>  	int lumpy_reclaim = 0;
+>  
+>  	while (unlikely(too_many_isolated(zone, file, sc))) {
+> +		if ((sc->gfp_mask & GFP_IOFS) != GFP_IOFS)
+> +			/* Not allowed to do IO, so mustn't wait
+> +			 * on processes that might try to
+> +			 */
+> +			return SWAP_CLUSTER_MAX;
+> +
 
-	Ingo
+The above patch should behavior like this: it returns SWAP_CLUSTER_MAX
+to cheat all the way up to believe "enough pages have been reclaimed".
+So __alloc_pages_direct_reclaim() see non-zero *did_some_progress and
+go on to call get_page_from_freelist(). That normally fails because
+the task didn't really scanned the LRU lists. However it does have the
+possibility to succeed -- when so many processes are doing concurrent
+direct reclaims, it may luckily get one free page reclaimed by other
+tasks. What's more, if it does fail to get a free page, the upper
+layer __alloc_pages_slowpath() will be repeat recalling
+__alloc_pages_direct_reclaim(). So, sooner or later it will succeed in
+"stealing" a free page reclaimed by other tasks.
+
+In summary, the patch behavior for !__GFP_IO/FS is
+- won't do any page reclaim
+- won't fail the page allocation (unexpected)
+- will wait and steal one free page from others (unreasonable)
+
+So it will address the problem you encountered, however it sounds
+pretty unexpected and illogical behavior, right?
+
+I believe this patch will address the problem equally well.
+What do you think?
+
+Thanks,
+Fengguang
+---
+
+mm: Avoid possible deadlock caused by too_many_isolated()
+
+Neil finds that if too_many_isolated() returns true while performing
+direct reclaim we can end up waiting for other threads to complete their
+direct reclaim.  If those threads are allowed to enter the FS or IO to
+free memory, but this thread is not, then it is possible that those
+threads will be waiting on this thread and so we get a circular
+deadlock.
+
+some task enters direct reclaim with GFP_KERNEL
+  => too_many_isolated() false
+    => vmscan and run into dirty pages
+      => pageout()
+        => take some FS lock
+	  => fs/block code does GFP_NOIO allocation
+	    => enter direct reclaim again
+	      => too_many_isolated() true
+		=> waiting for others to progress, however the other
+		   tasks may be circular waiting for the FS lock..
+
+The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
+priority than normal ones, by honouring them higher throttle threshold.
+
+Now !__GFP_IO/FS reclaims won't be waiting for __GFP_IO/FS reclaims to
+progress. They will be blocked only when there are too many concurrent
+!__GFP_IO/FS reclaims, however that's very unlikely because the IO-less
+direct reclaims is able to progress much more faster, and they won't
+deadlock each other. The threshold is raised high enough for them, so
+that there can be sufficient parallel progress of !__GFP_IO/FS reclaims.
+
+Reported-by: NeilBrown <neilb@suse.de>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+--- linux-next.orig/mm/vmscan.c	2010-09-15 11:58:58.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-09-15 15:36:14.000000000 +0800
+@@ -1141,36 +1141,39 @@ int isolate_lru_page(struct page *page)
+ 	return ret;
+ }
+ 
+ /*
+  * Are there way too many processes in the direct reclaim path already?
+  */
+ static int too_many_isolated(struct zone *zone, int file,
+ 		struct scan_control *sc)
+ {
+ 	unsigned long inactive, isolated;
++	int ratio;
+ 
+ 	if (current_is_kswapd())
+ 		return 0;
+ 
+ 	if (!scanning_global_lru(sc))
+ 		return 0;
+ 
+ 	if (file) {
+ 		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+ 		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+ 	} else {
+ 		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
+ 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
+ 	}
+ 
+-	return isolated > inactive;
++	ratio = sc->gfp_mask & (__GFP_IO | __GFP_FS) ? 1 : 8;
++
++	return isolated > inactive * ratio;
+ }
+ 
+ /*
+  * TODO: Try merging with migrations version of putback_lru_pages
+  */
+ static noinline_for_stack void
+ putback_lru_pages(struct zone *zone, struct scan_control *sc,
+ 				unsigned long nr_anon, unsigned long nr_file,
+ 				struct list_head *page_list)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
