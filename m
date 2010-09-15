@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 521AF6B007B
-	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 23:13:49 -0400 (EDT)
-Date: Wed, 15 Sep 2010 11:13:43 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 09B2D6B007B
+	for <linux-mm@kvack.org>; Tue, 14 Sep 2010 23:17:47 -0400 (EDT)
+Date: Wed, 15 Sep 2010 13:17:35 +1000
+From: Neil Brown <neilb@suse.de>
 Subject: Re: Deadlock possibly caused by too_many_isolated.
-Message-ID: <20100915031343.GA12005@localhost>
-References: <20100915091118.3dbdc961@notabene>
- <4C90139A.1080809@redhat.com>
- <20100915122334.3fa7b35f@notabene>
- <20100915023735.GA9175@localhost>
- <20100915025454.GA10230@localhost>
- <20100915030640.GA11141@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <20100915131735.08899288@notabene>
 In-Reply-To: <20100915030640.GA11141@localhost>
+References: <20100915091118.3dbdc961@notabene>
+	<4C90139A.1080809@redhat.com>
+	<20100915122334.3fa7b35f@notabene>
+	<20100915023735.GA9175@localhost>
+	<20100915025454.GA10230@localhost>
+	<20100915030640.GA11141@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Neil Brown <neilb@suse.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
 Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 15, 2010 at 11:06:40AM +0800, Wu Fengguang wrote:
+On Wed, 15 Sep 2010 11:06:40 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
+
 > On Wed, Sep 15, 2010 at 10:54:54AM +0800, Wu Fengguang wrote:
 > > On Wed, Sep 15, 2010 at 10:37:35AM +0800, Wu Fengguang wrote:
 > > > On Wed, Sep 15, 2010 at 10:23:34AM +0800, Neil Brown wrote:
@@ -78,40 +80,49 @@ On Wed, Sep 15, 2010 at 11:06:40AM +0800, Wu Fengguang wrote:
 > > prevent possible regressions.
 > 
 > Plus __GFP_WAIT..
+> 
+> ---
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 225a759..6a896eb 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1135,6 +1135,7 @@ static int too_many_isolated(struct zone *zone, int file,
+>  		struct scan_control *sc)
+>  {
+>  	unsigned long inactive, isolated;
+> +	int ratio;
+>  
+>  	if (current_is_kswapd())
+>  		return 0;
+> @@ -1150,7 +1151,15 @@ static int too_many_isolated(struct zone *zone, int file,
+>  		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
+>  	}
+>  
+> -	return isolated > inactive;
+> +	ratio = 1;
+> +	if (!(sc->gfp_mask & (__GFP_FS)))
+> +		ratio <<= 1;
+> +	if (!(sc->gfp_mask & (__GFP_IO)))
+> +		ratio <<= 1;
+> +	if (!(sc->gfp_mask & (__GFP_WAIT)))
+> +		ratio <<= 1;
+> +
+> +	return isolated > inactive * ratio;
+>  }
+>  
+>  /*
 
-Ah sorry! __GFP_WAIT cannot afford to wait by definition..
 
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 225a759..becc63a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1135,10 +1135,14 @@ static int too_many_isolated(struct zone *zone, int file,
- 		struct scan_control *sc)
- {
- 	unsigned long inactive, isolated;
-+	int ratio;
- 
- 	if (current_is_kswapd())
- 		return 0;
- 
-+	if (!(sc->gfp_mask & __GFP_WAIT))
-+		return 0;
-+
- 	if (!scanning_global_lru(sc))
- 		return 0;
- 
-@@ -1150,7 +1154,9 @@ static int too_many_isolated(struct zone *zone, int file,
- 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
- 	}
- 
--	return isolated > inactive;
-+	ratio = sc->gfp_mask & (__GFP_IO | __GFP_FS) ? 1 : 8;
-+
-+	return isolated > inactive * ratio;
- }
- 
- /*
+Are you suggesting this instead of my patch, or as well as my patch?
+
+Because while I think it sounds like a good idea I don't think it actually
+removes the chance of a deadlock, just makes it a lot less likely.
+So I think your patch combined with my patch would be a good total solution.
+
+Do you agree?
+
+Thanks,
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
