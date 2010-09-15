@@ -1,27 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 586006B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:07:50 -0400 (EDT)
-Date: Wed, 15 Sep 2010 22:07:31 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2E8836B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 16:10:13 -0400 (EDT)
+Date: Wed, 15 Sep 2010 22:10:02 +0200
 From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH] unlink_anon_vmas in __split_vma in case of error
-Message-ID: <20100915200731.GC15987@redhat.com>
-References: <20100915171816.GQ5981@random.random>
+Subject: Re: [PATCH] fix rmap walk during fork
+Message-ID: <20100915201002.GD15987@redhat.com>
+References: <20100915171657.GP5981@random.random>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100915171816.GQ5981@random.random>
+In-Reply-To: <20100915171657.GP5981@random.random>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 15, 2010 at 07:18:16PM +0200, Andrea Arcangeli wrote:
+On Wed, Sep 15, 2010 at 07:16:57PM +0200, Andrea Arcangeli wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> If __split_vma fails because of an out of memory condition the
-> anon_vma_chain isn't teardown and freed potentially leading to rmap
-> walks accessing freed vma information plus there's a memleak.
+> The below bug in fork lead to the rmap walk finding the parent huge-pmd twice
+> instead of just one, because the anon_vma_chain objects of the child vma still
+> point to the vma->vm_mm of the parent. The below patch fixes it by making the
+> rmap walk accurate during fork. It's not a big deal normally but it
+> worth being accurate considering the cost is the same.
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
