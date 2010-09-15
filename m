@@ -1,53 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 969836B0078
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:34:20 -0400 (EDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
-	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100915135016.C9F1.A69D9226@jp.fujitsu.com>
-	<1284531262.27089.15725.camel@nimitz>
-	<m1d3se7t0h.fsf@fess.ebiederm.org>
-	<1284578821.27089.17409.camel@nimitz>
-Date: Wed, 15 Sep 2010 14:34:12 -0700
-In-Reply-To: <1284578821.27089.17409.camel@nimitz> (Dave Hansen's message of
-	"Wed, 15 Sep 2010 12:27:01 -0700")
-Message-ID: <m17him4ror.fsf@fess.ebiederm.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AAB56B0078
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:47:45 -0400 (EDT)
+Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
+	by smtp-out.google.com with ESMTP id o8FLlfK8027202
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:41 -0700
+Received: from vws9 (vws9.prod.google.com [10.241.21.137])
+	by wpaz5.hot.corp.google.com with ESMTP id o8FLldt6006236
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:40 -0700
+Received: by vws9 with SMTP id 9so441491vws.20
+        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 14:47:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
+In-Reply-To: <1284579969.21906.451.camel@calx>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com>
+	<201009151034.22497.knikanth@suse.de>
+	<20100915141710.C9F7.A69D9226@jp.fujitsu.com>
+	<201009151201.11359.knikanth@suse.de>
+	<20100915140911.GC4383@balbir.in.ibm.com>
+	<alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+	<1284561982.21906.280.camel@calx>
+	<alpine.LNX.2.00.1009151648390.28912@zhemvz.fhfr.qr>
+	<1284571473.21906.428.camel@calx>
+	<AANLkTimYQgm6nKZ4TantPiL4kmUP9FtMQwzqeetVnGrr@mail.gmail.com>
+	<1284579969.21906.451.camel@calx>
+Date: Wed, 15 Sep 2010 14:47:39 -0700
+Message-ID: <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
+ reported clean in smaps
+From: Hugh Dickins <hugh.dickins@tiscali.co.uk>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com
+To: Matt Mackall <mpm@selenic.com>
+Cc: Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, Nikanth Karthikesan <knikanth@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen <dave@linux.vnet.ibm.com> writes:
-
-> On Wed, 2010-09-15 at 11:37 -0700, Eric W. Biederman wrote:
->> > I'm worried that there are users out there experiencing real problems
->> > that aren't reporting it because "workarounds" like this just paper over
->> > the issue.
->> 
->> For what it is worth.  I had a friend ask me about a system that had 50%
->> of it's memory consumed by slab caches.  20GB out of 40GB.  The kernel
->> was suse? 2.6.27 so it's old, but if you are curious.
->> /proc/sys/vm/drop_caches does nothing in that case. 
+On Wed, Sep 15, 2010 at 12:46 PM, Matt Mackall <mpm@selenic.com> wrote:
+> On Wed, 2010-09-15 at 12:18 -0700, Hugh Dickins wrote:
+>> The problem is that /proc/pid/smaps exports a simplified view of the
+>> VM, and Richard and Nikanth were hoping that it gave them some info
+>> which it has never pretended to give them,
+>>
+>> It happens to use a pte_dirty(ptent) test: you could argue that that
+>> should be pte_dirty(ptent) || PageDirty(page) (which would then "fix
+>> the issue" which Richard sees with swapoff/swapon),
 >
-> Was it the reclaimable caches doing it, though?  The other really common
-> cause is kmalloc() leaks.
+> That might be interesting. Are there any other notable cases where
+> pte_dirty() differs from PageDirty()?
 
-It was reclaimable caches.  He kept seeing the cache sizes of the
-problem caches shrink.  On an idle system he said he was seeing
-about 16MB/min getting free or something like that.  Something
-that would take hours and hours before things freed up.
+I don't know about "other notable".  A page may very well be PageDirty
+(e.g. modified by a write system call) without any of the ptes
+pointing to it (if there even are any) marked as pte_dirty.  A page
+may very well not be marked PageDirty yet, though one or more of the
+ptes pointing to it have been marked pte_dirty when userspace made a
+write access to the page via that pte.   Traditionally (when
+/proc/pid/smaps was first reporting dirty versus clean ptes) the pte
+dirtiness would later be found and propagated through to PageDirtiness
+(clearing the pte dirtiness), which would later be cleaned when the
+page was written out to backing store (file or swap).
 
-I asked and my friend told me that according to slabtop the slab
-with the most memory used kept changing dramatically and he could
-not see a pattern.
+PeterZ's writeback work in 2.6.19 (set_page_dirty_balance,
+clear_page_dirty_for_io etc.) tightened up writeback from (most: tmpfs
+is one exception) shared file mmaps, synchronizing the PageDirty more
+carefully with the pte_dirty; and perhaps there is some inconsistency
+there, that we never felt compelled to keep pte and Page so tightly in
+synch in the anonymous/Swap case - it would have been unnecessary
+overhead (though I repeatedly forget the essence of why not - file
+syncing, and pdflush activity,  were relevant considerations; but I
+cannot now put my finger on precisely why shared file writing needed
+to be fixed, but anonymous dirtying could be left unchanged).
 
-So at least on one old kernel on one strange workload there was a problem.
+But even if you replace smaps's pte_dirty(ptent) tests by
+pte_dirty(ptent) || PageDirty(page) tests, it wouldn't be doing what
+Richard and Nikanth want - they want clean ptes of clean PageSwapCache
+to be reported as dirty, despite being clean copies of backing store;
+and I can understand your reluctance to go that far.  I think
+reporting "Anon:" pages is more useful - in part because we have no
+counts of Anon+Swap, yet that's the quantity which vm_enough_memory
+may place a limit upon (but beware, it does of course get more
+complicated: tmpfs files come out of that tally too, but would not
+show up in this way).
 
-Eric
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
