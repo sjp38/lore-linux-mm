@@ -1,87 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A74BC6B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 02:32:07 -0400 (EDT)
-Message-ID: <4C91B9E9.4020701@ens-lyon.org>
-Date: Thu, 16 Sep 2010 08:32:09 +0200
-From: Brice Goglin <Brice.Goglin@ens-lyon.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B55E56B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 02:34:42 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G6YduB027826
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Sep 2010 15:34:39 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5617445DE4F
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A12045DE4E
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EEB331DB8015
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:38 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EC641DB8014
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:35 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] smaps: fix dirty pages accounting
+In-Reply-To: <201009161135.00129.knikanth@suse.de>
+References: <20100916125147.CA08.A69D9226@jp.fujitsu.com> <201009161135.00129.knikanth@suse.de>
+Message-Id: <20100916153420.3BBD.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] Cross Memory Attach
-References: <20100915104855.41de3ebf@lilo> <4C90A6C7.9050607@redhat.com> <20100916001232.0c496b02@lilo>
-In-Reply-To: <20100916001232.0c496b02@lilo>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
+Date: Thu, 16 Sep 2010 15:34:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Christopher Yeoh <cyeoh@au1.ibm.com>
-Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Le 15/09/2010 16:42, Christopher Yeoh a ecrit :
-> On Wed, 15 Sep 2010 12:58:15 +0200
-> Avi Kivity <avi@redhat.com> wrote:
->
->   
->>   On 09/15/2010 03:18 AM, Christopher Yeoh wrote:
->>     
->>> The basic idea behind cross memory attach is to allow MPI programs
->>> doing intra-node communication to do a single copy of the message
->>> rather than a double copy of the message via shared memory.
->>>       
->> If the host has a dma engine (many modern ones do) you can reduce
->> this to zero copies (at least, zero processor copies).
->>     
-> Yes, this interface doesn't really support that. I've tried to keep
-> things really simple here, but I see potential for increasing
-> level/complexity of support with diminishing returns:
->
-> 1. single copy (basically what the current implementation does)
-> 2. support for async dma offload (rather arch specific)
-> 3. ability to map part of another process's address space directly into
->    the current one. Would have setup/tear down overhead, but this would
->    be useful specifically for reduction operations where we don't even
->    need to really copy the data once at all, but use it directly in
->    arithmetic/logical operations on the receiver.
->
-> For reference, there is also knem http://runtime.bordeaux.inria.fr/knem/
-> which does implement (2) for I/OAT, though it looks to me the interface
-> and implementation are relatively speaking quite a bit more complex.
->   
+Currently, /proc/<pid>/smaps have wrong dirty pages accounting.
+Shared_Dirty and Private_Dirty output only pte dirty pages and
+ignore PG_dirty page flag. It is difference against documentation,
+but also inconsistent against Referenced field. (Referenced checks
+both pte and page flags)
 
-I am the guy doing KNEM so I can comment on this. The I/OAT part of KNEM
-was mostly a research topic, it's mostly useless on current machines
-since the memcpy performance is much larger than I/OAT DMA Engine. We
-also have an offload model with a kernel thread, but it wasn't used a
-lot so far. These features can be ignored for the current discussion.
+This patch fixes it.
 
-We've been working on this for a while with MPICH and OpenMPI developers
-(both already use KNEM), and here's what I think is missing in
-Christopher's proposal:
-* Vectorial buffer support: MPI likes things like datatypes, which make
-buffers non-contigous. You could add vectorial buffer support to your
-interface, but the users would have to store the data-representation of
-each process in all processes. Not a good idea, it's easier to keep the
-knowledge of the non-contigous-ness of the remote buffer only in the
-remote process.
-* Collectives: You don't want to pin/unpin the same region over and
-over, it's overkill when multiple processes are reading for the same
-exact buffer (broadcast) or from contigous parts of the same buffer
-(scatter).
+Test program:
 
-So what we do in KNEM is:
-* declare a memory region (sets of non-contigous segments + protection),
-aka get_user_pages and return an associated cookie id
-* have syscalls to read/write from region given a cookie, an offset in
-the region and a length
-This one-sided interface looks like an InfiniBand model, but only for
-intra-node data transfers.
+ large-array.c
+ ---------------------------------------------------
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
 
-So OpenMPI and MPICH declare regions, pass their cookies through their
-shared-memory buffer, and the remote process reads from there. Then,
-they notify the first process that it may destroy the region (can be
-automatic if the region creator passed a specific flag saying destroy
-after first use).
+ char array[1*1024*1024*1024L];
 
-Brice
+ int main(void)
+ {
+         memset(array, 1, sizeof(array));
+         pause();
+
+         return 0;
+ }
+ ---------------------------------------------------
+
+Test case:
+ 1. run ./large-array
+ 2. cat /proc/`pidof large-array`/smaps
+ 3. swapoff -a
+ 4. cat /proc/`pidof large-array`/smaps again
+
+Test result:
+ <before patch>
+
+00601000-40601000 rw-p 00000000 00:00 0
+Size:            1048576 kB
+Rss:             1048576 kB
+Pss:             1048576 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:    218992 kB   <-- showed pages as clean incorrectly
+Private_Dirty:    829584 kB
+Referenced:       388364 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+
+ <after patch>
+
+00601000-40601000 rw-p 00000000 00:00 0
+Size:            1048576 kB
+Rss:             1048576 kB
+Pss:             1048576 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:   1048576 kB  <-- fixed
+Referenced:       388480 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ fs/proc/task_mmu.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 439fc1f..7415f13 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -362,13 +362,13 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			mss->referenced += PAGE_SIZE;
+ 		mapcount = page_mapcount(page);
+ 		if (mapcount >= 2) {
+-			if (pte_dirty(ptent))
++			if (pte_dirty(ptent) || PageDirty(page))
+ 				mss->shared_dirty += PAGE_SIZE;
+ 			else
+ 				mss->shared_clean += PAGE_SIZE;
+ 			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
+ 		} else {
+-			if (pte_dirty(ptent))
++			if (pte_dirty(ptent) || PageDirty(page))
+ 				mss->private_dirty += PAGE_SIZE;
+ 			else
+ 				mss->private_clean += PAGE_SIZE;
+-- 
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
