@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2FD6B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 04:23:29 -0400 (EDT)
-Date: Thu, 16 Sep 2010 09:23:12 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 7/8] writeback: Do not sleep on the congestion queue if
-	there are no congested BDIs
-Message-ID: <20100916082312.GA15709@csn.ul.ie>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <1284553671-31574-8-git-send-email-mel@csn.ul.ie> <20100916075949.GA16115@barrios-desktop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 417FF6B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 05:15:08 -0400 (EDT)
+Message-ID: <4C91E01E.4070209@inria.fr>
+Date: Thu, 16 Sep 2010 11:15:10 +0200
+From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100916075949.GA16115@barrios-desktop>
+Subject: Re: [RFC][PATCH] Cross Memory Attach
+References: <20100915104855.41de3ebf@lilo> <4C90A6C7.9050607@redhat.com> <20100916001232.0c496b02@lilo> <4C91B9E9.4020701@ens-lyon.org>
+In-Reply-To: <4C91B9E9.4020701@ens-lyon.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christopher Yeoh <cyeoh@au1.ibm.com>
+Cc: Avi Kivity <avi@redhat.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 04:59:49PM +0900, Minchan Kim wrote:
-> On Wed, Sep 15, 2010 at 01:27:50PM +0100, Mel Gorman wrote:
-> > If congestion_wait() is called with no BDI congested, the caller will sleep
-> > for the full timeout and this may be an unnecessary sleep. This patch adds
-> > a wait_iff_congested() that checks congestion and only sleeps if a BDI is
-> > congested else, it calls cond_resched() to ensure the caller is not hogging
-> > the CPU longer than its quota but otherwise will not sleep.
-> > 
-> > This is aimed at reducing some of the major desktop stalls reported during
-> > IO. For example, while kswapd is operating, it calls congestion_wait()
-> > but it could just have been reclaiming clean page cache pages with no
-> > congestion. Without this patch, it would sleep for a full timeout but after
-> > this patch, it'll just call schedule() if it has been on the CPU too long.
-> > Similar logic applies to direct reclaimers that are not making enough
-> > progress.
-> 
-> I confused due to kswapd you mentioned.
-> This patch affects only direct reclaim.
-> Please, complete the description. 
-> 
+Le 16/09/2010 08:32, Brice Goglin a ecrit :
+> I am the guy doing KNEM so I can comment on this. The I/OAT part of KNEM
+> was mostly a research topic, it's mostly useless on current machines
+> since the memcpy performance is much larger than I/OAT DMA Engine. We
+> also have an offload model with a kernel thread, but it wasn't used a
+> lot so far. These features can be ignored for the current discussion.
 
-My bad, when the description was first written, both were affected and I
-neglected to correct the description. I'm still debating with myself as
-to whether the kswapd congestion_wait() should be wait_iff_congested()
-or not.
+I've just created a knem branch where I removed all the above, and some
+other stuff that are not necessary for normal users. So it just contains
+the region management code and two commands to copy between regions or
+between a region and some local iovecs.
 
-Thanks
+Commands are visible at (still uses ioctls since it doesn't matter while
+discussing the features):
+https://gforge.inria.fr/scm/viewvc.php/*checkout*/branches/kernel/driver/linux/knem_main.c?root=knem&content-type=text%2Fplain
 
-> "This patch affects direct reclaimer to reduce stall"
-> Otherwise, looks good to me. 
-> 
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
+And the actual driver is at:
+https://gforge.inria.fr/scm/viewvc.php/*checkout*/branches/kernel/common/knem_io.h?root=knem&content-type=text%2Fplain
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Brice
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
