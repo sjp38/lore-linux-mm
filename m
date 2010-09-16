@@ -1,67 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CFF66B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 20:10:52 -0400 (EDT)
-Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
-	by smtp-out.google.com with ESMTP id o8G0AnGC006061
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:10:49 -0700
-Received: from gwj18 (gwj18.prod.google.com [10.200.10.18])
-	by wpaz13.hot.corp.google.com with ESMTP id o8G0Aio9031392
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:10:49 -0700
-Received: by gwj18 with SMTP id 18so646338gwj.2
-        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 17:10:44 -0700 (PDT)
-Date: Wed, 15 Sep 2010 17:10:36 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] fix swapin race condition
-In-Reply-To: <20100915234237.GR5981@random.random>
-Message-ID: <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com>
-References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils> <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com> <20100915234237.GR5981@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 820106B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 20:17:28 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G0HOXD031708
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Sep 2010 09:17:25 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8355345DE55
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:17:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 531C345DE52
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:17:24 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 293F01DB8043
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:17:24 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C89311DB803C
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:17:23 +0900 (JST)
+Date: Thu, 16 Sep 2010 09:12:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
+Message-Id: <20100916091215.ef59acd7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100915192454.GD5585@tpepper-t61p.dolavim.us>
+References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
+	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100915192454.GD5585@tpepper-t61p.dolavim.us>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Tim Pepper <lnxninja@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010, Andrea Arcangeli wrote:
-> On Wed, Sep 15, 2010 at 04:02:24PM -0700, Hugh Dickins wrote:
-> > I had an afterthought, something I've not thought through fully, but am
-> > reminded of by Greg's mail for stable: is your patch incomplete?  Just
-> > as it's very unlikely but conceivable the pte_same() test is inadequate,
-> > isn't the PageSwapCache() test you've added to do_swap_page() inadequate?
-> > Doesn't it need a "page_private(page) == entry.val" test too?
+On Wed, 15 Sep 2010 12:24:55 -0700
+"Tim Pepper" <lnxninja@linux.vnet.ibm.com> wrote:
+
+> On Wed 15 Sep at 13:33:03 +0900 kamezawa.hiroyu@jp.fujitsu.com said:
+> > >  
+> > > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
+> > > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-14 15:44:29.000000000 -0700
+> > > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-14 15:58:31.000000000 -0700
+> > > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
+> > >  {
+> > >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
+> > >  	if (write) {
+> > > +		WARN_ONCE(1, "kernel caches forcefully dropped, "
+> > > +			     "see Documentation/sysctl/vm.txt\n");
 > > 
-> > Just as it's conceivable that the same swap has got reused (either via
-> > try_to_free_swap or via swapoff+swapon) for a COWed version of the page
-> > in that pte slot meanwhile, isn't it conceivable that the page we hold
+> > Documentation updeta seems good but showing warning seems to be meddling to me.
 > 
-> Yes, before the fix, the page could be removed from swapcache despite
-> being pinned, and the cow copy could reuse the same swap entry and be
-> unmapped again so breaking the pte_same check.
+> We already have examples of things where we warn in order to turn up
+> "interesting" userspace code, in the hope of starting dialog and getting
+> things fixed for the future.  I don't see this so much as meddling as
+> one of the fundamental aspects of open source.
 > 
-> > while waiting for pagelock, has got freed from swap then reallocated to
-> > elsewhere on swap meanwhile?  Which, together with your scenario (and I
-> > suspect the two unlikelihoods are not actually to be multiplied), would
-> > still lead to the wrong result, unless we add the further test.
+> drop_caches probably originally should have gone in under a CONFIG_DEBUG
+> (even if all the distros would have turned it on), and had a WARN_ON
+> (personally I'd argue for this compared to WARN_ONCE()), and even have
+> been exposed in debugfs not procfs...but it's part of the "the interface"
+> at this point.
 > 
-> For this to happen the page would need to be removed from swapcache
-> and then added back to swapcache to a different swap entry. But if
-> that happens the "page_table" pointer would be set to a different swap
-> entry too, so failing the pte_same check. If the swap entry of the
-> page changes the page_table will change with it, so the pte_same check
-> will fail in the first place, so at first glance it looks like
-> checking the page_private isn't necessary and the pte_same check on
-> the page_table is enough.
+> Somebody doing debug and testing which leverages drop_caches should not
+> be bothered by a WARN_ON().  Somebody using it to "fix" the kernel with
+> repeated/regular calls to drop_caches should get called out for fixing
+> themselves and the WARN_*()'s noting the comm could help that, unless
+> somebody has a use case where repeated/regular calls to drop_caches
+> is valid and not connected to buggy usage or explicit performance
+> debug/testing?
+> 
 
-I agree that if my scenario happened on its own, the pte_same check
-would catch it.  But if my scenario happens along with your scenario
-(and I'm thinking that the combination is not that much less likely
-than either alone), then the PageSwapCache test will succeed and the
-pte_same test will succeed, but we're still putting the wrong page into
-the pte, since this page is now represented by a different swap entry
-(and the page that should be there by our original swap entry).
+I hear a customer's case. His server generates 3-80000+ new dentries per day
+and dentries will be piled up to 1000000+ in a month. This makes open()'s 
+performance very bad because Hash-lookup will be heavy. (He has very big memory.)
 
-Hugh
+What we could ask him was
+  - rewrite your application. or
+  - reboot once in a month (and change hash size) or
+  - drop_cache once in a month
+
+Because their servers cannot stop, he used drop_caches once in a month
+while his server is idle, at night. Changing HashSize cannot be a permanent
+fix because he may not stop the server for years.
+
+For rare users who have 10000000+ of files and tons of free memory, drop_cache
+can be an emergency help. 
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
