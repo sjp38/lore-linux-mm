@@ -1,63 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A0EB6B007E
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 08:16:05 -0400 (EDT)
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by e28smtp02.in.ibm.com (8.14.4/8.13.1) with ESMTP id o8GC880J012683
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 17:38:08 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8GC88Br2625644
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 17:38:08 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8GC87KK003514
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 22:08:07 +1000
-Date: Thu, 16 Sep 2010 17:38:06 +0530
-From: Ankita Garg <ankita@in.ibm.com>
-Subject: Re: Reserved pages in PowerPC
-Message-ID: <20100916120806.GJ2332@in.ibm.com>
-Reply-To: Ankita Garg <ankita@in.ibm.com>
-References: <20100916052311.GC2332@in.ibm.com>
- <1284631464.30449.85.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1284631464.30449.85.camel@pasglop>
+	by kanga.kvack.org (Postfix) with ESMTP id 15AF96B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:00:53 -0400 (EDT)
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [202.81.31.246])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o8GE0tSE026812
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 00:00:55 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8GE0sXt2220196
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 00:00:55 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8GE0sYR027654
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 00:00:54 +1000
+Date: Thu, 16 Sep 2010 23:30:45 +0930
+From: Christopher Yeoh <cyeoh@au1.ibm.com>
+Subject: Re: [RFC][PATCH] Cross Memory Attach
+Message-ID: <20100916233045.73aecc26@lilo>
+In-Reply-To: <4C91E01E.4070209@inria.fr>
+References: <20100915104855.41de3ebf@lilo>
+	<4C90A6C7.9050607@redhat.com>
+	<20100916001232.0c496b02@lilo>
+	<4C91B9E9.4020701@ens-lyon.org>
+	<4C91E01E.4070209@inria.fr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linuxppc-dev@ozlabs.org, linux-mm@kvack.org
+To: Brice Goglin <Brice.Goglin@inria.fr>
+Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Ben,
+On Thu, 16 Sep 2010 11:15:10 +0200
+Brice Goglin <Brice.Goglin@inria.fr> wrote:
 
-On Thu, Sep 16, 2010 at 08:04:24PM +1000, Benjamin Herrenschmidt wrote:
-> On Thu, 2010-09-16 at 10:53 +0530, Ankita Garg wrote:
-> > 
-> > With some debugging I found that that section has reserved pages. On
-> > instrumenting the memblock_reserve() and reserve_bootmem() routines, I can see
-> > that many of the memory areas are reserved for kernel and initrd by the
-> > memblock reserve() itself. reserve_bootmem then looks at the pages already
-> > reserved and marks them reserved. However, for the very last section, I see
-> > that bootmem reserves it but I am unable to find a corresponding reservation
-> > by the memblock code.
-> 
-> It's probably RTAS (firmware runtime services). I'ts instanciated at
-> boot from prom_init and we do favor high addresses for it below 1G iirc.
->
+> Le 16/09/2010 08:32, Brice Goglin a =E9crit :
+> > I am the guy doing KNEM so I can comment on this. The I/OAT part of
+> > KNEM was mostly a research topic, it's mostly useless on current
+> > machines since the memcpy performance is much larger than I/OAT DMA
+> > Engine. We also have an offload model with a kernel thread, but it
+> > wasn't used a lot so far. These features can be ignored for the
+> > current discussion.
+>=20
+> I've just created a knem branch where I removed all the above, and
+> some other stuff that are not necessary for normal users. So it just
+> contains the region management code and two commands to copy between
+> regions or between a region and some local iovecs.
 
-Thanks Ben for taking a look at this. So I checked the rtas messages on
-the serial console and see the following:
+When I did the original hpcc runs for CMA vs shared mem double copy I
+also did some KNEM runs as a bit of a sanity check. The CMA OpenMPI
+implementation actually uses the infrastructure KNEM put into the
+OpenMPI shared mem btl - thanks for that btw it made things much easier
+for me to test CMA.
 
-instantiating rtas at 0x000000000f632000... done
+Interestingly although KNEM and CMA fundamentally are doing very
+similar things, at least with hpcc I didn't see as much of a gain with
+KNEM as with CMA:
 
-Which does not correspond to the higher addresses that I see as reserved
-(observation on a 16G machine).
+MB/s			=09
+Naturally Ordered	4	8	16	32
+Base	1235	935	622	419
+CMA	4741	3769	1977	703
+KNEM	3362	3091	1857	681
+			=09
+MB/s			=09
+Randomly Ordered	4	8	16	32
+Base	1227	947	638	412
+CMA	4666	3682	1978	710
+KNEM	3348	3050	1883	684
+			=09
+MB/s			=09
+Max Ping Pong	4	8	16	32
+Base	2028	1938	1928	1882
+CMA	7424	7510	7598	7708
+KNEM	5661	5476	6050	6290
 
--- 
-Regards,
-Ankita Garg (ankita@in.ibm.com)
-Linux Technology Center
-IBM India Systems & Technology Labs,
-Bangalore, India
+I don't know the reason behind the difference - if its something
+perculiar to hpcc,  or if there's extra overhead the way that
+knem does setup for copying, or if knem wasn't configured
+optimally. I haven't done any comparison IMB or NPB runs...
+
+syscall and setup overhead does have some measurable effect - although I
+don't have the numbers for it here, neither KNEM nor CMA does quite as
+well with hpcc when compared against a hacked version of hpcc  where
+everything is declared ahead of time as shared memory so the receiver
+can just do a single copy from userspace - which I think is
+representative of a theoretical maximum gain from the single copy
+approach.
+
+Chris
+--=20
+cyeoh@au.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
