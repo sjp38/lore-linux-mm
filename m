@@ -1,96 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 817396B0088
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:40:25 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o8GGeJEO013668
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:20 -0700
-Received: from gwj20 (gwj20.prod.google.com [10.200.10.20])
-	by wpaz37.hot.corp.google.com with ESMTP id o8GGeCdM031790
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:18 -0700
-Received: by gwj20 with SMTP id 20so773360gwj.25
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:18 -0700 (PDT)
-Date: Thu, 16 Sep 2010 09:40:10 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] Export amount of anonymous memory in a mapping via
- smaps
-In-Reply-To: <201009160856.25923.knikanth@suse.de>
-Message-ID: <alpine.DEB.2.00.1009160927110.24798@tigran.mtv.corp.google.com>
-References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com> <1284579969.21906.451.camel@calx> <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com> <201009160856.25923.knikanth@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 00D526B0088
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:50:48 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8GGa003017464
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:36:00 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8GGom3P118140
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:50:48 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8GGomRc031926
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:50:48 -0400
+Subject: [RFCv2][PATCH] add some drop_caches documentation and info messsge
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Thu, 16 Sep 2010 09:50:47 -0700
+Message-Id: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Nikanth Karthikesan <knikanth@suse.de>
-Cc: Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com, kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010, Nikanth Karthikesan wrote:
 
-> Export the number of anonymous pages in a mapping via smaps.
-> 
-> Even the private pages in a mapping backed by a file, would be marked as
-> anonymous, when they are modified. Export this information to user-space via
-> smaps.
-> 
-> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+This version tones down the BUG_ON().  I also noticed that the
+documentation fails to mention that more than just the inode
+and dentry slabs are shrunk.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+--
 
-but I'd prefer if we added a little more justification, such as:
+There is plenty of anecdotal evidence and a load of blog posts
+suggesting that using "drop_caches" periodically keeps your system
+running in "tip top shape".  Perhaps adding some kernel
+documentation will increase the amount of accurate data on its use.
 
-Exporting this count will help gdb to make a better decision on which
-areas need to be dumped in its coredump; and should be useful to others
-studying the memory usage of a process.
+If we are not shrinking caches effectively, then we have real bugs.
+Using drop_caches will simply mask the bugs and make them harder
+to find, but certainly does not fix them, nor is it an appropriate
+"workaround" to limit the size of the caches.
 
-> 
-> ---
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 439fc1f..3c18fc8 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -326,6 +326,7 @@ struct mem_size_stats {
->  	unsigned long private_clean;
->  	unsigned long private_dirty;
->  	unsigned long referenced;
-> +	unsigned long anonymous;
->  	unsigned long swap;
->  	u64 pss;
->  };
-> @@ -356,6 +357,9 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  		if (!page)
->  			continue;
->  
-> +		if (PageAnon(page))
-> +			mss->anonymous += PAGE_SIZE;
-> +
->  		mss->resident += PAGE_SIZE;
->  		/* Accumulate the size in pages that have been accessed. */
->  		if (pte_young(ptent) || PageReferenced(page))
-> @@ -409,6 +413,7 @@ static int show_smap(struct seq_file *m, void *v)
->  		   "Private_Clean:  %8lu kB\n"
->  		   "Private_Dirty:  %8lu kB\n"
->  		   "Referenced:     %8lu kB\n"
-> +		   "Anonymous:      %8lu kB\n"
->  		   "Swap:           %8lu kB\n"
->  		   "KernelPageSize: %8lu kB\n"
->  		   "MMUPageSize:    %8lu kB\n",
-> @@ -420,6 +425,7 @@ static int show_smap(struct seq_file *m, void *v)
->  		   mss.private_clean >> 10,
->  		   mss.private_dirty >> 10,
->  		   mss.referenced >> 10,
-> +		   mss.anonymous >> 10,
->  		   mss.swap >> 10,
->  		   vma_kernel_pagesize(vma) >> 10,
->  		   vma_mmu_pagesize(vma) >> 10);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+It's a great debugging tool, and is really handy for doing things
+like repeatable benchmark runs.  So, add a bit more documentation
+about it, and add a little KERN_NOTICE.  It should help developers
+who are chasing down reclaim-related bugs.
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
+
+ linux-2.6.git-dave/Documentation/sysctl/vm.txt |   33 ++++++++++++++++++++-----
+ linux-2.6.git-dave/fs/drop_caches.c            |    2 +
+ 2 files changed, 29 insertions(+), 6 deletions(-)
+
+diff -puN Documentation/sysctl/vm.txt~update-drop_caches-documentation Documentation/sysctl/vm.txt
+--- linux-2.6.git/Documentation/sysctl/vm.txt~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
++++ linux-2.6.git-dave/Documentation/sysctl/vm.txt	2010-09-16 09:43:52.000000000 -0700
+@@ -135,18 +135,39 @@ Setting this to zero disables periodic w
+ 
+ drop_caches
+ 
+-Writing to this will cause the kernel to drop clean caches, dentries and
+-inodes from memory, causing that memory to become free.
++Writing to this will cause the kernel to drop clean caches, as well as
++reclaimable slab objects like dentries and inodes.  Once dropped, their
++memory becomes free.
+ 
+ To free pagecache:
+ 	echo 1 > /proc/sys/vm/drop_caches
+-To free dentries and inodes:
++To free reclaimable slab objects (includes dentries and inodes):
+ 	echo 2 > /proc/sys/vm/drop_caches
+-To free pagecache, dentries and inodes:
++To free slab objects and pagecache:
+ 	echo 3 > /proc/sys/vm/drop_caches
+ 
+-As this is a non-destructive operation and dirty objects are not freeable, the
+-user should run `sync' first.
++This is a non-destructive operation and will not free any dirty objects.
++To increase the number of objects freed by this operation, the user may run
++`sync' prior to writing to /proc/sys/vm/drop_caches.  This will minimize the
++number of dirty objects on the system and create more candidates to be
++dropped.
++
++This file is not a means to control the growth of the various kernel caches
++(inodes, dentries, pagecache, etc...)  These objects are automatically
++reclaimed by the kernel when memory is needed elsewhere on the system.
++
++Use of this file can cause performance problems.  Since it discards cached
++objects, it may cost a significant amount of I/O and CPU to recreate the
++dropped objects, especially if they were under heavy use.  Because of this,
++use outside of a testing or debugging environment is not recommended.
++
++You may see informational messages in your kernel log when this file is
++used:
++
++	cat (1234): dropped kernel caches: 3
++
++These are informational only.  They do not mean that anything is wrong
++with your system.
+ 
+ ==============================================================
+ 
+diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
+--- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
++++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-16 09:43:52.000000000 -0700
+@@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
+ {
+ 	proc_dointvec_minmax(table, write, buffer, length, ppos);
+ 	if (write) {
++		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
++			current->comm, task_pid_nr(current), sysctl_drop_caches);
+ 		if (sysctl_drop_caches & 1)
+ 			iterate_supers(drop_pagecache_sb, NULL);
+ 		if (sysctl_drop_caches & 2)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
