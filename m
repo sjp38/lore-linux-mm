@@ -1,78 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3175D6B0085
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 11:18:40 -0400 (EDT)
-Date: Thu, 16 Sep 2010 16:18:28 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
-	there are no congested BDIs or if significant congestion is not
-	being encountered in the current zone
-Message-ID: <20100916151827.GA11405@csn.ul.ie>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <1284553671-31574-9-git-send-email-mel@csn.ul.ie> <20100916081338.GB16115@barrios-desktop> <20100916091824.GB15709@csn.ul.ie> <20100916141147.GC16115@barrios-desktop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 817396B0088
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:40:25 -0400 (EDT)
+Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
+	by smtp-out.google.com with ESMTP id o8GGeJEO013668
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:20 -0700
+Received: from gwj20 (gwj20.prod.google.com [10.200.10.20])
+	by wpaz37.hot.corp.google.com with ESMTP id o8GGeCdM031790
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:18 -0700
+Received: by gwj20 with SMTP id 20so773360gwj.25
+        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:40:18 -0700 (PDT)
+Date: Thu, 16 Sep 2010 09:40:10 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] Export amount of anonymous memory in a mapping via
+ smaps
+In-Reply-To: <201009160856.25923.knikanth@suse.de>
+Message-ID: <alpine.DEB.2.00.1009160927110.24798@tigran.mtv.corp.google.com>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com> <1284579969.21906.451.camel@calx> <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com> <201009160856.25923.knikanth@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100916141147.GC16115@barrios-desktop>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > > <snip>
-> > > 
-> > > >  			      struct scan_control *sc)
-> > > >  {
-> > > > +	enum bdi_queue_status ret = QUEUEWRITE_DENIED;
-> > > > +
-> > > >  	if (current->flags & PF_SWAPWRITE)
-> > > > -		return 1;
-> > > > +		return QUEUEWRITE_ALLOWED;
-> > > >  	if (!bdi_write_congested(bdi))
-> > > > -		return 1;
-> > > > +		return QUEUEWRITE_ALLOWED;
-> > > > +	else
-> > > > +		ret = QUEUEWRITE_CONGESTED;
-> > > >  	if (bdi == current->backing_dev_info)
-> > > > -		return 1;
-> > > > +		return QUEUEWRITE_ALLOWED;
-> > > >  
-> > > >  	/* lumpy reclaim for hugepage often need a lot of write */
-> > > >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> > > > -		return 1;
-> > > > -	return 0;
-> > > > +		return QUEUEWRITE_ALLOWED;
-> > > > +	return ret;
-> > > >  }
-> > > 
-> > > The function can't return QUEUEXXX_DENIED.
-> > > It can affect disable_lumpy_reclaim. 
-> > > 
-> > 
-> > Yes, but that change was made in "vmscan: Narrow the scenarios lumpy
-> > reclaim uses synchrounous reclaim". Maybe I am misunderstanding your
-> > objection.
+On Thu, 16 Sep 2010, Nikanth Karthikesan wrote:
+
+> Export the number of anonymous pages in a mapping via smaps.
 > 
-> I means current may_write_to_queue never returns QUEUEWRITE_DENIED.
-> What's the role of it?
+> Even the private pages in a mapping backed by a file, would be marked as
+> anonymous, when they are modified. Export this information to user-space via
+> smaps.
 > 
+> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-As of now, little point because QUEUEWRITE_CONGESTED implies denied. I was allowing
-the possibility of distinguishing between these cases in the future depending
-on what happened with wait_iff_congested(). I will drop it for simplicity
-and reintroduce it when or if there is a distinction between
-denied and congested.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-> In addition, we don't need disable_lumpy_reclaim_mode() in pageout.
-> That's because both PAGE_KEEP and PAGE_KEEP_CONGESTED go to keep_locked
-> and calls disable_lumpy_reclaim_mode at last. 
+but I'd prefer if we added a little more justification, such as:
+
+Exporting this count will help gdb to make a better decision on which
+areas need to be dumped in its coredump; and should be useful to others
+studying the memory usage of a process.
+
 > 
-
-True, good spot.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> ---
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 439fc1f..3c18fc8 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -326,6 +326,7 @@ struct mem_size_stats {
+>  	unsigned long private_clean;
+>  	unsigned long private_dirty;
+>  	unsigned long referenced;
+> +	unsigned long anonymous;
+>  	unsigned long swap;
+>  	u64 pss;
+>  };
+> @@ -356,6 +357,9 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  		if (!page)
+>  			continue;
+>  
+> +		if (PageAnon(page))
+> +			mss->anonymous += PAGE_SIZE;
+> +
+>  		mss->resident += PAGE_SIZE;
+>  		/* Accumulate the size in pages that have been accessed. */
+>  		if (pte_young(ptent) || PageReferenced(page))
+> @@ -409,6 +413,7 @@ static int show_smap(struct seq_file *m, void *v)
+>  		   "Private_Clean:  %8lu kB\n"
+>  		   "Private_Dirty:  %8lu kB\n"
+>  		   "Referenced:     %8lu kB\n"
+> +		   "Anonymous:      %8lu kB\n"
+>  		   "Swap:           %8lu kB\n"
+>  		   "KernelPageSize: %8lu kB\n"
+>  		   "MMUPageSize:    %8lu kB\n",
+> @@ -420,6 +425,7 @@ static int show_smap(struct seq_file *m, void *v)
+>  		   mss.private_clean >> 10,
+>  		   mss.private_dirty >> 10,
+>  		   mss.referenced >> 10,
+> +		   mss.anonymous >> 10,
+>  		   mss.swap >> 10,
+>  		   vma_kernel_pagesize(vma) >> 10,
+>  		   vma_mmu_pagesize(vma) >> 10);
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
