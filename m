@@ -1,68 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 185F06B0083
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 11:00:15 -0400 (EDT)
-Received: by pzk26 with SMTP id 26so470360pzk.14
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 08:00:18 -0700 (PDT)
-Date: Fri, 17 Sep 2010 00:00:10 +0900
-From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [RFC]pagealloc: compensate a task for direct page reclaim
-Message-ID: <20100916150009.GD16115@barrios-desktop>
-References: <1284636396.1726.5.camel@shli-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 3175D6B0085
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 11:18:40 -0400 (EDT)
+Date: Thu, 16 Sep 2010 16:18:28 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
+	there are no congested BDIs or if significant congestion is not
+	being encountered in the current zone
+Message-ID: <20100916151827.GA11405@csn.ul.ie>
+References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <1284553671-31574-9-git-send-email-mel@csn.ul.ie> <20100916081338.GB16115@barrios-desktop> <20100916091824.GB15709@csn.ul.ie> <20100916141147.GC16115@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1284636396.1726.5.camel@shli-laptop>
+In-Reply-To: <20100916141147.GC16115@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 07:26:36PM +0800, Shaohua Li wrote:
-> A task enters into direct page reclaim, free some memory. But sometimes
-> the task can't get a free page after direct page reclaim because
-> other tasks take them (this is quite common in a multi-task workload
-> in my test). This behavior will bring extra latency to the task and is
-> unfair. Since the task already gets penalty, we'd better give it a compensation.
-> If a task frees some pages from direct page reclaim, we cache one freed page,
-> and the task will get it soon. We only consider order 0 allocation, because
-> it's hard to cache order > 0 page.
+> > > <snip>
+> > > 
+> > > >  			      struct scan_control *sc)
+> > > >  {
+> > > > +	enum bdi_queue_status ret = QUEUEWRITE_DENIED;
+> > > > +
+> > > >  	if (current->flags & PF_SWAPWRITE)
+> > > > -		return 1;
+> > > > +		return QUEUEWRITE_ALLOWED;
+> > > >  	if (!bdi_write_congested(bdi))
+> > > > -		return 1;
+> > > > +		return QUEUEWRITE_ALLOWED;
+> > > > +	else
+> > > > +		ret = QUEUEWRITE_CONGESTED;
+> > > >  	if (bdi == current->backing_dev_info)
+> > > > -		return 1;
+> > > > +		return QUEUEWRITE_ALLOWED;
+> > > >  
+> > > >  	/* lumpy reclaim for hugepage often need a lot of write */
+> > > >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+> > > > -		return 1;
+> > > > -	return 0;
+> > > > +		return QUEUEWRITE_ALLOWED;
+> > > > +	return ret;
+> > > >  }
+> > > 
+> > > The function can't return QUEUEXXX_DENIED.
+> > > It can affect disable_lumpy_reclaim. 
+> > > 
+> > 
+> > Yes, but that change was made in "vmscan: Narrow the scenarios lumpy
+> > reclaim uses synchrounous reclaim". Maybe I am misunderstanding your
+> > objection.
 > 
-> Below is a trace output when a task frees some pages in try_to_free_pages(), but
-> get_page_from_freelist() can't get a page in direct page reclaim.
-> 
-> <...>-809   [004]   730.218991: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
-> <...>-806   [001]   730.237969: __alloc_pages_nodemask: progress 147, order 0, pid 806, comm mmap_test
-> <...>-810   [005]   730.237971: __alloc_pages_nodemask: progress 147, order 0, pid 810, comm mmap_test
-> <...>-809   [004]   730.237972: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
-> <...>-811   [006]   730.241409: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
-> <...>-809   [004]   730.241412: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
-> <...>-812   [007]   730.241435: __alloc_pages_nodemask: progress 147, order 0, pid 812, comm mmap_test
-> <...>-809   [004]   730.245036: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
-> <...>-809   [004]   730.260360: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
-> <...>-805   [000]   730.260362: __alloc_pages_nodemask: progress 147, order 0, pid 805, comm mmap_test
-> <...>-811   [006]   730.263877: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
+> I means current may_write_to_queue never returns QUEUEWRITE_DENIED.
+> What's the role of it?
 > 
 
-The idea is good.
+As of now, little point because QUEUEWRITE_CONGESTED implies denied. I was allowing
+the possibility of distinguishing between these cases in the future depending
+on what happened with wait_iff_congested(). I will drop it for simplicity
+and reintroduce it when or if there is a distinction between
+denied and congested.
 
-I think we need to reserve at least one page for direct reclaimer who make the effort so that
-it can reduce latency of stalled process.
+> In addition, we don't need disable_lumpy_reclaim_mode() in pageout.
+> That's because both PAGE_KEEP and PAGE_KEEP_CONGESTED go to keep_locked
+> and calls disable_lumpy_reclaim_mode at last. 
+> 
 
-But I don't like this implementation. 
-
-1. It selects random page of reclaimed pages as cached page.
-This doesn't consider requestor's migratetype so that it causes fragment problem in future. 
-
-2. It skips buddy allocator. It means we lost coalescence chance so that fragement problem
-would be severe than old. 
-
-In addition, I think this patch needs some number about enhancing of latency 
-and fragmentation if you are going with this approach.
+True, good spot.
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
