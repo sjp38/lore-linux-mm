@@ -1,91 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6300D6B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 00:22:42 -0400 (EDT)
-Received: by wyb36 with SMTP id 36so1291971wyb.14
-        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 21:22:37 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D4076B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 01:23:17 -0400 (EDT)
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by e28smtp05.in.ibm.com (8.14.4/8.13.1) with ESMTP id o8G5NClS013567
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:53:12 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8G5NBLv3678286
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:53:11 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8G5NBPQ015700
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:23:11 +1000
+Date: Thu, 16 Sep 2010 10:53:11 +0530
+From: Ankita Garg <ankita@in.ibm.com>
+Subject: Reserved pages in PowerPC
+Message-ID: <20100916052311.GC2332@in.ibm.com>
+Reply-To: Ankita Garg <ankita@in.ibm.com>
 MIME-Version: 1.0
-Date: Thu, 16 Sep 2010 00:22:37 -0400
-Message-ID: <AANLkTikrasA6fD1b+0aMBO2RUH3vzg9w5rdt369h9Uqh@mail.gmail.com>
-Subject: Investigating memory loss in kernel space..
-From: Mohan G <mohan9271@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: linuxppc-dev@ozlabs.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-I am running a 2.6.27 based embedded linux for MIPS.  I can reproduce
-a memory loss in kernel space by running a simple script
+I am trying to hotplug/offline sections of memory on a Power machine.
+I boot the kernel with kernelcore=1G commandline parameter. I see that except
+for 512MB, the rest of the memory is movable. When trying to do hot-remove, I
+notice that I am unable to remove the very last section of memory, one with
+the highest physical address. It is always marked as non-movable.
 
-while true; do w >/dev/null; done
+With some debugging I found that that section has reserved pages. On
+instrumenting the memblock_reserve() and reserve_bootmem() routines, I can see
+that many of the memory areas are reserved for kernel and initrd by the
+memblock reserve() itself. reserve_bootmem then looks at the pages already
+reserved and marks them reserved. However, for the very last section, I see
+that bootmem reserves it but I am unable to find a corresponding reservation
+by the memblock code.
 
-I am a VM newbie but it doesn't look like it's a leak.  I notice
-through /proc/zoneinfo that nr_free goes down while nr_active goes up
-for DMA zone forever until the OOM killer starts killing tasks.
 
-Here is a snapshot of /proc/zoneinfo at t0.
+memblock_reserve: start 0 size 3519 
+reserve_bootmem 0 dbf000 nid=0
+memblock_reserve: start 12096 size 15372
+reserve_bootmem 2f40000 ccc000 nid=0
+memblock_reserve: start 15628 size 15650
+reserve_bootmem 3d0c000 16000 nid=0
+...
+...
+memblock_reserve: start 1982455 size 1982464
+reserve_bootmem 1e3ff7c00 8400 nid=0
+reserve_bootmem 3d7f64000 3f000 nid=1
+reserve_bootmem 3d7fa3c00 48400 nid=1
+reserve_bootmem 3d7feeda8 11258 nid=1
+..
+ 
+Is it a known behavior on Power ? If yes, for what purpose is the memory
+in the higher address reserved for ? I have seen that even if the system
+has multiple nodes, only the very last section of the last node is not
+removable.
 
-Node 0, zone      DMA
- pages free     708328
-       min      1919
-       low      2398
-       high     2878
-       scanned  0 (a: 0 i: 0)
-       spanned  1048064
-       present  935944
-   nr_free_pages 708328
-   nr_inactive  118115
-   nr_active    99415
-   nr_anon_pages 3891
-   nr_mapped    1747
-   nr_file_pages 125801
-   nr_dirty     0
-   nr_writeback 0
-   nr_slab_reclaimable 11158
-   nr_slab_unreclaimable 6594
-   nr_page_table_pages 362
-   nr_unstable  0
-   nr_bounce    0
-   nr_vmscan_write 0
-   nr_writeback_temp 0
-       protection: (0, 56, 56)
-
-Here is another snapshot at t0 + 5 mins running while true; do
-w>/dev/null; done.
-
-Node 0, zone      DMA
- pages free     644875
-       min      1919
-       low      2398
-       high     2878
-       scanned  0 (a: 0 i: 0)
-       spanned  1048064
-       present  935944
-   nr_free_pages 644875
-   nr_inactive  118114
-   nr_active    163202
-   nr_anon_pages 4378
-   nr_mapped    1744
-   nr_file_pages 125805
-   nr_dirty     0
-   nr_writeback 0
-   nr_slab_reclaimable 11158
-   nr_slab_unreclaimable 6822
-   nr_page_table_pages 470
-   nr_unstable  0
-   nr_bounce    0
-   nr_vmscan_write 0
-   nr_writeback_temp 0
-       protection: (0, 56, 56)
-
-It just feels like active pages are not being balanced correctly. Any
-pointers troubleshooting this are highly appreciated.
-
-Many thanks.
-
--Mohan
+-- 
+Regards,
+Ankita Garg (ankita@in.ibm.com)
+Linux Technology Center
+IBM India Systems & Technology Labs,
+Bangalore, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
