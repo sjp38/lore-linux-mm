@@ -1,132 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 79EEA6B0088
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:56:46 -0400 (EDT)
-Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
-	by smtp-out.google.com with ESMTP id o8GGueHr024605
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:56:42 -0700
-Received: from qwk3 (qwk3.prod.google.com [10.241.195.131])
-	by kpbe13.cbf.corp.google.com with ESMTP id o8GGuNAM018410
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:56:39 -0700
-Received: by qwk3 with SMTP id 3so1173670qwk.7
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 09:56:38 -0700 (PDT)
-Date: Thu, 16 Sep 2010 09:56:35 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] smaps: fix dirty pages accounting
-In-Reply-To: <20100916153420.3BBD.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1009160950500.24798@tigran.mtv.corp.google.com>
-References: <20100916125147.CA08.A69D9226@jp.fujitsu.com> <201009161135.00129.knikanth@suse.de> <20100916153420.3BBD.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id B093E6B0088
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 13:06:39 -0400 (EDT)
+Date: Thu, 16 Sep 2010 12:06:38 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
+ file/email/web servers
+In-Reply-To: <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1009161153210.22849@router.home>
+References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Nikanth Karthikesan <knikanth@suse.de>, Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
+Cc: robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 16 Sep 2010, KOSAKI Motohiro wrote:
 
-> Currently, /proc/<pid>/smaps have wrong dirty pages accounting.
-> Shared_Dirty and Private_Dirty output only pte dirty pages and
-> ignore PG_dirty page flag. It is difference against documentation,
-> but also inconsistent against Referenced field. (Referenced checks
-> both pte and page flags)
-> 
-> This patch fixes it.
-> 
-> Test program:
-> 
->  large-array.c
->  ---------------------------------------------------
->  #include <stdio.h>
->  #include <stdlib.h>
->  #include <string.h>
->  #include <unistd.h>
-> 
->  char array[1*1024*1024*1024L];
-> 
->  int main(void)
->  {
->          memset(array, 1, sizeof(array));
->          pause();
-> 
->          return 0;
->  }
->  ---------------------------------------------------
-> 
-> Test case:
->  1. run ./large-array
->  2. cat /proc/`pidof large-array`/smaps
->  3. swapoff -a
->  4. cat /proc/`pidof large-array`/smaps again
-> 
-> Test result:
->  <before patch>
-> 
-> 00601000-40601000 rw-p 00000000 00:00 0
-> Size:            1048576 kB
-> Rss:             1048576 kB
-> Pss:             1048576 kB
-> Shared_Clean:          0 kB
-> Shared_Dirty:          0 kB
-> Private_Clean:    218992 kB   <-- showed pages as clean incorrectly
-> Private_Dirty:    829584 kB
-> Referenced:       388364 kB
-> Swap:                  0 kB
-> KernelPageSize:        4 kB
-> MMUPageSize:           4 kB
-> 
->  <after patch>
-> 
-> 00601000-40601000 rw-p 00000000 00:00 0
-> Size:            1048576 kB
-> Rss:             1048576 kB
-> Pss:             1048576 kB
-> Shared_Clean:          0 kB
-> Shared_Dirty:          0 kB
-> Private_Clean:         0 kB
-> Private_Dirty:   1048576 kB  <-- fixed
-> Referenced:       388480 kB
-> Swap:                  0 kB
-> KernelPageSize:        4 kB
-> MMUPageSize:           4 kB
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > So over the last couple of weeks, I've noticed that our shiny new IMAP
+> > servers (Dual Xeon E5520 + Intel S5520UR MB) with 48G of RAM haven't
+> > been performing as well as expected, and there were some big oddities.
+> > Namely two things stuck out:
+> >
+> > 1. There was free memory. There's 20T of data on these machines. The
+> >    kernel should have used lots of memory for caching, but for some
+> >    reason, it wasn't. cache ~ 2G, buffers ~ 25G, unused ~ 5G
 
-Certainly you can have my
+This means that that the memory allocations did only occur on a single
+processor? And with zone reclaim it only used one node since the page
+cache was reclaimed?
 
-Acked-by: Hugh Dickins <hughd@google.com>
+> > Having very little knowledge of what this actually does, I'd just
+> > like to point out that from a users point of view, it's really
+> > annoying for your machine to be crippled by a default kernel setting
+> > that's pretty obscure.
 
-but I think it's for Matt to decide what he's wanting to show there,
-and whether it's safe to change after all this time.  I hadn't noticed
-the descrepancy between "dirty" and "referenced", that certainly argues
-for your patch.
+Thats an issue of the NUMA BIOS information. Kernel defaults to zone
+reclaim if the cost of accessing remote memory vs local memory crosses
+a certain threshhold which usually impacts performance.
 
-> ---
->  fs/proc/task_mmu.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 439fc1f..7415f13 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -362,13 +362,13 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  			mss->referenced += PAGE_SIZE;
->  		mapcount = page_mapcount(page);
->  		if (mapcount >= 2) {
-> -			if (pte_dirty(ptent))
-> +			if (pte_dirty(ptent) || PageDirty(page))
->  				mss->shared_dirty += PAGE_SIZE;
->  			else
->  				mss->shared_clean += PAGE_SIZE;
->  			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
->  		} else {
-> -			if (pte_dirty(ptent))
-> +			if (pte_dirty(ptent) || PageDirty(page))
->  				mss->private_dirty += PAGE_SIZE;
->  			else
->  				mss->private_clean += PAGE_SIZE;
-> -- 
-> 1.6.5.2
+> Yes, sadly intel motherboard turn on zone_reclaim_mode by default. and
+> current zone_reclaim_mode doesn't fit file/web server usecase ;-)
+
+Or one could also say that the web servers are not designed to properly
+distribute the load on a complex NUMA based memory architecture of todays
+Intel machines.
+
+> So, I've created new proof concept patch. This doesn't disable zone_reclaim
+> at all. Instead, distinguish for file cache and for anon allocation and
+> only file cache doesn't use zone-reclaim.
+
+zone reclaim was intended to only be applicable to unmapped file cache in
+order to be low impact.  Now you just want to apply it to anonymous pages?
+
+> That said, high-end hpc user often turn on cpuset.memory_spread_page and
+> they avoid this issue. But, why don't we consider avoid it by default?
+
+Well as you say setting memory spreading on would avoid the issue.
+
+So would enabling memory interleave in the BIOS to get the machine to not
+consider the memory distances but average out the NUMA effects.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
