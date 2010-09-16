@@ -1,149 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 877656B007D
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:11:47 -0400 (EDT)
-Received: by pvc30 with SMTP id 30so451005pvc.14
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 07:11:56 -0700 (PDT)
-Date: Thu, 16 Sep 2010 23:11:47 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 185F06B0083
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 11:00:15 -0400 (EDT)
+Received: by pzk26 with SMTP id 26so470360pzk.14
+        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 08:00:18 -0700 (PDT)
+Date: Fri, 17 Sep 2010 00:00:10 +0900
 From: Minchan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
- there are no congested BDIs or if significant congestion is not being
- encountered in the current zone
-Message-ID: <20100916141147.GC16115@barrios-desktop>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie>
- <1284553671-31574-9-git-send-email-mel@csn.ul.ie>
- <20100916081338.GB16115@barrios-desktop>
- <20100916091824.GB15709@csn.ul.ie>
+Subject: Re: [RFC]pagealloc: compensate a task for direct page reclaim
+Message-ID: <20100916150009.GD16115@barrios-desktop>
+References: <1284636396.1726.5.camel@shli-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20100916091824.GB15709@csn.ul.ie>
+In-Reply-To: <1284636396.1726.5.camel@shli-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 10:18:24AM +0100, Mel Gorman wrote:
-> On Thu, Sep 16, 2010 at 05:13:38PM +0900, Minchan Kim wrote:
-> > On Wed, Sep 15, 2010 at 01:27:51PM +0100, Mel Gorman wrote:
-> > > If wait_iff_congested() is called with no BDI congested, the function simply
-> > > calls cond_resched(). In the event there is significant writeback happening
-> > > in the zone that is being reclaimed, this can be a poor decision as reclaim
-> > > would succeed once writeback was completed. Without any backoff logic,
-> > > younger clean pages can be reclaimed resulting in more reclaim overall and
-> > > poor performance.
-> > 
-> > I agree. 
-> > 
-> > > 
-> > > This patch tracks how many pages backed by a congested BDI were found during
-> > > scanning. If all the dirty pages encountered on a list isolated from the
-> > > LRU belong to a congested BDI, the zone is marked congested until the zone
-> > 
-> > I am not sure it works well. 
+On Thu, Sep 16, 2010 at 07:26:36PM +0800, Shaohua Li wrote:
+> A task enters into direct page reclaim, free some memory. But sometimes
+> the task can't get a free page after direct page reclaim because
+> other tasks take them (this is quite common in a multi-task workload
+> in my test). This behavior will bring extra latency to the task and is
+> unfair. Since the task already gets penalty, we'd better give it a compensation.
+> If a task frees some pages from direct page reclaim, we cache one freed page,
+> and the task will get it soon. We only consider order 0 allocation, because
+> it's hard to cache order > 0 page.
 > 
-> Check the competion times for the micro-mapped-file-stream benchmark in
-> the leader mail. Backing off like this is faster overall for some
-> workloads.
+> Below is a trace output when a task frees some pages in try_to_free_pages(), but
+> get_page_from_freelist() can't get a page in direct page reclaim.
 > 
-> > We just met the condition once but we backoff it until high watermark.
+> <...>-809   [004]   730.218991: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> <...>-806   [001]   730.237969: __alloc_pages_nodemask: progress 147, order 0, pid 806, comm mmap_test
+> <...>-810   [005]   730.237971: __alloc_pages_nodemask: progress 147, order 0, pid 810, comm mmap_test
+> <...>-809   [004]   730.237972: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> <...>-811   [006]   730.241409: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
+> <...>-809   [004]   730.241412: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> <...>-812   [007]   730.241435: __alloc_pages_nodemask: progress 147, order 0, pid 812, comm mmap_test
+> <...>-809   [004]   730.245036: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> <...>-809   [004]   730.260360: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> <...>-805   [000]   730.260362: __alloc_pages_nodemask: progress 147, order 0, pid 805, comm mmap_test
+> <...>-811   [006]   730.263877: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
 > 
-> Reaching the high watermark is considered to be a relieving of pressure.
-> 
-> > (ex, 32 isolated dirty pages == 32 pages on congestioned bdi)
-> > First impression is rather _aggressive_.
-> > 
-> 
-> Yes, it is. I intended to start with something quite aggressive that is
-> close to existing behaviour and then experiment with alternatives.
 
-Agree. 
+The idea is good.
 
-> 
-> For example, I considered clearing zone congestion when but nr_bdi_congested
-> drops to 0. This would be less aggressive in terms of congestion waiting but
-> it is further from todays behaviour. I felt it would be best to introduce
-> wait_iff_congested() in one kernel cycle but wait to a later cycle to deviate
-> a lot from congestion_wait().
+I think we need to reserve at least one page for direct reclaimer who make the effort so that
+it can reduce latency of stalled process.
 
-Fair enough. 
+But I don't like this implementation. 
 
-> 
-> > How about more checking?
-> > For example, if above pattern continues repeately above some threshold,
-> > we can regard "zone is congested" and then if the pattern isn't repeated 
-> > during some threshold, we can regard "zone isn't congested any more.".
-> > 
-> 
-> I also considered these options and got stuck at what the "some
-> threshold" is and how to record the history. Should it be recorded on a
-> per BDI basis for example? I think all these questions can be answered
-> but should be in a different cycle.
-> 
-> > > reaches the high watermark.  wait_iff_congested() then checks both the
-> > > number of congested BDIs and if the current zone is one that has encounted
-> > > congestion recently, it will sleep on the congestion queue. Otherwise it
-> > > will call cond_reched() to yield the processor if necessary.
-> > > 
-> > > The end result is that waiting on the congestion queue is avoided when
-> > > necessary but when significant congestion is being encountered,
-> > > reclaimers and page allocators will back off.
-> > > 
-> > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > > ---
-> > >  include/linux/backing-dev.h |    2 +-
-> > >  include/linux/mmzone.h      |    8 ++++
-> > >  mm/backing-dev.c            |   23 ++++++++----
-> > >  mm/page_alloc.c             |    4 +-
-> > >  mm/vmscan.c                 |   83 +++++++++++++++++++++++++++++++++++++------
-> > >  5 files changed, 98 insertions(+), 22 deletions(-)
-> > > 
-> > > diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> > > index 72bb510..f1b402a 100644
-> > > --- a/include/linux/backing-dev.h
-> > > +++ b/include/linux/backing-dev.h
-> > > +static enum bdi_queue_status may_write_to_queue(struct backing_dev_info *bdi,
-> > 
-> > <snip>
-> > 
-> > >  			      struct scan_control *sc)
-> > >  {
-> > > +	enum bdi_queue_status ret = QUEUEWRITE_DENIED;
-> > > +
-> > >  	if (current->flags & PF_SWAPWRITE)
-> > > -		return 1;
-> > > +		return QUEUEWRITE_ALLOWED;
-> > >  	if (!bdi_write_congested(bdi))
-> > > -		return 1;
-> > > +		return QUEUEWRITE_ALLOWED;
-> > > +	else
-> > > +		ret = QUEUEWRITE_CONGESTED;
-> > >  	if (bdi == current->backing_dev_info)
-> > > -		return 1;
-> > > +		return QUEUEWRITE_ALLOWED;
-> > >  
-> > >  	/* lumpy reclaim for hugepage often need a lot of write */
-> > >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> > > -		return 1;
-> > > -	return 0;
-> > > +		return QUEUEWRITE_ALLOWED;
-> > > +	return ret;
-> > >  }
-> > 
-> > The function can't return QUEUEXXX_DENIED.
-> > It can affect disable_lumpy_reclaim. 
-> > 
-> 
-> Yes, but that change was made in "vmscan: Narrow the scenarios lumpy
-> reclaim uses synchrounous reclaim". Maybe I am misunderstanding your
-> objection.
+1. It selects random page of reclaimed pages as cached page.
+This doesn't consider requestor's migratetype so that it causes fragment problem in future. 
 
-I means current may_write_to_queue never returns QUEUEWRITE_DENIED.
-What's the role of it?
+2. It skips buddy allocator. It means we lost coalescence chance so that fragement problem
+would be severe than old. 
 
-In addition, we don't need disable_lumpy_reclaim_mode() in pageout.
-That's because both PAGE_KEEP and PAGE_KEEP_CONGESTED go to keep_locked
-and calls disable_lumpy_reclaim_mode at last. 
+In addition, I think this patch needs some number about enhancing of latency 
+and fragmentation if you are going with this approach.
 
 -- 
 Kind regards,
