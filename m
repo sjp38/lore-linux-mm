@@ -1,130 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1EFA06B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 21:35:11 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G1TMvb032108
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Sep 2010 10:29:22 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FDE945DE4D
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:29:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3427B45DE4E
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:29:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DE8E1DB8046
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:29:22 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA4481DB8053
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:29:18 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] After swapout/swapin private dirty mappings become clean
-In-Reply-To: <alpine.LNX.2.00.1009151039160.28912@zhemvz.fhfr.qr>
-References: <201009151030.36012.knikanth@suse.de> <alpine.LNX.2.00.1009151039160.28912@zhemvz.fhfr.qr>
-Message-Id: <20100916100732.C9FD.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9FF346B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 21:38:37 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G1cZ68003403
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Sep 2010 10:38:35 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 486AF45DE4E
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22C3145DE55
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09B0D1DB803C
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A60F1E08003
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:34 +0900 (JST)
+Date: Thu, 16 Sep 2010 10:33:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
+Message-Id: <20100916103326.026ca03f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1284600107.20776.640.camel@nimitz>
+References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
+	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100915192454.GD5585@tpepper-t61p.dolavim.us>
+	<20100916091215.ef59acd7.kamezawa.hiroyu@jp.fujitsu.com>
+	<1284600107.20776.640.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Sep 2010 10:29:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Richard Guenther <rguenther@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com, Nikanth Karthikesan <knikanth@suse.de>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, Michael Matz <matz@novell.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Tim Pepper <lnxninja@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 15 Sep 2010, Nikanth Karthikesan wrote:
-> 
-> > On Wednesday 15 September 2010 10:16:36 KOSAKI Motohiro wrote:
-> > > > On Wednesday 15 September 2010 05:54:31 KOSAKI Motohiro wrote:
-> > > > > > /proc/$pid/smaps broken: After swapout/swapin private dirty mappings
-> > > > > > become clean.
-> > > > > >
-> > > > > > When a page with private file mapping becomes dirty, the vma will be
-> > > > > > in both i_mmap tree and anon_vma list. The /proc/$pid/smaps will
-> > > > > > account these pages as dirty and backed by the file.
-> > > > > >
-> > > > > > But when those dirty pages gets swapped out, and when they are read
-> > > > > > back from swap, they would be marked as clean, as it should be, as
-> > > > > > they are part of swap cache now.
-> > > > > >
-> > > > > > But the /proc/$pid/smaps would report the vma as a mapping of a file
-> > > > > > and it is clean. The pages are actually in same state i.e., dirty
-> > > > > > with respect to file still, but which was once reported as dirty is
-> > > > > > now being reported as clean to user-space.
-> > > > > >
-> > > > > > This confuses tools like gdb which uses this information. Those tools
-> > > > > > think that those pages were never modified and it creates problem
-> > > > > > when they create dumps.
-> > > > > >
-> > > > > > The file mapping of the vma also cannot be broken as pages never read
-> > > > > > earlier, will still have to come from the file. Just that those dirty
-> > > > > > pages have become clean anonymous pages.
-> > > > > >
-> > > > > > During swaping in, restoring the exact state as dirty file-backed
-> > > > > > pages before swapout would be useless, as there in no real bug.
-> > > > > > Breaking the vma with only anonymous pages as seperate vmas
-> > > > > > unnecessary may not be a good thing as well. So let us just export
-> > > > > > the information that a file-backed vma has anonymous dirty pages.
-> > > > >
-> > > > > Why can't gdb check Swap: field in smaps? I think Swap!=0 mean we need
-> > > > > dump out.
-> > > >
-> > > > Yes. When the page is swapped out it is accounted in "Swap:".
-> > > >
-> > > > > Am I missing anything?
-> > > >
-> > > > But when it gets swapped in back to memory, it is removed from "Swap:"
-> > > > and added to "Private_Clean:" instead of "Private_Dirty:".
-> > > 
-> > > Here is the code.
-> > > I think the page will become dirty, again.
-> > > 
-> > > --------------------------------------------------------------
-> > > int try_to_free_swap(struct page *page)
-> > > {
-> > >         VM_BUG_ON(!PageLocked(page));
-> > > 
-> > >         if (!PageSwapCache(page))
-> > >                 return 0;
-> > >         if (PageWriteback(page))
-> > >                 return 0;
-> > >         if (page_swapcount(page))
-> > >                 return 0;
-> > > 
-> > >         delete_from_swap_cache(page);
-> > >         SetPageDirty(page);
-> > >         return 1;
-> > > }
-> > > 
+On Wed, 15 Sep 2010 18:21:47 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+
+> On Thu, 2010-09-16 at 09:12 +0900, KAMEZAWA Hiroyuki wrote:
+> > I hear a customer's case. His server generates 3-80000+ new dentries per day
+> > and dentries will be piled up to 1000000+ in a month. This makes open()'s 
+> > performance very bad because Hash-lookup will be heavy. (He has very big memory.)
 > > 
-> > I think this gets called only when the swap space gets freed. But when the 
-> > page is just swapped out and swapped in, and the page is still part of 
-> > SwapCache, it will be marked as clean, when the I/O read from swap completes.
+> > What we could ask him was
+> >   - rewrite your application. or
+> >   - reboot once in a month (and change hash size) or
+> >   - drop_cache once in a month
+> > 
+> > Because their servers cannot stop, he used drop_caches once in a month
+> > while his server is idle, at night. Changing HashSize cannot be a permanent
+> > fix because he may not stop the server for years.
 > 
-> And it will be still marked clean if I do a swapoff -a after it has
-> been swapped in again.  Thus /proc/smaps shows it as file-backed,
-> private, clean and not swapped.  Which is wrong.
+> That is a really interesting case.
+> 
+> They must have a *ton* of completely extra memory laying around.  Do
+> they not have much page cache activity? 
 
-Ahh, my fault.
+I hear they have a ton of extra memory. Just open() slows down.
 
-As Hugh explained, current smaps's Private_Dirty is buggy. If it's not bug,
-at minimum it's not straight implement. the VM has two dirty flags 
-1) pte dirty 2) page dirty, but smaps only show (1). then, gdb was confused.
+> It usually balances out the  dentry/inode caches.
+> 
+> Would this user be better off with a smaller dentry hash in general? 
 
-Side note: SetPageDirty() turn on (2).
+Maybe. I hear most of files were created-but-never-used data and logs.
 
-As I said, the VM doesn't have for file and for anon dirty. but it has
-another different dirty flags.
+> Is it special hardware that should _have_ a lower default hash size?
+> 
 
-
-And, Dirty is not suitable gdb at all (this also was pointed out by hugh).
-Because Dirty mean "The page need writeback", but swapcache doesn't need.
-actual data is in swap already.
-
-So, I vote Hugh's Anon field idea.
+I'm not sure. I think they have no boot option of hash size.
 
 
-Thanks.
+> > For rare users who have 10000000+ of files and tons of free memory, drop_cache
+> > can be an emergency help. 
+> 
+> In this case, though, would a WARN_ON() in an emergency be such a bad
+> thing?  They evidently know what they're doing, and shouldn't be put off
+> by it.
+> 
+
+Showing "Warning" means ", it's possibly bug." for almost all customers.
+We'll get tons of "regression" report ;)
+
+If you really want to add messages, please raise log level.
+NOTICE or INFO sounds better(and moderate) to me because it's easy to explain
+"Don't worry about the message, your kernel is stable and don't need to reboot.
+ But please check the peformance, it tends to go bad. You lose cache.".
+BTW, what(1or2or3) was writtern to "drop_cache" is important. please show.
+
+Thanks,
+-Kame
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
