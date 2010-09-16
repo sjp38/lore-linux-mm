@@ -1,304 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BE1FA6B007D
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 05:18:40 -0400 (EDT)
-Date: Thu, 16 Sep 2010 10:18:24 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
-	there are no congested BDIs or if significant congestion is not
-	being encountered in the current zone
-Message-ID: <20100916091824.GB15709@csn.ul.ie>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <1284553671-31574-9-git-send-email-mel@csn.ul.ie> <20100916081338.GB16115@barrios-desktop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id BFB106B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 05:26:57 -0400 (EDT)
+Message-ID: <4C91E2CC.9040709@redhat.com>
+Date: Thu, 16 Sep 2010 11:26:36 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100916081338.GB16115@barrios-desktop>
+Subject: Re: [RFC][PATCH] Cross Memory Attach
+References: <20100915104855.41de3ebf@lilo>	<4C90A6C7.9050607@redhat.com>	<AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com> <20100916104819.36d10acb@lilo>
+In-Reply-To: <20100916104819.36d10acb@lilo>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christopher Yeoh <cyeoh@au1.ibm.com>
+Cc: Bryan Donlan <bdonlan@gmail.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 05:13:38PM +0900, Minchan Kim wrote:
-> On Wed, Sep 15, 2010 at 01:27:51PM +0100, Mel Gorman wrote:
-> > If wait_iff_congested() is called with no BDI congested, the function simply
-> > calls cond_resched(). In the event there is significant writeback happening
-> > in the zone that is being reclaimed, this can be a poor decision as reclaim
-> > would succeed once writeback was completed. Without any backoff logic,
-> > younger clean pages can be reclaimed resulting in more reclaim overall and
-> > poor performance.
-> 
-> I agree. 
-> 
-> > 
-> > This patch tracks how many pages backed by a congested BDI were found during
-> > scanning. If all the dirty pages encountered on a list isolated from the
-> > LRU belong to a congested BDI, the zone is marked congested until the zone
-> 
-> I am not sure it works well. 
+  On 09/16/2010 03:18 AM, Christopher Yeoh wrote:
+> On Wed, 15 Sep 2010 23:46:09 +0900
+> Bryan Donlan<bdonlan@gmail.com>  wrote:
+>
+> >  On Wed, Sep 15, 2010 at 19:58, Avi Kivity<avi@redhat.com>  wrote:
+> >
+> >  >  Instead of those two syscalls, how about a vmfd(pid_t pid, ulong
+> >  >  start, ulong len) system call which returns an file descriptor that
+> >  >  represents a portion of the process address space.  You can then
+> >  >  use preadv() and pwritev() to copy memory, and
+> >  >  io_submit(IO_CMD_PREADV) and io_submit(IO_CMD_PWRITEV) for
+> >  >  asynchronous variants (especially useful with a dma engine, since
+> >  >  that adds latency).
+> >  >
+> >  >  With some care (and use of mmu_notifiers) you can even mmap() your
+> >  >  vmfd and access remote process memory directly.
+> >
+> >  Rather than introducing a new vmfd() API for this, why not just add
+> >  implementations for these more efficient operations to the existing
+> >  /proc/$pid/mem interface?
+>
+> Perhaps I'm misunderstanding something here, but
+> accessing /proc/$pid/mem requires ptracing the target process.
+> We can't really have all these MPI processes ptraceing each other
+> just to send/receive a message....
+>
 
-Check the competion times for the micro-mapped-file-stream benchmark in
-the leader mail. Backing off like this is faster overall for some
-workloads.
+You could have each process open /proc/self/mem and pass the fd using 
+SCM_RIGHTS.
 
-> We just met the condition once but we backoff it until high watermark.
-
-Reaching the high watermark is considered to be a relieving of pressure.
-
-> (ex, 32 isolated dirty pages == 32 pages on congestioned bdi)
-> First impression is rather _aggressive_.
-> 
-
-Yes, it is. I intended to start with something quite aggressive that is
-close to existing behaviour and then experiment with alternatives.
-
-For example, I considered clearing zone congestion when but nr_bdi_congested
-drops to 0. This would be less aggressive in terms of congestion waiting but
-it is further from todays behaviour. I felt it would be best to introduce
-wait_iff_congested() in one kernel cycle but wait to a later cycle to deviate
-a lot from congestion_wait().
-
-> How about more checking?
-> For example, if above pattern continues repeately above some threshold,
-> we can regard "zone is congested" and then if the pattern isn't repeated 
-> during some threshold, we can regard "zone isn't congested any more.".
-> 
-
-I also considered these options and got stuck at what the "some
-threshold" is and how to record the history. Should it be recorded on a
-per BDI basis for example? I think all these questions can be answered
-but should be in a different cycle.
-
-> > reaches the high watermark.  wait_iff_congested() then checks both the
-> > number of congested BDIs and if the current zone is one that has encounted
-> > congestion recently, it will sleep on the congestion queue. Otherwise it
-> > will call cond_reched() to yield the processor if necessary.
-> > 
-> > The end result is that waiting on the congestion queue is avoided when
-> > necessary but when significant congestion is being encountered,
-> > reclaimers and page allocators will back off.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  include/linux/backing-dev.h |    2 +-
-> >  include/linux/mmzone.h      |    8 ++++
-> >  mm/backing-dev.c            |   23 ++++++++----
-> >  mm/page_alloc.c             |    4 +-
-> >  mm/vmscan.c                 |   83 +++++++++++++++++++++++++++++++++++++------
-> >  5 files changed, 98 insertions(+), 22 deletions(-)
-> > 
-> > diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-> > index 72bb510..f1b402a 100644
-> > --- a/include/linux/backing-dev.h
-> > +++ b/include/linux/backing-dev.h
-> > +static enum bdi_queue_status may_write_to_queue(struct backing_dev_info *bdi,
-> 
-> <snip>
-> 
-> >  			      struct scan_control *sc)
-> >  {
-> > +	enum bdi_queue_status ret = QUEUEWRITE_DENIED;
-> > +
-> >  	if (current->flags & PF_SWAPWRITE)
-> > -		return 1;
-> > +		return QUEUEWRITE_ALLOWED;
-> >  	if (!bdi_write_congested(bdi))
-> > -		return 1;
-> > +		return QUEUEWRITE_ALLOWED;
-> > +	else
-> > +		ret = QUEUEWRITE_CONGESTED;
-> >  	if (bdi == current->backing_dev_info)
-> > -		return 1;
-> > +		return QUEUEWRITE_ALLOWED;
-> >  
-> >  	/* lumpy reclaim for hugepage often need a lot of write */
-> >  	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-> > -		return 1;
-> > -	return 0;
-> > +		return QUEUEWRITE_ALLOWED;
-> > +	return ret;
-> >  }
-> 
-> The function can't return QUEUEXXX_DENIED.
-> It can affect disable_lumpy_reclaim. 
-> 
-
-Yes, but that change was made in "vmscan: Narrow the scenarios lumpy
-reclaim uses synchrounous reclaim". Maybe I am misunderstanding your
-objection.
-
-> >  
-> >  /*
-> > @@ -352,6 +362,8 @@ static void handle_write_error(struct address_space *mapping,
-> >  typedef enum {
-> >  	/* failed to write page out, page is locked */
-> >  	PAGE_KEEP,
-> > +	/* failed to write page out due to congestion, page is locked */
-> > +	PAGE_KEEP_CONGESTED,
-> >  	/* move page to the active list, page is locked */
-> >  	PAGE_ACTIVATE,
-> >  	/* page has been sent to the disk successfully, page is unlocked */
-> > @@ -401,9 +413,14 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
-> >  	}
-> >  	if (mapping->a_ops->writepage == NULL)
-> >  		return PAGE_ACTIVATE;
-> > -	if (!may_write_to_queue(mapping->backing_dev_info, sc)) {
-> > +	switch (may_write_to_queue(mapping->backing_dev_info, sc)) {
-> > +	case QUEUEWRITE_CONGESTED:
-> > +		return PAGE_KEEP_CONGESTED;
-> > +	case QUEUEWRITE_DENIED:
-> >  		disable_lumpy_reclaim_mode(sc);
-> >  		return PAGE_KEEP;
-> > +	case QUEUEWRITE_ALLOWED:
-> > +		;
-> >  	}
-> >  
-> >  	if (clear_page_dirty_for_io(page)) {
-> > @@ -682,11 +699,14 @@ static noinline_for_stack void free_page_list(struct list_head *free_pages)
-> >   * shrink_page_list() returns the number of reclaimed pages
-> >   */
-> >  static unsigned long shrink_page_list(struct list_head *page_list,
-> > +				      struct zone *zone,
-> >  				      struct scan_control *sc)
-> >  {
-> >  	LIST_HEAD(ret_pages);
-> >  	LIST_HEAD(free_pages);
-> >  	int pgactivate = 0;
-> > +	unsigned long nr_dirty = 0;
-> > +	unsigned long nr_congested = 0;
-> >  	unsigned long nr_reclaimed = 0;
-> >  
-> >  	cond_resched();
-> > @@ -706,6 +726,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  			goto keep;
-> >  
-> >  		VM_BUG_ON(PageActive(page));
-> > +		VM_BUG_ON(page_zone(page) != zone);
-> >  
-> >  		sc->nr_scanned++;
-> >  
-> > @@ -783,6 +804,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  		}
-> >  
-> >  		if (PageDirty(page)) {
-> > +			nr_dirty++;
-> > +
-> >  			if (references == PAGEREF_RECLAIM_CLEAN)
-> >  				goto keep_locked;
-> >  			if (!may_enter_fs)
-> > @@ -792,6 +815,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  
-> >  			/* Page is dirty, try to write it out here */
-> >  			switch (pageout(page, mapping, sc)) {
-> > +			case PAGE_KEEP_CONGESTED:
-> > +				nr_congested++;
-> >  			case PAGE_KEEP:
-> >  				goto keep_locked;
-> >  			case PAGE_ACTIVATE:
-> > @@ -903,6 +928,15 @@ keep_lumpy:
-> >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
-> >  	}
-> >  
-> > +	/*
-> > +	 * Tag a zone as congested if all the dirty pages encountered were
-> > +	 * backed by a congested BDI. In this case, reclaimers should just
-> > +	 * back off and wait for congestion to clear because further reclaim
-> > +	 * will encounter the same problem
-> > +	 */
-> > +	if (nr_dirty == nr_congested)
-> > +		zone_set_flag(zone, ZONE_CONGESTED);
-> > +
-> >  	free_page_list(&free_pages);
-> >  
-> >  	list_splice(&ret_pages, page_list);
-> > @@ -1387,12 +1421,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct zone *zone,
-> >  
-> >  	spin_unlock_irq(&zone->lru_lock);
-> >  
-> > -	nr_reclaimed = shrink_page_list(&page_list, sc);
-> > +	nr_reclaimed = shrink_page_list(&page_list, zone, sc);
-> >  
-> >  	/* Check if we should syncronously wait for writeback */
-> >  	if (should_reclaim_stall(nr_taken, nr_reclaimed, priority, sc)) {
-> >  		set_lumpy_reclaim_mode(priority, sc, true);
-> > -		nr_reclaimed += shrink_page_list(&page_list, sc);
-> > +		nr_reclaimed += shrink_page_list(&page_list, zone, sc);
-> >  	}
-> >  
-> >  	local_irq_disable();
-> > @@ -1940,8 +1974,26 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
-> >  
-> >  		/* Take a nap, wait for some writeback to complete */
-> >  		if (!sc->hibernation_mode && sc->nr_scanned &&
-> > -		    priority < DEF_PRIORITY - 2)
-> > -			congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > +		    priority < DEF_PRIORITY - 2) {
-> > +			struct zone *active_zone = NULL;
-> > +			unsigned long max_writeback = 0;
-> > +			for_each_zone_zonelist(zone, z, zonelist,
-> > +					gfp_zone(sc->gfp_mask)) {
-> > +				unsigned long writeback;
-> > +
-> > +				/* Initialise for first zone */
-> > +				if (active_zone == NULL)
-> > +					active_zone = zone;
-> > +
-> > +				writeback = zone_page_state(zone, NR_WRITEBACK);
-> > +				if (writeback > max_writeback) {
-> > +					max_writeback = writeback;
-> > +					active_zone = zone;
-> > +				}
-> > +			}
-> > +
-> > +			wait_iff_congested(active_zone, BLK_RW_ASYNC, HZ/10);
-> > +		}
-> 
-> Other place just considers preferred zone. 
-> What is the rationale that consider max writeback zone in all zone of zonelist to 
-> call wait_iff_congeested?
-
-Initially, it was because wait_iff_congested() heuristic was based on
-writeback, not zone congestion.  This time around, it was because I
-wanted to be aggressive in terms of triggering the congestion wait to be
-better than existing behaviour but not too far from it.
-
-> Maybe max writeback zone can be much slow bdi but this process could be not related
-> to the bdi. It can make random stall by point of view of this proces.
-> 
-
-Fair point, I will retest using the preferred zone.
-
-> >  	}
-> >  
-> >  out:
-> > @@ -2251,6 +2303,15 @@ loop_again:
-> >  				if (!zone_watermark_ok(zone, order,
-> >  					    min_wmark_pages(zone), end_zone, 0))
-> >  					has_under_min_watermark_zone = 1;
-> > +			} else {
-> > +				/*
-> > +				 * If a zone reaches its high watermark,
-> > +				 * consider it to be no longer congested. It's
-> > +				 * possible there are dirty pages backed by
-> > +				 * congested BDIs but as pressure is relieved,
-> > +				 * spectulatively avoid congestion waits
-> > +				 */
-> > +				zone_clear_flag(zone, ZONE_CONGESTED);
-> >  			}
-> >  
-> >  		}
-> > -- 
-> > 1.7.1
-> > 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
+That eliminates a race; with copy_to_process(), by the time the pid is 
+looked up it might designate a different process.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
