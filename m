@@ -1,67 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B093E6B0088
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 13:06:39 -0400 (EDT)
-Date: Thu, 16 Sep 2010 12:06:38 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
- file/email/web servers
-In-Reply-To: <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1009161153210.22849@router.home>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 58BC96B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 13:47:53 -0400 (EDT)
+Date: Thu, 16 Sep 2010 19:44:33 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 4/4] oom: don't ignore rss in nascent mm
+Message-ID: <20100916174433.GA4842@redhat.com>
+References: <20100916144930.3BAE.A69D9226@jp.fujitsu.com> <20100916145710.3BBA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100916145710.3BBA.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, oss-security@lists.openwall.com, Solar Designer <solar@openwall.com>, Kees Cook <kees.cook@canonical.com>, Al Viro <viro@zeniv.linux.org.uk>, Neil Horman <nhorman@tuxdriver.com>, linux-fsdevel@vger.kernel.org, pageexec@freemail.hu, Brad Spengler <spender@grsecurity.net>, Eugene Teo <eugene@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010, KOSAKI Motohiro wrote:
+On 09/16, KOSAKI Motohiro wrote:
+>
+> ChangeLog
+>  o since v1
+>    - Always use thread group leader's ->in_exec_mm.
 
-> > So over the last couple of weeks, I've noticed that our shiny new IMAP
-> > servers (Dual Xeon E5520 + Intel S5520UR MB) with 48G of RAM haven't
-> > been performing as well as expected, and there were some big oddities.
-> > Namely two things stuck out:
-> >
-> > 1. There was free memory. There's 20T of data on these machines. The
-> >    kernel should have used lots of memory for caching, but for some
-> >    reason, it wasn't. cache ~ 2G, buffers ~ 25G, unused ~ 5G
+Confused ;)
 
-This means that that the memory allocations did only occur on a single
-processor? And with zone reclaim it only used one node since the page
-cache was reclaimed?
+> +static unsigned long oom_rss_swap_usage(struct task_struct *p)
+> +{
+> +	struct task_struct *t = p;
+> +	struct task_struct *leader = p->group_leader;
+> +	unsigned long points = 0;
+> +
+> +	do {
+> +		task_lock(t);
+> +		if (t->mm) {
+> +			points += get_mm_rss(t->mm);
+> +			points += get_mm_counter(t->mm, MM_SWAPENTS);
+> +			task_unlock(t);
+> +			break;
+> +		}
+> +		task_unlock(t);
+> +	} while_each_thread(p, t);
+> +
+> +	/*
+> +	 * If the process is in execve() processing, we have to concern
+> +	 * about both old and new mm.
+> +	 */
+> +	task_lock(leader);
+> +	if (leader->in_exec_mm) {
+> +		points += get_mm_rss(leader->in_exec_mm);
+> +		points += get_mm_counter(leader->in_exec_mm, MM_SWAPENTS);
+> +	}
+> +	task_unlock(leader);
+> +
+> +	return points;
+> +}
 
-> > Having very little knowledge of what this actually does, I'd just
-> > like to point out that from a users point of view, it's really
-> > annoying for your machine to be crippled by a default kernel setting
-> > that's pretty obscure.
+This patch relies on fact that we can't race with de_thread() (and btw
+the change in de_thread() looks bogus). Then why ->in_exec_mm lives in
+task_struct ?
 
-Thats an issue of the NUMA BIOS information. Kernel defaults to zone
-reclaim if the cost of accessing remote memory vs local memory crosses
-a certain threshhold which usually impacts performance.
+To me, this looks a bit strange. I think we should either do not use
+->group_leader to hold ->in_exec_mm like your previous patch did, or
+move ->in_exec_mm into signal_struct. The previous 3/4 ensures that
+only one thread can set ->in_exec_mm.
 
-> Yes, sadly intel motherboard turn on zone_reclaim_mode by default. and
-> current zone_reclaim_mode doesn't fit file/web server usecase ;-)
+And I don't think oom_rss_swap_usage() should replace find_lock_task_mm()
+in oom_badness(), I mean something like this:
 
-Or one could also say that the web servers are not designed to properly
-distribute the load on a complex NUMA based memory architecture of todays
-Intel machines.
+	static unsigned long oom_rss_swap_usage(struct mm_struct *mm)
+	{
+		return get_mm_rss(mm) + get_mm_counter(mm, MM_SWAPENTS);
+	}
 
-> So, I've created new proof concept patch. This doesn't disable zone_reclaim
-> at all. Instead, distinguish for file cache and for anon allocation and
-> only file cache doesn't use zone-reclaim.
+	unsigned int oom_badness(struct task_struct *p, ...)
+	{
+		int points = 0;
 
-zone reclaim was intended to only be applicable to unmapped file cache in
-order to be low impact.  Now you just want to apply it to anonymous pages?
+		if (unlikely(p->signal->in_exec_mm)) {
+			task_lock(p->group_leader);
+			if (p->signal->in_exec_mm)
+				points = oom_rss_swap_usage(p->signal->in_exec_mm);
+			task_unlock(p->group_leader);
+		}
 
-> That said, high-end hpc user often turn on cpuset.memory_spread_page and
-> they avoid this issue. But, why don't we consider avoid it by default?
+		p = find_lock_task_mm(p);
+		if (!p)
+			return points;
 
-Well as you say setting memory spreading on would avoid the issue.
+		...
+	}
 
-So would enabling memory interleave in the BIOS to get the machine to not
-consider the memory distances but average out the NUMA effects.
+but this is the matter of taste.
 
+What do you think?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
