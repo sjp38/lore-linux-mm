@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2010A6B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 23:23:44 -0400 (EDT)
-From: Nikanth Karthikesan <knikanth@suse.de>
-Subject: [PATCH] Export amount of anonymous memory in a mapping via smaps
-Date: Thu, 16 Sep 2010 08:56:25 +0530
-References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com> <1284579969.21906.451.camel@calx> <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com>
-In-Reply-To: <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DBBA46B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 23:52:52 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G3qnxp014334
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Sep 2010 12:52:49 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A9C0145DE51
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:52:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54DFE45DE4F
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:52:49 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 313F61DB8044
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:52:49 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A51A61DB804C
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 12:52:48 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] Export amount of anonymous memory in a mapping via smaps
+In-Reply-To: <201009160856.25923.knikanth@suse.de>
+References: <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com> <201009160856.25923.knikanth@suse.de>
+Message-Id: <20100916125147.CA08.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201009160856.25923.knikanth@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 16 Sep 2010 12:52:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh.dickins@tiscali.co.uk>
-Cc: Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Export the number of anonymous pages in a mapping via smaps.
+> Export the number of anonymous pages in a mapping via smaps.
+> 
+> Even the private pages in a mapping backed by a file, would be marked as
+> anonymous, when they are modified. Export this information to user-space via
+> smaps.
+> 
+> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-Even the private pages in a mapping backed by a file, would be marked as
-anonymous, when they are modified. Export this information to user-space via
-smaps.
+Looks good.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
----
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 439fc1f..3c18fc8 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -326,6 +326,7 @@ struct mem_size_stats {
- 	unsigned long private_clean;
- 	unsigned long private_dirty;
- 	unsigned long referenced;
-+	unsigned long anonymous;
- 	unsigned long swap;
- 	u64 pss;
- };
-@@ -356,6 +357,9 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		if (!page)
- 			continue;
- 
-+		if (PageAnon(page))
-+			mss->anonymous += PAGE_SIZE;
-+
- 		mss->resident += PAGE_SIZE;
- 		/* Accumulate the size in pages that have been accessed. */
- 		if (pte_young(ptent) || PageReferenced(page))
-@@ -409,6 +413,7 @@ static int show_smap(struct seq_file *m, void *v)
- 		   "Private_Clean:  %8lu kB\n"
- 		   "Private_Dirty:  %8lu kB\n"
- 		   "Referenced:     %8lu kB\n"
-+		   "Anonymous:      %8lu kB\n"
- 		   "Swap:           %8lu kB\n"
- 		   "KernelPageSize: %8lu kB\n"
- 		   "MMUPageSize:    %8lu kB\n",
-@@ -420,6 +425,7 @@ static int show_smap(struct seq_file *m, void *v)
- 		   mss.private_clean >> 10,
- 		   mss.private_dirty >> 10,
- 		   mss.referenced >> 10,
-+		   mss.anonymous >> 10,
- 		   mss.swap >> 10,
- 		   vma_kernel_pagesize(vma) >> 10,
- 		   vma_mmu_pagesize(vma) >> 10);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
