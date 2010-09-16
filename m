@@ -1,178 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 002B36B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 16:15:07 -0400 (EDT)
-Date: Thu, 16 Sep 2010 13:14:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH][-mm] memcg : memory cgroup cpu hotplug support update.
-Message-Id: <20100916131432.049118bd.akpm@linux-foundation.org>
-In-Reply-To: <20100916144618.852b7e9a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100916144618.852b7e9a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3942C6B0078
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 17:03:52 -0400 (EDT)
+Date: Thu, 16 Sep 2010 23:03:49 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] fix swapin race condition
+Message-ID: <20100916210349.GU5981@random.random>
+References: <20100903153958.GC16761@random.random>
+ <alpine.LSU.2.00.1009051926330.12092@sister.anvils>
+ <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com>
+ <20100915234237.GR5981@random.random>
+ <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010 14:46:18 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Hi Hugh,
 
-> This is onto The mm-of-the-moment snapshot 2010-09-15-16-21.
-> 
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Now, memory cgroup uses for_each_possible_cpu() for percpu stat handling.
-> It's just because cpu hotplug handler doesn't handle them.
-> On the other hand, per-cpu usage counter cache is maintained per cpu and
-> it's cpu hotplug aware.
-> 
-> This patch adds a cpu hotplug hanlder and replaces for_each_possible_cpu()
-> with for_each_online_cpu(). And this merges new callbacks with old
-> callbacks.(IOW, memcg has only one cpu-hotplug handler.)
-> 
-> For this purpose, mem_cgroup_walk_all() is added.
-> 
-> ...
-> 
-> @@ -537,7 +540,7 @@ static s64 mem_cgroup_read_stat(struct m
->  	int cpu;
->  	s64 val = 0;
->  
-> -	for_each_possible_cpu(cpu)
-> +	for_each_online_cpu(cpu)
->  		val += per_cpu(mem->stat->count[idx], cpu);
+On Wed, Sep 15, 2010 at 05:10:36PM -0700, Hugh Dickins wrote:
+> I agree that if my scenario happened on its own, the pte_same check
+> would catch it.  But if my scenario happens along with your scenario
+> (and I'm thinking that the combination is not that much less likely
+> than either alone), then the PageSwapCache test will succeed and the
+> pte_same test will succeed, but we're still putting the wrong page into
+> the pte, since this page is now represented by a different swap entry
+> (and the page that should be there by our original swap entry).
 
-Can someone remind me again why all this code couldn't use
-percpu-counters?
+If I understood well you're saying that it is possible that this
+BUG_ON triggers:
 
->  	return val;
->  }
-> @@ -700,6 +703,35 @@ static inline bool mem_cgroup_is_root(st
->  	return (mem == root_mem_cgroup);
->  }
->  
-> +static int mem_cgroup_walk_all(void *data,
-> +		int (*func)(struct mem_cgroup *, void *))
-> +{
-> +	int found, ret, nextid;
-> +	struct cgroup_subsys_state *css;
-> +	struct mem_cgroup *mem;
-> +
-> +	nextid = 1;
-> +	do {
-> +		ret = 0;
-> +		mem = NULL;
-> +
-> +		rcu_read_lock();
-> +		css = css_get_next(&mem_cgroup_subsys, nextid,
-> +				&root_mem_cgroup->css, &found);
-> +		if (css && css_tryget(css))
-> +			mem = container_of(css, struct mem_cgroup, css);
-> +		rcu_read_unlock();
-> +
-> +		if (mem) {
-> +			ret = (*func)(mem, data);
-> +			css_put(&mem->css);
-> +		}
-> +		nextid = found + 1;
-> +	} while (!ret && css);
-> +
-> +	return ret;
-> +}
+   page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+   BUG_ON(page_private(page) != entry.val && pte_same(page_table, orig_pte));
+   if (unlikely(!pte_same(*page_table, orig_pte)))
 
-It would be better to convert `void *data' to `unsigned cpu' within the
-caller of this function rather than adding the typecast to each
-function which this function calls.  So this becomes
+I still don't get it (that doesn't make me right though).
 
-static int mem_cgroup_walk_all(unsigned cpu,
-		int (*func)(struct mem_cgroup *memcg, unsigned cpu))
+I'll try to rephrase my argument: if the page was swapped in from
+swapcache by swapoff and then swapon runs again and the page is added
+to swapcache to a different swap entry, in between the
+lookup_swap_cache and the lock_page, the pte_same(*page_table,
+orig_pte) in pte_same should always fail in the first place (so
+without requiring the page_private(page) != entry.val check).
 
+If the page is found mapped during pte_same the pte_same check will
+fail (pte_present first of all). If the page got unmapped and
+page_private(page) != entry.val, the "entry" == "orig_pte" will be
+different to what we read in *page_table at the above BUG_ON line (the
+page has to be unmapped before pte_same check can succeed, but if gets
+unmapped the new swap entry will be written in the page_table and it
+won't risk to succeed the pte_same check).
 
-> +/*
-> + * CPU Hotplug handling.
-> + */
-> +static int synchronize_move_stat(struct mem_cgroup *mem, void *data)
-> +{
-> +	long cpu = (long)data;
-> +	s64 x = this_cpu_read(mem->stat->count[MEM_CGROUP_ON_MOVE]);
-> +	/* All cpus should have the same value */
-> +	per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) = x;
-> +	return 0;
-> +}
-> +
-> +static int drain_all_percpu(struct mem_cgroup *mem, void *data)
-> +{
-> +	long cpu = (long)(data);
-> +	int i;
-> +	/* Drain data from dying cpu and move to local cpu */
-> +	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
-> +		s64 data = per_cpu(mem->stat->count[i], cpu);
-> +		per_cpu(mem->stat->count[i], cpu) = 0;
-> +		this_cpu_add(mem->stat->count[i], data);
-> +	}
-> +	/* Reset Move Count */
-> +	per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) = 0;
-> +	return 0;
-> +}
+If the page wasn't mapped when it was removed from swapcache, it can't
+be added to swapcache at all because it was pinned: because only free
+pages (during swapin) or mapped pages (during swapout) can be added to
+swapcache.
 
-Some nice comments would be nice.
+If I'm missing something a trace of the exact scenario would help to
+clarify your point.
 
-I don't immediately see anything which guarantees that preemption (and
-cpu migration) are disabled here.  It would be an odd thing to permit
-migration within a cpu-hotplug handler, but where did we guarantee it?
-
-Also, the code appears to assume that the current CPU is the one which
-is being onlined.  What guaranteed that?  This is not the case for
-enable_nonboot_cpus().
-
-It's conventional to put a blank line between end-of-locals and
-start-of-code.  This patch ignored that convention rather a lot.
-
-The comments in this patch Have Rather Strange Capitalisation Decisions.
-
-> +static int __cpuinit memcg_cpuhotplug_callback(struct notifier_block *nb,
-> +					unsigned long action,
-> +					void *hcpu)
-> +{
-> +	long cpu = (unsigned long)hcpu;
-> +	struct memcg_stock_pcp *stock;
-> +
-> +	if (action == CPU_ONLINE) {
-> +		mem_cgroup_walk_all((void *)cpu, synchronize_move_stat);
-
-More typecasts which can go away if we make the above change to
-mem_cgroup_walk_all().
-
-> +		return NOTIFY_OK;
-> +	}
-> +	if ((action != CPU_DEAD) || (action != CPU_DEAD_FROZEN))
-> +		return NOTIFY_OK;
-> +
-> +	/* Drain counters...for all memcgs. */
-> +	mem_cgroup_walk_all((void *)cpu, drain_all_percpu);
-> +
-> +	/* Drain Cached resources */
-> +	stock = &per_cpu(memcg_stock, cpu);
-> +	drain_stock(stock);
-> +
-> +	return NOTIFY_OK;
-> +}
-> +
->  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
->  {
->  	struct mem_cgroup_per_node *pn;
-> @@ -4224,7 +4302,7 @@ mem_cgroup_create(struct cgroup_subsys *
->  						&per_cpu(memcg_stock, cpu);
->  			INIT_WORK(&stock->work, drain_local_stock);
->  		}
-> -		hotcpu_notifier(memcg_stock_cpu_callback, 0);
-> +		hotcpu_notifier(memcg_cpuhotplug_callback, 0);
->  	} else {
->  		parent = mem_cgroup_from_cont(cont->parent);
->  		mem->use_hierarchy = parent->use_hierarchy;
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
