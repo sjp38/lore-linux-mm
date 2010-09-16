@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 777506B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 03:33:15 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G7XDUQ000350
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 16 Sep 2010 16:33:13 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B956945DE56
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 16:33:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 89D8945DE58
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 16:33:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6AD99E38001
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 16:33:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D34C11DB804C
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 16:33:11 +0900 (JST)
-Date: Thu, 16 Sep 2010 16:28:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][-mm] memcg : memory cgroup cpu hotplug support update.
-Message-Id: <20100916162807.d2ae50be.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100916161727.04a1f905.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100916144618.852b7e9a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100916062159.GF22371@balbir.in.ibm.com>
-	<20100916152204.6c457936.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100916161727.04a1f905.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id B90AB6B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 03:47:06 -0400 (EDT)
+Received: by ywl5 with SMTP id 5so447663ywl.14
+        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 00:47:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20100916155413.3BC0.A69D9226@jp.fujitsu.com>
+References: <20100916145452.3BB1.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1009152300380.25200@chino.kir.corp.google.com>
+	<20100916155413.3BC0.A69D9226@jp.fujitsu.com>
+Date: Thu, 16 Sep 2010 10:47:05 +0300
+Message-ID: <AANLkTikyxAZBp63FxY26_MS6afDZO59r2FNoWF9W-GmT@mail.gmail.com>
+Subject: Re: [PATCH 1/4] oom: remove totalpage normalization from oom_badness()
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, oss-security@lists.openwall.com, Solar Designer <solar@openwall.com>, Kees Cook <kees.cook@canonical.com>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>, Neil Horman <nhorman@tuxdriver.com>, linux-fsdevel@vger.kernel.org, pageexec@freemail.hu, Brad Spengler <spender@grsecurity.net>, Eugene Teo <eugene@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010 16:17:27 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, Sep 16, 2010 at 9:57 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> On Thu, 16 Sep 2010, KOSAKI Motohiro wrote:
+>>
+>> > Current oom_score_adj is completely broken because It is strongly boun=
+d
+>> > google usecase and ignore other all.
+>> >
+>>
+>> We've talked about this issue three times already. =A0The last two times
+>> you've sent a revert patch, you failed to followup on the threads:
+>>
+>> =A0 =A0 =A0 http://marc.info/?t=3D128272938200002
+>> =A0 =A0 =A0 http://marc.info/?t=3D128324705200002
+>>
+>> And now you've gone above Andrew, who is the maintainer of this code, an=
+d
+>> straight to Linus. =A0Between that and your failure to respond to my ans=
+wers
+>> to your questions, I'm really stunned at how unprofessional you've handl=
+ed
+>> this.
+>
+> Selfish must die. you failed to persuade to me. and I havgen't get anyone=
+'s objection.
+> Then, I don't care your ugly whining.
 
-> On Thu, 16 Sep 2010 15:22:04 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->  
-> > This naming is from mem_cgroup_walk_tree(). Now we have
-> > 
-> >   mem_cgroup_walk_tree();
-> >   mem_cgroup_walk_all();
-> > 
-> > Rename both ? But it should be in separated patch.
-> > 
-> 
-> Considering a bit ...but..
-> 
-> #define for_each_mem_cgroup(mem) \
-> 	for (mem = mem_cgroup_get_first(); \
-> 	     mem; \
-> 	     mem = mem_cgroup_get_next(mem);) \
-> 
-> seems to need some helper functions. I'll consider about this clean up
-> but it requires some amount of patch because css_get()/css_put()/rcu...etc..
-> are problematic.
+I haven't followed the discussion at all so I hope you don't mind me
+jumping in. Are there some real-world bug reports where OOM rewrite is
+to blame? Why haven't those been fixed?
 
-Hmm...css_put() at break from loop is a problem...
-
-Do you have anything good idea to handle "exit-from-loop" operation
-with dropping reference count ? I don't like "the caller must take care of"
-approach.
-
-Thanks,
--Kame
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
