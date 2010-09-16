@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B90AB6B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 03:47:06 -0400 (EDT)
-Received: by ywl5 with SMTP id 5so447663ywl.14
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 00:47:05 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id F0BC56B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 03:59:58 -0400 (EDT)
+Received: by pwj6 with SMTP id 6so457156pwj.14
+        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 00:59:57 -0700 (PDT)
+Date: Thu, 16 Sep 2010 16:59:49 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH 7/8] writeback: Do not sleep on the congestion queue if
+ there are no congested BDIs
+Message-ID: <20100916075949.GA16115@barrios-desktop>
+References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie>
+ <1284553671-31574-8-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <20100916155413.3BC0.A69D9226@jp.fujitsu.com>
-References: <20100916145452.3BB1.A69D9226@jp.fujitsu.com>
-	<alpine.DEB.2.00.1009152300380.25200@chino.kir.corp.google.com>
-	<20100916155413.3BC0.A69D9226@jp.fujitsu.com>
-Date: Thu, 16 Sep 2010 10:47:05 +0300
-Message-ID: <AANLkTikyxAZBp63FxY26_MS6afDZO59r2FNoWF9W-GmT@mail.gmail.com>
-Subject: Re: [PATCH 1/4] oom: remove totalpage normalization from oom_badness()
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1284553671-31574-8-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, oss-security@lists.openwall.com, Solar Designer <solar@openwall.com>, Kees Cook <kees.cook@canonical.com>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>, Neil Horman <nhorman@tuxdriver.com>, linux-fsdevel@vger.kernel.org, pageexec@freemail.hu, Brad Spengler <spender@grsecurity.net>, Eugene Teo <eugene@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 9:57 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Thu, 16 Sep 2010, KOSAKI Motohiro wrote:
->>
->> > Current oom_score_adj is completely broken because It is strongly boun=
-d
->> > google usecase and ignore other all.
->> >
->>
->> We've talked about this issue three times already. =A0The last two times
->> you've sent a revert patch, you failed to followup on the threads:
->>
->> =A0 =A0 =A0 http://marc.info/?t=3D128272938200002
->> =A0 =A0 =A0 http://marc.info/?t=3D128324705200002
->>
->> And now you've gone above Andrew, who is the maintainer of this code, an=
-d
->> straight to Linus. =A0Between that and your failure to respond to my ans=
-wers
->> to your questions, I'm really stunned at how unprofessional you've handl=
-ed
->> this.
->
-> Selfish must die. you failed to persuade to me. and I havgen't get anyone=
-'s objection.
-> Then, I don't care your ugly whining.
+On Wed, Sep 15, 2010 at 01:27:50PM +0100, Mel Gorman wrote:
+> If congestion_wait() is called with no BDI congested, the caller will sleep
+> for the full timeout and this may be an unnecessary sleep. This patch adds
+> a wait_iff_congested() that checks congestion and only sleeps if a BDI is
+> congested else, it calls cond_resched() to ensure the caller is not hogging
+> the CPU longer than its quota but otherwise will not sleep.
+> 
+> This is aimed at reducing some of the major desktop stalls reported during
+> IO. For example, while kswapd is operating, it calls congestion_wait()
+> but it could just have been reclaiming clean page cache pages with no
+> congestion. Without this patch, it would sleep for a full timeout but after
+> this patch, it'll just call schedule() if it has been on the CPU too long.
+> Similar logic applies to direct reclaimers that are not making enough
+> progress.
 
-I haven't followed the discussion at all so I hope you don't mind me
-jumping in. Are there some real-world bug reports where OOM rewrite is
-to blame? Why haven't those been fixed?
+I confused due to kswapd you mentioned.
+This patch affects only direct reclaim.
+Please, complete the description. 
 
-                        Pekka
+"This patch affects direct reclaimer to reduce stall"
+Otherwise, looks good to me. 
+
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
