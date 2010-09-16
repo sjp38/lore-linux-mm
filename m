@@ -1,100 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9FF346B007B
-	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 21:38:37 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G1cZ68003403
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 16 Sep 2010 10:38:35 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 486AF45DE4E
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22C3145DE55
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09B0D1DB803C
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:35 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A60F1E08003
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:38:34 +0900 (JST)
-Date: Thu, 16 Sep 2010 10:33:26 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] update /proc/sys/vm/drop_caches documentation
-Message-Id: <20100916103326.026ca03f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1284600107.20776.640.camel@nimitz>
-References: <20100914234714.8AF506EA@kernel.beaverton.ibm.com>
-	<20100915133303.0b232671.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100915192454.GD5585@tpepper-t61p.dolavim.us>
-	<20100916091215.ef59acd7.kamezawa.hiroyu@jp.fujitsu.com>
-	<1284600107.20776.640.camel@nimitz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CE2926B007B
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 21:58:13 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G1wA9N015827
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Sep 2010 10:58:10 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EF04945DE56
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:58:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B3B2645DE50
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:58:09 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EEF6E08009
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:58:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A1EF1DB803E
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 10:58:09 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] Cross Memory Attach
+In-Reply-To: <AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com>
+References: <4C90A6C7.9050607@redhat.com> <AANLkTi=rmUUPCm212Sju-wW==5cT4eqqU+FEP_hX-Z_y@mail.gmail.com>
+Message-Id: <20100916105311.CA00.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 16 Sep 2010 10:58:08 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Tim Pepper <lnxninja@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Bryan Donlan <bdonlan@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Avi Kivity <avi@redhat.com>, Christopher Yeoh <cyeoh@au1.ibm.com>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Sep 2010 18:21:47 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> On Wed, Sep 15, 2010 at 19:58, Avi Kivity <avi@redhat.com> wrote:
+>=20
+> > Instead of those two syscalls, how about a vmfd(pid_t pid, ulong start,
+> > ulong len) system call which returns an file descriptor that represents=
+ a
+> > portion of the process address space. =A0You can then use preadv() and
+> > pwritev() to copy memory, and io_submit(IO_CMD_PREADV) and
+> > io_submit(IO_CMD_PWRITEV) for asynchronous variants (especially useful =
+with
+> > a dma engine, since that adds latency).
+> >
+> > With some care (and use of mmu_notifiers) you can even mmap() your vmfd=
+ and
+> > access remote process memory directly.
+>=20
+> Rather than introducing a new vmfd() API for this, why not just add
+> implementations for these more efficient operations to the existing
+> /proc/$pid/mem interface?
 
-> On Thu, 2010-09-16 at 09:12 +0900, KAMEZAWA Hiroyuki wrote:
-> > I hear a customer's case. His server generates 3-80000+ new dentries per day
-> > and dentries will be piled up to 1000000+ in a month. This makes open()'s 
-> > performance very bad because Hash-lookup will be heavy. (He has very big memory.)
-> > 
-> > What we could ask him was
-> >   - rewrite your application. or
-> >   - reboot once in a month (and change hash size) or
-> >   - drop_cache once in a month
-> > 
-> > Because their servers cannot stop, he used drop_caches once in a month
-> > while his server is idle, at night. Changing HashSize cannot be a permanent
-> > fix because he may not stop the server for years.
-> 
-> That is a really interesting case.
-> 
-> They must have a *ton* of completely extra memory laying around.  Do
-> they not have much page cache activity? 
+As far as I heared from my friend, old HP MPI implementation used /proc/$pi=
+d/mem
+for this purpose. (I don't know current status). However almost implementat=
+ion
+doesn't do that because /proc/$pid/mem required the process is ptraced.
+As far as I understand , very old /proc/$pid/mem doesn't require it. but It=
+ changed
+for security concern. Then, Anybody haven't want to change this interface b=
+ecause
+they worry break security.
 
-I hear they have a ton of extra memory. Just open() slows down.
-
-> It usually balances out the  dentry/inode caches.
-> 
-> Would this user be better off with a smaller dentry hash in general? 
-
-Maybe. I hear most of files were created-but-never-used data and logs.
-
-> Is it special hardware that should _have_ a lower default hash size?
-> 
-
-I'm not sure. I think they have no boot option of hash size.
-
-
-> > For rare users who have 10000000+ of files and tons of free memory, drop_cache
-> > can be an emergency help. 
-> 
-> In this case, though, would a WARN_ON() in an emergency be such a bad
-> thing?  They evidently know what they're doing, and shouldn't be put off
-> by it.
-> 
-
-Showing "Warning" means ", it's possibly bug." for almost all customers.
-We'll get tons of "regression" report ;)
-
-If you really want to add messages, please raise log level.
-NOTICE or INFO sounds better(and moderate) to me because it's easy to explain
-"Don't worry about the message, your kernel is stable and don't need to reboot.
- But please check the peformance, it tends to go bad. You lose cache.".
-BTW, what(1or2or3) was writtern to "drop_cache" is important. please show.
-
-Thanks,
--Kame
-
-
-
-
+But, I don't know what exactly protected "the process is ptraced" check. If=
+ anyone
+explain the reason and we can remove it. I'm not againt at all.
 
 
 
