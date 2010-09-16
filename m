@@ -1,131 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B55E56B007B
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 02:34:42 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G6YduB027826
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Sep 2010 15:34:39 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5617445DE4F
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:39 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A12045DE4E
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:39 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EEB331DB8015
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:38 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EC641DB8014
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 15:34:35 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] smaps: fix dirty pages accounting
-In-Reply-To: <201009161135.00129.knikanth@suse.de>
-References: <20100916125147.CA08.A69D9226@jp.fujitsu.com> <201009161135.00129.knikanth@suse.de>
-Message-Id: <20100916153420.3BBD.A69D9226@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id ADAB06B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 02:36:31 -0400 (EDT)
+Received: from kpbe19.cbf.corp.google.com (kpbe19.cbf.corp.google.com [172.25.105.83])
+	by smtp-out.google.com with ESMTP id o8G6aRtZ003146
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 23:36:27 -0700
+Received: from pwi9 (pwi9.prod.google.com [10.241.219.9])
+	by kpbe19.cbf.corp.google.com with ESMTP id o8G6aPCE030544
+	for <linux-mm@kvack.org>; Wed, 15 Sep 2010 23:36:26 -0700
+Received: by pwi9 with SMTP id 9so1497471pwi.2
+        for <linux-mm@kvack.org>; Wed, 15 Sep 2010 23:36:25 -0700 (PDT)
+Date: Wed, 15 Sep 2010 23:36:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] oom: remove totalpage normalization from
+ oom_badness()
+In-Reply-To: <20100916145452.3BB1.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1009152300380.25200@chino.kir.corp.google.com>
+References: <20100916144930.3BAE.A69D9226@jp.fujitsu.com> <20100916145452.3BB1.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 16 Sep 2010 15:34:34 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nikanth Karthikesan <knikanth@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, oss-security@lists.openwall.com, Solar Designer <solar@openwall.com>, Kees Cook <kees.cook@canonical.com>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>, Neil Horman <nhorman@tuxdriver.com>, linux-fsdevel@vger.kernel.org, pageexec@freemail.hu, Brad Spengler <spender@grsecurity.net>, Eugene Teo <eugene@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Currently, /proc/<pid>/smaps have wrong dirty pages accounting.
-Shared_Dirty and Private_Dirty output only pte dirty pages and
-ignore PG_dirty page flag. It is difference against documentation,
-but also inconsistent against Referenced field. (Referenced checks
-both pte and page flags)
+On Thu, 16 Sep 2010, KOSAKI Motohiro wrote:
 
-This patch fixes it.
+> Current oom_score_adj is completely broken because It is strongly bound
+> google usecase and ignore other all.
+> 
 
-Test program:
+We've talked about this issue three times already.  The last two times 
+you've sent a revert patch, you failed to followup on the threads:
 
- large-array.c
- ---------------------------------------------------
- #include <stdio.h>
- #include <stdlib.h>
- #include <string.h>
- #include <unistd.h>
+	http://marc.info/?t=128272938200002
+	http://marc.info/?t=128324705200002
 
- char array[1*1024*1024*1024L];
+And now you've gone above Andrew, who is the maintainer of this code, and 
+straight to Linus.  Between that and your failure to respond to my answers 
+to your questions, I'm really stunned at how unprofessional you've handled 
+this.
 
- int main(void)
- {
-         memset(array, 1, sizeof(array));
-         pause();
+I've responded to every one of your emails and I've described the power of 
+oom_score_adj as it acts on a higher resolution than oom_adj (1/1000th of 
+RAM), respects the dynamic nature of cgroups, provides a rough 
+approximation to users of oom_adj, and an exact equivalent of polarizing 
+users of oom_adj, which is by far the most common usecase.
 
-         return 0;
- }
- ---------------------------------------------------
+That feature, as is the entire oom killer rewrite, is not specific in any 
+way to Google, which I've stated many times, yet you constantly insist 
+that it's so.  Yes, we deal with oom issues on scales you've never seen.  
+And instead of carrying internal patches to fix it since oom_adj is _only_ 
+useful for polarizing a task and not relative to others competing for the 
+same resources, I reworked the entire heuristic from scratch since we're 
+not the only ones who want a sane priority killing.
 
-Test case:
- 1. run ./large-array
- 2. cat /proc/`pidof large-array`/smaps
- 3. swapoff -a
- 4. cat /proc/`pidof large-array`/smaps again
+We are not the only ones who add mems to cpusets, adjust memcg limits, add 
+nodes to mempolicies, or use memory hotplug.  oom_adj would require a new 
+value whenever you did any of those for a static priority.  The fact that 
+you constantly ignore is that the amount of memory that an aggregate of 
+tasks can access is _dynamic_ and so the kill priority will change unless 
+we define it as a static value that has a unit as a proportion of 
+available memory as oom_score_adj does.  Nobody cares about static oom 
+scores like you introduce here with the revert; static oom scores mean 
+_nothing_ because they are only useful in comparison to other eligible 
+tasks.
 
-Test result:
- <before patch>
+You never respond to any of this, but you just keep pushing your same old 
+revert.  You never responded to my email to Andrew that showed how this 
+isn't a regression, so I guess I can only ask Linus to read the same 
+email since you're pushing it to him now 
+(http://marc.info/?l=linux-mm&m=128393429131399).
 
-00601000-40601000 rw-p 00000000 00:00 0
-Size:            1048576 kB
-Rss:             1048576 kB
-Pss:             1048576 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:    218992 kB   <-- showed pages as clean incorrectly
-Private_Dirty:    829584 kB
-Referenced:       388364 kB
-Swap:                  0 kB
-KernelPageSize:        4 kB
-MMUPageSize:           4 kB
-
- <after patch>
-
-00601000-40601000 rw-p 00000000 00:00 0
-Size:            1048576 kB
-Rss:             1048576 kB
-Pss:             1048576 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:         0 kB
-Private_Dirty:   1048576 kB  <-- fixed
-Referenced:       388480 kB
-Swap:                  0 kB
-KernelPageSize:        4 kB
-MMUPageSize:           4 kB
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- fs/proc/task_mmu.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 439fc1f..7415f13 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -362,13 +362,13 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			mss->referenced += PAGE_SIZE;
- 		mapcount = page_mapcount(page);
- 		if (mapcount >= 2) {
--			if (pte_dirty(ptent))
-+			if (pte_dirty(ptent) || PageDirty(page))
- 				mss->shared_dirty += PAGE_SIZE;
- 			else
- 				mss->shared_clean += PAGE_SIZE;
- 			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
- 		} else {
--			if (pte_dirty(ptent))
-+			if (pte_dirty(ptent) || PageDirty(page))
- 				mss->private_dirty += PAGE_SIZE;
- 			else
- 				mss->private_clean += PAGE_SIZE;
--- 
-1.6.5.2
-
-
+I really hope we can put this to rest because it's frankly getting old 
+competing with a broken record.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
