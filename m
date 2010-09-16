@@ -1,266 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 137EA6B007D
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 01:56:39 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G5ueRj001985
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id D2FB56B007B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 01:57:24 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8G5vMmr021751
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Sep 2010 14:56:40 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F18A745DE4F
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:56:39 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CD41545DE53
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:56:39 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B40431DB8012
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:56:39 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 599261DB8014
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:56:39 +0900 (JST)
+	Thu, 16 Sep 2010 14:57:23 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F00045DE4D
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:57:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE83445DE50
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:57:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AF5731DB803B
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:57:21 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D366E18005
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 14:57:18 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH 3/4] move cred_guard_mutex from task_struct to signal_struct
+Subject: [PATCH 4/4] oom: don't ignore rss in nascent mm
 In-Reply-To: <20100916144930.3BAE.A69D9226@jp.fujitsu.com>
 References: <20100916144930.3BAE.A69D9226@jp.fujitsu.com>
-Message-Id: <20100916145623.3BB7.A69D9226@jp.fujitsu.com>
+Message-Id: <20100916145710.3BBA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Sep 2010 14:56:38 +0900 (JST)
+Date: Thu, 16 Sep 2010 14:57:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, oss-security@lists.openwall.com, Solar Designer <solar@openwall.com>, Kees Cook <kees.cook@canonical.com>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>, Neil Horman <nhorman@tuxdriver.com>, linux-fsdevel@vger.kernel.org, pageexec@freemail.hu, Brad Spengler <spender@grsecurity.net>, Eugene Teo <eugene@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
+ChangeLog
+ o since v1
+   - Always use thread group leader's ->in_exec_mm.
+     It slightly makes efficient oom when a process has many thread.
+   - Add the link of Brad's explanation to the description.
 
-Changelog
-  o since v1
-    - function comment also change current->cred_guard_mutex to
-      current->signal->cred_guard_mutex.
+Brad Spengler published a local memory-allocation DoS that
+evades the OOM-killer (though not the virtual memory RLIMIT):
+http://www.grsecurity.net/~spender/64bit_dos.c
 
-Oleg Nesterov pointed out we have to prevent multiple-threads-inside-exec
-itself and we can reuse ->cred_guard_mutex for it. Yes, concurrent
-execve() has no worth.
+Because execve() makes new mm struct and setup stack and
+copy argv. It mean the task have two mm while execve() temporary.
+Unfortunately this nascent mm is not pointed any tasks, then
+OOM-killer can't detect this memory usage. therefore OOM-killer
+may kill incorrect task.
 
-Let's move ->cred_guard_mutex from task_struct to signal_struct. It
-naturally prevent multiple-threads-inside-exec.
+Thus, this patch added task->in_exec_mm member and track
+nascent mm usage.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+Cc: pageexec@freemail.hu
 Cc: Roland McGrath <roland@redhat.com>
+Cc: Solar Designer <solar@openwall.com>
+Cc: Eugene Teo <eteo@redhat.com>
+Reported-by: Brad Spengler <spender@grsecurity.net>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- fs/exec.c                 |   10 +++++-----
- fs/proc/base.c            |    8 ++++----
- include/linux/init_task.h |    4 ++--
- include/linux/sched.h     |    7 ++++---
- include/linux/tracehook.h |    2 +-
- kernel/cred.c             |    4 +---
- kernel/fork.c             |    2 ++
- kernel/ptrace.c           |    4 ++--
- 8 files changed, 21 insertions(+), 20 deletions(-)
+ fs/compat.c             |    4 +++-
+ fs/exec.c               |   24 +++++++++++++++++++++++-
+ include/linux/binfmts.h |    1 +
+ include/linux/sched.h   |    1 +
+ mm/oom_kill.c           |   45 +++++++++++++++++++++++++++++++++++++--------
+ 5 files changed, 65 insertions(+), 10 deletions(-)
 
+diff --git a/fs/compat.c b/fs/compat.c
+index 718c706..b631120 100644
+--- a/fs/compat.c
++++ b/fs/compat.c
+@@ -1567,8 +1567,10 @@ int compat_do_execve(char * filename,
+ 	return retval;
+ 
+ out:
+-	if (bprm->mm)
++	if (bprm->mm) {
++		set_exec_mm(NULL);
+ 		mmput(bprm->mm);
++	}
+ 
+ out_file:
+ 	if (bprm->file) {
 diff --git a/fs/exec.c b/fs/exec.c
-index 2d94552..160eb46 100644
+index 160eb46..2a08459 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1064,14 +1064,14 @@ EXPORT_SYMBOL(setup_new_exec);
-  */
- int prepare_bprm_creds(struct linux_binprm *bprm)
- {
--	if (mutex_lock_interruptible(&current->cred_guard_mutex))
-+	if (mutex_lock_interruptible(&current->signal->cred_guard_mutex))
- 		return -ERESTARTNOINTR;
+@@ -347,6 +347,8 @@ int bprm_mm_init(struct linux_binprm *bprm)
+ 	if (err)
+ 		goto err;
  
- 	bprm->cred = prepare_exec_creds();
- 	if (likely(bprm->cred))
- 		return 0;
- 
--	mutex_unlock(&current->cred_guard_mutex);
-+	mutex_unlock(&current->signal->cred_guard_mutex);
- 	return -ENOMEM;
- }
- 
-@@ -1079,7 +1079,7 @@ void free_bprm(struct linux_binprm *bprm)
- {
- 	free_arg_pages(bprm);
- 	if (bprm->cred) {
--		mutex_unlock(&current->cred_guard_mutex);
-+		mutex_unlock(&current->signal->cred_guard_mutex);
- 		abort_creds(bprm->cred);
- 	}
- 	kfree(bprm);
-@@ -1100,13 +1100,13 @@ void install_exec_creds(struct linux_binprm *bprm)
- 	 * credentials; any time after this it may be unlocked.
- 	 */
- 	security_bprm_committed_creds(bprm);
--	mutex_unlock(&current->cred_guard_mutex);
-+	mutex_unlock(&current->signal->cred_guard_mutex);
- }
- EXPORT_SYMBOL(install_exec_creds);
- 
- /*
-  * determine how safe it is to execute the proposed program
-- * - the caller must hold current->cred_guard_mutex to protect against
-+ * - the caller must hold ->cred_guard_mutex to protect against
-  *   PTRACE_ATTACH
-  */
- int check_unsafe_exec(struct linux_binprm *bprm)
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 55a16f2..fd97c8f 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -226,7 +226,7 @@ struct mm_struct *mm_for_maps(struct task_struct *task)
- {
- 	struct mm_struct *mm;
- 
--	if (mutex_lock_killable(&task->cred_guard_mutex))
-+	if (mutex_lock_killable(&task->signal->cred_guard_mutex))
- 		return NULL;
- 
- 	mm = get_task_mm(task);
-@@ -235,7 +235,7 @@ struct mm_struct *mm_for_maps(struct task_struct *task)
- 		mmput(mm);
- 		mm = NULL;
- 	}
--	mutex_unlock(&task->cred_guard_mutex);
-+	mutex_unlock(&task->signal->cred_guard_mutex);
- 
- 	return mm;
- }
-@@ -2273,14 +2273,14 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
- 		goto out_free;
- 
- 	/* Guard against adverse ptrace interaction */
--	length = mutex_lock_interruptible(&task->cred_guard_mutex);
-+	length = mutex_lock_interruptible(&task->signal->cred_guard_mutex);
- 	if (length < 0)
- 		goto out_free;
- 
- 	length = security_setprocattr(task,
- 				      (char*)file->f_path.dentry->d_name.name,
- 				      (void*)page, count);
--	mutex_unlock(&task->cred_guard_mutex);
-+	mutex_unlock(&task->signal->cred_guard_mutex);
- out_free:
- 	free_page((unsigned long) page);
- out:
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index 1f43fa5..ff3cc33 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -29,6 +29,8 @@ extern struct fs_struct init_fs;
- 		.running = 0,						\
- 		.lock = __SPIN_LOCK_UNLOCKED(sig.cputimer.lock),	\
- 	},								\
-+	.cred_guard_mutex =						\
-+		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
- }
- 
- extern struct nsproxy init_nsproxy;
-@@ -139,8 +141,6 @@ extern struct cred init_cred;
- 	.group_leader	= &tsk,						\
- 	.real_cred	= &init_cred,					\
- 	.cred		= &init_cred,					\
--	.cred_guard_mutex =						\
--		 __MUTEX_INITIALIZER(tsk.cred_guard_mutex),		\
- 	.comm		= "swapper",					\
- 	.thread		= INIT_THREAD,					\
- 	.fs		= &init_fs,					\
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5e61d60..960a867 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -623,6 +623,10 @@ struct signal_struct {
- 
- 	int oom_adj;		/* OOM kill score adjustment (bit shift) */
- 	long oom_score_adj;	/* OOM kill score adjustment */
-+
-+	struct mutex cred_guard_mutex;	/* guard against foreign influences on
-+					 * credential calculations
-+					 * (notably. ptrace) */
- };
- 
- /* Context switch must be unlocked if interrupts are to be enabled */
-@@ -1292,9 +1296,6 @@ struct task_struct {
- 					 * credentials (COW) */
- 	const struct cred *cred;	/* effective (overridable) subjective task
- 					 * credentials (COW) */
--	struct mutex cred_guard_mutex;	/* guard against foreign influences on
--					 * credential calculations
--					 * (notably. ptrace) */
- 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
- 
- 	char comm[TASK_COMM_LEN]; /* executable name excluding path
-diff --git a/include/linux/tracehook.h b/include/linux/tracehook.h
-index 10db010..3a2e66d 100644
---- a/include/linux/tracehook.h
-+++ b/include/linux/tracehook.h
-@@ -150,7 +150,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
-  *
-  * Return %LSM_UNSAFE_* bits applied to an exec because of tracing.
-  *
-- * @task->cred_guard_mutex is held by the caller through the do_execve().
-+ * @task->signal->cred_guard_mutex is held by the caller through the do_execve().
-  */
- static inline int tracehook_unsafe_exec(struct task_struct *task)
- {
-diff --git a/kernel/cred.c b/kernel/cred.c
-index 9a3e226..6a1aa00 100644
---- a/kernel/cred.c
-+++ b/kernel/cred.c
-@@ -325,7 +325,7 @@ EXPORT_SYMBOL(prepare_creds);
- 
- /*
-  * Prepare credentials for current to perform an execve()
-- * - The caller must hold current->cred_guard_mutex
-+ * - The caller must hold ->cred_guard_mutex
-  */
- struct cred *prepare_exec_creds(void)
- {
-@@ -384,8 +384,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
- 	struct cred *new;
- 	int ret;
- 
--	mutex_init(&p->cred_guard_mutex);
--
- 	if (
- #ifdef CONFIG_KEYS
- 		!p->cred->thread_keyring &&
-diff --git a/kernel/fork.c b/kernel/fork.c
-index b7e9d60..4c0d3ea 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -904,6 +904,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
- 	sig->oom_adj = current->signal->oom_adj;
- 	sig->oom_score_adj = current->signal->oom_score_adj;
- 
-+	mutex_init(&sig->cred_guard_mutex);
++	set_exec_mm(bprm->mm);
 +
  	return 0;
- }
  
-diff --git a/kernel/ptrace.c b/kernel/ptrace.c
-index f34d798..ac5013a 100644
---- a/kernel/ptrace.c
-+++ b/kernel/ptrace.c
-@@ -181,7 +181,7 @@ int ptrace_attach(struct task_struct *task)
- 	 * under ptrace.
- 	 */
- 	retval = -ERESTARTNOINTR;
--	if (mutex_lock_interruptible(&task->cred_guard_mutex))
-+	if (mutex_lock_interruptible(&task->signal->cred_guard_mutex))
- 		goto out;
+ err:
+@@ -745,6 +747,7 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
++	tsk->in_exec_mm = NULL;
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+@@ -855,6 +858,9 @@ static int de_thread(struct task_struct *tsk)
+ 		tsk->group_leader = tsk;
+ 		leader->group_leader = tsk;
  
- 	task_lock(task);
-@@ -208,7 +208,7 @@ int ptrace_attach(struct task_struct *task)
- unlock_tasklist:
- 	write_unlock_irq(&tasklist_lock);
- unlock_creds:
--	mutex_unlock(&task->cred_guard_mutex);
-+	mutex_unlock(&task->signal->cred_guard_mutex);
- out:
++		tsk->in_exec_mm = leader->in_exec_mm;
++		leader->in_exec_mm = NULL;
++
+ 		tsk->exit_signal = SIGCHLD;
+ 
+ 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
+@@ -1314,6 +1320,20 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+ 
+ EXPORT_SYMBOL(search_binary_handler);
+ 
++void set_exec_mm(struct mm_struct *mm)
++{
++	/*
++	 * Both ->group_leader change in de_thread() and this function
++	 * are protected by ->cred_guard_mutex. Then, we don't need
++	 * additional lock to protect other exec. oom_kill takes both
++	 * tasklist_lock and task_lock. Then, task_lock() provide enough
++	 * protection.
++	 */
++	task_lock(current->group_leader);
++	current->group_leader->in_exec_mm = mm;
++	task_unlock(current->group_leader);
++}
++
+ /*
+  * sys_execve() executes a new program.
+  */
+@@ -1402,8 +1422,10 @@ int do_execve(const char * filename,
  	return retval;
+ 
+ out:
+-	if (bprm->mm)
++	if (bprm->mm) {
++		set_exec_mm(NULL);
+ 		mmput (bprm->mm);
++	}
+ 
+ out_file:
+ 	if (bprm->file) {
+diff --git a/include/linux/binfmts.h b/include/linux/binfmts.h
+index a065612..2fde1ba 100644
+--- a/include/linux/binfmts.h
++++ b/include/linux/binfmts.h
+@@ -133,6 +133,7 @@ extern void install_exec_creds(struct linux_binprm *bprm);
+ extern void do_coredump(long signr, int exit_code, struct pt_regs *regs);
+ extern void set_binfmt(struct linux_binfmt *new);
+ extern void free_bprm(struct linux_binprm *);
++extern void set_exec_mm(struct mm_struct *mm);
+ 
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_BINFMTS_H */
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 960a867..a7e7c2a 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1230,6 +1230,7 @@ struct task_struct {
+ 	int pdeath_signal;  /*  The signal sent when the parent dies  */
+ 	/* ??? */
+ 	unsigned int personality;
++	struct mm_struct *in_exec_mm;
+ 	unsigned did_exec:1;
+ 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
+ 				 * execve */
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index c1beda0..d03ef9c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -120,6 +120,41 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
+ 	return NULL;
  }
+ 
++/*
++ * The baseline for the badness score is the proportion of RAM that each
++ * task's rss and swap space use.
++ */
++static unsigned long oom_rss_swap_usage(struct task_struct *p)
++{
++	struct task_struct *t = p;
++	struct task_struct *leader = p->group_leader;
++	unsigned long points = 0;
++
++	do {
++		task_lock(t);
++		if (t->mm) {
++			points += get_mm_rss(t->mm);
++			points += get_mm_counter(t->mm, MM_SWAPENTS);
++			task_unlock(t);
++			break;
++		}
++		task_unlock(t);
++	} while_each_thread(p, t);
++
++	/*
++	 * If the process is in execve() processing, we have to concern
++	 * about both old and new mm.
++	 */
++	task_lock(leader);
++	if (leader->in_exec_mm) {
++		points += get_mm_rss(leader->in_exec_mm);
++		points += get_mm_counter(leader->in_exec_mm, MM_SWAPENTS);
++	}
++	task_unlock(leader);
++
++	return points;
++}
++
+ /* return true if the task is not adequate as candidate victim task. */
+ static bool oom_unkillable_task(struct task_struct *p, struct mem_cgroup *mem,
+ 			   const nodemask_t *nodemask)
+@@ -169,16 +204,10 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *mem,
+ 	if (p->flags & PF_OOM_ORIGIN)
+ 		return ULONG_MAX;
+ 
+-	p = find_lock_task_mm(p);
+-	if (!p)
++	points = oom_rss_swap_usage(p);
++	if (!points)
+ 		return 0;
+ 
+-	/*
+-	 * The baseline for the badness score is the proportion of RAM that each
+-	 * task's rss and swap space use.
+-	 */
+-	points = (get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS));
+-	task_unlock(p);
+ 
+ 	/*
+ 	 * Root processes get 3% bonus, just like the __vm_enough_memory()
 -- 
 1.6.5.2
 
