@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AA45B6B0078
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 02:35:41 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8H6JhHH015547
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 02:19:43 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8H6Zd5a135562
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 02:35:39 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8H6Zd3T000536
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 03:35:39 -0300
-Date: Fri, 17 Sep 2010 12:05:37 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH][-mm] memcg : memory cgroup cpu hotplug support update.
-Message-ID: <20100917063537.GA4534@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100916144618.852b7e9a.kamezawa.hiroyu@jp.fujitsu.com>
- <20100916062159.GF22371@balbir.in.ibm.com>
- <20100916152204.6c457936.kamezawa.hiroyu@jp.fujitsu.com>
- <20100916161727.04a1f905.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4CB6B0078
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 03:32:38 -0400 (EDT)
+Message-Id: <1284708756.2702.1395472601@webmail.messagingengine.com>
+From: "Robert Mueller" <robm@fastmail.fm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100916161727.04a1f905.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
+References: <1284349152.15254.1394658481@webmail.messagingengine.com>
+ <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1009161153210.22849@router.home>
+ <1284684653.10161.1395434085@webmail.messagingengine.com>
+ <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
+Reply-To: robm@fastmail.fm
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
+ file/email/web servers
+Date: Fri, 17 Sep 2010 17:32:36 +1000
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-09-16 16:17:27]:
-
-> On Thu, 16 Sep 2010 15:22:04 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > This naming is from mem_cgroup_walk_tree(). Now we have
-> > 
-> >   mem_cgroup_walk_tree();
-> >   mem_cgroup_walk_all();
-> > 
-> > Rename both ? But it should be in separated patch.
-> > 
-> 
-> Considering a bit ...but..
-> 
-> #define for_each_mem_cgroup(mem) \
-> 	for (mem = mem_cgroup_get_first(); \
-> 	     mem; \
-> 	     mem = mem_cgroup_get_next(mem);) \
-> 
-> seems to need some helper functions. I'll consider about this clean up
-> but it requires some amount of patch because css_get()/css_put()/rcu...etc..
-> are problematic.
+> > I don't think this is any fault of how the software works. It's a
+> > *very* standard "pre-fork child processes, allocate incoming
+> > connections to a child process, open and mmap one or more files to
+> > read data from them". That's not exactly a weird programming model,
+> > and it's bad that the kernel is handling that case very badly with
+> > everything default.
 >
+> maybe you incoming connection always happen on one CPU and you do the
+> page allocation in that cpu, so some nodes use out of memory but
+> others have a lot free. Try bind the child process to different nodes
+> might help.
 
-Why does this need to be a macro (I know we use this for lists and
-other places), assuming for now we don't use the iterator pattern, we
-can rename mem_cgroup_walk_all() to for_each_mem_cgroup(). 
+There's are 5000+ child processes (it's a cyrus IMAP server). Neither
+the parent of any of the children are bound to any particular CPU. It
+uses a standard fcntl lock to make sure only one spare child at a time
+calls accept(). I don't think that's the problem.
 
--- 
-	Three Cheers,
-	Balbir
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
