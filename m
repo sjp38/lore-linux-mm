@@ -1,127 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id A97926B0078
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 22:32:08 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id o8H2W9Zd028339
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 19:32:09 -0700
-Received: from iwn3 (iwn3.prod.google.com [10.241.68.67])
-	by hpaq3.eem.corp.google.com with ESMTP id o8H2W6G7022385
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 19:32:07 -0700
-Received: by iwn3 with SMTP id 3so2475546iwn.17
-        for <linux-mm@kvack.org>; Thu, 16 Sep 2010 19:32:06 -0700 (PDT)
-Date: Thu, 16 Sep 2010 19:31:57 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] fix swapin race condition
-In-Reply-To: <20100916210349.GU5981@random.random>
-Message-ID: <alpine.LSU.2.00.1009161905190.2517@tigran.mtv.corp.google.com>
-References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils> <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com> <20100915234237.GR5981@random.random> <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com>
- <20100916210349.GU5981@random.random>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7D1526B0078
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 22:34:56 -0400 (EDT)
+Date: Fri, 17 Sep 2010 10:34:57 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: [RFC]pagealloc: compensate a task for direct page reclaim
+Message-ID: <20100917023457.GA26307@sli10-conroe.sh.intel.com>
+References: <1284636396.1726.5.camel@shli-laptop>
+ <20100916150009.GD16115@barrios-desktop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100916150009.GD16115@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010, Andrea Arcangeli wrote:
-> On Wed, Sep 15, 2010 at 05:10:36PM -0700, Hugh Dickins wrote:
-> > I agree that if my scenario happened on its own, the pte_same check
-> > would catch it.  But if my scenario happens along with your scenario
-> > (and I'm thinking that the combination is not that much less likely
-> > than either alone), then the PageSwapCache test will succeed and the
-> > pte_same test will succeed, but we're still putting the wrong page into
-> > the pte, since this page is now represented by a different swap entry
-> > (and the page that should be there by our original swap entry).
+On Thu, Sep 16, 2010 at 11:00:10PM +0800, Minchan Kim wrote:
+> On Thu, Sep 16, 2010 at 07:26:36PM +0800, Shaohua Li wrote:
+> > A task enters into direct page reclaim, free some memory. But sometimes
+> > the task can't get a free page after direct page reclaim because
+> > other tasks take them (this is quite common in a multi-task workload
+> > in my test). This behavior will bring extra latency to the task and is
+> > unfair. Since the task already gets penalty, we'd better give it a compensation.
+> > If a task frees some pages from direct page reclaim, we cache one freed page,
+> > and the task will get it soon. We only consider order 0 allocation, because
+> > it's hard to cache order > 0 page.
+> > 
+> > Below is a trace output when a task frees some pages in try_to_free_pages(), but
+> > get_page_from_freelist() can't get a page in direct page reclaim.
+> > 
+> > <...>-809   [004]   730.218991: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> > <...>-806   [001]   730.237969: __alloc_pages_nodemask: progress 147, order 0, pid 806, comm mmap_test
+> > <...>-810   [005]   730.237971: __alloc_pages_nodemask: progress 147, order 0, pid 810, comm mmap_test
+> > <...>-809   [004]   730.237972: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> > <...>-811   [006]   730.241409: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
+> > <...>-809   [004]   730.241412: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> > <...>-812   [007]   730.241435: __alloc_pages_nodemask: progress 147, order 0, pid 812, comm mmap_test
+> > <...>-809   [004]   730.245036: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> > <...>-809   [004]   730.260360: __alloc_pages_nodemask: progress 147, order 0, pid 809, comm mmap_test
+> > <...>-805   [000]   730.260362: __alloc_pages_nodemask: progress 147, order 0, pid 805, comm mmap_test
+> > <...>-811   [006]   730.263877: __alloc_pages_nodemask: progress 147, order 0, pid 811, comm mmap_test
+> > 
 > 
-> If I understood well you're saying that it is possible that this
-> BUG_ON triggers:
+> The idea is good.
 > 
->    page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
->    BUG_ON(page_private(page) != entry.val && pte_same(*page_table, orig_pte));
->    if (unlikely(!pte_same(*page_table, orig_pte)))
-
-Yes, I believe so.
-
+> I think we need to reserve at least one page for direct reclaimer who make the effort so that
+> it can reduce latency of stalled process.
 > 
-> I still don't get it (that doesn't make me right though).
+> But I don't like this implementation. 
 > 
-> I'll try to rephrase my argument: if the page was swapped in from
-> swapcache by swapoff and then swapon runs again and the page is added
-> to swapcache to a different swap entry, in between the
-> lookup_swap_cache and the lock_page, the pte_same(*page_table,
-> orig_pte) in pte_same should always fail in the first place (so
-> without requiring the page_private(page) != entry.val check).
+> 1. It selects random page of reclaimed pages as cached page.
+> This doesn't consider requestor's migratetype so that it causes fragment problem in future. 
+maybe we can limit the migratetype to MIGRATE_MOVABLE, which is the most common case.
+ 
+> 2. It skips buddy allocator. It means we lost coalescence chance so that fragement problem
+> would be severe than old. 
+we only cache order 0 allocation, which doesn't enter lumpy reclaim, so this sounds not
+an issue to me.
 
-Usually yes, but more may have happened in between.
+> In addition, I think this patch needs some number about enhancing of latency 
+> and fragmentation if you are going with this approach.
+ok, sure.
 
-> 
-> If the page is found mapped during pte_same the pte_same check will
-> fail (pte_present first of all). If the page got unmapped and
-> page_private(page) != entry.val, the "entry" == "orig_pte" will be
-> different to what we read in *page_table at the above BUG_ON line (the
-> page has to be unmapped before pte_same check can succeed, but if gets
-> unmapped the new swap entry will be written in the page_table and it
-> won't risk to succeed the pte_same check).
-
-Usually yes, but not necessarily.
-
-> 
-> If the page wasn't mapped when it was removed from swapcache, it can't
-> be added to swapcache at all because it was pinned: because only free
-> pages (during swapin) or mapped pages (during swapout) can be added to
-> swapcache.
-
-Yes, I think that happens to be the case, but does not rule out my
-scenario.  Perhaps there's a page_count test that I've overlooked
-that makes my scenario impossible, but is_page_cache_freeable()
-appears to prevent writeout without affecting swap allocation.
-
-> 
-> If I'm missing something a trace of the exact scenario would help to
-> clarify your point.
-
-Indeed yes: I was being lazy, hoping to get you to do my thinking
-for me (in my defence, and in your praise, I have to say that that
-is usually much the quickest strategy :-)  Thank you for the time
-you've spent on it, when I should have tried harder.
-
-Here's what I think can happen: you may shame me by shooting it down
-immediately, but go ahead!
-
-I've cast it in terms of reuse_swap_page(), but I expect it could be
-reformulated to rely on try_to_free_swap() instead, or swapoff+swapon.
-
-
-A, in do_swap_page(): does page1 = lookup_swap_cache(swap1)
-and comes through the lock_page(page1).
-
-B, a racing thread of same process, also faults into do_swap_page():
-does page1 = lookup_swap_cache(swap1) and now waits in lock_page(page1),
-but for whatever reason is unlucky not to get the lock any time soon.
-
-A carries on through do_swap_page(), a write fault, but cannot reuse
-the swap page1 (another reference to swap1).  Unlocks the page1 (but B
-doesn't get it yet), does COW in do_wp_page(), page2 now in that pte.
-
-C, perhaps the parent of A+B, comes in and write faults the same swap
-page1 into its mm, reuse_swap_page() succeeds this time, swap1 is freed.
-
-kswapd comes in after some time (B still unlucky) and swaps out some
-pages from A+B and C: it allocates the original swap1 to page2 in A+B,
-and some other swap2 to the original page1 now in C.  But does not
-immediately free page1 (actually it couldn't: B holds a reference),
-leaving it in swap cache for now.
-
-B at last gets the lock on page1, hooray!  Is PageSwapCache(page1)?
-Yes.  Is pte_same(*page_table, orig_pte)?  Yes, because page2 has
-now been given the swap1 which page1 used to have.  So B proceeds
-to insert page1 into A+B's page_table, though its content now
-belongs to C, quite different from what A wrote there.
-
-B ought to have checked that page1's swap was still swap1.
-
-Hugh
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
