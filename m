@@ -1,53 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C56526B0083
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:57:35 -0400 (EDT)
-Date: Fri, 17 Sep 2010 08:56:06 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
- file/email/web servers
-In-Reply-To: <1284708756.2702.1395472601@webmail.messagingengine.com>
-Message-ID: <alpine.DEB.2.00.1009170851200.11900@router.home>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009161153210.22849@router.home> <1284684653.10161.1395434085@webmail.messagingengine.com> <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
- <1284708756.2702.1395472601@webmail.messagingengine.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 7E0BB6B0078
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 10:03:11 -0400 (EDT)
+Received: by qyk2 with SMTP id 2so3146637qyk.14
+        for <linux-mm@kvack.org>; Fri, 17 Sep 2010 07:03:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 17 Sep 2010 19:33:08 +0530
+Message-ID: <AANLkTi=VS34cbaH9TNA9aZ7mVavoTaAiAwMfuRXSxbd8@mail.gmail.com>
+Subject: Issue in using mmap on ARM target
+From: naveen yadav <yad.naveen@gmail.com>
+Content-Type: multipart/mixed; boundary=001517503cc8c6819c0490750558
 Sender: owner-linux-mm@kvack.org
-To: Robert Mueller <robm@fastmail.fm>
-Cc: Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Sep 2010, Robert Mueller wrote:
+--001517503cc8c6819c0490750558
+Content-Type: text/plain; charset=ISO-8859-1
 
-> > > I don't think this is any fault of how the software works. It's a
-> > > *very* standard "pre-fork child processes, allocate incoming
-> > > connections to a child process, open and mmap one or more files to
-> > > read data from them". That's not exactly a weird programming model,
-> > > and it's bad that the kernel is handling that case very badly with
-> > > everything default.
-> >
-> > maybe you incoming connection always happen on one CPU and you do the
-> > page allocation in that cpu, so some nodes use out of memory but
-> > others have a lot free. Try bind the child process to different nodes
-> > might help.
->
-> There's are 5000+ child processes (it's a cyrus IMAP server). Neither
-> the parent of any of the children are bound to any particular CPU. It
-> uses a standard fcntl lock to make sure only one spare child at a time
-> calls accept(). I don't think that's the problem.
+Hi all,
 
->From the first look that seems to be the problem. You do not need to be
-bound to a particular cpu, the scheduler will just leave a single process
-on the same cpu by default. If you then allocate all memory only from this
-process then you get the scenario that you described.
+I am facing one issue when executing below progmra on ARM target. The
+same program work well on X86 host machine,
 
-There should be multiple processes allocating memory from all processors
-to take full advantage of fast local memory. If you cannot do that then
-the only choice is to reduce performance by some sort of interleaving
-either at the Bios or OS level. OS level interleaving only for this
-particular application would be best because then the OS can at least
-allocate its own data in memory local to the processors.
+When execute on Host(x86). the result are as expected.
+[root@localhost naveen]# ./a.out  0000 b 2
+/dev/mem opened.
+Memory mapped at address 0xb7f00000.
+Value at address 0x0 (0xb7f00000): 0x24
+Written 0x2; readback 0x2
 
+But when execute on Target:
+# ./a.out 0 w 20
+/dev/mem opened.
+Memory mapped at address 0x40003000.
+Value at address 0x0 (0x40003000): 0xEA000006
+Written 0x14; readback 0xEA000006
+#
+The value does not change. any idea ....
+
+
+Kind regards
+
+--001517503cc8c6819c0490750558
+Content-Type: application/octet-stream; name="devmem2.c"
+Content-Disposition: attachment; filename="devmem2.c"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_ge74bdj80
+
+LyoKICogZGV2bWVtMi5jOiBTaW1wbGUgcHJvZ3JhbSB0byByZWFkL3dyaXRlIGZyb20vdG8gYW55
+IGxvY2F0aW9uIGluIG1lbW9yeS4KICoKICogIENvcHlyaWdodCAoQykgMjAwMCwgSmFuLURlcmsg
+QmFra2VyIChqZGJAbGFydG1ha2VyLm5sKQogKgogKgogKiBUaGlzIHNvZnR3YXJlIGhhcyBiZWVu
+IGRldmVsb3BlZCBmb3IgdGhlIExBUlQgY29tcHV0aW5nIGJvYXJkCiAqIChodHRwOi8vd3d3Lmxh
+cnQudHVkZWxmdC5ubC8pLiBUaGUgZGV2ZWxvcG1lbnQgaGFzIGJlZW4gc3BvbnNvcmVkIGJ5CiAq
+IHRoZSBNb2JpbGUgTXVsdGlNZWRpYSBDb21tdW5pY2F0aW9ucyAoaHR0cDovL3d3dy5tbWMudHVk
+ZWxmdC5ubC8pCiAqIGFuZCBVYmlxdWl0b3VzIENvbW11bmljYXRpb25zIChodHRwOi8vd3d3LnVi
+aWNvbS50dWRlbGZ0Lm5sLykKICogcHJvamVjdHMuCiAqCiAqCiAqIFRoaXMgcHJvZ3JhbSBpcyBm
+cmVlIHNvZnR3YXJlOyB5b3UgY2FuIHJlZGlzdHJpYnV0ZSBpdCBhbmQvb3IgbW9kaWZ5CiAqIGl0
+IHVuZGVyIHRoZSB0ZXJtcyBvZiB0aGUgR05VIEdlbmVyYWwgUHVibGljIExpY2Vuc2UgYXMgcHVi
+bGlzaGVkIGJ5CiAqIHRoZSBGcmVlIFNvZnR3YXJlIEZvdW5kYXRpb247IGVpdGhlciB2ZXJzaW9u
+IDIgb2YgdGhlIExpY2Vuc2UsIG9yCiAqIChhdCB5b3VyIG9wdGlvbikgYW55IGxhdGVyIHZlcnNp
+b24uCiAqCiAqIFRoaXMgcHJvZ3JhbSBpcyBkaXN0cmlidXRlZCBpbiB0aGUgaG9wZSB0aGF0IGl0
+IHdpbGwgYmUgdXNlZnVsLAogKiBidXQgV0lUSE9VVCBBTlkgV0FSUkFOVFk7IHdpdGhvdXQgZXZl
+biB0aGUgaW1wbGllZCB3YXJyYW50eSBvZgogKiBNRVJDSEFOVEFCSUxJVFkgb3IgRklUTkVTUyBG
+T1IgQSBQQVJUSUNVTEFSIFBVUlBPU0UuICBTZWUgdGhlCiAqIEdOVSBHZW5lcmFsIFB1YmxpYyBM
+aWNlbnNlIGZvciBtb3JlIGRldGFpbHMuCiAqIAogKiBZb3Ugc2hvdWxkIGhhdmUgcmVjZWl2ZWQg
+YSBjb3B5IG9mIHRoZSBHTlUgR2VuZXJhbCBQdWJsaWMgTGljZW5zZQogKiBhbG9uZyB3aXRoIHRo
+aXMgcHJvZ3JhbTsgaWYgbm90LCB3cml0ZSB0byB0aGUgRnJlZSBTb2Z0d2FyZQogKiBGb3VuZGF0
+aW9uLCBJbmMuLCA1OSBUZW1wbGUgUGxhY2UsIFN1aXRlIDMzMCwgQm9zdG9uLCBNQSAgMDIxMTEt
+MTMwNyAgVVNBCiAqCiAqLwoKI2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlIDxzdGRsaWIuaD4K
+I2luY2x1ZGUgPHVuaXN0ZC5oPgojaW5jbHVkZSA8c3RyaW5nLmg+CiNpbmNsdWRlIDxlcnJuby5o
+PgojaW5jbHVkZSA8c2lnbmFsLmg+CiNpbmNsdWRlIDxmY250bC5oPgojaW5jbHVkZSA8Y3R5cGUu
+aD4KI2luY2x1ZGUgPHRlcm1pb3MuaD4KI2luY2x1ZGUgPHN5cy90eXBlcy5oPgojaW5jbHVkZSA8
+c3lzL21tYW4uaD4KICAKI2RlZmluZSBGQVRBTCBkbyB7IGZwcmludGYoc3RkZXJyLCAiRXJyb3Ig
+YXQgbGluZSAlZCwgZmlsZSAlcyAoJWQpIFslc11cbiIsIFwKICBfX0xJTkVfXywgX19GSUxFX18s
+IGVycm5vLCBzdHJlcnJvcihlcnJubykpOyBleGl0KDEpOyB9IHdoaWxlKDApCiAKI2RlZmluZSBN
+QVBfU0laRSA0MDk2VUwKI2RlZmluZSBNQVBfTUFTSyAoTUFQX1NJWkUgLSAxKQoKaW50IG1haW4o
+aW50IGFyZ2MsIGNoYXIgKiphcmd2KSB7CiAgICBpbnQgZmQ7CiAgICB2b2lkICptYXBfYmFzZSwg
+KnZpcnRfYWRkcjsgCgl1bnNpZ25lZCBsb25nIHJlYWRfcmVzdWx0LCB3cml0ZXZhbDsKCW9mZl90
+IHRhcmdldDsKCWludCBhY2Nlc3NfdHlwZSA9ICd3JzsKCQoJaWYoYXJnYyA8IDIpIHsKCQlmcHJp
+bnRmKHN0ZGVyciwgIlxuVXNhZ2U6XHQlcyB7IGFkZHJlc3MgfSBbIHR5cGUgWyBkYXRhIF0gXVxu
+IgoJCQkiXHRhZGRyZXNzIDogbWVtb3J5IGFkZHJlc3MgdG8gYWN0IHVwb25cbiIKCQkJIlx0dHlw
+ZSAgICA6IGFjY2VzcyBvcGVyYXRpb24gdHlwZSA6IFtiXXl0ZSwgW2hdYWxmd29yZCwgW3ddb3Jk
+XG4iCgkJCSJcdGRhdGEgICAgOiBkYXRhIHRvIGJlIHdyaXR0ZW5cblxuIiwKCQkJYXJndlswXSk7
+CgkJZXhpdCgxKTsKCX0KCXRhcmdldCA9IHN0cnRvdWwoYXJndlsxXSwgMCwgMCk7CgoJaWYoYXJn
+YyA+IDIpCgkJYWNjZXNzX3R5cGUgPSB0b2xvd2VyKGFyZ3ZbMl1bMF0pOwoKCiAgICBpZigoZmQg
+PSBvcGVuKCIvZGV2L21lbSIsIE9fUkRXUiB8IE9fU1lOQykpID09IC0xKSBGQVRBTDsKICAgIHBy
+aW50ZigiL2Rldi9tZW0gb3BlbmVkLlxuIik7IAogICAgZmZsdXNoKHN0ZG91dCk7CiAgICAKICAg
+IC8qIE1hcCBvbmUgcGFnZSAqLwogICAgbWFwX2Jhc2UgPSBtbWFwKDAsIE1BUF9TSVpFLCBQUk9U
+X1JFQUQgfCBQUk9UX1dSSVRFLCBNQVBfU0hBUkVELCBmZCwgdGFyZ2V0ICYgfk1BUF9NQVNLKTsK
+ICAgIGlmKG1hcF9iYXNlID09ICh2b2lkICopIC0xKSBGQVRBTDsKICAgIHByaW50ZigiTWVtb3J5
+IG1hcHBlZCBhdCBhZGRyZXNzICVwLlxuIiwgbWFwX2Jhc2UpOyAKICAgIGZmbHVzaChzdGRvdXQp
+OwogICAgCiAgICB2aXJ0X2FkZHIgPSBtYXBfYmFzZSArICh0YXJnZXQgJiBNQVBfTUFTSyk7CiAg
+ICBzd2l0Y2goYWNjZXNzX3R5cGUpIHsKCQljYXNlICdiJzoKCQkJcmVhZF9yZXN1bHQgPSAqKCh1
+bnNpZ25lZCBjaGFyICopIHZpcnRfYWRkcik7CgkJCWJyZWFrOwoJCWNhc2UgJ2gnOgoJCQlyZWFk
+X3Jlc3VsdCA9ICooKHVuc2lnbmVkIHNob3J0ICopIHZpcnRfYWRkcik7CgkJCWJyZWFrOwoJCWNh
+c2UgJ3cnOgoJCQlyZWFkX3Jlc3VsdCA9ICooKHVuc2lnbmVkIGxvbmcgKikgdmlydF9hZGRyKTsK
+CQkJYnJlYWs7CgkJZGVmYXVsdDoKCQkJZnByaW50ZihzdGRlcnIsICJJbGxlZ2FsIGRhdGEgdHlw
+ZSAnJWMnLlxuIiwgYWNjZXNzX3R5cGUpOwoJCQlleGl0KDIpOwoJfQogICAgcHJpbnRmKCJWYWx1
+ZSBhdCBhZGRyZXNzIDB4JVggKCVwKTogMHglWFxuIiwgdGFyZ2V0LCB2aXJ0X2FkZHIsIHJlYWRf
+cmVzdWx0KTsgCiAgICBmZmx1c2goc3Rkb3V0KTsKCglpZihhcmdjID4gMykgewoJCXdyaXRldmFs
+ID0gc3RydG91bChhcmd2WzNdLCAwLCAwKTsKCQlzd2l0Y2goYWNjZXNzX3R5cGUpIHsKCQkJY2Fz
+ZSAnYic6CgkJCQkqKCh1bnNpZ25lZCBjaGFyICopIHZpcnRfYWRkcikgPSB3cml0ZXZhbDsKCQkJ
+CXJlYWRfcmVzdWx0ID0gKigodW5zaWduZWQgY2hhciAqKSB2aXJ0X2FkZHIpOwoJCQkJYnJlYWs7
+CgkJCWNhc2UgJ2gnOgoJCQkJKigodW5zaWduZWQgc2hvcnQgKikgdmlydF9hZGRyKSA9IHdyaXRl
+dmFsOwoJCQkJcmVhZF9yZXN1bHQgPSAqKCh1bnNpZ25lZCBzaG9ydCAqKSB2aXJ0X2FkZHIpOwoJ
+CQkJYnJlYWs7CgkJCWNhc2UgJ3cnOgoJCQkJKigodW5zaWduZWQgbG9uZyAqKSB2aXJ0X2FkZHIp
+ID0gd3JpdGV2YWw7CgkJCQlyZWFkX3Jlc3VsdCA9ICooKHVuc2lnbmVkIGxvbmcgKikgdmlydF9h
+ZGRyKTsKCQkJCWJyZWFrOwoJCX0KCQlwcmludGYoIldyaXR0ZW4gMHglWDsgcmVhZGJhY2sgMHgl
+WFxuIiwgd3JpdGV2YWwsIHJlYWRfcmVzdWx0KTsgCgkJZmZsdXNoKHN0ZG91dCk7Cgl9CgkKCWlm
+KG11bm1hcChtYXBfYmFzZSwgTUFQX1NJWkUpID09IC0xKSBGQVRBTDsKICAgIGNsb3NlKGZkKTsK
+ICAgIHJldHVybiAwOwp9Cgo=
+--001517503cc8c6819c0490750558--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
