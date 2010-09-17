@@ -1,45 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D46D66B007B
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 16:07:05 -0400 (EDT)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 685286B007B
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 16:59:57 -0400 (EDT)
+Date: Fri, 17 Sep 2010 13:59:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 03/10] Use percpu stats
+Message-Id: <20100917135942.33844110.akpm@linux-foundation.org>
+In-Reply-To: <20100901035135.GC18958@kryten>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	<1281374816-904-4-git-send-email-ngupta@vflare.org>
+	<20100901035135.GC18958@kryten>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-ID: <19603.51810.601209.98683@pilspetsen.it.uu.se>
-Date: Fri, 17 Sep 2010 22:06:58 +0200
-From: Mikael Pettersson <mikpe@it.uu.se>
-Subject: Re: Issue in using mmap on ARM target
-In-Reply-To: <AANLkTi=VS34cbaH9TNA9aZ7mVavoTaAiAwMfuRXSxbd8@mail.gmail.com>
-References: <AANLkTi=VS34cbaH9TNA9aZ7mVavoTaAiAwMfuRXSxbd8@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: naveen yadav <yad.naveen@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Anton Blanchard <anton@samba.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-naveen yadav writes:
- > Hi all,
- > 
- > I am facing one issue when executing below progmra on ARM target. The
- > same program work well on X86 host machine,
- > 
- > When execute on Host(x86). the result are as expected.
- > [root@localhost naveen]# ./a.out  0000 b 2
- > /dev/mem opened.
- > Memory mapped at address 0xb7f00000.
- > Value at address 0x0 (0xb7f00000): 0x24
- > Written 0x2; readback 0x2
- > 
- > But when execute on Target:
- > # ./a.out 0 w 20
- > /dev/mem opened.
- > Memory mapped at address 0x40003000.
- > Value at address 0x0 (0x40003000): 0xEA000006
- > Written 0x14; readback 0xEA000006
- > #
- > The value does not change. any idea ....
+On Wed, 1 Sep 2010 13:51:35 +1000
+Anton Blanchard <anton@samba.org> wrote:
 
-You might have better luck getting an informed answer by posting
-to linux-arm-kernel@lists.infradead.org instead.
+> 
+> Hi,
+> 
+> > Also remove references to removed stats (ex: good_comress).
+> 
+> I'm getting an oops when running mkfs on zram:
+> 
+> NIP [d0000000030e0340] .zram_inc_stat+0x58/0x84 [zram]
+> [c00000006d58f720] [d0000000030e091c] .zram_make_request+0xa8/0x6a0 [zram]
+> [c00000006d58f840] [c00000000035795c] .generic_make_request+0x390/0x434
+> [c00000006d58f950] [c000000000357b14] .submit_bio+0x114/0x140
+> [c00000006d58fa20] [c000000000361778] .blkdev_issue_discard+0x1ac/0x250
+> [c00000006d58fb10] [c000000000361f68] .blkdev_ioctl+0x358/0x7fc
+> [c00000006d58fbd0] [c0000000001c1c1c] .block_ioctl+0x6c/0x90
+> [c00000006d58fc70] [c0000000001984c4] .do_vfs_ioctl+0x660/0x6d4
+> [c00000006d58fd70] [c0000000001985a0] .SyS_ioctl+0x68/0xb0
+> 
+> Since disksize no longer starts as 0 it looks like we can call
+> zram_make_request before the device has been initialised. The patch below
+> fixes the immediate problem but this would go away if we move the
+> initialisation function elsewhere (as suggested in another thread).
+> 
+> Signed-off-by: Anton Blanchard <anton@samba.org>
+> ---
+> 
+> Index: powerpc.git/drivers/staging/zram/zram_drv.c
+> ===================================================================
+> --- powerpc.git.orig/drivers/staging/zram/zram_drv.c	2010-09-01 12:35:14.286515175 +1000
+> +++ powerpc.git/drivers/staging/zram/zram_drv.c	2010-09-01 12:35:24.167930504 +1000
+> @@ -441,6 +441,12 @@ static int zram_make_request(struct requ
+>  	int ret = 0;
+>  	struct zram *zram = queue->queuedata;
+>  
+> +	if (unlikely(!zram->init_done)) {
+> +		set_bit(BIO_UPTODATE, &bio->bi_flags);
+> +		bio_endio(bio, 0);
+> +		return 0;
+> +	}
+> +
+>  	if (unlikely(!valid_io_request(zram, bio))) {
+>  		zram_inc_stat(zram, ZRAM_STAT_INVALID_IO);
+>  		bio_io_error(bio);
+
+So... what happened with this and your other bugfix in
+zram_reset_device()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
