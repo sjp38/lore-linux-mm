@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B327B6B0078
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 11:54:05 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8HFkQBn018251
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:46:26 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o8HFs4a0239658
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:54:04 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8HFs3sA006129
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:54:04 -0600
-Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info
- messsge
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20100917092603.3BD5.A69D9226@jp.fujitsu.com>
-References: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
-	 <20100917092603.3BD5.A69D9226@jp.fujitsu.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Fri, 17 Sep 2010 08:54:01 -0700
-Message-ID: <1284738841.25231.4387.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 50DC76B0078
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 12:38:00 -0400 (EDT)
+Date: Fri, 17 Sep 2010 09:36:36 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [stable] breaks 2.6.32.21+
+Message-ID: <20100917163636.GA2916@kroah.com>
+References: <1281261197-8816-1-git-send-email-shijie8@gmail.com>
+ <4C5EA651.7080009@kernel.org>
+ <20100916213603.GW6447@anguilla.noreply.org>
+ <20100916231307.GB24617@kroah.com>
+ <4C937177.1090909@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C937177.1090909@kernel.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com
+To: Tejun Heo <tj@kernel.org>
+Cc: Peter Palfrader <peter@palfrader.org>, stable@kernel.org, Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-09-17 at 09:26 +0900, KOSAKI Motohiro wrote:
-> > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
-> > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
-> > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-16 09:43:52.000000000 -0700
-> > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
-> >  {
-> >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
-> >  	if (write) {
-> > +		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
-> > +			current->comm, task_pid_nr(current), sysctl_drop_caches);
-> >  		if (sysctl_drop_caches & 1)
-> >  			iterate_supers(drop_pagecache_sb, NULL);
-> >  		if (sysctl_drop_caches & 2)
+On Fri, Sep 17, 2010 at 03:47:35PM +0200, Tejun Heo wrote:
+> On 09/17/2010 01:13 AM, Greg KH wrote:
+> > Odd, someone just reported the same problem for .35-stable as well.
+> > 
+> > Tejun, what's going on here?
 > 
-> Can't you print it only once?
+> Please drop it.  The memory leak was introduced after 2.6.36-rc1.  I
+> got confused which commit was in which kernel.  I'll be more careful
+> with stable cc's.  Sorry about that.
 
-Sure.  But, I also figured that somebody calling it every minute is
-going to be much more interesting than something just on startup.
-Should we printk_ratelimit() it, perhaps?
+No problem, now dropped.
 
--- Dave
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
