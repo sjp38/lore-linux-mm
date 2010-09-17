@@ -1,71 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 685286B007B
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 16:59:57 -0400 (EDT)
-Date: Fri, 17 Sep 2010 13:59:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 03/10] Use percpu stats
-Message-Id: <20100917135942.33844110.akpm@linux-foundation.org>
-In-Reply-To: <20100901035135.GC18958@kryten>
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
-	<1281374816-904-4-git-send-email-ngupta@vflare.org>
-	<20100901035135.GC18958@kryten>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 9BDC36B007B
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 19:01:54 -0400 (EDT)
+Date: Sat, 18 Sep 2010 09:01:48 +1000
+From: Bron Gondwana <brong@fastmail.fm>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
+ file/email/web servers
+Message-ID: <20100917230148.GA10636@brong.net>
+References: <1284349152.15254.1394658481@webmail.messagingengine.com>
+ <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1009161153210.22849@router.home>
+ <1284684653.10161.1395434085@webmail.messagingengine.com>
+ <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
+ <1284708756.2702.1395472601@webmail.messagingengine.com>
+ <alpine.DEB.2.00.1009170851200.11900@router.home>
+ <20100917140916.GA8474@brong.net>
+ <alpine.DEB.2.00.1009170916130.11900@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1009170916130.11900@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Anton Blanchard <anton@samba.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@driverdev.osuosl.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Bron Gondwana <brong@fastmail.fm>, Robert Mueller <robm@fastmail.fm>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Sep 2010 13:51:35 +1000
-Anton Blanchard <anton@samba.org> wrote:
+On Fri, Sep 17, 2010 at 09:22:00AM -0500, Christoph Lameter wrote:
+> On Sat, 18 Sep 2010, Bron Gondwana wrote:
+> 
+> > > From the first look that seems to be the problem. You do not need to be
+> > > bound to a particular cpu, the scheduler will just leave a single process
+> > > on the same cpu by default. If you then allocate all memory only from this
+> > > process then you get the scenario that you described.
+> >
+> > Huh?  Which bit of forking server makes you think one process is allocating
+> > lots of memory?  They're opening and reading from files.  Unless you're
+> > calling the kernel a "single process".
+> 
+> I have no idea what your app does. 
 
-> 
-> Hi,
-> 
-> > Also remove references to removed stats (ex: good_comress).
-> 
-> I'm getting an oops when running mkfs on zram:
-> 
-> NIP [d0000000030e0340] .zram_inc_stat+0x58/0x84 [zram]
-> [c00000006d58f720] [d0000000030e091c] .zram_make_request+0xa8/0x6a0 [zram]
-> [c00000006d58f840] [c00000000035795c] .generic_make_request+0x390/0x434
-> [c00000006d58f950] [c000000000357b14] .submit_bio+0x114/0x140
-> [c00000006d58fa20] [c000000000361778] .blkdev_issue_discard+0x1ac/0x250
-> [c00000006d58fb10] [c000000000361f68] .blkdev_ioctl+0x358/0x7fc
-> [c00000006d58fbd0] [c0000000001c1c1c] .block_ioctl+0x6c/0x90
-> [c00000006d58fc70] [c0000000001984c4] .do_vfs_ioctl+0x660/0x6d4
-> [c00000006d58fd70] [c0000000001985a0] .SyS_ioctl+0x68/0xb0
-> 
-> Since disksize no longer starts as 0 it looks like we can call
-> zram_make_request before the device has been initialised. The patch below
-> fixes the immediate problem but this would go away if we move the
-> initialisation function elsewhere (as suggested in another thread).
-> 
-> Signed-off-by: Anton Blanchard <anton@samba.org>
-> ---
-> 
-> Index: powerpc.git/drivers/staging/zram/zram_drv.c
-> ===================================================================
-> --- powerpc.git.orig/drivers/staging/zram/zram_drv.c	2010-09-01 12:35:14.286515175 +1000
-> +++ powerpc.git/drivers/staging/zram/zram_drv.c	2010-09-01 12:35:24.167930504 +1000
-> @@ -441,6 +441,12 @@ static int zram_make_request(struct requ
->  	int ret = 0;
->  	struct zram *zram = queue->queuedata;
->  
-> +	if (unlikely(!zram->init_done)) {
-> +		set_bit(BIO_UPTODATE, &bio->bi_flags);
-> +		bio_endio(bio, 0);
-> +		return 0;
-> +	}
-> +
->  	if (unlikely(!valid_io_request(zram, bio))) {
->  		zram_inc_stat(zram, ZRAM_STAT_INVALID_IO);
->  		bio_io_error(bio);
+Ok - Cyrus IMAPd has been around for ages.  It's an open source email
+server built on a very traditional single-process model.
 
-So... what happened with this and your other bugfix in
-zram_reset_device()?
+* a master process which reads config files and manages the other process
+* multiple imapd processes, one per connection
+* multiple pop3d processes, one per connection
+* multiple lmtpd processes, one per connection
+* periodical "cleanup" processes.
+
+Each of these is started by the lightweight master forking and then
+execing the appropriate daemon.
+
+In our configuration we run 20 separate "master" processes, each
+managing a single disk partition's worth of email.  The reason
+for this is reduced locking contention for the central mailboxes
+database, and also better replication concurrency, because each
+instance runs a single replication process - so replication is
+sequential.
+
+> The data that I glanced over looks as
+> if most allocations happen for a particular memory node
+
+Sorry, which data?
+
+> and since the
+> memory is optimized to be local to that node other memory is not used
+> intensively. This can occur because of allocations through one process /
+> thread that is always running on the same cpu and therefore always
+> allocates from the memory node local to that cpu.
+
+As Rob said, there are thousands of independent processes, each opening
+a single mailbox (3 separate metadata files plus possibly hundreds of
+individual email files).  It's likely that diffenent processes will open
+the same mailbox over time - for example an email client opening multiple
+concurrent connections, and at the same time an lmtpd connecting and
+delivering new emails to the mailbox.
+
+> It can also happen f.e. if a driver always allocates memory local to the
+> I/O bus that it is using.
+
+None of what we're doing is super weird advanced stuff, it's a vanilla
+forking daemon where a single process run and does stuff on behalf of
+a user.  The only slightly interesting things:
+
+1) each "service" has a single lock file, and all the idle processes of
+   that type (i.e. imapd) block on that lock while they're waiting for
+   a connection.  This is to avoid thundering herd on operating systems
+   which aren't nice about it.  The winner does the accept and handles
+   the connection.
+2) once it's finished processing a request, the process will wait for
+   another connection rather than closing.
+
+Nothing sounds like what you're talking about (one giant process that's
+all on one CPU), and I don't know why you keep talking about it.  It's
+nothing like what we're running on these machines.
+
+Bron.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
