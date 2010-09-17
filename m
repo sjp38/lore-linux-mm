@@ -1,42 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 28E366B0078
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 10:22:04 -0400 (EDT)
-Date: Fri, 17 Sep 2010 09:22:00 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
- file/email/web servers
-In-Reply-To: <20100917140916.GA8474@brong.net>
-Message-ID: <alpine.DEB.2.00.1009170916130.11900@router.home>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009161153210.22849@router.home> <1284684653.10161.1395434085@webmail.messagingengine.com> <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
- <1284708756.2702.1395472601@webmail.messagingengine.com> <alpine.DEB.2.00.1009170851200.11900@router.home> <20100917140916.GA8474@brong.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B327B6B0078
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 11:54:05 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8HFkQBn018251
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:46:26 -0600
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o8HFs4a0239658
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:54:04 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8HFs3sA006129
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:54:04 -0600
+Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info
+ messsge
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100917092603.3BD5.A69D9226@jp.fujitsu.com>
+References: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+	 <20100917092603.3BD5.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Fri, 17 Sep 2010 08:54:01 -0700
+Message-ID: <1284738841.25231.4387.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bron Gondwana <brong@fastmail.fm>
-Cc: Robert Mueller <robm@fastmail.fm>, Shaohua Li <shaohua.li@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 18 Sep 2010, Bron Gondwana wrote:
+On Fri, 2010-09-17 at 09:26 +0900, KOSAKI Motohiro wrote:
+> > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
+> > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
+> > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-16 09:43:52.000000000 -0700
+> > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
+> >  {
+> >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
+> >  	if (write) {
+> > +		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
+> > +			current->comm, task_pid_nr(current), sysctl_drop_caches);
+> >  		if (sysctl_drop_caches & 1)
+> >  			iterate_supers(drop_pagecache_sb, NULL);
+> >  		if (sysctl_drop_caches & 2)
+> 
+> Can't you print it only once?
 
-> > From the first look that seems to be the problem. You do not need to be
-> > bound to a particular cpu, the scheduler will just leave a single process
-> > on the same cpu by default. If you then allocate all memory only from this
-> > process then you get the scenario that you described.
->
-> Huh?  Which bit of forking server makes you think one process is allocating
-> lots of memory?  They're opening and reading from files.  Unless you're
-> calling the kernel a "single process".
+Sure.  But, I also figured that somebody calling it every minute is
+going to be much more interesting than something just on startup.
+Should we printk_ratelimit() it, perhaps?
 
-I have no idea what your app does. The data that I glanced over looks as
-if most allocations happen for a particular memory node and since the
-memory is optimized to be local to that node other memory is not used
-intensively. This can occur because of allocations through one process /
-thread that is always running on the same cpu and therefore always
-allocates from the memory node local to that cpu.
-
-It can also happen f.e. if a driver always allocates memory local to the
-I/O bus that it is using.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
