@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4291D6B0078
-	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 02:01:13 -0400 (EDT)
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
- file/email/web servers
-From: Shaohua Li <shaohua.li@intel.com>
-In-Reply-To: <1284684653.10161.1395434085@webmail.messagingengine.com>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com>
-	 <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
-	 <alpine.DEB.2.00.1009161153210.22849@router.home>
-	 <1284684653.10161.1395434085@webmail.messagingengine.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 17 Sep 2010 14:01:04 +0800
-Message-ID: <1284703264.3408.1.camel@sli10-conroe.sh.intel.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 432796B007B
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 02:01:14 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: [PATCH v2] Document the new Anonymous field in smaps.
+Date: Fri, 17 Sep 2010 11:34:02 +0530
+References: <AANLkTini3k1hK-9RM6io0mOf4VoDzGpbUEpiv=WHfhEW@mail.gmail.com> <201009161135.00129.knikanth@suse.de> <alpine.DEB.2.00.1009160940330.24798@tigran.mtv.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1009160940330.24798@tigran.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201009171134.02771.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
-To: "robm@fastmail.fm" <robm@fastmail.fm>
-Cc: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: Hugh Dickins <hughd@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>, Richard Guenther <rguenther@suse.de>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-09-17 at 08:50 +0800, Robert Mueller wrote:
-> > > > Having very little knowledge of what this actually does, I'd just
-> > > > like to point out that from a users point of view, it's really
-> > > > annoying for your machine to be crippled by a default kernel
-> > > > setting that's pretty obscure.
-> >
-> > Thats an issue of the NUMA BIOS information. Kernel defaults to zone
-> > reclaim if the cost of accessing remote memory vs local memory crosses
-> > a certain threshhold which usually impacts performance.
-> 
-> We use what I thought was a fairly standard server type motherboard and
-> CPU combination, and I was surprised that things were so badly broken
-> for a standard usage scenario with a vanilla kernel with a default
-> configuration.
-> 
-> I'd point out that the cost of a remote memory access is many, many
-> orders of magnitude less than having to go back to disk! The problem is
-> that with zone_reclaim_mode = 1 it seems lots of memory was being wasted
-> that could be used as disk cache.
-> 
-> > > Yes, sadly intel motherboard turn on zone_reclaim_mode by
-> > > default. and current zone_reclaim_mode doesn't fit file/web
-> > > server usecase ;-)
-> >
-> > Or one could also say that the web servers are not designed to
-> > properly distribute the load on a complex NUMA based memory
-> > architecture of todays Intel machines.
-> 
-> I don't think this is any fault of how the software works. It's a *very*
-> standard "pre-fork child processes, allocate incoming connections to a
-> child process, open and mmap one or more files to read data from them".
-> That's not exactly a weird programming model, and it's bad that the
-> kernel is handling that case very badly with everything default.
-maybe you incoming connection always happen on one CPU and you do the
-page allocation in that cpu, so some nodes use out of memory but others
-have a lot free. Try bind the child process to different nodes might
-help.
+Document the new Anonymous field in smaps.
+
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+
+=2D--
+
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems=
+/proc.txt
+index a6aca87..b430576 100644
+=2D-- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -370,17 +370,24 @@ Shared_Dirty:          0 kB
+ Private_Clean:         0 kB
+ Private_Dirty:         0 kB
+ Referenced:          892 kB
++Anonymous:             0 kB
+ Swap:                  0 kB
+ KernelPageSize:        4 kB
+ MMUPageSize:           4 kB
+=20
+=2DThe first  of these lines shows  the same information  as is displayed f=
+or the
+=2Dmapping in /proc/PID/maps.  The remaining lines show  the size of the ma=
+pping,
++The first of these lines shows the same information as is displayed for the
++mapping in /proc/PID/maps. The remaining lines show the size of the mappin=
+g,
+ the amount of the mapping that is currently resident in RAM, the "proporti=
+onal
+ set size=E2=80=9D (divide each shared page by the number of processes shar=
+ing it), the
+ number of clean and dirty shared pages in the mapping, and the number of c=
+lean
+=2Dand dirty private pages in the mapping.  The "Referenced" indicates the =
+amount
+=2Dof memory currently marked as referenced or accessed.
++and dirty private pages in the mapping. Even pages which are part of
++MAP_SHARED mappings, but has only a single pte mapped i.e., used exclusive=
+ly
++by a process is accounted as private and not as shared. The "Referenced"
++indicates the amount of memory currently marked as referenced or accessed.=
+ The
++"Anonymous" shows the number of pages that is not associated with a file. =
+Even
++mappings associated with a file can have anonymous pages. When the mapping=
+ is
++MAP_PRIVATE and its pages are modified, the pages are COWed and marked as
++anonymous.
+=20
+ This file is only present if the CONFIG_MMU kernel configuration option is
+ enabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
