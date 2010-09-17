@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 795D96B0078
-	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 19:13:17 -0400 (EDT)
-Date: Thu, 16 Sep 2010 16:13:07 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [stable] breaks 2.6.32.21+ (was: [PATCH] percpu: fix a memory
- leak in	pcpu_extend_area_map())
-Message-ID: <20100916231307.GB24617@kroah.com>
-References: <1281261197-8816-1-git-send-email-shijie8@gmail.com>
- <4C5EA651.7080009@kernel.org>
- <20100916213603.GW6447@anguilla.noreply.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C84816B0078
+	for <linux-mm@kvack.org>; Thu, 16 Sep 2010 20:26:25 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8H0QR30027350
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 17 Sep 2010 09:26:27 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BA9345DE50
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:26:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 655A845DE4E
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:26:27 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BEE21DB8037
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:26:27 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E16FD1DB8049
+	for <linux-mm@kvack.org>; Fri, 17 Sep 2010 09:26:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info messsge
+In-Reply-To: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+References: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+Message-Id: <20100917092603.3BD5.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20100916213603.GW6447@anguilla.noreply.org>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 17 Sep 2010 09:26:26 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Peter Palfrader <peter@palfrader.org>, stable@kernel.org, Tejun Heo <tj@kernel.org>, Huang Shijie <shijie8@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 11:36:03PM +0200, Peter Palfrader wrote:
-> Hey,
-> 
-> The patch quoted below seems to have made it into Greg's stable-queue
-> for 2.6.32.
-> 
-> I tried building a kernel based on 2.6.32.21 plus all the patches
-> currently in that queue.  The resulting kernel unfortunately didn't
-> boot for me, neither as a 32 nor as 64 bit x86 kernel.
-> 
-> I have put up a screenshot of a trace at
-> http://asteria.noreply.org/~weasel/volatile/2010-09-16-SrLl9JHtDTg/trace-64bit.png
-> since the kernel fortunately also died in kvm - unfortunately only the
-> last 60 lines are easily available.  If you need more I could try to set
-> up some serial console thing to catch more.
-> 
-> Bisecting led to this patch and reverting "percpu: fix a memory leak in
-> pcpu_extend_area_map()" makes the kernel boot for me again.
+> diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
+> --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
+> +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-16 09:43:52.000000000 -0700
+> @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
+>  {
+>  	proc_dointvec_minmax(table, write, buffer, length, ppos);
+>  	if (write) {
+> +		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
+> +			current->comm, task_pid_nr(current), sysctl_drop_caches);
+>  		if (sysctl_drop_caches & 1)
+>  			iterate_supers(drop_pagecache_sb, NULL);
+>  		if (sysctl_drop_caches & 2)
 
-Odd, someone just reported the same problem for .35-stable as well.
+Can't you print it only once?
 
-Tejun, what's going on here?
 
-thanks,
-
-greg k-h
-
-> 
-> > From 206c53730b8b1707becca7a868ea8d14ebee24d2 Mon Sep 17 00:00:00 2001
-> > From: Huang Shijie <shijie8@gmail.com>
-> > Date: Sun, 8 Aug 2010 14:39:07 +0200
-> > 
-> > The original code did not free the old map.  This patch fixes it.
-> > 
-> > tj: use @old as memcpy source instead of @chunk->map, and indentation
-> >     and description update
-> > 
-> > Signed-off-by: Huang Shijie <shijie8@gmail.com>
-> > Signed-off-by: Tejun Heo <tj@kernel.org>
-> > ---
-> > Patch applied to percpu#for-linus w/ some updates.  Thanks a lot for
-> > catching this.
-> > 
-> >  mm/percpu.c |    4 +++-
-> >  1 files changed, 3 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/mm/percpu.c b/mm/percpu.c
-> > index e61dc2c..a1830d8 100644
-> > --- a/mm/percpu.c
-> > +++ b/mm/percpu.c
-> > @@ -393,7 +393,9 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
-> >  		goto out_unlock;
-> > 
-> >  	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
-> > -	memcpy(new, chunk->map, old_size);
-> > +	old = chunk->map;
-> > +
-> > +	memcpy(new, old, old_size);
-> > 
-> >  	chunk->map_alloc = new_alloc;
-> >  	chunk->map = new;
-> 
-> Cheers,
-> Peter
-> -- 
->                            |  .''`.  ** Debian GNU/Linux **
->       Peter Palfrader      | : :' :      The  universal
->  http://www.palfrader.org/ | `. `'      Operating System
->                            |   `-    http://www.debian.org/
-> 
-> _______________________________________________
-> stable mailing list
-> stable@linux.kernel.org
-> http://linux.kernel.org/mailman/listinfo/stable
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
