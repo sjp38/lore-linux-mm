@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id BB4DA6B0047
-	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 23:09:45 -0400 (EDT)
-Message-ID: <4C96D072.5080305@redhat.com>
-Date: Sun, 19 Sep 2010 23:09:38 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4196B007B
+	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 23:33:46 -0400 (EDT)
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are reported clean in smaps
+Date: Sun, 19 Sep 2010 23:07:09 +0530
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com> <20100915140911.GC4383@balbir.in.ibm.com> <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
+In-Reply-To: <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: further fix swapin race condition
-References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils> <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com> <20100915234237.GR5981@random.random> <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com> <20100916210349.GU5981@random.random> <alpine.LSU.2.00.1009161905190.2517@tigran.mtv.corp.google.com> <20100918131907.GI18596@random.random> <alpine.LSU.2.00.1009191924110.2779@sister.anvils> <alpine.LSU.2.00.1009191938110.3025@sister.anvils>
-In-Reply-To: <alpine.LSU.2.00.1009191938110.3025@sister.anvils>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Message-Id: <201009192307.09309.knikanth@suse.de>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Richard Guenther <rguenther@suse.de>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/19/2010 10:40 PM, Hugh Dickins wrote:
-> Commit 4969c1192d15afa3389e7ae3302096ff684ba655 "mm: fix swapin race condition"
-> is now agreed to be incomplete.  There's a race, not very much less likely
-> than the original race envisaged, in which it is further necessary to check
-> that the swapcache page's swap has not changed.
+On Wednesday 15 September 2010 19:44:17 Richard Guenther wrote:
+> On Wed, 15 Sep 2010, Balbir Singh wrote:
+> > * Nikanth Karthikesan <knikanth@suse.de> [2010-09-15 12:01:11]:
+> > > How? Current smaps information without this patch provides incorrect
+> > > information. Just because a private dirty page became part of swap
+> > > cache, it shown as clean and backed by a file. If it is shown as clean
+> > > and backed by swap then it is fine.
+> >
+> > How is GDB using this information?
+> 
+> GDB counts the number of dirty and swapped pages in a private mapping and
+> based on that decides whether it needs to dump it to a core file or not.
+> If there are no dirty or swapped pages gdb assumes it can reconstruct
+> the mapping from the original backing file.  This way for example
+> shared libraries do not end up in the core file.
+> 
 
-> B ought to have checked that page1's swap was still swap1.
->
-> Signed-off-by: Hugh Dickins<hughd@google.com>
-> Cc: stable@kernel.org
+Well, may be /proc/pid/pagemap + /proc/kpageflags is enough for this! One can 
+get the pageflags using these interfaces. See Documentation/vm/pagemap.txt for 
+the explanation on how to do it. There is also a sample program that prints 
+page flags using this interface in Documentation/vm/page-types.c.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+It is bad that /proc/pid/pagemap is never mentioned in 
+Documentation/filesystems/proc.txt. I will send a patch to rectify this.
 
--- 
-All rights reversed
+Thanks
+Nikanth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
