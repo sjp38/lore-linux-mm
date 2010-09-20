@@ -1,112 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A19C6B0047
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 05:52:57 -0400 (EDT)
-Date: Mon, 20 Sep 2010 10:52:39 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E446B0047
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 06:47:39 -0400 (EDT)
+Date: Mon, 20 Sep 2010 11:47:23 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
-	there are no congested BDIs or if significant congestion is not
-	being encountered in the current zone
-Message-ID: <20100920095239.GE1998@csn.ul.ie>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <1284553671-31574-9-git-send-email-mel@csn.ul.ie> <20100916152810.cb074e9f.akpm@linux-foundation.org>
+Subject: Re: [PATCH 01/10] hugetlb: fix metadata corruption in
+	hugetlb_fault()
+Message-ID: <20100920104723.GG1998@csn.ul.ie>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20100916152810.cb074e9f.akpm@linux-foundation.org>
+In-Reply-To: <1283908781-13810-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 16, 2010 at 03:28:10PM -0700, Andrew Morton wrote:
-> On Wed, 15 Sep 2010 13:27:51 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Wed, Sep 08, 2010 at 10:19:32AM +0900, Naoya Horiguchi wrote:
+> Since the PageHWPoison() check is for avoiding hwpoisoned page remained
+> in pagecache mapping to the process, it should be done in "found in pagecache"
+> branch, not in the common path.
+> Otherwise, metadata corruption occurs if memory failure happens between
+> alloc_huge_page() and lock_page() because page fault fails with metadata
+> changes remained (such as refcount, mapcount, etc.)
 > 
-> > If wait_iff_congested() is called with no BDI congested, the function simply
-> > calls cond_resched(). In the event there is significant writeback happening
-> > in the zone that is being reclaimed, this can be a poor decision as reclaim
-> > would succeed once writeback was completed. Without any backoff logic,
-> > younger clean pages can be reclaimed resulting in more reclaim overall and
-> > poor performance.
+> This patch moves the check to "found in pagecache" branch and fix the problem.
 > 
-> This is because cond_resched() is a no-op,
-
-Can be a no-op surely. There is an expectation that it will sometimes schedule.
-
-> and we skip around the
-> under-writeback pages and go off and look further along the LRU for
-> younger clean pages, yes?
+> ChangeLog since v2:
+> - remove retry check in "new allocation" path.
+> - make description more detailed
+> - change patch name from "HWPOISON, hugetlb: move PG_HWPoison bit check"
 > 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+> Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Yes.
+Seems reasonable.
 
-> > This patch tracks how many pages backed by a congested BDI were found during
-> > scanning. If all the dirty pages encountered on a list isolated from the
-> > LRU belong to a congested BDI, the zone is marked congested until the zone
-> > reaches the high watermark.
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+> ---
+>  mm/hugetlb.c |   21 +++++++++------------
+>  1 files changed, 9 insertions(+), 12 deletions(-)
 > 
-> High watermark, or low watermark?
+> diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
+> index cc5be78..6871b41 100644
+> --- v2.6.36-rc2/mm/hugetlb.c
+> +++ v2.6.36-rc2/mm/hugetlb.c
+> @@ -2518,22 +2518,19 @@ retry:
+>  			hugepage_add_new_anon_rmap(page, vma, address);
+>  		}
+>  	} else {
+> +		/*
+> +		 * If memory error occurs between mmap() and fault, some process
+> +		 * don't have hwpoisoned swap entry for errored virtual address.
+> +		 * So we need to block hugepage fault by PG_hwpoison bit check.
+> +		 */
+> +		if (unlikely(PageHWPoison(page))) {
+> +			ret = VM_FAULT_HWPOISON;
+> +			goto backout_unlocked;
+> +		}
+>  		page_dup_rmap(page);
+>  	}
+>  
+>  	/*
+> -	 * Since memory error handler replaces pte into hwpoison swap entry
+> -	 * at the time of error handling, a process which reserved but not have
+> -	 * the mapping to the error hugepage does not have hwpoison swap entry.
+> -	 * So we need to block accesses from such a process by checking
+> -	 * PG_hwpoison bit here.
+> -	 */
+> -	if (unlikely(PageHWPoison(page))) {
+> -		ret = VM_FAULT_HWPOISON;
+> -		goto backout_unlocked;
+> -	}
+> -
+> -	/*
+>  	 * If we are going to COW a private mapping later, we examine the
+>  	 * pending reservations for this page now. This will ensure that
+>  	 * any allocations necessary to record that reservation occur outside
+> -- 
+> 1.7.2.2
 > 
-
-High watermark. The check is made by kswapd.
-
-> The terms are rather ambiguous so let's avoid them.  Maybe "full"
-> watermark and "empty"?
-> 
-
-Unfortunately they are ambiguous to me. I know what the high watermark
-is but not what the full or empty watermarks are.
-
-> >
-> > ...
-> >
-> > @@ -706,6 +726,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  			goto keep;
-> >  
-> >  		VM_BUG_ON(PageActive(page));
-> > +		VM_BUG_ON(page_zone(page) != zone);
-> 
-> ?
-> 
-
-It should not be the case that pages from multiple zones exist on the list
-passed to shrink_page_list(). Lets say someone broke that assumption in the
-future, which one should be marked congested? No way to know, so lets catch
-the bug if the assumptions is ever broken.
-
-> >  		sc->nr_scanned++;
-> >  
-> >
-> > ...
-> >
-> > @@ -903,6 +928,15 @@ keep_lumpy:
-> >  		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
-> >  	}
-> >  
-> > +	/*
-> > +	 * Tag a zone as congested if all the dirty pages encountered were
-> > +	 * backed by a congested BDI. In this case, reclaimers should just
-> > +	 * back off and wait for congestion to clear because further reclaim
-> > +	 * will encounter the same problem
-> > +	 */
-> > +	if (nr_dirty == nr_congested)
-> > +		zone_set_flag(zone, ZONE_CONGESTED);
-> 
-> The implicit "100%" there is a magic number.  hrm.
-> 
-
-It is but any other value for that number would be very specific to a
-workload or a machine. A sysctl would have to be maintained and I
-couldn't convince myself that anyone could do something sensible with
-the value.
-
-Rather than introducing a new tunable for this, I was toying with the idea over
-the weekend on tracking the scanned/reclaimed ratio within the scan control -
-possibly on a per-zone basis but more likely globally. When this ratio drops
-below a given threshold, start increasing the time it backs off for up to a
-maximum of HZ/10. There are a lot of details to iron out but it's possibly a
-better long-term direction than adding a tunable for this implicit magic number
-because it would be adaptive to what is happening for the current workload.
 
 -- 
 Mel Gorman
