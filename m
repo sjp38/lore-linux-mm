@@ -1,230 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 644686B0047
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 06:59:34 -0400 (EDT)
-Date: Mon, 20 Sep 2010 11:59:16 +0100
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBAE6B0047
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 07:03:37 -0400 (EDT)
+Date: Mon, 20 Sep 2010 12:03:23 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 02/10] hugetlb: add allocate function for hugepage
-	migration
-Message-ID: <20100920105916.GH1998@csn.ul.ie>
-References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 03/10] hugetlb: redefine hugepage copy functions
+Message-ID: <20100920110323.GI1998@csn.ul.ie>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 08, 2010 at 10:19:33AM +0900, Naoya Horiguchi wrote:
-> We can't use existing hugepage allocation functions to allocate hugepage
-> for page migration, because page migration can happen asynchronously with
-> the running processes and page migration users should call the allocation
-> function with physical addresses (not virtual addresses) as arguments.
+On Wed, Sep 08, 2010 at 10:19:34AM +0900, Naoya Horiguchi wrote:
+> This patch modifies hugepage copy functions to have only destination
+> and source hugepages as arguments for later use.
+> The old ones are renamed from copy_{gigantic,huge}_page() to
+> copy_user_{gigantic,huge}_page().
+> This naming convention is consistent with that between copy_highpage()
+> and copy_user_highpage().
 > 
-> ChangeLog since v3:
-> - unify alloc_buddy_huge_page() and alloc_buddy_huge_page_node()
+> ChangeLog since v4:
+> - add blank line between local declaration and code
+> - remove unnecessary might_sleep()
 > 
 > ChangeLog since v2:
-> - remove unnecessary get/put_mems_allowed() (thanks to David Rientjes)
-> 
-> ChangeLog since v1:
-> - add comment on top of alloc_huge_page_no_vma()
+> - change copy_huge_page() from macro to inline dummy function
+>   to avoid compile warning when !CONFIG_HUGETLB_PAGE.
 > 
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
 > ---
->  include/linux/hugetlb.h |    3 ++
->  mm/hugetlb.c            |   79 ++++++++++++++++++++++++++++++++---------------
->  2 files changed, 57 insertions(+), 25 deletions(-)
+>  include/linux/hugetlb.h |    4 ++++
+>  mm/hugetlb.c            |   45 ++++++++++++++++++++++++++++++++++++++++-----
+>  2 files changed, 44 insertions(+), 5 deletions(-)
 > 
 > diff --git v2.6.36-rc2/include/linux/hugetlb.h v2.6.36-rc2/include/linux/hugetlb.h
-> index f479700..0b73c53 100644
+> index 0b73c53..9e51f77 100644
 > --- v2.6.36-rc2/include/linux/hugetlb.h
 > +++ v2.6.36-rc2/include/linux/hugetlb.h
-> @@ -228,6 +228,8 @@ struct huge_bootmem_page {
->  	struct hstate *hstate;
->  };
+> @@ -44,6 +44,7 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+>  						int acctflags);
+>  void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+>  void __isolate_hwpoisoned_huge_page(struct page *page);
+> +void copy_huge_page(struct page *dst, struct page *src);
 >  
-> +struct page *alloc_huge_page_node(struct hstate *h, int nid);
-> +
->  /* arch callback */
->  int __init alloc_bootmem_huge_page(struct hstate *h);
+>  extern unsigned long hugepages_treat_as_movable;
+>  extern const unsigned long hugetlb_zero, hugetlb_infinity;
+> @@ -102,6 +103,9 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+>  #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
+>  #define huge_pte_offset(mm, address)	0
+>  #define __isolate_hwpoisoned_huge_page(page)	0
+> +static inline void copy_huge_page(struct page *dst, struct page *src)
+> +{
+> +}
 >  
-> @@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
+>  #define hugetlb_change_protection(vma, address, end, newprot)
 >  
->  #else
->  struct hstate {};
-> +#define alloc_huge_page_node(h, nid) NULL
->  #define alloc_bootmem_huge_page(h) NULL
->  #define hstate_file(f) NULL
->  #define hstate_vma(v) NULL
 > diff --git v2.6.36-rc2/mm/hugetlb.c v2.6.36-rc2/mm/hugetlb.c
-> index 6871b41..f526228 100644
+> index f526228..351f8d1 100644
 > --- v2.6.36-rc2/mm/hugetlb.c
 > +++ v2.6.36-rc2/mm/hugetlb.c
-> @@ -466,11 +466,23 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
->  	h->free_huge_pages_node[nid]++;
+> @@ -423,14 +423,14 @@ static void clear_huge_page(struct page *page,
+>  	}
 >  }
 >  
-> +static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
-> +{
-> +	struct page *page;
+> -static void copy_gigantic_page(struct page *dst, struct page *src,
+> +static void copy_user_gigantic_page(struct page *dst, struct page *src,
+>  			   unsigned long addr, struct vm_area_struct *vma)
+>  {
+>  	int i;
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *dst_base = dst;
+>  	struct page *src_base = src;
+> -	might_sleep();
 > +
-> +	if (list_empty(&h->hugepage_freelists[nid]))
-> +		return NULL;
-> +	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
-> +	list_del(&page->lru);
-> +	h->free_huge_pages--;
-> +	h->free_huge_pages_node[nid]--;
-> +	return page;
+
+Why is this check removed?
+
+>  	for (i = 0; i < pages_per_huge_page(h); ) {
+>  		cond_resched();
+>  		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
+> @@ -440,14 +440,15 @@ static void copy_gigantic_page(struct page *dst, struct page *src,
+>  		src = mem_map_next(src, src_base, i);
+>  	}
+>  }
+> -static void copy_huge_page(struct page *dst, struct page *src,
+> +
+> +static void copy_user_huge_page(struct page *dst, struct page *src,
+>  			   unsigned long addr, struct vm_area_struct *vma)
+>  {
+>  	int i;
+>  	struct hstate *h = hstate_vma(vma);
+>  
+>  	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+> -		copy_gigantic_page(dst, src, addr, vma);
+> +		copy_user_gigantic_page(dst, src, addr, vma);
+>  		return;
+>  	}
+>  
+> @@ -458,6 +459,40 @@ static void copy_huge_page(struct page *dst, struct page *src,
+>  	}
+>  }
+>  
+> +static void copy_gigantic_page(struct page *dst, struct page *src)
+> +{
+> +	int i;
+> +	struct hstate *h = page_hstate(src);
+> +	struct page *dst_base = dst;
+> +	struct page *src_base = src;
+> +
+> +	for (i = 0; i < pages_per_huge_page(h); ) {
+> +		cond_resched();
+
+Should this function not have a might_sleep() check too?
+
+> +		copy_highpage(dst, src);
+> +
+> +		i++;
+> +		dst = mem_map_next(dst, dst_base, i);
+> +		src = mem_map_next(src, src_base, i);
+> +	}
 > +}
 > +
-
-Ok, this is fine because all you are doing is splitting
-dequeue_huge_page_vma()
-
->  static struct page *dequeue_huge_page_vma(struct hstate *h,
->  				struct vm_area_struct *vma,
->  				unsigned long address, int avoid_reserve)
->  {
-> -	int nid;
->  	struct page *page = NULL;
->  	struct mempolicy *mpol;
->  	nodemask_t *nodemask;
-> @@ -496,19 +508,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->  						MAX_NR_ZONES - 1, nodemask) {
-> -		nid = zone_to_nid(zone);
-> -		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
-> -		    !list_empty(&h->hugepage_freelists[nid])) {
-> -			page = list_entry(h->hugepage_freelists[nid].next,
-> -					  struct page, lru);
-> -			list_del(&page->lru);
-> -			h->free_huge_pages--;
-> -			h->free_huge_pages_node[nid]--;
-> -
-> -			if (!avoid_reserve)
-> -				decrement_hugepage_resv_vma(h, vma);
-> -
-> -			break;
-> +		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
-> +			page = dequeue_huge_page_node(h, zone_to_nid(zone));
-> +			if (page) {
-> +				if (!avoid_reserve)
-> +					decrement_hugepage_resv_vma(h, vma);
-> +				break;
-> +			}
->  		}
->  	}
-
-This looks functionally equivalent so no problems there.
-
->  err:
-> @@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
->  	return ret;
->  }
->  
-> -static struct page *alloc_buddy_huge_page(struct hstate *h,
-> -			struct vm_area_struct *vma, unsigned long address)
-> +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
->  {
->  	struct page *page;
-> -	unsigned int nid;
-> +	unsigned int r_nid;
->  
-
-Why the rename, just to avoid changing the value of a function parameter?
-
->  	if (h->order >= MAX_ORDER)
->  		return NULL;
-> @@ -812,9 +817,14 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
->  	}
->  	spin_unlock(&hugetlb_lock);
->  
-> -	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> -					__GFP_REPEAT|__GFP_NOWARN,
-> -					huge_page_order(h));
-> +	if (nid == NUMA_NO_NODE)
-> +		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> +				   __GFP_REPEAT|__GFP_NOWARN,
-> +				   huge_page_order(h));
-> +	else
-> +		page = alloc_pages_exact_node(nid,
-> +			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-> +			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
->  
-
-Why not just call alloc_pages_node()?
-
->  	if (page && arch_prepare_hugepage(page)) {
->  		__free_pages(page, huge_page_order(h));
-> @@ -829,13 +839,13 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
->  		 */
->  		put_page_testzero(page);
->  		VM_BUG_ON(page_count(page));
-> -		nid = page_to_nid(page);
-> +		r_nid = page_to_nid(page);
->  		set_compound_page_dtor(page, free_huge_page);
->  		/*
->  		 * We incremented the global counters already
->  		 */
-> -		h->nr_huge_pages_node[nid]++;
-> -		h->surplus_huge_pages_node[nid]++;
-> +		h->nr_huge_pages_node[r_nid]++;
-> +		h->surplus_huge_pages_node[r_nid]++;
->  		__count_vm_event(HTLB_BUDDY_PGALLOC);
->  	} else {
->  		h->nr_huge_pages--;
-> @@ -848,6 +858,25 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
->  }
->  
->  /*
-> + * This allocation function is useful in the context where vma is irrelevant.
-> + * E.g. soft-offlining uses this function because it only cares physical
-> + * address of error page.
-> + */
-> +struct page *alloc_huge_page_node(struct hstate *h, int nid)
+> +void copy_huge_page(struct page *dst, struct page *src)
 > +{
-> +	struct page *page;
+> +	int i;
+> +	struct hstate *h = page_hstate(src);
 > +
-> +	spin_lock(&hugetlb_lock);
-> +	page = dequeue_huge_page_node(h, nid);
-> +	spin_unlock(&hugetlb_lock);
+> +	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
+> +		copy_gigantic_page(dst, src);
+> +		return;
+> +	}
 > +
-> +	if (!page)
-> +		page = alloc_buddy_huge_page(h, nid);
-> +
-> +	return page;
+> +	might_sleep();
+> +	for (i = 0; i < pages_per_huge_page(h); i++) {
+> +		cond_resched();
+> +		copy_highpage(dst + i, src + i);
+> +	}
 > +}
 > +
-> +/*
->   * Increase the hugetlb pool such that it can accomodate a reservation
->   * of size 'delta'.
->   */
-> @@ -871,7 +900,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
->  retry:
->  	spin_unlock(&hugetlb_lock);
->  	for (i = 0; i < needed; i++) {
-> -		page = alloc_buddy_huge_page(h, NULL, 0);
-> +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
->  		if (!page) {
->  			/*
->  			 * We were not able to allocate enough pages to
-> @@ -1052,7 +1081,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
->  	spin_unlock(&hugetlb_lock);
+>  static void enqueue_huge_page(struct hstate *h, struct page *page)
+>  {
+>  	int nid = page_to_nid(page);
+> @@ -2415,7 +2450,7 @@ retry_avoidcopy:
+>  	if (unlikely(anon_vma_prepare(vma)))
+>  		return VM_FAULT_OOM;
 >  
->  	if (!page) {
-> -		page = alloc_buddy_huge_page(h, vma, addr);
-> +		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
->  		if (!page) {
->  			hugetlb_put_quota(inode->i_mapping, chg);
->  			return ERR_PTR(-VM_FAULT_SIGBUS);
+> -	copy_huge_page(new_page, old_page, address, vma);
+> +	copy_user_huge_page(new_page, old_page, address, vma);
+>  	__SetPageUptodate(new_page);
+>  
+>  	/*
 
-Mostly it looks ok, the only snag I see is the why you didn't use
-alloc_pages_node().
+Other than the removal of the might_sleep() check, this looks ok too.
 
 -- 
 Mel Gorman
