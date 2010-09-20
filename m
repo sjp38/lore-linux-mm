@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 54F6A6B0047
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 09:14:11 -0400 (EDT)
-Message-ID: <4C975E01.3070503@redhat.com>
-Date: Mon, 20 Sep 2010 09:13:37 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 74A496B0047
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 10:30:55 -0400 (EDT)
+Date: Mon, 20 Sep 2010 16:30:40 +0200 (CEST)
+From: Richard Guenther <rguenther@suse.de>
+Subject: Re: [PATCH v2] After swapout/swapin private dirty mappings are
+ reported clean in smaps
+In-Reply-To: <201009192307.09309.knikanth@suse.de>
+Message-ID: <alpine.LNX.2.00.1009201630200.8982@zhemvz.fhfr.qr>
+References: <20100915134724.C9EE.A69D9226@jp.fujitsu.com> <20100915140911.GC4383@balbir.in.ibm.com> <alpine.LNX.2.00.1009151612450.28912@zhemvz.fhfr.qr> <201009192307.09309.knikanth@suse.de>
 MIME-Version: 1.0
-Subject: Re: cgroup oom regression introduced by 6a5ce1b94e1e5979f8db579f77d6e08a5f44c13b
-References: <1296415999.1298271284814035815.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <290491919.1298351284814354705.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com> <20100918152120.GA21343@barrios-desktop>
-In-Reply-To: <20100918152120.GA21343@barrios-desktop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: caiqian@redhat.com, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "M. Vefa Bicakci" <bicave@superonline.com>, Johannes Weiner <hannes@cmpxchg.org>, stable@kernel.org, akpm@linux-foundation.org
+To: Nikanth Karthikesan <knikanth@suse.de>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michael Matz <matz@novell.com>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/18/2010 11:21 AM, Minchan Kim wrote:
+On Sun, 19 Sep 2010, Nikanth Karthikesan wrote:
 
-> When memory pressure in memcg is high, do_try_to_free_pages returns
-> 0. It causes mem_cgroup_out_of_memory so that any process in mem group
-> would be killed.
-> But vmscan-check-all_unreclaimable-in-direct-reclaim-path.patch changed
-> the old behavior. It returns 1 unconditionally regardless of considering
-> global reclaim or memcg relcaim. It causes hang without triggering OOM
-> in case of memcg direct reclaim.
->
-> This patch fixes it.
->
-> It's reported by caiqian@redhat.com.
-> (Thanks. Totally, it's my fault.)
->
-> Reported-by: caiqian@redhat.com
-> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Johannes Weiner<hannes@cmpxchg.org>
-> Cc: Rik van Riel<riel@redhat.com>
-> Cc: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Balbir Singh<balbir@in.ibm.com>
-> Signed-off-by: Minchan Kim<minchan.kim@gmail.com>
+> On Wednesday 15 September 2010 19:44:17 Richard Guenther wrote:
+> > On Wed, 15 Sep 2010, Balbir Singh wrote:
+> > > * Nikanth Karthikesan <knikanth@suse.de> [2010-09-15 12:01:11]:
+> > > > How? Current smaps information without this patch provides incorrect
+> > > > information. Just because a private dirty page became part of swap
+> > > > cache, it shown as clean and backed by a file. If it is shown as clean
+> > > > and backed by swap then it is fine.
+> > >
+> > > How is GDB using this information?
+> > 
+> > GDB counts the number of dirty and swapped pages in a private mapping and
+> > based on that decides whether it needs to dump it to a core file or not.
+> > If there are no dirty or swapped pages gdb assumes it can reconstruct
+> > the mapping from the original backing file.  This way for example
+> > shared libraries do not end up in the core file.
+> > 
+> 
+> Well, may be /proc/pid/pagemap + /proc/kpageflags is enough for this! One can 
+> get the pageflags using these interfaces. See Documentation/vm/pagemap.txt for 
+> the explanation on how to do it. There is also a sample program that prints 
+> page flags using this interface in Documentation/vm/page-types.c.
+> 
+> It is bad that /proc/pid/pagemap is never mentioned in 
+> Documentation/filesystems/proc.txt. I will send a patch to rectify this.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Looks like /proc/kpageflags is root-only, so not a solution for gdb.
 
-
--- 
-All rights reversed
+Richard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
