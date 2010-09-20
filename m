@@ -1,68 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 875016B0047
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 07:14:32 -0400 (EDT)
-Date: Mon, 20 Sep 2010 12:14:18 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 0/10] Hugepage migration (v5)
-Message-ID: <20100920111417.GK1998@csn.ul.ie>
-References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <20100909123306.32134d5e@basil.nowhere.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4A26B004A
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 07:15:49 -0400 (EDT)
+Message-ID: <215a2d3717d0d55026688fb59ff7bb79.squirrel@www.firstfloor.org>
+In-Reply-To: <20100920110323.GI1998@csn.ul.ie>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+    <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+    <20100920110323.GI1998@csn.ul.ie>
+Date: Mon, 20 Sep 2010 13:15:44 +0200
+Subject: Re: [PATCH 03/10] hugetlb: redefine hugepage copy functions
+From: "Andi Kleen" <andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100909123306.32134d5e@basil.nowhere.org>
+Content-Type: text/plain;charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 09, 2010 at 12:33:06PM +0200, Andi Kleen wrote:
-> On Wed,  8 Sep 2010 10:19:31 +0900
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Hi,
-> > 
-> > This is the 5th version of "hugepage migration" set.
-> > 
-> > Changes from v4 (mostly refactoring):
-> > - remove unnecessary might_sleep() [3/10]
-> > - define migrate_huge_pages() from copy of migrate_pages() [4/10]
-> > - soft_offline_page() branches off to hugepage path. [8/10]
-> 
-> I went over this patchkit again and it all looks good to me.
-> I plan to merge it through my hwpoison tree.
-> 
-> As far as I understand all earlier comments have been addressed
-> with this revision, correct?
-> 
-> Thanks for your work, this is very good.
-> 
-> But I would like to have some Acks from Christoph for the
-> page migration changes and from Mel for the hugetlb changes
-> outside memory-failures.c. Are the patches ok for you two? 
-> Can I have your Acked-by or Reviewed-by? 
-> 
 
-Sorry for taking so long to get back. I was snowed under by other work.
-I've reviewed the bulk of the hugetlb changes that affect common paths.
-There are a few small queries there but they are very minor. Once covered,
-feel free to add by Acked-by. I didn't get the chance to actually test the
-patches but they look ok.
+>> +static void copy_gigantic_page(struct page *dst, struct page *src)
+>> +{
+>> +	int i;
+>> +	struct hstate *h = page_hstate(src);
+>> +	struct page *dst_base = dst;
+>> +	struct page *src_base = src;
+>> +
+>> +	for (i = 0; i < pages_per_huge_page(h); ) {
+>> +		cond_resched();
+>
+> Should this function not have a might_sleep() check too?
 
-> Any other comments would be welcome too.
-> 
-> I am considering to fast track 10/10 (the page-types fix). 
-> 
-> I think the other bug fixes in the series are only for bugs added
-> earlier in the series, correct?
-> 
+cond_resched() implies might_sleep I believe. I think
+that answers the earlier question too becuse that function
+calls this.
 
-That is what it looked like to me.
+	/*
+>
+> Other than the removal of the might_sleep() check, this looks ok too.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Can I assume an Ack?
+
+Thanks,
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
