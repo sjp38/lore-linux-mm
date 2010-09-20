@@ -1,40 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 35F2E6B007B
-	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 13:02:19 -0400 (EDT)
-Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o8JH1gEA010657
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 10:01:43 -0700
-Received: by iwn33 with SMTP id 33so5021650iwn.14
-        for <linux-mm@kvack.org>; Sun, 19 Sep 2010 10:01:37 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 36EF66B0047
+	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 22:35:51 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id o8K2ZkxG010182
+	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 19:35:47 -0700
+Received: from pxi1 (pxi1.prod.google.com [10.243.27.1])
+	by wpaz21.hot.corp.google.com with ESMTP id o8K2ZjJW019497
+	for <linux-mm@kvack.org>; Sun, 19 Sep 2010 19:35:45 -0700
+Received: by pxi1 with SMTP id 1so1624311pxi.38
+        for <linux-mm@kvack.org>; Sun, 19 Sep 2010 19:35:44 -0700 (PDT)
+Date: Sun, 19 Sep 2010 19:35:34 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] fix swapin race condition
+In-Reply-To: <20100918131907.GI18596@random.random>
+Message-ID: <alpine.LSU.2.00.1009191924110.2779@sister.anvils>
+References: <20100903153958.GC16761@random.random> <alpine.LSU.2.00.1009051926330.12092@sister.anvils> <alpine.LSU.2.00.1009151534060.5630@tigran.mtv.corp.google.com> <20100915234237.GR5981@random.random> <alpine.DEB.2.00.1009151703060.7332@tigran.mtv.corp.google.com>
+ <20100916210349.GU5981@random.random> <alpine.LSU.2.00.1009161905190.2517@tigran.mtv.corp.google.com> <20100918131907.GI18596@random.random>
 MIME-Version: 1.0
-In-Reply-To: <20100918155652.684071800@chello.nl>
-References: <20100918155326.478277313@chello.nl> <20100918155652.684071800@chello.nl>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 19 Sep 2010 10:01:12 -0700
-Message-ID: <AANLkTikkVZEGS=1_qbwPoG47twdbzrgWa85NEVD3TxMK@mail.gmail.com>
-Subject: Re: [PATCH 2/5] mm: stack based kmap_atomic
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Russell King <rmk@arm.linux.org.uk>, David Howells <dhowells@redhat.com>, Ralf Baechle <ralf@linux-mips.org>, David Miller <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <greg@kroah.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 18, 2010 at 8:53 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wr=
-ote:
->
-> =A0usr/src/linux-2.6/drivers/gpu/drm/nouveau/nouveau_bios.c | 6832 ------=
----------
-> =A029 files changed, 361 insertions(+), 7195 deletions(-)
+On Sat, 18 Sep 2010, Andrea Arcangeli wrote:
+> On Thu, Sep 16, 2010 at 07:31:57PM -0700, Hugh Dickins wrote:
+> > 
+> > Here's what I think can happen: you may shame me by shooting it down
+> > immediately, but go ahead!
+> 
+> Can't shoot it. This definitely helped. My previous scenario only
+> involved threads, so I was only thinking at threads...
 
-What's that odd 'usr/src/linux-2.6' file that you have and removed?
+Thanks a lot for going through it.
 
-You're using some seriously broken SCM there.
+> > B ought to have checked that page1's swap was still swap1.
+> 
+> I suggest adding the explanation to the patch comment.
 
-                  Linus
+Absolutely: patch to Linus follows.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
