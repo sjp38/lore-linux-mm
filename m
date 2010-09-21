@@ -1,127 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 106546B004A
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 05:41:55 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L9frQd010252
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 21 Sep 2010 18:41:53 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B26345DE56
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:41:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CE13F45DE4F
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:41:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEE98E08002
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:41:52 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 582AAE18001
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:41:52 +0900 (JST)
-Date: Tue, 21 Sep 2010 18:36:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH v2 3/3][-mm] memcg: cpu hotplug aware quick acount_move
- detection
-Message-Id: <20100921183647.9c3f538f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100921183127.1c4c2bc1.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100921183127.1c4c2bc1.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A129D6B004A
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 07:17:56 -0400 (EDT)
+Date: Tue, 21 Sep 2010 12:17:41 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/3] Reduce watermark-related problems with the per-cpu
+	allocator V4
+Message-ID: <20100921111741.GB11439@csn.ul.ie>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <20100903160551.05db4a92.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20100903160551.05db4a92.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@kernel.org, Dave Chinner <david@fromorbit.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, Sep 03, 2010 at 04:05:51PM -0700, Andrew Morton wrote:
+> On Fri,  3 Sep 2010 10:08:43 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > The noteworthy change is to patch 2 which now uses the generic
+> > zone_page_state_snapshot() in zone_nr_free_pages(). Similar logic still
+> > applies for *when* zone_page_state_snapshot() to avoid ovedhead.
+> > 
+> > Changelog since V3
+> >   o Use generic helper for NR_FREE_PAGES estimate when necessary
+> > 
+> > Changelog since V2
+> >   o Minor clarifications
+> >   o Rebase to 2.6.36-rc3
+> > 
+> > Changelog since V1
+> >   o Fix for !CONFIG_SMP
+> >   o Correct spelling mistakes
+> >   o Clarify a ChangeLog
+> >   o Only check for counter drift on machines large enough for the counter
+> >     drift to breach the min watermark when NR_FREE_PAGES report the low
+> >     watermark is fine
+> > 
+> > Internal IBM test teams beta testing distribution kernels have reported
+> > problems on machines with a large number of CPUs whereby page allocator
+> > failure messages show huge differences between the nr_free_pages vmstat
+> > counter and what is available on the buddy lists. In an extreme example,
+> > nr_free_pages was above the min watermark but zero pages were on the buddy
+> > lists allowing the system to potentially livelock unable to make forward
+> > progress unless an allocation succeeds. There is no reason why the problems
+> > would not affect mainline so the following series mitigates the problems
+> > in the page allocator related to to per-cpu counter drift and lists.
+> > 
+> > The first patch ensures that counters are updated after pages are added to
+> > free lists.
+> > 
+> > The second patch notes that the counter drift between nr_free_pages and what
+> > is on the per-cpu lists can be very high. When memory is low and kswapd
+> > is awake, the per-cpu counters are checked as well as reading the value
+> > of NR_FREE_PAGES. This will slow the page allocator when memory is low and
+> > kswapd is awake but it will be much harder to breach the min watermark and
+> > potentially livelock the system.
+> > 
+> > The third patch notes that after direct-reclaim an allocation can
+> > fail because the necessary pages are on the per-cpu lists. After a
+> > direct-reclaim-and-allocation-failure, the per-cpu lists are drained and
+> > a second attempt is made.
+> > 
+> > Performance tests against 2.6.36-rc3 did not show up anything interesting. A
+> > version of this series that continually called vmstat_update() when
+> > memory was low was tested internally and found to help the counter drift
+> > problem. I described this during LSF/MM Summit and the potential for IPI
+> > storms was frowned upon. An alternative fix is in patch two which uses
+> > for_each_online_cpu() to read the vmstat deltas while memory is low and
+> > kswapd is awake. This should be functionally similar.
+> > 
+> > This patch should be merged after the patch "vmstat : update
+> > zone stat threshold at onlining a cpu" which is in mmotm as
+> > vmstat-update-zone-stat-threshold-when-onlining-a-cpu.patch .
+> > 
+> > If we can agree on it, this series is a stable candidate.
+> 
+> (cc stable@kernel.org)
+> 
+> >  include/linux/mmzone.h |   13 +++++++++++++
+> >  include/linux/vmstat.h |   22 ++++++++++++++++++++++
+> >  mm/mmzone.c            |   21 +++++++++++++++++++++
+> >  mm/page_alloc.c        |   29 +++++++++++++++++++++--------
+> >  mm/vmstat.c            |   15 ++++++++++++++-
+> >  5 files changed, 91 insertions(+), 9 deletions(-)
+> 
+> For the entire patch series I get
+> 
+>  include/linux/mmzone.h |   13 +++++++++++++
+>  include/linux/vmstat.h |   22 ++++++++++++++++++++++
+>  mm/mmzone.c            |   21 +++++++++++++++++++++
+>  mm/page_alloc.c        |   33 +++++++++++++++++++++++----------
+>  mm/vmstat.c            |   16 +++++++++++++++-
+>  5 files changed, 94 insertions(+), 11 deletions(-)
+> 
+> The patches do apply OK to 2.6.35.
+> 
+> Give the extent and the coreness of it all, it's a bit more than I'd
+> usually push at the -stable guys.  But I guess that if the patches fix
+> all the issues you've noted, as well as David's "minute-long livelocks
+> in memory reclaim" then yup, it's worth backporting it all.
+> 
 
-An event counter MEM_CGROUP_ON_MOVE is used for quick check whether
-file stat update can be done in async manner or not. Now, it use
-percpu counter and for_each_possible_cpu to update.
+These patches have made it to mainline as the following commits.
 
-This patch replaces for_each_possible_cpu to for_each_online_cpu
-and adds necessary synchronization logic at CPU HOTPLUG.
+9ee493c mm: page allocator: drain per-cpu lists after direct reclaim allocation fails
+aa45484 mm: page allocator: calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+72853e2 mm: page allocator: update free page counters after pages are placed on the free list
 
-Changelog:
- - make use of cpu independent "core" value to synchronize.
- - replaces mc.lock with pcp_coutner_lock.
+I have not heard from the -stable guys, is there a reasonable
+expectation that they'll be picked up?
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   37 ++++++++++++++++++++++++++++++-------
- 1 file changed, 30 insertions(+), 7 deletions(-)
+Thanks
 
-Index: mmotm-0915/mm/memcontrol.c
-===================================================================
---- mmotm-0915.orig/mm/memcontrol.c
-+++ mmotm-0915/mm/memcontrol.c
-@@ -1116,11 +1116,14 @@ static unsigned int get_swappiness(struc
- static void mem_cgroup_start_move(struct mem_cgroup *mem)
- {
- 	int cpu;
--	/* Because this is for moving account, reuse mc.lock */
--	spin_lock(&mc.lock);
--	for_each_possible_cpu(cpu)
-+
-+	get_online_cpus();
-+	spin_lock(&mem->pcp_counter_lock);
-+	for_each_online_cpu(cpu)
- 		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
--	spin_unlock(&mc.lock);
-+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] += 1;
-+	spin_unlock(&mem->pcp_counter_lock);
-+	put_online_cpus();
- 
- 	synchronize_rcu();
- }
-@@ -1131,10 +1134,13 @@ static void mem_cgroup_end_move(struct m
- 
- 	if (!mem)
- 		return;
--	spin_lock(&mc.lock);
--	for_each_possible_cpu(cpu)
-+	get_online_cpus();
-+	spin_lock(&mem->pcp_counter_lock);
-+	for_each_online_cpu(cpu)
- 		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) -= 1;
--	spin_unlock(&mc.lock);
-+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] -= 1;
-+	spin_unlock(&mem->pcp_counter_lock);
-+	put_online_cpus();
- }
- /*
-  * 2 routines for checking "mem" is under move_account() or not.
-@@ -1735,6 +1741,17 @@ static void mem_cgroup_drain_pcp_counter
- 		per_cpu(mem->stat->count[i], cpu) = 0;
- 		mem->nocpu_base.count[i] += x;
- 	}
-+	/* need to clear ON_MOVE value, works as a kind of lock. */
-+	per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE],cpu) = 0;
-+	spin_unlock(&mem->pcp_counter_lock);
-+}
-+
-+static void synchronize_mem_cgroup_on_move(struct mem_cgroup *mem, int cpu)
-+{
-+	int idx = MEM_CGROUP_ON_MOVE;
-+
-+	spin_lock(&mem->pcp_counter_lock);
-+	per_cpu(mem->stat->count[idx],cpu) = mem->nocpu_base.count[idx];
- 	spin_unlock(&mem->pcp_counter_lock);
- }
- 
-@@ -1746,6 +1763,12 @@ static int __cpuinit memcg_cpu_hotplug_c
- 	struct memcg_stock_pcp *stock;
- 	struct mem_cgroup *iter;
- 
-+	if ((action == CPU_ONLINE)) {
-+		for_each_mem_cgroup_all(iter)
-+			synchronize_mem_cgroup_on_move(iter, cpu);
-+		return NOTIFY_OK;
-+	}
-+
- 	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
- 		return NOTIFY_OK;
- 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
