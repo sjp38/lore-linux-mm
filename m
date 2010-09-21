@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id B4E146B004A
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 20:57:36 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L0vYeG003213
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Sep 2010 09:57:34 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CF53445DE4F
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:57:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B371EF084
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:57:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 617111DB8019
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:57:33 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 809551DB8016
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:57:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info messsge
-In-Reply-To: <1284738841.25231.4387.camel@nimitz>
-References: <20100917092603.3BD5.A69D9226@jp.fujitsu.com> <1284738841.25231.4387.camel@nimitz>
-Message-Id: <20100921094658.3BE3.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by kanga.kvack.org (Postfix) with SMTP id 282546B004A
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 21:05:24 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L15Kcs022867
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Sep 2010 10:05:20 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D03745DE51
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C6A1EF0A1
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B784E08007
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:19 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 11D6EE08001
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:16 +0900 (JST)
+Date: Tue, 21 Sep 2010 10:00:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info
+ messsge
+Message-Id: <20100921100011.86f270de.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+References: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Sep 2010 09:57:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, ebiederm@xmission.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, ebiederm@xmission.com, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 2010-09-17 at 09:26 +0900, KOSAKI Motohiro wrote:
-> > > diff -puN fs/drop_caches.c~update-drop_caches-documentation fs/drop_caches.c
-> > > --- linux-2.6.git/fs/drop_caches.c~update-drop_caches-documentation	2010-09-16 09:43:52.000000000 -0700
-> > > +++ linux-2.6.git-dave/fs/drop_caches.c	2010-09-16 09:43:52.000000000 -0700
-> > > @@ -47,6 +47,8 @@ int drop_caches_sysctl_handler(ctl_table
-> > >  {
-> > >  	proc_dointvec_minmax(table, write, buffer, length, ppos);
-> > >  	if (write) {
-> > > +		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
-> > > +			current->comm, task_pid_nr(current), sysctl_drop_caches);
-> > >  		if (sysctl_drop_caches & 1)
-> > >  			iterate_supers(drop_pagecache_sb, NULL);
-> > >  		if (sysctl_drop_caches & 2)
-> > 
-> > Can't you print it only once?
+On Thu, 16 Sep 2010 09:50:47 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+
 > 
-> Sure.  But, I also figured that somebody calling it every minute is
-> going to be much more interesting than something just on startup.
-> Should we printk_ratelimit() it, perhaps?
+> This version tones down the BUG_ON().  I also noticed that the
+> documentation fails to mention that more than just the inode
+> and dentry slabs are shrunk.
+> 
+> --
+> 
+> There is plenty of anecdotal evidence and a load of blog posts
+> suggesting that using "drop_caches" periodically keeps your system
+> running in "tip top shape".  Perhaps adding some kernel
+> documentation will increase the amount of accurate data on its use.
+> 
+> If we are not shrinking caches effectively, then we have real bugs.
+> Using drop_caches will simply mask the bugs and make them harder
+> to find, but certainly does not fix them, nor is it an appropriate
+> "workaround" to limit the size of the caches.
+> 
+> It's a great debugging tool, and is really handy for doing things
+> like repeatable benchmark runs.  So, add a bit more documentation
+> about it, and add a little KERN_NOTICE.  It should help developers
+> who are chasing down reclaim-related bugs.
+> 
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 
-Umm...
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-every minute drop_caches + printk_ratelimit() mean every drop_caches output
-printk(). It seems annoying. I'm worry about that I'll see drop_caches's printk fill
-my syslog.
-
-But, It is not strong opinion. Because I don't use every minute drop_caches, then
-I have no experience such usecase. It's up to you.
-
-
+thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
