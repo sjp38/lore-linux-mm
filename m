@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5267E6B0078
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 12:18:24 -0400 (EDT)
-Date: Tue, 21 Sep 2010 12:18:18 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH] mm: do not print backtraces on GFP_ATOMIC failures
-Message-ID: <20100921121818.4745f038@annuminas.surriel.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 683026B004A
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 12:46:59 -0400 (EDT)
+Date: Tue, 21 Sep 2010 09:46:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: do not print backtraces on GFP_ATOMIC failures
+Message-Id: <20100921094638.9910add0.akpm@linux-foundation.org>
+In-Reply-To: <20100921121818.4745f038@annuminas.surriel.com>
+References: <20100921121818.4745f038@annuminas.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Atomic allocations cannot fall back to the page eviction code
-and are expected to fail.  In fact, in some network intensive
-workloads, it is common to experience hundreds of GFP_ATOMIC
-allocation failures.
+On Tue, 21 Sep 2010 12:18:18 -0400 Rik van Riel <riel@redhat.com> wrote:
 
-Printing out a backtrace for every one of those expected
-allocation failures accomplishes nothing good. At multi-gigabit
-network speeds with jumbo frames, a burst of allocation failure
-backtraces could even slow down the system.
+> Atomic allocations cannot fall back to the page eviction code
+> and are expected to fail.  In fact, in some network intensive
+> workloads, it is common to experience hundreds of GFP_ATOMIC
+> allocation failures.
+> 
+> Printing out a backtrace for every one of those expected
+> allocation failures accomplishes nothing good. At multi-gigabit
+> network speeds with jumbo frames, a burst of allocation failure
+> backtraces could even slow down the system.
+> 
+> We're better off not printing out backtraces on GFP_ATOMIC
+> allocation failures.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 975609c..5a0bddb 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -72,7 +72,7 @@ struct vm_area_struct;
+>  /* This equals 0, but use constants in case they ever change */
+>  #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
+>  /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
+> -#define GFP_ATOMIC	(__GFP_HIGH)
+> +#define GFP_ATOMIC	(__GFP_HIGH | __GFP_NOWARN)
+>  #define GFP_NOIO	(__GFP_WAIT)
+>  #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
+>  #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
 
-We're better off not printing out backtraces on GFP_ATOMIC
-allocation failures.
+A much finer-tuned implementation would be to add __GFP_NOWARN just to
+the networking call sites.  I asked about this in June and it got
+nixed:
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 975609c..5a0bddb 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -72,7 +72,7 @@ struct vm_area_struct;
- /* This equals 0, but use constants in case they ever change */
- #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
- /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
--#define GFP_ATOMIC	(__GFP_HIGH)
-+#define GFP_ATOMIC	(__GFP_HIGH | __GFP_NOWARN)
- #define GFP_NOIO	(__GFP_WAIT)
- #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+http://www.spinics.net/lists/netdev/msg131965.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
