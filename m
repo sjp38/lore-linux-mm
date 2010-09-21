@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 282546B004A
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 21:05:24 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L15Kcs022867
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 74FA36B007B
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 21:10:29 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L1AQ1j008734
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 21 Sep 2010 10:05:20 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D03745DE51
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:20 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0C6A1EF0A1
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B784E08007
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:19 +0900 (JST)
+	Tue, 21 Sep 2010 10:10:26 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 76A0F45DE5D
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:10:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5048545DE4F
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:10:26 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 223271DB803E
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:10:26 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 11D6EE08001
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:05:16 +0900 (JST)
-Date: Tue, 21 Sep 2010 10:00:11 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C72D01DB803B
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 10:10:25 +0900 (JST)
+Date: Tue, 21 Sep 2010 10:05:22 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFCv2][PATCH] add some drop_caches documentation and info
- messsge
-Message-Id: <20100921100011.86f270de.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
-References: <20100916165047.DAD42998@kernel.beaverton.ibm.com>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
+ file/email/web servers
+Message-Id: <20100921100522.be252b3d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
+References: <1284349152.15254.1394658481@webmail.messagingengine.com>
+	<20100916184240.3BC9.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lnxninja@linux.vnet.ibm.com, ebiederm@xmission.com, kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Sep 2010 09:50:47 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+On Thu, 16 Sep 2010 19:01:32 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
+> Yes, sadly intel motherboard turn on zone_reclaim_mode by default. and
+> current zone_reclaim_mode doesn't fit file/web server usecase ;-)
 > 
-> This version tones down the BUG_ON().  I also noticed that the
-> documentation fails to mention that more than just the inode
-> and dentry slabs are shrunk.
+> So, I've created new proof concept patch. This doesn't disable zone_reclaim
+> at all. Instead, distinguish for file cache and for anon allocation and
+> only file cache doesn't use zone-reclaim.
 > 
-> --
+> That said, high-end hpc user often turn on cpuset.memory_spread_page and
+> they avoid this issue. But, why don't we consider avoid it by default?
 > 
-> There is plenty of anecdotal evidence and a load of blog posts
-> suggesting that using "drop_caches" periodically keeps your system
-> running in "tip top shape".  Perhaps adding some kernel
-> documentation will increase the amount of accurate data on its use.
 > 
-> If we are not shrinking caches effectively, then we have real bugs.
-> Using drop_caches will simply mask the bugs and make them harder
-> to find, but certainly does not fix them, nor is it an appropriate
-> "workaround" to limit the size of the caches.
+> Rob, I wonder if following patch help you. Could you please try it?
 > 
-> It's a great debugging tool, and is really handy for doing things
-> like repeatable benchmark runs.  So, add a bit more documentation
-> about it, and add a little KERN_NOTICE.  It should help developers
-> who are chasing down reclaim-related bugs.
 > 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Subject: [RFC] vmscan: file cache doesn't use zone_reclaim by default
+> 
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hm, can't we use migration of file caches rather than pageout in
+zone_reclaim_mode ? Doent' it fix anything ?
 
-thanks.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
