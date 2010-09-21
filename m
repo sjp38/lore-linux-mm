@@ -1,92 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9626B004A
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 05:04:22 -0400 (EDT)
-Date: Tue, 21 Sep 2010 10:04:07 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad
-	forfile/email/web servers
-Message-ID: <20100921090407.GA11439@csn.ul.ie>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <20100920093440.GD1998@csn.ul.ie> <52C8765522A740A4A5C027E8FDFFDFE3@jem>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <52C8765522A740A4A5C027E8FDFFDFE3@jem>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 851E86B004A
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 05:36:56 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L9aqxl001736
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Sep 2010 18:36:52 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AF8D45DE54
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:36:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CA2645DD6E
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:36:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 458841DB8016
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:36:52 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DD8F21DB8012
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:36:51 +0900 (JST)
+Date: Tue, 21 Sep 2010 18:31:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH v2 0/3][-mm] memcg: memory cgroup cput hotplug support
+ update
+Message-Id: <20100921183127.1c4c2bc1.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rob Mueller <robm@fastmail.fm>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 21, 2010 at 09:41:21AM +1000, Rob Mueller wrote:
->> I don't think we will ever get the default value for this tunable right.
->> I would also worry that avoiding the reclaim_mode for file-backed
->> cache will hurt HPC applications that are dumping their data to disk
->> and depending on the existing default for zone_reclaim_mode to not
->> pollute other nodes.
->>
->> The ideal would be if distribution packages for mail, web servers
->> and others that are heavily IO orientated would prompt for a change
->> to the default value of zone_reclaim_mode in sysctl.
->
-> I would argue that there's a lot more mail/web/file servers out there 
-> than HPC machines. And HPC machines tend to have a team of people to  
-> monitor/tweak them. I think it would be much more sane to default this to 
-> 0 which works best for most people, and get the HPC people to change it.
->
 
-No doubt this is true. The only real difference is that there are more NUMA
-machines running mail/web/file servers now than there might have been in the
-past. The default made sense once upon a time. Personally I wouldn't mind
-the default changing but my preference would be that distribution packages
-installing on NUMA machines would prompt if the default should be changed if it
-is likely to be of benefit for that package (e.g. the mail, file and web ones).
+I rewrote memcg-memory-cgroup-cpu-hotplug-support-update.patch completely.
+And the patch is divided into 3 part.
 
-> However there's still another question, why is this problem happening at 
-> all for us? I know almost nothing about NUMA, but from other posts, it 
-> sounds like the problem is the memory allocations are all happening on 
-> one node?
+1/3 clean up ... delete mem_cgroup_walk_tree and add for_each_mem_cgroup_tree()
+2/3 usual counters.... handles usual percpu statistics.
+3/3 on_move ... handles special counters works as a kind of lock.
 
-Yes.
+The direction is not different from previous one but implementation is re-designed.
+I think all review comments are reflected...any comments are welcome.
 
-> But I don't understand why that would be happening.
-
-Because in a situation where you have many NUMA-aware applications
-running bound to CPUs, it performs better if they always allocate from
-local nodes instead of accessing remote nodes. It's great for one type
-of workload but not so much for mail/web/file.
-
-> The machine 
-> runs the cyrus IMAP server, which is a classic unix forking server with 
-> 1000's of processes. Each process will mmap lots of different files to 
-> access them. Why would that all be happening on one node, not spread 
-> around?
->
-
-Honestly, I don't know and I don't have such a machine to investigate
-with. My guess is that there are a number of files that are hot and
-accessed by multiple processes on different nodes and they are evicting
-each other but it's only a guess.
-
-> One thing is that the machine is vastly more IO loaded than CPU loaded, 
-> in fact it uses very little CPU at all (a few % usually). Does the kernel 
-> prefer to run processes on one particular node if it's available?
-
-It prefers to run on the same node it ran previously. If they all
-happened to start up on a small subset of nodes, they could be
-continually getting running there.
-
-> So if a 
-> machine has very little CPU load, every process will generally end up  
-> running on the same node?
->
-
-It's possible they are running on a small subset. mpstat should be able
-to give a basic idea of what the spread across CPUs is.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
