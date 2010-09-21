@@ -1,53 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 84A306B004A
-	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 19:41:32 -0400 (EDT)
-Message-ID: <52C8765522A740A4A5C027E8FDFFDFE3@jem>
-From: "Rob Mueller" <robm@fastmail.fm>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <20100920093440.GD1998@csn.ul.ie>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad forfile/email/web servers
-Date: Tue, 21 Sep 2010 09:41:21 +1000
-MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-15";
-	reply-type=original
+	by kanga.kvack.org (Postfix) with SMTP id D70296B004A
+	for <linux-mm@kvack.org>; Mon, 20 Sep 2010 20:12:26 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8L0COsG016393
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Sep 2010 09:12:24 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ABDF845DE64
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:12:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 60E1945DE62
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:12:23 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 219E81DB8041
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:12:23 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 897241DB8038
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 09:12:19 +0900 (JST)
+Date: Tue, 21 Sep 2010 09:06:59 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: cgroup oom regression introduced by
+ 6a5ce1b94e1e5979f8db579f77d6e08a5f44c13b
+Message-Id: <20100921090659.400c45cf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100918152120.GA21343@barrios-desktop>
+References: <1296415999.1298271284814035815.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	<290491919.1298351284814354705.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	<20100918152120.GA21343@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: caiqian@redhat.com, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "M. Vefa Bicakci" <bicave@superonline.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, stable@kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> I don't think we will ever get the default value for this tunable right.
-> I would also worry that avoiding the reclaim_mode for file-backed
-> cache will hurt HPC applications that are dumping their data to disk
-> and depending on the existing default for zone_reclaim_mode to not
-> pollute other nodes.
->
-> The ideal would be if distribution packages for mail, web servers
-> and others that are heavily IO orientated would prompt for a change
-> to the default value of zone_reclaim_mode in sysctl.
+On Sun, 19 Sep 2010 00:21:20 +0900
+Minchan Kim <minchan.kim@gmail.com> wrote:
 
-I would argue that there's a lot more mail/web/file servers out there than 
-HPC machines. And HPC machines tend to have a team of people to 
-monitor/tweak them. I think it would be much more sane to default this to 0 
-which works best for most people, and get the HPC people to change it.
+> On Sat, Sep 18, 2010 at 08:52:34AM -0400, caiqian@redhat.com wrote:
+> > This test hung the kernel without triggering oom.
+> > # mount -t cgroup -o memory none /cgroup/memory/
+> > # mkdir /cgroup/memory/A
+> > # echo $$ >/cgroup/memory/A/tasks
+> > # echo 4096M >/cgroup/memory/A/memory.limit_in_bytes
+> > # echo 4096M >/cgroup/memory/A/memory.memsw.limit_in_bytes
+> > # use malloc to allocate more than 4G memory.
+> > 
+> > Sometimes, this had been thrown out of console,
+> > localhost.localdomain login: INFO: task sm1:5065 blocked for more than 120 seconds.
+> > "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > sm1           D 00000000fffca130     0  5065   5051 0x00000080
+> >  ffff880c5f419c38 0000000000000086 ffff880c5f419bc8 ffffffff81034ca8
+> >  ffff880100000000 0000000000015440 ffff880c608ab4e0 0000000000015440
+> >  ffff880c608aba40 ffff880c5f419fd8 ffff880c608aba48 ffff880c5f419fd8
+> > Call Trace:
+> >  [<ffffffff81034ca8>] ? pvclock_clocksource_read+0x58/0xd0
+> >  [<ffffffff810f2c60>] ? sync_page+0x0/0x50
+> >  [<ffffffff81492553>] io_schedule+0x73/0xc0
+> >  [<ffffffff810f2c9d>] sync_page+0x3d/0x50
+> >  [<ffffffff81492cba>] __wait_on_bit_lock+0x5a/0xc0
+> >  [<ffffffff810f2c37>] __lock_page+0x67/0x70
+> >  [<ffffffff8107cf90>] ? wake_bit_function+0x0/0x50
+> >  [<ffffffff810f2a6e>] ? find_get_page+0x1e/0xa0
+> >  [<ffffffff810f4a5c>] filemap_fault+0x33c/0x450
+> >  [<ffffffff81110524>] __do_fault+0x54/0x550
+> >  [<ffffffff8113f30a>] ? __mem_cgroup_commit_charge+0x5a/0xa0
+> >  [<ffffffff811132a2>] handle_mm_fault+0x1c2/0xc70
+> >  [<ffffffff8149809c>] do_page_fault+0x11c/0x320
+> >  [<ffffffff81494cd5>] page_fault+0x25/0x30
+> > 
+> > Reverted the following commit from mmotm tree made the problem go away.
+> > commit 6a5ce1b94e1e5979f8db579f77d6e08a5f44c13b
+> > Author: Minchan Kim <minchan.kim@gmail.com>
+> > Date:   Thu Sep 16 01:17:26 2010 +0200
+> > 
+> >     M.  Vefa Bicakci reported 2.6.35 kernel hang up when hibernation on his
+> >     32bit 3GB mem machine.
+> >     (https://bugzilla.kernel.org/show_bug.cgi?id=16771). Also he bisected
+> >     the regression to
+> >     
+> >       commit bb21c7ce18eff8e6e7877ca1d06c6db719376e3c
+> >       Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> >       Date:   Fri Jun 4 14:15:05 2010 -0700
+> >     
+> >          vmscan: fix do_try_to_free_pages() return value when priority==0 reclaim failure
+> >     
+> >     At first impression, this seemed very strange because the above commit
+> >     only chenged function return value and hibernate_preallocate_memory()
+> >     ignore return value of shrink_all_memory().  But it's related.
+> >     
+> >     Now, page allocation from hibernation code may enter infinite loop if the
+> >     system has highmem.  The reasons are that vmscan don't care enough OOM
+> >     case when oom_killer_disabled.
+> >     
+> >     The problem sequence is following as.
+> >     
+> >     1. hibernation
+> >     2. oom_disable
+> >     3. alloc_pages
+> >     4. do_try_to_free_pages
+> >            if (scanning_global_lru(sc) && !all_unreclaimable)
+> >                    return 1;
+> >     
+> >     If kswapd is not freozen, it would set zone->all_unreclaimable to 1 and
+> >     then shrink_zones maybe return true(ie, all_unreclaimable is true).  So at
+> >     last, alloc_pages could go to _nopage_.  If it is, it should have no
+> >     problem.
+> >     
+> >     This patch adds all_unreclaimable check to protect in direct reclaim path,
+> >     too.  It can care of hibernation OOM case and help bailout
+> >     all_unreclaimable case slightly.
+> >     
+> >     Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> >     Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> >     Reported-by: M. Vefa Bicakci <bicave@superonline.com>
+> >     Acked-by: Rafael J. Wysocki <rjw@sisk.pl>
+> >     Reviewed-by: Johannes Weiner <hannes@cmpxchg.org>
+> >     Cc: Rik van Riel <riel@redhat.com>
+> >     Cc: <stable@kernel.org>
+> >     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 225a759..f56a8c3 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1804,12 +1804,11 @@ static void shrink_zone(int priority, struct zone *zone,
+> >   * If a zone is deemed to be full of pinned pages then just give it a light
+> >   * scan then give up on it.
+> >   */
+> > -static bool shrink_zones(int priority, struct zonelist *zonelist,
+> > +static void shrink_zones(int priority, struct zonelist *zonelist,
+> >  					struct scan_control *sc)
+> >  {
+> >  	struct zoneref *z;
+> >  	struct zone *zone;
+> > -	bool all_unreclaimable = true;
+> >  
+> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> >  					gfp_zone(sc->gfp_mask), sc->nodemask) {
+> > @@ -1827,8 +1826,36 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
+> >  		}
+> >  
+> >  		shrink_zone(priority, zone, sc);
+> > -		all_unreclaimable = false;
+> >  	}
+> > +}
+> > +
+> > +static inline bool zone_reclaimable(struct zone *zone)
+> > +{
+> > +	return zone->pages_scanned < zone_reclaimable_pages(zone) * 6;
+> > +}
+> > +
+> > +static inline bool all_unreclaimable(struct zonelist *zonelist,
+> > +		struct scan_control *sc)
+> > +{
+> > +	struct zoneref *z;
+> > +	struct zone *zone;
+> > +	bool all_unreclaimable = true;
+> > +
+> > +	if (!scanning_global_lru(sc))
+> > +		return false;
+> > +
+> > +	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> > +			gfp_zone(sc->gfp_mask), sc->nodemask) {
+> > +		if (!populated_zone(zone))
+> > +			continue;
+> > +		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> > +			continue;
+> > +		if (zone_reclaimable(zone)) {
+> > +			all_unreclaimable = false;
+> > +			break;
+> > +		}
+> > +	}
+> > +
+> >  	return all_unreclaimable;
+> >  }
+> >  
+> > @@ -1852,7 +1879,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+> >  					struct scan_control *sc)
+> >  {
+> >  	int priority;
+> > -	bool all_unreclaimable;
+> >  	unsigned long total_scanned = 0;
+> >  	struct reclaim_state *reclaim_state = current->reclaim_state;
+> >  	struct zoneref *z;
+> > @@ -1869,7 +1895,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+> >  		sc->nr_scanned = 0;
+> >  		if (!priority)
+> >  			disable_swap_token();
+> > -		all_unreclaimable = shrink_zones(priority, zonelist, sc);
+> > +		shrink_zones(priority, zonelist, sc);
+> >  		/*
+> >  		 * Don't shrink slabs when reclaiming memory from
+> >  		 * over limit cgroups
+> > @@ -1931,7 +1957,7 @@ out:
+> >  		return sc->nr_reclaimed;
+> >  
+> >  	/* top priority shrink_zones still had more to do? don't OOM, then */
+> > -	if (scanning_global_lru(sc) && !all_unreclaimable)
+> > +	if (!all_unreclaimable(zonelist, sc))
+> >  		return 1;
+> >  
+> >  	return 0;
+> > @@ -2197,8 +2223,7 @@ loop_again:
+> >  			total_scanned += sc.nr_scanned;
+> >  			if (zone->all_unreclaimable)
+> >  				continue;
+> > -			if (nr_slab == 0 &&
+> > -			    zone->pages_scanned >= (zone_reclaimable_pages(zone) * 6))
+> > +			if (nr_slab == 0 && !zone_reclaimable(zone))
+> >  				zone->all_unreclaimable = 1;
+> >  			/*
+> >  			 * If we've done a decent amount of scanning and
+> 
+> Thanks for the reporting. 
+> Could you test below patch?
+> 
+> From 666a10163dcc2366a3cce64140487e5956f7f659 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan.kim@gmail.com>
+> Date: Sat, 18 Sep 2010 23:16:14 +0900
+> Subject: [PATCH] Fix all_unreclaimable in memcg.
+> 
+> vmscan-check-all_unreclaimable-in-direct-reclaim-path.patch
+> has a problem. It changed old behavior of memcg.
+> 
+> When memory pressure in memcg is high, do_try_to_free_pages returns
+> 0. It causes mem_cgroup_out_of_memory so that any process in mem group
+> would be killed. 
+> But vmscan-check-all_unreclaimable-in-direct-reclaim-path.patch changed
+> the old behavior. It returns 1 unconditionally regardless of considering 
+> global reclaim or memcg relcaim. It causes hang without triggering OOM 
+> in case of memcg direct reclaim. 
+> 
+> This patch fixes it.
+> 
+> It's reported by caiqian@redhat.com. 
+> (Thanks. Totally, it's my fault.)
+> 
+> Reported-by: caiqian@redhat.com
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Balbir Singh <balbir@in.ibm.com>
+> Signed-off-by: Minchan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/vmscan.c |    5 +----
+>  1 files changed, 1 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ecae0ef..0119d0d 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1919,9 +1919,6 @@ static bool all_unreclaimable(struct zonelist *zonelist,
+>  	struct zone *zone;
+>  	bool all_unreclaimable = true;
+>  
+> -	if (!scanning_global_lru(sc))
+> -		return false;
+> -
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  			gfp_zone(sc->gfp_mask), sc->nodemask) {
+>  		if (!populated_zone(zone))
+> @@ -2035,7 +2032,7 @@ out:
+>  		return sc->nr_reclaimed;
+>  
+>  	/* top priority shrink_zones still had more to do? don't OOM, then */
+> -	if (!all_unreclaimable(zonelist, sc))
+> +	if (scanning_global_lru(sc) && !all_unreclaimable(zonelist, sc))
+>  		return 1;
 
-However there's still another question, why is this problem happening at all 
-for us? I know almost nothing about NUMA, but from other posts, it sounds 
-like the problem is the memory allocations are all happening on one node? 
-But I don't understand why that would be happening. The machine runs the 
-cyrus IMAP server, which is a classic unix forking server with 1000's of 
-processes. Each process will mmap lots of different files to access them. 
-Why would that all be happening on one node, not spread around?
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-One thing is that the machine is vastly more IO loaded than CPU loaded, in 
-fact it uses very little CPU at all (a few % usually). Does the kernel 
-prefer to run processes on one particular node if it's available? So if a 
-machine has very little CPU load, every process will generally end up 
-running on the same node?
-
-Rob
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
