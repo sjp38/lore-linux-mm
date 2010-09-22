@@ -1,267 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5036B004A
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 01:01:03 -0400 (EDT)
-Date: Wed, 22 Sep 2010 13:41:51 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D9BD96B0078
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 01:01:08 -0400 (EDT)
+Date: Wed, 22 Sep 2010 13:59:07 +0900
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 02/10] hugetlb: add allocate function for hugepage
- migration
-Message-ID: <20100922044151.GB2538@spritzera.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 04/10] hugetlb: hugepage migration core
+Message-ID: <20100922045907.GC2538@spritzera.linux.bs1.fc.nec.co.jp>
 References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20100920105916.GH1998@csn.ul.ie>
+ <1283908781-13810-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100920111054.GJ1998@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Disposition: inline
-In-Reply-To: <20100920105916.GH1998@csn.ul.ie>
+In-Reply-To: <20100920111054.GJ1998@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-Thank you for your review.
-
-On Mon, Sep 20, 2010 at 11:59:16AM +0100, Mel Gorman wrote:
-> On Wed, Sep 08, 2010 at 10:19:33AM +0900, Naoya Horiguchi wrote:
+On Mon, Sep 20, 2010 at 12:10:55PM +0100, Mel Gorman wrote:
+> On Wed, Sep 08, 2010 at 10:19:35AM +0900, Naoya Horiguchi wrote:
 ...
-> > @@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
-> >  	return ret;
-> >  }
+> > @@ -95,26 +96,34 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+> >  	pte_t *ptep, pte;
+> >   	spinlock_t *ptl;
 > >  
-> > -static struct page *alloc_buddy_huge_page(struct hstate *h,
-> > -			struct vm_area_struct *vma, unsigned long address)
-> > +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
-> >  {
-> >  	struct page *page;
-> > -	unsigned int nid;
-> > +	unsigned int r_nid;
+> > - 	pgd = pgd_offset(mm, addr);
+> > -	if (!pgd_present(*pgd))
+> > -		goto out;
+> > +	if (unlikely(PageHuge(new))) {
+> > +		ptep = huge_pte_offset(mm, addr);
+> > +		if (!ptep)
+> > +			goto out;
+> > +		ptl = &mm->page_table_lock;
+> > +	} else {
+> > +		pgd = pgd_offset(mm, addr);
+> > +		if (!pgd_present(*pgd))
+> > +			goto out;
 > >  
-> 
-> Why the rename, just to avoid changing the value of a function parameter?
-
-I think it's better that a simple name is given to function parameter
-than to internal variable, because the former is paid more attention
-from other developers than the latter is.
-
-> >  	if (h->order >= MAX_ORDER)
-> >  		return NULL;
-> > @@ -812,9 +817,14 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
-> >  	}
-> >  	spin_unlock(&hugetlb_lock);
-> >  
-> > -	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> > -					__GFP_REPEAT|__GFP_NOWARN,
-> > -					huge_page_order(h));
-> > +	if (nid == NUMA_NO_NODE)
-> > +		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> > +				   __GFP_REPEAT|__GFP_NOWARN,
-> > +				   huge_page_order(h));
-> > +	else
-> > +		page = alloc_pages_exact_node(nid,
-> > +			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-> > +			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
+> > -	pud = pud_offset(pgd, addr);
+> > -	if (!pud_present(*pud))
+> > -		goto out;
+> > +		pud = pud_offset(pgd, addr);
+> > +		if (!pud_present(*pud))
+> > +			goto out;
 > >  
 > 
-> Why not just call alloc_pages_node()?
+> Why are the changes to teh rest of the walkers necessary? Instead, why
+> did you not identify which PTL lock you needed and then goto the point
+> where spin_lock(ptl) is called? Similar to what page_check_address()
+> does for example.
 
-Ah, we can bring together these two allocate functions.
-I'll do it.
-
-Here is a revised patch.
+This is because Andi-san commented to avoid using goto sentense.
+But honestly I'm not sure which is a clear way.
 
 Thanks,
 Naoya Horiguchi
----
-Date: Wed, 22 Sep 2010 13:18:54 +0900
-Subject: [PATCH 02/10] hugetlb: add allocate function for hugepage migration
-
-We can't use existing hugepage allocation functions to allocate hugepage
-for page migration, because page migration can happen asynchronously with
-the running processes and page migration users should call the allocation
-function with physical addresses (not virtual addresses) as arguments.
-
-ChangeLog since v3:
-- unify alloc_buddy_huge_page() and alloc_buddy_huge_page_node()
-- bring together branched allocate functions
-
-ChangeLog since v2:
-- remove unnecessary get/put_mems_allowed() (thanks to David Rientjes)
-
-ChangeLog since v1:
-- add comment on top of alloc_huge_page_no_vma()
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
----
- include/linux/hugetlb.h |    3 ++
- mm/hugetlb.c            |   70 +++++++++++++++++++++++++++++++---------------
- 2 files changed, 50 insertions(+), 23 deletions(-)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index f479700..0b73c53 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -228,6 +228,8 @@ struct huge_bootmem_page {
- 	struct hstate *hstate;
- };
- 
-+struct page *alloc_huge_page_node(struct hstate *h, int nid);
-+
- /* arch callback */
- int __init alloc_bootmem_huge_page(struct hstate *h);
- 
-@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
- 
- #else
- struct hstate {};
-+#define alloc_huge_page_node(h, nid) NULL
- #define alloc_bootmem_huge_page(h) NULL
- #define hstate_file(f) NULL
- #define hstate_vma(v) NULL
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6871b41..cb32a32 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -466,11 +466,23 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
- 	h->free_huge_pages_node[nid]++;
- }
- 
-+static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
-+{
-+	struct page *page;
-+
-+	if (list_empty(&h->hugepage_freelists[nid]))
-+		return NULL;
-+	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
-+	list_del(&page->lru);
-+	h->free_huge_pages--;
-+	h->free_huge_pages_node[nid]--;
-+	return page;
-+}
-+
- static struct page *dequeue_huge_page_vma(struct hstate *h,
- 				struct vm_area_struct *vma,
- 				unsigned long address, int avoid_reserve)
- {
--	int nid;
- 	struct page *page = NULL;
- 	struct mempolicy *mpol;
- 	nodemask_t *nodemask;
-@@ -496,19 +508,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 						MAX_NR_ZONES - 1, nodemask) {
--		nid = zone_to_nid(zone);
--		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
--		    !list_empty(&h->hugepage_freelists[nid])) {
--			page = list_entry(h->hugepage_freelists[nid].next,
--					  struct page, lru);
--			list_del(&page->lru);
--			h->free_huge_pages--;
--			h->free_huge_pages_node[nid]--;
--
--			if (!avoid_reserve)
--				decrement_hugepage_resv_vma(h, vma);
--
--			break;
-+		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
-+			page = dequeue_huge_page_node(h, zone_to_nid(zone));
-+			if (page) {
-+				if (!avoid_reserve)
-+					decrement_hugepage_resv_vma(h, vma);
-+				break;
-+			}
- 		}
- 	}
- err:
-@@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
- 	return ret;
- }
- 
--static struct page *alloc_buddy_huge_page(struct hstate *h,
--			struct vm_area_struct *vma, unsigned long address)
-+static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
- {
- 	struct page *page;
--	unsigned int nid;
-+	unsigned int r_nid;
- 
- 	if (h->order >= MAX_ORDER)
- 		return NULL;
-@@ -812,7 +817,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
- 	}
- 	spin_unlock(&hugetlb_lock);
- 
--	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-+	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|
- 					__GFP_REPEAT|__GFP_NOWARN,
- 					huge_page_order(h));
- 
-@@ -829,13 +834,13 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
- 		 */
- 		put_page_testzero(page);
- 		VM_BUG_ON(page_count(page));
--		nid = page_to_nid(page);
-+		r_nid = page_to_nid(page);
- 		set_compound_page_dtor(page, free_huge_page);
- 		/*
- 		 * We incremented the global counters already
- 		 */
--		h->nr_huge_pages_node[nid]++;
--		h->surplus_huge_pages_node[nid]++;
-+		h->nr_huge_pages_node[r_nid]++;
-+		h->surplus_huge_pages_node[r_nid]++;
- 		__count_vm_event(HTLB_BUDDY_PGALLOC);
- 	} else {
- 		h->nr_huge_pages--;
-@@ -848,6 +853,25 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
- }
- 
- /*
-+ * This allocation function is useful in the context where vma is irrelevant.
-+ * E.g. soft-offlining uses this function because it only cares physical
-+ * address of error page.
-+ */
-+struct page *alloc_huge_page_node(struct hstate *h, int nid)
-+{
-+	struct page *page;
-+
-+	spin_lock(&hugetlb_lock);
-+	page = dequeue_huge_page_node(h, nid);
-+	spin_unlock(&hugetlb_lock);
-+
-+	if (!page)
-+		page = alloc_buddy_huge_page(h, nid);
-+
-+	return page;
-+}
-+
-+/*
-  * Increase the hugetlb pool such that it can accomodate a reservation
-  * of size 'delta'.
-  */
-@@ -871,7 +895,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
- retry:
- 	spin_unlock(&hugetlb_lock);
- 	for (i = 0; i < needed; i++) {
--		page = alloc_buddy_huge_page(h, NULL, 0);
-+		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
- 		if (!page) {
- 			/*
- 			 * We were not able to allocate enough pages to
-@@ -1052,7 +1076,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	spin_unlock(&hugetlb_lock);
- 
- 	if (!page) {
--		page = alloc_buddy_huge_page(h, vma, addr);
-+		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
- 		if (!page) {
- 			hugetlb_put_quota(inode->i_mapping, chg);
- 			return ERR_PTR(-VM_FAULT_SIGBUS);
--- 
-1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
