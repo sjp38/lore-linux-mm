@@ -1,71 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 83DF06B004A
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 18:25:14 -0400 (EDT)
-Date: Tue, 21 Sep 2010 15:24:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 8/8] writeback: Do not sleep on the congestion queue if
- there are no congested BDIs or if significant congestion is not being
- encountered in the current zone
-Message-Id: <20100921152433.6edd6a87.akpm@linux-foundation.org>
-In-Reply-To: <20100921221008.GA16323@csn.ul.ie>
-References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie>
-	<1284553671-31574-9-git-send-email-mel@csn.ul.ie>
-	<20100916152810.cb074e9f.akpm@linux-foundation.org>
-	<20100920095239.GE1998@csn.ul.ie>
-	<20100921144413.abc45d2f.akpm@linux-foundation.org>
-	<20100921221008.GA16323@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 71F7C6B004A
+	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 23:45:03 -0400 (EDT)
+Message-ID: <F4A6AD940A32478B9CDE3EACAF33BC9D@jem>
+From: "Rob Mueller" <robm@fastmail.fm>
+References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <20100920093440.GD1998@csn.ul.ie> <52C8765522A740A4A5C027E8FDFFDFE3@jem> <20100921090407.GA11439@csn.ul.ie> <alpine.DEB.2.00.1009210911270.1271@router.home>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad forfile/email/web servers
+Date: Wed, 22 Sep 2010 13:44:51 +1000
+MIME-Version: 1.0
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Sep 2010 23:10:08 +0100
-Mel Gorman <mel@csn.ul.ie> wrote:
 
-> On Tue, Sep 21, 2010 at 02:44:13PM -0700, Andrew Morton wrote:
-> > On Mon, 20 Sep 2010 10:52:39 +0100
-> > Mel Gorman <mel@csn.ul.ie> wrote:
-> > 
-> > > > > This patch tracks how many pages backed by a congested BDI were found during
-> > > > > scanning. If all the dirty pages encountered on a list isolated from the
-> > > > > LRU belong to a congested BDI, the zone is marked congested until the zone
-> > > > > reaches the high watermark.
-> > > > 
-> > > > High watermark, or low watermark?
-> > > > 
-> > > 
-> > > High watermark. The check is made by kswapd.
-> > > 
-> > > > The terms are rather ambiguous so let's avoid them.  Maybe "full"
-> > > > watermark and "empty"?
-> > > > 
-> > > 
-> > > Unfortunately they are ambiguous to me. I know what the high watermark
-> > > is but not what the full or empty watermarks are.
-> > 
-> > Really.  So what's the "high" watermark? 
-> 
-> The high watermark is the point where kswapd goes back to sleep because
-> enough pages have been reclaimed. It's a proxy measure for memory pressure.
-> 
-> > From the above text I'm
-> > thinking that you mean the high watermark is when the queue has a small
-> > number of requests and the low watermark is when the queue has a large
-> > number of requests.
-> > 
-> 
-> I was expecting "zone reaches the high watermark" was the clue that I was
-> talking about zone watermarks and not an IO queue but it could be better.
+> This could be a screwy hardware issue as pointed out before. Certain
+> controllers restrict the memory that I/O can be done to also (32 bit
+> controller only able to do I/O to lower 2G?, controller on a PCI bus that
+> is local only to a particular node) which would make balancing
+> the file cache difficult.
 
-It was more a rant about general terminology rather than one specific case.
+Ah interesting. Is there an easy way to tell if this is an issue? It's an 
+ARECA RAID controller, this is the lspci -vvv data from it...
 
-> I will try and clarify. How about this as a replacement paragraph?
+03:00.0 RAID bus controller: Areca Technology Corp. Device 1680
+        Subsystem: Areca Technology Corp. Device 1680
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr+ 
+Stepping- SERR- FastB2B- DisINTx-
+        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- 
+<TAbort- <MAbort- >SERR- <PERR- INTx-
+        Latency: 0, Cache Line Size: 64 bytes
+        Interrupt: pin A routed to IRQ 26
+        Region 0: Memory at b1900000 (32-bit, non-prefetchable) [size=8K]
+        Expansion ROM at b1c00000 [disabled] [size=64K]
+        Capabilities: [98] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2- AuxCurrent=0mA 
+PME(D0-,D1-,D2-,D3hot-,D3cold-)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+        Capabilities: [a0] Message Signalled Interrupts: Mask- 64bit+ 
+Queue=0/1 Enable-
+                Address: 0000000000000000  Data: 0000
+        Capabilities: [d0] Express (v1) Endpoint, MSI 00
+                DevCap: MaxPayload 512 bytes, PhantFunc 0, Latency L0s 
+unlimited, L1 <1us
+                        ExtTag- AttnBtn- AttnInd- PwrInd- RBE+ FLReset-
+                DevCtl: Report errors: Correctable+ Non-Fatal+ Fatal+ 
+Unsupported+
+                        RlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop+
+                        MaxPayload 256 bytes, MaxReadReq 256 bytes
+                DevSta: CorrErr+ UncorrErr- FatalErr- UnsuppReq+ AuxPwr- 
+TransPend-
+                LnkCap: Port #0, Speed 2.5GT/s, Width x8, ASPM unknown, 
+Latency L0 <128ns, L1 unlimited
+                        ClockPM- Suprise- LLActRep- BwNot-
+                LnkCtl: ASPM Disabled; RCB 64 bytes Disabled- Retrain- 
+CommClk+
+                        ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-
+                LnkSta: Speed 2.5GT/s, Width x8, TrErr- Train- SlotClk+ 
+DLActive- BWMgmt- ABWMgmt-
+        Capabilities: [100] Advanced Error Reporting <?>
+        Kernel driver in use: arcmsr
 
-Works for me, thanks.
+
+
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
