@@ -1,99 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 004BC6B0047
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 13:50:32 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH][-mm] memcg: generic filestat update interface.
-References: <20100922140817.a7ac57c2.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 22 Sep 2010 10:50:14 -0700
-Message-ID: <xr93lj6tzmzt.fsf@ninji.mtv.corp.google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 5958C6B0047
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 14:41:06 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8MIUVmc008059
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:30:31 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MIf1AO155246
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:41:01 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MIf0de012472
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:41:01 -0600
+Message-ID: <4C9A4DBB.6080500@austin.ibm.com>
+Date: Wed, 22 Sep 2010 13:40:59 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] De-couple sysfs memory directories from memory sections
+References: <4C9A0F8F.2030409@austin.ibm.com> <1285168800.3292.5228.camel@nimitz>
+In-Reply-To: <1285168800.3292.5228.camel@nimitz>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On 09/22/2010 10:20 AM, Dave Hansen wrote:
+> On Wed, 2010-09-22 at 09:15 -0500, Nathan Fontenot wrote:
+>> For architectures that define their own version of this routine,
+>> as is done for powerpc in this patchset, the view in userspace
+>> would change such that each memoryXXX directory would span
+>> multiple memory sections.  The number of sections spanned would
+>> depend on the value reported by memory_block_size_bytes.
+>>
+>> In both cases a new file 'end_phys_index' is created in each
+>> memoryXXX directory.  This file will contain the physical id
+>> of the last memory section covered by the sysfs directory.  For
+>> the default case, the value in 'end_phys_index' will be the same
+>> as in the existing 'phys_index' file.
+> 
+> Hi Nathan,
+> 
+> There's one bit missing here, I think.
+> 
+> "block_size_bytes" today means two things today:
+> 1. the SECTION_SIZE from sparsemem
+> 2. the size covered by each memoryXXXX directory
+> 
+> SECTION_SIZE isn't exposed to userspace, but the memoryXXXX directories
+> are.  You've done all of the heavy lifting here to make sure that the
+> memory directories are no longer bound to SECTION_SIZE, but you've also
+> broken the assumption that _each_ directory covers "block_size_bytes".
+> 
+> I think it's fairly simple to fix.  block_size_bytes() needs to return
+> memory_block_size_bytes(),
 
-> based on mmotm and other memory cgroup patches in -mm queue.
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> This patch extracts core logic of mem_cgroup_update_file_mapped() as
-> mem_cgroup_update_file_stat() and add a skin.
->
-> As a planned future update, memory cgroup has to count dirty pages to implement
-> dirty_ratio/limit. And more, the number of dirty pages is required to kick flusher
-> thread to start writeback. (Now, no kick.)
->
-> This patch is preparation for it and makes other statistics implementation
-> clearer. Just a clean up.
->
-> Note:
-> In previous patch series, I wrote a more complicated patch to make the
-> more generic and wanted to avoid using switch(). But now, we found page_mapped()
-> check is necessary for updage_file_mapepd().We can't avoid to add some conditions.
-> I hope this style is enough easy to read and to maintainance.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   25 ++++++++++++++++++-------
->  1 file changed, 18 insertions(+), 7 deletions(-)
->
-> Index: mmotm-0915/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0915.orig/mm/memcontrol.c
-> +++ mmotm-0915/mm/memcontrol.c
-> @@ -1575,7 +1575,8 @@ bool mem_cgroup_handle_oom(struct mem_cg
->   * small, we check MEM_CGROUP_ON_MOVE percpu value and detect there are
->   * possibility of race condition. If there is, we take a lock.
->   */
-> -void mem_cgroup_update_file_mapped(struct page *page, int val)
-> +
-> +static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
->  {
->  	struct mem_cgroup *mem;
->  	struct page_cgroup *pc = lookup_page_cgroup(page);
-> @@ -1597,13 +1598,18 @@ void mem_cgroup_update_file_mapped(struc
->  		if (!mem || !PageCgroupUsed(pc))
->  			goto out;
->  	}
-> -	if (val > 0) {
-> -		this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		SetPageCgroupFileMapped(pc);
-> -	} else {
-> -		this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		if (!page_mapped(page)) /* for race between dec->inc counter */
-> +
-> +	this_cpu_add(mem->stat->count[idx], val);
-> +
-> +	switch (idx) {
-> +	case MEM_CGROUP_STAT_FILE_MAPPED:
-> +		if (val > 0)
-> +			SetPageCgroupFileMapped(pc);
-> +		else if (!page_mapped(page))
->  			ClearPageCgroupFileMapped(pc);
-> +		break;
-> +	default:
-> +		BUG();
->  	}
->  
->  out:
-> @@ -1613,6 +1619,11 @@ out:
->  	return;
->  }
->  
-> +void mem_cgroup_update_file_mapped(struct page *page, int val)
-> +{
-> +	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
-> +}
-> +
->  /*
->   * size of first charge trial. "32" comes from vmscan.c's magic value.
->   * TODO: maybe necessary to use big numbers in big irons.
+yes, missed that.  I will update the patch set to include this.
 
-Reviewed-by: Greg Thelen <gthelen@google.com>
+>                            and phys_index's calculation needs to be:
+> 
+> 	mem->start_phys_index * SECTION_SIZE / memory_block_size_bytes()
+
+I'm not sure if  I follow where you suggest using this formula.  Is this
+instead of what is used now, the base_memory_block_id() calculation?
+
+If so, then I'm not sure it would work. The formula used in base_memory_block_id()
+is done because the memory sections are not guaranteed to be added to the
+memory block starting with the first section of the block.
+
+If you meant somewhere else let me know.
+
+-Nathan
+> 
+> That way, to userspace, it just looks like before, but with a larger
+> SECTION_SIZE.  Doing that preserves the ABI pretty nicely, I believe.
+> 
+> -- Dave
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
