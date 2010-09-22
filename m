@@ -1,74 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 71F7C6B004A
-	for <linux-mm@kvack.org>; Tue, 21 Sep 2010 23:45:03 -0400 (EDT)
-Message-ID: <F4A6AD940A32478B9CDE3EACAF33BC9D@jem>
-From: "Rob Mueller" <robm@fastmail.fm>
-References: <1284349152.15254.1394658481@webmail.messagingengine.com> <20100916184240.3BC9.A69D9226@jp.fujitsu.com> <20100920093440.GD1998@csn.ul.ie> <52C8765522A740A4A5C027E8FDFFDFE3@jem> <20100921090407.GA11439@csn.ul.ie> <alpine.DEB.2.00.1009210911270.1271@router.home>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad forfile/email/web servers
-Date: Wed, 22 Sep 2010 13:44:51 +1000
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E5036B004A
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 01:01:03 -0400 (EDT)
+Date: Wed, 22 Sep 2010 13:41:51 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 02/10] hugetlb: add allocate function for hugepage
+ migration
+Message-ID: <20100922044151.GB2538@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20100920105916.GH1998@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	format=flowed;
-	charset="iso-8859-1";
-	reply-type=original
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100920105916.GH1998@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-> This could be a screwy hardware issue as pointed out before. Certain
-> controllers restrict the memory that I/O can be done to also (32 bit
-> controller only able to do I/O to lower 2G?, controller on a PCI bus that
-> is local only to a particular node) which would make balancing
-> the file cache difficult.
+Thank you for your review.
 
-Ah interesting. Is there an easy way to tell if this is an issue? It's an 
-ARECA RAID controller, this is the lspci -vvv data from it...
+On Mon, Sep 20, 2010 at 11:59:16AM +0100, Mel Gorman wrote:
+> On Wed, Sep 08, 2010 at 10:19:33AM +0900, Naoya Horiguchi wrote:
+...
+> > @@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+> >  	return ret;
+> >  }
+> >  
+> > -static struct page *alloc_buddy_huge_page(struct hstate *h,
+> > -			struct vm_area_struct *vma, unsigned long address)
+> > +static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+> >  {
+> >  	struct page *page;
+> > -	unsigned int nid;
+> > +	unsigned int r_nid;
+> >  
+> 
+> Why the rename, just to avoid changing the value of a function parameter?
 
-03:00.0 RAID bus controller: Areca Technology Corp. Device 1680
-        Subsystem: Areca Technology Corp. Device 1680
-        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr+ 
-Stepping- SERR- FastB2B- DisINTx-
-        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- 
-<TAbort- <MAbort- >SERR- <PERR- INTx-
-        Latency: 0, Cache Line Size: 64 bytes
-        Interrupt: pin A routed to IRQ 26
-        Region 0: Memory at b1900000 (32-bit, non-prefetchable) [size=8K]
-        Expansion ROM at b1c00000 [disabled] [size=64K]
-        Capabilities: [98] Power Management version 2
-                Flags: PMEClk- DSI- D1+ D2- AuxCurrent=0mA 
-PME(D0-,D1-,D2-,D3hot-,D3cold-)
-                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
-        Capabilities: [a0] Message Signalled Interrupts: Mask- 64bit+ 
-Queue=0/1 Enable-
-                Address: 0000000000000000  Data: 0000
-        Capabilities: [d0] Express (v1) Endpoint, MSI 00
-                DevCap: MaxPayload 512 bytes, PhantFunc 0, Latency L0s 
-unlimited, L1 <1us
-                        ExtTag- AttnBtn- AttnInd- PwrInd- RBE+ FLReset-
-                DevCtl: Report errors: Correctable+ Non-Fatal+ Fatal+ 
-Unsupported+
-                        RlxdOrd+ ExtTag- PhantFunc- AuxPwr- NoSnoop+
-                        MaxPayload 256 bytes, MaxReadReq 256 bytes
-                DevSta: CorrErr+ UncorrErr- FatalErr- UnsuppReq+ AuxPwr- 
-TransPend-
-                LnkCap: Port #0, Speed 2.5GT/s, Width x8, ASPM unknown, 
-Latency L0 <128ns, L1 unlimited
-                        ClockPM- Suprise- LLActRep- BwNot-
-                LnkCtl: ASPM Disabled; RCB 64 bytes Disabled- Retrain- 
-CommClk+
-                        ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-
-                LnkSta: Speed 2.5GT/s, Width x8, TrErr- Train- SlotClk+ 
-DLActive- BWMgmt- ABWMgmt-
-        Capabilities: [100] Advanced Error Reporting <?>
-        Kernel driver in use: arcmsr
+I think it's better that a simple name is given to function parameter
+than to internal variable, because the former is paid more attention
+from other developers than the latter is.
 
+> >  	if (h->order >= MAX_ORDER)
+> >  		return NULL;
+> > @@ -812,9 +817,14 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+> >  	}
+> >  	spin_unlock(&hugetlb_lock);
+> >  
+> > -	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+> > -					__GFP_REPEAT|__GFP_NOWARN,
+> > -					huge_page_order(h));
+> > +	if (nid == NUMA_NO_NODE)
+> > +		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
+> > +				   __GFP_REPEAT|__GFP_NOWARN,
+> > +				   huge_page_order(h));
+> > +	else
+> > +		page = alloc_pages_exact_node(nid,
+> > +			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
+> > +			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
+> >  
+> 
+> Why not just call alloc_pages_node()?
 
+Ah, we can bring together these two allocate functions.
+I'll do it.
 
-Rob
+Here is a revised patch.
+
+Thanks,
+Naoya Horiguchi
+---
+Date: Wed, 22 Sep 2010 13:18:54 +0900
+Subject: [PATCH 02/10] hugetlb: add allocate function for hugepage migration
+
+We can't use existing hugepage allocation functions to allocate hugepage
+for page migration, because page migration can happen asynchronously with
+the running processes and page migration users should call the allocation
+function with physical addresses (not virtual addresses) as arguments.
+
+ChangeLog since v3:
+- unify alloc_buddy_huge_page() and alloc_buddy_huge_page_node()
+- bring together branched allocate functions
+
+ChangeLog since v2:
+- remove unnecessary get/put_mems_allowed() (thanks to David Rientjes)
+
+ChangeLog since v1:
+- add comment on top of alloc_huge_page_no_vma()
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Jun'ichi Nomura <j-nomura@ce.jp.nec.com>
+---
+ include/linux/hugetlb.h |    3 ++
+ mm/hugetlb.c            |   70 +++++++++++++++++++++++++++++++---------------
+ 2 files changed, 50 insertions(+), 23 deletions(-)
+
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index f479700..0b73c53 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -228,6 +228,8 @@ struct huge_bootmem_page {
+ 	struct hstate *hstate;
+ };
+ 
++struct page *alloc_huge_page_node(struct hstate *h, int nid);
++
+ /* arch callback */
+ int __init alloc_bootmem_huge_page(struct hstate *h);
+ 
+@@ -303,6 +305,7 @@ static inline struct hstate *page_hstate(struct page *page)
+ 
+ #else
+ struct hstate {};
++#define alloc_huge_page_node(h, nid) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_vma(v) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6871b41..cb32a32 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -466,11 +466,23 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
+ 	h->free_huge_pages_node[nid]++;
+ }
+ 
++static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	if (list_empty(&h->hugepage_freelists[nid]))
++		return NULL;
++	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
++	list_del(&page->lru);
++	h->free_huge_pages--;
++	h->free_huge_pages_node[nid]--;
++	return page;
++}
++
+ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 				struct vm_area_struct *vma,
+ 				unsigned long address, int avoid_reserve)
+ {
+-	int nid;
+ 	struct page *page = NULL;
+ 	struct mempolicy *mpol;
+ 	nodemask_t *nodemask;
+@@ -496,19 +508,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						MAX_NR_ZONES - 1, nodemask) {
+-		nid = zone_to_nid(zone);
+-		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
+-		    !list_empty(&h->hugepage_freelists[nid])) {
+-			page = list_entry(h->hugepage_freelists[nid].next,
+-					  struct page, lru);
+-			list_del(&page->lru);
+-			h->free_huge_pages--;
+-			h->free_huge_pages_node[nid]--;
+-
+-			if (!avoid_reserve)
+-				decrement_hugepage_resv_vma(h, vma);
+-
+-			break;
++		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
++			page = dequeue_huge_page_node(h, zone_to_nid(zone));
++			if (page) {
++				if (!avoid_reserve)
++					decrement_hugepage_resv_vma(h, vma);
++				break;
++			}
+ 		}
+ 	}
+ err:
+@@ -770,11 +776,10 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+ 	return ret;
+ }
+ 
+-static struct page *alloc_buddy_huge_page(struct hstate *h,
+-			struct vm_area_struct *vma, unsigned long address)
++static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+ {
+ 	struct page *page;
+-	unsigned int nid;
++	unsigned int r_nid;
+ 
+ 	if (h->order >= MAX_ORDER)
+ 		return NULL;
+@@ -812,7 +817,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
++	page = alloc_pages_node(nid, htlb_alloc_mask|__GFP_COMP|
+ 					__GFP_REPEAT|__GFP_NOWARN,
+ 					huge_page_order(h));
+ 
+@@ -829,13 +834,13 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 		 */
+ 		put_page_testzero(page);
+ 		VM_BUG_ON(page_count(page));
+-		nid = page_to_nid(page);
++		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, free_huge_page);
+ 		/*
+ 		 * We incremented the global counters already
+ 		 */
+-		h->nr_huge_pages_node[nid]++;
+-		h->surplus_huge_pages_node[nid]++;
++		h->nr_huge_pages_node[r_nid]++;
++		h->surplus_huge_pages_node[r_nid]++;
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC);
+ 	} else {
+ 		h->nr_huge_pages--;
+@@ -848,6 +853,25 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ }
+ 
+ /*
++ * This allocation function is useful in the context where vma is irrelevant.
++ * E.g. soft-offlining uses this function because it only cares physical
++ * address of error page.
++ */
++struct page *alloc_huge_page_node(struct hstate *h, int nid)
++{
++	struct page *page;
++
++	spin_lock(&hugetlb_lock);
++	page = dequeue_huge_page_node(h, nid);
++	spin_unlock(&hugetlb_lock);
++
++	if (!page)
++		page = alloc_buddy_huge_page(h, nid);
++
++	return page;
++}
++
++/*
+  * Increase the hugetlb pool such that it can accomodate a reservation
+  * of size 'delta'.
+  */
+@@ -871,7 +895,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = alloc_buddy_huge_page(h, NULL, 0);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+ 			/*
+ 			 * We were not able to allocate enough pages to
+@@ -1052,7 +1076,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page) {
+-		page = alloc_buddy_huge_page(h, vma, addr);
++		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
+ 		if (!page) {
+ 			hugetlb_put_quota(inode->i_mapping, chg);
+ 			return ERR_PTR(-VM_FAULT_SIGBUS);
+-- 
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
