@@ -1,111 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A196B0085
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:36:28 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8MEHZFK011611
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:17:35 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MEaPw7129558
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:36:25 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MEaOMn011216
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:36:24 -0400
-Message-ID: <4C9A1466.7000808@austin.ibm.com>
-Date: Wed, 22 Sep 2010 09:36:22 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: [PATCH 8/8] Update memory hotplug documentation
-References: <4C9A0F8F.2030409@austin.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A0FDA6B004A
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 11:20:04 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8MFEt76016413
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 09:14:55 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MFK2GD216922
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 09:20:02 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MFK1KR008374
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 09:20:02 -0600
+Subject: Re: [PATCH 0/8] De-couple sysfs memory directories from memory
+ sections
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 In-Reply-To: <4C9A0F8F.2030409@austin.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <4C9A0F8F.2030409@austin.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Wed, 22 Sep 2010 08:20:00 -0700
+Message-ID: <1285168800.3292.5228.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
-Cc: Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Update the memory hotplug documentation to reflect the new behaviors of
-memory blocks reflected in sysfs.
+On Wed, 2010-09-22 at 09:15 -0500, Nathan Fontenot wrote:
+> For architectures that define their own version of this routine,
+> as is done for powerpc in this patchset, the view in userspace
+> would change such that each memoryXXX directory would span
+> multiple memory sections.  The number of sections spanned would
+> depend on the value reported by memory_block_size_bytes.
+> 
+> In both cases a new file 'end_phys_index' is created in each
+> memoryXXX directory.  This file will contain the physical id
+> of the last memory section covered by the sysfs directory.  For
+> the default case, the value in 'end_phys_index' will be the same
+> as in the existing 'phys_index' file.
 
-Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
+Hi Nathan,
 
----
- Documentation/memory-hotplug.txt |   46 +++++++++++++++++++++++++--------------
- 1 file changed, 30 insertions(+), 16 deletions(-)
+There's one bit missing here, I think.
 
-Index: linux-next/Documentation/memory-hotplug.txt
-===================================================================
---- linux-next.orig/Documentation/memory-hotplug.txt	2010-09-21 11:59:22.000000000 -0500
-+++ linux-next/Documentation/memory-hotplug.txt	2010-09-21 12:39:05.000000000 -0500
-@@ -126,36 +126,50 @@ config options.
- --------------------------------
- 4 sysfs files for memory hotplug
- --------------------------------
--All sections have their device information under /sys/devices/system/memory as
-+All sections have their device information in sysfs.  Each section is part of
-+a memory block under /sys/devices/system/memory as
- 
- /sys/devices/system/memory/memoryXXX
--(XXX is section id.)
-+(XXX is the section id.)
- 
--Now, XXX is defined as start_address_of_section / section_size.
-+Now, XXX is defined as (start_address_of_section / section_size) of the first
-+section contained in the memory block.  The files 'phys_index' and
-+'end_phys_index' under each directory report the beginning and end section id's
-+for the memory block covered by the sysfs directory.  It is expected that all
-+memory sections in this range are present and no memory holes exist in the
-+range. Currently there is no way to determine if there is a memory hole, but
-+the existence of one should not affect the hotplug capabilities of the memory
-+block.
- 
- For example, assume 1GiB section size. A device for a memory starting at
- 0x100000000 is /sys/device/system/memory/memory4
- (0x100000000 / 1Gib = 4)
- This device covers address range [0x100000000 ... 0x140000000)
- 
--Under each section, you can see 4 files.
-+Under each section, you can see 5 files.
- 
--/sys/devices/system/memory/memoryXXX/phys_index
-+/sys/devices/system/memory/memoryXXX/start_phys_index
-+/sys/devices/system/memory/memoryXXX/end_phys_index
- /sys/devices/system/memory/memoryXXX/phys_device
- /sys/devices/system/memory/memoryXXX/state
- /sys/devices/system/memory/memoryXXX/removable
- 
--'phys_index' : read-only and contains section id, same as XXX.
--'state'      : read-write
--               at read:  contains online/offline state of memory.
--               at write: user can specify "online", "offline" command
--'phys_device': read-only: designed to show the name of physical memory device.
--               This is not well implemented now.
--'removable'  : read-only: contains an integer value indicating
--               whether the memory section is removable or not
--               removable.  A value of 1 indicates that the memory
--               section is removable and a value of 0 indicates that
--               it is not removable.
-+'phys_index'      : read-only and contains section id of the first section
-+		    in the memory block, same as XXX.
-+'end_phys_index'  : read-only and contains section id of the last section
-+		    in the memory block.
-+'state'           : read-write
-+                    at read:  contains online/offline state of memory.
-+                    at write: user can specify "online", "offline" command
-+                    which will be performed on al sections in the block.
-+'phys_device'     : read-only: designed to show the name of physical memory
-+                    device.  This is not well implemented now.
-+'removable'       : read-only: contains an integer value indicating
-+                    whether the memory block is removable or not
-+                    removable.  A value of 1 indicates that the memory
-+                    block is removable and a value of 0 indicates that
-+                    it is not removable. A memory block is removable only if
-+                    every section in the block is removable.
- 
- NOTE:
-   These directories/files appear after physical memory hotplug phase.
+"block_size_bytes" today means two things today:
+1. the SECTION_SIZE from sparsemem
+2. the size covered by each memoryXXXX directory
 
+SECTION_SIZE isn't exposed to userspace, but the memoryXXXX directories
+are.  You've done all of the heavy lifting here to make sure that the
+memory directories are no longer bound to SECTION_SIZE, but you've also
+broken the assumption that _each_ directory covers "block_size_bytes".
+
+I think it's fairly simple to fix.  block_size_bytes() needs to return
+memory_block_size_bytes(), and phys_index's calculation needs to be:
+
+	mem->start_phys_index * SECTION_SIZE / memory_block_size_bytes()
+
+That way, to userspace, it just looks like before, but with a larger
+SECTION_SIZE.  Doing that preserves the ABI pretty nicely, I believe.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
