@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 095406B0082
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 010F76B007E
 	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 17:01:55 -0400 (EDT)
-Date: Wed, 22 Sep 2010 14:00:34 -0700
+Date: Wed, 22 Sep 2010 14:01:14 -0700
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH V3 2/4] Frontswap: core code
-Message-ID: <20100922210034.GA27514@ca-server1.us.oracle.com>
+Subject: [PATCH V3 4/4] Frontswap: config and doc files
+Message-ID: <20100922210114.GA27829@ca-server1.us.oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -13,444 +13,283 @@ Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, hughd@google.com, ngupta@vflare.org, JBeulich@novell.com, chris.mason@oracle.com, kurt.hackel@oracle.com, dave.mccracken@oracle.com, npiggin@kernel.dk, akpm@linux-foundation.org, riel@redhat.com, mel@csn.ul.ie, yinghan@google.com, gthelen@google.com, konrad.wilk@oracle.com
 List-ID: <linux-mm.kvack.org>
 
-[PATCH V3 2/4] Frontswap: core code
+[PATCH V3 4/4] Frontswap: config and doc files
 
-Core frontswap interface between swap subsystem hooks and
-frontswap backend via frontswap_ops.
-
-Credits: Frontswap_ops design derived from Jeremy Fitzhardinge
-design for tmem; sysfs code modelled after mm/ksm.c
+Add configuration and documentation files.
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 Diffstat:
- include/linux/frontswap.h                |   86 +++++
- mm/frontswap.c                           |  331 +++++++++++++++++++++
- 2 files changed, 417 insertions(+)
+ Documentation/ABI/testing/sysfs-kernel-mm-frontswap |   16 
+ Documentation/vm/frontswap.txt                      |  209 ++++++++++
+ mm/Kconfig                                          |   17 
+ mm/Makefile                                         |    1 
+ 4 files changed, 243 insertions(+)
 
---- linux-2.6.36-rc5/include/linux/frontswap.h	1969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.36-rc5-frontswap/include/linux/frontswap.h	2010-09-21 13:58:02.000000000 -0600
-@@ -0,0 +1,86 @@
-+#ifndef _LINUX_FRONTSWAP_H
-+#define _LINUX_FRONTSWAP_H
+--- linux-2.6.36-rc5/mm/Makefile	2010-09-20 17:56:53.000000000 -0600
++++ linux-2.6.36-rc5-frontswap/mm/Makefile	2010-09-22 08:21:06.000000000 -0600
+@@ -19,6 +19,7 @@ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.
+ 
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
++obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
+ obj-$(CONFIG_HAS_DMA)	+= dmapool.o
+ obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
+ obj-$(CONFIG_NUMA) 	+= mempolicy.o
+--- linux-2.6.36-rc5/mm/Kconfig	2010-09-20 17:56:53.000000000 -0600
++++ linux-2.6.36-rc5-frontswap/mm/Kconfig	2010-09-22 08:21:46.000000000 -0600
+@@ -301,3 +301,20 @@ config NOMMU_INITIAL_TRIM_EXCESS
+ 	  of 1 says that all excess pages should be trimmed.
+ 
+ 	  See Documentation/nommu-mmap.txt for more information.
 +
-+#include <linux/swap.h>
-+#include <linux/mm.h>
++config FRONTSWAP
++	bool "Enable frontswap pseudo-RAM driver to cache swap pages"
++	default y
++	help
++ 	  Frontswap is so named because it can be thought of as the opposite of
++ 	  a "backing" store for a swap device.  The storage is assumed to be
++ 	  a synchronous concurrency-safe page-oriented pseudo-RAM device (such
++	  as Xen's Transcendent Memory, aka "tmem") which is not directly
++	  accessible or addressable by the kernel and is of unknown (and
++	  possibly time-varying) size.  When a pseudo-RAM device is available,
++	  a signficant swap I/O reduction may be achieved.  When none is
++	  available, all frontswap calls are reduced to a single pointer-
++	  compare-against-NULL resulting in a negligible performance hit.
 +
-+struct frontswap_ops {
-+	void (*init)(unsigned);
-+	int (*put_page)(unsigned, pgoff_t, struct page *);
-+	int (*get_page)(unsigned, pgoff_t, struct page *);
-+	void (*flush_page)(unsigned, pgoff_t);
-+	void (*flush_area)(unsigned);
-+};
++	  If unsure, say Y to enable frontswap.
 +
-+extern int frontswap_enabled;
-+extern struct frontswap_ops
-+	frontswap_register_ops(struct frontswap_ops *ops);
-+extern void frontswap_shrink(unsigned long);
-+extern unsigned long frontswap_curr_pages(void);
+--- linux-2.6.36-rc5/Documentation/ABI/testing/sysfs-kernel-mm-frontswap	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.36-rc5-frontswap/Documentation/ABI/testing/sysfs-kernel-mm-frontswap	2010-09-21 13:58:02.000000000 -0600
+@@ -0,0 +1,16 @@
++What:		/sys/kernel/mm/frontswap/
++Date:		June 2010
++Contact:	Dan Magenheimer <dan.magenheimer@oracle.com>
++Description:
++		/sys/kernel/mm/frontswap/ contains a number of files which
++		record a count of various frontswap operations (sum across
++		all swap devices):
++			succ_puts
++			failed_puts
++			gets
++			flushes
++		In addition, reading the curr_pages file shows how many
++		pages are currently contained in frontswap and writing this
++		file with an integer performs a "partial swapoff", reducing
++		the number of frontswap pages to that integer if memory
++		constraints permit.
+--- linux-2.6.36-rc5/Documentation/vm/frontswap.txt	1969-12-31 17:00:00.000000000 -0700
++++ linux-2.6.36-rc5-frontswap/Documentation/vm/frontswap.txt	2010-09-22 08:45:05.000000000 -0600
+@@ -0,0 +1,209 @@
++Frontswap provides a page-accessible-memory (PAM) interface for swap pages.
++In some environments, dramatic performance savings may be obtained because
++swapped pages are saved in RAM (or a RAM-like device) instead of a swap disk.
 +
-+extern void frontswap_init(unsigned type);
-+extern int __frontswap_put_page(struct page *page);
-+extern int __frontswap_get_page(struct page *page);
-+extern void __frontswap_flush_page(unsigned, pgoff_t);
-+extern void __frontswap_flush_area(unsigned);
++Frontswap is so named because it can be thought of as the opposite of
++a "backing" store for a swap device.  The storage is assumed to be
++a synchronous concurrency-safe page-oriented pseudo-RAM device (such as
++Xen's Transcendent Memory, aka "tmem", or in-kernel compressed memory,
++aka "zmem", or other RAM-like devices) which is not directly accessible
++or addressable by the kernel and is of unknown and possibly time-varying
++size.  This pseudo-RAM device links itself to frontswap by calling
++frontswap_register_ops to set the frontswap_ops funcs appropriately and
++the functions it provides must conform to certain policies as follows:
 +
-+#ifndef CONFIG_FRONTSWAP
-+/* all inline routines become no-ops and all externs are ignored */
-+#define frontswap_enabled (0)
-+#endif
++An "init" prepares the pseudo-RAM to receive frontswap pages associated
++with the specified swap device number (aka "type").  A "put_page" will
++copy the page to pseudo-RAM and associate it with the type and offset
++associated with the page. A "get_page" will copy the page, if found,
++from pseudo-RAM into kernel memory, but will NOT remove the page from
++pseudo-RAM.  A "flush_page" will remove the page from pseudo-RAM and a
++"flush_area" will remove ALL pages associated with the swap type
++(e.g., like swapoff) and notify the pseudo-RAM device to refuse
++further puts with that swap type.
 +
-+static inline int frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	int ret = 0;
++Once a page is successfully put, a matching get on the page will always
++succeed.  So when the kernel finds itself in a situation where it needs
++to swap out a page, it first attempts to use frontswap.  If the put returns
++non-zero, the data has been successfully saved to pseudo-RAM and
++a disk write and, if the data is later read back, a disk read are avoided.
++If a put returns zero, pseudo-RAM has rejected the data, and the page can
++be written to swap as usual.
 +
-+	if (frontswap_enabled && sis->frontswap_map)
-+		ret = test_bit(offset % BITS_PER_LONG,
-+			&sis->frontswap_map[offset/BITS_PER_LONG]);
-+	return ret;
-+}
++Note that if a page is put and the page already exists in pseudo-RAM
++(a "duplicate" put), either the put succeeds and the data is overwritten,
++or the put fails AND the page is flushed.  This ensures stale data may
++never be obtained from psuedo-RAM.
 +
-+static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_map)
-+		set_bit(offset % BITS_PER_LONG,
-+			&sis->frontswap_map[offset/BITS_PER_LONG]);
-+}
++Monitoring and control of frontswap is done by sysfs files in the
++/sys/kernel/mm/frontswap directory.  The effectiveness of frontswap can
++be measured (across all swap devices) with:
 +
-+static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
-+{
-+	if (frontswap_enabled && sis->frontswap_map)
-+		clear_bit(offset % BITS_PER_LONG,
-+			&sis->frontswap_map[offset/BITS_PER_LONG]);
-+}
++curr_pages	- number of pages currently contained in frontswap
++failed_puts	- how many put attempts have failed
++gets		- how many gets were attempted (all should succeed)
++succ_puts	- how many put attempts have succeeded
++flushes		- how many flushes were attempted
 +
-+static inline int frontswap_put_page(struct page *page)
-+{
-+	int ret = -1;
++The number can be reduced by root by writing an integer target to curr_pages,
++which results in a "partial swapoff", thus reducing the number of frontswap
++pages to that target if memory constraints permit.
 +
-+	if (frontswap_enabled)
-+		ret = __frontswap_put_page(page);
-+	return ret;
-+}
++FAQ
 +
-+static inline int frontswap_get_page(struct page *page)
-+{
-+	int ret = -1;
++1) Where's the value?
 +
-+	if (frontswap_enabled)
-+		ret = __frontswap_get_page(page);
-+	return ret;
-+}
++When a workload starts swapping, performance falls through the floor.
++Frontswap significantly increases performance in many such workloads by
++providing a clean, dynamic interface to read and write swap pages to
++pseudo-RAM -- RAM that is otherwise not directly addressable to the kernel.
++This interface is ideal when data is transformed to a different form
++and size (such as with compression) or secretly moved (as might be
++useful for write-balancing for some RAM-like devices).  Swap pages (and
++evicted page-cache pages) are a great use for this kind of slower-than-RAM-
++but-much-faster-than-disk pseudo-RAM and the frontswap (and cleancache)
++"page-object-oriented" specification provides a nice way to read
++and write -- and indirectly "name" -- the pages.
 +
-+static inline void frontswap_flush_page(unsigned type, pgoff_t offset)
-+{
-+	if (frontswap_enabled)
-+		__frontswap_flush_page(type, offset);
-+}
++In the virtual case, the whole point of virtualization is to statistically
++multiplex physical resources acrosst the varying demands of multiple
++virtual machines.  This is really hard to do with RAM and efforts to do
++it well with no kernel changes have essentially failed (except in some
++well-publicized special-case workloads).  Frontswap -- and cleancache --
++with a fairly small impact on the kernel, provides a huge amount
++of flexibility for more dynamic, flexible RAM multiplexing.
++Specifically, the Xen Transcendent Memory backend allows otherwise
++"fallow" hypervisor-owned RAM to not only be "time-shared" between multiple
++virtual machines, but the pages can be compressed and deduplicated to
++optimize RAM utilization.  And when guest OS's are induced to surrender
++underutilized RAM (e.g. with "self-ballooning"), sudden unexpected
++memory pressure may result in swapping; frontswap allows those pages
++to be swapped to and from hypervisor RAM if overall host system memory
++conditions allow.
 +
-+static inline void frontswap_flush_area(unsigned type)
-+{
-+	if (frontswap_enabled)
-+		__frontswap_flush_area(type);
-+}
++2) Sure there may be performance advantages in some situations, but
++   what's the space/time overhead of frontswap?
 +
-+#endif /* _LINUX_FRONTSWAP_H */
---- linux-2.6.36-rc5/mm/frontswap.c	1969-12-31 17:00:00.000000000 -0700
-+++ linux-2.6.36-rc5-frontswap/mm/frontswap.c	2010-09-22 09:29:51.000000000 -0600
-@@ -0,0 +1,331 @@
-+/*
-+ * Frontswap frontend
-+ *
-+ * This code provides the generic "frontend" layer to call a matching
-+ * "backend" driver implementation of frontswap.  See
-+ * Documentation/vm/frontswap.txt for more information.
-+ *
-+ * Copyright (C) 2009-2010 Oracle Corp.  All rights reserved.
-+ * Author: Dan Magenheimer
-+ *
-+ * This work is licensed under the terms of the GNU GPL, version 2.
-+ */
++If CONFIG_FRONTSWAP is disabled, every frontswap hook compiles into
++nothingness and the only overhead is a few extra bytes per swapon'ed
++swap device.  If CONFIG_FRONTSWAP is enabled but no frontswap "backend"
++registers, there is one extra global variable compared to zero for
++every swap page read or written.  If CONFIG_FRONTSWAP is enabled
++AND a frontswap backend registers AND the backend fails every "put"
++request (i.e. provides no memory despite claiming it might),
++CPU overhead is still negligible -- and since every frontswap fail
++precedes a swap page write-to-disk, the system is highly likely
++to be I/O bound and using a small fraction of a percent of a CPU
++will be irrelevant anyway.
 +
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include <linux/sysctl.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
-+#include <linux/proc_fs.h>
-+#include <linux/security.h>
-+#include <linux/capability.h>
-+#include <linux/module.h>
-+#include <linux/uaccess.h>
-+#include <linux/frontswap.h>
-+#include <linux/swapfile.h>
++As for space, if CONFIG_FRONTSWAP is enabled AND a frontswap backend
++registers, one bit is allocated for every swap page for every swap
++device that is swapon'd.  This is added to the EIGHT bits (which
++was sixteen until about 2.6.34) that the kernel already allocates
++for every swap page for every swap device that is swapon'd.  (Hugh
++Dickins has observed that frontswap could probably steal one of
++the existing eight bits, but let's worry about that minor optimization
++later.)  For very large swap disks (which are rare) on a standard
++4K pagesize, this is 1MB per 32GB swap.
 +
-+/*
-+ * frontswap_ops is set by frontswap_register_ops to contain the pointers
-+ * to the frontswap "backend" implementation functions.
-+ */
-+static struct frontswap_ops frontswap_ops;
++3) OK, how about a quick overview of what this frontswap patch does
++   in terms that a kernel hacker can grok?
 +
-+/*
-+ * This global enablement flag reduces overhead on systems where frontswap_ops
-+ * has not been registered, so is preferred to the slower alternative: a
-+ * function call that checks a non-global.
-+ */
-+int frontswap_enabled;
-+EXPORT_SYMBOL(frontswap_enabled);
++Let's assume that a frontswap "backend" has registered during
++kernel initialization; this registration indicates that this
++frontswap backend has access to some "memory" that is not directly
++accessible by the kernel.  Exactly how much memory it provides is
++entirely dynamic and random.
 +
-+/* useful stats available in /sys/kernel/mm/frontswap */
-+static unsigned long frontswap_gets;
-+static unsigned long frontswap_succ_puts;
-+static unsigned long frontswap_failed_puts;
-+static unsigned long frontswap_flushes;
++Whenever a swap-device is swapon'd frontswap_init() is called,
++passing the swap device number (aka "type") as a parameter.
++This notifies frontswap to expect attempts to "put" swap pages
++associated with that number.
 +
-+/*
-+ * register operations for frontswap, returning previous thus allowing
-+ * detection of multiple backends and possible nesting
-+ */
-+struct frontswap_ops frontswap_register_ops(struct frontswap_ops *ops)
-+{
-+	struct frontswap_ops old = frontswap_ops;
++Whenever the swap subsystem is readying a page to write to a swap
++device (c.f swap_writepage()), frontswap_put_page is called.  Frontswap
++consults with the frontswap backend and if the backend says
++it does NOT have room, frontswap_put_page returns 0 and the page is
++swapped as normal.  Note that the response from the frontswap
++backend is essentially random; it may choose to never accept a
++page, it could accept every ninth page, or it might accept every
++page.  But if the backend does accept a page, the data from the page
++has already been copied and associated with the type and offset,
++and the backend guarantees the persistence of the data.  In this case,
++frontswap sets a bit in the "frontswap_map" for the swap device
++corresponding to the page offset on the swap device to which it would
++otherwise have written the data.
 +
-+	frontswap_ops = *ops;
-+	frontswap_enabled = 1;
-+	return old;
-+}
-+EXPORT_SYMBOL(frontswap_register_ops);
++When the swap subsystem needs to swap-in a page (swap_readpage()),
++it first calls frontswap_get_page() which checks the frontswap_map to
++see if the page was earlier accepted by the frontswap backend.  If
++it was, the page of data is filled from the frontswap backend and
++the swap-in is complete.  If not, the normal swap-in code is
++executed to obtain the page of data from the real swap device.
 +
-+/* Called when a swap device is swapon'd */
-+void frontswap_init(unsigned type)
-+{
-+	if (frontswap_enabled)
-+		(*frontswap_ops.init)(type);
-+}
-+EXPORT_SYMBOL(frontswap_init);
++So every time the frontswap backend accepts a page, a swap device read
++and (potentially) a swap device write are replaced by a "frontswap backend
++put" and (possibly) a "frontswap backend get", which are presumably much
++faster.
 +
-+/*
-+ * "Put" data from a page to frontswap and associate it with the page's
-+ * swaptype and offset.  Page must be locked and in the swap cache.
-+ * If frontswap already contains a page with matching swaptype and
-+ * offset, the frontswap implmentation may either overwrite the data
-+ * and return success or flush the page from frontswap and return failure
-+ */
-+int __frontswap_put_page(struct page *page)
-+{
-+	int ret = -1, dup = 0;
-+	swp_entry_t entry = { .val = page_private(page), };
-+	int type = swp_type(entry);
-+	struct swap_info_struct *sis = swap_info[type];
-+	pgoff_t offset = swp_offset(entry);
++4) Can't frontswap be configured as a "special" swap device that is
++   just higher priority than any real swap device (e.g. like zswap)?
 +
-+	BUG_ON(!PageLocked(page));
-+	if (frontswap_test(sis, offset))
-+		dup = 1;
-+	ret = (*frontswap_ops.put_page)(type, offset, page);
-+	if (ret == 0) {
-+		frontswap_set(sis, offset);
-+		frontswap_succ_puts++;
-+		if (!dup)
-+			sis->frontswap_pages++;
-+	} else if (dup) {
-+		/*
-+		  failed dup always results in automatic flush of
-+		  the (older) page from frontswap
-+		 */
-+		frontswap_clear(sis, offset);
-+		sis->frontswap_pages--;
-+		frontswap_failed_puts++;
-+	} else
-+		frontswap_failed_puts++;
-+	return ret;
-+}
++No.  Recall that acceptance of any swap page by the frontswap
++backend is entirely unpredictable. This is critical to the definition
++of frontswap because it grants completely dynamic discretion to the
++backend.  But since any "put" might fail, there must always be a real
++slot on a real swap device to swap the page.  Thus frontswap must be
++implemented as a "shadow" to every swapon'd device with the potential
++capability of holding every page that the swap device might have held
++and the possibility that it might hold no pages at all.
++On the downside, this also means that frontswap cannot contain more
++pages than the total of swapon'd swap devices.  For example, if NO
++swap device is configured on some installation, frontswap is useless.
 +
-+/*
-+ * "Get" data from frontswap associated with swaptype and offset that were
-+ * specified when the data was put to frontswap and use it to fill the
-+ * specified page with data. Page must be locked and in the swap cache
-+ */
-+int __frontswap_get_page(struct page *page)
-+{
-+	int ret = -1;
-+	swp_entry_t entry = { .val = page_private(page), };
-+	int type = swp_type(entry);
-+	struct swap_info_struct *sis = swap_info[type];
-+	pgoff_t offset = swp_offset(entry);
++Further, frontswap is entirely synchronous whereas a real swap
++device is, by definition, asynchronous and uses block I/O.  The
++block I/O layer is not only unnecessary, but may perform "optimizations"
++that are inappropriate for a RAM-oriented device including delaying
++the write of some pages for a significant amount of time.
++Synchrony is required to ensure the dynamicity of the backend.
 +
-+	BUG_ON(!PageLocked(page));
-+	if (frontswap_test(sis, offset))
-+		ret = (*frontswap_ops.get_page)(type, offset, page);
-+	if (ret == 0)
-+		frontswap_gets++;
-+	return ret;
-+}
++In a virtualized environment, the dynamicity allows the hypervisor
++(or host OS) to do "intelligent overcommit".  For example, it can
++choose to accept pages only until host-swapping might be imminent,
++then force guests to do their own swapping.
 +
-+/*
-+ * Flush any data from frontswap associated with the specified swaptype
-+ * and offset so that a subsequent "get" will fail.
-+ */
-+void __frontswap_flush_page(unsigned type, pgoff_t offset)
-+{
-+	struct swap_info_struct *sis = swap_info[type];
++5) Why this weird definition about "duplicate puts"?  If a page
++   has been previously successfully put, can't it always be
++   successfully overwritten?
 +
-+	if (frontswap_test(sis, offset)) {
-+		(*frontswap_ops.flush_page)(type, offset);
-+		sis->frontswap_pages--;
-+		frontswap_clear(sis, offset);
-+		frontswap_flushes++;
-+	}
-+}
++Nearly always it can, but no, sometimes it cannot.  Consider an example
++where data is compressed and the original 4K page has been compressed
++to 1K.  Now an attempt is made to overwrite the page with data that
++is non-compressible and so would take the entire 4K.  But the backend
++has no more space.  In this case, the put must be rejected.  Whenever
++frontswap rejects a put that would overwrite, it also must flush
++the old data and ensure that it is no longer accessible.  Since the
++swap subsystem then writes the new data to the read swap device,
++this is the correct course of action to ensure coherency.
 +
-+/*
-+ * Flush all data from frontswap associated with all offsets for the
-+ * specified swaptype.
-+ */
-+void __frontswap_flush_area(unsigned type)
-+{
-+	struct swap_info_struct *sis = swap_info[type];
++6) What is frontswap_shrink for?
 +
-+	(*frontswap_ops.flush_area)(type);
-+	sis->frontswap_pages = 0;
-+	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
-+}
++When the (non-frontswap) swap subsystem swaps out a page to a real
++swap device, that page is only taking up low-value pre-allocated disk
++space.  But if frontswap has placed a page in pseudo-RAM, that
++page may be taking up valuable real estate.  The frontswap_shrink
++routine allows a process outside of the swap subsystem (such as
++a userland service via the sysfs interface, or a kernel thread)
++to force pages out of the memory managed by frontswap and back into
++kernel-addressable memory.
 +
-+/*
-+ * Frontswap, like a true swap device, may unnecessarily retain pages
-+ * under certain circumstances; "shrink" frontswap is essentially a
-+ * "partial swapoff" and works by calling try_to_unuse to attempt to
-+ * unuse enough frontswap pages to attempt to -- subject to memory
-+ * constraints -- reduce the number of pages in frontswap
-+ */
-+void frontswap_shrink(unsigned long target_pages)
-+{
-+	int wrapped = 0;
-+	bool locked = false;
++7) Why does the frontswap patch create the new include file swapfile.h?
 +
-+	for (wrapped = 0; wrapped <= 3; wrapped++) {
++The frontswap code depends on some swap-subsystem-internal data
++structures that have, over the years, moved back and forth between
++static and global.  This seemed a reasonable compromise:  Define
++them as global but declare them in a new include file that isn't
++included by the large number of source files that include swap.h.
 +
-+		struct swap_info_struct *si = NULL;
-+		unsigned long total_pages = 0, total_pages_to_unuse;
-+		unsigned long pages = 0, unuse_pages = 0;
-+		int type;
-+
-+		/*
-+		 * we don't want to hold swap_lock while doing a very
-+		 * lengthy try_to_unuse, but swap_list may change
-+		 * so restart scan from swap_list.head each time
-+		 */
-+		spin_lock(&swap_lock);
-+		locked = true;
-+		total_pages = 0;
-+		for (type = swap_list.head; type >= 0; type = si->next) {
-+			si = swap_info[type];
-+			total_pages += si->frontswap_pages;
-+		}
-+		if (total_pages <= target_pages)
-+			goto out;
-+		total_pages_to_unuse = total_pages - target_pages;
-+		for (type = swap_list.head; type >= 0; type = si->next) {
-+			si = swap_info[type];
-+			if (total_pages_to_unuse < si->frontswap_pages)
-+				pages = unuse_pages = total_pages_to_unuse;
-+			else {
-+				pages = si->frontswap_pages;
-+				unuse_pages = 0; /* unuse all */
-+			}
-+			if (security_vm_enough_memory_kern(pages))
-+				continue;
-+			vm_unacct_memory(pages);
-+			break;
-+		}
-+		if (type < 0)
-+			goto out;
-+		locked = false;
-+		spin_unlock(&swap_lock);
-+		try_to_unuse(type, true, unuse_pages);
-+	}
-+
-+out:
-+	if (locked)
-+		spin_unlock(&swap_lock);
-+	return;
-+}
-+EXPORT_SYMBOL(frontswap_shrink);
-+
-+/*
-+ * count and return the number of pages frontswap pages across all
-+ * swap devices.  This is exported so that a kernel module can
-+ * determine current usage without reading sysfs.
-+ */
-+unsigned long frontswap_curr_pages(void)
-+{
-+	int type;
-+	unsigned long totalpages = 0;
-+	struct swap_info_struct *si = NULL;
-+
-+	spin_lock(&swap_lock);
-+	for (type = swap_list.head; type >= 0; type = si->next) {
-+		si = swap_info[type];
-+		totalpages += si->frontswap_pages;
-+	}
-+	spin_unlock(&swap_lock);
-+	return totalpages;
-+}
-+EXPORT_SYMBOL(frontswap_curr_pages);
-+
-+#ifdef CONFIG_SYSFS
-+
-+/* see Documentation/ABI/xxx/sysfs-kernel-mm-frontswap */
-+
-+#define FRONTSWAP_ATTR_RO(_name) \
-+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
-+#define FRONTSWAP_ATTR(_name) \
-+	static struct kobj_attribute _name##_attr = \
-+		__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+static ssize_t curr_pages_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", frontswap_curr_pages());
-+}
-+
-+static ssize_t curr_pages_store(struct kobject *kobj,
-+			       struct kobj_attribute *attr,
-+			       const char *buf, size_t count)
-+{
-+	unsigned long target_pages;
-+	int err;
-+
-+	err = strict_strtoul(buf, 10, &target_pages);
-+	if (err)
-+		return -EINVAL;
-+
-+	frontswap_shrink(target_pages);
-+
-+	return count;
-+}
-+FRONTSWAP_ATTR(curr_pages);
-+
-+static ssize_t succ_puts_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", frontswap_succ_puts);
-+}
-+FRONTSWAP_ATTR_RO(succ_puts);
-+
-+static ssize_t failed_puts_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", frontswap_failed_puts);
-+}
-+FRONTSWAP_ATTR_RO(failed_puts);
-+
-+static ssize_t gets_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", frontswap_gets);
-+}
-+FRONTSWAP_ATTR_RO(gets);
-+
-+static ssize_t flushes_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%lu\n", frontswap_flushes);
-+}
-+FRONTSWAP_ATTR_RO(flushes);
-+
-+static struct attribute *frontswap_attrs[] = {
-+	&curr_pages_attr.attr,
-+	&succ_puts_attr.attr,
-+	&failed_puts_attr.attr,
-+	&gets_attr.attr,
-+	&flushes_attr.attr,
-+	NULL,
-+};
-+
-+static struct attribute_group frontswap_attr_group = {
-+	.attrs = frontswap_attrs,
-+	.name = "frontswap",
-+};
-+
-+#endif /* CONFIG_SYSFS */
-+
-+static int __init init_frontswap(void)
-+{
-+#ifdef CONFIG_SYSFS
-+	int err;
-+
-+	err = sysfs_create_group(mm_kobj, &frontswap_attr_group);
-+#endif /* CONFIG_SYSFS */
-+	return 0;
-+}
-+
-+static void __exit exit_frontswap(void)
-+{
-+	frontswap_shrink(0UL);
-+}
-+
-+module_init(init_frontswap);
-+module_exit(exit_frontswap);
++Dan Magenheimer, September 21 2010
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
