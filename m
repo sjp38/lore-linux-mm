@@ -1,114 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AD0B6B004A
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 05:19:48 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8M94D9v006752
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 05:04:13 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8M9JgSe118326
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 05:19:42 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8M9JfUw009336
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 05:19:42 -0400
-Date: Wed, 22 Sep 2010 14:49:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH][-mm] memcg: generic filestat update interface.
-Message-ID: <20100922091939.GK6676@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20100922140817.a7ac57c2.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D82096B004A
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:24:33 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8ME5ecL024205
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:05:40 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MEOVJi118130
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 10:24:31 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MEOOv1006073
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 08:24:30 -0600
+Message-ID: <4C9A0F8F.2030409@austin.ibm.com>
+Date: Wed, 22 Sep 2010 09:15:43 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20100922140817.a7ac57c2.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/8] De-couple sysfs memory directories from memory sections
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+Cc: Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-09-22 14:08:17]:
+This set of patches decouples the concept that a single memory
+section corresponds to a single directory in 
+/sys/devices/system/memory/.  On systems
+with large amounts of memory (1+ TB) there are performance issues
+related to creating the large number of sysfs directories.  For
+a powerpc machine with 1 TB of memory we are creating 63,000+
+directories.  This is resulting in boot times of around 45-50
+minutes for systems with 1 TB of memory and 8 hours for systems
+with 2 TB of memory.  With this patch set applied I am now seeing
+boot times of 5 minutes or less.
 
-> 
-> based on mmotm and other memory cgroup patches in -mm queue.
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> This patch extracts core logic of mem_cgroup_update_file_mapped() as
-> mem_cgroup_update_file_stat() and add a skin.
-> 
-> As a planned future update, memory cgroup has to count dirty pages to implement
-> dirty_ratio/limit. And more, the number of dirty pages is required to kick flusher
-> thread to start writeback. (Now, no kick.)
-> 
-> This patch is preparation for it and makes other statistics implementation
-> clearer. Just a clean up.
-> 
-> Note:
-> In previous patch series, I wrote a more complicated patch to make the
-> more generic and wanted to avoid using switch(). But now, we found page_mapped()
-> check is necessary for updage_file_mapepd().We can't avoid to add some conditions.
-> I hope this style is enough easy to read and to maintainance.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   25 ++++++++++++++++++-------
->  1 file changed, 18 insertions(+), 7 deletions(-)
-> 
-> Index: mmotm-0915/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-0915.orig/mm/memcontrol.c
-> +++ mmotm-0915/mm/memcontrol.c
-> @@ -1575,7 +1575,8 @@ bool mem_cgroup_handle_oom(struct mem_cg
->   * small, we check MEM_CGROUP_ON_MOVE percpu value and detect there are
->   * possibility of race condition. If there is, we take a lock.
->   */
-> -void mem_cgroup_update_file_mapped(struct page *page, int val)
-> +
-> +static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
->  {
->  	struct mem_cgroup *mem;
->  	struct page_cgroup *pc = lookup_page_cgroup(page);
-> @@ -1597,13 +1598,18 @@ void mem_cgroup_update_file_mapped(struc
->  		if (!mem || !PageCgroupUsed(pc))
->  			goto out;
->  	}
-> -	if (val > 0) {
-> -		this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		SetPageCgroupFileMapped(pc);
-> -	} else {
-> -		this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-> -		if (!page_mapped(page)) /* for race between dec->inc counter */
-> +
-> +	this_cpu_add(mem->stat->count[idx], val);
-> +
-> +	switch (idx) {
-> +	case MEM_CGROUP_STAT_FILE_MAPPED:
-> +		if (val > 0)
-> +			SetPageCgroupFileMapped(pc);
-> +		else if (!page_mapped(page))
->  			ClearPageCgroupFileMapped(pc);
-> +		break;
-> +	default:
-> +		BUG();
->  	}
-> 
->  out:
-> @@ -1613,6 +1619,11 @@ out:
->  	return;
->  }
-> 
-> +void mem_cgroup_update_file_mapped(struct page *page, int val)
-> +{
-> +	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
-> +}
-> +
+The root of this issue is in sysfs directory creation. Every time
+a directory is created a string compare is done against all sibling
+directories to ensure we do not create duplicates.  The list of
+directory nodes in sysfs is kept as an unsorted list which results
+in this being an exponentially longer operation as the number of
+directories are created.
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
- 
+The solution solved by this patch set is to allow a single
+directory in sysfs to span multiple memory sections.  This is
+controlled by an optional architecturally defined function
+memory_block_size_bytes().  The default definition of this
+routine returns a memory block size equal to the memory section
+size. This maintains the current layout of sysfs memory
+directories as it appears to userspace to remain the same as it
+is today.
 
--- 
-	Three Cheers,
-	Balbir
+For architectures that define their own version of this routine,
+as is done for powerpc in this patchset, the view in userspace
+would change such that each memoryXXX directory would span
+multiple memory sections.  The number of sections spanned would
+depend on the value reported by memory_block_size_bytes.
+
+In both cases a new file 'end_phys_index' is created in each
+memoryXXX directory.  This file will contain the physical id
+of the last memory section covered by the sysfs directory.  For
+the default case, the value in 'end_phys_index' will be the same
+as in the existing 'phys_index' file.
+
+-Nathan Fontenot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
