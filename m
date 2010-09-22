@@ -1,82 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5958C6B0047
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 14:41:06 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e39.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8MIUVmc008059
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:30:31 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MIf1AO155246
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:41:01 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MIf0de012472
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:41:01 -0600
-Message-ID: <4C9A4DBB.6080500@austin.ibm.com>
-Date: Wed, 22 Sep 2010 13:40:59 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] De-couple sysfs memory directories from memory sections
-References: <4C9A0F8F.2030409@austin.ibm.com> <1285168800.3292.5228.camel@nimitz>
-In-Reply-To: <1285168800.3292.5228.camel@nimitz>
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id E714D6B0047
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 14:58:54 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8MIq9KZ023303
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 14:52:09 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8MIwqOE447014
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 14:58:52 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8MIwpog024423
+	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 12:58:51 -0600
+Subject: Re: [PATCH 0/8] De-couple sysfs memory directories from memory
+ sections
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4C9A4DBB.6080500@austin.ibm.com>
+References: <4C9A0F8F.2030409@austin.ibm.com>
+	 <1285168800.3292.5228.camel@nimitz>  <4C9A4DBB.6080500@austin.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Wed, 22 Sep 2010 11:58:49 -0700
+Message-ID: <1285181929.3292.6287.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: Nathan Fontenot <nfont@austin.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On 09/22/2010 10:20 AM, Dave Hansen wrote:
-> On Wed, 2010-09-22 at 09:15 -0500, Nathan Fontenot wrote:
->> For architectures that define their own version of this routine,
->> as is done for powerpc in this patchset, the view in userspace
->> would change such that each memoryXXX directory would span
->> multiple memory sections.  The number of sections spanned would
->> depend on the value reported by memory_block_size_bytes.
->>
->> In both cases a new file 'end_phys_index' is created in each
->> memoryXXX directory.  This file will contain the physical id
->> of the last memory section covered by the sysfs directory.  For
->> the default case, the value in 'end_phys_index' will be the same
->> as in the existing 'phys_index' file.
+On Wed, 2010-09-22 at 13:40 -0500, Nathan Fontenot wrote:
+> On 09/22/2010 10:20 AM, Dave Hansen wrote:
+> >                            and phys_index's calculation needs to be:
+> > 
+> > 	mem->start_phys_index * SECTION_SIZE / memory_block_size_bytes()
 > 
-> Hi Nathan,
+> I'm not sure if  I follow where you suggest using this formula.  Is this
+> instead of what is used now, the base_memory_block_id() calculation?
 > 
-> There's one bit missing here, I think.
+> If so, then I'm not sure it would work. The formula used in base_memory_block_id()
+> is done because the memory sections are not guaranteed to be added to the
+> memory block starting with the first section of the block.
 > 
-> "block_size_bytes" today means two things today:
-> 1. the SECTION_SIZE from sparsemem
-> 2. the size covered by each memoryXXXX directory
-> 
-> SECTION_SIZE isn't exposed to userspace, but the memoryXXXX directories
-> are.  You've done all of the heavy lifting here to make sure that the
-> memory directories are no longer bound to SECTION_SIZE, but you've also
-> broken the assumption that _each_ directory covers "block_size_bytes".
-> 
-> I think it's fairly simple to fix.  block_size_bytes() needs to return
-> memory_block_size_bytes(),
+> If you meant somewhere else let me know.
 
-yes, missed that.  I will update the patch set to include this.
+My point was just that if we change the "block_size_bytes" contents,
+then we have to scale down the "memoryXXXX/phys_index" by that same
+amount.
 
->                            and phys_index's calculation needs to be:
-> 
-> 	mem->start_phys_index * SECTION_SIZE / memory_block_size_bytes()
+It *used* to be in numbers of SECTION_SIZE units, and I think it still
+is:
 
-I'm not sure if  I follow where you suggest using this formula.  Is this
-instead of what is used now, the base_memory_block_id() calculation?
+-       mem->start_phys_index = __section_nr(section);
++       mem->start_phys_index = base_memory_block_id(__section_nr(section));
++       mem->end_phys_index = mem->start_phys_index + sections_per_block - 1;
 
-If so, then I'm not sure it would work. The formula used in base_memory_block_id()
-is done because the memory sections are not guaranteed to be added to the
-memory block starting with the first section of the block.
+but now it needs to be changed to be in memory_block_size_bytes() units,
+*NOT* SECTION_SIZE units.
 
-If you meant somewhere else let me know.
+Let's say we have a system with 4 16MB sections starting at 0x0.
+Before, we would have:
 
--Nathan
-> 
-> That way, to userspace, it just looks like before, but with a larger
-> SECTION_SIZE.  Doing that preserves the ABI pretty nicely, I believe.
-> 
-> -- Dave
-> 
+	block_size_bytes: 16777216
+	memory0/phys_index: 0
+	memory1/phys_index: 1
+	memory2/phys_index: 2
+	memory3/phys_index: 3
+
+Now, we change memory_block_size_bytes() to be 32MB instead.  We reduce
+the number of sections in half, and I think the right thing to get is:
+
+	block_size_bytes: 33554432
+	memory0/phys_index: 0
+	memory1/phys_index: 1
+
+I think, with your code (as it stands in these patches, no fixes) that
+we'd instead get this:
+
+	block_size_bytes: 16777216
+	memory0/phys_index: 0
+	memory1/phys_index: 2
+
+Without consulting "end_phys_index" (which isn't and can't be a part of
+the existing ABI), we'd think that we have two 16MB banks instead of
+four.
+
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
