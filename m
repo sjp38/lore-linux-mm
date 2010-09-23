@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5954F6B0095
-	for <linux-mm@kvack.org>; Wed, 22 Sep 2010 23:53:15 -0400 (EDT)
-From: Dima Zavin <dima@android.com>
-Subject: [PATCH] mm: add a might_sleep_if in dma_pool_alloc
-Date: Wed, 22 Sep 2010 20:52:47 -0700
-Message-Id: <1285213967-14052-1-git-send-email-dima@android.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C904C6B0047
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 04:49:35 -0400 (EDT)
+Date: Thu, 23 Sep 2010 09:49:19 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 02/10] hugetlb: add allocate function for hugepage
+	migration
+Message-ID: <20100923084919.GA5185@csn.ul.ie>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.DEB.2.00.1009221558000.32661@router.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1009221558000.32661@router.home>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dima Zavin <dima@android.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, tony.luck@intel.com
 List-ID: <linux-mm.kvack.org>
 
-Buggy drivers (e.g. fsl_udc) could call dma_pool_alloc from atomic
-context with GFP_KERNEL. In most instances, the first pool_alloc_page
-call would succeed and the sleeping functions would never be called.
-This allowed the buggy drivers to slip through the cracks.
+On Wed, Sep 22, 2010 at 04:05:47PM -0500, Christoph Lameter wrote:
+> On Wed, 8 Sep 2010, Naoya Horiguchi wrote:
+> 
+> > We can't use existing hugepage allocation functions to allocate hugepage
+> > for page migration, because page migration can happen asynchronously with
+> > the running processes and page migration users should call the allocation
+> > function with physical addresses (not virtual addresses) as arguments.
+> 
+> Ummm... Some arches like IA64 need huge pages fixed at certain virtual
+> addresses in which only huge pages exist. A vma is needed in order to be
+> able to assign proper virtual address to the page.
+> 
 
-Add a might_sleep_if checking for __GFP_WAIT in flags.
+Are you sure about this case? The virtual address of the page being migrated
+should not changed, only the physical address.
 
-Signed-off-by: Dima Zavin <dima@android.com>
----
- mm/dmapool.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+> How does that work with transparent huge pages anyways?
+> 
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 3df0637..4df2de7 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -311,6 +311,8 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
- 	size_t offset;
- 	void *retval;
- 
-+	might_sleep_if(mem_flags & __GFP_WAIT);
-+
- 	spin_lock_irqsave(&pool->lock, flags);
-  restart:
- 	list_for_each_entry(page, &pool->page_list, page_list) {
+IA-64 doesn't support transparent huge pages. Even if it did, this
+change is about hugetlbfs, not transparent huge page support.
+
+> This looks like its going to break IA64 hugepage support for good.
+
+How?
+
+> Maybe
+> thats okay given the reduced significance of IA64? Certainly would
+> simplify the code.
+> 
+
+Currently I'm not seeing how IA-64 gets broken.
+
 -- 
-1.6.6
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
