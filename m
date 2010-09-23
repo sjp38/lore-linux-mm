@@ -1,110 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9F3816B004A
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 18:29:45 -0400 (EDT)
-Received: by wyb36 with SMTP id 36so2878766wyb.14
-        for <linux-mm@kvack.org>; Thu, 23 Sep 2010 15:29:43 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 17F426B004A
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 19:52:17 -0400 (EDT)
+Date: Fri, 24 Sep 2010 08:50:45 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/4] hugetlb, rmap: fix confusing page locking in
+ hugetlb_cow()
+Message-ID: <20100923235044.GA13811@spritzera.linux.bs1.fc.nec.co.jp>
+References: <1284092586-1179-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1284092586-1179-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.LFD.2.00.1009101011140.9670@i5.linux-foundation.org>
 MIME-Version: 1.0
-Date: Thu, 23 Sep 2010 15:29:43 -0700
-Message-ID: <AANLkTim1R7-FVwofw-otpGCcHqQHLDwaTYYWFS1ZhSoW@mail.gmail.com>
-Subject: Linux swapping with MySQL/InnoDB due to NUMA architecture imbalanced allocations?
-From: Jeremy Cole <jeremy@jcole.us>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.1009101011140.9670@i5.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Linux Memory Management <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andi Kleen <andi@firstfloor.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello Linux MM community!
+Very sorry for late reply.
+(Thank you for letting me know, Andi-san.)
 
-I have some questions about Linux memory management, perhaps if
-someone can check my theory.  I've been researching why sometimes
-larger MySQL servers tend to swap even though they don't appear to be
-under memory pressure.  The machine(s) in question are dual quad core
-Intel Nehalem processors, with 64GB (16x4GB) memory.  They are used
-for a MySQL+InnoDB workload with 48GB allocated to InnoDB's buffer
-pool.
+On Fri, Sep 10, 2010 at 10:15:46AM -0700, Linus Torvalds wrote:
+> 
+> 
+> On Fri, 10 Sep 2010, Naoya Horiguchi wrote:
+> >  
+> > -	if (!pagecache_page) {
+> > -		page = pte_page(entry);
+> > +	/*
+> > +	 * hugetlb_cow() requires page locks of pte_page(entry) and
+> > +	 * pagecache_page, so here we need take the former one
+> > +	 * when page != pagecache_page or !pagecache_page.
+> > +	 */
+> > +	page = pte_page(entry);
+> > +	if (page != pagecache_page)
+> >  		lock_page(page);
+> 
+> Why isn't this a potential deadlock? You have two pages, and lock them 
+> both. Is there some ordering guarantee that says that 'pagecache_page' and 
+> 'page' will always be in a certain relationship so that you cannot get 
+> A->B and B->A lock ordering?
 
-My theory is that it is caused by the interplay between the NUMA
-memory allocation policy and the paging and page reclaim algorithms,
-but I'd like a double-check on my understanding of it and whether my
-theory makes sense.
+Locking order is always pagecache -> page, so we are free from deadlock.
 
-With our configuration, MySQL allocates about 53GB of memory -- 48GB
-in the buffer pool, plus a bunch of smaller allocations.  This occurs
-nearly at once near startup time (as expected) and the NUMA policy is
-"local" by default, so the memory ends up being allocated
-preferentially in Node 0 (in this case), and since Node 0 only has
-less than 32GB total, once it is full, it spills over into more than
-half of Node 1 as well.
+> Please document that ordering rule if so.
 
-Now, since Node 0 has zero free memory, the entirety of the file cache
-and most of the rest of the on-demand memory allocations on the system
-occur only in Node 1 free memory.  So while the system has lots of
-"free" memory tied up in caches, nearly none of it is on Node 0.
-There seem to be a bundle of allocations which for whatever reason
-must be done in Node 0, and this causes some of the already allocated
-memory in Node 0 to be paged out to make room.  However, mostly what
-is getting paged out is parts of InnoDB's buffer pool which inevitably
-needs to be paged back in to satisfy a query fairly soon.
+Yes. I comment it.
 
-(Note that this isn't always Node 0, sometimes Node 1 gets most of the
-memory allocated and the exact same thing happens in reverse.)
+Please replace this patch by the following one.
 
-This seems to be especially exacerbated on machines that are acting as
-a slave primarily (single writer reading from master, and various logs
-queuing on disk) and systems where backups are occurring.
+Thanks,
+Naoya Horiguchi
 
-On an exemplary running (production) system, free shows:
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Thu, 9 Sep 2010 16:39:33 +0900
+Subject: [PATCH 3/4] hugetlb, rmap: fix confusing page locking in hugetlb_cow()
 
-# free -m
-             total       used       free     shared    buffers     cached
-Mem:         64435      64218        216          0        240      10570
--/+ buffers/cache:      53406      11028
-Swap:        31996      15068      16928
+if(!trylock_page) block in avoidcopy path of hugetlb_cow() looks confusing
+and is buggy.  Originally this trylock_page() is intended to make sure
+that old_page is locked even when old_page != pagecache_page, because then
+only pagecache_page is locked.
+This patch fixes it by moving page locking into hugetlb_fault().
 
-The InnoDB buffer pool can be found easily enough (by its sheer size)
-in the numa_maps:
+ChangeLog:
+- add comment about deadlock.
 
-# grep 2aaaaad3e000 /proc/20520/numa_maps
-2aaaaad3e000 default anon=13226274 dirty=13210834 swapcache=3440575
-active=13226272 N0=7849384 N1=5376890
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
+ mm/hugetlb.c |   22 ++++++++++++----------
+ 1 files changed, 12 insertions(+), 10 deletions(-)
 
-(anon=~50.45GB swapcache=~13.12GB N0=~29.94GB N1=~20.51GB)
-
-(Note: It would be quite interesting for this case to see e.g.
-N0_swapcache and N1_swapcache separated from each other.  I noticed in
-the code that only the totals are accounted for per-node.  Would it
-make sense to tally them all up per-node and then add them together
-for presentation of totals?)
-
-So the questions are:
-
-1. Is it plausible that Linux for whatever reason needs memory to be
-in Node 0, and chooses to page out used memory to make room, rather
-than choosing to drop some of the cache in Node 1 and use that memory?
- I think this is true, but maybe I've missed something important.
-
-2. If so, what circumstances would you expect to see that in?
-
-I think we have a solution to this (still in testing and
-qualification) using "numactl --interleave all" with the mysqld
-process, but in the mean time I am hoping to check my understanding
-and theory.  However, this of course spreads all the allocations
-between the two nodes, which allows for some of the memory to be used
-for file cache on each node, thus meaning they are on at least equal
-footing for freeing memory.
-
-All replies, questions, clarifications, requests for clarification,
-and requests to bugger off welcome!
-
-Regards,
-
-Jeremy
-
-P.S.: Thank you a million times to Rik van Riel and to Mel Gorman;
-your amazing documentation, wiki posts, mailing list replies, etc.,
-have helped me immensely in understanding how things work and in
-researching this issue.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 9519f3f..c032738 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2324,11 +2324,8 @@ retry_avoidcopy:
+ 	 * and just make the page writable */
+ 	avoidcopy = (page_mapcount(old_page) == 1);
+ 	if (avoidcopy) {
+-		if (!trylock_page(old_page)) {
+-			if (PageAnon(old_page))
+-				page_move_anon_rmap(old_page, vma, address);
+-		} else
+-			unlock_page(old_page);
++		if (PageAnon(old_page))
++			page_move_anon_rmap(old_page, vma, address);
+ 		set_huge_ptep_writable(vma, address, ptep);
+ 		return 0;
+ 	}
+@@ -2631,10 +2628,16 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 								vma, address);
+ 	}
+ 
+-	if (!pagecache_page) {
+-		page = pte_page(entry);
++	/*
++	 * hugetlb_cow() requires page locks of pte_page(entry) and
++	 * pagecache_page, so here we need take the former one
++	 * when page != pagecache_page or !pagecache_page.
++	 * Note that locking order is always pagecache_page -> page,
++	 * so no worry about deadlock.
++	 */
++	page = pte_page(entry);
++	if (page != pagecache_page)
+ 		lock_page(page);
+-	}
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	/* Check for a racing update before calling hugetlb_cow */
+@@ -2661,9 +2664,8 @@ out_page_table_lock:
+ 	if (pagecache_page) {
+ 		unlock_page(pagecache_page);
+ 		put_page(pagecache_page);
+-	} else {
+-		unlock_page(page);
+ 	}
++	unlock_page(page);
+ 
+ out_mutex:
+ 	mutex_unlock(&hugetlb_instantiation_mutex);
+-- 
+1.7.2.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
