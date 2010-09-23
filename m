@@ -1,79 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7596B004A
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 14:40:11 -0400 (EDT)
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by e32.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8NIVSh5006077
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 12:31:28 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8NIe8I9176604
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 12:40:08 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8NIe7gk012955
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 12:40:08 -0600
-Date: Fri, 24 Sep 2010 00:10:02 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/8] De-couple sysfs memory directories from memory
- sections
-Message-ID: <20100923184002.GM3952@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <4C9A0F8F.2030409@austin.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A8E46B004A
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 15:18:37 -0400 (EDT)
+Date: Thu, 23 Sep 2010 11:49:42 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [stable] [PATCH 0/3] Reduce watermark-related problems with
+ the per-cpu allocator V4
+Message-ID: <20100923184942.GW23040@kroah.com>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie>
+ <20100903160551.05db4a92.akpm@linux-foundation.org>
+ <20100921111741.GB11439@csn.ul.ie>
+ <20100921125814.GF1205@kroah.com>
+ <20100921142309.GA31813@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4C9A0F8F.2030409@austin.ibm.com>
+In-Reply-To: <20100921142309.GA31813@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* Nathan Fontenot <nfont@austin.ibm.com> [2010-09-22 09:15:43]:
+On Tue, Sep 21, 2010 at 03:23:09PM +0100, Mel Gorman wrote:
+> On Tue, Sep 21, 2010 at 05:58:14AM -0700, Greg KH wrote:
+> > On Tue, Sep 21, 2010 at 12:17:41PM +0100, Mel Gorman wrote:
+> > > On Fri, Sep 03, 2010 at 04:05:51PM -0700, Andrew Morton wrote:
+> > > > On Fri,  3 Sep 2010 10:08:43 +0100
+> > > > Mel Gorman <mel@csn.ul.ie> wrote:
+> > > > 
+> > > > > The noteworthy change is to patch 2 which now uses the generic
+> > > > > zone_page_state_snapshot() in zone_nr_free_pages(). Similar logic still
+> > > > > applies for *when* zone_page_state_snapshot() to avoid ovedhead.
+> > > > > 
+> > > > > Changelog since V3
+> > > > >   o Use generic helper for NR_FREE_PAGES estimate when necessary
+> > > > > 
+> > > > > Changelog since V2
+> > > > >   o Minor clarifications
+> > > > >   o Rebase to 2.6.36-rc3
+> > > > > 
+> > > > > Changelog since V1
+> > > > >   o Fix for !CONFIG_SMP
+> > > > >   o Correct spelling mistakes
+> > > > >   o Clarify a ChangeLog
+> > > > >   o Only check for counter drift on machines large enough for the counter
+> > > > >     drift to breach the min watermark when NR_FREE_PAGES report the low
+> > > > >     watermark is fine
+> > > > > 
+> > > > > Internal IBM test teams beta testing distribution kernels have reported
+> > > > > problems on machines with a large number of CPUs whereby page allocator
+> > > > > failure messages show huge differences between the nr_free_pages vmstat
+> > > > > counter and what is available on the buddy lists. In an extreme example,
+> > > > > nr_free_pages was above the min watermark but zero pages were on the buddy
+> > > > > lists allowing the system to potentially livelock unable to make forward
+> > > > > progress unless an allocation succeeds. There is no reason why the problems
+> > > > > would not affect mainline so the following series mitigates the problems
+> > > > > in the page allocator related to to per-cpu counter drift and lists.
+> > > > > 
+> > > > > The first patch ensures that counters are updated after pages are added to
+> > > > > free lists.
+> > > > > 
+> > > > > The second patch notes that the counter drift between nr_free_pages and what
+> > > > > is on the per-cpu lists can be very high. When memory is low and kswapd
+> > > > > is awake, the per-cpu counters are checked as well as reading the value
+> > > > > of NR_FREE_PAGES. This will slow the page allocator when memory is low and
+> > > > > kswapd is awake but it will be much harder to breach the min watermark and
+> > > > > potentially livelock the system.
+> > > > > 
+> > > > > The third patch notes that after direct-reclaim an allocation can
+> > > > > fail because the necessary pages are on the per-cpu lists. After a
+> > > > > direct-reclaim-and-allocation-failure, the per-cpu lists are drained and
+> > > > > a second attempt is made.
+> > > > > 
+> > > > > Performance tests against 2.6.36-rc3 did not show up anything interesting. A
+> > > > > version of this series that continually called vmstat_update() when
+> > > > > memory was low was tested internally and found to help the counter drift
+> > > > > problem. I described this during LSF/MM Summit and the potential for IPI
+> > > > > storms was frowned upon. An alternative fix is in patch two which uses
+> > > > > for_each_online_cpu() to read the vmstat deltas while memory is low and
+> > > > > kswapd is awake. This should be functionally similar.
+> > > > > 
+> > > > > This patch should be merged after the patch "vmstat : update
+> > > > > zone stat threshold at onlining a cpu" which is in mmotm as
+> > > > > vmstat-update-zone-stat-threshold-when-onlining-a-cpu.patch .
+> > > > > 
+> > > > > If we can agree on it, this series is a stable candidate.
+> > > > 
+> > > > (cc stable@kernel.org)
+> > > > 
+> > > > >  include/linux/mmzone.h |   13 +++++++++++++
+> > > > >  include/linux/vmstat.h |   22 ++++++++++++++++++++++
+> > > > >  mm/mmzone.c            |   21 +++++++++++++++++++++
+> > > > >  mm/page_alloc.c        |   29 +++++++++++++++++++++--------
+> > > > >  mm/vmstat.c            |   15 ++++++++++++++-
+> > > > >  5 files changed, 91 insertions(+), 9 deletions(-)
+> > > > 
+> > > > For the entire patch series I get
+> > > > 
+> > > >  include/linux/mmzone.h |   13 +++++++++++++
+> > > >  include/linux/vmstat.h |   22 ++++++++++++++++++++++
+> > > >  mm/mmzone.c            |   21 +++++++++++++++++++++
+> > > >  mm/page_alloc.c        |   33 +++++++++++++++++++++++----------
+> > > >  mm/vmstat.c            |   16 +++++++++++++++-
+> > > >  5 files changed, 94 insertions(+), 11 deletions(-)
+> > > > 
+> > > > The patches do apply OK to 2.6.35.
+> > > > 
+> > > > Give the extent and the coreness of it all, it's a bit more than I'd
+> > > > usually push at the -stable guys.  But I guess that if the patches fix
+> > > > all the issues you've noted, as well as David's "minute-long livelocks
+> > > > in memory reclaim" then yup, it's worth backporting it all.
+> > > > 
+> > > 
+> > > These patches have made it to mainline as the following commits.
+> > > 
+> > > 9ee493c mm: page allocator: drain per-cpu lists after direct reclaim allocation fails
+> > > aa45484 mm: page allocator: calculate a better estimate of NR_FREE_PAGES when memory is low and kswapd is awake
+> > > 72853e2 mm: page allocator: update free page counters after pages are placed on the free list
+> > > 
+> > > I have not heard from the -stable guys, is there a reasonable
+> > > expectation that they'll be picked up?
+> > 
+> > If you ask me, then I'll know to give a response :)
+> > 
+> 
+> Hi Greg,
+> 
+> I would ask you directly but I didn't want anyone else on stable@ to
+> feel left out :)
+> 
+> > None of these were tagged as going to the stable tree, should I include
+> > them? 
+> 
+> Yes please unless there is a late objection. The patches were first developed
+> as a result of a distro bug whose kernel was based on 2.6.32.  There was
+> every indication this affected mainline as well. The details of the testing
+> are above.
+> 
+> Dave Chinner had also reported problems with livelocks in reclaim that
+> looked like IPI storms. There were two major factors at play and these
+> patches addressed one of them. It works out as both a bug and a
+> performance fix.
+> 
+> > If so, for which -stable tree?  .27, .32, and .35 are all
+> > currently active.
+> > 
+> 
+> 2.6.35 for certain.
+> 
+> I would have a strong preference for 2.6.32 as well as it's a baseline for
+> a number of distros. The second commit will conflict with per-cpu changes
+> but the resolution is straight-forward.
 
-> This set of patches decouples the concept that a single memory
-> section corresponds to a single directory in 
-> /sys/devices/system/memory/.  On systems
-> with large amounts of memory (1+ TB) there are performance issues
-> related to creating the large number of sysfs directories.  For
-> a powerpc machine with 1 TB of memory we are creating 63,000+
-> directories.  This is resulting in boot times of around 45-50
-> minutes for systems with 1 TB of memory and 8 hours for systems
-> with 2 TB of memory.  With this patch set applied I am now seeing
-> boot times of 5 minutes or less.
-> 
-> The root of this issue is in sysfs directory creation. Every time
-> a directory is created a string compare is done against all sibling
-> directories to ensure we do not create duplicates.  The list of
-> directory nodes in sysfs is kept as an unsorted list which results
-> in this being an exponentially longer operation as the number of
-> directories are created.
-> 
-> The solution solved by this patch set is to allow a single
-> directory in sysfs to span multiple memory sections.  This is
-> controlled by an optional architecturally defined function
-> memory_block_size_bytes().  The default definition of this
-> routine returns a memory block size equal to the memory section
-> size. This maintains the current layout of sysfs memory
-> directories as it appears to userspace to remain the same as it
-> is today.
-> 
-> For architectures that define their own version of this routine,
-> as is done for powerpc in this patchset, the view in userspace
-> would change such that each memoryXXX directory would span
-> multiple memory sections.  The number of sections spanned would
-> depend on the value reported by memory_block_size_bytes.
-> 
-> In both cases a new file 'end_phys_index' is created in each
-> memoryXXX directory.  This file will contain the physical id
-> of the last memory section covered by the sysfs directory.  For
-> the default case, the value in 'end_phys_index' will be the same
-> as in the existing 'phys_index' file.
->
+Thanks for the backport, I've queued these up for .32 and .35 now.
 
-What does this mean for memory hotplug or hotunplug? 
-
--- 
-	Three Cheers,
-	Balbir
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
