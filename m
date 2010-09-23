@@ -1,30 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6B0FA6B0078
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 12:02:17 -0400 (EDT)
-Date: Thu, 23 Sep 2010 11:02:12 -0500 (CDT)
+	by kanga.kvack.org (Postfix) with SMTP id B44456B004A
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2010 12:21:27 -0400 (EDT)
+Date: Thu, 23 Sep 2010 11:21:25 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/10] hugetlb: add allocate function for hugepage
- migration
-In-Reply-To: <20100923084919.GA5185@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1009231100440.32567@router.home>
-References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-3-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.DEB.2.00.1009221558000.32661@router.home> <20100923084919.GA5185@csn.ul.ie>
+Subject: Re: [PATCH 03/10] hugetlb: redefine hugepage copy functions
+In-Reply-To: <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.00.1009231114030.32567@router.home>
+References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1283908781-13810-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, tony.luck@intel.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Sep 2010, Mel Gorman wrote:
+On Wed, 8 Sep 2010, Naoya Horiguchi wrote:
 
-> Are you sure about this case? The virtual address of the page being migrated
-> should not changed, only the physical address.
+> This patch modifies hugepage copy functions to have only destination
+> and source hugepages as arguments for later use.
+> The old ones are renamed from copy_{gigantic,huge}_page() to
+> copy_user_{gigantic,huge}_page().
+> This naming convention is consistent with that between copy_highpage()
+> and copy_user_highpage().
 
-Right. I see that he just extracts a portion of the function. Semantics
-of the alloc functions are indeed preserved.
+Looking at copy_user_highpage(): The vma parameter does not seem to be
+used anywhere anymore? The vaddr is used on arches that have virtual
+caching.
+
+Maybe removing the vma parameter would allow to simplify the hugetlb
+code?
 
 Reviewed-by: Christoph Lameter <cl@linux.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
