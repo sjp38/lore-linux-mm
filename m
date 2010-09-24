@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C65406B004A
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 05:14:27 -0400 (EDT)
-Date: Fri, 24 Sep 2010 10:14:12 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [stable] [PATCH 0/3] Reduce watermark-related problems with
-	the per-cpu allocator V4
-Message-ID: <20100924091412.GA8187@csn.ul.ie>
-References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <20100903160551.05db4a92.akpm@linux-foundation.org> <20100921111741.GB11439@csn.ul.ie> <20100921125814.GF1205@kroah.com> <20100921142309.GA31813@csn.ul.ie> <20100923184942.GW23040@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20100923184942.GW23040@kroah.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DAEB36B004A
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 05:18:14 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8O9IDsZ022112
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 24 Sep 2010 18:18:13 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E817A45DE6F
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:18:12 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C6D4945DE60
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:18:12 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B13231DB803F
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:18:12 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 61FC81DB803A
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:18:12 +0900 (JST)
+Date: Fri, 24 Sep 2010 18:13:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/2] memcg: use ID instead of pointer in page_cgroup ,
+ retry.
+Message-Id: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg KH <greg@kroah.com>
-Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > <SNIP>
-> > > If so, for which -stable tree?  .27, .32, and .35 are all
-> > > currently active.
-> > > 
-> > 
-> > 2.6.35 for certain.
-> > 
-> > I would have a strong preference for 2.6.32 as well as it's a baseline for
-> > a number of distros. The second commit will conflict with per-cpu changes
-> > but the resolution is straight-forward.
-> 
-> Thanks for the backport, I've queued these up for .32 and .35 now.
-> 
 
-Thanks Greg.
+This is a reviced series of use ID.
+Restart from RFC.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+[1/2] implementation of special ID lookup
+[2/2] use ID in mm/memcontrol.c
+
+People may say use css_lookup() and don't add a special routine but
+I can't believw css_lookup() can give us enough speed at every page LRU handling
+if the number of cgroup is big. I think this patch itself is enough simple...
+but I admit this will make mem_cgroup more complex. Hmm.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
