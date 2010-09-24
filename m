@@ -1,59 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D61526B004A
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 02:49:41 -0400 (EDT)
-Date: Fri, 24 Sep 2010 15:47:14 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 06/10] hugetlb: move refcounting in hugepage allocation
- inside hugetlb_lock
-Message-ID: <20100924064714.GB26639@spritzera.linux.bs1.fc.nec.co.jp>
-References: <1283908781-13810-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1283908781-13810-7-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.DEB.2.00.1009231209450.32567@router.home>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C65406B004A
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 05:14:27 -0400 (EDT)
+Date: Fri, 24 Sep 2010 10:14:12 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [stable] [PATCH 0/3] Reduce watermark-related problems with
+	the per-cpu allocator V4
+Message-ID: <20100924091412.GA8187@csn.ul.ie>
+References: <1283504926-2120-1-git-send-email-mel@csn.ul.ie> <20100903160551.05db4a92.akpm@linux-foundation.org> <20100921111741.GB11439@csn.ul.ie> <20100921125814.GF1205@kroah.com> <20100921142309.GA31813@csn.ul.ie> <20100923184942.GW23040@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1009231209450.32567@router.home>
+In-Reply-To: <20100923184942.GW23040@kroah.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Wu Fengguang <fengguang.wu@intel.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Greg KH <greg@kroah.com>
+Cc: Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 23, 2010 at 12:12:55PM -0500, Christoph Lameter wrote:
-> On Wed, 8 Sep 2010, Naoya Horiguchi wrote:
+> > > <SNIP>
+> > > If so, for which -stable tree?  .27, .32, and .35 are all
+> > > currently active.
+> > > 
+> > 
+> > 2.6.35 for certain.
+> > 
+> > I would have a strong preference for 2.6.32 as well as it's a baseline for
+> > a number of distros. The second commit will conflict with per-cpu changes
+> > but the resolution is straight-forward.
 > 
-> > Currently alloc_huge_page() raises page refcount outside hugetlb_lock.
-> > but it causes race when dequeue_hwpoison_huge_page() runs concurrently
-> > with alloc_huge_page().
-> > To avoid it, this patch moves set_page_refcounted() in hugetlb_lock.
+> Thanks for the backport, I've queued these up for .32 and .35 now.
 > 
-> Reviewed-by: Christoph Lameter <cl@linux.com>
-> 
-> One wonders though how many other of these huge races are still there
-> though.
-> 
-> "Normal" page migration is based on LRU isolation and therefore does not
-> suffer from these problems on allocation since the page is not yet on the
-> LRU. Also the LRU isolation is a known issue due to memory reclaim doing
-> this.
 
-Yes.
-For normal page, allocation and reclaiming and migration are protected from
-each other by LRU isolation.
-For huge page, however, allocation and migration (reclaiming is not available)
-are protected by reference count, and race between allocation and hwpoison
-are avoided by hugetlb_lock.
-I see that this seems complex and can cause unpredicted races.
+Thanks Greg.
 
-> This protection is going away of one goes directly to a page
-> without going through the LRU. That should create more races...
-
-To unify these protection mechanism, we need that LRU list become available
-for hugepage, but we must wait for the appearance of hugepage swapping
-for this. Or implementing dummy LRU list until then? (Maybe it's more messy...)
-
-Thanks,
-Naoya Horiguchi
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
