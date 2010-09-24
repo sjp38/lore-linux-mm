@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 278216B004A
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 05:21:00 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8O9Kwb0010486
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8166D6B004A
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 05:21:50 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8O9LnXP023445
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 24 Sep 2010 18:20:58 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1386A45DE70
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:20:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DA4D345DE60
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:20:57 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B1BBC1DB8046
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:20:57 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DA991DB803E
-	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:20:57 +0900 (JST)
-Date: Fri, 24 Sep 2010 18:15:50 +0900
+	Fri, 24 Sep 2010 18:21:49 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D283C45DE51
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:21:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1D0B45DE4F
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:21:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 97D371DB803B
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:21:48 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46AD21DB8038
+	for <linux-mm@kvack.org>; Fri, 24 Sep 2010 18:21:48 +0900 (JST)
+Date: Fri, 24 Sep 2010 18:16:37 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/2] memcg: special ID lookup routine
-Message-Id: <20100924181550.d1757901.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/2] memcg: use ID instead of pointer
+Message-Id: <20100924181637.a763c4e5.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,157 +34,189 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It seems previous patches are not welcomed, this is a revised one.
-My purpose is to replace pc->mem_cgroup to be pc->mem_cgroup_id and to prevent
-using more memory when pc->blkio_cgroup_id is added.
+replaces page_cgroup->mem_cgroup to be an unsigned short.
+And add an ID for blkio cgroup.
 
-As 1st step, this patch implements a lookup table from ID.
-For usual lookup, css_lookup() will work enough well but it may have to
-access several level of idr radix-tree. Memory cgroup's limit is 65536 and
-as far as I here, there are a user who uses 2000+ memory cgroup on a system.
-And with generic rcu based lookup routine, the caller has to
-
-Type A:
-	rcu_read_lock()
-	obj = obj_lookup()
-	atomic_inc(obj->refcnt)
-	rcu_read_unlock()
-	/* do jobs */
-Type B:
-	rcu_read_lock()
-	obj = rcu_lookup()
-	/* do jobs */
-	rcu_read_unlock()
-
-Under some spinlock in many case.
-(Type A is very bad in busy routine and even type B has to check the
- object is alive or not. It's not no cost)
-This is complicated.
-
-Because page_cgroup -> mem_cgroup information is required at every LRU
-operatons, I think it's worth to add a special lookup routine for reducing
-cache footprint and, with some limitaton, lookup routine can be RCU free.
-
-Note:
- - memcg_lookup() is defined but not used. it's called in other patch.
-
-Changelog:
- - no hooks to cgroup.
- - no limitation of the number of memcg.
- - delay table allocation until memory cgroup is really used.
- - No RCU routine. (depends on the limitation to callers newly added.)
+More work will be required for reducing sturct page_cgroup size,
+but maybe good as 1st step.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   67 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 67 insertions(+)
+ include/linux/page_cgroup.h |    3 ++-
+ mm/memcontrol.c             |   34 ++++++++++++++++++++--------------
+ mm/page_cgroup.c            |    2 +-
+ 3 files changed, 23 insertions(+), 16 deletions(-)
 
+Index: mmotm-0922/include/linux/page_cgroup.h
+===================================================================
+--- mmotm-0922.orig/include/linux/page_cgroup.h
++++ mmotm-0922/include/linux/page_cgroup.h
+@@ -12,7 +12,8 @@
+  */
+ struct page_cgroup {
+ 	unsigned long flags;
+-	struct mem_cgroup *mem_cgroup;
++	unsigned short mem_cgroup;
++	unsigned short blkio_cgroup;
+ 	struct page *page;
+ 	struct list_head lru;		/* per cgroup LRU list */
+ };
 Index: mmotm-0922/mm/memcontrol.c
 ===================================================================
 --- mmotm-0922.orig/mm/memcontrol.c
 +++ mmotm-0922/mm/memcontrol.c
-@@ -198,6 +198,7 @@ static void mem_cgroup_oom_notify(struct
-  */
- struct mem_cgroup {
- 	struct cgroup_subsys_state css;
-+	bool	cached;
- 	/*
- 	 * the counter to account for memory usage
- 	 */
-@@ -352,6 +353,65 @@ static void mem_cgroup_put(struct mem_cg
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
- static void drain_all_stock_async(void);
- 
-+#define MEMCG_ARRAY_SIZE	(sizeof(struct mem_cgroup *) *(65536))
-+struct mem_cgroup **memcg_array __read_mostly;
-+DEFINE_SPINLOCK(memcg_array_lock);
-+
-+/*
-+ * A quick lookup routine for memory cgroup via ID. This can be used
-+ * until destroy() is called against memory cgroup. Then, in most case,
-+ * there must be page_cgroups or tasks which points to memcg.
-+ * So, cannot be used for swap_cgroup reference.
-+ */
-+static struct mem_cgroup *memcg_lookup(int id)
-+{
-+	if (id == 0)
-+		return NULL;
-+	if (id == 1)
-+		return root_mem_cgroup;
-+	return *(memcg_array + id);
-+}
-+
-+static void memcg_lookup_set(struct mem_cgroup *mem)
-+{
-+	int id;
-+
-+	if (likely(mem->cached) || mem == root_mem_cgroup)
-+		return;
-+	id = css_id(&mem->css);
-+	/* There are race with other "set" entry. need to avoid double refcnt */
-+	spin_lock(&memcg_array_lock);
-+	if (!(*(memcg_array + id))) {
-+		mem_cgroup_get(mem);
-+		*(memcg_array + id) = mem;
-+		mem->cached = true;
-+	}
-+	spin_unlock(&memcg_array_lock);
-+}
-+
-+static void memcg_lookup_clear(struct mem_cgroup *mem)
-+{
-+	int id = css_id(&mem->css);
-+	/* No race with other look up/set/unset entry */
-+	*(memcg_array + id) = NULL;
-+	mem_cgroup_put(mem);
-+}
-+
-+static int init_mem_cgroup_lookup_array(void)
-+{
-+	int size;
-+
-+	if (memcg_array)
-+		return 0;
-+
-+	size = MEMCG_ARRAY_SIZE;
-+	memcg_array = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-+				PAGE_KERNEL);
-+	if (!memcg_array)
-+		return -ENOMEM;
-+
-+	return 0;
-+}
- 
+@@ -427,7 +427,7 @@ struct cgroup_subsys_state *mem_cgroup_c
  static struct mem_cgroup_per_zone *
- mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
-@@ -2096,6 +2156,7 @@ static void __mem_cgroup_commit_charge(s
- 		mem_cgroup_cancel_charge(mem);
- 		return;
- 	}
-+	memcg_lookup_set(mem);
- 
- 	pc->mem_cgroup = mem;
- 	/*
-@@ -4341,6 +4402,10 @@ mem_cgroup_create(struct cgroup_subsys *
- 		}
- 		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
- 	} else {
-+		/* Allocation of lookup array is delayd until creat cgroup */
-+		error = init_mem_cgroup_lookup_array();
-+		if (error == -ENOMEM)
-+			goto free_out;
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
- 		mem->oom_kill_disable = parent->oom_kill_disable;
-@@ -4389,6 +4454,8 @@ static void mem_cgroup_destroy(struct cg
+ page_cgroup_zoneinfo(struct page_cgroup *pc)
  {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+-	struct mem_cgroup *mem = pc->mem_cgroup;
++	struct mem_cgroup *mem = memcg_lookup(pc->mem_cgroup);
+ 	int nid = page_cgroup_nid(pc);
+ 	int zid = page_cgroup_zid(pc);
  
-+	memcg_lookup_clear(mem);
-+
- 	mem_cgroup_put(mem);
+@@ -838,6 +838,11 @@ static inline bool mem_cgroup_is_root(st
+ 	return (mem == root_mem_cgroup);
  }
  
++static inline bool mem_cgroup_id_is_root(unsigned short id)
++{
++	return (id == 1);
++}
++
+ /*
+  * Following LRU functions are allowed to be used without PCG_LOCK.
+  * Operations are called by routine of global LRU independently from memcg.
+@@ -870,7 +875,7 @@ void mem_cgroup_del_lru_list(struct page
+ 	 */
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+-	if (mem_cgroup_is_root(pc->mem_cgroup))
++	if (mem_cgroup_id_is_root(pc->mem_cgroup))
+ 		return;
+ 	VM_BUG_ON(list_empty(&pc->lru));
+ 	list_del_init(&pc->lru);
+@@ -897,7 +902,7 @@ void mem_cgroup_rotate_lru_list(struct p
+ 	 */
+ 	smp_rmb();
+ 	/* unused or root page is not rotated. */
+-	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
++	if (!PageCgroupUsed(pc) || mem_cgroup_id_is_root(pc->mem_cgroup))
+ 		return;
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	list_move(&pc->lru, &mz->lists[lru]);
+@@ -923,7 +928,7 @@ void mem_cgroup_add_lru_list(struct page
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+ 	SetPageCgroupAcctLRU(pc);
+-	if (mem_cgroup_is_root(pc->mem_cgroup))
++	if (mem_cgroup_id_is_root(pc->mem_cgroup))
+ 		return;
+ 	list_add(&pc->lru, &mz->lists[lru]);
+ }
+@@ -1663,7 +1668,7 @@ static void mem_cgroup_update_file_stat(
+ 		return;
+ 
+ 	rcu_read_lock();
+-	mem = pc->mem_cgroup;
++	mem = memcg_lookup(pc->mem_cgroup);
+ 	if (unlikely(!mem || !PageCgroupUsed(pc)))
+ 		goto out;
+ 	/* pc->mem_cgroup is unstable ? */
+@@ -1671,7 +1676,7 @@ static void mem_cgroup_update_file_stat(
+ 		/* take a lock against to access pc->mem_cgroup */
+ 		lock_page_cgroup(pc);
+ 		need_unlock = true;
+-		mem = pc->mem_cgroup;
++		mem = memcg_lookup(pc->mem_cgroup);
+ 		if (!mem || !PageCgroupUsed(pc))
+ 			goto out;
+ 	}
+@@ -2121,7 +2126,7 @@ struct mem_cgroup *try_get_mem_cgroup_fr
+ 	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc)) {
+-		mem = pc->mem_cgroup;
++		mem = memcg_lookup(pc->mem_cgroup);
+ 		if (mem && !css_tryget(&mem->css))
+ 			mem = NULL;
+ 	} else if (PageSwapCache(page)) {
+@@ -2158,7 +2163,7 @@ static void __mem_cgroup_commit_charge(s
+ 	}
+ 	memcg_lookup_set(mem);
+ 
+-	pc->mem_cgroup = mem;
++	pc->mem_cgroup = css_id(&mem->css);
+ 	/*
+ 	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+ 	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
+@@ -2216,7 +2221,7 @@ static void __mem_cgroup_move_account(st
+ 	VM_BUG_ON(PageLRU(pc->page));
+ 	VM_BUG_ON(!PageCgroupLocked(pc));
+ 	VM_BUG_ON(!PageCgroupUsed(pc));
+-	VM_BUG_ON(pc->mem_cgroup != from);
++	VM_BUG_ON(pc->mem_cgroup != css_id(&from->css));
+ 
+ 	if (PageCgroupFileMapped(pc)) {
+ 		/* Update mapped_file data for mem_cgroup */
+@@ -2231,7 +2236,7 @@ static void __mem_cgroup_move_account(st
+ 		mem_cgroup_cancel_charge(from);
+ 
+ 	/* caller should have done css_get */
+-	pc->mem_cgroup = to;
++	pc->mem_cgroup = css_id(&to->css);
+ 	mem_cgroup_charge_statistics(to, pc, true);
+ 	/*
+ 	 * We charges against "to" which may not have any tasks. Then, "to"
+@@ -2251,7 +2256,7 @@ static int mem_cgroup_move_account(struc
+ {
+ 	int ret = -EINVAL;
+ 	lock_page_cgroup(pc);
+-	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
++	if (PageCgroupUsed(pc) && pc->mem_cgroup == css_id(&from->css)) {
+ 		__mem_cgroup_move_account(pc, from, to, uncharge);
+ 		ret = 0;
+ 	}
+@@ -2590,7 +2595,7 @@ __mem_cgroup_uncharge_common(struct page
+ 
+ 	lock_page_cgroup(pc);
+ 
+-	mem = pc->mem_cgroup;
++	mem = memcg_lookup(pc->mem_cgroup);
+ 
+ 	if (!PageCgroupUsed(pc))
+ 		goto unlock_out;
+@@ -2835,7 +2840,7 @@ int mem_cgroup_prepare_migration(struct 
+ 	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc)) {
+-		mem = pc->mem_cgroup;
++		mem = memcg_lookup(pc->mem_cgroup);
+ 		css_get(&mem->css);
+ 		/*
+ 		 * At migrating an anonymous page, its mapcount goes down
+@@ -4652,7 +4657,8 @@ static int is_target_pte_for_mc(struct v
+ 		 * mem_cgroup_move_account() checks the pc is valid or not under
+ 		 * the lock.
+ 		 */
+-		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
++		if (PageCgroupUsed(pc) &&
++			pc->mem_cgroup == css_id(&mc.from->css)) {
+ 			ret = MC_TARGET_PAGE;
+ 			if (target)
+ 				target->page = page;
+Index: mmotm-0922/mm/page_cgroup.c
+===================================================================
+--- mmotm-0922.orig/mm/page_cgroup.c
++++ mmotm-0922/mm/page_cgroup.c
+@@ -15,7 +15,7 @@ static void __meminit
+ __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+ {
+ 	pc->flags = 0;
+-	pc->mem_cgroup = NULL;
++	pc->mem_cgroup = 0;
+ 	pc->page = pfn_to_page(pfn);
+ 	INIT_LIST_HEAD(&pc->lru);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
