@@ -1,85 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EB2DA6B0047
-	for <linux-mm@kvack.org>; Sun, 26 Sep 2010 22:11:44 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R2BgSx014382
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 27 Sep 2010 11:11:42 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 58BBF45DE59
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:11:42 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D13145DE55
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:11:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B31E1DB8061
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:11:41 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E13BB1DB8051
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:11:39 +0900 (JST)
-Date: Mon, 27 Sep 2010 11:06:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad for
- file/email/web servers
-Message-Id: <20100927110628.9bc97ea7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100927110417.6B34.A69D9226@jp.fujitsu.com>
-References: <20100916184240.3BC9.A69D9226@jp.fujitsu.com>
-	<20100921100522.be252b3d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100927110417.6B34.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E67686B0047
+	for <linux-mm@kvack.org>; Sun, 26 Sep 2010 22:17:37 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R2HNwc016913
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 27 Sep 2010 11:17:23 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A341745DE4E
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:17:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 872B545DE4C
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:17:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 729BCE38001
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:17:23 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DDF41DB8013
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 11:17:20 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: do not print backtraces on GFP_ATOMIC failures
+In-Reply-To: <1285088427.2617.723.camel@edumazet-laptop>
+References: <20100921094638.9910add0.akpm@linux-foundation.org> <1285088427.2617.723.camel@edumazet-laptop>
+Message-Id: <20100927110723.6B37.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+Date: Mon, 27 Sep 2010 11:17:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: robm@fastmail.fm, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Sep 2010 11:04:54 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > On Thu, 16 Sep 2010 19:01:32 +0900 (JST)
-> > KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > @@ -72,7 +72,7 @@ struct vm_area_struct;
+> > >  /* This equals 0, but use constants in case they ever change */
+> > >  #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
+> > >  /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
+> > > -#define GFP_ATOMIC	(__GFP_HIGH)
+> > > +#define GFP_ATOMIC	(__GFP_HIGH | __GFP_NOWARN)
+> > >  #define GFP_NOIO	(__GFP_WAIT)
+> > >  #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
+> > >  #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
 > > 
-> > > Yes, sadly intel motherboard turn on zone_reclaim_mode by default. and
-> > > current zone_reclaim_mode doesn't fit file/web server usecase ;-)
-> > > 
-> > > So, I've created new proof concept patch. This doesn't disable zone_reclaim
-> > > at all. Instead, distinguish for file cache and for anon allocation and
-> > > only file cache doesn't use zone-reclaim.
-> > > 
-> > > That said, high-end hpc user often turn on cpuset.memory_spread_page and
-> > > they avoid this issue. But, why don't we consider avoid it by default?
-> > > 
-> > > 
-> > > Rob, I wonder if following patch help you. Could you please try it?
-> > > 
-> > > 
-> > > Subject: [RFC] vmscan: file cache doesn't use zone_reclaim by default
-> > > 
+> > A much finer-tuned implementation would be to add __GFP_NOWARN just to
+> > the networking call sites.  I asked about this in June and it got
+> > nixed:
 > > 
-> > Hm, can't we use migration of file caches rather than pageout in
-> > zone_reclaim_mode ? Doent' it fix anything ?
+> > http://www.spinics.net/lists/netdev/msg131965.html
+> > --
 > 
-> Doesn't.
+> Yes, I remember this particular report was useful to find and correct a
+> bug.
 > 
-> Two problem. 1) Migration makes copy. then it's slower than zone_reclaim=0
-> 2) Migration is only effective if target node has much free pages. but it
-> is not generic assumption.
+> I dont know what to say.
 > 
-> For this case, zone_reclaim_mode=0 is best. my patch works as second best.
-> your one works as third.
-> 
+> Being silent or verbose, it really depends on the context ?
 
-Hmm. I'm not sure whether it's "slower" or not. And Migraion doesn't
-assume target node because it can use zonelist fallback.
+At least, MM developers don't want to track network allocation failure
+issue. We don't have enough knowledge in this area. To be honest, We 
+are unhappy current bad S/N bug report rate ;)
 
-I'm just has concerns that kicked-out pages will be paged-in soon.
+Traditionally, We hoped this warnings help to debug VM issue. but
+It haven't happen. We haven't detect VM issue from this allocation
+failure report. Instead, We've received a lot of network allocation
+failure report.
 
-But ok, maybe complicated.
+Recently, The S/N ratio became more bad. If the network device enable
+jumbo frame feature, order-2 GFP_ATOMIC allocation is called frequently.
+Anybody don't have to assume order-2 allocation can success anytime.
 
-Thanks,
--Kame
+I'm not against accurate warning at all. but I cant tolerate this
+semi-random warning steal our time. If anyone will not make accurate
+warning, I hope to remove this one completely instead.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
