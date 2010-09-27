@@ -1,85 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0916B0047
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 19:17:02 -0400 (EDT)
-Message-Id: <1285629420.10278.1397188599@webmail.messagingengine.com>
-From: "Robert Mueller" <robm@fastmail.fm>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 2FFA96B0047
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 19:55:21 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RNeApV021317
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 19:40:10 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RNtAoJ355802
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 19:55:14 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RNt9nb015426
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 20:55:10 -0300
+Subject: Re: [PATCH 4/8] v2 Allow memory block to span multiple memory
+ sections
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4CA0EFAA.8050000@austin.ibm.com>
+References: <4CA0EBEB.1030204@austin.ibm.com>
+	 <4CA0EFAA.8050000@austin.ibm.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Mon, 27 Sep 2010 16:55:07 -0700
+Message-ID: <1285631707.19976.3385.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="us-ascii"
-References: <52C8765522A740A4A5C027E8FDFFDFE3@jem>
- <20100921090407.GA11439@csn.ul.ie>
- <20100927110049.6B31.A69D9226@jp.fujitsu.com>
- <alpine.DEB.2.00.1009270828510.7000@router.home>
-Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad
- forfile/email/web servers
-In-Reply-To: <alpine.DEB.2.00.1009270828510.7000@router.home>
-Reply-To: robm@fastmail.fm
-Date: Tue, 28 Sep 2010 09:17:00 +1000
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Bron
- Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 2010-09-27 at 14:25 -0500, Nathan Fontenot wrote:
+> +static inline int base_memory_block_id(int section_nr)
+> +{
+> +       return section_nr / sections_per_block;
+> +}
+...
+> -       mutex_lock(&mem_sysfs_mutex);
+> -
+> -       mem->phys_index = __section_nr(section);
+> +       scn_nr = __section_nr(section);
+> +       mem->phys_index = base_memory_block_id(scn_nr) * sections_per_block; 
 
-> You can switch off zone reclaim of course which means that the
-> applications will not be getting memory thats optimal for them to access.
+I'm really regretting giving this variable such a horrid name.  I suck.
 
-That's true, but also remember that going to disk is going to be way
-more expensive than memory on another node. What we found was that data
-that should have been cached because it was being accessed a lot, wasn't
-being cached, so it had to keep going back to disk to get it. That's
-even worse.
+I think this is correct now:
 
-> 1. Fix the ACPI information to indicate lower memory access
->    differences (was that info actually acurate?) so that zone reclaim
->    defaults to off.
-> 
-> 2. Change the RECLAIM_DISTANCE setting for the arch so that the ACPI
->    information does not trigger zone reclaim to be enabled.
+	mem->phys_index = base_memory_block_id(scn_nr) * sections_per_block;
+	mem->phys_index = section_nr / sections_per_block * sections_per_block;
+	mem->phys_index = section_nr
 
-How would the ACPI information actually be changed?
+Since it gets exported to userspace this way:
 
-I ran numactl -H to get the hardware information, and that seems to
-include distances. As mentioned previously, this is a very standard
-Intel server motherboard.
+> +static ssize_t show_mem_start_phys_index(struct sys_device *dev,
+>                         struct sysdev_attribute *attr, char *buf)
+>  {
+>         struct memory_block *mem =
+>                 container_of(dev, struct memory_block, sysdev);
+> -       return sprintf(buf, "%08lx\n", mem->phys_index / sections_per_block);
+> +       unsigned long phys_index;
+> +
+> +       phys_index = mem->start_phys_index / sections_per_block;
+> +       return sprintf(buf, "%08lx\n", phys_index);
+> +}
 
-http://www.intel.com/Products/Server/Motherboards/S5520UR/S5520UR-specifications.htm
+The only other thing I'd say is that we need to put phys_index out of
+its misery and call it what it is now: a section number.  I think it's
+OK to call them "start/end_section_nr", at least inside the kernel.  I
+intentionally used "phys_index" terminology in sysfs so that we _could_
+eventually do this stuff and break the relationship between sections and
+the sysfs dirs, but I think keeping the terminology around inside the
+kernel is confusing now.
 
-Intel 5520 chipset with Intel I/O Controller Hub ICH10R
-
-$ numactl -H
-available: 2 nodes (0-1)
-node 0 cpus: 0 2 4 6 8 10 12 14
-node 0 size: 24517 MB
-node 0 free: 1523 MB
-node 1 cpus: 1 3 5 7 9 11 13 15
-node 1 size: 24576 MB
-node 1 free: 39 MB
-node distances:
-node   0   1
-  0:  10  21
-  1:  21  10
-
-Since I'm not sure what the "distance" values mean, I have no idea if
-those values large or not?
-
-> 3. Run the application with numactl settings for interleaving of
->    memory accesses (or corresponding cpuset settings).
->
-> 4. Fix the application to be conscious of the effect of memory
->    allocations on a NUMA systems. Use the numa memory allocations API
->    to allocate anonymous memory locally for optimal access and set
->    interleave for the file backed pages.
-
-The problem we saw was purely with file caching. The application wasn't
-actually allocating much memory itself, but it was reading lots of files
-from disk (via mmap'ed memory mostly), and as most people would, we
-expected that data would be cached in memory to reduce future reads from
-disk. That was not happening.
-
-Rob
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
