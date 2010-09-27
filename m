@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 613526B0047
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:21:19 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RJ53i4028669
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:05:03 -0400
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C25346B004A
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:22:30 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RJCEu5026217
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 13:12:14 -0600
 Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RJLGpn096730
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:21:16 -0400
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RJMPFX075686
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 13:22:25 -0600
 Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RJLELL009457
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 13:21:15 -0600
-Message-ID: <4CA0EEA8.4050009@austin.ibm.com>
-Date: Mon, 27 Sep 2010 14:21:12 -0500
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RJMPZ7014530
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 13:22:25 -0600
+Message-ID: <4CA0EEF0.70402@austin.ibm.com>
+Date: Mon, 27 Sep 2010 14:22:24 -0500
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/8] v2 Move find_memory_block() routine
+Subject: [PATCH 2/8] v2 Add section count to memory_block struct
 References: <4CA0EBEB.1030204@austin.ibm.com>
 In-Reply-To: <4CA0EBEB.1030204@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -25,95 +25,71 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 Cc: Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Move the find_memory_block() routine up to avoid needing a forward
-declaration in subsequent patches.
+Add a section count property to the memory_block struct to track the number
+of memory sections that have been added/removed from a memory block. This
+allows us to know when the last memory section of a memory block has been
+removed so we can remove the memory block.
 
 Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
 ---
- drivers/base/memory.c |   62 +++++++++++++++++++++++++-------------------------
- 1 file changed, 31 insertions(+), 31 deletions(-)
+ drivers/base/memory.c  |   16 ++++++++++------
+ include/linux/memory.h |    3 +++
+ 2 files changed, 13 insertions(+), 6 deletions(-)
 
 Index: linux-next/drivers/base/memory.c
 ===================================================================
---- linux-next.orig/drivers/base/memory.c	2010-09-21 11:59:24.000000000 -0500
-+++ linux-next/drivers/base/memory.c	2010-09-21 12:32:45.000000000 -0500
-@@ -435,6 +435,37 @@ int __weak arch_get_memory_phys_device(u
+--- linux-next.orig/drivers/base/memory.c	2010-09-27 09:17:20.000000000 -0500
++++ linux-next/drivers/base/memory.c	2010-09-27 09:31:35.000000000 -0500
+@@ -478,6 +478,7 @@
+ 
+ 	mem->phys_index = __section_nr(section);
+ 	mem->state = state;
++	atomic_inc(&mem->section_count);
+ 	mutex_init(&mem->state_mutex);
+ 	start_pfn = section_nr_to_pfn(mem->phys_index);
+ 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+@@ -505,12 +506,15 @@
+ 	struct memory_block *mem;
+ 
+ 	mem = find_memory_block(section);
+-	unregister_mem_sect_under_nodes(mem);
+-	mem_remove_simple_file(mem, phys_index);
+-	mem_remove_simple_file(mem, state);
+-	mem_remove_simple_file(mem, phys_device);
+-	mem_remove_simple_file(mem, removable);
+-	unregister_memory(mem, section);
++
++	if (atomic_dec_and_test(&mem->section_count)) {
++		unregister_mem_sect_under_nodes(mem);
++		mem_remove_simple_file(mem, phys_index);
++		mem_remove_simple_file(mem, state);
++		mem_remove_simple_file(mem, phys_device);
++		mem_remove_simple_file(mem, removable);
++		unregister_memory(mem, section);
++	}
+ 
  	return 0;
  }
+Index: linux-next/include/linux/memory.h
+===================================================================
+--- linux-next.orig/include/linux/memory.h	2010-09-27 09:17:20.000000000 -0500
++++ linux-next/include/linux/memory.h	2010-09-27 09:22:56.000000000 -0500
+@@ -19,10 +19,13 @@
+ #include <linux/node.h>
+ #include <linux/compiler.h>
+ #include <linux/mutex.h>
++#include <asm/atomic.h>
  
-+/*
-+ * For now, we have a linear search to go find the appropriate
-+ * memory_block corresponding to a particular phys_index. If
-+ * this gets to be a real problem, we can always use a radix
-+ * tree or something here.
-+ *
-+ * This could be made generic for all sysdev classes.
-+ */
-+struct memory_block *find_memory_block(struct mem_section *section)
-+{
-+	struct kobject *kobj;
-+	struct sys_device *sysdev;
-+	struct memory_block *mem;
-+	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
+ struct memory_block {
+ 	unsigned long phys_index;
+ 	unsigned long state;
++	atomic_t section_count;
 +
-+	/*
-+	 * This only works because we know that section == sysdev->id
-+	 * slightly redundant with sysdev_register()
-+	 */
-+	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
-+
-+	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
-+	if (!kobj)
-+		return NULL;
-+
-+	sysdev = container_of(kobj, struct sys_device, kobj);
-+	mem = container_of(sysdev, struct memory_block, sysdev);
-+
-+	return mem;
-+}
-+
- static int add_memory_block(int nid, struct mem_section *section,
- 			unsigned long state, enum mem_add_context context)
- {
-@@ -468,37 +499,6 @@ static int add_memory_block(int nid, str
- 	return ret;
- }
- 
--/*
-- * For now, we have a linear search to go find the appropriate
-- * memory_block corresponding to a particular phys_index. If
-- * this gets to be a real problem, we can always use a radix
-- * tree or something here.
-- *
-- * This could be made generic for all sysdev classes.
-- */
--struct memory_block *find_memory_block(struct mem_section *section)
--{
--	struct kobject *kobj;
--	struct sys_device *sysdev;
--	struct memory_block *mem;
--	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
--
--	/*
--	 * This only works because we know that section == sysdev->id
--	 * slightly redundant with sysdev_register()
--	 */
--	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
--
--	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
--	if (!kobj)
--		return NULL;
--
--	sysdev = container_of(kobj, struct sys_device, kobj);
--	mem = container_of(sysdev, struct memory_block, sysdev);
--
--	return mem;
--}
--
- int remove_memory_block(unsigned long node_id, struct mem_section *section,
- 		int phys_device)
- {
+ 	/*
+ 	 * This serializes all state change requests.  It isn't
+ 	 * held during creation because the control files are
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
