@@ -1,133 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id ABD906B007D
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 06:00:01 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R9xxtb032731
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 27 Sep 2010 18:59:59 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 57E8F45DE60
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DE8045DE4D
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 167991DB8037
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:59 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B2AC5EF8005
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:55 +0900 (JST)
-Date: Mon, 27 Sep 2010 18:54:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 4/4] memcg: per node info node hotplug support
-Message-Id: <20100927185447.64ed0aec.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 18F8A6B004A
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 06:50:03 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so6472240iwn.14
+        for <linux-mm@kvack.org>; Mon, 27 Sep 2010 03:50:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <m1ocbl9z4z.fsf@fess.ebiederm.org>
+References: <m1sk0x9z62.fsf@fess.ebiederm.org>
+	<m1ocbl9z4z.fsf@fess.ebiederm.org>
+Date: Mon, 27 Sep 2010 13:49:57 +0300
+Message-ID: <AANLkTimozc_iWu6qFHS4CptwdLX7Fjv0owQzyh03hcqE@mail.gmail.com>
+Subject: Re: [PATCH 1/3] mm: Introduce revoke_mappings.
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Subject: [PATCH 1/3] mm: Introduce revoke_mappings.
+>
+> When the backing store of a file becomes inaccessible we need a function
+> to remove that file from the page tables and arrange for page faults
+> to trigger SIGBUS.
+>
+> Signed-off-by: Eric W. Biederman <ebiederm@aristanetworks.com>
 
-Support node hot plug (experimental).
+> +static void revoke_vma(struct vm_area_struct *old)
+> +{
+> +	/* Atomically replace a vma with an identical one that returns
+> +	 * VM_FAULT_SIGBUS to every mmap request.
+> +	 *
+> +	 * This function must be called with the mm->mmap semaphore held.
+> +	 */
+> +	unsigned long start, end, len, pgoff, vm_flags;
+> +	struct vm_area_struct *new;
+> +	struct mm_struct *mm;
+> +	struct file *file;
+> +
+> +	file  = revoked_filp;
+> +	mm    = old->vm_mm;
+> +	start = old->vm_start;
+> +	end   = old->vm_end;
+> +	len   = end - start;
+> +	pgoff = old->vm_pgoff;
+> +
+> +	/* Preserve user visble vm_flags. */
+> +	vm_flags = VM_SHARED | VM_MAYSHARE | (old->vm_flags & REVOKED_VM_FLAGS);
+> +
+> +	/* If kmem_cache_zalloc fails return and ultimately try again */
+> +	new = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+> +	if (!new)
+> +		goto out;
+> +
+> +	/* I am freeing exactly one vma so munmap should never fail.
+> +	 * If munmap fails return and ultimately try again.
+> +	 */
+> +	if (unlikely(do_munmap(mm, start, len)))
+> +		goto fail;
+> +
+> +	INIT_LIST_HEAD(&new->anon_vma_chain);
+> +	new->vm_mm    = mm;
+> +	new->vm_start = start;
+> +	new->vm_end   = end;
+> +	new->vm_flags = vm_flags;
+> +	new->vm_page_prot = vm_get_page_prot(vm_flags);
+> +	new->vm_pgoff = pgoff;
+> +	new->vm_file  = file;
+> +	get_file(file);
+> +	new->vm_ops   = &revoked_vm_ops;
+> +
+> +	/* Since the area was just umapped there is no excuse for
+> +	 * insert_vm_struct to fail.
+> +	 *
+> +	 * If insert_vm_struct fails we will cause a SIGSEGV instead
+> +	 * a SIGBUS.  A shame but not the end of the world.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Can we simply fix up the old vma to avoid kmem_cache_zalloc() and
+insert_vm_struct altogether? We're protected by ->mmap_sem so that shouldn't be
+a problem?
 
----
- mm/memcontrol.c |   46 +++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 43 insertions(+), 3 deletions(-)
+> +	 */
+> +	if (unlikely(insert_vm_struct(mm, new)))
+> +		goto fail;
+> +
+> +	mm->total_vm += len >> PAGE_SHIFT;
+> +
+> +	perf_event_mmap(new);
+> +
+> +	return;
+> +fail:
+> +	kmem_cache_free(vm_area_cachep, new);
+> +	WARN_ONCE(1, "%s failed\n", __func__);
 
-Index: mmotm-0922/mm/memcontrol.c
-===================================================================
---- mmotm-0922.orig/mm/memcontrol.c
-+++ mmotm-0922/mm/memcontrol.c
-@@ -48,6 +48,7 @@
- #include <linux/page_cgroup.h>
- #include <linux/cpu.h>
- #include <linux/oom.h>
-+#include <linux/memory.h>
- #include "internal.h"
- 
- #include <asm/uaccess.h>
-@@ -4212,8 +4213,12 @@ static int alloc_mem_cgroup_per_zone_inf
- 		id = node_zone_idx(css_id(&mem->css), node, zone);
- 		ret = radix_tree_insert(&memcg_lrus, id, mz);
- 		spin_unlock_irq(&memcg_lrutable_lock);
--		if (ret)
--			break;
-+		if (ret) {
-+			if (ret != -EEXIST)
-+				break;
-+			kfree(mz);
-+			continue;
-+		}
- 		for_each_lru(l)
- 			INIT_LIST_HEAD(&mz->lists[l]);
- 		mz->on_tree = false;
-@@ -4372,6 +4377,40 @@ static int mem_cgroup_soft_limit_tree_in
- 	return 0;
- }
- 
-+static int __meminit memcg_memory_hotplug_callback(struct notifier_block *self,
-+		unsigned long action, void *arg)
-+{
-+	struct memory_notify *mn = arg;
-+	struct mem_cgroup *mem;
-+	int nid = mn->status_change_nid;
-+	int ret = 0;
-+
-+	/* We just take care of node hotplug */
-+	if (nid == -1)
-+		return NOTIFY_OK;
-+	switch(action) {
-+	case MEM_GOING_ONLINE:
-+		for_each_mem_cgroup_all(mem)
-+			ret = alloc_mem_cgroup_per_zone_info(mem, nid);
-+		break;
-+	case MEM_OFFLINE:
-+		for_each_mem_cgroup_all(mem)
-+			free_mem_cgroup_per_zone_info(mem, nid);
-+		break;
-+	default:
-+		break;
-+	}
-+
-+	if (ret)
-+		ret = notifier_from_errno(ret);
-+	else
-+		ret = NOTIFY_OK;
-+
-+	return ret;
-+}
-+
-+
-+
- static struct cgroup_subsys_state * __ref
- mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- {
-@@ -4387,7 +4426,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (error)
- 		goto free_out;
- 
--	for_each_node_state(node, N_POSSIBLE)
-+	for_each_node_state(node, N_HIGH_MEMORY)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
- 			goto free_out;
- 
-@@ -4407,6 +4446,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 			INIT_WORK(&stock->work, drain_local_stock);
- 		}
- 		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
-+		hotplug_memory_notifier(memcg_memory_hotplug_callback, 0);
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
+Why don't we just propagate errors such as -ENOMEM to the callers? It seems
+pointless to try to retry the operation at this level.
+
+> +out:
+> +	return;
+> +}
+> +
+> +static bool revoke_mapping(struct address_space *mapping, struct mm_struct *mm,
+> +			   unsigned long addr)
+> +{
+> +	/* Returns true if the locks were dropped */
+> +	struct vm_area_struct *vma;
+> +
+> +	/*
+> +	 * Drop i_mmap_lock and grab the mm sempahore so I can call
+
+s/sempahore/semaphore/
+
+> +	 * revoke_vma.
+> +	 */
+> +	if (!atomic_inc_not_zero(&mm->mm_users))
+> +		return false;
+> +	spin_unlock(&mapping->i_mmap_lock);
+> +	down_write(&mm->mmap_sem);
+> +
+> +	/* There was a vma at mm, addr that needed to be revoked.
+> +	 * Look and see if there is still a vma there that needs
+> +	 * to be revoked.
+> +	 */
+> +	vma = find_vma(mm, addr);
+
+Why aren't we checking for NULL vma here? AFAICT, there's a tiny window between
+dropping ->i_mmap_lock and grabbing ->mmap_sem where the vma might have been
+unmapped.
+
+> +	if (vma->vm_file->f_mapping == mapping)
+> +		revoke_vma(vma);
+> +
+> +	up_write(&mm->mmap_sem);
+> +	mmput(mm);
+> +	spin_lock(&mapping->i_mmap_lock);
+> +	return true;
+> +}
+> +
+> +void revoke_mappings(struct address_space *mapping)
+> +{
+> +	/* Make any access to previously mapped pages trigger a SIGBUS,
+> +	 * and stop calling vm_ops methods.
+> +	 *
+> +	 * When revoke_mappings returns invocations of vm_ops->close
+> +	 * may still be in progress, but no invocations of any other
+> +	 * vm_ops methods will be.
+> +	 */
+> +	struct vm_area_struct *vma;
+> +	struct prio_tree_iter iter;
+> +
+> +	spin_lock(&mapping->i_mmap_lock);
+> +
+> +restart_tree:
+> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX) {
+> +		if (revoke_mapping(mapping, vma->vm_mm, vma->vm_start))
+> +			goto restart_tree;
+> +	}
+> +
+> +restart_list:
+> +	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list) {
+> +		if (revoke_mapping(mapping, vma->vm_mm, vma->vm_start))
+> +			goto restart_list;
+> +	}
+> +
+
+What prevents a process from remapping the file after we've done revoking the
+vma prio tree? Shouldn't we always restart from the top?
+
+Also, don't we need spin_needbreak() on ->i_mmap_lock and cond_resched()
+somewhere here like we do in mm/memory.c, for example?
+
+> +	spin_unlock(&mapping->i_mmap_lock);
+> +}
+> +EXPORT_SYMBOL_GPL(revoke_mappings);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
