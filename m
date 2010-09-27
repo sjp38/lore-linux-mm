@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E50536B0047
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:25:34 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RJPitD019498
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:25:44 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C97916B0047
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:26:50 -0400 (EDT)
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RJBhaX004108
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:11:43 -0400
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RJPW97073520
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:25:32 -0400
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RJQJ331851626
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:26:19 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RJPVqv021681
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:25:32 -0400
-Message-ID: <4CA0EFAA.8050000@austin.ibm.com>
-Date: Mon, 27 Sep 2010 14:25:30 -0500
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RJQJxQ025675
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:26:19 -0400
+Message-ID: <4CA0EFDA.9020703@austin.ibm.com>
+Date: Mon, 27 Sep 2010 14:26:18 -0500
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/8] v2 Allow memory block to span multiple memory sections
+Subject: [PATCH 5/8] v2 Add end_phys_index file
 References: <4CA0EBEB.1030204@austin.ibm.com>
 In-Reply-To: <4CA0EBEB.1030204@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -25,372 +25,144 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
 Cc: Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Update the memory sysfs code such that each sysfs memory directory is now
-considered a memory block that can span multiple memory sections per
-memory block.  The default size of each memory block is SECTION_SIZE_BITS
-to maintain the current behavior of having a single memory section per
-memory block (i.e. one sysfs directory per memory section).
-
-For architectures that want to have memory blocks span multiple
-memory sections they need only define their own memory_block_size_bytes()
-routine.
+Update the 'phys_index' properties of a memory block to include a
+'start_phys_index' which is the same as the current 'phys_index' property.
+The property still appears as 'phys_index' in sysfs but the memory_block
+struct name is updated to indicate the start and end values.
+This also adds an 'end_phys_index' property to indicate the id of the
+last section in th memory block.
 
 Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
 ---
- drivers/base/memory.c |  155 ++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 108 insertions(+), 47 deletions(-)
+ drivers/base/memory.c  |   39 ++++++++++++++++++++++++++++++---------
+ include/linux/memory.h |    3 ++-
+ 2 files changed, 32 insertions(+), 10 deletions(-)
 
 Index: linux-next/drivers/base/memory.c
 ===================================================================
---- linux-next.orig/drivers/base/memory.c	2010-09-27 09:31:57.000000000 -0500
-+++ linux-next/drivers/base/memory.c	2010-09-27 13:50:18.000000000 -0500
-@@ -30,6 +30,14 @@
- static DEFINE_MUTEX(mem_sysfs_mutex);
- 
- #define MEMORY_CLASS_NAME	"memory"
-+#define MIN_MEMORY_BLOCK_SIZE	(1 << SECTION_SIZE_BITS)
-+
-+static int sections_per_block;
-+
-+static inline int base_memory_block_id(int section_nr)
-+{
-+	return section_nr / sections_per_block;
-+}
- 
- static struct sysdev_class memory_sysdev_class = {
- 	.name = MEMORY_CLASS_NAME,
-@@ -84,28 +92,47 @@
-  * register_memory - Setup a sysfs device for a memory block
-  */
- static
--int register_memory(struct memory_block *memory, struct mem_section *section)
-+int register_memory(struct memory_block *memory)
- {
+--- linux-next.orig/drivers/base/memory.c	2010-09-27 13:50:18.000000000 -0500
++++ linux-next/drivers/base/memory.c	2010-09-27 13:50:38.000000000 -0500
+@@ -97,7 +97,7 @@
  	int error;
  
  	memory->sysdev.cls = &memory_sysdev_class;
--	memory->sysdev.id = __section_nr(section);
-+	memory->sysdev.id = memory->phys_index / sections_per_block;
+-	memory->sysdev.id = memory->phys_index / sections_per_block;
++	memory->sysdev.id = memory->start_phys_index / sections_per_block;
  
  	error = sysdev_register(&memory->sysdev);
  	return error;
- }
- 
- static void
--unregister_memory(struct memory_block *memory, struct mem_section *section)
-+unregister_memory(struct memory_block *memory)
- {
- 	BUG_ON(memory->sysdev.cls != &memory_sysdev_class);
--	BUG_ON(memory->sysdev.id != __section_nr(section));
- 
- 	/* drop the ref. we got in remove_memory_block() */
- 	kobject_put(&memory->sysdev.kobj);
- 	sysdev_unregister(&memory->sysdev);
- }
- 
-+u32 __weak memory_block_size_bytes(void)
-+{
-+	return MIN_MEMORY_BLOCK_SIZE;
-+}
-+
-+static u32 get_memory_block_size(void)
-+{
-+	u32 block_sz;
-+
-+	block_sz = memory_block_size_bytes();
-+
-+	/* Validate blk_sz is a power of 2 and not less than section size */
-+	if ((block_sz & (block_sz - 1)) || (block_sz < MIN_MEMORY_BLOCK_SIZE)) {
-+		WARN_ON(1);
-+		block_sz = MIN_MEMORY_BLOCK_SIZE;
-+	}
-+
-+	return block_sz;
-+}
-+
- /*
-  * use this as the physical section index that this memsection
+@@ -138,12 +138,26 @@
   * uses.
-@@ -116,7 +143,7 @@
- {
- 	struct memory_block *mem =
- 		container_of(dev, struct memory_block, sysdev);
--	return sprintf(buf, "%08lx\n", mem->phys_index);
-+	return sprintf(buf, "%08lx\n", mem->phys_index / sections_per_block);
- }
+  */
  
- /*
-@@ -125,13 +152,16 @@
- static ssize_t show_mem_removable(struct sys_device *dev,
+-static ssize_t show_mem_phys_index(struct sys_device *dev,
++static ssize_t show_mem_start_phys_index(struct sys_device *dev,
  			struct sysdev_attribute *attr, char *buf)
  {
--	unsigned long start_pfn;
--	int ret;
-+	unsigned long i, pfn;
-+	int ret = 1;
  	struct memory_block *mem =
  		container_of(dev, struct memory_block, sysdev);
- 
--	start_pfn = section_nr_to_pfn(mem->phys_index);
--	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
-+	for (i = 0; i < sections_per_block; i++) {
-+		pfn = section_nr_to_pfn(mem->phys_index + i);
-+		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
-+	}
+-	return sprintf(buf, "%08lx\n", mem->phys_index / sections_per_block);
++	unsigned long phys_index;
 +
- 	return sprintf(buf, "%d\n", ret);
++	phys_index = mem->start_phys_index / sections_per_block;
++	return sprintf(buf, "%08lx\n", phys_index);
++}
++
++static ssize_t show_mem_end_phys_index(struct sys_device *dev,
++			struct sysdev_attribute *attr, char *buf)
++{
++	struct memory_block *mem =
++		container_of(dev, struct memory_block, sysdev);
++	unsigned long phys_index;
++
++	phys_index = mem->end_phys_index / sections_per_block;
++	return sprintf(buf, "%08lx\n", phys_index);
  }
  
-@@ -184,17 +214,14 @@
-  * OK to have direct references to sparsemem variables in here.
-  */
- static int
--memory_block_action(struct memory_block *mem, unsigned long action)
-+memory_section_action(unsigned long phys_index, unsigned long action)
- {
- 	int i;
--	unsigned long psection;
- 	unsigned long start_pfn, start_paddr;
- 	struct page *first_page;
- 	int ret;
--	int old_state = mem->state;
+ /*
+@@ -158,7 +172,7 @@
+ 		container_of(dev, struct memory_block, sysdev);
  
--	psection = mem->phys_index;
--	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
-+	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
- 
- 	/*
- 	 * The probe routines leave the pages reserved, just
-@@ -207,8 +234,8 @@
- 				continue;
- 
- 			printk(KERN_WARNING "section number %ld page number %d "
--				"not reserved, was it already online? \n",
--				psection, i);
-+				"not reserved, was it already online?\n",
-+				phys_index, i);
- 			return -EBUSY;
- 		}
+ 	for (i = 0; i < sections_per_block; i++) {
+-		pfn = section_nr_to_pfn(mem->phys_index + i);
++		pfn = section_nr_to_pfn(mem->start_phys_index + i);
+ 		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
  	}
-@@ -219,18 +246,13 @@
- 			ret = online_pages(start_pfn, PAGES_PER_SECTION);
+ 
+@@ -275,14 +289,15 @@
+ 		mem->state = MEM_GOING_OFFLINE;
+ 
+ 	for (i = 0; i < sections_per_block; i++) {
+-		ret = memory_section_action(mem->phys_index + i, to_state);
++		ret = memory_section_action(mem->start_phys_index + i,
++					    to_state);
+ 		if (ret)
  			break;
- 		case MEM_OFFLINE:
--			mem->state = MEM_GOING_OFFLINE;
- 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
- 			ret = remove_memory(start_paddr,
- 					    PAGES_PER_SECTION << PAGE_SHIFT);
--			if (ret) {
--				mem->state = old_state;
--				break;
--			}
- 			break;
- 		default:
--			WARN(1, KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
--					__func__, mem, action, action);
-+			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-+			     "%ld\n", __func__, phys_index, action, action);
- 			ret = -EINVAL;
  	}
  
-@@ -240,7 +262,8 @@
- static int memory_block_change_state(struct memory_block *mem,
- 		unsigned long to_state, unsigned long from_state_req)
- {
--	int ret = 0;
-+	int i, ret = 0;
-+
- 	mutex_lock(&mem->state_mutex);
+ 	if (ret) {
+ 		for (i = 0; i < sections_per_block; i++)
+-			memory_section_action(mem->phys_index + i,
++			memory_section_action(mem->start_phys_index + i,
+ 					      from_state_req);
  
- 	if (mem->state != from_state_req) {
-@@ -248,8 +271,22 @@
- 		goto out;
- 	}
- 
--	ret = memory_block_action(mem, to_state);
--	if (!ret)
-+	if (to_state == MEM_OFFLINE)
-+		mem->state = MEM_GOING_OFFLINE;
-+
-+	for (i = 0; i < sections_per_block; i++) {
-+		ret = memory_section_action(mem->phys_index + i, to_state);
-+		if (ret)
-+			break;
-+	}
-+
-+	if (ret) {
-+		for (i = 0; i < sections_per_block; i++)
-+			memory_section_action(mem->phys_index + i,
-+					      from_state_req);
-+
-+		mem->state = from_state_req;
-+	} else
- 		mem->state = to_state;
- 
- out:
-@@ -262,20 +299,15 @@
- 		struct sysdev_attribute *attr, const char *buf, size_t count)
- {
- 	struct memory_block *mem;
--	unsigned int phys_section_nr;
- 	int ret = -EINVAL;
- 
- 	mem = container_of(dev, struct memory_block, sysdev);
--	phys_section_nr = mem->phys_index;
--
--	if (!present_section_nr(phys_section_nr))
--		goto out;
- 
- 	if (!strncmp(buf, "online", min((int)count, 6)))
- 		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
- 	else if(!strncmp(buf, "offline", min((int)count, 7)))
- 		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
--out:
-+
- 	if (ret)
- 		return ret;
- 	return count;
-@@ -315,7 +347,7 @@
- print_block_size(struct sysdev_class *class, struct sysdev_class_attribute *attr,
- 		 char *buf)
- {
--	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
-+	return sprintf(buf, "%x\n", get_memory_block_size());
+ 		mem->state = from_state_req;
+@@ -330,7 +345,8 @@
+ 	return sprintf(buf, "%d\n", mem->phys_device);
  }
  
- static SYSDEV_CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
-@@ -451,12 +483,13 @@
- 	struct sys_device *sysdev;
- 	struct memory_block *mem;
- 	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
-+	int block_id = base_memory_block_id(__section_nr(section));
- 
- 	/*
- 	 * This only works because we know that section == sysdev->id
- 	 * slightly redundant with sysdev_register()
- 	 */
--	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
-+	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, block_id);
- 
- 	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
- 	if (!kobj)
-@@ -468,26 +501,27 @@
- 	return mem;
- }
- 
--static int add_memory_block(int nid, struct mem_section *section,
--			unsigned long state, enum mem_add_context context)
-+static int init_memory_block(struct memory_block **memory,
-+			     struct mem_section *section, unsigned long state)
- {
--	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-+	struct memory_block *mem;
- 	unsigned long start_pfn;
-+	int scn_nr;
- 	int ret = 0;
- 
-+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
- 	if (!mem)
+-static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
++static SYSDEV_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
++static SYSDEV_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
+ static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
+ static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
+ static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
+@@ -514,17 +530,21 @@
  		return -ENOMEM;
  
--	mutex_lock(&mem_sysfs_mutex);
--
--	mem->phys_index = __section_nr(section);
-+	scn_nr = __section_nr(section);
-+	mem->phys_index = base_memory_block_id(scn_nr) * sections_per_block;
+ 	scn_nr = __section_nr(section);
+-	mem->phys_index = base_memory_block_id(scn_nr) * sections_per_block;
++	mem->start_phys_index =
++			base_memory_block_id(scn_nr) * sections_per_block;
++	mem->end_phys_index = mem->start_phys_index + sections_per_block - 1;
  	mem->state = state;
  	atomic_inc(&mem->section_count);
  	mutex_init(&mem->state_mutex);
- 	start_pfn = section_nr_to_pfn(mem->phys_index);
+-	start_pfn = section_nr_to_pfn(mem->phys_index);
++	start_pfn = section_nr_to_pfn(mem->start_phys_index);
  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
  
--	ret = register_memory(mem, section);
-+	ret = register_memory(mem);
+ 	ret = register_memory(mem);
  	if (!ret)
  		ret = mem_create_simple_file(mem, phys_index);
  	if (!ret)
-@@ -496,8 +530,29 @@
- 		ret = mem_create_simple_file(mem, phys_device);
++		ret = mem_create_simple_file(mem, end_phys_index);
++	if (!ret)
+ 		ret = mem_create_simple_file(mem, state);
  	if (!ret)
- 		ret = mem_create_simple_file(mem, removable);
-+
-+	*memory = mem;
-+	return ret;
-+}
-+
-+static int add_memory_section(int nid, struct mem_section *section,
-+			unsigned long state, enum mem_add_context context)
-+{
-+	struct memory_block *mem;
-+	int ret = 0;
-+
-+	mutex_lock(&mem_sysfs_mutex);
-+
-+	mem = find_memory_block(section);
-+	if (mem) {
-+		atomic_inc(&mem->section_count);
-+		kobject_put(&mem->sysdev.kobj);
-+	} else
-+		ret = init_memory_block(&mem, section, state);
-+
- 	if (!ret) {
--		if (context == HOTPLUG)
-+		if (context == HOTPLUG &&
-+		    atomic_read(&mem->section_count) == sections_per_block)
- 			ret = register_mem_sect_under_node(mem, nid);
- 	}
- 
-@@ -519,8 +574,10 @@
+ 		ret = mem_create_simple_file(mem, phys_device);
+@@ -571,6 +591,7 @@
+ 	if (atomic_dec_and_test(&mem->section_count)) {
+ 		unregister_mem_sect_under_nodes(mem);
+ 		mem_remove_simple_file(mem, phys_index);
++		mem_remove_simple_file(mem, end_phys_index);
  		mem_remove_simple_file(mem, state);
  		mem_remove_simple_file(mem, phys_device);
  		mem_remove_simple_file(mem, removable);
--		unregister_memory(mem, section);
--	}
-+		unregister_memory(mem);
-+		kfree(mem);
-+	} else
-+		kobject_put(&mem->sysdev.kobj);
+Index: linux-next/include/linux/memory.h
+===================================================================
+--- linux-next.orig/include/linux/memory.h	2010-09-27 13:49:37.000000000 -0500
++++ linux-next/include/linux/memory.h	2010-09-27 13:50:38.000000000 -0500
+@@ -22,7 +22,8 @@
+ #include <asm/atomic.h>
  
- 	mutex_unlock(&mem_sysfs_mutex);
- 	return 0;
-@@ -532,7 +589,7 @@
-  */
- int register_new_memory(int nid, struct mem_section *section)
- {
--	return add_memory_block(nid, section, MEM_OFFLINE, HOTPLUG);
-+	return add_memory_section(nid, section, MEM_OFFLINE, HOTPLUG);
- }
- 
- int unregister_memory_section(struct mem_section *section)
-@@ -551,12 +608,16 @@
- 	unsigned int i;
- 	int ret;
- 	int err;
-+	int block_sz;
- 
- 	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
- 	ret = sysdev_class_register(&memory_sysdev_class);
- 	if (ret)
- 		goto out;
- 
-+	block_sz = get_memory_block_size();
-+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
-+
- 	/*
- 	 * Create entries for memory sections that were found
- 	 * during boot and have been initialized
-@@ -564,8 +625,8 @@
- 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
- 		if (!present_section_nr(i))
- 			continue;
--		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE,
--				       BOOT);
-+		err = add_memory_section(0, __nr_to_section(i), MEM_ONLINE,
-+					 BOOT);
- 		if (!ret)
- 			ret = err;
- 	}
+ struct memory_block {
+-	unsigned long phys_index;
++	unsigned long start_phys_index;
++	unsigned long end_phys_index;
+ 	unsigned long state;
+ 	atomic_t section_count;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
