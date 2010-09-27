@@ -1,88 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BDF76B0047
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 14:49:41 -0400 (EDT)
-Date: Mon, 27 Sep 2010 11:49:11 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: do not print backtraces on GFP_ATOMIC failures
-Message-Id: <20100927114911.bc95ac87.akpm@linux-foundation.org>
-In-Reply-To: <20100927110723.6B37.A69D9226@jp.fujitsu.com>
-References: <20100921094638.9910add0.akpm@linux-foundation.org>
-	<1285088427.2617.723.camel@edumazet-laptop>
-	<20100927110723.6B37.A69D9226@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BF5D66B0047
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:09:47 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8RIsc4m008897
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 14:54:38 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8RJ9e1O124892
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 15:09:40 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8RJ9d70028948
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 16:09:40 -0300
+Message-ID: <4CA0EBEB.1030204@austin.ibm.com>
+Date: Mon, 27 Sep 2010 14:09:31 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory sections
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org
+Cc: Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Sep 2010 11:17:19 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+This set of patches decouples the concept that a single memory
+section corresponds to a single directory in 
+/sys/devices/system/memory/.  On systems
+with large amounts of memory (1+ TB) there are perfomance issues
+related to creating the large number of sysfs directories.  For
+a powerpc machine with 1 TB of memory we are creating 63,000+
+directories.  This is resulting in boot times of around 45-50
+minutes for systems with 1 TB of memory and 8 hours for systems
+with 2 TB of memory.  With this patch set applied I am now seeing
+boot times of 5 minutes or less.
 
-> > > > @@ -72,7 +72,7 @@ struct vm_area_struct;
-> > > >  /* This equals 0, but use constants in case they ever change */
-> > > >  #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
-> > > >  /* GFP_ATOMIC means both !wait (__GFP_WAIT not set) and use emergency pool */
-> > > > -#define GFP_ATOMIC	(__GFP_HIGH)
-> > > > +#define GFP_ATOMIC	(__GFP_HIGH | __GFP_NOWARN)
-> > > >  #define GFP_NOIO	(__GFP_WAIT)
-> > > >  #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
-> > > >  #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
-> > > 
-> > > A much finer-tuned implementation would be to add __GFP_NOWARN just to
-> > > the networking call sites.  I asked about this in June and it got
-> > > nixed:
-> > > 
-> > > http://www.spinics.net/lists/netdev/msg131965.html
-> > > --
-> > 
-> > Yes, I remember this particular report was useful to find and correct a
-> > bug.
-> > 
-> > I dont know what to say.
-> > 
-> > Being silent or verbose, it really depends on the context ?
-> 
-> At least, MM developers don't want to track network allocation failure
-> issue. We don't have enough knowledge in this area. To be honest, We 
-> are unhappy current bad S/N bug report rate ;)
-> 
-> Traditionally, We hoped this warnings help to debug VM issue.
+The root of this issue is in sysfs directory creation. Every time
+a directory is created a string compare is done against all sibling
+directories to ensure we do not create duplicates.  The list of
+directory nodes in sysfs is kept as an unsorted list which results
+in this being an exponentially longer operation as the number of
+directories are created.
 
-Well, no, not really.  I thought that the main reason for having that
-warning was to debug _callers_ of the memory allocator.
+The solution solved by this patch set is to allow a single
+directory in sysfs to span multiple memory sections.  This is
+controlled by an optional architecturally defined function
+memory_block_size_bytes().  The default definition of this
+routine returns a memory block size equal to the memory section
+size. This maintains the current layout of sysfs memory
+directories as it appears to userspace to remain the same as it
+is today.
 
-Firstly it tells us when callsites are being too optimistic: asking for
-large amounts of contiguous pages, sometimes from atomic context. 
-Quite a number of such callsites have been fixed as a result.
+For architectures that define their own version of this routine,
+as is done for powerpc in this patchset, the view in userspace
+would change such that each memoryXXX directory would span
+multiple memory sections.  The number of sections spanned would
+depend on the value reported by memory_block_size_bytes.
 
-Secondly, memory allocation failures are a rare event, so the calling
-code's error paths are not well tested.  This warning turns the bug
-report "hey, my computer locked up" into the much better "hey, I got
-this error message and then my computer locked up".  This allows us to
-go and look at the offending code and see if it is handling ENOMEM
-correctly.  However I don't recall this scenario ever having actually
-happened.
+In both cases a new file 'end_phys_index' is created in each
+memoryXXX directory.  This file will contain the physical id
+of the last memory section covered by the sysfs directory.  For
+the default case, the value in 'end_phys_index' will be the same
+as in the existing 'phys_index' file.
 
-> but
-> It haven't happen. We haven't detect VM issue from this allocation
-> failure report. Instead, We've received a lot of network allocation
-> failure report.
-> 
-> Recently, The S/N ratio became more bad. If the network device enable
-> jumbo frame feature, order-2 GFP_ATOMIC allocation is called frequently.
-> Anybody don't have to assume order-2 allocation can success anytime.
-> 
-> I'm not against accurate warning at all. but I cant tolerate this
-> semi-random warning steal our time. If anyone will not make accurate
-> warning, I hope to remove this one completely instead.
+This version of the patch set includes an update to to properly
+report block_size_bytes, phys_index, and end_phys_index.  Additionally,
+the patch that adds the end_phys_index sysfs file is now patch 5/8
+instead of being patch 2/8 as in the previous version of the patches.
 
-We can disable the warning for only net drivers quite easily.  I don't
-have any strong opinions, really - yes, we get quite a few such bug
-reports but most of them end up in my lap anyway and it can't be more
-than one per week, shrug.
+-Nathan Fontenot
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
