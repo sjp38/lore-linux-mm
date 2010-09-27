@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EA9DF6B0078
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 05:59:10 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R9x6Xt032326
+	by kanga.kvack.org (Postfix) with SMTP id 628D96B0078
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 05:59:18 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R9x891024034
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 27 Sep 2010 18:59:07 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3606345DE61
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:04 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B12745DED2
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:58:28 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E02471DB80D7
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:58:17 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 651CFE38002
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:57:24 +0900 (JST)
-Date: Mon, 27 Sep 2010 18:52:13 +0900
+	Mon, 27 Sep 2010 18:59:09 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9278945DE4D
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 708B445DE6E
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:08 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D4F8EF8006
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:08 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3BE01DB803B
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:07 +0900 (JST)
+Date: Mon, 27 Sep 2010 18:54:00 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 2/4] memcg: make css ID visible at cgroup creation time
-Message-Id: <20100927185213.be22d7b4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 3/4] memcg: reduce size of mem_cgroup by removing
+ per-node info array
+Message-Id: <20100927185400.030ee71a.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
 	<20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
@@ -35,300 +36,286 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, css'id is allocated after ->create() is called. But to make use of ID
-in ->create(), it should be available before ->create().
+Now, memcgroup's per-zone structure is looked up as
 
-In another thinking, considering the ID is tightly coupled with "css",
-it should be allocated when "css" is allocated.
-This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
-memory and blkio are using ID. (To support complicated hierarchy walk.)
+	mem->info.nodeinfo[nid]->zoneinfo[zid]
 
-ID will be used in mem cgroup's ->create(), later.
+1st. This nodeinfo is array of pointers of MAX_NUMNODES size. This makes
+sizeof struct mem_cgroup very large and struct mem_cgroup will be allocated on
+vmalloc() area because the size is larger than PAGE_SIZE.
+(This will never be fixed even when nodehotplug is supported.)
 
-This patch adds css ID documentation which is not provided.
+2nd. Now, page_cgroup->mem_cgroup is an ID. Then, we need 2 level lookup up
+to accesss per-zone structure as
 
-Note:
-If someone changes rules of css allocation, ID allocation should be changed.
+	mem = css_lookup(pc->mem_cgroup);
+	mz = mem->info.nodeinfo[nid]->zoneinfo[zid]
 
-Changelog: 2010/09/01
- - modified cgroups.txt
+This look up seems wasteful. This patch removes mem->info and moves all per-zone
+memcg onto radix-tree. mem_cgroup_per_zone structure can be found by
 
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+	radix_tree_lookup(&memcg_lrus, id_func(memcg, nid, zid)).
+
+This makes memcg small (4440 bytes => 344bytes) and  combine 2 lookup into one.
+
+Following patch will add memory hotplug support.
+
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- Documentation/cgroups/cgroups.txt |   48 ++++++++++++++++++++++++++++++++++++
- block/blk-cgroup.c                |    9 ++++++
- include/linux/cgroup.h            |   16 ++++++------
- kernel/cgroup.c                   |   50 +++++++++++---------------------------
- mm/memcontrol.c                   |    5 +++
- 5 files changed, 86 insertions(+), 42 deletions(-)
+ mm/memcontrol.c |   86 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 57 insertions(+), 29 deletions(-)
 
-Index: mmotm-0922/kernel/cgroup.c
-===================================================================
---- mmotm-0922.orig/kernel/cgroup.c
-+++ mmotm-0922/kernel/cgroup.c
-@@ -288,9 +288,6 @@ struct cg_cgroup_link {
- static struct css_set init_css_set;
- static struct cg_cgroup_link init_css_set_link;
- 
--static int cgroup_init_idr(struct cgroup_subsys *ss,
--			   struct cgroup_subsys_state *css);
--
- /* css_set_lock protects the list of css_set objects, and the
-  * chain of tasks off each css_set.  Nests outside task->alloc_lock
-  * due to cgroup_iter_start() */
-@@ -769,9 +766,6 @@ static struct backing_dev_info cgroup_ba
- 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
- };
- 
--static int alloc_css_id(struct cgroup_subsys *ss,
--			struct cgroup *parent, struct cgroup *child);
--
- static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
- {
- 	struct inode *inode = new_inode(sb);
-@@ -3254,7 +3248,8 @@ static void init_cgroup_css(struct cgrou
- 	css->cgroup = cgrp;
- 	atomic_set(&css->refcnt, 1);
- 	css->flags = 0;
--	css->id = NULL;
-+	if (!ss->use_id)
-+		css->id = NULL;
- 	if (cgrp == dummytop)
- 		set_bit(CSS_ROOT, &css->flags);
- 	BUG_ON(cgrp->subsys[ss->subsys_id]);
-@@ -3339,12 +3334,6 @@ static long cgroup_create(struct cgroup 
- 			goto err_destroy;
- 		}
- 		init_cgroup_css(css, ss, cgrp);
--		if (ss->use_id) {
--			err = alloc_css_id(ss, parent, cgrp);
--			if (err)
--				goto err_destroy;
--		}
--		/* At error, ->destroy() callback has to free assigned ID. */
- 	}
- 
- 	cgroup_lock_hierarchy(root);
-@@ -3706,17 +3695,6 @@ int __init_or_module cgroup_load_subsys(
- 
- 	/* our new subsystem will be attached to the dummy hierarchy. */
- 	init_cgroup_css(css, ss, dummytop);
--	/* init_idr must be after init_cgroup_css because it sets css->id. */
--	if (ss->use_id) {
--		int ret = cgroup_init_idr(ss, css);
--		if (ret) {
--			dummytop->subsys[ss->subsys_id] = NULL;
--			ss->destroy(ss, dummytop);
--			subsys[i] = NULL;
--			mutex_unlock(&cgroup_mutex);
--			return ret;
--		}
--	}
- 
- 	/*
- 	 * Now we need to entangle the css into the existing css_sets. unlike
-@@ -3885,8 +3863,6 @@ int __init cgroup_init(void)
- 		struct cgroup_subsys *ss = subsys[i];
- 		if (!ss->early_init)
- 			cgroup_init_subsys(ss);
--		if (ss->use_id)
--			cgroup_init_idr(ss, init_css_set.subsys[ss->subsys_id]);
- 	}
- 
- 	/* Add init_css_set to the hash table */
-@@ -4600,8 +4576,8 @@ err_out:
- 
- }
- 
--static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
--					    struct cgroup_subsys_state *rootcss)
-+static int cgroup_init_idr(struct cgroup_subsys *ss,
-+			    struct cgroup_subsys_state *rootcss)
- {
- 	struct css_id *newid;
- 
-@@ -4613,21 +4589,25 @@ static int __init_or_module cgroup_init_
- 		return PTR_ERR(newid);
- 
- 	newid->stack[0] = newid->id;
--	newid->css = rootcss;
--	rootcss->id = newid;
-+	rcu_assign_pointer(newid->css, rootcss);
-+	rcu_assign_pointer(rootcss->id, newid);
- 	return 0;
- }
- 
--static int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *parent,
--			struct cgroup *child)
-+int alloc_css_id(struct cgroup_subsys *ss,
-+	struct cgroup *cgrp, struct cgroup_subsys_state *css)
- {
- 	int subsys_id, i, depth = 0;
--	struct cgroup_subsys_state *parent_css, *child_css;
-+	struct cgroup_subsys_state *parent_css;
-+	struct cgroup *parent;
- 	struct css_id *child_id, *parent_id;
- 
-+	if (cgrp == dummytop)
-+		return cgroup_init_idr(ss, css);
-+
-+	parent = cgrp->parent;
- 	subsys_id = ss->subsys_id;
- 	parent_css = parent->subsys[subsys_id];
--	child_css = child->subsys[subsys_id];
- 	parent_id = parent_css->id;
- 	depth = parent_id->depth + 1;
- 
-@@ -4642,7 +4622,7 @@ static int alloc_css_id(struct cgroup_su
- 	 * child_id->css pointer will be set after this cgroup is available
- 	 * see cgroup_populate_dir()
- 	 */
--	rcu_assign_pointer(child_css->id, child_id);
-+	rcu_assign_pointer(css->id, child_id);
- 
- 	return 0;
- }
-Index: mmotm-0922/include/linux/cgroup.h
-===================================================================
---- mmotm-0922.orig/include/linux/cgroup.h
-+++ mmotm-0922/include/linux/cgroup.h
-@@ -588,9 +588,11 @@ static inline int cgroup_attach_task_cur
- /*
-  * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
-  * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
-- * CSS ID is assigned at cgroup allocation (create) automatically
-- * and removed when subsys calls free_css_id() function. This is because
-- * the lifetime of cgroup_subsys_state is subsys's matter.
-+ * CSS ID must be assigned by subsys itself at cgroup creation and deleted
-+ * when subsys calls free_css_id() function. This is because the life time of
-+ * of cgroup_subsys_state is subsys's matter.
-+ *
-+ * ID->css look up is available after cgroup's directory is populated.
-  *
-  * Looking up and scanning function should be called under rcu_read_lock().
-  * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
-@@ -598,10 +600,10 @@ static inline int cgroup_attach_task_cur
-  * destroyed". The caller should check css and cgroup's status.
-  */
- 
--/*
-- * Typically Called at ->destroy(), or somewhere the subsys frees
-- * cgroup_subsys_state.
-- */
-+/* Should be called in ->create() by subsys itself */
-+int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *newgr,
-+		struct cgroup_subsys_state *css);
-+/* Typically Called at ->destroy(), or somewhere the subsys frees css */
- void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
- 
- /* Find a cgroup_subsys_state which has given ID */
 Index: mmotm-0922/mm/memcontrol.c
 ===================================================================
 --- mmotm-0922.orig/mm/memcontrol.c
 +++ mmotm-0922/mm/memcontrol.c
-@@ -4347,6 +4347,11 @@ mem_cgroup_create(struct cgroup_subsys *
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
- 			goto free_out;
+@@ -122,13 +122,16 @@ struct mem_cgroup_per_zone {
+ /* Macro for accessing counter */
+ #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+ 
+-struct mem_cgroup_per_node {
+-	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
+-};
++RADIX_TREE(memcg_lrus, GFP_KERNEL);
++DEFINE_SPINLOCK(memcg_lrutable_lock);
+ 
+-struct mem_cgroup_lru_info {
+-	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+-};
++static inline long node_zone_idx(int memcg, int node, int zone) {
++	unsigned long id;
++
++	id = ((node) << ZONES_SHIFT | (zone)) << 16;
++	id |= memcg;
++	return id;
++}
+ 
+ /*
+  * Cgroups above their limits are maintained in a RB-Tree, independent of
+@@ -206,11 +209,6 @@ struct mem_cgroup {
+ 	 * the counter to account for mem+swap usage.
+ 	 */
+ 	struct res_counter memsw;
+-	/*
+-	 * Per cgroup active and inactive list, similar to the
+-	 * per zone LRU lists.
+-	 */
+-	struct mem_cgroup_lru_info info;
+ 
+ 	/*
+ 	  protect against reclaim related member.
+@@ -388,9 +386,14 @@ static struct mem_cgroup *memcg_lookup(u
+ }
+ 
+ static struct mem_cgroup_per_zone *
+-mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
++mem_cgroup_zoneinfo(int memcgid, int nid, int zid)
+ {
+-	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
++	struct mem_cgroup_per_zone *mz;
++
++	rcu_read_lock();
++	mz = radix_tree_lookup(&memcg_lrus, node_zone_idx(memcgid, nid, zid));
++	rcu_read_unlock();
++	return mz;
+ }
+ 
+ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
+@@ -401,14 +404,13 @@ struct cgroup_subsys_state *mem_cgroup_c
+ static struct mem_cgroup_per_zone *
+ page_cgroup_zoneinfo(struct page_cgroup *pc)
+ {
+-	struct mem_cgroup *mem = memcg_lookup(pc->mem_cgroup);
+ 	int nid = page_cgroup_nid(pc);
+ 	int zid = page_cgroup_zid(pc);
+ 
+-	if (!mem)
++	if (!pc->mem_cgroup)
+ 		return NULL;
+ 
+-	return mem_cgroup_zoneinfo(mem, nid, zid);
++	return mem_cgroup_zoneinfo(pc->mem_cgroup, nid, zid);
+ }
+ 
+ static struct mem_cgroup_tree_per_zone *
+@@ -496,7 +498,7 @@ static void mem_cgroup_update_tree(struc
+ 	 * because their event counter is not touched.
+ 	 */
+ 	for (; mem; mem = parent_mem_cgroup(mem)) {
+-		mz = mem_cgroup_zoneinfo(mem, nid, zid);
++		mz = mem_cgroup_zoneinfo(css_id(&mem->css), nid, zid);
+ 		excess = res_counter_soft_limit_excess(&mem->res);
+ 		/*
+ 		 * We have to update the tree if mz is on RB-tree or
+@@ -525,7 +527,7 @@ static void mem_cgroup_remove_from_trees
+ 
+ 	for_each_node_state(node, N_POSSIBLE) {
+ 		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+-			mz = mem_cgroup_zoneinfo(mem, node, zone);
++			mz = mem_cgroup_zoneinfo(css_id(&mem->css), node, zone);
+ 			mctz = soft_limit_tree_node_zone(node, zone);
+ 			mem_cgroup_remove_exceeded(mem, mz, mctz);
+ 		}
+@@ -658,7 +660,7 @@ static unsigned long mem_cgroup_get_loca
+ 
+ 	for_each_online_node(nid)
+ 		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+-			mz = mem_cgroup_zoneinfo(mem, nid, zid);
++			mz = mem_cgroup_zoneinfo(css_id(&mem->css), nid, zid);
+ 			total += MEM_CGROUP_ZSTAT(mz, idx);
+ 		}
+ 	return total;
+@@ -1039,7 +1041,9 @@ unsigned long mem_cgroup_zone_nr_pages(s
+ {
+ 	int nid = zone_to_nid(zone);
+ 	int zid = zone_idx(zone);
+-	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
++	struct mem_cgroup_per_zone *mz;
++
++	mz = mem_cgroup_zoneinfo(css_id(&memcg->css), nid, zid);
+ 
+ 	return MEM_CGROUP_ZSTAT(mz, lru);
+ }
+@@ -1049,7 +1053,9 @@ struct zone_reclaim_stat *mem_cgroup_get
+ {
+ 	int nid = zone_to_nid(zone);
+ 	int zid = zone_idx(zone);
+-	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
++	struct mem_cgroup_per_zone *mz;
++
++	mz = mem_cgroup_zoneinfo(css_id(&memcg->css), nid, zid);
+ 
+ 	return &mz->reclaim_stat;
+ }
+@@ -1099,7 +1105,7 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	int ret;
+ 
+ 	BUG_ON(!mem_cont);
+-	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
++	mz = mem_cgroup_zoneinfo(css_id(&mem_cont->css), nid, zid);
+ 	src = &mz->lists[lru];
+ 
+ 	scan = 0;
+@@ -3179,7 +3185,7 @@ static int mem_cgroup_force_empty_list(s
+ 	int ret = 0;
+ 
+ 	zone = &NODE_DATA(node)->node_zones[zid];
+-	mz = mem_cgroup_zoneinfo(mem, node, zid);
++	mz = mem_cgroup_zoneinfo(css_id(&mem->css), node, zid);
+ 	list = &mz->lists[lru];
+ 
+ 	loop = MEM_CGROUP_ZSTAT(mz, lru);
+@@ -3676,7 +3682,8 @@ static int mem_control_stat_show(struct 
+ 
+ 		for_each_online_node(nid)
+ 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+-				mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
++				mz = mem_cgroup_zoneinfo(
++					css_id(&mem_cont->css), nid, zid);
+ 
+ 				recent_rotated[0] +=
+ 					mz->reclaim_stat.recent_rotated[0];
+@@ -4173,10 +4180,9 @@ static int register_memsw_files(struct c
+ 
+ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+ {
+-	struct mem_cgroup_per_node *pn;
+ 	struct mem_cgroup_per_zone *mz;
+ 	enum lru_list l;
+-	int zone, tmp = node;
++	int id, zone, ret, tmp = node;
+ 	/*
+ 	 * This routine is called against possible nodes.
+ 	 * But it's BUG to call kmalloc() against offline node.
+@@ -4187,27 +4193,51 @@ static int alloc_mem_cgroup_per_zone_inf
+ 	 */
+ 	if (!node_state(node, N_NORMAL_MEMORY))
+ 		tmp = -1;
+-	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
+-	if (!pn)
+-		return 1;
+-
+-	mem->info.nodeinfo[node] = pn;
+-	memset(pn, 0, sizeof(*pn));
+-
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+-		mz = &pn->zoneinfo[zone];
++		mz = kzalloc_node(sizeof(struct mem_cgroup_per_zone),
++					GFP_KERNEL, tmp);
++		if (!mz)
++			break;
++		radix_tree_preload(GFP_KERNEL);
++		spin_lock_irq(&memcg_lrutable_lock);
++		id = node_zone_idx(css_id(&mem->css), node, zone);
++		ret = radix_tree_insert(&memcg_lrus, id, mz);
++		spin_unlock_irq(&memcg_lrutable_lock);
++		if (ret)
++			break;
+ 		for_each_lru(l)
+ 			INIT_LIST_HEAD(&mz->lists[l]);
+-		mz->usage_in_excess = 0;
+ 		mz->on_tree = false;
+ 		mz->mem = mem;
+ 	}
+-	return 0;
++	
++	if (zone == MAX_NR_ZONES)
++		return 0;
++
++	for (; zone >= 0; zone--) {
++		id = node_zone_idx(css_id(&mem->css), node, zone);
++		spin_lock_irq(&memcg_lrutable_lock);
++		mz = radix_tree_delete(&memcg_lrus, id);
++		spin_unlock_irq(&memcg_lrutable_lock);
++		kfree(mz);
++	}
++
++	return 1;
+ }
+ 
+ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+ {
+-	kfree(mem->info.nodeinfo[node]);
++	int id, zone;
++	struct mem_cgroup_per_zone *mz;
++	unsigned long flags;
++
++	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
++		id = node_zone_idx(css_id(&mem->css), node, zone);
++		spin_lock_irqsave(&memcg_lrutable_lock, flags);
++		mz = radix_tree_delete(&memcg_lrus, id);
++		spin_unlock_irqrestore(&memcg_lrutable_lock, flags);
++		kfree(mz);
++	}
+ }
+ 
+ static struct mem_cgroup *mem_cgroup_alloc(void)
+@@ -4234,6 +4264,7 @@ static struct mem_cgroup *mem_cgroup_all
+ 		mem = NULL;
+ 	}
+ 	spin_lock_init(&mem->pcp_counter_lock);
++
+ 	return mem;
+ }
+ 
+@@ -4343,13 +4374,14 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	if (!mem)
+ 		return ERR_PTR(error);
  
 +	error = alloc_css_id(ss, cont, &mem->css);
 +	if (error)
 +		goto free_out;
-+	/* Here, css_id(&mem->css) works. but css_lookup(id)->mem doesn't */
 +
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+ 			goto free_out;
+ 
+-	error = alloc_css_id(ss, cont, &mem->css);
+-	if (error)
+-		goto free_out;
+ 	/* Here, css_id(&mem->css) works. but css_lookup(id)->mem doesn't */
+ 
  	/* root ? */
- 	if (cont->parent == NULL) {
- 		int cpu;
-Index: mmotm-0922/block/blk-cgroup.c
-===================================================================
---- mmotm-0922.orig/block/blk-cgroup.c
-+++ mmotm-0922/block/blk-cgroup.c
-@@ -1434,9 +1434,13 @@ blkiocg_create(struct cgroup_subsys *sub
- {
- 	struct blkio_cgroup *blkcg;
- 	struct cgroup *parent = cgroup->parent;
-+	int ret;
- 
- 	if (!parent) {
- 		blkcg = &blkio_root_cgroup;
-+		ret = alloc_css_id(subsys, cgroup, &blkcg->css);
-+		if (ret)
-+			return ERR_PTR(ret);
- 		goto done;
- 	}
- 
-@@ -1447,6 +1451,11 @@ blkiocg_create(struct cgroup_subsys *sub
- 	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
- 	if (!blkcg)
- 		return ERR_PTR(-ENOMEM);
-+	ret = alloc_css_id(subsys, cgroup, &blkcg->css);
-+	if (ret) {
-+		kfree(blkcg);
-+		return ERR_PTR(ret);
-+	}
- 
- 	blkcg->weight = BLKIO_WEIGHT_DEFAULT;
- done:
-Index: mmotm-0922/Documentation/cgroups/cgroups.txt
-===================================================================
---- mmotm-0922.orig/Documentation/cgroups/cgroups.txt
-+++ mmotm-0922/Documentation/cgroups/cgroups.txt
-@@ -621,6 +621,54 @@ and root cgroup. Currently this will onl
- the default hierarchy (which never has sub-cgroups) and a hierarchy
- that is being created/destroyed (and hence has no sub-cgroups).
- 
-+3.4 cgroup subsys state IDs.
-+------------
-+When subsystem sets use_id == true, an ID per [cgroup, subsys] is added
-+and it will be tied to cgroup_subsys_state object.
-+
-+When use_id==true can use following interfaces. But please note that
-+allocation/free an ID is subsystem's job because cgroup_subsys_state
-+object's lifetime is subsystem's matter.
-+
-+unsigned short css_id(struct cgroup_subsys_state *css)
-+
-+Returns ID of cgroup_subsys_state
-+
-+unsigend short css_depth(struct cgroup_subsys_state *css)
-+
-+Returns the level which "css" is exisiting under hierarchy tree.
-+The root cgroup's depth 0, its children are 1, children's children are
-+2....
-+
-+int alloc_css_id(struct struct cgroup_subsys *ss, struct cgroup *newgr,
-+                struct cgroup_subsys_state *css);
-+
-+Attach an new ID to given css under subsystem ([ss, cgroup])
-+should be called in ->create() callback.
-+
-+void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
-+
-+Free ID attached to "css" under subsystem. Should be called before
-+"css" is freed.
-+
-+struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
-+
-+Look up cgroup_subsys_state via ID. Should be called under rcu_read_lock().
-+
-+struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
-+                struct cgroup_subsys_state *root, int *foundid);
-+
-+Returns ID which is under "root" i.e. under sub-directory of "root"
-+cgroup's directory at considering cgroup hierarchy. The order of IDs
-+returned by this function is not sorted. Please be careful.
-+
-+bool css_is_ancestor(struct cgroup_subsys_state *cg,
-+                     const struct cgroup_subsys_state *root);
-+
-+Returns true if "root" and "cs" is under the same hierarchy and
-+"root" can be found when you see all ->parent from "cs" until
-+the root cgroup.
-+
- 4. Questions
- ============
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
