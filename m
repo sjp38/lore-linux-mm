@@ -1,160 +1,334 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4402E6B0078
-	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 05:55:48 -0400 (EDT)
-Date: Mon, 27 Sep 2010 05:55:19 -0400 (EDT)
-From: caiqian@redhat.com
-Message-ID: <986278020.2030861285581319128.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-In-Reply-To: <1345860830.2030761285581270894.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
-Subject: Re: [PATCH 0/3] Generic support for revoking mappings
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id EA9DF6B0078
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 05:59:10 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8R9x6Xt032326
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 27 Sep 2010 18:59:07 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3606345DE61
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:59:04 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B12745DED2
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:58:28 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E02471DB80D7
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:58:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 651CFE38002
+	for <linux-mm@kvack.org>; Mon, 27 Sep 2010 18:57:24 +0900 (JST)
+Date: Mon, 27 Sep 2010 18:52:13 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/4] memcg: make css ID visible at cgroup creation time
+Message-Id: <20100927185213.be22d7b4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20100924181302.7d764e0d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20100927184821.f4bf2b2c.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, =?utf-8?Q?Am=C3=A9rico_Wang?= <xiyou.wangcong@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
------ caiqian@redhat.com wrote:
+Now, css'id is allocated after ->create() is called. But to make use of ID
+in ->create(), it should be available before ->create().
 
-> ----- "Am=C3=A9rico Wang" <xiyou.wangcong@gmail.com> wrote:
->=20
-> > On Mon, Sep 27, 2010 at 04:52:29AM -0400, CAI Qian wrote:
-> > >Just a head up. Tried to boot latest mmotm kernel with those
-> patches
-> > applied hit this. I am wondering what I did wrong.
-The only tricky part of the merge I can tell was for Andrea's commit,
+In another thinking, considering the ID is tightly coupled with "css",
+it should be allocated when "css" is allocated.
+This patch moves alloc_css_id() to css allocation routine. Now, only 2 subsys,
+memory and blkio are using ID. (To support complicated hierarchy walk.)
 
-commit a30452568c9dc7635ab09402b494de6d0cf9a60e
-Author: Andrea Arcangeli <aarcange@redhat.com>
-Date:   Thu Sep 23 01:07:59 2010 +0200
+ID will be used in mem cgroup's ->create(), later.
 
-    If __split_vma fails because of an out of memory condition the
-    anon_vma_chain isn't teardown and freed potentially leading to rmap wal=
-ks
-    accessing freed vma information plus there's a memleak.
-   =20
-    Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-    Acked-by: Johannes Weiner <jweiner@redhat.com>
-    Acked-by: Rik van Riel <riel@redhat.com>
-    Acked-by: Hugh Dickins <hughd@google.com>
-    Cc: Marcelo Tosatti <mtosatti@redhat.com>
-    Cc: <stable@kernel.org>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+This patch adds css ID documentation which is not provided.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 6128dc8..00161a4 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2009,6 +2009,7 @@ static int __split_vma(struct mm_struct * mm, struct =
-vm_area_struct * vma,
-                        removed_exe_file_vma(mm);
-                fput(new->vm_file);
-        }
-+       unlink_anon_vmas(new);
-  out_free_mpol:
-        mpol_put(pol);
-  out_free_vma:
+Note:
+If someone changes rules of css allocation, ID allocation should be changed.
 
-It became this after manually merged them,
+Changelog: 2010/09/01
+ - modified cgroups.txt
 
-@@ -2002,20 +2006,15 @@ static int __split_vma(struct mm_struct * mm, struc=
-t vm_area_struct * vma,
-                return 0;
-=20
-        /* Clean everything up if vma_adjust failed. */
--       if (new->vm_ops && new->vm_ops->close)
--               new->vm_ops->close(new);
--       if (new->vm_file) {
--               if (vma->vm_flags & VM_EXECUTABLE)
--                       removed_exe_file_vma(mm);
--               fput(new->vm_file);
--       }
-        unlink_anon_vmas(new);
-+       remove_vma(new);
-+ out_err:
-+       return err;
-  out_free_mpol:
-        mpol_put(pol);
-  out_free_vma:
-        kmem_cache_free(vm_area_cachep, new);
-- out_err:
--       return err;
-+       goto out_err;
+Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ Documentation/cgroups/cgroups.txt |   48 ++++++++++++++++++++++++++++++++++++
+ block/blk-cgroup.c                |    9 ++++++
+ include/linux/cgroup.h            |   16 ++++++------
+ kernel/cgroup.c                   |   50 +++++++++++---------------------------
+ mm/memcontrol.c                   |    5 +++
+ 5 files changed, 86 insertions(+), 42 deletions(-)
+
+Index: mmotm-0922/kernel/cgroup.c
+===================================================================
+--- mmotm-0922.orig/kernel/cgroup.c
++++ mmotm-0922/kernel/cgroup.c
+@@ -288,9 +288,6 @@ struct cg_cgroup_link {
+ static struct css_set init_css_set;
+ static struct cg_cgroup_link init_css_set_link;
+ 
+-static int cgroup_init_idr(struct cgroup_subsys *ss,
+-			   struct cgroup_subsys_state *css);
+-
+ /* css_set_lock protects the list of css_set objects, and the
+  * chain of tasks off each css_set.  Nests outside task->alloc_lock
+  * due to cgroup_iter_start() */
+@@ -769,9 +766,6 @@ static struct backing_dev_info cgroup_ba
+ 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
+ };
+ 
+-static int alloc_css_id(struct cgroup_subsys *ss,
+-			struct cgroup *parent, struct cgroup *child);
+-
+ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+ {
+ 	struct inode *inode = new_inode(sb);
+@@ -3254,7 +3248,8 @@ static void init_cgroup_css(struct cgrou
+ 	css->cgroup = cgrp;
+ 	atomic_set(&css->refcnt, 1);
+ 	css->flags = 0;
+-	css->id = NULL;
++	if (!ss->use_id)
++		css->id = NULL;
+ 	if (cgrp == dummytop)
+ 		set_bit(CSS_ROOT, &css->flags);
+ 	BUG_ON(cgrp->subsys[ss->subsys_id]);
+@@ -3339,12 +3334,6 @@ static long cgroup_create(struct cgroup 
+ 			goto err_destroy;
+ 		}
+ 		init_cgroup_css(css, ss, cgrp);
+-		if (ss->use_id) {
+-			err = alloc_css_id(ss, parent, cgrp);
+-			if (err)
+-				goto err_destroy;
+-		}
+-		/* At error, ->destroy() callback has to free assigned ID. */
+ 	}
+ 
+ 	cgroup_lock_hierarchy(root);
+@@ -3706,17 +3695,6 @@ int __init_or_module cgroup_load_subsys(
+ 
+ 	/* our new subsystem will be attached to the dummy hierarchy. */
+ 	init_cgroup_css(css, ss, dummytop);
+-	/* init_idr must be after init_cgroup_css because it sets css->id. */
+-	if (ss->use_id) {
+-		int ret = cgroup_init_idr(ss, css);
+-		if (ret) {
+-			dummytop->subsys[ss->subsys_id] = NULL;
+-			ss->destroy(ss, dummytop);
+-			subsys[i] = NULL;
+-			mutex_unlock(&cgroup_mutex);
+-			return ret;
+-		}
+-	}
+ 
+ 	/*
+ 	 * Now we need to entangle the css into the existing css_sets. unlike
+@@ -3885,8 +3863,6 @@ int __init cgroup_init(void)
+ 		struct cgroup_subsys *ss = subsys[i];
+ 		if (!ss->early_init)
+ 			cgroup_init_subsys(ss);
+-		if (ss->use_id)
+-			cgroup_init_idr(ss, init_css_set.subsys[ss->subsys_id]);
+ 	}
+ 
+ 	/* Add init_css_set to the hash table */
+@@ -4600,8 +4576,8 @@ err_out:
+ 
  }
-=20
+ 
+-static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
+-					    struct cgroup_subsys_state *rootcss)
++static int cgroup_init_idr(struct cgroup_subsys *ss,
++			    struct cgroup_subsys_state *rootcss)
+ {
+ 	struct css_id *newid;
+ 
+@@ -4613,21 +4589,25 @@ static int __init_or_module cgroup_init_
+ 		return PTR_ERR(newid);
+ 
+ 	newid->stack[0] = newid->id;
+-	newid->css = rootcss;
+-	rootcss->id = newid;
++	rcu_assign_pointer(newid->css, rootcss);
++	rcu_assign_pointer(rootcss->id, newid);
+ 	return 0;
+ }
+ 
+-static int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *parent,
+-			struct cgroup *child)
++int alloc_css_id(struct cgroup_subsys *ss,
++	struct cgroup *cgrp, struct cgroup_subsys_state *css)
+ {
+ 	int subsys_id, i, depth = 0;
+-	struct cgroup_subsys_state *parent_css, *child_css;
++	struct cgroup_subsys_state *parent_css;
++	struct cgroup *parent;
+ 	struct css_id *child_id, *parent_id;
+ 
++	if (cgrp == dummytop)
++		return cgroup_init_idr(ss, css);
++
++	parent = cgrp->parent;
+ 	subsys_id = ss->subsys_id;
+ 	parent_css = parent->subsys[subsys_id];
+-	child_css = child->subsys[subsys_id];
+ 	parent_id = parent_css->id;
+ 	depth = parent_id->depth + 1;
+ 
+@@ -4642,7 +4622,7 @@ static int alloc_css_id(struct cgroup_su
+ 	 * child_id->css pointer will be set after this cgroup is available
+ 	 * see cgroup_populate_dir()
+ 	 */
+-	rcu_assign_pointer(child_css->id, child_id);
++	rcu_assign_pointer(css->id, child_id);
+ 
+ 	return 0;
+ }
+Index: mmotm-0922/include/linux/cgroup.h
+===================================================================
+--- mmotm-0922.orig/include/linux/cgroup.h
++++ mmotm-0922/include/linux/cgroup.h
+@@ -588,9 +588,11 @@ static inline int cgroup_attach_task_cur
  /*
-
-
-> > >
-> >=20
-> > You missed the header of this oops/warning/bug, is that a BUG_ON or
-> > WARN_ON or other thing?
-> Oh, sorry. Here it is,
-> BUG: unable to handle kernel paging request at ffffffffffffffc0
-> IP: [<ffffffff811d4c78>] prio_tree_insert+0x188/0x2a0
-> PGD 1827067 PUD 1828067 PMD 0=20
-> Oops: 0000 [#1] SMP=20
-> last sysfs file:=20
-> CPU 5=20
->=20
-> >=20
-> >=20
-> > >Pid: 1, comm: init Not tainted 2.6.36-rc5-mm1+ #2 /KVM
-> > >RIP: 0010:[<ffffffff811d4c78>]  [<ffffffff811d4c78>]
-> > prio_tree_insert+0x188/0x2a0
-> > >RSP: 0018:ffff880c3b1bfcd8  EFLAGS: 00010202
-> > >RAX: ffff880c374b40d8 RBX: 0000000000000100 RCX: ffff880c374b40d8
-> > >RDX: 0000000000000179 RSI: 0000000000000000 RDI: 0000000000000179
-> > >RBP: ffff880c9f4ba188 R08: 0000000000000001 R09: ffff880c374b9330
-> > >R10: 0000000000000001 R11: 0000000000000002 R12: ffff880c374b40d8
-> > >R13: 00000007fa7367ba R14: 00000007fa7367be R15: 0000000000000000
-> > >FS:  00007fa7369d9700(0000) GS:ffff8800df540000(0000)
-> > knlGS:0000000000000000
-> > >CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > >CR2: ffffffffffffffc0 CR3: 0000000c374b1000 CR4: 00000000000006e0
-> > >DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> > >DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> > >Process init (pid: 1, threadinfo ffff880c3b1be000, task
-> > ffff880c3b1bd400)
-> > >Stack:
-> > > ffff880c3b1bd400 ffff880c374b4088 ffff880c374b40d8
-> ffff880c374b4088
-> > ><0> ffff880c9f4ba168 ffff880c9f4ba188 ffff880c374b3680
-> > ffffffff810daff8
-> > ><0> 0000000000000002 ffff880c374b41f8 ffff880c374b42b0
-> > ffffffff810e9171
-> > >Call Trace:
-> > > [<ffffffff810daff8>] ? vma_prio_tree_insert+0x28/0x120
-> > > [<ffffffff810e9171>] ? vma_adjust+0xe1/0x560
-> > > [<ffffffff8119715b>] ? avc_has_perm+0x6b/0xa0
-> > > [<ffffffff810e97b9>] ? __split_vma+0x1c9/0x250
-> > > [<ffffffff810ebf88>] ? mprotect_fixup+0x708/0x7b0
-> > > [<ffffffff810e4aca>] ? handle_mm_fault+0x1da/0xcf0
-> > > [<ffffffff81033910>] ? pvclock_clocksource_read+0x50/0xc0
-> > > [<ffffffff81047220>] ? __dequeue_entity+0x40/0x50
-> > > [<ffffffff81198a31>] ? file_has_perm+0xf1/0x100
-> > > [<ffffffff810ec1b2>] ? sys_mprotect+0x182/0x250
-> > > [<ffffffff8100aec2>] ? system_call_fastpath+0x16/0x1b
-> > >Code: 56 20 e9 d4 fe ff ff bb 01 00 00 00 48 d3 e3 48 85 db 0f 84
-> 08
-> > 01 00 00 45 31 ff 66 45 85 c0 4c 89 e1 74 78 0f 1f 80 00 00 00 00
-> <48>
-> > 8b 46 c0 48 2b 46 b8 4c 8b 6e 40 48 c1 e8 0c 4c 39 ef 4d 8d=20
-> > >RIP  [<ffffffff811d4c78>] prio_tree_insert+0x188/0x2a0
-> > > RSP <ffff880c3b1bfcd8>
-> > >CR2: ffffffffffffffc0
-> > >---[ end trace 667258bb79b38e02 ]---
-> > >
-> >=20
-> > Looks like something wrong in page fault.
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+  * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
+  * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
+- * CSS ID is assigned at cgroup allocation (create) automatically
+- * and removed when subsys calls free_css_id() function. This is because
+- * the lifetime of cgroup_subsys_state is subsys's matter.
++ * CSS ID must be assigned by subsys itself at cgroup creation and deleted
++ * when subsys calls free_css_id() function. This is because the life time of
++ * of cgroup_subsys_state is subsys's matter.
++ *
++ * ID->css look up is available after cgroup's directory is populated.
+  *
+  * Looking up and scanning function should be called under rcu_read_lock().
+  * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+@@ -598,10 +600,10 @@ static inline int cgroup_attach_task_cur
+  * destroyed". The caller should check css and cgroup's status.
+  */
+ 
+-/*
+- * Typically Called at ->destroy(), or somewhere the subsys frees
+- * cgroup_subsys_state.
+- */
++/* Should be called in ->create() by subsys itself */
++int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *newgr,
++		struct cgroup_subsys_state *css);
++/* Typically Called at ->destroy(), or somewhere the subsys frees css */
+ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
+ 
+ /* Find a cgroup_subsys_state which has given ID */
+Index: mmotm-0922/mm/memcontrol.c
+===================================================================
+--- mmotm-0922.orig/mm/memcontrol.c
++++ mmotm-0922/mm/memcontrol.c
+@@ -4347,6 +4347,11 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+ 			goto free_out;
+ 
++	error = alloc_css_id(ss, cont, &mem->css);
++	if (error)
++		goto free_out;
++	/* Here, css_id(&mem->css) works. but css_lookup(id)->mem doesn't */
++
+ 	/* root ? */
+ 	if (cont->parent == NULL) {
+ 		int cpu;
+Index: mmotm-0922/block/blk-cgroup.c
+===================================================================
+--- mmotm-0922.orig/block/blk-cgroup.c
++++ mmotm-0922/block/blk-cgroup.c
+@@ -1434,9 +1434,13 @@ blkiocg_create(struct cgroup_subsys *sub
+ {
+ 	struct blkio_cgroup *blkcg;
+ 	struct cgroup *parent = cgroup->parent;
++	int ret;
+ 
+ 	if (!parent) {
+ 		blkcg = &blkio_root_cgroup;
++		ret = alloc_css_id(subsys, cgroup, &blkcg->css);
++		if (ret)
++			return ERR_PTR(ret);
+ 		goto done;
+ 	}
+ 
+@@ -1447,6 +1451,11 @@ blkiocg_create(struct cgroup_subsys *sub
+ 	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
+ 	if (!blkcg)
+ 		return ERR_PTR(-ENOMEM);
++	ret = alloc_css_id(subsys, cgroup, &blkcg->css);
++	if (ret) {
++		kfree(blkcg);
++		return ERR_PTR(ret);
++	}
+ 
+ 	blkcg->weight = BLKIO_WEIGHT_DEFAULT;
+ done:
+Index: mmotm-0922/Documentation/cgroups/cgroups.txt
+===================================================================
+--- mmotm-0922.orig/Documentation/cgroups/cgroups.txt
++++ mmotm-0922/Documentation/cgroups/cgroups.txt
+@@ -621,6 +621,54 @@ and root cgroup. Currently this will onl
+ the default hierarchy (which never has sub-cgroups) and a hierarchy
+ that is being created/destroyed (and hence has no sub-cgroups).
+ 
++3.4 cgroup subsys state IDs.
++------------
++When subsystem sets use_id == true, an ID per [cgroup, subsys] is added
++and it will be tied to cgroup_subsys_state object.
++
++When use_id==true can use following interfaces. But please note that
++allocation/free an ID is subsystem's job because cgroup_subsys_state
++object's lifetime is subsystem's matter.
++
++unsigned short css_id(struct cgroup_subsys_state *css)
++
++Returns ID of cgroup_subsys_state
++
++unsigend short css_depth(struct cgroup_subsys_state *css)
++
++Returns the level which "css" is exisiting under hierarchy tree.
++The root cgroup's depth 0, its children are 1, children's children are
++2....
++
++int alloc_css_id(struct struct cgroup_subsys *ss, struct cgroup *newgr,
++                struct cgroup_subsys_state *css);
++
++Attach an new ID to given css under subsystem ([ss, cgroup])
++should be called in ->create() callback.
++
++void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
++
++Free ID attached to "css" under subsystem. Should be called before
++"css" is freed.
++
++struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
++
++Look up cgroup_subsys_state via ID. Should be called under rcu_read_lock().
++
++struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
++                struct cgroup_subsys_state *root, int *foundid);
++
++Returns ID which is under "root" i.e. under sub-directory of "root"
++cgroup's directory at considering cgroup hierarchy. The order of IDs
++returned by this function is not sorted. Please be careful.
++
++bool css_is_ancestor(struct cgroup_subsys_state *cg,
++                     const struct cgroup_subsys_state *root);
++
++Returns true if "root" and "cs" is under the same hierarchy and
++"root" can be found when you see all ->parent from "cs" until
++the root cgroup.
++
+ 4. Questions
+ ============
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
