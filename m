@@ -1,84 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3663E6B004A
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 09:11:00 -0400 (EDT)
-Message-Id: <20100928131057.767067382@linux.com>
-Date: Tue, 28 Sep 2010 08:10:28 -0500
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1959C6B004A
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 09:11:01 -0400 (EDT)
+Message-Id: <20100928131057.084357922@linux.com>
+Date: Tue, 28 Sep 2010 08:10:27 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup5 3/3] slub: extract common code to remove objects from partial list without locking
+Subject: [Slub cleanup5 2/3] SLUB: Pass active and inactive redzone flags instead of boolean to debug functions
 References: <20100928131025.319846721@linux.com>
-Content-Disposition: inline; filename=cleanup_remove_partial
+Content-Disposition: inline; filename=change_debug
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-There are a couple of places where repeat the same statements when removing
-a page from the partial list. Consolidate that into __remove_partial().
+Pass the actual values used for inactive and active redzoning to the
+functions that check the objects. Avoids a lot of the ? : things to
+lookup the values in the functions.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- mm/slub.c |   19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ mm/slub.c |   37 +++++++++++++++++--------------------
+ 1 file changed, 17 insertions(+), 20 deletions(-)
 
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-09-28 08:05:49.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-09-28 08:05:50.000000000 -0500
-@@ -1312,13 +1312,19 @@ static void add_partial(struct kmem_cach
- 	spin_unlock(&n->list_lock);
+--- linux-2.6.orig/mm/slub.c	2010-09-28 08:02:26.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-09-28 08:04:04.000000000 -0500
+@@ -490,7 +490,8 @@ static void slab_err(struct kmem_cache *
+ 	dump_stack();
  }
  
-+static inline void __remove_partial(struct kmem_cache_node *n,
-+					struct page *page)
-+{
-+	list_del(&page->lru);
-+	n->nr_partial--;
-+}
+-static void init_object(struct kmem_cache *s, void *object, int active)
 +
- static void remove_partial(struct kmem_cache *s, struct page *page)
++static void init_object(struct kmem_cache *s, void *object, u8 val)
  {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+ 	u8 *p = object;
  
- 	spin_lock(&n->list_lock);
--	list_del(&page->lru);
--	n->nr_partial--;
-+	__remove_partial(n, page);
- 	spin_unlock(&n->list_lock);
+@@ -500,9 +501,7 @@ static void init_object(struct kmem_cach
+ 	}
+ 
+ 	if (s->flags & SLAB_RED_ZONE)
+-		memset(p + s->objsize,
+-			active ? SLUB_RED_ACTIVE : SLUB_RED_INACTIVE,
+-			s->inuse - s->objsize);
++		memset(p + s->objsize, val, s->inuse - s->objsize);
  }
  
-@@ -1331,8 +1337,7 @@ static inline int lock_and_freeze_slab(s
- 							struct page *page)
+ static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
+@@ -637,17 +636,14 @@ static int slab_pad_check(struct kmem_ca
+ }
+ 
+ static int check_object(struct kmem_cache *s, struct page *page,
+-					void *object, int active)
++					void *object, u8 val)
  {
- 	if (slab_trylock(page)) {
--		list_del(&page->lru);
--		n->nr_partial--;
-+		__remove_partial(n, page);
- 		__SetPageSlubFrozen(page);
- 		return 1;
+ 	u8 *p = object;
+ 	u8 *endobject = object + s->objsize;
+ 
+ 	if (s->flags & SLAB_RED_ZONE) {
+-		unsigned int red =
+-			active ? SLUB_RED_ACTIVE : SLUB_RED_INACTIVE;
+-
+ 		if (!check_bytes_and_report(s, page, object, "Redzone",
+-			endobject, red, s->inuse - s->objsize))
++			endobject, val, s->inuse - s->objsize))
+ 			return 0;
+ 	} else {
+ 		if ((s->flags & SLAB_POISON) && s->objsize < s->inuse) {
+@@ -657,7 +653,7 @@ static int check_object(struct kmem_cach
  	}
-@@ -2464,9 +2469,8 @@ static void free_partial(struct kmem_cac
- 	spin_lock_irqsave(&n->list_lock, flags);
- 	list_for_each_entry_safe(page, h, &n->partial, lru) {
- 		if (!page->inuse) {
--			list_del(&page->lru);
-+			__remove_partial(n, page);
- 			discard_slab(s, page);
--			n->nr_partial--;
- 		} else {
- 			list_slab_objects(s, page,
- 				"Objects remaining on kmem_cache_close()");
-@@ -2824,8 +2828,7 @@ int kmem_cache_shrink(struct kmem_cache 
- 				 * may have freed the last object and be
- 				 * waiting to release the slab.
- 				 */
--				list_del(&page->lru);
--				n->nr_partial--;
-+				__remove_partial(n, page);
- 				slab_unlock(page);
- 				discard_slab(s, page);
- 			} else {
+ 
+ 	if (s->flags & SLAB_POISON) {
+-		if (!active && (s->flags & __OBJECT_POISON) &&
++		if (val != SLUB_RED_ACTIVE && (s->flags & __OBJECT_POISON) &&
+ 			(!check_bytes_and_report(s, page, p, "Poison", p,
+ 					POISON_FREE, s->objsize - 1) ||
+ 			 !check_bytes_and_report(s, page, p, "Poison",
+@@ -669,7 +665,7 @@ static int check_object(struct kmem_cach
+ 		check_pad_bytes(s, page, p);
+ 	}
+ 
+-	if (!s->offset && active)
++	if (!s->offset && val == SLUB_RED_ACTIVE)
+ 		/*
+ 		 * Object and freepointer overlap. Cannot check
+ 		 * freepointer while object is allocated.
+@@ -887,7 +883,7 @@ static void setup_object_debug(struct km
+ 	if (!(s->flags & (SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON)))
+ 		return;
+ 
+-	init_object(s, object, 0);
++	init_object(s, object, SLUB_RED_INACTIVE);
+ 	init_tracking(s, object);
+ }
+ 
+@@ -907,14 +903,14 @@ static noinline int alloc_debug_processi
+ 		goto bad;
+ 	}
+ 
+-	if (!check_object(s, page, object, 0))
++	if (!check_object(s, page, object, SLUB_RED_INACTIVE))
+ 		goto bad;
+ 
+ 	/* Success perform special debug activities for allocs */
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_ALLOC, addr);
+ 	trace(s, page, object, 1);
+-	init_object(s, object, 1);
++	init_object(s, object, SLUB_RED_ACTIVE);
+ 	return 1;
+ 
+ bad:
+@@ -947,7 +943,7 @@ static noinline int free_debug_processin
+ 		goto fail;
+ 	}
+ 
+-	if (!check_object(s, page, object, 1))
++	if (!check_object(s, page, object, SLUB_RED_ACTIVE))
+ 		return 0;
+ 
+ 	if (unlikely(s != page->slab)) {
+@@ -971,7 +967,7 @@ static noinline int free_debug_processin
+ 	if (s->flags & SLAB_STORE_USER)
+ 		set_track(s, object, TRACK_FREE, addr);
+ 	trace(s, page, object, 0);
+-	init_object(s, object, 0);
++	init_object(s, object, SLUB_RED_INACTIVE);
+ 	return 1;
+ 
+ fail:
+@@ -1075,8 +1071,9 @@ static inline int free_debug_processing(
+ static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
+ 			{ return 1; }
+ static inline int check_object(struct kmem_cache *s, struct page *page,
+-			void *object, int active) { return 1; }
+-static inline void add_full(struct kmem_cache_node *n, struct page *page) {}
++			void *object, u8 val) { return 1; }
++static inline void add_full(struct kmem_cache *s,
++		struct kmem_cache_node *n, struct page *page) {}
+ static inline unsigned long kmem_cache_flags(unsigned long objsize,
+ 	unsigned long flags, const char *name,
+ 	void (*ctor)(void *))
+@@ -1235,7 +1232,7 @@ static void __free_slab(struct kmem_cach
+ 		slab_pad_check(s, page);
+ 		for_each_object(p, s, page_address(page),
+ 						page->objects)
+-			check_object(s, page, p, 0);
++			check_object(s, page, p, SLUB_RED_INACTIVE);
+ 	}
+ 
+ 	kmemcheck_free_shadow(page, compound_order(page));
+@@ -2143,7 +2140,7 @@ static void early_kmem_cache_node_alloc(
+ 	page->inuse++;
+ 	kmem_cache_node->node[node] = n;
+ #ifdef CONFIG_SLUB_DEBUG
+-	init_object(kmem_cache_node, n, 1);
++	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
+ 	init_tracking(kmem_cache_node, n);
+ #endif
+ 	init_kmem_cache_node(n, kmem_cache_node);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
