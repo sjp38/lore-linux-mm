@@ -1,41 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 9A3756B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 01:08:04 -0400 (EDT)
-Date: Tue, 28 Sep 2010 13:08:01 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: zone state overhead
-Message-ID: <20100928050801.GA29021@sli10-conroe.sh.intel.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A76086B0047
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 02:25:40 -0400 (EDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <986278020.2030861285581319128.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+Date: Mon, 27 Sep 2010 23:25:33 -0700
+In-Reply-To: <986278020.2030861285581319128.JavaMail.root@zmail06.collab.prod.int.phx2.redhat.com>
+	(caiqian@redhat.com's message of "Mon, 27 Sep 2010 05:55:19 -0400
+	(EDT)")
+Message-ID: <m1vd5qo04i.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 0/3] Generic support for revoking mappings
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: cl@linux.com
+To: caiqian@redhat.com
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-In a 4 socket 64 CPU system, zone_nr_free_pages() takes about 5% ~ 10% cpu time
-according to perf when memory pressure is high. The workload does something
-like:
-for i in `seq 1 $nr_cpu`
-do
-        create_sparse_file $SPARSE_FILE-$i $((10 * mem / nr_cpu))
-        $USEMEM -f $SPARSE_FILE-$i -j 4096 --readonly $((10 * mem / nr_cpu)) &
-done
-this simply reads a sparse file for each CPU. Apparently the
-zone->percpu_drift_mark is too big, and guess zone_page_state_snapshot() makes
-a lot of cache bounce for ->vm_stat_diff[]. below is the zoneinfo for reference.
-Is there any way to reduce the overhead?
+caiqian@redhat.com writes:
 
-Node 3, zone   Normal
-pages free     2055926
-        min      1441
-        low      1801
-        high     2161
-        scanned  0
-        spanned  2097152
-        present  2068480
-  vm stats threshold: 98
+> ----- caiqian@redhat.com wrote:
+>
+>> ----- "Am=C3=A9rico Wang" <xiyou.wangcong@gmail.com> wrote:
+>>=20
+>> > On Mon, Sep 27, 2010 at 04:52:29AM -0400, CAI Qian wrote:
+>> > >Just a head up. Tried to boot latest mmotm kernel with those
+>> patches
+>> > applied hit this. I am wondering what I did wrong.
+> The only tricky part of the merge I can tell was for Andrea's commit,
+
+Ok.  This is down right bizarre.
+I have it running with the same merge resolution and I'm not seeing
+any problems yet.
+
+I will probe deeper tomorrow.  Are you certain you compiled things
+properly?
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
