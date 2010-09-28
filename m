@@ -1,81 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id EA0856B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:12:23 -0400 (EDT)
-Date: Tue, 28 Sep 2010 10:12:18 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
- sections
-Message-ID: <20100928151218.GJ14068@sgi.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B546B0047
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:21:40 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8SF6Yii011876
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:06:34 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8SFLcok344228
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:21:38 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8SFLapZ011105
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 12:21:38 -0300
+Subject: Re: [PATCH 6/8] v2 Update node sysfs code
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20100928092919.GF14068@sgi.com>
 References: <4CA0EBEB.1030204@austin.ibm.com>
- <4CA1E338.6070201@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CA1E338.6070201@redhat.com>
+	 <4CA0F00D.9000702@austin.ibm.com>  <20100928092919.GF14068@sgi.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Tue, 28 Sep 2010 08:21:33 -0700
+Message-ID: <1285687293.19976.6172.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 28, 2010 at 02:44:40PM +0200, Avi Kivity wrote:
->  On 09/27/2010 09:09 PM, Nathan Fontenot wrote:
-> >This set of patches decouples the concept that a single memory
-> >section corresponds to a single directory in
-> >/sys/devices/system/memory/.  On systems
-> >with large amounts of memory (1+ TB) there are perfomance issues
-> >related to creating the large number of sysfs directories.  For
-> >a powerpc machine with 1 TB of memory we are creating 63,000+
-> >directories.  This is resulting in boot times of around 45-50
-> >minutes for systems with 1 TB of memory and 8 hours for systems
-> >with 2 TB of memory.  With this patch set applied I am now seeing
-> >boot times of 5 minutes or less.
-> >
-> >The root of this issue is in sysfs directory creation. Every time
-> >a directory is created a string compare is done against all sibling
-> >directories to ensure we do not create duplicates.  The list of
-> >directory nodes in sysfs is kept as an unsorted list which results
-> >in this being an exponentially longer operation as the number of
-> >directories are created.
-> >
-> >The solution solved by this patch set is to allow a single
-> >directory in sysfs to span multiple memory sections.  This is
-> >controlled by an optional architecturally defined function
-> >memory_block_size_bytes().  The default definition of this
-> >routine returns a memory block size equal to the memory section
-> >size. This maintains the current layout of sysfs memory
-> >directories as it appears to userspace to remain the same as it
-> >is today.
-> >
-> 
-> Why not update sysfs directory creation to be fast, for example by
-> using an rbtree instead of a linked list.  This fixes an
-> implementation problem in the kernel instead of working around it
-> and creating a new ABI.
+On Tue, 2010-09-28 at 04:29 -0500, Robin Holt wrote:
+> Also, I don't think I much care for the weirdness that occurs if a
+> memory block spans two nodes.  I have not thought through how possible
+> (or likely) this is, but the code certainly permits it.  If that were
+> the case, how would we know which sections need to be taken offline,
+> etc? 
 
-Because the old ABI creates 129,000+ entries inside
-/sys/devices/system/memory with their associated links from
-/sys/devices/system/node/node*/ back to those directory entries.
+Since the architecture is the one doing the memory_block_size_bytes()
+override, I'd expect that the per-arch code knows enough to ensure that
+this doesn't happen.  It's probably something to add to the
+documentation or the patch descriptions.  "How should an architecture
+define this?  When should it be overridden?"
 
-Thankfully things like rpm, hald, and other miscellaneous commands scan
-that information.  On our 8 TB test machine, hald runs continuously
-following boot for nearly an hour mostly scanning useless information
-from /sys/
+It's just like the question of SECTION_SIZE.  What if a section spans a
+node?  Well, they don't because the sections are a software concept and
+we _define_ them to not be able to cross nodes.  If they do, just make
+them smaller.
 
-Robin
-
-> 
-> New ABIs mean old tools won't work, and new tools need to understand
-> both ABIs.
-> 
-> -- 
-> error compiling committee.c: too many arguments to function
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
