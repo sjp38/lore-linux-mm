@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BEF96B004A
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:23:09 -0400 (EDT)
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8SF2auv000864
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:02:36 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8SFHhg0319914
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 11:17:43 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8SFHgjW018272
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 12:17:43 -0300
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9C3E56B004A
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 12:34:33 -0400 (EDT)
+Message-ID: <4CA21906.1080002@redhat.com>
+Date: Tue, 28 Sep 2010 18:34:14 +0200
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
  sections
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <4CA1E338.6070201@redhat.com>
-References: <4CA0EBEB.1030204@austin.ibm.com>  <4CA1E338.6070201@redhat.com>
-Content-Type: text/plain; charset="ANSI_X3.4-1968"
-Date: Tue, 28 Sep 2010 08:17:36 -0700
-Message-ID: <1285687056.19976.6155.camel@nimitz>
-Mime-Version: 1.0
+References: <4CA0EBEB.1030204@austin.ibm.com> <4CA1E338.6070201@redhat.com> <20100928151218.GJ14068@sgi.com>
+In-Reply-To: <20100928151218.GJ14068@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Robin Holt <holt@sgi.com>
+Cc: Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-09-28 at 14:44 +0200, Avi Kivity wrote:
-> Why not update sysfs directory creation to be fast, for example by using 
-> an rbtree instead of a linked list.  This fixes an implementation 
-> problem in the kernel instead of working around it and creating a new ABI.
-> 
-> New ABIs mean old tools won't work, and new tools need to understand 
-> both ABIs.
+  On 09/28/2010 05:12 PM, Robin Holt wrote:
+> >  Why not update sysfs directory creation to be fast, for example by
+> >  using an rbtree instead of a linked list.  This fixes an
+> >  implementation problem in the kernel instead of working around it
+> >  and creating a new ABI.
+>
+> Because the old ABI creates 129,000+ entries inside
+> /sys/devices/system/memory with their associated links from
+> /sys/devices/system/node/node*/ back to those directory entries.
+>
+> Thankfully things like rpm, hald, and other miscellaneous commands scan
+> that information.  On our 8 TB test machine, hald runs continuously
+> following boot for nearly an hour mostly scanning useless information
+> from /sys/
 
-Just to be clear _these_ patches do not change the existing ABI.
+I see - so the problem wasn't just kernel internal; the ABI itself was 
+unsuitable.  Too bad this wasn't considered at the time it was added.
 
-They do add a new ABI: the end_phys_index file.  But, it is completely
-redundant at the moment.  It could be taken out of these patches.
+(129k entries / 1 hour = 35 entries/sec; not very impressive)
 
-That said, fixing the directory creation speed is probably a worthwhile
-endeavor too.
-
--- Dave
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
