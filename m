@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 2921F6B004A
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:22:56 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e6.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8SILiJG017794
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:21:45 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8SILWAR332614
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:21:32 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8SILTWK007632
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 15:21:32 -0300
-Message-ID: <4CA231FA.4070907@austin.ibm.com>
-Date: Tue, 28 Sep 2010 13:20:42 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] v2 Allow memory block to span multiple memory sections
-References: <4CA0EBEB.1030204@austin.ibm.com> <4CA0EFAA.8050000@austin.ibm.com> <20100928124810.GI14068@sgi.com>
-In-Reply-To: <20100928124810.GI14068@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with ESMTP id D7DDF6B0047
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 17:33:13 -0400 (EDT)
+Date: Tue, 28 Sep 2010 14:32:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: cleanup gfp_zone()
+Message-Id: <20100928143239.5fe34e1e.akpm@linux-foundation.org>
+In-Reply-To: <1285676624-1300-1-git-send-email-namhyung@gmail.com>
+References: <1285676624-1300-1-git-send-email-namhyung@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Robin Holt <holt@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Namhyung Kim <namhyung@gmail.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/28/2010 07:48 AM, Robin Holt wrote:
->> +u32 __weak memory_block_size_bytes(void)
->> +{
->> +	return MIN_MEMORY_BLOCK_SIZE;
->> +}
->> +
->> +static u32 get_memory_block_size(void)
+On Tue, 28 Sep 2010 21:23:44 +0900
+Namhyung Kim <namhyung@gmail.com> wrote:
+
+> Use Z[TB]_SHIFT() macro to calculate GFP_ZONE_TABLE and GFP_ZONE_BAD.
+> This also removes lots of warnings from sparse like following:
 > 
-> Can we make this an unsigned long?  We are testing on a system whose
-> smallest possible configuration is 4GB per socket with 512 sockets.
-> We would like to be able to specify this as 2GB by default (results
-> in the least lost memory) and suggest we add a command line option
-> which overrides this value.  We have many installations where 16GB may
-> be optimal.  Large configurations will certainly become more prevalent.
-
-Works for me.
-
+>  warning: restricted gfp_t degrades to integer
 > 
-> ...
->> @@ -551,12 +608,16 @@
->>  	unsigned int i;
->>  	int ret;
->>  	int err;
->> +	int block_sz;
+> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+> ---
+>  include/linux/gfp.h |   43 ++++++++++++++++++++++++-------------------
+>  1 files changed, 24 insertions(+), 19 deletions(-)
 > 
-> This one needs to match the return above.  In our tests, we ended up
-> with a negative sections_per_block which caused very unexpected results.
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 975609c..cebfee1 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -185,15 +185,16 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
+>  #error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
+>  #endif
+>  
+> +#define ZT_SHIFT(gfp) ((__force int) (gfp) * ZONES_SHIFT)
+>  #define GFP_ZONE_TABLE ( \
+> -	(ZONE_NORMAL << 0 * ZONES_SHIFT)				\
+> -	| (OPT_ZONE_DMA << __GFP_DMA * ZONES_SHIFT)			\
+> -	| (OPT_ZONE_HIGHMEM << __GFP_HIGHMEM * ZONES_SHIFT)		\
+> -	| (OPT_ZONE_DMA32 << __GFP_DMA32 * ZONES_SHIFT)			\
+> -	| (ZONE_NORMAL << __GFP_MOVABLE * ZONES_SHIFT)			\
+> -	| (OPT_ZONE_DMA << (__GFP_MOVABLE | __GFP_DMA) * ZONES_SHIFT)	\
+> -	| (ZONE_MOVABLE << (__GFP_MOVABLE | __GFP_HIGHMEM) * ZONES_SHIFT)\
+> -	| (OPT_ZONE_DMA32 << (__GFP_MOVABLE | __GFP_DMA32) * ZONES_SHIFT)\
+> +	(ZONE_NORMAL        << ZT_SHIFT(0))				\
+> +	| (OPT_ZONE_DMA     << ZT_SHIFT(__GFP_DMA))			\
+> +	| (OPT_ZONE_HIGHMEM << ZT_SHIFT(__GFP_HIGHMEM))			\
+> +	| (OPT_ZONE_DMA32   << ZT_SHIFT(__GFP_DMA32))			\
+> +	| (ZONE_NORMAL      << ZT_SHIFT(__GFP_MOVABLE))			\
+> +	| (OPT_ZONE_DMA     << ZT_SHIFT(__GFP_MOVABLE | __GFP_DMA))	\
+> +	| (ZONE_MOVABLE     << ZT_SHIFT(__GFP_MOVABLE | __GFP_HIGHMEM)) \
+> +	| (OPT_ZONE_DMA32   << ZT_SHIFT(__GFP_MOVABLE | __GFP_DMA32))	\
+>  )
 
-Oh, nice catch.  I'll update both of these.
+hm.  I hope these sparse warnings are sufficiently useful to justify
+all the gunk we're adding to support them.
 
--Nathan
+Is it actually finding any bugs?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
