@@ -1,23 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B26416B004A
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:13:46 -0400 (EDT)
-Message-Id: <20100928131025.319846721@linux.com>
-Date: Tue, 28 Sep 2010 08:10:25 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup5 0/3] SLUB: Cleanups V5
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B976B0078
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:14:30 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o8SHtPwN025161
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 13:55:25 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o8SIESVs369296
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 14:14:28 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o8SIES2W016726
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 15:14:28 -0300
+Message-ID: <4CA2307C.9060202@austin.ibm.com>
+Date: Tue, 28 Sep 2010 13:14:20 -0500
+From: Nathan Fontenot <nfont@austin.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/8] v2 Add section count to memory_block struct
+References: <4CA0EBEB.1030204@austin.ibm.com> <4CA0EEF0.70402@austin.ibm.com> <20100928093132.GG14068@sgi.com>
+In-Reply-To: <20100928093132.GG14068@sgi.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Robin Holt <holt@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-A couple of more cleanups (patches against Pekka's tree for next rebased to todays upstream)
+On 09/28/2010 04:31 AM, Robin Holt wrote:
+> In the next patch, you introduce a mutex for adding/removing memory blocks.
+> Is there really a need for this to be atomic?  If you reorder the patches
+> so the mutex comes first, would the atomic be needed any longer?
+> 
 
-1 Avoid #ifdefs by making data structures similar under SMP and NUMA
+I think you're right.  Looking at the code with all patches applied I am only
+updating the atomic when holding the mem_sysfs_mutex.  I think the atomic
+could safely be changed to a regular int.
 
-2 Avoid ? : by passing the redzone markers directly to the functions checking objects
+-Nathan
 
-3 Extract common code for removal of pages from partial list into a single function
+> Robin
+> 
+> On Mon, Sep 27, 2010 at 02:22:24PM -0500, Nathan Fontenot wrote:
+>> Add a section count property to the memory_block struct to track the number
+>> of memory sections that have been added/removed from a memory block. This
+>> allows us to know when the last memory section of a memory block has been
+>> removed so we can remove the memory block.
+>>
+>> Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
+>>
+>> ---
+>>  drivers/base/memory.c  |   16 ++++++++++------
+>>  include/linux/memory.h |    3 +++
+>>  2 files changed, 13 insertions(+), 6 deletions(-)
+>>
+>> Index: linux-next/drivers/base/memory.c
+>> ===================================================================
+>> --- linux-next.orig/drivers/base/memory.c	2010-09-27 09:17:20.000000000 -0500
+>> +++ linux-next/drivers/base/memory.c	2010-09-27 09:31:35.000000000 -0500
+>> @@ -478,6 +478,7 @@
+>>  
+>>  	mem->phys_index = __section_nr(section);
+>>  	mem->state = state;
+>> +	atomic_inc(&mem->section_count);
+>>  	mutex_init(&mem->state_mutex);
+>>  	start_pfn = section_nr_to_pfn(mem->phys_index);
+>>  	mem->phys_device = arch_get_memory_phys_device(start_pfn);
+>> @@ -505,12 +506,15 @@
+>>  	struct memory_block *mem;
+>>  
+>>  	mem = find_memory_block(section);
+>> -	unregister_mem_sect_under_nodes(mem);
+>> -	mem_remove_simple_file(mem, phys_index);
+>> -	mem_remove_simple_file(mem, state);
+>> -	mem_remove_simple_file(mem, phys_device);
+>> -	mem_remove_simple_file(mem, removable);
+>> -	unregister_memory(mem, section);
+>> +
+>> +	if (atomic_dec_and_test(&mem->section_count)) {
+>> +		unregister_mem_sect_under_nodes(mem);
+>> +		mem_remove_simple_file(mem, phys_index);
+>> +		mem_remove_simple_file(mem, state);
+>> +		mem_remove_simple_file(mem, phys_device);
+>> +		mem_remove_simple_file(mem, removable);
+>> +		unregister_memory(mem, section);
+>> +	}
+>>  
+>>  	return 0;
+>>  }
+>> Index: linux-next/include/linux/memory.h
+>> ===================================================================
+>> --- linux-next.orig/include/linux/memory.h	2010-09-27 09:17:20.000000000 -0500
+>> +++ linux-next/include/linux/memory.h	2010-09-27 09:22:56.000000000 -0500
+>> @@ -19,10 +19,13 @@
+>>  #include <linux/node.h>
+>>  #include <linux/compiler.h>
+>>  #include <linux/mutex.h>
+>> +#include <asm/atomic.h>
+>>  
+>>  struct memory_block {
+>>  	unsigned long phys_index;
+>>  	unsigned long state;
+>> +	atomic_t section_count;
+>> +
+>>  	/*
+>>  	 * This serializes all state change requests.  It isn't
+>>  	 * held during creation because the control files are
+>>
+>>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
