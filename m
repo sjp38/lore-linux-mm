@@ -1,36 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DC0D56B0078
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:42:32 -0400 (EDT)
-Date: Tue, 28 Sep 2010 07:42:30 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [S+Q Cleanup3 4/6] slub: Dynamically size kmalloc cache
- allocations
-In-Reply-To: <alpine.DEB.2.00.1009280305100.6773@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1009280740470.4144@router.home>
-References: <20100819203324.549566024@linux.com> <20100819203438.745611155@linux.com> <alpine.DEB.2.00.1008191405230.18994@chino.kir.corp.google.com> <alpine.DEB.2.00.1008191627100.5611@router.home> <alpine.DEB.2.00.1008191600240.25634@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1008191819420.7903@router.home> <alpine.DEB.2.00.1008191638390.29676@chino.kir.corp.google.com> <alpine.DEB.2.00.1008201206390.32757@router.home> <alpine.DEB.2.00.1008201231520.32757@router.home>
- <alpine.DEB.2.00.1009280305100.6773@chino.kir.corp.google.com>
+	by kanga.kvack.org (Postfix) with SMTP id AD9B66B004A
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:44:55 -0400 (EDT)
+Message-ID: <4CA1E338.6070201@redhat.com>
+Date: Tue, 28 Sep 2010 14:44:40 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
+ sections
+References: <4CA0EBEB.1030204@austin.ibm.com>
+In-Reply-To: <4CA0EBEB.1030204@austin.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Sep 2010, David Rientjes wrote:
+  On 09/27/2010 09:09 PM, Nathan Fontenot wrote:
+> This set of patches decouples the concept that a single memory
+> section corresponds to a single directory in
+> /sys/devices/system/memory/.  On systems
+> with large amounts of memory (1+ TB) there are perfomance issues
+> related to creating the large number of sysfs directories.  For
+> a powerpc machine with 1 TB of memory we are creating 63,000+
+> directories.  This is resulting in boot times of around 45-50
+> minutes for systems with 1 TB of memory and 8 hours for systems
+> with 2 TB of memory.  With this patch set applied I am now seeing
+> boot times of 5 minutes or less.
+>
+> The root of this issue is in sysfs directory creation. Every time
+> a directory is created a string compare is done against all sibling
+> directories to ensure we do not create duplicates.  The list of
+> directory nodes in sysfs is kept as an unsorted list which results
+> in this being an exponentially longer operation as the number of
+> directories are created.
+>
+> The solution solved by this patch set is to allow a single
+> directory in sysfs to span multiple memory sections.  This is
+> controlled by an optional architecturally defined function
+> memory_block_size_bytes().  The default definition of this
+> routine returns a memory block size equal to the memory section
+> size. This maintains the current layout of sysfs memory
+> directories as it appears to userspace to remain the same as it
+> is today.
+>
 
-> > Draft patch to drop SMP particularities.
-> s/SMP/NUMA/
+Why not update sysfs directory creation to be fast, for example by using 
+an rbtree instead of a linked list.  This fixes an implementation 
+problem in the kernel instead of working around it and creating a new ABI.
 
-No its the special code for SMP. The local_node field is the main issue.
+New ABIs mean old tools won't work, and new tools need to understand 
+both ABIs.
 
-> I really like this direction and I hope you push an updated version to
-> Pekka because it cleans up a lot of the recently added init code without
-> sacrificing any footprint for UMA.
-
-Ok. I have another 2 cleanup patches here. Will update this and push all 3
-all out today.
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
