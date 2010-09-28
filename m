@@ -1,48 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 24E356B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:48:16 -0400 (EDT)
-Date: Tue, 28 Sep 2010 07:48:10 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 4/8] v2 Allow memory block to span multiple memory
- sections
-Message-ID: <20100928124810.GI14068@sgi.com>
-References: <4CA0EBEB.1030204@austin.ibm.com>
- <4CA0EFAA.8050000@austin.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id AFD296B004A
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:49:44 -0400 (EDT)
+Date: Tue, 28 Sep 2010 07:49:40 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad forfile/email/web
+ servers
+In-Reply-To: <1285677740.30176.1397281937@webmail.messagingengine.com>
+Message-ID: <alpine.DEB.2.00.1009280748590.4144@router.home>
+References: <52C8765522A740A4A5C027E8FDFFDFE3@jem> <20100921090407.GA11439@csn.ul.ie> <20100927110049.6B31.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009270828510.7000@router.home> <1285629420.10278.1397188599@webmail.messagingengine.com>
+ <alpine.DEB.2.00.1009280727370.4144@router.home> <1285677740.30176.1397281937@webmail.messagingengine.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CA0EFAA.8050000@austin.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Bron Gondwana <brong@fastmail.fm>
+Cc: Robert Mueller <robm@fastmail.fm>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> +u32 __weak memory_block_size_bytes(void)
-> +{
-> +	return MIN_MEMORY_BLOCK_SIZE;
-> +}
-> +
-> +static u32 get_memory_block_size(void)
+On Tue, 28 Sep 2010, Bron Gondwana wrote:
 
-Can we make this an unsigned long?  We are testing on a system whose
-smallest possible configuration is 4GB per socket with 512 sockets.
-We would like to be able to specify this as 2GB by default (results
-in the least lost memory) and suggest we add a command line option
-which overrides this value.  We have many installations where 16GB may
-be optimal.  Large configurations will certainly become more prevalent.
+> Is this what's happening, or is IO actually coming from disk in preference
+> to the remote node?  I can certainly see the logic behind preferring to
+> reclaim the local node if that's all that's happening - though the OS should
+> be allocating the different tasks more evenly across the nodes in that case.
 
-...
-> @@ -551,12 +608,16 @@
->  	unsigned int i;
->  	int ret;
->  	int err;
-> +	int block_sz;
-
-This one needs to match the return above.  In our tests, we ended up
-with a negative sections_per_block which caused very unexpected results.
-
-Robin
+Not sure about the disk. I did not see anything that would indicate and
+issue with only being able to do 32 bit and I am no expert on the device
+driver operations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
