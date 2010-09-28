@@ -1,146 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id DBA0A6B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 09:10:58 -0400 (EDT)
-Message-Id: <20100928131056.509118201@linux.com>
-Date: Tue, 28 Sep 2010 08:10:26 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3663E6B004A
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 09:11:00 -0400 (EDT)
+Message-Id: <20100928131057.767067382@linux.com>
+Date: Tue, 28 Sep 2010 08:10:28 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [Slub cleanup5 1/3] slub: reduce differences between SMP and NUMA
+Subject: [Slub cleanup5 3/3] slub: extract common code to remove objects from partial list without locking
 References: <20100928131025.319846721@linux.com>
-Content-Disposition: inline; filename=drop_smp
+Content-Disposition: inline; filename=cleanup_remove_partial
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Reduce the #ifdefs and simplify bootstrap by making SMP and NUMA as much alike
-as possible. This means that there will be an additional indirection to get to
-the kmem_cache_node field under SMP.
+There are a couple of places where repeat the same statements when removing
+a page from the partial list. Consolidate that into __remove_partial().
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 ---
- include/linux/slub_def.h |    5 +----
- mm/slub.c                |   39 +--------------------------------------
- 2 files changed, 2 insertions(+), 42 deletions(-)
+ mm/slub.c |   19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 
-Index: linux-2.6/include/linux/slub_def.h
-===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2010-09-28 07:54:31.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2010-09-28 07:56:37.000000000 -0500
-@@ -96,11 +96,8 @@ struct kmem_cache {
- 	 * Defragmentation by allocating from a remote node.
- 	 */
- 	int remote_node_defrag_ratio;
--	struct kmem_cache_node *node[MAX_NUMNODES];
--#else
--	/* Avoid an extra cache line for UP */
--	struct kmem_cache_node local_node;
- #endif
-+	struct kmem_cache_node *node[MAX_NUMNODES];
- };
- 
- /*
 Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/slub.c	2010-09-28 07:54:33.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-09-28 07:56:37.000000000 -0500
-@@ -233,11 +233,7 @@ int slab_is_available(void)
+--- linux-2.6.orig/mm/slub.c	2010-09-28 08:05:49.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-09-28 08:05:50.000000000 -0500
+@@ -1312,13 +1312,19 @@ static void add_partial(struct kmem_cach
+ 	spin_unlock(&n->list_lock);
+ }
  
- static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
++static inline void __remove_partial(struct kmem_cache_node *n,
++					struct page *page)
++{
++	list_del(&page->lru);
++	n->nr_partial--;
++}
++
+ static void remove_partial(struct kmem_cache *s, struct page *page)
  {
--#ifdef CONFIG_NUMA
- 	return s->node[node];
--#else
--	return &s->local_node;
--#endif
+ 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+ 
+ 	spin_lock(&n->list_lock);
+-	list_del(&page->lru);
+-	n->nr_partial--;
++	__remove_partial(n, page);
+ 	spin_unlock(&n->list_lock);
  }
  
- /* Verify that a pointer has an address that is valid within a slab page */
-@@ -871,7 +867,7 @@ static inline void inc_slabs_node(struct
- 	 * dilemma by deferring the increment of the count during
- 	 * bootstrap (see early_kmem_cache_node_alloc).
- 	 */
--	if (!NUMA_BUILD || n) {
-+	if (n) {
- 		atomic_long_inc(&n->nr_slabs);
- 		atomic_long_add(objects, &n->total_objects);
- 	}
-@@ -2112,7 +2108,6 @@ static inline int alloc_kmem_cache_cpus(
- 	return s->cpu_slab != NULL;
- }
- 
--#ifdef CONFIG_NUMA
- static struct kmem_cache *kmem_cache_node;
- 
- /*
-@@ -2202,17 +2197,6 @@ static int init_kmem_cache_nodes(struct 
- 	}
- 	return 1;
- }
--#else
--static void free_kmem_cache_nodes(struct kmem_cache *s)
--{
--}
--
--static int init_kmem_cache_nodes(struct kmem_cache *s)
--{
--	init_kmem_cache_node(&s->local_node, s);
--	return 1;
--}
--#endif
- 
- static void set_min_partial(struct kmem_cache *s, unsigned long min)
+@@ -1331,8 +1337,7 @@ static inline int lock_and_freeze_slab(s
+ 							struct page *page)
  {
-@@ -3023,8 +3007,6 @@ void __init kmem_cache_init(void)
- 	int caches = 0;
- 	struct kmem_cache *temp_kmem_cache;
- 	int order;
--
--#ifdef CONFIG_NUMA
- 	struct kmem_cache *temp_kmem_cache_node;
- 	unsigned long kmalloc_size;
- 
-@@ -3048,12 +3030,6 @@ void __init kmem_cache_init(void)
- 		0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
- 
- 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
--#else
--	/* Allocate a single kmem_cache from the page allocator */
--	kmem_size = sizeof(struct kmem_cache);
--	order = get_order(kmem_size);
--	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
--#endif
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
-@@ -3064,7 +3040,6 @@ void __init kmem_cache_init(void)
- 	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
- 	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
- 
--#ifdef CONFIG_NUMA
- 	/*
- 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
- 	 * kmem_cache_node is separately allocated so no need to
-@@ -3078,18 +3053,6 @@ void __init kmem_cache_init(void)
- 	kmem_cache_bootstrap_fixup(kmem_cache_node);
- 
- 	caches++;
--#else
--	/*
--	 * kmem_cache has kmem_cache_node embedded and we moved it!
--	 * Update the list heads
--	 */
--	INIT_LIST_HEAD(&kmem_cache->local_node.partial);
--	list_splice(&temp_kmem_cache->local_node.partial, &kmem_cache->local_node.partial);
--#ifdef CONFIG_SLUB_DEBUG
--	INIT_LIST_HEAD(&kmem_cache->local_node.full);
--	list_splice(&temp_kmem_cache->local_node.full, &kmem_cache->local_node.full);
--#endif
--#endif
- 	kmem_cache_bootstrap_fixup(kmem_cache);
- 	caches++;
- 	/* Free temporary boot structure */
+ 	if (slab_trylock(page)) {
+-		list_del(&page->lru);
+-		n->nr_partial--;
++		__remove_partial(n, page);
+ 		__SetPageSlubFrozen(page);
+ 		return 1;
+ 	}
+@@ -2464,9 +2469,8 @@ static void free_partial(struct kmem_cac
+ 	spin_lock_irqsave(&n->list_lock, flags);
+ 	list_for_each_entry_safe(page, h, &n->partial, lru) {
+ 		if (!page->inuse) {
+-			list_del(&page->lru);
++			__remove_partial(n, page);
+ 			discard_slab(s, page);
+-			n->nr_partial--;
+ 		} else {
+ 			list_slab_objects(s, page,
+ 				"Objects remaining on kmem_cache_close()");
+@@ -2824,8 +2828,7 @@ int kmem_cache_shrink(struct kmem_cache 
+ 				 * may have freed the last object and be
+ 				 * waiting to release the slab.
+ 				 */
+-				list_del(&page->lru);
+-				n->nr_partial--;
++				__remove_partial(n, page);
+ 				slab_unlock(page);
+ 				discard_slab(s, page);
+ 			} else {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
