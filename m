@@ -1,106 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2CDA66B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:23:56 -0400 (EDT)
-Received: by pwj6 with SMTP id 6so2345497pwj.14
-        for <linux-mm@kvack.org>; Tue, 28 Sep 2010 05:23:56 -0700 (PDT)
-From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH] mm: cleanup gfp_zone()
-Date: Tue, 28 Sep 2010 21:23:44 +0900
-Message-Id: <1285676624-1300-1-git-send-email-namhyung@gmail.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B41276B0047
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 08:35:17 -0400 (EDT)
+Date: Tue, 28 Sep 2010 07:35:13 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Default zone_reclaim_mode = 1 on NUMA kernel is bad forfile/email/web
+ servers
+In-Reply-To: <1285629420.10278.1397188599@webmail.messagingengine.com>
+Message-ID: <alpine.DEB.2.00.1009280727370.4144@router.home>
+References: <52C8765522A740A4A5C027E8FDFFDFE3@jem> <20100921090407.GA11439@csn.ul.ie> <20100927110049.6B31.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1009270828510.7000@router.home> <1285629420.10278.1397188599@webmail.messagingengine.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robert Mueller <robm@fastmail.fm>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Use Z[TB]_SHIFT() macro to calculate GFP_ZONE_TABLE and GFP_ZONE_BAD.
-This also removes lots of warnings from sparse like following:
+On Tue, 28 Sep 2010, Robert Mueller wrote:
 
- warning: restricted gfp_t degrades to integer
+> How would the ACPI information actually be changed?
 
-Signed-off-by: Namhyung Kim <namhyung@gmail.com>
----
- include/linux/gfp.h |   43 ++++++++++++++++++++++++-------------------
- 1 files changed, 24 insertions(+), 19 deletions(-)
+Fix the BIOS SLIT distance tables.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 975609c..cebfee1 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -185,15 +185,16 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
- #error ZONES_SHIFT too large to create GFP_ZONE_TABLE integer
- #endif
- 
-+#define ZT_SHIFT(gfp) ((__force int) (gfp) * ZONES_SHIFT)
- #define GFP_ZONE_TABLE ( \
--	(ZONE_NORMAL << 0 * ZONES_SHIFT)				\
--	| (OPT_ZONE_DMA << __GFP_DMA * ZONES_SHIFT)			\
--	| (OPT_ZONE_HIGHMEM << __GFP_HIGHMEM * ZONES_SHIFT)		\
--	| (OPT_ZONE_DMA32 << __GFP_DMA32 * ZONES_SHIFT)			\
--	| (ZONE_NORMAL << __GFP_MOVABLE * ZONES_SHIFT)			\
--	| (OPT_ZONE_DMA << (__GFP_MOVABLE | __GFP_DMA) * ZONES_SHIFT)	\
--	| (ZONE_MOVABLE << (__GFP_MOVABLE | __GFP_HIGHMEM) * ZONES_SHIFT)\
--	| (OPT_ZONE_DMA32 << (__GFP_MOVABLE | __GFP_DMA32) * ZONES_SHIFT)\
-+	(ZONE_NORMAL        << ZT_SHIFT(0))				\
-+	| (OPT_ZONE_DMA     << ZT_SHIFT(__GFP_DMA))			\
-+	| (OPT_ZONE_HIGHMEM << ZT_SHIFT(__GFP_HIGHMEM))			\
-+	| (OPT_ZONE_DMA32   << ZT_SHIFT(__GFP_DMA32))			\
-+	| (ZONE_NORMAL      << ZT_SHIFT(__GFP_MOVABLE))			\
-+	| (OPT_ZONE_DMA     << ZT_SHIFT(__GFP_MOVABLE | __GFP_DMA))	\
-+	| (ZONE_MOVABLE     << ZT_SHIFT(__GFP_MOVABLE | __GFP_HIGHMEM)) \
-+	| (OPT_ZONE_DMA32   << ZT_SHIFT(__GFP_MOVABLE | __GFP_DMA32))	\
- )
- 
- /*
-@@ -202,24 +203,25 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
-  * entry starting with bit 0. Bit is set if the combination is not
-  * allowed.
-  */
-+#define ZB_SHIFT(gfp) ((__force int) (gfp))
- #define GFP_ZONE_BAD ( \
--	1 << (__GFP_DMA | __GFP_HIGHMEM)				\
--	| 1 << (__GFP_DMA | __GFP_DMA32)				\
--	| 1 << (__GFP_DMA32 | __GFP_HIGHMEM)				\
--	| 1 << (__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)		\
--	| 1 << (__GFP_MOVABLE | __GFP_HIGHMEM | __GFP_DMA)		\
--	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA)		\
--	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_HIGHMEM)		\
--	| 1 << (__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA | __GFP_HIGHMEM)\
-+	1   << ZB_SHIFT(__GFP_DMA | __GFP_HIGHMEM)			\
-+	| 1 << ZB_SHIFT(__GFP_DMA | __GFP_DMA32)			\
-+	| 1 << ZB_SHIFT(__GFP_DMA32 | __GFP_HIGHMEM)			\
-+	| 1 << ZB_SHIFT(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)	\
-+	| 1 << ZB_SHIFT(__GFP_MOVABLE | __GFP_HIGHMEM | __GFP_DMA)	\
-+	| 1 << ZB_SHIFT(__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA)	\
-+	| 1 << ZB_SHIFT(__GFP_MOVABLE | __GFP_DMA32 | __GFP_HIGHMEM)	\
-+	| 1 << ZB_SHIFT(__GFP_MOVABLE | __GFP_DMA32 | __GFP_DMA |	\
-+			__GFP_HIGHMEM)					\
- )
- 
- static inline enum zone_type gfp_zone(gfp_t flags)
- {
- 	enum zone_type z;
--	int bit = flags & GFP_ZONEMASK;
-+	int bit = (__force int) (flags & GFP_ZONEMASK);
- 
--	z = (GFP_ZONE_TABLE >> (bit * ZONES_SHIFT)) &
--					 ((1 << ZONES_SHIFT) - 1);
-+	z = (GFP_ZONE_TABLE >> ZT_SHIFT(bit)) & ((1 << ZONES_SHIFT) - 1);
- 
- 	if (__builtin_constant_p(bit))
- 		MAYBE_BUILD_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-@@ -231,6 +233,9 @@ static inline enum zone_type gfp_zone(gfp_t flags)
- 	return z;
- }
- 
-+#undef ZT_SHIFT
-+#undef ZB_SHIFT
-+
- /*
-  * There is only one page-allocator function, and two main namespaces to
-  * it. The alloc_page*() variants return 'struct page *' and as such
--- 
-1.7.2.2
+> I ran numactl -H to get the hardware information, and that seems to
+> include distances. As mentioned previously, this is a very standard
+> Intel server motherboard.
+>
+> http://www.intel.com/Products/Server/Motherboards/S5520UR/S5520UR-specifications.htm
+>
+> Intel 5520 chipset with Intel I/O Controller Hub ICH10R
+>
+> $ numactl -H
+> available: 2 nodes (0-1)
+> node 0 cpus: 0 2 4 6 8 10 12 14
+> node 0 size: 24517 MB
+> node 0 free: 1523 MB
+> node 1 cpus: 1 3 5 7 9 11 13 15
+> node 1 size: 24576 MB
+> node 1 free: 39 MB
+> node distances:
+> node   0   1
+>   0:  10  21
+>   1:  21  10
+
+21 is larger than REMOTE_DISTANCE on x86 and triggers zone_reclaim
+
+19 would keep it off.
+
+
+> Since I'm not sure what the "distance" values mean, I have no idea if
+> those values large or not?
+
+Distance values represent the additional latency necessary to access
+remote memory vs local memory (10)
+
+> > 4. Fix the application to be conscious of the effect of memory
+> >    allocations on a NUMA systems. Use the numa memory allocations API
+> >    to allocate anonymous memory locally for optimal access and set
+> >    interleave for the file backed pages.
+>
+> The problem we saw was purely with file caching. The application wasn't
+> actually allocating much memory itself, but it was reading lots of files
+> from disk (via mmap'ed memory mostly), and as most people would, we
+> expected that data would be cached in memory to reduce future reads from
+> disk. That was not happening.
+
+Obviously and you have stated that numerous times. Problem that the use of
+a remote memory will reduced performance of reads so the OS (with
+zone_reclaim=1) defaults to the use of local memory and favors reclaim of
+local memory over the allocation from the remote node. This is fine if
+you have multiple applications running on both nodes because then each
+application will get memory local to it and therefore run faster. That
+does not work with a single app that only allocates from one node.
+
+Control over memory allocations over the various nodes under NUMA
+for a process can occur via the numactl ctl or the libnuma C apis.
+
+F.e.e
+
+numactl --interleave ... command
+
+will address that issue for a specific command that needs to go
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
