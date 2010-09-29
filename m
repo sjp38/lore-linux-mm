@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 88AE06B0078
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 06:17:12 -0400 (EDT)
-Date: Wed, 29 Sep 2010 12:17:04 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch]vmscan: protect exectuable page from inactive list scan
-Message-ID: <20100929101704.GB2618@cmpxchg.org>
-References: <1285729060.27440.14.camel@sli10-conroe.sh.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1285729060.27440.14.camel@sli10-conroe.sh.intel.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 081086B004A
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 08:02:25 -0400 (EDT)
+Received: by pwj6 with SMTP id 6so204729pwj.14
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 05:02:24 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH 1/3] slub: Fix signedness warnings
+Date: Wed, 29 Sep 2010 21:02:13 +0900
+Message-Id: <1285761735-31499-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Shaohua Li <shaohua.li@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, riel@redhat.com, Andrew Morton <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
+To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 29, 2010 at 10:57:40AM +0800, Shaohua Li wrote:
-> With commit 645747462435, pte referenced file page isn't activated in inactive
-> list scan. For VM_EXEC page, if it can't get a chance to active list, the
-> executable page protect loses its effect. We protect such page in inactive scan
-> here, now such page will be guaranteed cached in a full scan of active and
-> inactive list, which restores previous behavior.
+The bit-ops routines require its arg to be a pointer to unsigned long.
+This leads sparse to complain about different signedness as follows:
 
-This change was in the back of my head since the used-once detection
-was merged but there were never any regressions reported that would
-indicate a requirement for it.
+ mm/slub.c:2425:49: warning: incorrect type in argument 2 (different signedness)
+ mm/slub.c:2425:49:    expected unsigned long volatile *addr
+ mm/slub.c:2425:49:    got long *map
 
-Does this patch fix a problem you observed?
+Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+---
+ mm/slub.c |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
 
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -608,8 +608,15 @@ static enum page_references page_check_references(struct page *page,
->  		 * quickly recovered.
->  		 */
->  		SetPageReferenced(page);
-> -
-> -		if (referenced_page)
-> +		/*
-> +		 * Identify pte referenced and file-backed pages and give them
-> +		 * one trip around the active list. So that executable code get
-> +		 * better chances to stay in memory under moderate memory
-> +		 * pressure. JVM can create lots of anon VM_EXEC pages, so we
-> +		 * ignore them here.
-
-PTE-referenced PageAnon() pages are activated unconditionally a few
-lines further up, so the page_is_file_cache() check filters only shmem
-pages.  I doubt this was your intention...?
-
-> +		 */
-> +		if (referenced_page || ((vm_flags & VM_EXEC) &&
-> +		    page_is_file_cache(page)))
->  			return PAGEREF_ACTIVATE;
->  
->  		return PAGEREF_KEEP;
+diff --git a/mm/slub.c b/mm/slub.c
+index 13fffe1..e137688 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2414,9 +2414,8 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
+ #ifdef CONFIG_SLUB_DEBUG
+ 	void *addr = page_address(page);
+ 	void *p;
+-	long *map = kzalloc(BITS_TO_LONGS(page->objects) * sizeof(long),
+-			    GFP_ATOMIC);
+-
++	unsigned long *map = kzalloc(BITS_TO_LONGS(page->objects) *
++				     sizeof(long), GFP_ATOMIC);
+ 	if (!map)
+ 		return;
+ 	slab_err(s, page, "%s", text);
+@@ -3635,7 +3634,7 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
+ 
+ static void process_slab(struct loc_track *t, struct kmem_cache *s,
+ 		struct page *page, enum track_item alloc,
+-		long *map)
++		unsigned long *map)
+ {
+ 	void *addr = page_address(page);
+ 	void *p;
+-- 
+1.7.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
