@@ -1,63 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7FCE86B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 15:28:34 -0400 (EDT)
-Date: Wed, 29 Sep 2010 14:28:30 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
- sections
-Message-ID: <20100929192830.GK14068@sgi.com>
-References: <4CA0EBEB.1030204@austin.ibm.com>
- <20100928123848.GH14068@sgi.com>
- <4CA2313D.2030508@austin.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B8AF46B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 15:44:26 -0400 (EDT)
+Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
+	by smtp-out.google.com with ESMTP id o8TJiOEU026842
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:24 -0700
+Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
+	by kpbe11.cbf.corp.google.com with ESMTP id o8TJiMtc016208
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:23 -0700
+Received: by pwj6 with SMTP id 6so675710pwj.0
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:22 -0700 (PDT)
+Date: Wed, 29 Sep 2010 12:44:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: zone state overhead
+In-Reply-To: <20100929100307.GA14204@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1009291228160.5734@chino.kir.corp.google.com>
+References: <20100928050801.GA29021@sli10-conroe.sh.intel.com> <alpine.DEB.2.00.1009280736020.4144@router.home> <20100928133059.GL8187@csn.ul.ie> <alpine.DEB.2.00.1009282024570.31551@chino.kir.corp.google.com> <20100929100307.GA14204@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CA2313D.2030508@austin.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nathan Fontenot <nfont@austin.ibm.com>
-Cc: Robin Holt <holt@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Christoph Lameter <cl@linux.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 28, 2010 at 01:17:33PM -0500, Nathan Fontenot wrote:
-> On 09/28/2010 07:38 AM, Robin Holt wrote:
-> > I was tasked with looking at a slowdown in similar sized SGI machines
-> > booting x86_64.  Jack Steiner had already looked into the memory_dev_init.
-> > I was looking at link_mem_sections().
-> > 
-> > I made a dramatic improvement on a 16TB machine in that function by
-> > merely caching the most recent memory section and checking to see if
-> > the next memory section happens to be the subsequent in the linked list
-> > of kobjects.
-> > 
-> > That simple cache reduced the time for link_mem_sections from 1 hour 27
-> > minutes down to 46 seconds.
-> 
-> Nice!
-> 
-> > 
-> > I would like to propose we implement something along those lines also,
-> > but I am currently swamped.  I can probably get you a patch tomorrow
-> > afternoon that applies at the end of this set.
-> 
-> Should this be done as a separate patch?  This patch set concentrates on
-> updates to the memory code with the node updates only being done due to the
-> memory changes.
-> 
-> I think its a good idea to do the caching and have no problem adding on to
-> this patchset if no one else has any objections.
+On Wed, 29 Sep 2010, Mel Gorman wrote:
 
-I am sorry.  I had meant to include you on the Cc: list.  I just posted a
-set of patches (3 small patches) which implement the cache most recent bit
-I aluded to above.  Search for a subject of "Speed up link_mem_sections
-during boot" and you will find them.  I did add you to the Cc: list for
-the next time I end up sending the set.
+> > It's plausible that we never reclaim sufficient memory that we ever get 
+> > above the high watermark since we only trigger reclaim when we can't 
+> > allocate above low, so we may be stuck calling zone_page_state_snapshot() 
+> > constantly.
+> > 
+> 
+> Except that zone_page_state_snapshot() is only called while kswapd is
+> awake which is the proxy indicator of pressure. Just being below
+> percpu_drift_mark is not enough to call zone_page_state_snapshot.
+> 
 
-My next task is to implement a x86_64 SGI UV specific chunk of code
-to memory_block_size_bytes().  Would you consider adding that to your
-patch set?  I expect to have that either later today or early tomorrow.
-
-Robin
+Right, so zone_page_state_snapshot() is always called to check the min 
+watermark for the subsequent allocation immediately after kswapd is kicked 
+in the slow path, meaning it is called for every allocation when the zone 
+is between low and min.  That's 360 pages for Shaohua's system and even 
+more if GFP_ATOMIC.  kswapd will reclaim to the high watermark, 360 pages 
+above low, using zone_page_state_snapshot() the whole time as well.  So 
+under heavy memory pressure, it seems like the majority of 
+zone_watermark_ok() calls are using zone_page_state_snapshot() anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
