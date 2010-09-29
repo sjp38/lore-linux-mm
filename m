@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 786CB6B0047
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 21:10:58 -0400 (EDT)
-Received: from hpaq7.eem.corp.google.com (hpaq7.eem.corp.google.com [172.25.149.7])
-	by smtp-out.google.com with ESMTP id o8T1Ate4008031
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 18:10:55 -0700
-Received: from pxi4 (pxi4.prod.google.com [10.243.27.4])
-	by hpaq7.eem.corp.google.com with ESMTP id o8T1AkVQ010718
-	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 18:10:53 -0700
-Received: by pxi4 with SMTP id 4so74653pxi.36
-        for <linux-mm@kvack.org>; Tue, 28 Sep 2010 18:10:53 -0700 (PDT)
-Date: Tue, 28 Sep 2010 18:10:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] arch: remove __GFP_REPEAT for order-0 allocations
-In-Reply-To: <20100928174147.41e48aef.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1009281751170.15357@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1009280344280.11433@chino.kir.corp.google.com> <20100928143655.4282a001.akpm@linux-foundation.org> <alpine.DEB.2.00.1009281536390.24817@chino.kir.corp.google.com> <20100928155326.9ded5a92.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1009281605180.24817@chino.kir.corp.google.com> <20100928164006.55c442b1.akpm@linux-foundation.org> <alpine.DEB.2.00.1009281644110.21757@chino.kir.corp.google.com> <20100928174147.41e48aef.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E6E6B0047
+	for <linux-mm@kvack.org>; Tue, 28 Sep 2010 22:54:31 -0400 (EDT)
+Date: Tue, 28 Sep 2010 19:50:35 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
+	sections
+Message-ID: <20100929025035.GA13096@kroah.com>
+References: <4CA0EBEB.1030204@austin.ibm.com> <4CA1E338.6070201@redhat.com> <20100928151218.GJ14068@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20100928151218.GJ14068@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, Russell King <linux@arm.linux.org.uk>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, David Howells <dhowells@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Roman Zippel <zippel@linux-m68k.org>, Michal Simek <monstr@monstr.eu>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Kyle McMartin <kyle@mcmartin.ca>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Jeff Dike <jdike@addtoit.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: Avi Kivity <avi@redhat.com>, Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Sep 2010, Andrew Morton wrote:
-
-> What I care about is that very smart, experienced and hard-working
-> Linux developers decided, a long time ago, that page-table allocations
-> are special, and need special treatment.  This is information!
+On Tue, Sep 28, 2010 at 10:12:18AM -0500, Robin Holt wrote:
+> On Tue, Sep 28, 2010 at 02:44:40PM +0200, Avi Kivity wrote:
+> >  On 09/27/2010 09:09 PM, Nathan Fontenot wrote:
+> > >This set of patches decouples the concept that a single memory
+> > >section corresponds to a single directory in
+> > >/sys/devices/system/memory/.  On systems
+> > >with large amounts of memory (1+ TB) there are perfomance issues
+> > >related to creating the large number of sysfs directories.  For
+> > >a powerpc machine with 1 TB of memory we are creating 63,000+
+> > >directories.  This is resulting in boot times of around 45-50
+> > >minutes for systems with 1 TB of memory and 8 hours for systems
+> > >with 2 TB of memory.  With this patch set applied I am now seeing
+> > >boot times of 5 minutes or less.
+> > >
+> > >The root of this issue is in sysfs directory creation. Every time
+> > >a directory is created a string compare is done against all sibling
+> > >directories to ensure we do not create duplicates.  The list of
+> > >directory nodes in sysfs is kept as an unsorted list which results
+> > >in this being an exponentially longer operation as the number of
+> > >directories are created.
+> > >
+> > >The solution solved by this patch set is to allow a single
+> > >directory in sysfs to span multiple memory sections.  This is
+> > >controlled by an optional architecturally defined function
+> > >memory_block_size_bytes().  The default definition of this
+> > >routine returns a memory block size equal to the memory section
+> > >size. This maintains the current layout of sysfs memory
+> > >directories as it appears to userspace to remain the same as it
+> > >is today.
+> > >
+> > 
+> > Why not update sysfs directory creation to be fast, for example by
+> > using an rbtree instead of a linked list.  This fixes an
+> > implementation problem in the kernel instead of working around it
+> > and creating a new ABI.
 > 
-
-Then they implemented it incorrectly since __GFP_REPEAT has never given 
-any order-0 allocation special treatment.
-
-> What I also care about is lazy MM developers who just rip stuff out
-> without understanding it and without even bothering to make an
-> *attempt* to understand it.
+> Because the old ABI creates 129,000+ entries inside
+> /sys/devices/system/memory with their associated links from
+> /sys/devices/system/node/node*/ back to those directory entries.
 > 
+> Thankfully things like rpm, hald, and other miscellaneous commands scan
+> that information.
 
-I understand that __GFP_REPEAT does absolutely nothing in all the places 
-that I removed it in this patch, but if you want to use a gfp flag as 
-documentation instead of adding a comment to the PAGE_ALLOC_COSTLY_ORDER 
-retry logic, then that's your call, but I would certainly suggest cleaning 
-up the erroneous documentation in the tree that specifies its semantics.
+Really?  Why?  Why would rpm care about this?  hald is dead now so we
+don't need to worry about that anymore, but what other commands/programs
+read this information?
 
-> > So, given the fact that the PAGE_ALLOC_COSTLY_ORDER logic has existed 
-> > since the same time, the semantics of __GFP_REPEAT have changed and are 
-> > often misrepresented, and we don't even invoke the __GFP_REPEAT logic for 
-> > any of the allocations in my patch since they are oom killable,
-> 
-> Probably this is because lazy ignorant MM developers broke earlier
-> intentions without even knowing that they were doing so.
-> 
+thanks,
 
-The intention was that they loop forever, but since that's implicit for 
-these order-0 allocations, I guess you allowed its semantics to change in 
-a41f24ea without the same objections?
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
