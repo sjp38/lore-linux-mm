@@ -1,28 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 798E16B004A
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 10:06:57 -0400 (EDT)
-Date: Wed, 29 Sep 2010 23:06:54 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [BUGFIX][PATCH] memcg: fix thresholds with use_hierarchy == 1
-Message-Id: <20100929230654.d7f20d2c.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20100929230252.f593abb1.d-nishimura@mtf.biglobe.ne.jp>
-References: <1285763245-19408-1-git-send-email-kirill@shutemov.name>
-	<20100929230252.f593abb1.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 6FB3F6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 10:12:29 -0400 (EDT)
+Date: Wed, 29 Sep 2010 09:12:25 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: zone state overhead
+In-Reply-To: <20100929100307.GA14204@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1009290736280.30777@router.home>
+References: <20100928050801.GA29021@sli10-conroe.sh.intel.com> <alpine.DEB.2.00.1009280736020.4144@router.home> <20100928133059.GL8187@csn.ul.ie> <alpine.DEB.2.00.1009282024570.31551@chino.kir.corp.google.com> <20100929100307.GA14204@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutsemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: David Rientjes <rientjes@google.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I think you can simplify this part by using parent_mem_cgroup() like:
-> 
-> 	parent = parent_mem_cgroup(memcg);
-> 	if (!memcg)
-           ^^^^^^^^ must be !parent of course :)
+On Wed, 29 Sep 2010, Mel Gorman wrote:
+
+> Alternatively we could revisit Christoph's suggestion of modifying
+> stat_threshold when under pressure instead of zone_page_state_snapshot. Maybe
+> by temporarily stat_threshold when kswapd is awake to a per-zone value
+> such that
+>
+> zone->low + threshold*nr_online_cpus < high
+
+Updating the threshold also is expensive. I thought more along the lines
+of reducing the threshold for good if the VM runs into reclaim trouble
+because of too high fuzziness in the counters.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
