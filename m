@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5B0276B004A
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 08:27:47 -0400 (EDT)
-Received: by bwz10 with SMTP id 10so682891bwz.14
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 05:27:45 -0700 (PDT)
-From: "Kirill A. Shutsemov" <kirill@shutemov.name>
-Subject: [BUGFIX][PATCH] memcg: fix thresholds with use_hierarchy == 1
-Date: Wed, 29 Sep 2010 15:27:25 +0300
-Message-Id: <1285763245-19408-1-git-send-email-kirill@shutemov.name>
+	by kanga.kvack.org (Postfix) with ESMTP id 9ED0C6B004A
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 09:16:49 -0400 (EDT)
+Date: Wed, 29 Sep 2010 05:37:52 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [PATCH 0/8] v2 De-Couple sysfs memory directories from memory
+	sections
+Message-ID: <20100929123752.GA18865@kroah.com>
+References: <4CA0EBEB.1030204@austin.ibm.com> <4CA1E338.6070201@redhat.com> <20100928151218.GJ14068@sgi.com> <20100929025035.GA13096@kroah.com> <4CA2F9A2.3090202@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4CA2F9A2.3090202@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Avi Kivity <avi@redhat.com>
+Cc: Robin Holt <holt@sgi.com>, Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Kirill A. Shutemov <kirill@shutemov.name>
+On Wed, Sep 29, 2010 at 10:32:34AM +0200, Avi Kivity wrote:
+>  On 09/29/2010 04:50 AM, Greg KH wrote:
+>> >
+>> >  Because the old ABI creates 129,000+ entries inside
+>> >  /sys/devices/system/memory with their associated links from
+>> >  /sys/devices/system/node/node*/ back to those directory entries.
+>> >
+>> >  Thankfully things like rpm, hald, and other miscellaneous commands scan
+>> >  that information.
+>>
+>> Really?  Why?  Why would rpm care about this?  hald is dead now so we
+>> don't need to worry about that anymore,
+>
+> That's not what compatiblity means.  We can't just support 
+> latest-and-greatest userspace on latest-and-greatest kernels.
 
-We need to check parent's thresholds if parent has use_hierarchy == 1 to
-be sure that parent's threshold events will be triggered even if parent
-itself is not active (no MEM_CGROUP_EVENTS).
+Oh, I know that, that's not what I was getting at at all here, sorry if
+it came across that way.
 
-Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
----
- mm/memcontrol.c |   17 ++++++++++++++---
- 1 files changed, 14 insertions(+), 3 deletions(-)
+I wanted to know so we could go fix programs that are mucking around in
+these files, as odds are, the shouldn't be doing that in the first
+place.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3eed583..196f710 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3587,9 +3587,20 @@ unlock:
- 
- static void mem_cgroup_threshold(struct mem_cgroup *memcg)
- {
--	__mem_cgroup_threshold(memcg, false);
--	if (do_swap_account)
--		__mem_cgroup_threshold(memcg, true);
-+	struct cgroup *parent;
-+
-+	while (1) {
-+		__mem_cgroup_threshold(memcg, false);
-+		if (do_swap_account)
-+			__mem_cgroup_threshold(memcg, true);
-+
-+		parent = memcg->css.cgroup->parent;
-+		if (!parent)
-+			break;
-+		memcg = mem_cgroup_from_cont(parent);
-+		if (!memcg->use_hierarchy)
-+			break;
-+	}
- }
- 
- static int compare_thresholds(const void *a, const void *b)
--- 
-1.7.2.3
+Like rpm, why would it matter what the memory in the system looks like?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
