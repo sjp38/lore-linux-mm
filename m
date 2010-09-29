@@ -1,49 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B8AF46B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 15:44:26 -0400 (EDT)
-Received: from kpbe11.cbf.corp.google.com (kpbe11.cbf.corp.google.com [172.25.105.75])
-	by smtp-out.google.com with ESMTP id o8TJiOEU026842
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:24 -0700
-Received: from pwj6 (pwj6.prod.google.com [10.241.219.70])
-	by kpbe11.cbf.corp.google.com with ESMTP id o8TJiMtc016208
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:23 -0700
-Received: by pwj6 with SMTP id 6so675710pwj.0
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 12:44:22 -0700 (PDT)
-Date: Wed, 29 Sep 2010 12:44:18 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: zone state overhead
-In-Reply-To: <20100929100307.GA14204@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1009291228160.5734@chino.kir.corp.google.com>
-References: <20100928050801.GA29021@sli10-conroe.sh.intel.com> <alpine.DEB.2.00.1009280736020.4144@router.home> <20100928133059.GL8187@csn.ul.ie> <alpine.DEB.2.00.1009282024570.31551@chino.kir.corp.google.com> <20100929100307.GA14204@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C58C46B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 15:47:28 -0400 (EDT)
+Date: Wed, 29 Sep 2010 12:46:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bugme-new] [Bug 19312] New: bad_page crash when writing to OCZ
+ Agility2 120G
+Message-Id: <20100929124659.469c8f3e.akpm@linux-foundation.org>
+In-Reply-To: <bug-19312-10286@https.bugzilla.kernel.org/>
+References: <bug-19312-10286@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux.com>, Shaohua Li <shaohua.li@intel.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, bugme-daemon@bugzilla.kernel.org, b7.10110111@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Sep 2010, Mel Gorman wrote:
 
-> > It's plausible that we never reclaim sufficient memory that we ever get 
-> > above the high watermark since we only trigger reclaim when we can't 
-> > allocate above low, so we may be stuck calling zone_page_state_snapshot() 
-> > constantly.
-> > 
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Wed, 29 Sep 2010 19:03:55 GMT
+bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=19312
 > 
-> Except that zone_page_state_snapshot() is only called while kswapd is
-> awake which is the proxy indicator of pressure. Just being below
-> percpu_drift_mark is not enough to call zone_page_state_snapshot.
+>            Summary: bad_page crash when writing to OCZ Agility2 120G
+>            Product: Drivers
+>            Version: 2.5
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: drivers_other@kernel-bugs.osdl.org
+>         ReportedBy: b7.10110111@gmail.com
+>         Regression: No
+> 
+> 
+> Created an attachment (id=31932)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=31932)
+> dmesg output after the Oops
+> 
+> I recently installed OCZ Agility2 120G SSD. When i tried to make a FS on it, i
+> got a crash. After further investigation i found that the crash appears only
+> when PAE is enabled. I tried to boot into minimal shell (init=/bin/bash) and
+> was able to reproduce the crash. This is how i reproduce the bug:
+> 
+> dd if=/dev/zero of=/dev/sda bs=256M
+> 
+> after some gigs of data (up to some tens of gigs) are written, i get an Oops as
+> in the attached dmesg log. After some time from the oops, the system locks up
+> (no NumLock as well as no Alt+SysRq stuff seems to work).
+> 
+> I tried to plug the SSD to another SATA port, swap it with HDDs, but the bug
+> still persists. I tried to replace my nvidia card with s3virge to no avail. I
+> also tried using mem=1024M kernel cmdline to see if it's because of higher
+> memory PCI access, but the bug persists, though it appeared later than before.
+> Also, the bug sometimes doesn't appear on first write pass, but does on
+> second/third.
+> Ah, yes, the bug still happened after upgrade to 2.6.35.5 kernel.
+> There's no such problem with any of the HDDs. I suspect this may be related to
+> high speed of SSD which might create some race condition, but i'm not sure.
 > 
 
-Right, so zone_page_state_snapshot() is always called to check the min 
-watermark for the subsequent allocation immediately after kswapd is kicked 
-in the slow path, meaning it is called for every allocation when the zone 
-is between low and min.  That's 360 pages for Shaohua's system and even 
-more if GFP_ATOMIC.  kswapd will reclaim to the high watermark, 360 pages 
-above low, using zone_page_state_snapshot() the whole time as well.  So 
-under heavy memory pressure, it seems like the majority of 
-zone_watermark_ok() calls are using zone_page_state_snapshot() anyway.
+A repeatable crash in __block_write_full_page() in 2.6.34 and 2.6.35.
+
+Does anyone have time to take a look?  scripts/decodecode says
+
+All code
+========
+   0:   89 5c 24 28             mov    %ebx,0x28(%rsp)
+   4:   eb 1f                   jmp    0x25
+   6:   77 06                   ja     0xe
+   8:   3b 74 24 20             cmp    0x20(%rsp),%esi
+   c:   76 1d                   jbe    0x2b
+   e:   f0 80 23 fd             lock andb $0xfd,(%rbx)
+  12:   f0 80 0b 01             lock orb $0x1,(%rbx)
+  16:   8b 5b 04                mov    0x4(%rbx),%ebx
+  19:   39 5c 24 28             cmp    %ebx,0x28(%rsp)
+  1d:   74 70                   je     0x8f
+  1f:   83 c6 01                add    $0x1,%esi
+  22:   83 d7 00                adc    $0x0,%edi
+  25:   3b 7c 24 24             cmp    0x24(%rsp),%edi
+  29:   73 db                   jae    0x6
+  2b:*  8b 03                   mov    (%rbx),%eax     <-- trapping instruction
+  2d:   a8 20                   test   $0x20,%al
+  2f:   74 05                   je     0x36
+  31:   f6 c4 02                test   $0x2,%ah
+  34:   74 e0                   je     0x16
+  36:   a8 02                   test   $0x2,%al
+  38:   90                      nop    
+  39:   74 db                   je     0x16
+  3b:   8b 44 24 2c             mov    0x2c(%rsp),%eax
+  3f:   3b                      .byte 0x3b
+
+Code starting with the faulting instruction
+===========================================
+   0:   8b 03                   mov    (%rbx),%eax
+   2:   a8 20                   test   $0x20,%al
+   4:   74 05                   je     0xb
+   6:   f6 c4 02                test   $0x2,%ah
+   9:   74 e0                   je     0xffffffffffffffeb
+   b:   a8 02                   test   $0x2,%al
+   d:   90                      nop    
+   e:   74 db                   je     0xffffffffffffffeb
+  10:   8b 44 24 2c             mov    0x2c(%rsp),%eax
+  14:   3b                      .byte 0x3b
+
+but my attention span ran out.  I _think_ the bh ring got corrupted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
