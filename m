@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A1A9B6B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 16:01:47 -0400 (EDT)
-Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
-	by smtp-out.google.com with ESMTP id o8TK1hOV032615
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:01:43 -0700
-Received: from pvc21 (pvc21.prod.google.com [10.241.209.149])
-	by wpaz29.hot.corp.google.com with ESMTP id o8TK1fqB028887
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:01:42 -0700
-Received: by pvc21 with SMTP id 21so601612pvc.41
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:01:41 -0700 (PDT)
-Date: Wed, 29 Sep 2010 13:01:35 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1126B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 16:15:49 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o8TKFgHS023823
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:15:46 -0700
+Received: from pxi11 (pxi11.prod.google.com [10.243.27.11])
+	by hpaq3.eem.corp.google.com with ESMTP id o8TKFefw026185
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:15:41 -0700
+Received: by pxi11 with SMTP id 11so353419pxi.20
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:15:40 -0700 (PDT)
+Date: Wed, 29 Sep 2010 13:15:30 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Slub cleanup5 2/3] SLUB: Pass active and inactive redzone flags
- instead of boolean to debug functions
-In-Reply-To: <alpine.DEB.2.00.1009290713190.30155@router.home>
-Message-ID: <alpine.DEB.2.00.1009291301060.9797@chino.kir.corp.google.com>
-References: <20100928131025.319846721@linux.com> <20100928131057.084357922@linux.com> <alpine.DEB.2.00.1009281733430.9704@chino.kir.corp.google.com> <alpine.DEB.2.00.1009290713190.30155@router.home>
+Subject: Re: [PATCH 2/3] slub: Add lock release annotation
+In-Reply-To: <1285761735-31499-2-git-send-email-namhyung@gmail.com>
+Message-ID: <alpine.DEB.2.00.1009291314570.9797@chino.kir.corp.google.com>
+References: <1285761735-31499-1-git-send-email-namhyung@gmail.com> <1285761735-31499-2-git-send-email-namhyung@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Namhyung Kim <namhyung@gmail.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Sep 2010, Christoph Lameter wrote:
+On Wed, 29 Sep 2010, Namhyung Kim wrote:
 
-> Updated patch:
-> 
-> Subject: SLUB: Pass active and inactive redzone flags instead of boolean to debug functions
-> 
-> Pass the actual values used for inactive and active redzoning to the
-> functions that check the objects. Avoids a lot of the ? : things to
-> lookup the values in the functions.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> The unfreeze_slab() releases page's PG_locked bit but was missing
+> proper annotation. The deactivate_slab() needs to be marked also
+> since it calls unfreeze_slab() without grabbing the lock.
+
+unfreeze_slab() needs it because it calls deactivate_slab() 
+unconditionally, rather.
+
+> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
 
