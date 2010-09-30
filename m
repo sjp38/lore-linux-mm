@@ -1,37 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 5E2BB6B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:04:13 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o8U349YW001134
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 30 Sep 2010 12:04:09 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 065F045DE57
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 12:04:09 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC87145DE4F
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 12:04:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1965E08001
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 12:04:08 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BB701DB8038
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 12:04:08 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8802B6B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:20:50 -0400 (EDT)
 Subject: Re: [patch]vmscan: protect exectuable page from inactive list scan
+From: Shaohua Li <shaohua.li@intel.com>
 In-Reply-To: <20100930025750.GA10456@localhost>
-References: <20100930112408.2A94.A69D9226@jp.fujitsu.com> <20100930025750.GA10456@localhost>
-Message-Id: <20100930120554.2A97.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+References: <20100929101704.GB2618@cmpxchg.org>
+	 <1285805052.1773.9.camel@shli-laptop>
+	 <20100930112408.2A94.A69D9226@jp.fujitsu.com>
+	 <20100930025750.GA10456@localhost>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 30 Sep 2010 11:20:45 +0800
+Message-ID: <1285816845.1773.28.camel@shli-laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Thu, 30 Sep 2010 12:04:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, "Li, Shaohua" <shaohua.li@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: "Wu, Fengguang" <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2010-09-30 at 10:57 +0800, Wu, Fengguang wrote:
+> On Thu, Sep 30, 2010 at 10:27:04AM +0800, KOSAKI Motohiro wrote:
+> > > On Wed, 2010-09-29 at 18:17 +0800, Johannes Weiner wrote:
+> > > > On Wed, Sep 29, 2010 at 10:57:40AM +0800, Shaohua Li wrote:
+> > > > > With commit 645747462435, pte referenced file page isn't activated in inactive
+> > > > > list scan. For VM_EXEC page, if it can't get a chance to active list, the
+> > > > > executable page protect loses its effect. We protect such page in inactive scan
+> > > > > here, now such page will be guaranteed cached in a full scan of active and
+> > > > > inactive list, which restores previous behavior.
+> > > > 
+> > > > This change was in the back of my head since the used-once detection
+> > > > was merged but there were never any regressions reported that would
+> > > > indicate a requirement for it.
+> > > The executable page protect is to improve responsibility. I would expect
+> > > it's hard for user to report such regression. 
+> > 
+> > Seems strange. 8cab4754d24a0f was introduced for fixing real world problem.
+> > So, I wonder why current people can't feel the same lag if it is.
+> > 
+> > 
+> > > > Does this patch fix a problem you observed?
+> > > No, I haven't done test where Fengguang does in commit 8cab4754d24a0f.
+> > 
+> > But, I am usually not against a number. If you will finished to test them I'm happy :)
+> 
+> Yeah, it needs good numbers for adding such special case code.
+> I attached the scripts used for 8cab4754d24a0f, hope this helps.
+> 
+> Note that the test-mmap-exec-prot.sh used /proc/sys/fs/suid_dumpable
+> as an indicator whether the extra logic is enabled. This is a convenient
+> trick I sometimes play with new code:
+> 
+> +                       extern int suid_dumpable;
+> +                       if (suid_dumpable)
+>                         if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
+>                                 list_add(&page->lru, &l_active);
+>                                 continue;
+ok, I'll test them, but might a little later, after a 7-day holiday.
+
+> > > 
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -608,8 +608,15 @@ static enum page_references page_check_references(struct page *page,
+> > > > >  		 * quickly recovered.
+> > > > >  		 */
+> > > > >  		SetPageReferenced(page);
+> > > > > -
+> > > > > -		if (referenced_page)
+> > > > > +		/*
+> > > > > +		 * Identify pte referenced and file-backed pages and give them
+> > > > > +		 * one trip around the active list. So that executable code get
+> > > > > +		 * better chances to stay in memory under moderate memory
+> > > > > +		 * pressure. JVM can create lots of anon VM_EXEC pages, so we
+> > > > > +		 * ignore them here.
+> > > > > +               if (referenced_page || ((vm_flags & VM_EXEC) &&
+> > > > > +                   page_is_file_cache(page)))
+> > > > >                         return PAGEREF_ACTIVATE;
+> 
+> > > > 
 > > > > PTE-referenced PageAnon() pages are activated unconditionally a few
 > > > > lines further up, so the page_is_file_cache() check filters only shmem
 > > > > pages.  I doubt this was your intention...?
@@ -45,10 +91,8 @@ List-ID: <linux-mm.kvack.org>
 > test also covers that case. The page_is_file_cache() test here seems
 > unnecessary. And it looks better to move the VM_EXEC test above the
 > SetPageReferenced() line to avoid possible side effects.
-
-Both agree :)
-
-
+oops, I should mention this commit 41e20983fe553 here. That commit
+changes it to page_is_file_cache()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
