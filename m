@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E0FD6B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 16:30:19 -0400 (EDT)
-Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
-	by smtp-out.google.com with ESMTP id o8TKUGje023643
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:30:16 -0700
-Received: from pvg16 (pvg16.prod.google.com [10.241.210.144])
-	by hpaq3.eem.corp.google.com with ESMTP id o8TKUE0v011494
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:30:15 -0700
-Received: by pvg16 with SMTP id 16so399273pvg.26
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 13:30:14 -0700 (PDT)
-Date: Wed, 29 Sep 2010 13:30:11 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] slub: Fix signedness warnings
-In-Reply-To: <1285761735-31499-1-git-send-email-namhyung@gmail.com>
-Message-ID: <alpine.DEB.2.00.1009291329400.9797@chino.kir.corp.google.com>
-References: <1285761735-31499-1-git-send-email-namhyung@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E91556B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:04:18 -0400 (EDT)
+Subject: Re: [patch]vmscan: protect exectuable page from inactive list scan
+From: Shaohua Li <shaohua.li@intel.com>
+In-Reply-To: <20100929101704.GB2618@cmpxchg.org>
+References: <1285729060.27440.14.camel@sli10-conroe.sh.intel.com>
+	 <20100929101704.GB2618@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 30 Sep 2010 08:04:12 +0800
+Message-ID: <1285805052.1773.9.camel@shli-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Wu, Fengguang" <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Sep 2010, Namhyung Kim wrote:
-
-> The bit-ops routines require its arg to be a pointer to unsigned long.
-> This leads sparse to complain about different signedness as follows:
+On Wed, 2010-09-29 at 18:17 +0800, Johannes Weiner wrote:
+> On Wed, Sep 29, 2010 at 10:57:40AM +0800, Shaohua Li wrote:
+> > With commit 645747462435, pte referenced file page isn't activated in inactive
+> > list scan. For VM_EXEC page, if it can't get a chance to active list, the
+> > executable page protect loses its effect. We protect such page in inactive scan
+> > here, now such page will be guaranteed cached in a full scan of active and
+> > inactive list, which restores previous behavior.
 > 
->  mm/slub.c:2425:49: warning: incorrect type in argument 2 (different signedness)
->  mm/slub.c:2425:49:    expected unsigned long volatile *addr
->  mm/slub.c:2425:49:    got long *map
-> 
-> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
+> This change was in the back of my head since the used-once detection
+> was merged but there were never any regressions reported that would
+> indicate a requirement for it.
+The executable page protect is to improve responsibility. I would expect
+it's hard for user to report such regression. 
 
-Acked-by: David Rientjes <rientjes@google.com>
+> Does this patch fix a problem you observed?
+No, I haven't done test where Fengguang does in commit 8cab4754d24a0f.
+
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -608,8 +608,15 @@ static enum page_references page_check_references(struct page *page,
+> >  		 * quickly recovered.
+> >  		 */
+> >  		SetPageReferenced(page);
+> > -
+> > -		if (referenced_page)
+> > +		/*
+> > +		 * Identify pte referenced and file-backed pages and give them
+> > +		 * one trip around the active list. So that executable code get
+> > +		 * better chances to stay in memory under moderate memory
+> > +		 * pressure. JVM can create lots of anon VM_EXEC pages, so we
+> > +		 * ignore them here.
+> 
+> PTE-referenced PageAnon() pages are activated unconditionally a few
+> lines further up, so the page_is_file_cache() check filters only shmem
+> pages.  I doubt this was your intention...?
+This is intented. the executable page protect is just to protect
+executable file pages. please see 8cab4754d24a0f.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
