@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 890E46B007D
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:50:38 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 0A8F26B0083
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:50:40 -0400 (EDT)
 Received: by mail-iw0-f169.google.com with SMTP id 33so2614800iwn.14
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:50:37 -0700 (PDT)
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:50:39 -0700 (PDT)
 From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH 03/12] mm: wrap get_locked_pte() using __cond_lock()
-Date: Thu, 30 Sep 2010 12:50:12 +0900
-Message-Id: <1285818621-29890-4-git-send-email-namhyung@gmail.com>
+Subject: [PATCH 04/12] mm: add lock release annotation on do_wp_page()
+Date: Thu, 30 Sep 2010 12:50:13 +0900
+Message-Id: <1285818621-29890-5-git-send-email-namhyung@gmail.com>
 In-Reply-To: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
 References: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,50 +15,29 @@ To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The get_locked_pte() conditionally grabs 'ptl' in case of returning
-non-NULL. This leads sparse to complain about context imbalance.
-Rename and wrap it using __cond_lock() to make sparse happy.
+The do_wp_page() releases @ptl but was missing proper annotation.
+Add it. This removes following warnings from sparse:
+
+ mm/memory.c:2337:9: warning: context imbalance in 'do_wp_page' - unexpected unlock
+ mm/memory.c:3142:19: warning: context imbalance in 'handle_mm_fault' - different lock contexts for basic block
 
 Signed-off-by: Namhyung Kim <namhyung@gmail.com>
 ---
- include/linux/mm.h |   10 +++++++++-
- mm/memory.c        |    2 +-
- 2 files changed, 10 insertions(+), 2 deletions(-)
+ mm/memory.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 74949fb..e48616d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1023,7 +1023,15 @@ extern void unregister_shrinker(struct shrinker *);
- 
- int vma_wants_writenotify(struct vm_area_struct *vma);
- 
--extern pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl);
-+extern pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
-+			       spinlock_t **ptl);
-+static inline pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
-+				    spinlock_t **ptl)
-+{
-+	pte_t *ptep;
-+	__cond_lock(*ptl, ptep = __get_locked_pte(mm, addr, ptl));
-+	return ptep;
-+}
- 
- #ifdef __PAGETABLE_PUD_FOLDED
- static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
 diff --git a/mm/memory.c b/mm/memory.c
-index 0e18b4d..219b50a 100644
+index 219b50a..76fa60e 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -1590,7 +1590,7 @@ struct page *get_dump_page(unsigned long addr)
- }
- #endif /* CONFIG_ELF_CORE */
- 
--pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
-+pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
- 			spinlock_t **ptl)
+@@ -2107,6 +2107,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+ 		spinlock_t *ptl, pte_t orig_pte)
++	__releases(ptl)
  {
- 	pgd_t * pgd = pgd_offset(mm, addr);
+ 	struct page *old_page, *new_page;
+ 	pte_t entry;
 -- 
 1.7.2.2
 
