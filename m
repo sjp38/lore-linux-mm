@@ -1,107 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0CEB76B0047
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:32:21 -0400 (EDT)
-Date: Thu, 30 Sep 2010 11:32:12 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [patch]vmscan: protect exectuable page from inactive list scan
-Message-ID: <20100930033212.GB6347@localhost>
-References: <20100929101704.GB2618@cmpxchg.org>
- <1285805052.1773.9.camel@shli-laptop>
- <20100930112408.2A94.A69D9226@jp.fujitsu.com>
- <20100930025750.GA10456@localhost>
- <1285816845.1773.28.camel@shli-laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1285816845.1773.28.camel@shli-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 445486B0047
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:50:31 -0400 (EDT)
+Received: by iwn33 with SMTP id 33so2614800iwn.14
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:50:29 -0700 (PDT)
+From: Namhyung Kim <namhyung@gmail.com>
+Subject: [PATCH 00/12] mm: fix sparse warnings
+Date: Thu, 30 Sep 2010 12:50:09 +0900
+Message-Id: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: "Li, Shaohua" <shaohua.li@intel.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 30, 2010 at 11:20:45AM +0800, Li, Shaohua wrote:
-> On Thu, 2010-09-30 at 10:57 +0800, Wu, Fengguang wrote:
-> > On Thu, Sep 30, 2010 at 10:27:04AM +0800, KOSAKI Motohiro wrote:
-> > > > On Wed, 2010-09-29 at 18:17 +0800, Johannes Weiner wrote:
-> > > > > On Wed, Sep 29, 2010 at 10:57:40AM +0800, Shaohua Li wrote:
-> > > > > > With commit 645747462435, pte referenced file page isn't activated in inactive
-> > > > > > list scan. For VM_EXEC page, if it can't get a chance to active list, the
-> > > > > > executable page protect loses its effect. We protect such page in inactive scan
-> > > > > > here, now such page will be guaranteed cached in a full scan of active and
-> > > > > > inactive list, which restores previous behavior.
-> > > > > 
-> > > > > This change was in the back of my head since the used-once detection
-> > > > > was merged but there were never any regressions reported that would
-> > > > > indicate a requirement for it.
-> > > > The executable page protect is to improve responsibility. I would expect
-> > > > it's hard for user to report such regression. 
-> > > 
-> > > Seems strange. 8cab4754d24a0f was introduced for fixing real world problem.
-> > > So, I wonder why current people can't feel the same lag if it is.
-> > > 
-> > > 
-> > > > > Does this patch fix a problem you observed?
-> > > > No, I haven't done test where Fengguang does in commit 8cab4754d24a0f.
-> > > 
-> > > But, I am usually not against a number. If you will finished to test them I'm happy :)
-> > 
-> > Yeah, it needs good numbers for adding such special case code.
-> > I attached the scripts used for 8cab4754d24a0f, hope this helps.
-> > 
-> > Note that the test-mmap-exec-prot.sh used /proc/sys/fs/suid_dumpable
-> > as an indicator whether the extra logic is enabled. This is a convenient
-> > trick I sometimes play with new code:
-> > 
-> > +                       extern int suid_dumpable;
-> > +                       if (suid_dumpable)
-> >                         if ((vm_flags & VM_EXEC) && !PageAnon(page)) {
-> >                                 list_add(&page->lru, &l_active);
-> >                                 continue;
-> ok, I'll test them, but might a little later, after a 7-day holiday.
+Hello,
 
-Have a good time :)
+This patchset tries to remove various warnings from sparse. Each patch
+contains the warnings it removes in changelog. I compile-tested with
+all{yes,no}config on x86. Any comments would be welcomed.
 
-> > > > 
-> > > > > > --- a/mm/vmscan.c
-> > > > > > +++ b/mm/vmscan.c
-> > > > > > @@ -608,8 +608,15 @@ static enum page_references page_check_references(struct page *page,
-> > > > > >  		 * quickly recovered.
-> > > > > >  		 */
-> > > > > >  		SetPageReferenced(page);
-> > > > > > -
-> > > > > > -		if (referenced_page)
-> > > > > > +		/*
-> > > > > > +		 * Identify pte referenced and file-backed pages and give them
-> > > > > > +		 * one trip around the active list. So that executable code get
-> > > > > > +		 * better chances to stay in memory under moderate memory
-> > > > > > +		 * pressure. JVM can create lots of anon VM_EXEC pages, so we
-> > > > > > +		 * ignore them here.
-> > > > > > +               if (referenced_page || ((vm_flags & VM_EXEC) &&
-> > > > > > +                   page_is_file_cache(page)))
-> > > > > >                         return PAGEREF_ACTIVATE;
-> > 
-> > > > > 
-> > > > > PTE-referenced PageAnon() pages are activated unconditionally a few
-> > > > > lines further up, so the page_is_file_cache() check filters only shmem
-> > > > > pages.  I doubt this was your intention...?
-> > > > This is intented. the executable page protect is just to protect
-> > > > executable file pages. please see 8cab4754d24a0f.
-> > > 
-> > > 8cab4754d24a0f was using !PageAnon() but your one are using page_is_file_cache.
-> > > 8cab4754d24a0f doesn't tell us the reason of the change, no?
-> > 
-> > What if the executable file happen to be on tmpfs?  The !PageAnon()
-> > test also covers that case. The page_is_file_cache() test here seems
-> > unnecessary. And it looks better to move the VM_EXEC test above the
-> > SetPageReferenced() line to avoid possible side effects.
-> oops, I should mention this commit 41e20983fe553 here. That commit
-> changes it to page_is_file_cache()
+Thanks.
 
-Oops, forgot about that "real but beyond my imagination" corner case..
+---
 
-Thanks,
-Fengguang
+Namhyung Kim (12):
+  mm: remove temporary variable on generic_file_direct_write()
+  mm: add casts to/from gfp_t in gfp_to_alloc_flags()
+  mm: wrap get_locked_pte() using __cond_lock()
+  mm: add lock release annotation on do_wp_page()
+  mm: wrap follow_pte() using __cond_lock()
+  rmap: annotate lock context change on page_[un]lock_anon_vma()
+  rmap: wrap page_check_address() using __cond_lock()
+  rmap: make anon_vma_[chain_]free() static
+  vmalloc: rename temporary variable in __insert_vmap_area()
+  vmalloc: annotate lock context change on s_start/stop()
+  mm: declare some external symbols
+  vmstat: include compaction.h when CONFIG_COMPACTION
+
+ include/linux/backing-dev.h |    1 +
+ include/linux/mm.h          |   10 +++++++++-
+ include/linux/rmap.h        |   29 ++++++++++++++++++++++++++---
+ include/linux/writeback.h   |    2 ++
+ mm/filemap.c                |    8 ++++----
+ mm/memory.c                 |   16 ++++++++++++++--
+ mm/page_alloc.c             |    4 ++--
+ mm/rmap.c                   |   10 ++++++----
+ mm/vmalloc.c                |   10 ++++++----
+ mm/vmstat.c                 |    2 ++
+ 10 files changed, 72 insertions(+), 20 deletions(-)
+
+--
+1.7.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
