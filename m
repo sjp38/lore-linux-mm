@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0FAB96B007B
-	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:50:36 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 890E46B007D
+	for <linux-mm@kvack.org>; Wed, 29 Sep 2010 23:50:38 -0400 (EDT)
 Received: by mail-iw0-f169.google.com with SMTP id 33so2614800iwn.14
-        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:50:35 -0700 (PDT)
+        for <linux-mm@kvack.org>; Wed, 29 Sep 2010 20:50:37 -0700 (PDT)
 From: Namhyung Kim <namhyung@gmail.com>
-Subject: [PATCH 02/12] mm: add casts to/from gfp_t in gfp_to_alloc_flags()
-Date: Thu, 30 Sep 2010 12:50:11 +0900
-Message-Id: <1285818621-29890-3-git-send-email-namhyung@gmail.com>
+Subject: [PATCH 03/12] mm: wrap get_locked_pte() using __cond_lock()
+Date: Thu, 30 Sep 2010 12:50:12 +0900
+Message-Id: <1285818621-29890-4-git-send-email-namhyung@gmail.com>
 In-Reply-To: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
 References: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,50 @@ To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This removes following warning from sparse:
-
- mm/page_alloc.c:1934:9: warning: restricted gfp_t degrades to integer
+The get_locked_pte() conditionally grabs 'ptl' in case of returning
+non-NULL. This leads sparse to complain about context imbalance.
+Rename and wrap it using __cond_lock() to make sparse happy.
 
 Signed-off-by: Namhyung Kim <namhyung@gmail.com>
 ---
- mm/page_alloc.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ include/linux/mm.h |   10 +++++++++-
+ mm/memory.c        |    2 +-
+ 2 files changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a8cfa9c..7c4e5b1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1931,7 +1931,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 74949fb..e48616d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1023,7 +1023,15 @@ extern void unregister_shrinker(struct shrinker *);
  
- 	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
--	BUILD_BUG_ON(__GFP_HIGH != ALLOC_HIGH);
-+	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
+ int vma_wants_writenotify(struct vm_area_struct *vma);
  
- 	/*
- 	 * The caller may dip into page reserves a bit more if the caller
-@@ -1939,7 +1939,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
- 	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
- 	 */
--	alloc_flags |= (gfp_mask & __GFP_HIGH);
-+	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
+-extern pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl);
++extern pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
++			       spinlock_t **ptl);
++static inline pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
++				    spinlock_t **ptl)
++{
++	pte_t *ptep;
++	__cond_lock(*ptl, ptep = __get_locked_pte(mm, addr, ptl));
++	return ptep;
++}
  
- 	if (!wait) {
- 		alloc_flags |= ALLOC_HARDER;
+ #ifdef __PAGETABLE_PUD_FOLDED
+ static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
+diff --git a/mm/memory.c b/mm/memory.c
+index 0e18b4d..219b50a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1590,7 +1590,7 @@ struct page *get_dump_page(unsigned long addr)
+ }
+ #endif /* CONFIG_ELF_CORE */
+ 
+-pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
++pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
+ 			spinlock_t **ptl)
+ {
+ 	pgd_t * pgd = pgd_offset(mm, addr);
 -- 
 1.7.2.2
 
