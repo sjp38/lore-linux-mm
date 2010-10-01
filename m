@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 056126B0047
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 14:28:47 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o91I8Xgf032033
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:08:33 -0400
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 24B696B0078
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 14:29:50 -0400 (EDT)
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o91IE41Z011731
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:14:04 -0400
 Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o91ISgEm1822924
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:28:42 -0400
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o91ITkY0131688
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:29:46 -0400
 Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o91ISf8k018714
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:28:41 -0400
-Message-ID: <4CA62857.4030803@austin.ibm.com>
-Date: Fri, 01 Oct 2010 13:28:39 -0500
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o91ITicB023116
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 14:29:45 -0400
+Message-ID: <4CA62896.2060307@austin.ibm.com>
+Date: Fri, 01 Oct 2010 13:29:42 -0500
 From: Nathan Fontenot <nfont@austin.ibm.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/9] v3 Move find_memory_block routine
+Subject: [PATCH 2/9] v3 Add mutex for adding/removing memory blocks
 References: <4CA62700.7010809@austin.ibm.com>
 In-Reply-To: <4CA62700.7010809@austin.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -25,95 +25,62 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.
 Cc: Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Robin Holt <holt@sgi.com>, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Move the find_memory_block() routine up to avoid needing a forward
-declaration in subsequent patches.
+Add a new mutex for use in adding and removing of memory blocks.  This
+is needed to avoid any race conditions in which the same memory block could
+be added and removed at the same time.
 
 Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 
 ---
- drivers/base/memory.c |   62 +++++++++++++++++++++++++-------------------------
- 1 file changed, 31 insertions(+), 31 deletions(-)
+ drivers/base/memory.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
 Index: linux-next/drivers/base/memory.c
 ===================================================================
---- linux-next.orig/drivers/base/memory.c	2010-09-29 14:56:26.000000000 -0500
-+++ linux-next/drivers/base/memory.c	2010-09-30 14:09:36.000000000 -0500
-@@ -435,6 +435,37 @@
- 	return 0;
- }
+--- linux-next.orig/drivers/base/memory.c	2010-09-30 14:09:36.000000000 -0500
++++ linux-next/drivers/base/memory.c	2010-09-30 14:12:41.000000000 -0500
+@@ -27,6 +27,8 @@
+ #include <asm/atomic.h>
+ #include <asm/uaccess.h>
  
-+/*
-+ * For now, we have a linear search to go find the appropriate
-+ * memory_block corresponding to a particular phys_index. If
-+ * this gets to be a real problem, we can always use a radix
-+ * tree or something here.
-+ *
-+ * This could be made generic for all sysdev classes.
-+ */
-+struct memory_block *find_memory_block(struct mem_section *section)
-+{
-+	struct kobject *kobj;
-+	struct sys_device *sysdev;
-+	struct memory_block *mem;
-+	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
++static DEFINE_MUTEX(mem_sysfs_mutex);
 +
-+	/*
-+	 * This only works because we know that section == sysdev->id
-+	 * slightly redundant with sysdev_register()
-+	 */
-+	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
+ #define MEMORY_CLASS_NAME	"memory"
+ 
+ static struct sysdev_class memory_sysdev_class = {
+@@ -476,6 +478,8 @@
+ 	if (!mem)
+ 		return -ENOMEM;
+ 
++	mutex_lock(&mem_sysfs_mutex);
 +
-+	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
-+	if (!kobj)
-+		return NULL;
-+
-+	sysdev = container_of(kobj, struct sys_device, kobj);
-+	mem = container_of(sysdev, struct memory_block, sysdev);
-+
-+	return mem;
-+}
-+
- static int add_memory_block(int nid, struct mem_section *section,
- 			unsigned long state, enum mem_add_context context)
- {
-@@ -468,37 +499,6 @@
+ 	mem->phys_index = __section_nr(section);
+ 	mem->state = state;
+ 	mutex_init(&mem->state_mutex);
+@@ -496,6 +500,7 @@
+ 			ret = register_mem_sect_under_node(mem, nid);
+ 	}
+ 
++	mutex_unlock(&mem_sysfs_mutex);
  	return ret;
  }
  
--/*
-- * For now, we have a linear search to go find the appropriate
-- * memory_block corresponding to a particular phys_index. If
-- * this gets to be a real problem, we can always use a radix
-- * tree or something here.
-- *
-- * This could be made generic for all sysdev classes.
-- */
--struct memory_block *find_memory_block(struct mem_section *section)
--{
--	struct kobject *kobj;
--	struct sys_device *sysdev;
--	struct memory_block *mem;
--	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
--
--	/*
--	 * This only works because we know that section == sysdev->id
--	 * slightly redundant with sysdev_register()
--	 */
--	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
--
--	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
--	if (!kobj)
--		return NULL;
--
--	sysdev = container_of(kobj, struct sys_device, kobj);
--	mem = container_of(sysdev, struct memory_block, sysdev);
--
--	return mem;
--}
--
- int remove_memory_block(unsigned long node_id, struct mem_section *section,
- 		int phys_device)
+@@ -504,6 +509,7 @@
  {
+ 	struct memory_block *mem;
+ 
++	mutex_lock(&mem_sysfs_mutex);
+ 	mem = find_memory_block(section);
+ 	unregister_mem_sect_under_nodes(mem);
+ 	mem_remove_simple_file(mem, phys_index);
+@@ -512,6 +518,7 @@
+ 	mem_remove_simple_file(mem, removable);
+ 	unregister_memory(mem, section);
+ 
++	mutex_unlock(&mem_sysfs_mutex);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
