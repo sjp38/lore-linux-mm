@@ -1,93 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id B46336B0047
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:41:16 -0400 (EDT)
-Received: from [172.16.12.66] by digidescorp.com (Cipher SSLv3:RC4-MD5:128) (MDaemon PRO v10.1.1)
-	with ESMTP id md50001436248.msg
-	for <linux-mm@kvack.org>; Fri, 01 Oct 2010 11:41:13 -0500
-Subject: Re: [PATCH][RESEND] nommu: add anonymous page memcg accounting
-From: "Steven J. Magnani" <steve@digidescorp.com>
-Reply-To: steve@digidescorp.com
-In-Reply-To: <5867.1285945621@redhat.com>
-References: <WC20101001143139.810346@digidescorp.com>
-	 <1285929315-2856-1-git-send-email-steve@digidescorp.com>
-	 <5206.1285943095@redhat.com>  <5867.1285945621@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Fri, 01 Oct 2010 11:41:07 -0500
-Message-ID: <1285951267.2558.69.camel@iscandar.digidescorp.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 507C76B0047
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:44:03 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o91GaEFT022391
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 10:36:14 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o91Gi0Y6249542
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 10:44:00 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o91Gi055010205
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 10:44:00 -0600
+Subject: Re: Linux swapping with MySQL/InnoDB due to NUMA architecture
+ imbalanced allocations?
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <AANLkTikqXGvJUX1kR0XY-ug1m4O9KTS+E6Qv1Birt3mT@mail.gmail.com>
+References: <AANLkTim1R7-FVwofw-otpGCcHqQHLDwaTYYWFS1ZhSoW@mail.gmail.com>
+	 <1285353469.3292.14042.camel@nimitz>
+	 <AANLkTikqXGvJUX1kR0XY-ug1m4O9KTS+E6Qv1Birt3mT@mail.gmail.com>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Fri, 01 Oct 2010 09:43:58 -0700
+Message-ID: <1285951438.16716.2586.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: Jeremy Cole <jeremy@jcole.us>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2010-10-01 at 16:07 +0100, David Howells wrote: 
-> Steve Magnani <steve@digidescorp.com> wrote:
+On Mon, 2010-09-27 at 18:58 -0700, Jeremy Cole wrote:
+> > As far as the decisions about running reclaim or swapping versus going
+> > to another node for an allocation, take a look at the
+> > "zone_reclaim_mode" bits in Documentation/sysctl/vm.txt .  It does a
+> > decent job of explaining what we do.
 > 
-> > If anything I think nommu is one of the better applications of memcg. Since
-> > nommu typically embedded, being able to put potential memory pigs in a
-> > sandbox so they can't destabilize the system is a Good Thing. That was my
-> > motivation for doing this in the first place and it works quite well.
+> I had read about zone_reclaim_mode, and I've also been testing
+> different settings for it, but I don't think it actually completely
+> solves the situation here.  It seems to be primarily concerned with
+> allocations that *could* happen anywhere, whereas I think what we're
+> often seeing is that memory for whatever reason (which is not
+> completely obvious to me) *must* be allocated on Node X, but Node X
+> has no free memory and no caches to free.
+
+All allocations have a list of zones from which the allocation can be
+satisfied.  With many nodes, some may be closer than others, so
+allocations _prefer_ to be on close (rather than distant) nodes.
+zone_reclaim_mode basically speaks to how hard we try to work before we
+give up and move down this priority list.
+
+> Nonetheless, I have to admit that I don't completely understand the
+> documentation for zone_reclaim_mode in its current form.  Perhaps you
+> could answer a few questions?  I feel that the documentation could be
+> updated with some important answers, which are missing now:
 > 
-> I suspect it's not useful for a few reasons:
+> 1. What "zone reclaim" actually means.  My understanding is that "zone
+> reclaim" is the practice of freeing memory on a specific node where
+> memory was preferentially requested (due to NUMA memory allocation
+> policy, by default "local") in favor of satisfying the allocation
+> using free memory from wherever it is currently available.
+
+Reclaim is what happens when you ask for memory and we don't have any.
+Zone reclaim is the process that we follow to get memory inside a
+particular area.
+
+> 2. It isn't terribly clear what the default (0) policy is, and it
+> could use an explanation.  Here's my take on it:
 > 
->  (1) You don't normally run many applications on a NOMMU system.  Typically,
->      you'll run just one, probably threaded app, I think.
+> When zone_reclaim_mode = 0, programs requesting memory to be allocated
+> on a particular node will only receive memory on the requested node if
+> free memory is available.If no free memory is available on the
+> requested node, but free memory is available on a different node, the
+> allocation will be made there unless policy forbids it.  If no free
+> memory is available on any node, then the normal cache freeing and
+> paging out policies will apply to make free memory available on any
+> node to satisfy the allocation. [Is there any preference for which
+> node caches are freed from in this case?]
 
-Not always.
+I think it's simpler than that.  When it's 0, we don't try to reclaim
+memory until the whole system is full.  Basically, memory allocation
+acts like it would on a system which isn't NUMA.
 
+> Is this correct?
 > 
->  (2) In general, you won't be able to cull processes to make space.  If the OOM
->      killer runs your application has a bug in it.
-
-Not always. Every now and then applications have to deal with
-user-supplied input of some sort. 
-
-In our case it's a user-formatted disk drive that can have some
-arbitrarily-sized FAT32 partition on which we are required to run
-dosfsck. Now, dosfsck is the epitome of a memory pig; its memory
-requirements scale with partition size, number of dentries, and any
-damage encountered - none of which can be predicted. There is a set of
-partitions we are able to check with no problem, but no guarantee the
-user won't present us with one that would bring down the whole system,
-were the OOM killer to get involved. Putting just dosfsck in its own
-sandbox ensures this can't happen. See also my response to #4 below.
-
+> 3. I found that the list of possible values' descriptions are a bit
+> too terse to be usable by me.  Here are some efforts to refine the
+> definitions:
 > 
->  (3) memcg has a huge overhead.  20 bytes per page!  On a 4K page 32-bit
->      system, that's nearly 5% of your RAM, assuming I understand the
->      CGROUP_MEM_RES_CTLR config help text correctly.
+>   a. "1 = Zone reclaim on" -- This means that cache pages will be
+> freed to make free memory to satisfy the request only if they are not
+> dirty.
 
-When you use 16K pages, 20 bytes/page isn't so huge :)
+It also means that we'll try and drop some slab caches.  I think you can
+more generally:  This will try to reclaim memory in ways that won't
+cause extra writes to disk.  But, it might cause extra reads at some
+point in the future.  
 
+>   b. "2 = Zone reclaim writes dirty pages out" -- This means that
+> dirty cache pages will be written out and then freed if no clean pages
+> are available to be freed.  This incurs additional cost due to disk
+> I/O.
+
+It can also cause processes doing writes to stall sooner than they might
+have otherwise.  That's kinda covered in the current documentation.
+
+>   c. "4 = Zone reclaim swaps pages" -- This means that anonymous pages
+> may be swapped out to disk and then freed if no clean pages are
+> available to be freed and (if bit 2 is set) no dirty cache pages are
+> available to be written out and freed.  This incurs additional cost
+> due to swap I/O.
+
+I wouldn't mention the other modes.  
+
+I'd encourage you to try and put together a patch for the documentation.
+I can't tell you how many times I've scratched my head looking at that
+particular entry.  
+
+> Do those refinements make sense and are they correct?
 > 
->  (4) There's no swapping, no page faults, no migration and little shareable
->      memory.  Being able to allocate large blocks of contiguous memory is much
->      more important and much more of a bottleneck than this.  The 5% of RAM
->      lost makes that just that little bit harder.
-> 
-> If it's memory sandboxing you require, ulimit might be sufficient for NOMMU
-> mode.
+> 4. How is it determined that "pages from remote zones will cause a
+> measurable performance reduction"?  My understanding is that this is
+> based on whether the node distance, as reported by "numactl
+> --hardware" is > RECLAIM_DISTANCE (by default defined as 20).
 
-dosfsck is written to handle memory allocation failures properly
-(bailing out) but I have not been able to get this code to execute when
-the system runs out of memory - the OOM killer gets invoked and that's
-all she wrote. Will a ulimit violation return control back to the
-process, or terminate it in some graceful manner? 
+Exactly.  We take the BIOS tables (or whatever they're called on
+non-x86) and translate them into a reclaim distance.  If it's >20, then
+we say "pages from remote zones will cause a measurable performance
+reduction".  
 
-> 
-> However, I suppose there's little harm in letting the patch in.  I would guess
-> the additions all optimise away if memcg isn't enabled.
-> 
-> A question for you: why does struct page_cgroup need a page pointer?  If an
-> array of page_cgroup structs is allocated per array of page structs, then you
-> should be able to use the array index to map between them.
+> 5. I cannot parse/understand this statement at all: "Allowing regular
+> swap effectively restricts allocations to the local node unless
+> explicitly overridden by memory policies or cpuset configurations." --
+> Could this be rephrased and/or explained?
 
-Kame is probably better able to answer this.
- 
-Steve
+Yeah, that's pretty obtuse. :)
 
+If you ask for memory from one zone, you'll get it from that zone.  The
+kernel will do everything it can to give you memory from that zone,
+including swapping pages out.  You implicitly ask for memory from the
+current node for every allocation, so this will effectively restrict
+your memory use to the local node, unless you override it.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
