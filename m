@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 322C36B007B
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 01:05:03 -0400 (EDT)
-Received: from hpaq6.eem.corp.google.com (hpaq6.eem.corp.google.com [172.25.149.6])
-	by smtp-out.google.com with ESMTP id o9154wZu019289
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 22:04:58 -0700
-Received: from pxi5 (pxi5.prod.google.com [10.243.27.5])
-	by hpaq6.eem.corp.google.com with ESMTP id o9154u1v025967
-	for <linux-mm@kvack.org>; Thu, 30 Sep 2010 22:04:57 -0700
-Received: by pxi5 with SMTP id 5so1574109pxi.0
-        for <linux-mm@kvack.org>; Thu, 30 Sep 2010 22:04:56 -0700 (PDT)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 1/2] Unique path for locking page in filemap_fault()
-Date: Thu, 30 Sep 2010 22:04:43 -0700
-Message-Id: <1285909484-30958-2-git-send-email-walken@google.com>
-In-Reply-To: <1285909484-30958-1-git-send-email-walken@google.com>
-References: <1285909484-30958-1-git-send-email-walken@google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7826B0047
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 05:22:48 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o919HYWt028536
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:17:34 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o919MjFX207144
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:22:45 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o919Mi5P015207
+	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:22:44 -0600
+Date: Fri, 1 Oct 2010 14:52:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH v2] memcg: fix thresholds with use_hierarchy == 1
+Message-ID: <20101001092239.GG4261@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>
+To: "Kirill A. Shutsemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Note that if the file got truncated before we locked the page, we retry
-at find_get_page(). This is similar to what find_lock_page() would do.
-Linus's commit ef00e08e introduced a goto no_cached_page in that simuation,
-which seems correct as well but possibly less efficient ?
+* Kirill A. Shutsemov <kirill@shutemov.name> [2010-09-30 13:16:32]:
 
------------------------ >8 ------------------------
+> From: Kirill A. Shutemov <kirill@shutemov.name>
+> 
+> We need to check parent's thresholds if parent has use_hierarchy == 1 to
+> be sure that parent's threshold events will be triggered even if parent
+> itself is not active (no MEM_CGROUP_EVENTS).
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+> ---
+>  mm/memcontrol.c |   10 +++++++---
+>  1 files changed, 7 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3eed583..df40eaf 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3587,9 +3587,13 @@ unlock:
+> 
+>  static void mem_cgroup_threshold(struct mem_cgroup *memcg)
+>  {
+> -	__mem_cgroup_threshold(memcg, false);
+> -	if (do_swap_account)
+> -		__mem_cgroup_threshold(memcg, true);
+> +	while (memcg) {
+> +		__mem_cgroup_threshold(memcg, false);
+> +		if (do_swap_account)
+> +			__mem_cgroup_threshold(memcg, true);
+> +
+> +		memcg =  parent_mem_cgroup(memcg);
+> +	}
+>  }
+>
 
-This change introduces a single location where filemap_fault() locks
-the desired page. There used to be two such places, depending if the
-initial find_get_page() was successful or not.
+Good catch!
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- mm/filemap.c |   20 +++++++++++---------
- 1 files changed, 11 insertions(+), 9 deletions(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 3d4df44..8ed709a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1539,25 +1539,27 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		 * waiting for the lock.
- 		 */
- 		do_async_mmap_readahead(vma, ra, file, page, offset);
--		lock_page(page);
--
--		/* Did it get truncated? */
--		if (unlikely(page->mapping != mapping)) {
--			unlock_page(page);
--			put_page(page);
--			goto no_cached_page;
--		}
- 	} else {
- 		/* No page in the page cache at all */
- 		do_sync_mmap_readahead(vma, ra, file, offset);
- 		count_vm_event(PGMAJFAULT);
- 		ret = VM_FAULT_MAJOR;
- retry_find:
--		page = find_lock_page(mapping, offset);
-+		page = find_get_page(mapping, offset);
- 		if (!page)
- 			goto no_cached_page;
- 	}
  
-+	lock_page(page);
-+
-+	/* Did it get truncated? */
-+	if (unlikely(page->mapping != mapping)) {
-+		unlock_page(page);
-+		put_page(page);
-+		goto retry_find;
-+	}
-+	VM_BUG_ON(page->index != offset);
-+
- 	/*
- 	 * We have a locked page in the page cache, now we need to check
- 	 * that it's up-to-date. If not, it is going to be due to an error.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+
 -- 
-1.7.1
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
