@@ -1,74 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D7826B0047
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 05:22:48 -0400 (EDT)
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by e33.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o919HYWt028536
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:17:34 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o919MjFX207144
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:22:45 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o919Mi5P015207
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 03:22:44 -0600
-Date: Fri, 1 Oct 2010 14:52:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH v2] memcg: fix thresholds with use_hierarchy == 1
-Message-ID: <20101001092239.GG4261@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1285841792-23664-1-git-send-email-kirill@shutemov.name>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8446B0047
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 06:35:27 -0400 (EDT)
+Received: from localhost.localdomain by digidescorp.com (Cipher TLSv1:RC4-MD5:128) (MDaemon PRO v10.1.1)
+	with ESMTP id md50001435804.msg
+	for <linux-mm@kvack.org>; Fri, 01 Oct 2010 05:35:23 -0500
+From: "Steven J. Magnani" <steve@digidescorp.com>
+Subject: [PATCH][RESEND] nommu: add anonymous page memcg accounting
+Date: Fri,  1 Oct 2010 05:35:15 -0500
+Message-Id: <1285929315-2856-1-git-send-email-steve@digidescorp.com>
 Sender: owner-linux-mm@kvack.org
-To: "Kirill A. Shutsemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, dhowells@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, "Steven J. Magnani" <steve@digidescorp.com>
 List-ID: <linux-mm.kvack.org>
 
-* Kirill A. Shutsemov <kirill@shutemov.name> [2010-09-30 13:16:32]:
+Add the necessary calls to track VM anonymous page usage.
 
-> From: Kirill A. Shutemov <kirill@shutemov.name>
-> 
-> We need to check parent's thresholds if parent has use_hierarchy == 1 to
-> be sure that parent's threshold events will be triggered even if parent
-> itself is not active (no MEM_CGROUP_EVENTS).
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> ---
->  mm/memcontrol.c |   10 +++++++---
->  1 files changed, 7 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3eed583..df40eaf 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3587,9 +3587,13 @@ unlock:
-> 
->  static void mem_cgroup_threshold(struct mem_cgroup *memcg)
->  {
-> -	__mem_cgroup_threshold(memcg, false);
-> -	if (do_swap_account)
-> -		__mem_cgroup_threshold(memcg, true);
-> +	while (memcg) {
-> +		__mem_cgroup_threshold(memcg, false);
-> +		if (do_swap_account)
-> +			__mem_cgroup_threshold(memcg, true);
-> +
-> +		memcg =  parent_mem_cgroup(memcg);
-> +	}
->  }
->
-
-Good catch!
-
+Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+---
+diff -uprN a/mm/nommu.c b/mm/nommu.c
+--- a/mm/nommu.c	2010-09-02 19:47:43.000000000 -0500
++++ b/mm/nommu.c	2010-09-02 20:07:02.000000000 -0500
+@@ -524,8 +524,10 @@ static void delete_nommu_region(struct v
+ /*
+  * free a contiguous series of pages
+  */
+-static void free_page_series(unsigned long from, unsigned long to)
++static void free_page_series(unsigned long from, unsigned long to,
++			     const struct file *file)
+ {
++	mem_cgroup_uncharge_start();
+ 	for (; from < to; from += PAGE_SIZE) {
+ 		struct page *page = virt_to_page(from);
  
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+@@ -534,8 +536,12 @@ static void free_page_series(unsigned lo
+ 		if (page_count(page) != 1)
+ 			kdebug("free page %p: refcount not one: %d",
+ 			       page, page_count(page));
++		if (!file)
++			mem_cgroup_uncharge_page(page);
++
+ 		put_page(page);
+ 	}
++	mem_cgroup_uncharge_end();
+ }
  
-
--- 
-	Three Cheers,
-	Balbir
+ /*
+@@ -563,7 +569,8 @@ static void __put_nommu_region(struct vm
+ 		 * from ramfs/tmpfs mustn't be released here */
+ 		if (region->vm_flags & VM_MAPPED_COPY) {
+ 			kdebug("free series");
+-			free_page_series(region->vm_start, region->vm_top);
++			free_page_series(region->vm_start, region->vm_top,
++					 region->vm_file);
+ 		}
+ 		kmem_cache_free(vm_region_jar, region);
+ 	} else {
+@@ -1117,9 +1124,26 @@ static int do_mmap_private(struct vm_are
+ 		set_page_refcounted(&pages[point]);
+ 
+ 	base = page_address(pages);
+-	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
++
+ 	region->vm_start = (unsigned long) base;
+ 	region->vm_end   = region->vm_start + rlen;
++
++	if (!vma->vm_file) {
++		for (point = 0; point < total; point++) {
++			int charge_failed =
++				mem_cgroup_newpage_charge(&pages[point],
++							  current->mm,
++							  GFP_KERNEL);
++			if (charge_failed) {
++				free_page_series(region->vm_start,
++						 region->vm_end, NULL);
++				region->vm_start = region->vm_end = 0;
++				goto enomem;
++			}
++		}
++	}
++
++	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+ 	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
+ 
+ 	vma->vm_start = region->vm_start;
+@@ -1150,7 +1174,7 @@ static int do_mmap_private(struct vm_are
+ 	return 0;
+ 
+ error_free:
+-	free_page_series(region->vm_start, region->vm_end);
++	free_page_series(region->vm_start, region->vm_end, vma->vm_file);
+ 	region->vm_start = vma->vm_start = 0;
+ 	region->vm_end   = vma->vm_end = 0;
+ 	region->vm_top   = 0;
+@@ -1555,7 +1579,7 @@ static int shrink_vma(struct mm_struct *
+ 	add_nommu_region(region);
+ 	up_write(&nommu_region_sem);
+ 
+-	free_page_series(from, to);
++	free_page_series(from, to, vma->vm_file);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
