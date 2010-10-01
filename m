@@ -1,128 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id DC0DE6B0047
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 11:32:03 -0400 (EDT)
-Received: from mail-yw0-f41.google.com (mail-yw0-f41.google.com [209.85.213.41])
-	(authenticated bits=0)
-	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o91FVTsJ020548
-	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
-	for <linux-mm@kvack.org>; Fri, 1 Oct 2010 08:31:30 -0700
-Received: by ywl5 with SMTP id 5so1475816ywl.14
-        for <linux-mm@kvack.org>; Fri, 01 Oct 2010 08:31:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1285909484-30958-3-git-send-email-walken@google.com>
-References: <1285909484-30958-1-git-send-email-walken@google.com> <1285909484-30958-3-git-send-email-walken@google.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 1 Oct 2010 08:31:01 -0700
-Message-ID: <AANLkTinGgZC7eHW_Q-aR5Vmur4yjv_kKSJ8z3MX60e-r@mail.gmail.com>
-Subject: Re: [PATCH 2/2] Release mmap_sem when page fault blocks on disk transfer.
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id B46336B0047
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 12:41:16 -0400 (EDT)
+Received: from [172.16.12.66] by digidescorp.com (Cipher SSLv3:RC4-MD5:128) (MDaemon PRO v10.1.1)
+	with ESMTP id md50001436248.msg
+	for <linux-mm@kvack.org>; Fri, 01 Oct 2010 11:41:13 -0500
+Subject: Re: [PATCH][RESEND] nommu: add anonymous page memcg accounting
+From: "Steven J. Magnani" <steve@digidescorp.com>
+Reply-To: steve@digidescorp.com
+In-Reply-To: <5867.1285945621@redhat.com>
+References: <WC20101001143139.810346@digidescorp.com>
+	 <1285929315-2856-1-git-send-email-steve@digidescorp.com>
+	 <5206.1285943095@redhat.com>  <5867.1285945621@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 01 Oct 2010 11:41:07 -0500
+Message-ID: <1285951267.2558.69.camel@iscandar.digidescorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>
+To: David Howells <dhowells@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-I have nothing against the 1/2 patch, it seems nice regardless.
+On Fri, 2010-10-01 at 16:07 +0100, David Howells wrote: 
+> Steve Magnani <steve@digidescorp.com> wrote:
+> 
+> > If anything I think nommu is one of the better applications of memcg. Since
+> > nommu typically embedded, being able to put potential memory pigs in a
+> > sandbox so they can't destabilize the system is a Good Thing. That was my
+> > motivation for doing this in the first place and it works quite well.
+> 
+> I suspect it's not useful for a few reasons:
+> 
+>  (1) You don't normally run many applications on a NOMMU system.  Typically,
+>      you'll run just one, probably threaded app, I think.
 
-This one is really messy, though. I think you're making the code much
-less readable (and it's not wonderful to start with). That's
-unacceptable.
+Not always.
 
-On Thu, Sep 30, 2010 at 10:04 PM, Michel Lespinasse <walken@google.com> wro=
-te:
-> =A0 =A0 =A0 =A0int fault;
-> + =A0 =A0 =A0 unsigned int release_flag =3D FAULT_FLAG_RELEASE;
+> 
+>  (2) In general, you won't be able to cull processes to make space.  If the OOM
+>      killer runs your application has a bug in it.
 
-Try this with just "flag", and make it look something like
+Not always. Every now and then applications have to deal with
+user-supplied input of some sort. 
 
-   unsigned int flag;
+In our case it's a user-formatted disk drive that can have some
+arbitrarily-sized FAT32 partition on which we are required to run
+dosfsck. Now, dosfsck is the epitome of a memory pig; its memory
+requirements scale with partition size, number of dentries, and any
+damage encountered - none of which can be predicted. There is a set of
+partitions we are able to check with no problem, but no guarantee the
+user won't present us with one that would bring down the whole system,
+were the OOM killer to get involved. Putting just dosfsck in its own
+sandbox ensures this can't happen. See also my response to #4 below.
 
-   flag =3D FAULT_FLAG_RELEASE | (write ? FAULT_FLAG_WRITE : 0);
+> 
+>  (3) memcg has a huge overhead.  20 bytes per page!  On a 4K page 32-bit
+>      system, that's nearly 5% of your RAM, assuming I understand the
+>      CGROUP_MEM_RES_CTLR config help text correctly.
 
-and just keep the whole mm_handle_fault() flags value in there. That
-avoids one ugly/complex line, and makes it much easier to add other
-flags if we ever do.
+When you use 16K pages, 20 bytes/page isn't so huge :)
 
-Also, I think the "RELEASE" naming is too much about the
-implementation, not about the context. I think it would be more
-sensible to call it "ALLOW_RETRY" or "ATOMIC" or something like this,
-and not make it about releasing the page lock so much as about what
-you want to happen.
+> 
+>  (4) There's no swapping, no page faults, no migration and little shareable
+>      memory.  Being able to allocate large blocks of contiguous memory is much
+>      more important and much more of a bottleneck than this.  The 5% of RAM
+>      lost makes that just that little bit harder.
+> 
+> If it's memory sandboxing you require, ulimit might be sufficient for NOMMU
+> mode.
 
-Because quite frankly, I could imagine other reasons to allow page fault re=
-try.
+dosfsck is written to handle memory allocation failures properly
+(bailing out) but I have not been able to get this code to execute when
+the system runs out of memory - the OOM killer gets invoked and that's
+all she wrote. Will a ulimit violation return control back to the
+process, or terminate it in some graceful manner? 
 
-(Similarly, I would rename VM_FAULT_RELEASED to VM_FAULT_RETRY. Again:
-name things for the _concept_, not for some odd implementation issue)
+> 
+> However, I suppose there's little harm in letting the patch in.  I would guess
+> the additions all optimise away if memcg isn't enabled.
+> 
+> A question for you: why does struct page_cgroup need a page pointer?  If an
+> array of page_cgroup structs is allocated per array of page structs, then you
+> should be able to use the array index to map between them.
 
-> - =A0 =A0 =A0 if (fault & VM_FAULT_MAJOR) {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsk->maj_flt++;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ=
-, 1, 0,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-regs, address);
-> - =A0 =A0 =A0 } else {
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 tsk->min_flt++;
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN=
-, 1, 0,
-> - =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
-regs, address);
-> + =A0 =A0 =A0 if (release_flag) { =A0 =A0 /* Did not go through a retry *=
-/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (fault & VM_FAULT_MAJOR) {
+Kame is probably better able to answer this.
+ 
+Steve
 
-I really don't know if this is correct. What if you have two major
-faults due to the retry? What if the first one is a minor fault, but
-when we retry it's a major fault because the page got released? The
-nesting of the conditionals doesn't seem to make conceptual sense.
-
-I dunno. I can see what you're doing ("only do statistics for the
-first return"), but at the same time it just feels a bit icky.
-
-> - =A0 =A0 =A0 lock_page(page);
-> + =A0 =A0 =A0 /* Lock the page. */
-> + =A0 =A0 =A0 if (!trylock_page(page)) {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!(vmf->flags & FAULT_FLAG_RELEASE))
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __lock_page(page);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 else {
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Caller passed FAULT_FL=
-AG_RELEASE flag.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* This indicates it has =
-read-acquired mmap_sem,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* and requests that it b=
-e released if we have to
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* wait for the page to b=
-e transferred from disk.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Caller will then retry=
- starting with the
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* mmap_sem read-acquire.
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 up_read(&vma->vm_mm->mmap_s=
-em);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 wait_on_page_locked(page);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_cache_release(page);
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return ret | VM_FAULT_RELEA=
-SED;
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
-> + =A0 =A0 =A0 }
-
-I'd much rather see this abstracted out (preferably together with the
-"did it get truncated" logic) into a small helper function of its own.
-The main reason I say that is because I hate your propensity for
-putting the comments deep inside the code. I think any code that needs
-big comments at a deep indentation is fundamentally flawed.
-
-You had the same thing in the x86 fault path. I really think it's
-wrong. Needing a comment _inside_ a conditional is just nasty. You
-shouldn't explain what just happened, you should explain what is
-_going_ to happen, an why you do a test in the first place.
-
-But on the whole I think that if the implementation didn't raise my
-hackles so badly, I think the concept looks fine.
-
-                                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
