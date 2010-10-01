@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 386686B0047
-	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 10:07:14 -0400 (EDT)
-Message-ID: <4CA5EB03.1070403@redhat.com>
-Date: Fri, 01 Oct 2010 10:06:59 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] Release mmap_sem when page fault blocks on disk transfer.
-References: <1285909484-30958-1-git-send-email-walken@google.com> <1285909484-30958-3-git-send-email-walken@google.com>
-In-Reply-To: <1285909484-30958-3-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0DBBA6B0047
+	for <linux-mm@kvack.org>; Fri,  1 Oct 2010 10:25:49 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <1285929315-2856-1-git-send-email-steve@digidescorp.com>
+References: <1285929315-2856-1-git-send-email-steve@digidescorp.com>
+Subject: Re: [PATCH][RESEND] nommu: add anonymous page memcg accounting
+Date: Fri, 01 Oct 2010 15:24:55 +0100
+Message-ID: <5206.1285943095@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>
+To: "Steven J. Magnani" <steve@digidescorp.com>
+Cc: dhowells@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On 10/01/2010 01:04 AM, Michel Lespinasse wrote:
-> This change reduces mmap_sem hold times that are caused by waiting for
-> disk transfers when accessing file mapped VMAs. It introduces the
-> VM_FAULT_RELEASED flag, which indicates that the call site holds mmap_lock
-> and wishes for it to be released if blocking on a pending disk transfer.
-> In that case, filemap_fault() returns the VM_FAULT_RELEASED status bit
-> and do_page_fault() will then re-acquire mmap_sem and retry the page fault.
-> It is expected that the retry will hit the same page which will now be cached,
-> and thus it will complete with a low mmap_sem hold time.
 
-The concept makes sense.  A nitpick, though...
+Steven J. Magnani <steve@digidescorp.com> wrote:
 
-> +	if (release_flag) {	/* Did not go through a retry */
-> +		if (fault&  VM_FAULT_MAJOR) {
-> +			tsk->maj_flt++;
-> +			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
-> +				      regs, address);
-> +		} else {
-> +			tsk->min_flt++;
-> +			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
-> +				      regs, address);
-> +		}
-> +		if (fault&  VM_FAULT_RELEASED) {
-> +			/*
-> +			 * handle_mm_fault() found that the desired page was
-> +			 * locked. We asked for it to release mmap_sem in that
-> +			 * case, so as to avoid holding it for too long.
-> +			 * Retry starting at the mmap_sem acquire, this time
-> +			 * without FAULT_FLAG_RETRY so that we avoid any
-> +			 * risk of starvation.
-> +			 */
-> +			release_flag = 0;
-> +			goto retry;
-> +		}
+> Add the necessary calls to track VM anonymous page usage.
 
-Do we really want to count a minor page fault when we
-got VM_FAULT_RELEASED?
+Do we really need to do memcg accounting in NOMMU mode?  Might it be better to
+just apply the attached patch instead?
 
--- 
-All rights reversed
+David
+---
+diff --git a/init/Kconfig b/init/Kconfig
+index 2de5b1c..aecff10 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -555,7 +555,7 @@ config RESOURCE_COUNTERS
+ 
+ config CGROUP_MEM_RES_CTLR
+ 	bool "Memory Resource Controller for Control Groups"
+-	depends on CGROUPS && RESOURCE_COUNTERS
++	depends on CGROUPS && RESOURCE_COUNTERS && MMU
+ 	select MM_OWNER
+ 	help
+ 	  Provides a memory resource controller that manages both anonymous
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
