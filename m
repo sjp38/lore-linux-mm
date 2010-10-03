@@ -1,93 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 40B8C6B007B
-	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 14:41:20 -0400 (EDT)
-Received: by qwb8 with SMTP id 8so40996qwb.14
-        for <linux-mm@kvack.org>; Sun, 03 Oct 2010 11:41:18 -0700 (PDT)
-Message-ID: <4CA8CE45.9040207@vflare.org>
-Date: Sun, 03 Oct 2010 14:41:09 -0400
-From: Nitin Gupta <ngupta@vflare.org>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EE1596B0047
+	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 15:28:06 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e8.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o93J8jXi029132
+	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 15:08:45 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o93JRuv4459154
+	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 15:27:58 -0400
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o93JRtaA020507
+	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 13:27:55 -0600
 Subject: Re: OOM panics with zram
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1284053081.7586.7910.camel@nimitz>
-In-Reply-To: <1284053081.7586.7910.camel@nimitz>
-Content-Type: text/plain; charset=us-ascii
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4CA8CE45.9040207@vflare.org>
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org>
+	 <1284053081.7586.7910.camel@nimitz>  <4CA8CE45.9040207@vflare.org>
+Content-Type: text/plain; charset="ANSI_X3.4-1968"
+Date: Sun, 03 Oct 2010 12:27:53 -0700
+Message-ID: <1286134073.9970.11.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Greg KH - Meetings <ghartman@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Dave,
+On Sun, 2010-10-03 at 14:41 -0400, Nitin Gupta wrote:
+> Ability to write out zram (compressed) memory to a backing disk seems
+> really useful. However considering lkml reviews, I had to drop this
+> feature. Anyways, I guess I will try to push this feature again.
 
-Sorry for late reply. Since last month I couldn't get any chance to
-work on this project.
+I'd argue that zram is pretty useless without some ability to write to a
+backing store, unless you *really* know what is going to be stored in it
+and you trust the user.  Otherwise, it's just too easy to OOM the
+system.
 
-On 9/9/2010 1:24 PM, Dave Hansen wrote:
-> 
-> I've been playing with using zram (from -staging) to back some qemu
-> guest memory directly.  Basically mmap()'ing the device in instead of
-> using anonymous memory.  The old code with the backing swap devices
-> seemed to work pretty well, but I'm running into a problem with the new
-> code.
-> 
-> I have plenty of swap on the system, and I'd been running with compcache
-> nicely for a while.  But, I went to go tar up (and gzip) a pretty large
-> directory in my qemu guest.  It panic'd the qemu host system:
-> 
-> [703826.003126] Kernel panic - not syncing: Out of memory and no killable processes...
-> [703826.003127] 
-> [703826.012350] Pid: 25508, comm: cat Not tainted 2.6.36-rc3-00114-g9b9913d #29
-> [703826.019385] Call Trace:
-> [703826.021928]  [<ffffffff8104032a>] panic+0xba/0x1e0
-> [703826.026801]  [<ffffffff810bb4a1>] ? next_online_pgdat+0x21/0x50
-> [703826.032799]  [<ffffffff810a7713>] ? find_lock_task_mm+0x23/0x60
-> [703826.038795]  [<ffffffff810a79ab>] ? dump_header+0x19b/0x1b0
-> [703826.044446]  [<ffffffff810a8157>] out_of_memory+0x297/0x2d0
-> [703826.050098]  [<ffffffff810abbaf>] __alloc_pages_nodemask+0x72f/0x740
-> [703826.056528]  [<ffffffff81110d4e>] ? __set_page_dirty+0x6e/0xc0
-> [703826.062438]  [<ffffffff810da477>] alloc_pages_current+0x87/0xd0
-> [703826.068438]  [<ffffffff810a533b>] __page_cache_alloc+0xb/0x10
-> [703826.074263]  [<ffffffff810ae2ff>] __do_page_cache_readahead+0xdf/0x220
-> [703826.080865]  [<ffffffff810ae45c>] ra_submit+0x1c/0x20
-> [703826.085998]  [<ffffffff810ae5f8>] ondemand_readahead+0xa8/0x1d0
-> [703826.091994]  [<ffffffff810ae797>] page_cache_async_readahead+0x77/0xc0
-> [703826.098595]  [<ffffffff810a6489>] generic_file_aio_read+0x259/0x6d0
-> [703826.104941]  [<ffffffff810eac21>] do_sync_read+0xd1/0x110
-> [703826.110418]  [<ffffffff810eb3f6>] vfs_read+0xc6/0x170
-> [703826.115547]  [<ffffffff810eb860>] sys_read+0x50/0x90
-> [703826.120591]  [<ffffffff81002c2b>] system_call_fastpath+0x16/0x1b
-> 
-> I have the feeling that the compcache device all of a sudden lost its
-> efficiency.  It can't do much about having non-compressible data stuck
-> in it, of course.
-> 
-> But, it used to be able to write things out to backing storage.  It
-> tries to return I/O errors when it runs out of space, but my system
-> didn't get that far.  It panic'd before it got the chance.
-> 
-> This seems like an issue that will probably crop up when we use zram as
-> a swap device too.  A panic seems like pretty undesirable behavior when
-> you've simply changed the kind of data being used.  Have you run into
-> this at all?
-> 
+I've been investigating backing the xvmalloc space with a tmpfs file.
+Instead of keeping page/offset pairs, you just keep a linear address
+inside the tmpfile file.  There's an extra step needed to look up and
+lock the page cache page into place each time you go into the xvmalloc
+store, but it does seem to basically work.  The patches are really rough
+and not quite functional, but I'm happy to share if you want to see them
+now.
 
+> Also, please do not use linux-next/mainline version of compcache. Instead
+> just use version in the project repository here:
+> hg clone https://compcache.googlecode.com/hg/ compcache 
+> 
+> This is updated much more frequently and has many more bug fixes over
+> the mainline. It will also be easier to fix bugs/add features much more
+> quickly in this repo rather than sending them to lkml which can take
+> long time.
 
-Ability to write out zram (compressed) memory to a backing disk seems
-really useful. However considering lkml reviews, I had to drop this
-feature. Anyways, I guess I will try to push this feature again.
+That looks like just a clone of the code needed to build the module.  
 
-Also, please do not use linux-next/mainline version of compcache. Instead
-just use version in the project repository here:
-hg clone https://compcache.googlecode.com/hg/ compcache 
+Kernel developers are pretty used to _some_ kernel tree being the
+authoritative source.  Also, having it in a kernel tree makes it
+possible to get testing in places like linux-next, and it makes it
+easier for people to make patches or kernel trees on top of your work. 
 
-This is updated much more frequently and has many more bug fixes over
-the mainline. It will also be easier to fix bugs/add features much more
-quickly in this repo rather than sending them to lkml which can take
-long time.
+There's not really a point to the code being in -staging if it isn't
+somewhat up-to-date or people can't generate patches to it.  It sounds
+to me like we need to take it out of -staging.
 
-Thanks,
-Nitin
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
