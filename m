@@ -1,63 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A3FA36B008C
-	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 14:27:05 -0400 (EDT)
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by e4.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o93IBJgR001804
-	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 14:11:19 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o93IR3mI079018
-	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 14:27:03 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o93IR3LC026904
-	for <linux-mm@kvack.org>; Sun, 3 Oct 2010 14:27:03 -0400
-Date: Sun, 3 Oct 2010 23:57:01 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 7/9] v3 Define memory_block_size_bytes for powerpc/pseries
-Message-ID: <20101003182701.GI7896@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <4CA62700.7010809@austin.ibm.com>
- <4CA62A0A.4050406@austin.ibm.com>
- <20101003175500.GE7896@balbir.in.ibm.com>
- <20101003180731.GT14064@sgi.com>
- <1286129461.9970.1.camel@nimitz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 40B8C6B007B
+	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 14:41:20 -0400 (EDT)
+Received: by qwb8 with SMTP id 8so40996qwb.14
+        for <linux-mm@kvack.org>; Sun, 03 Oct 2010 11:41:18 -0700 (PDT)
+Message-ID: <4CA8CE45.9040207@vflare.org>
+Date: Sun, 03 Oct 2010 14:41:09 -0400
+From: Nitin Gupta <ngupta@vflare.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1286129461.9970.1.camel@nimitz>
+Subject: Re: OOM panics with zram
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1284053081.7586.7910.camel@nimitz>
+In-Reply-To: <1284053081.7586.7910.camel@nimitz>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Robin Holt <holt@sgi.com>, Nathan Fontenot <nfont@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, steiner@sgi.com
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Dave Hansen <dave@linux.vnet.ibm.com> [2010-10-03 11:11:01]:
+Hi Dave,
 
-> On Sun, 2010-10-03 at 13:07 -0500, Robin Holt wrote:
-> > On Sun, Oct 03, 2010 at 11:25:00PM +0530, Balbir Singh wrote:
-> > > * Nathan Fontenot <nfont@austin.ibm.com> [2010-10-01 13:35:54]:
-> > > 
-> > > > Define a version of memory_block_size_bytes() for powerpc/pseries such that
-> > > > a memory block spans an entire lmb.
-> > > 
-> > > I hope I am not missing anything obvious, but why not just call it
-> > > lmb_size, why do we need memblock_size?
-> > > 
-> > > Is lmb_size == memblock_size after your changes true for all
-> > > platforms?
-> > 
-> > What is an lmb?  I don't recall anything like lmb being referred to in
-> > the rest of the kernel.
+Sorry for late reply. Since last month I couldn't get any chance to
+work on this project.
+
+On 9/9/2010 1:24 PM, Dave Hansen wrote:
 > 
-> Heh.  It's the OpenFirmware name for a Logical Memory Block.  Basically
-> what we use to determine the SECTION_SIZE on powerpc.  Probably not the
-> best terminology to use elsewhere in the kernel.
+> I've been playing with using zram (from -staging) to back some qemu
+> guest memory directly.  Basically mmap()'ing the device in instead of
+> using anonymous memory.  The old code with the backing swap devices
+> seemed to work pretty well, but I'm running into a problem with the new
+> code.
+> 
+> I have plenty of swap on the system, and I'd been running with compcache
+> nicely for a while.  But, I went to go tar up (and gzip) a pretty large
+> directory in my qemu guest.  It panic'd the qemu host system:
+> 
+> [703826.003126] Kernel panic - not syncing: Out of memory and no killable processes...
+> [703826.003127] 
+> [703826.012350] Pid: 25508, comm: cat Not tainted 2.6.36-rc3-00114-g9b9913d #29
+> [703826.019385] Call Trace:
+> [703826.021928]  [<ffffffff8104032a>] panic+0xba/0x1e0
+> [703826.026801]  [<ffffffff810bb4a1>] ? next_online_pgdat+0x21/0x50
+> [703826.032799]  [<ffffffff810a7713>] ? find_lock_task_mm+0x23/0x60
+> [703826.038795]  [<ffffffff810a79ab>] ? dump_header+0x19b/0x1b0
+> [703826.044446]  [<ffffffff810a8157>] out_of_memory+0x297/0x2d0
+> [703826.050098]  [<ffffffff810abbaf>] __alloc_pages_nodemask+0x72f/0x740
+> [703826.056528]  [<ffffffff81110d4e>] ? __set_page_dirty+0x6e/0xc0
+> [703826.062438]  [<ffffffff810da477>] alloc_pages_current+0x87/0xd0
+> [703826.068438]  [<ffffffff810a533b>] __page_cache_alloc+0xb/0x10
+> [703826.074263]  [<ffffffff810ae2ff>] __do_page_cache_readahead+0xdf/0x220
+> [703826.080865]  [<ffffffff810ae45c>] ra_submit+0x1c/0x20
+> [703826.085998]  [<ffffffff810ae5f8>] ondemand_readahead+0xa8/0x1d0
+> [703826.091994]  [<ffffffff810ae797>] page_cache_async_readahead+0x77/0xc0
+> [703826.098595]  [<ffffffff810a6489>] generic_file_aio_read+0x259/0x6d0
+> [703826.104941]  [<ffffffff810eac21>] do_sync_read+0xd1/0x110
+> [703826.110418]  [<ffffffff810eb3f6>] vfs_read+0xc6/0x170
+> [703826.115547]  [<ffffffff810eb860>] sys_read+0x50/0x90
+> [703826.120591]  [<ffffffff81002c2b>] system_call_fastpath+0x16/0x1b
+> 
+> I have the feeling that the compcache device all of a sudden lost its
+> efficiency.  It can't do much about having non-compressible data stuck
+> in it, of course.
+> 
+> But, it used to be able to write things out to backing storage.  It
+> tries to return I/O errors when it runs out of space, but my system
+> didn't get that far.  It panic'd before it got the chance.
+> 
+> This seems like an issue that will probably crop up when we use zram as
+> a swap device too.  A panic seems like pretty undesirable behavior when
+> you've simply changed the kind of data being used.  Have you run into
+> this at all?
+> 
 
-Agreed for the kernel, this patch was for powerpc/pseries, hence was
-checking in this context.
 
--- 
-	Three Cheers,
-	Balbir
+Ability to write out zram (compressed) memory to a backing disk seems
+really useful. However considering lkml reviews, I had to drop this
+feature. Anyways, I guess I will try to push this feature again.
+
+Also, please do not use linux-next/mainline version of compcache. Instead
+just use version in the project repository here:
+hg clone https://compcache.googlecode.com/hg/ compcache 
+
+This is updated much more frequently and has many more bug fixes over
+the mainline. It will also be easier to fix bugs/add features much more
+quickly in this repo rather than sending them to lkml which can take
+long time.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
