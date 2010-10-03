@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EDED56B0047
-	for <linux-mm@kvack.org>; Sat,  2 Oct 2010 20:46:13 -0400 (EDT)
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id o930kB13005140
-	for <linux-mm@kvack.org>; Sat, 2 Oct 2010 17:46:11 -0700
-Received: from pzk28 (pzk28.prod.google.com [10.243.19.156])
-	by wpaz37.hot.corp.google.com with ESMTP id o930kAIF025858
-	for <linux-mm@kvack.org>; Sat, 2 Oct 2010 17:46:10 -0700
-Received: by pzk28 with SMTP id 28so958497pzk.39
-        for <linux-mm@kvack.org>; Sat, 02 Oct 2010 17:46:10 -0700 (PDT)
-Date: Sat, 2 Oct 2010 17:46:06 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E62006B0047
+	for <linux-mm@kvack.org>; Sat,  2 Oct 2010 20:49:09 -0400 (EDT)
+Received: from hpaq3.eem.corp.google.com (hpaq3.eem.corp.google.com [172.25.149.3])
+	by smtp-out.google.com with ESMTP id o930n7xu015347
+	for <linux-mm@kvack.org>; Sat, 2 Oct 2010 17:49:07 -0700
+Received: from pxi10 (pxi10.prod.google.com [10.243.27.10])
+	by hpaq3.eem.corp.google.com with ESMTP id o930n5MP030708
+	for <linux-mm@kvack.org>; Sat, 2 Oct 2010 17:49:05 -0700
+Received: by pxi10 with SMTP id 10so1266852pxi.33
+        for <linux-mm@kvack.org>; Sat, 02 Oct 2010 17:49:04 -0700 (PDT)
+Date: Sat, 2 Oct 2010 17:49:08 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] ksm: fix page_address_in_vma anon_vma oops
-Message-ID: <alpine.LSU.2.00.1010021742070.27679@sister.anvils>
+Subject: [PATCH] ksm: fix bad user data when swapping
+Message-ID: <alpine.LSU.2.00.1010021746180.27679@sister.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,49 +21,58 @@ To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-2.6.36-rc1 commit 21d0d443cdc1658a8c1484fdcece4803f0f96d0e "rmap:
-resurrect page_address_in_vma anon_vma check" was right to resurrect
-that check; but now that it's comparing anon_vma->roots instead of
-just anon_vmas, there's a danger of oopsing on a NULL anon_vma.
+Building under memory pressure, with KSM on 2.6.36-rc5, collapsed with
+an internal compiler error: typically indicating an error in swapping.
 
-In most cases no NULL anon_vma ever gets here; but it turns out that
-occasionally KSM, when enabled on a forked or forking process, will
-itself call page_address_in_vma() on a "half-KSM" page left over from
-an earlier failed attempt to merge - whose page_anon_vma() is NULL.
+Perhaps there's a timing issue which makes it now more likely, perhaps
+it's just a long time since I tried for so long: this bug goes back to
+KSM swapping in 2.6.33.
 
-It's my bug that those should be getting here at all: I thought they
-were already dealt with, this oops proves me wrong, I'll fix it in
-the next release - such pages are effectively pinned until their
-process exits, since rmap cannot find their ptes (though swapoff can).
+Notice how reuse_swap_page() allows an exclusive page to be reused, but
+only does SetPageDirty if it can delete it from swap cache right then -
+if it's currently under Writeback, it has to be left in cache and we
+don't SetPageDirty, but the page can be reused.  Fine, the dirty bit
+will get set in the pte; but notice how zap_pte_range() does not bother
+to transfer pte_dirty to page_dirty when unmapping a PageAnon.
 
-For now just work around it by making page_address_in_vma() safe (and
-add a comment on why that check is wanted anyway).  A similar check
-in __page_check_anon_rmap() is safe because do_page_add_anon_rmap()
-already excluded KSM pages.
+If KSM chooses to share such a page, it will look like a clean copy of
+swapcache, and not be written out to swap when its memory is needed;
+then stale data read back from swap when it's needed again.
+
+We could fix this in reuse_swap_page() (or even refuse to reuse a
+page under writeback), but it's more honest to fix my oversight in
+KSM's write_protect_page().  Several days of testing on three machines
+confirms that this fixes the issue they showed.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@kernel.org
 ---
 
- mm/rmap.c |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/ksm.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
---- 2.6.36-rc6/mm/rmap.c	2010-09-28 22:42:43.000000000 -0700
-+++ linux/mm/rmap.c	2010-09-28 23:27:05.000000000 -0700
-@@ -381,7 +381,13 @@ vma_address(struct page *page, struct vm
- unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
- {
- 	if (PageAnon(page)) {
--		if (vma->anon_vma->root != page_anon_vma(page)->root)
-+		struct anon_vma *page__anon_vma = page_anon_vma(page);
-+		/*
-+		 * Note: swapoff's unuse_vma() is more efficient with this
-+		 * check, and needs it to match anon_vma when KSM is active.
-+		 */
-+		if (!vma->anon_vma || !page__anon_vma ||
-+		    vma->anon_vma->root != page__anon_vma->root)
- 			return -EFAULT;
- 	} else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
- 		if (!vma->vm_file ||
+--- 2.6.36-rc6/mm/ksm.c	2010-09-12 17:34:03.000000000 -0700
++++ linux/mm/ksm.c	2010-09-28 23:27:05.000000000 -0700
+@@ -712,7 +712,7 @@ static int write_protect_page(struct vm_
+ 	if (!ptep)
+ 		goto out;
+ 
+-	if (pte_write(*ptep)) {
++	if (pte_write(*ptep) || pte_dirty(*ptep)) {
+ 		pte_t entry;
+ 
+ 		swapped = PageSwapCache(page);
+@@ -735,7 +735,9 @@ static int write_protect_page(struct vm_
+ 			set_pte_at(mm, addr, ptep, entry);
+ 			goto out_unlock;
+ 		}
+-		entry = pte_wrprotect(entry);
++		if (pte_dirty(entry))
++			set_page_dirty(page);
++		entry = pte_mkclean(pte_wrprotect(entry));
+ 		set_pte_at_notify(mm, addr, ptep, entry);
+ 	}
+ 	*orig_pte = *ptep;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
