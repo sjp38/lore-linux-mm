@@ -1,73 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BF37B6B0047
-	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 15:41:01 -0400 (EDT)
-Received: by qyk33 with SMTP id 33so387793qyk.14
-        for <linux-mm@kvack.org>; Sun, 03 Oct 2010 12:41:00 -0700 (PDT)
-Message-ID: <4CA8DC47.5070003@vflare.org>
-Date: Sun, 03 Oct 2010 15:40:55 -0400
-From: Nitin Gupta <ngupta@vflare.org>
-MIME-Version: 1.0
-Subject: Re: OOM panics with zram
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org>	 <1284053081.7586.7910.camel@nimitz>  <4CA8CE45.9040207@vflare.org> <1286134073.9970.11.camel@nimitz>
-In-Reply-To: <1286134073.9970.11.camel@nimitz>
-Content-Type: text/plain; charset=us-ascii
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E3DAA6B0047
+	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 20:22:18 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o940MFgS003177
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 4 Oct 2010 09:22:15 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 880D645DE50
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A02745DE4E
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CE651DB8050
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DE9FF1DB8045
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:14 +0900 (JST)
+Date: Mon, 4 Oct 2010 09:16:53 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][RESEND] nommu: add anonymous page memcg accounting
+Message-Id: <20101004091653.707cc5d1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1285951267.2558.69.camel@iscandar.digidescorp.com>
+References: <WC20101001143139.810346@digidescorp.com>
+	<1285929315-2856-1-git-send-email-steve@digidescorp.com>
+	<5206.1285943095@redhat.com>
+	<5867.1285945621@redhat.com>
+	<1285951267.2558.69.camel@iscandar.digidescorp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Greg KH - Meetings <ghartman@us.ibm.com>
+To: steve@digidescorp.com
+Cc: David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/3/2010 3:27 PM, Dave Hansen wrote:
-> On Sun, 2010-10-03 at 14:41 -0400, Nitin Gupta wrote:
->> Ability to write out zram (compressed) memory to a backing disk seems
->> really useful. However considering lkml reviews, I had to drop this
->> feature. Anyways, I guess I will try to push this feature again.
+On Fri, 01 Oct 2010 11:41:07 -0500
+"Steven J. Magnani" <steve@digidescorp.com> wrote:
+> > However, I suppose there's little harm in letting the patch in.  I would guess
+> > the additions all optimise away if memcg isn't enabled.
+> > 
+> > A question for you: why does struct page_cgroup need a page pointer?  If an
+> > array of page_cgroup structs is allocated per array of page structs, then you
+> > should be able to use the array index to map between them.
 > 
-> I'd argue that zram is pretty useless without some ability to write to a
-> backing store, unless you *really* know what is going to be stored in it
-> and you trust the user.  Otherwise, it's just too easy to OOM the
-> system.
->
-> I've been investigating backing the xvmalloc space with a tmpfs file.
-> Instead of keeping page/offset pairs, you just keep a linear address
-> inside the tmpfile file.  There's an extra step needed to look up and
-> lock the page cache page into place each time you go into the xvmalloc
-> store, but it does seem to basically work.  The patches are really rough
-> and not quite functional, but I'm happy to share if you want to see them
-> now.
->
+No reason. It was not array in the 1st implemenation and ->page still remains. At 2nd
+implementation, I didn't know embeded people has any interests on memcg. And I wasn't
+sure how
+	page_cgroup_to_page() : pfn_to_page(pagec_cgroup_to_pfn(pc))
+will be widely used.
 
-Yes, I would be really interested to look at them. Thanks.
+Now, we know page_cgroup->page is not used in very critical path _if_ node-id
+and zone-id can be directly got from page_cgroup.
 
- 
->> Also, please do not use linux-next/mainline version of compcache. Instead
->> just use version in the project repository here:
->> hg clone https://compcache.googlecode.com/hg/ compcache 
->>
->> This is updated much more frequently and has many more bug fixes over
->> the mainline. It will also be easier to fix bugs/add features much more
->> quickly in this repo rather than sending them to lkml which can take
->> long time.
-> 
-> That looks like just a clone of the code needed to build the module.  
-> 
-> Kernel developers are pretty used to _some_ kernel tree being the
-> authoritative source.  Also, having it in a kernel tree makes it
-> possible to get testing in places like linux-next, and it makes it
-> easier for people to make patches or kernel trees on top of your work. 
-> 
-> There's not really a point to the code being in -staging if it isn't
-> somewhat up-to-date or people can't generate patches to it.  It sounds
-> to me like we need to take it out of -staging.
-> 
+I'm now preparing a patch to remove struct page* pointer. I'm wondering
+whether it's ok that some architecuture cannot drop struct page pointer.
+If SPARSEMEM is used on 32bit arch, I'm not sure whether # of bits isn't enough.
+I may have to add overhead to get nid, zid in critical path.
+(for example, s390/32bit, x86-32/HIGHMEM, ARM/HIGHMEM?)
 
-I will try sending patches to sync mainline and hg code (along with
-some changes in pipeline), or maybe just take it out of -staging and
-send fresh patch series.
+Current out priority is supporting dirty_ratio rather than memory usage diet.
+Please wait. Removing page_cgroup->page patch will add something a bit complex.
+
 
 Thanks,
-Nitin
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
