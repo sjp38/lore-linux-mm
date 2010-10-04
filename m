@@ -1,61 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F187F6B004A
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 10:48:06 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e5.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o94EP5W3025953
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 10:25:05 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o94EjJUC1441830
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 10:45:19 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o94EjI1i013778
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 11:45:19 -0300
-Message-ID: <4CA9E87A.3000807@austin.ibm.com>
-Date: Mon, 04 Oct 2010 09:45:14 -0500
-From: Nathan Fontenot <nfont@austin.ibm.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 0960F6B004A
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:44:09 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 03/10] memcg: create extensible page stat update routines
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+	<1286175485-30643-4-git-send-email-gthelen@google.com>
+	<4CA9DB3E.6020106@linux.vnet.ibm.com>
+Date: Mon, 04 Oct 2010 08:43:46 -0700
+In-Reply-To: <4CA9DB3E.6020106@linux.vnet.ibm.com> (Ciju Rajan K.'s message of
+	"Mon, 04 Oct 2010 19:18:46 +0530")
+Message-ID: <xr93y6ae2cb1.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/9] v3 Define memory_block_size_bytes for powerpc/pseries
-References: <4CA62700.7010809@austin.ibm.com> <4CA62A0A.4050406@austin.ibm.com> <20101003175500.GE7896@balbir.in.ibm.com> <20101003180731.GT14064@sgi.com> <1286129461.9970.1.camel@nimitz> <20101003182701.GI7896@balbir.in.ibm.com>
-In-Reply-To: <20101003182701.GI7896@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Robin Holt <holt@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Greg KH <greg@kroah.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, steiner@sgi.com
+To: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 10/03/2010 01:27 PM, Balbir Singh wrote:
-> * Dave Hansen <dave@linux.vnet.ibm.com> [2010-10-03 11:11:01]:
-> 
->> On Sun, 2010-10-03 at 13:07 -0500, Robin Holt wrote:
->>> On Sun, Oct 03, 2010 at 11:25:00PM +0530, Balbir Singh wrote:
->>>> * Nathan Fontenot <nfont@austin.ibm.com> [2010-10-01 13:35:54]:
->>>>
->>>>> Define a version of memory_block_size_bytes() for powerpc/pseries such that
->>>>> a memory block spans an entire lmb.
->>>>
->>>> I hope I am not missing anything obvious, but why not just call it
->>>> lmb_size, why do we need memblock_size?
->>>>
->>>> Is lmb_size == memblock_size after your changes true for all
->>>> platforms?
->>>
->>> What is an lmb?  I don't recall anything like lmb being referred to in
->>> the rest of the kernel.
+Ciju Rajan K <ciju@linux.vnet.ibm.com> writes:
+
+> Greg Thelen wrote:
+>> Replace usage of the mem_cgroup_update_file_mapped() memcg
+>> statistic update routine with two new routines:
+>> * mem_cgroup_inc_page_stat()
+>> * mem_cgroup_dec_page_stat()
 >>
->> Heh.  It's the OpenFirmware name for a Logical Memory Block.  Basically
->> what we use to determine the SECTION_SIZE on powerpc.  Probably not the
->> best terminology to use elsewhere in the kernel.
-> 
-> Agreed for the kernel, this patch was for powerpc/pseries, hence was
-> checking in this context.
-> 
+>> As before, only the file_mapped statistic is managed.  However,
+>> these more general interfaces allow for new statistics to be
+>> more easily added.  New statistics are added with memcg dirty
+>> page accounting.
+>>
+>>
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 512cb12..f4259f4 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -1592,7 +1592,9 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+>>   * possibility of race condition. If there is, we take a lock.
+>>   */
+>>
+>>   -static void mem_cgroup_update_file_stat(struct page *page, int idx, int
+>> val)
+>>   
+> Not seeing this function in mmotm 28/09. So not able to apply this patch.
+> Am I missing anything?
 
-I don't really see a reason to name it lmb_size, it seems easier
-to stick with the naming used by the rest of the kernel.
+How are you getting mmotm?
 
--Nathan
+I see the mem_cgroup_update_file_stat() routine added in mmotm
+(stamp-2010-09-28-16-13) using patch file:
+  http://userweb.kernel.org/~akpm/mmotm/broken-out/memcg-generic-filestat-update-interface.patch
+
+  Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+  Date:   Tue Sep 28 21:48:19 2010 -0700
+  
+      This patch extracts the core logic from mem_cgroup_update_file_mapped() as
+      mem_cgroup_update_file_stat() and adds a wrapper.
+  
+      As a planned future update, memory cgroup has to count dirty pages to
+      implement dirty_ratio/limit.  And more, the number of dirty pages is
+      required to kick flusher thread to start writeback.  (Now, no kick.)
+  
+      This patch is preparation for it and makes other statistics implementation
+      clearer.  Just a clean up.
+  
+      Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+      Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+      Reviewed-by: Greg Thelen <gthelen@google.com>
+      Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+      Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+If you are using the zen mmotm repository,
+git://zen-kernel.org/kernel/mmotm.git, the commit id of
+memcg-generic-filestat-update-interface.patch is
+616960dc0cb0172a5e5adc9e2b83e668e1255b50.
+
+>> +void mem_cgroup_update_page_stat(struct page *page,
+>> +				 enum mem_cgroup_write_page_stat_item idx,
+>> +				 int val)
+>>  {
+>>  	struct mem_cgroup *mem;
+>>
+>>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
