@@ -1,89 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0960F6B004A
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:44:09 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 03/10] memcg: create extensible page stat update routines
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-4-git-send-email-gthelen@google.com>
-	<4CA9DB3E.6020106@linux.vnet.ibm.com>
-Date: Mon, 04 Oct 2010 08:43:46 -0700
-In-Reply-To: <4CA9DB3E.6020106@linux.vnet.ibm.com> (Ciju Rajan K.'s message of
-	"Mon, 04 Oct 2010 19:18:46 +0530")
-Message-ID: <xr93y6ae2cb1.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	by kanga.kvack.org (Postfix) with SMTP id A0BE66B004A
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:44 -0400 (EDT)
+From: Gleb Natapov <gleb@redhat.com>
+Subject: [PATCH v6 05/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
+Date: Mon,  4 Oct 2010 17:56:27 +0200
+Message-Id: <1286207794-16120-6-git-send-email-gleb@redhat.com>
+In-Reply-To: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Ciju Rajan K <ciju@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Ciju Rajan K <ciju@linux.vnet.ibm.com> writes:
+Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
+into generic code.
 
-> Greg Thelen wrote:
->> Replace usage of the mem_cgroup_update_file_mapped() memcg
->> statistic update routine with two new routines:
->> * mem_cgroup_inc_page_stat()
->> * mem_cgroup_dec_page_stat()
->>
->> As before, only the file_mapped statistic is managed.  However,
->> these more general interfaces allow for new statistics to be
->> more easily added.  New statistics are added with memcg dirty
->> page accounting.
->>
->>
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 512cb12..f4259f4 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -1592,7 +1592,9 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->>   * possibility of race condition. If there is, we take a lock.
->>   */
->>
->>   -static void mem_cgroup_update_file_stat(struct page *page, int idx, int
->> val)
->>   
-> Not seeing this function in mmotm 28/09. So not able to apply this patch.
-> Am I missing anything?
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ arch/x86/include/asm/kvm_para.h |    1 +
+ arch/x86/kernel/kvm.c           |   11 +++++++++++
+ arch/x86/kernel/kvmclock.c      |   13 +------------
+ 3 files changed, 13 insertions(+), 12 deletions(-)
 
-How are you getting mmotm?
-
-I see the mem_cgroup_update_file_stat() routine added in mmotm
-(stamp-2010-09-28-16-13) using patch file:
-  http://userweb.kernel.org/~akpm/mmotm/broken-out/memcg-generic-filestat-update-interface.patch
-
-  Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-  Date:   Tue Sep 28 21:48:19 2010 -0700
-  
-      This patch extracts the core logic from mem_cgroup_update_file_mapped() as
-      mem_cgroup_update_file_stat() and adds a wrapper.
-  
-      As a planned future update, memory cgroup has to count dirty pages to
-      implement dirty_ratio/limit.  And more, the number of dirty pages is
-      required to kick flusher thread to start writeback.  (Now, no kick.)
-  
-      This patch is preparation for it and makes other statistics implementation
-      clearer.  Just a clean up.
-  
-      Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-      Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-      Reviewed-by: Greg Thelen <gthelen@google.com>
-      Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-      Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
-If you are using the zen mmotm repository,
-git://zen-kernel.org/kernel/mmotm.git, the commit id of
-memcg-generic-filestat-update-interface.patch is
-616960dc0cb0172a5e5adc9e2b83e668e1255b50.
-
->> +void mem_cgroup_update_page_stat(struct page *page,
->> +				 enum mem_cgroup_write_page_stat_item idx,
->> +				 int val)
->>  {
->>  	struct mem_cgroup *mem;
->>
->>   
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index 7b562b6..e3faaaf 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -65,6 +65,7 @@ struct kvm_mmu_op_release_pt {
+ #include <asm/processor.h>
+ 
+ extern void kvmclock_init(void);
++extern int kvm_register_clock(char *txt);
+ 
+ 
+ /* This instruction is vmcall.  On non-VT architectures, it will generate a
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index 63b0ec8..e6db179 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
+ #endif
+ }
+ 
++#ifdef CONFIG_SMP
++static void __init kvm_smp_prepare_boot_cpu(void)
++{
++	WARN_ON(kvm_register_clock("primary cpu clock"));
++	native_smp_prepare_boot_cpu();
++}
++#endif
++
+ void __init kvm_guest_init(void)
+ {
+ 	if (!kvm_para_available())
+ 		return;
+ 
+ 	paravirt_ops_setup();
++#ifdef CONFIG_SMP
++	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
++#endif
+ }
+diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
+index ca43ce3..f98d3ea 100644
+--- a/arch/x86/kernel/kvmclock.c
++++ b/arch/x86/kernel/kvmclock.c
+@@ -125,7 +125,7 @@ static struct clocksource kvm_clock = {
+ 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+ };
+ 
+-static int kvm_register_clock(char *txt)
++int kvm_register_clock(char *txt)
+ {
+ 	int cpu = smp_processor_id();
+ 	int low, high, ret;
+@@ -152,14 +152,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
+ }
+ #endif
+ 
+-#ifdef CONFIG_SMP
+-static void __init kvm_smp_prepare_boot_cpu(void)
+-{
+-	WARN_ON(kvm_register_clock("primary cpu clock"));
+-	native_smp_prepare_boot_cpu();
+-}
+-#endif
+-
+ /*
+  * After the clock is registered, the host will keep writing to the
+  * registered memory location. If the guest happens to shutdown, this memory
+@@ -206,9 +198,6 @@ void __init kvmclock_init(void)
+ 	x86_cpuinit.setup_percpu_clockev =
+ 		kvm_setup_secondary_clock;
+ #endif
+-#ifdef CONFIG_SMP
+-	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
+-#endif
+ 	machine_ops.shutdown  = kvm_shutdown;
+ #ifdef CONFIG_KEXEC
+ 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
