@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 78F3E6B0088
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:48 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6CBB06B004A
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:50 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v6 01/12] Add get_user_pages() variant that fails if major fault is required.
-Date: Mon,  4 Oct 2010 17:56:23 +0200
-Message-Id: <1286207794-16120-2-git-send-email-gleb@redhat.com>
+Subject: [PATCH v6 08/12] Handle async PF in a guest.
+Date: Mon,  4 Oct 2010 17:56:30 +0200
+Message-Id: <1286207794-16120-9-git-send-email-gleb@redhat.com>
 In-Reply-To: <1286207794-16120-1-git-send-email-gleb@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,173 +13,420 @@ To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-This patch add get_user_pages() variant that only succeeds if getting
-a reference to a page doesn't require major fault.
+When async PF capability is detected hook up special page fault handler
+that will handle async page fault events and bypass other page faults to
+regular page fault handler. Also add async PF handling to nested SVM
+emulation. Async PF always generates exit to L1 where vcpu thread will
+be scheduled out until page is available.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- fs/ncpfs/mmap.c    |    2 ++
- include/linux/mm.h |    5 +++++
- mm/filemap.c       |    3 +++
- mm/memory.c        |   31 ++++++++++++++++++++++++++++---
- mm/shmem.c         |    8 +++++++-
- 5 files changed, 45 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/kvm_para.h |   12 +++
+ arch/x86/include/asm/traps.h    |    1 +
+ arch/x86/kernel/entry_32.S      |   10 ++
+ arch/x86/kernel/entry_64.S      |    3 +
+ arch/x86/kernel/kvm.c           |  184 ++++++++++++++++++++++++++++++++++++++-
+ arch/x86/kvm/svm.c              |   43 +++++++--
+ 6 files changed, 243 insertions(+), 10 deletions(-)
 
-diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
-index 56f5b3a..b9c4f36 100644
---- a/fs/ncpfs/mmap.c
-+++ b/fs/ncpfs/mmap.c
-@@ -39,6 +39,8 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
- 	int bufsize;
- 	int pos; /* XXX: loff_t ? */
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index e193c4f..bcc5022 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -65,6 +65,9 @@ struct kvm_mmu_op_release_pt {
+ 	__u64 pt_phys;
+ };
  
-+	if (vmf->flags & FAULT_FLAG_MINOR)
-+		return VM_FAULT_MAJOR | VM_FAULT_ERROR;
- 	/*
- 	 * ncpfs has nothing against high pages as long
- 	 * as recvmsg and memset works on it
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 74949fb..da32900 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -144,6 +144,7 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
- #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
- #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
-+#define FAULT_FLAG_MINOR	0x08	/* Do only minor fault */
- 
- /*
-  * This interface is used by x86 PAT code to identify a pfn mapping that is
-@@ -848,6 +849,9 @@ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *
- int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			unsigned long start, int nr_pages, int write, int force,
- 			struct page **pages, struct vm_area_struct **vmas);
-+int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
-+			unsigned long start, int nr_pages, int write, int force,
-+			struct page **pages, struct vm_area_struct **vmas);
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages);
- struct page *get_dump_page(unsigned long addr);
-@@ -1394,6 +1398,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
- #define FOLL_GET	0x04	/* do get_page on page */
- #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
- #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
-+#define FOLL_MINOR	0x20	/* do only minor page faults */
- 
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 3d4df44..ef28b6d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1548,6 +1548,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 			goto no_cached_page;
- 		}
- 	} else {
-+		if (vmf->flags & FAULT_FLAG_MINOR)
-+			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
++#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
++#define KVM_PV_REASON_PAGE_READY 2
 +
- 		/* No page in the page cache at all */
- 		do_sync_mmap_readahead(vma, ra, file, offset);
- 		count_vm_event(PGMAJFAULT);
-diff --git a/mm/memory.c b/mm/memory.c
-index 0e18b4d..b221458 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1441,10 +1441,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			cond_resched();
- 			while (!(page = follow_page(vma, start, foll_flags))) {
- 				int ret;
-+				unsigned int fault_fl =
-+					((foll_flags & FOLL_WRITE) ?
-+					FAULT_FLAG_WRITE : 0) |
-+					((foll_flags & FOLL_MINOR) ?
-+					FAULT_FLAG_MINOR : 0);
+ struct kvm_vcpu_pv_apf_data {
+ 	__u32 reason;
+ 	__u32 enabled;
+@@ -170,8 +173,17 @@ static inline unsigned int kvm_arch_para_features(void)
  
--				ret = handle_mm_fault(mm, vma, start,
--					(foll_flags & FOLL_WRITE) ?
--					FAULT_FLAG_WRITE : 0);
-+				ret = handle_mm_fault(mm, vma, start, fault_fl);
- 
- 				if (ret & VM_FAULT_ERROR) {
- 					if (ret & VM_FAULT_OOM)
-@@ -1452,6 +1455,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 					if (ret &
- 					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
- 						return i ? i : -EFAULT;
-+					else if (ret & VM_FAULT_MAJOR)
-+						return i ? i : -EFAULT;
- 					BUG();
- 				}
- 				if (ret & VM_FAULT_MAJOR)
-@@ -1562,6 +1567,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(get_user_pages);
- 
-+int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
-+		unsigned long start, int nr_pages, int write, int force,
-+		struct page **pages, struct vm_area_struct **vmas)
+ #ifdef CONFIG_KVM_GUEST
+ void __init kvm_guest_init(void);
++void kvm_async_pf_task_wait(u32 token);
++void kvm_async_pf_task_wake(u32 token);
++u32 kvm_read_and_reset_pf_reason(void);
+ #else
+ #define kvm_guest_init() do { } while (0)
++#define kvm_async_pf_task_wait(T) do {} while(0)
++#define kvm_async_pf_task_wake(T) do {} while(0)
++static u32 kvm_read_and_reset_pf_reason(void)
 +{
-+	int flags = FOLL_TOUCH | FOLL_MINOR;
-+
-+	if (pages)
-+		flags |= FOLL_GET;
-+	if (write)
-+		flags |= FOLL_WRITE;
-+	if (force)
-+		flags |= FOLL_FORCE;
-+
-+	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
++	return 0;
 +}
-+EXPORT_SYMBOL(get_user_pages_noio);
-+
- /**
-  * get_dump_page() - pin user page in memory while writing it to core dump
-  * @addr: user address
-@@ -2648,6 +2670,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
- 	page = lookup_swap_cache(entry);
- 	if (!page) {
-+		if (flags & FAULT_FLAG_MINOR)
-+			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
-+
- 		grab_swap_token(mm); /* Contend for token _before_ read-in */
- 		page = swapin_readahead(entry,
- 					GFP_HIGHUSER_MOVABLE, vma, address);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 080b09a..470d8a7 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1228,6 +1228,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
- 	swp_entry_t swap;
- 	gfp_t gfp;
- 	int error;
-+	int flags = type ? *type : 0;
+ #endif
  
- 	if (idx >= SHMEM_MAX_INDEX)
- 		return -EFBIG;
-@@ -1287,6 +1288,11 @@ repeat:
- 		swappage = lookup_swap_cache(swap);
- 		if (!swappage) {
- 			shmem_swp_unmap(entry);
-+			if (flags & FAULT_FLAG_MINOR) {
-+				spin_unlock(&info->lock);
-+				*type = VM_FAULT_MAJOR | VM_FAULT_ERROR;
-+				goto failed;
-+			}
- 			/* here we actually do the io */
- 			if (type && !(*type & VM_FAULT_MAJOR)) {
- 				__count_vm_event(PGMAJFAULT);
-@@ -1510,7 +1516,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ #endif /* __KERNEL__ */
+diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
+index f66cda5..0310da6 100644
+--- a/arch/x86/include/asm/traps.h
++++ b/arch/x86/include/asm/traps.h
+@@ -30,6 +30,7 @@ asmlinkage void segment_not_present(void);
+ asmlinkage void stack_segment(void);
+ asmlinkage void general_protection(void);
+ asmlinkage void page_fault(void);
++asmlinkage void async_page_fault(void);
+ asmlinkage void spurious_interrupt_bug(void);
+ asmlinkage void coprocessor_error(void);
+ asmlinkage void alignment_check(void);
+diff --git a/arch/x86/kernel/entry_32.S b/arch/x86/kernel/entry_32.S
+index 227d009..e6e7273 100644
+--- a/arch/x86/kernel/entry_32.S
++++ b/arch/x86/kernel/entry_32.S
+@@ -1496,6 +1496,16 @@ ENTRY(general_protection)
+ 	CFI_ENDPROC
+ END(general_protection)
+ 
++#ifdef CONFIG_KVM_GUEST
++ENTRY(async_page_fault)
++	RING0_EC_FRAME
++	pushl $do_async_page_fault
++	CFI_ADJUST_CFA_OFFSET 4
++	jmp error_code
++	CFI_ENDPROC
++END(apf_page_fault)
++#endif
++
+ /*
+  * End of kprobes section
+  */
+diff --git a/arch/x86/kernel/entry_64.S b/arch/x86/kernel/entry_64.S
+index 17be5ec..def98c3 100644
+--- a/arch/x86/kernel/entry_64.S
++++ b/arch/x86/kernel/entry_64.S
+@@ -1349,6 +1349,9 @@ errorentry xen_stack_segment do_stack_segment
+ #endif
+ errorentry general_protection do_general_protection
+ errorentry page_fault do_page_fault
++#ifdef CONFIG_KVM_GUEST
++errorentry async_page_fault do_async_page_fault
++#endif
+ #ifdef CONFIG_X86_MCE
+ paranoidzeroentry machine_check *machine_check_vector(%rip)
+ #endif
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index 67d1c8d..36fb3e4 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -29,8 +29,14 @@
+ #include <linux/hardirq.h>
+ #include <linux/notifier.h>
+ #include <linux/reboot.h>
++#include <linux/hash.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/kprobes.h>
+ #include <asm/timer.h>
+ #include <asm/cpu.h>
++#include <asm/traps.h>
++#include <asm/desc.h>
+ 
+ #define MMU_QUEUE_SIZE 1024
+ 
+@@ -64,6 +70,168 @@ static void kvm_io_delay(void)
  {
- 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
- 	int error;
--	int ret;
-+	int ret = (int)vmf->flags;
+ }
  
- 	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
- 		return VM_FAULT_SIGBUS;
++#define KVM_TASK_SLEEP_HASHBITS 8
++#define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
++
++struct kvm_task_sleep_node {
++	struct hlist_node link;
++	wait_queue_head_t wq;
++	u32 token;
++	int cpu;
++};
++
++static struct kvm_task_sleep_head {
++	spinlock_t lock;
++	struct hlist_head list;
++} async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
++
++static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
++						  u32 token)
++{
++	struct hlist_node *p;
++
++	hlist_for_each(p, &b->list) {
++		struct kvm_task_sleep_node *n =
++			hlist_entry(p, typeof(*n), link);
++		if (n->token == token)
++			return n;
++	}
++
++	return NULL;
++}
++
++void kvm_async_pf_task_wait(u32 token)
++{
++	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
++	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
++	struct kvm_task_sleep_node n, *e;
++	DEFINE_WAIT(wait);
++
++	spin_lock(&b->lock);
++	e = _find_apf_task(b, token);
++	if (e) {
++		/* dummy entry exist -> wake up was delivered ahead of PF */
++		hlist_del(&e->link);
++		kfree(e);
++		spin_unlock(&b->lock);
++		return;
++	}
++
++	n.token = token;
++	n.cpu = smp_processor_id();
++	init_waitqueue_head(&n.wq);
++	hlist_add_head(&n.link, &b->list);
++	spin_unlock(&b->lock);
++
++	for (;;) {
++		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
++		if (hlist_unhashed(&n.link))
++			break;
++		local_irq_enable();
++		schedule();
++		local_irq_disable();
++	}
++	finish_wait(&n.wq, &wait);
++
++	return;
++}
++EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
++
++static void apf_task_wake_one(struct kvm_task_sleep_node *n)
++{
++	hlist_del_init(&n->link);
++	if (waitqueue_active(&n->wq))
++		wake_up(&n->wq);
++}
++
++static void apf_task_wake_all(void)
++{
++	int i;
++
++	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++) {
++		struct hlist_node *p, *next;
++		struct kvm_task_sleep_head *b = &async_pf_sleepers[i];
++		spin_lock(&b->lock);
++		hlist_for_each_safe(p, next, &b->list) {
++			struct kvm_task_sleep_node *n =
++				hlist_entry(p, typeof(*n), link);
++			if (n->cpu == smp_processor_id())
++				apf_task_wake_one(n);
++		}
++		spin_unlock(&b->lock);
++	}
++}
++
++void kvm_async_pf_task_wake(u32 token)
++{
++	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
++	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
++	struct kvm_task_sleep_node *n;
++
++	if (token == ~0) {
++		apf_task_wake_all();
++		return;
++	}
++
++again:
++	spin_lock(&b->lock);
++	n = _find_apf_task(b, token);
++	if (!n) {
++		/*
++		 * async PF was not yet handled.
++		 * Add dummy entry for the token.
++		 */
++		n = kmalloc(sizeof(*n), GFP_ATOMIC);
++		if (!n) {
++			/*
++			 * Allocation failed! Busy wait while other cpu
++			 * handles async PF.
++			 */
++			spin_unlock(&b->lock);
++			cpu_relax();
++			goto again;
++		}
++		n->token = token;
++		n->cpu = smp_processor_id();
++		init_waitqueue_head(&n->wq);
++		hlist_add_head(&n->link, &b->list);
++	} else
++		apf_task_wake_one(n);
++	spin_unlock(&b->lock);
++	return;
++}
++EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
++
++u32 kvm_read_and_reset_pf_reason(void)
++{
++	u32 reason = 0;
++
++	if (__get_cpu_var(apf_reason).enabled) {
++		reason = __get_cpu_var(apf_reason).reason;
++		__get_cpu_var(apf_reason).reason = 0;
++	}
++
++	return reason;
++}
++EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
++
++dotraplinkage void __kprobes
++do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
++{
++	switch (kvm_read_and_reset_pf_reason()) {
++	default:
++		do_page_fault(regs, error_code);
++		break;
++	case KVM_PV_REASON_PAGE_NOT_PRESENT:
++		/* page is swapped out by the host. */
++		kvm_async_pf_task_wait((u32)read_cr2());
++		break;
++	case KVM_PV_REASON_PAGE_READY:
++		kvm_async_pf_task_wake((u32)read_cr2());
++		break;
++	}
++}
++
+ static void kvm_mmu_op(void *buffer, unsigned len)
+ {
+ 	int r;
+@@ -298,8 +466,10 @@ static void kvm_guest_cpu_notify(void *dummy)
+ {
+ 	if (!dummy)
+ 		kvm_guest_cpu_init();
+-	else
++	else {
+ 		kvm_pv_disable_apf(NULL);
++		apf_task_wake_all();
++	}
+ }
+ 
+ static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
+@@ -327,13 +497,25 @@ static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
+ };
+ #endif
+ 
++static void __init kvm_apf_trap_init(void)
++{
++	set_intr_gate(14, &async_page_fault);
++}
++
+ void __init kvm_guest_init(void)
+ {
++	int i;
++
+ 	if (!kvm_para_available())
+ 		return;
+ 
+ 	paravirt_ops_setup();
+ 	register_reboot_notifier(&kvm_pv_reboot_nb);
++	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
++		spin_lock_init(&async_pf_sleepers[i].lock);
++	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
++		x86_init.irqs.trap_init = kvm_apf_trap_init;
++
+ #ifdef CONFIG_SMP
+ 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
+ 	register_cpu_notifier(&kvm_cpu_notifier);
+diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
+index ca778d5..709456f 100644
+--- a/arch/x86/kvm/svm.c
++++ b/arch/x86/kvm/svm.c
+@@ -31,6 +31,7 @@
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/desc.h>
++#include <asm/kvm_para.h>
+ 
+ #include <asm/virtext.h>
+ #include "trace.h"
+@@ -133,6 +134,7 @@ struct vcpu_svm {
+ 
+ 	unsigned int3_injected;
+ 	unsigned long int3_rip;
++	u32 apf_reason;
+ };
+ 
+ #define MSR_INVALID			0xffffffffU
+@@ -1383,16 +1385,31 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
+ 
+ static int pf_interception(struct vcpu_svm *svm)
+ {
+-	u64 fault_address;
++	u64 fault_address = svm->vmcb->control.exit_info_2;
+ 	u32 error_code;
++	int r = 1;
+ 
+-	fault_address  = svm->vmcb->control.exit_info_2;
+-	error_code = svm->vmcb->control.exit_info_1;
++	switch (svm->apf_reason) {
++	default:
++		error_code = svm->vmcb->control.exit_info_1;
+ 
+-	trace_kvm_page_fault(fault_address, error_code);
+-	if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
+-		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
+-	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
++		trace_kvm_page_fault(fault_address, error_code);
++		if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
++			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
++		r = kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
++		break;
++	case KVM_PV_REASON_PAGE_NOT_PRESENT:
++		local_irq_disable();
++		kvm_async_pf_task_wait(fault_address);
++		local_irq_enable();
++		break;
++	case KVM_PV_REASON_PAGE_READY:
++		local_irq_disable();
++		kvm_async_pf_task_wake(fault_address);
++		local_irq_enable();
++		break;
++	}
++	return r;
+ }
+ 
+ static int db_interception(struct vcpu_svm *svm)
+@@ -1836,8 +1853,8 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
+ 			return NESTED_EXIT_HOST;
+ 		break;
+ 	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
+-		/* When we're shadowing, trap PFs */
+-		if (!npt_enabled)
++		/* When we're shadowing, trap PFs, but not async PF */
++		if (!npt_enabled && svm->apf_reason == 0)
+ 			return NESTED_EXIT_HOST;
+ 		break;
+ 	case SVM_EXIT_EXCP_BASE + NM_VECTOR:
+@@ -1893,6 +1910,10 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
+ 		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
+ 		if (svm->nested.intercept_exceptions & excp_bits)
+ 			vmexit = NESTED_EXIT_DONE;
++		/* async page fault always cause vmexit */
++		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
++			 svm->apf_reason != 0)
++			vmexit = NESTED_EXIT_DONE;
+ 		break;
+ 	}
+ 	case SVM_EXIT_ERR: {
+@@ -3409,6 +3430,10 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
+ 
+ 	svm->next_rip = 0;
+ 
++	/* if exit due to PF check for async PF */
++	if (svm->vmcb->control.exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR)
++		svm->apf_reason = kvm_read_and_reset_pf_reason();
++
+ 	if (npt_enabled) {
+ 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
+ 		vcpu->arch.regs_dirty &= ~(1 << VCPU_EXREG_PDPTR);
 -- 
 1.7.1
 
