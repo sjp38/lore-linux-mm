@@ -1,177 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E4CF6B007E
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 03:03:22 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 10/10] memcg: check memcg dirty limits in page writeback
-Date: Sun,  3 Oct 2010 23:58:05 -0700
-Message-Id: <1286175485-30643-11-git-send-email-gthelen@google.com>
-In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AB06B6B0047
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 07:08:34 -0400 (EDT)
+From: Ed Tomlinson <edt@aei.ca>
+Subject: Re: OOM panics with zram
+Date: Mon, 4 Oct 2010 07:08:27 -0400
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1286134073.9970.11.camel@nimitz> <4CA8DC47.5070003@vflare.org>
+In-Reply-To: <4CA8DC47.5070003@vflare.org>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201010040708.27939.edt@aei.ca>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Greg KH <greg@kroah.com>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Greg KH - Meetings <ghartman@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-If the current process is in a non-root memcg, then
-global_dirty_limits() will consider the memcg dirty limit.
-This allows different cgroups to have distinct dirty limits
-which trigger direct and background writeback at different
-levels.
+On Sunday 03 October 2010 15:40:55 Nitin Gupta wrote:
+> On 10/3/2010 3:27 PM, Dave Hansen wrote:
+> > On Sun, 2010-10-03 at 14:41 -0400, Nitin Gupta wrote:
+> >> Ability to write out zram (compressed) memory to a backing disk seems
+> >> really useful. However considering lkml reviews, I had to drop this
+> >> feature. Anyways, I guess I will try to push this feature again.
+> > 
+> > I'd argue that zram is pretty useless without some ability to write to a
+> > backing store, unless you *really* know what is going to be stored in it
+> > and you trust the user.  Otherwise, it's just too easy to OOM the
+> > system.
+> >
+> > I've been investigating backing the xvmalloc space with a tmpfs file.
+> > Instead of keeping page/offset pairs, you just keep a linear address
+> > inside the tmpfile file.  There's an extra step needed to look up and
+> > lock the page cache page into place each time you go into the xvmalloc
+> > store, but it does seem to basically work.  The patches are really rough
+> > and not quite functional, but I'm happy to share if you want to see them
+> > now.
+> >
+> 
+> Yes, I would be really interested to look at them. Thanks.
+> 
+>  
+> >> Also, please do not use linux-next/mainline version of compcache. Instead
+> >> just use version in the project repository here:
+> >> hg clone https://compcache.googlecode.com/hg/ compcache 
+> >>
+> >> This is updated much more frequently and has many more bug fixes over
+> >> the mainline. It will also be easier to fix bugs/add features much more
+> >> quickly in this repo rather than sending them to lkml which can take
+> >> long time.
+> > 
+> > That looks like just a clone of the code needed to build the module.  
+> > 
+> > Kernel developers are pretty used to _some_ kernel tree being the
+> > authoritative source.  Also, having it in a kernel tree makes it
+> > possible to get testing in places like linux-next, and it makes it
+> > easier for people to make patches or kernel trees on top of your work. 
+> > 
+> > There's not really a point to the code being in -staging if it isn't
+> > somewhat up-to-date or people can't generate patches to it.  It sounds
+> > to me like we need to take it out of -staging.
+> > 
+> 
+> I will try sending patches to sync mainline and hg code (along with
+> some changes in pipeline), or maybe just take it out of -staging and
+> send fresh patch series.
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/page-writeback.c |   87 ++++++++++++++++++++++++++++++++++++++++++---------
- 1 files changed, 72 insertions(+), 15 deletions(-)
+Or move it to a git tree.  Then generating patches becomes tivial for all of
+us and keeping staging upto date becomes easier for you.
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a0bb3e2..c1db336 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -180,7 +180,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
-  * Returns the numebr of pages that can currently be freed and used
-  * by the kernel for direct mappings.
-  */
--static unsigned long determine_dirtyable_memory(void)
-+static unsigned long get_global_dirtyable_memory(void)
- {
- 	unsigned long x;
- 
-@@ -192,6 +192,58 @@ static unsigned long determine_dirtyable_memory(void)
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
-+static unsigned long get_dirtyable_memory(void)
-+{
-+	unsigned long memory;
-+	s64 memcg_memory;
-+
-+	memory = get_global_dirtyable_memory();
-+	if (!mem_cgroup_has_dirty_limit())
-+		return memory;
-+	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-+	BUG_ON(memcg_memory < 0);
-+
-+	return min((unsigned long)memcg_memory, memory);
-+}
-+
-+static long get_reclaimable_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_FILE_DIRTY) +
-+			global_page_state(NR_UNSTABLE_NFS);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static long get_writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static unsigned long get_dirty_writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_UNSTABLE_NFS) +
-+			global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
- /*
-  * couple the period to the dirty_ratio:
-  *
-@@ -204,7 +256,7 @@ static int calc_period_shift(void)
- 	if (vm_dirty_bytes)
- 		dirty_total = vm_dirty_bytes / PAGE_SIZE;
- 	else
--		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
-+		dirty_total = (vm_dirty_ratio * get_global_dirtyable_memory()) /
- 				100;
- 	return 2 + ilog2(dirty_total - 1);
- }
-@@ -410,18 +462,23 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
- 	unsigned long background;
- 	unsigned long dirty;
--	unsigned long available_memory = determine_dirtyable_memory();
-+	unsigned long available_memory = get_dirtyable_memory();
- 	struct task_struct *tsk;
-+	struct vm_dirty_param dirty_param;
- 
--	if (vm_dirty_bytes)
--		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-+	get_vm_dirty_param(&dirty_param);
-+
-+	if (dirty_param.dirty_bytes)
-+		dirty = DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
- 	else
--		dirty = (vm_dirty_ratio * available_memory) / 100;
-+		dirty = (dirty_param.dirty_ratio * available_memory) / 100;
- 
--	if (dirty_background_bytes)
--		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-+	if (dirty_param.dirty_background_bytes)
-+		background = DIV_ROUND_UP(dirty_param.dirty_background_bytes,
-+					  PAGE_SIZE);
- 	else
--		background = (dirty_background_ratio * available_memory) / 100;
-+		background = (dirty_param.dirty_background_ratio *
-+			      available_memory) / 100;
- 
- 	if (background >= dirty)
- 		background = dirty / 2;
-@@ -493,9 +550,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			.range_cyclic	= 1,
- 		};
- 
--		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
--					global_page_state(NR_UNSTABLE_NFS);
--		nr_writeback = global_page_state(NR_WRITEBACK);
-+		nr_reclaimable = get_reclaimable_pages();
-+		nr_writeback = get_writeback_pages();
- 
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
- 
-@@ -652,6 +708,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
- {
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
-+	unsigned long dirty;
- 
-         for ( ; ; ) {
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
-@@ -662,9 +719,9 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
- 
--                if (global_page_state(NR_UNSTABLE_NFS) +
--			global_page_state(NR_WRITEBACK) <= dirty_thresh)
--                        	break;
-+		dirty = get_dirty_writeback_pages();
-+		if (dirty <= dirty_thresh)
-+			break;
-                 congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		/*
--- 
-1.7.1
+Ed
+
+> Thanks,
+> Nitin
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
