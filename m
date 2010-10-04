@@ -1,41 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5896B0047
-	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 23:26:34 -0400 (EDT)
-Date: Mon, 4 Oct 2010 12:24:51 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: Transparent Hugepage Support #30
-Message-ID: <20101004032451.GA11622@spritzera.linux.bs1.fc.nec.co.jp>
-References: <20100901190859.GA20316@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Disposition: inline
-In-Reply-To: <20100901190859.GA20316@random.random>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 67F3D6B0047
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 02:59:04 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH 00/10] memcg: per cgroup dirty page accounting
+Date: Sun,  3 Oct 2010 23:57:55 -0700
+Message-Id: <1286175485-30643-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This patch set provides the ability for each cgroup to have independent dirty
+page limits.
 
-I experienced build error of "calling pte_alloc_map() with 3 parameters, 
-while it's defined to have 4 parameters" in arch/x86/kernel/tboot.c etc.
-Is the following chunk in patch "pte alloc trans splitting" necessary?
+Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+not be able to consume more than their designated share of dirty pages and will
+be forced to perform write-out if they cross that limit.
 
-@@ -1167,16 +1168,18 @@ static inline void pgtable_page_dtor(struct page *page)
-        pte_unmap(pte);                                 \
- } while (0)
- 
--#define pte_alloc_map(mm, pmd, address)                        \
--       ((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
--               NULL: pte_offset_map(pmd, address))
-+#define pte_alloc_map(mm, vma, pmd, address)                           \
-+       ((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, vma,    \
-+                                                       pmd, address))? \
-+        NULL: pte_offset_map(pmd, address))
- 
-Thanks,
-Naoya Horiguchi
+These patches were developed and tested on mmotm 2010-09-28-16-13.  The patches
+are based on a series proposed by Andrea Righi in Mar 2010.
+
+Overview:
+- Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
+  unstable.
+- Extend mem_cgroup to record the total number of pages in each of the 
+  interesting dirty states (dirty, writeback, unstable_nfs).  
+- Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
+  limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
+  via cgroupfs control files.
+- Consider both system and per-memcg dirty limits in page writeback when
+  deciding to queue background writeback or block for foreground writeback.
+
+Known shortcomings:
+- When a cgroup dirty limit is exceeded, then bdi writeback is employed to
+  writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
+  just inodes contributing dirty pages to the cgroup exceeding its limit.  
+
+Performance measurements:
+- kernel builds are unaffected unless run with a small dirty limit.
+- all data collected with CONFIG_CGROUP_MEM_RES_CTLR=y.
+- dd has three data points (in secs) for three data sizes (100M, 200M, and 1G).  
+  As expected, dd slows when it exceed its cgroup dirty limit.
+
+               kernel_build          dd
+mmotm             2:37        0.18, 0.38, 1.65
+  root_memcg
+
+mmotm             2:37        0.18, 0.35, 1.66
+  non-root_memcg
+
+mmotm+patches     2:37        0.18, 0.35, 1.68
+  root_memcg
+
+mmotm+patches     2:37        0.19, 0.35, 1.69
+  non-root_memcg
+
+mmotm+patches     2:37        0.19, 2.34, 22.82
+  non-root_memcg
+  150 MiB memcg dirty limit
+
+mmotm+patches     3:58        1.71, 3.38, 17.33
+  non-root_memcg
+  1 MiB memcg dirty limit
+
+Greg Thelen (10):
+  memcg: add page_cgroup flags for dirty page tracking
+  memcg: document cgroup dirty memory interfaces
+  memcg: create extensible page stat update routines
+  memcg: disable local interrupts in lock_page_cgroup()
+  memcg: add dirty page accounting infrastructure
+  memcg: add kernel calls for memcg dirty page stats
+  memcg: add dirty limits to mem_cgroup
+  memcg: add cgroupfs interface to memcg dirty limits
+  writeback: make determine_dirtyable_memory() static.
+  memcg: check memcg dirty limits in page writeback
+
+ Documentation/cgroups/memory.txt |   37 ++++
+ fs/nfs/write.c                   |    4 +
+ include/linux/memcontrol.h       |   78 +++++++-
+ include/linux/page_cgroup.h      |   31 +++-
+ include/linux/writeback.h        |    2 -
+ mm/filemap.c                     |    1 +
+ mm/memcontrol.c                  |  426 ++++++++++++++++++++++++++++++++++----
+ mm/page-writeback.c              |  211 ++++++++++++-------
+ mm/rmap.c                        |    4 +-
+ mm/truncate.c                    |    1 +
+ 10 files changed, 672 insertions(+), 123 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
