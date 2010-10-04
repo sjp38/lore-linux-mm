@@ -1,434 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6CBB06B004A
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:50 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3DCC56B007B
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:52 -0400 (EDT)
 From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v6 08/12] Handle async PF in a guest.
-Date: Mon,  4 Oct 2010 17:56:30 +0200
-Message-Id: <1286207794-16120-9-git-send-email-gleb@redhat.com>
-In-Reply-To: <1286207794-16120-1-git-send-email-gleb@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+Subject: [PATCH v6 00/12] KVM: Add host swap event notifications for PV guest
+Date: Mon,  4 Oct 2010 17:56:22 +0200
+Message-Id: <1286207794-16120-1-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-When async PF capability is detected hook up special page fault handler
-that will handle async page fault events and bypass other page faults to
-regular page fault handler. Also add async PF handling to nested SVM
-emulation. Async PF always generates exit to L1 where vcpu thread will
-be scheduled out until page is available.
+KVM virtualizes guest memory by means of shadow pages or HW assistance
+like NPT/EPT. Not all memory used by a guest is mapped into the guest
+address space or even present in a host memory at any given time.
+When vcpu tries to access memory page that is not mapped into the guest
+address space KVM is notified about it. KVM maps the page into the guest
+address space and resumes vcpu execution. If the page is swapped out from
+the host memory vcpu execution is suspended till the page is swapped
+into the memory again. This is inefficient since vcpu can do other work
+(run other task or serve interrupts) while page gets swapped in.
 
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
- arch/x86/include/asm/kvm_para.h |   12 +++
- arch/x86/include/asm/traps.h    |    1 +
- arch/x86/kernel/entry_32.S      |   10 ++
- arch/x86/kernel/entry_64.S      |    3 +
- arch/x86/kernel/kvm.c           |  184 ++++++++++++++++++++++++++++++++++++++-
- arch/x86/kvm/svm.c              |   43 +++++++--
- 6 files changed, 243 insertions(+), 10 deletions(-)
+The patch series tries to mitigate this problem by introducing two
+mechanisms. The first one is used with non-PV guest and it works like
+this: when vcpu tries to access swapped out page it is halted and
+requested page is swapped in by another thread. That way vcpu can still
+process interrupts while io is happening in parallel and, with any luck,
+interrupt will cause the guest to schedule another task on the vcpu, so
+it will have work to do instead of waiting for the page to be swapped in.
 
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index e193c4f..bcc5022 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -65,6 +65,9 @@ struct kvm_mmu_op_release_pt {
- 	__u64 pt_phys;
- };
- 
-+#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
-+#define KVM_PV_REASON_PAGE_READY 2
-+
- struct kvm_vcpu_pv_apf_data {
- 	__u32 reason;
- 	__u32 enabled;
-@@ -170,8 +173,17 @@ static inline unsigned int kvm_arch_para_features(void)
- 
- #ifdef CONFIG_KVM_GUEST
- void __init kvm_guest_init(void);
-+void kvm_async_pf_task_wait(u32 token);
-+void kvm_async_pf_task_wake(u32 token);
-+u32 kvm_read_and_reset_pf_reason(void);
- #else
- #define kvm_guest_init() do { } while (0)
-+#define kvm_async_pf_task_wait(T) do {} while(0)
-+#define kvm_async_pf_task_wake(T) do {} while(0)
-+static u32 kvm_read_and_reset_pf_reason(void)
-+{
-+	return 0;
-+}
- #endif
- 
- #endif /* __KERNEL__ */
-diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
-index f66cda5..0310da6 100644
---- a/arch/x86/include/asm/traps.h
-+++ b/arch/x86/include/asm/traps.h
-@@ -30,6 +30,7 @@ asmlinkage void segment_not_present(void);
- asmlinkage void stack_segment(void);
- asmlinkage void general_protection(void);
- asmlinkage void page_fault(void);
-+asmlinkage void async_page_fault(void);
- asmlinkage void spurious_interrupt_bug(void);
- asmlinkage void coprocessor_error(void);
- asmlinkage void alignment_check(void);
-diff --git a/arch/x86/kernel/entry_32.S b/arch/x86/kernel/entry_32.S
-index 227d009..e6e7273 100644
---- a/arch/x86/kernel/entry_32.S
-+++ b/arch/x86/kernel/entry_32.S
-@@ -1496,6 +1496,16 @@ ENTRY(general_protection)
- 	CFI_ENDPROC
- END(general_protection)
- 
-+#ifdef CONFIG_KVM_GUEST
-+ENTRY(async_page_fault)
-+	RING0_EC_FRAME
-+	pushl $do_async_page_fault
-+	CFI_ADJUST_CFA_OFFSET 4
-+	jmp error_code
-+	CFI_ENDPROC
-+END(apf_page_fault)
-+#endif
-+
- /*
-  * End of kprobes section
-  */
-diff --git a/arch/x86/kernel/entry_64.S b/arch/x86/kernel/entry_64.S
-index 17be5ec..def98c3 100644
---- a/arch/x86/kernel/entry_64.S
-+++ b/arch/x86/kernel/entry_64.S
-@@ -1349,6 +1349,9 @@ errorentry xen_stack_segment do_stack_segment
- #endif
- errorentry general_protection do_general_protection
- errorentry page_fault do_page_fault
-+#ifdef CONFIG_KVM_GUEST
-+errorentry async_page_fault do_async_page_fault
-+#endif
- #ifdef CONFIG_X86_MCE
- paranoidzeroentry machine_check *machine_check_vector(%rip)
- #endif
-diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index 67d1c8d..36fb3e4 100644
---- a/arch/x86/kernel/kvm.c
-+++ b/arch/x86/kernel/kvm.c
-@@ -29,8 +29,14 @@
- #include <linux/hardirq.h>
- #include <linux/notifier.h>
- #include <linux/reboot.h>
-+#include <linux/hash.h>
-+#include <linux/sched.h>
-+#include <linux/slab.h>
-+#include <linux/kprobes.h>
- #include <asm/timer.h>
- #include <asm/cpu.h>
-+#include <asm/traps.h>
-+#include <asm/desc.h>
- 
- #define MMU_QUEUE_SIZE 1024
- 
-@@ -64,6 +70,168 @@ static void kvm_io_delay(void)
- {
- }
- 
-+#define KVM_TASK_SLEEP_HASHBITS 8
-+#define KVM_TASK_SLEEP_HASHSIZE (1<<KVM_TASK_SLEEP_HASHBITS)
-+
-+struct kvm_task_sleep_node {
-+	struct hlist_node link;
-+	wait_queue_head_t wq;
-+	u32 token;
-+	int cpu;
-+};
-+
-+static struct kvm_task_sleep_head {
-+	spinlock_t lock;
-+	struct hlist_head list;
-+} async_pf_sleepers[KVM_TASK_SLEEP_HASHSIZE];
-+
-+static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
-+						  u32 token)
-+{
-+	struct hlist_node *p;
-+
-+	hlist_for_each(p, &b->list) {
-+		struct kvm_task_sleep_node *n =
-+			hlist_entry(p, typeof(*n), link);
-+		if (n->token == token)
-+			return n;
-+	}
-+
-+	return NULL;
-+}
-+
-+void kvm_async_pf_task_wait(u32 token)
-+{
-+	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
-+	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-+	struct kvm_task_sleep_node n, *e;
-+	DEFINE_WAIT(wait);
-+
-+	spin_lock(&b->lock);
-+	e = _find_apf_task(b, token);
-+	if (e) {
-+		/* dummy entry exist -> wake up was delivered ahead of PF */
-+		hlist_del(&e->link);
-+		kfree(e);
-+		spin_unlock(&b->lock);
-+		return;
-+	}
-+
-+	n.token = token;
-+	n.cpu = smp_processor_id();
-+	init_waitqueue_head(&n.wq);
-+	hlist_add_head(&n.link, &b->list);
-+	spin_unlock(&b->lock);
-+
-+	for (;;) {
-+		prepare_to_wait(&n.wq, &wait, TASK_UNINTERRUPTIBLE);
-+		if (hlist_unhashed(&n.link))
-+			break;
-+		local_irq_enable();
-+		schedule();
-+		local_irq_disable();
-+	}
-+	finish_wait(&n.wq, &wait);
-+
-+	return;
-+}
-+EXPORT_SYMBOL_GPL(kvm_async_pf_task_wait);
-+
-+static void apf_task_wake_one(struct kvm_task_sleep_node *n)
-+{
-+	hlist_del_init(&n->link);
-+	if (waitqueue_active(&n->wq))
-+		wake_up(&n->wq);
-+}
-+
-+static void apf_task_wake_all(void)
-+{
-+	int i;
-+
-+	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++) {
-+		struct hlist_node *p, *next;
-+		struct kvm_task_sleep_head *b = &async_pf_sleepers[i];
-+		spin_lock(&b->lock);
-+		hlist_for_each_safe(p, next, &b->list) {
-+			struct kvm_task_sleep_node *n =
-+				hlist_entry(p, typeof(*n), link);
-+			if (n->cpu == smp_processor_id())
-+				apf_task_wake_one(n);
-+		}
-+		spin_unlock(&b->lock);
-+	}
-+}
-+
-+void kvm_async_pf_task_wake(u32 token)
-+{
-+	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
-+	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-+	struct kvm_task_sleep_node *n;
-+
-+	if (token == ~0) {
-+		apf_task_wake_all();
-+		return;
-+	}
-+
-+again:
-+	spin_lock(&b->lock);
-+	n = _find_apf_task(b, token);
-+	if (!n) {
-+		/*
-+		 * async PF was not yet handled.
-+		 * Add dummy entry for the token.
-+		 */
-+		n = kmalloc(sizeof(*n), GFP_ATOMIC);
-+		if (!n) {
-+			/*
-+			 * Allocation failed! Busy wait while other cpu
-+			 * handles async PF.
-+			 */
-+			spin_unlock(&b->lock);
-+			cpu_relax();
-+			goto again;
-+		}
-+		n->token = token;
-+		n->cpu = smp_processor_id();
-+		init_waitqueue_head(&n->wq);
-+		hlist_add_head(&n->link, &b->list);
-+	} else
-+		apf_task_wake_one(n);
-+	spin_unlock(&b->lock);
-+	return;
-+}
-+EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
-+
-+u32 kvm_read_and_reset_pf_reason(void)
-+{
-+	u32 reason = 0;
-+
-+	if (__get_cpu_var(apf_reason).enabled) {
-+		reason = __get_cpu_var(apf_reason).reason;
-+		__get_cpu_var(apf_reason).reason = 0;
-+	}
-+
-+	return reason;
-+}
-+EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
-+
-+dotraplinkage void __kprobes
-+do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
-+{
-+	switch (kvm_read_and_reset_pf_reason()) {
-+	default:
-+		do_page_fault(regs, error_code);
-+		break;
-+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
-+		/* page is swapped out by the host. */
-+		kvm_async_pf_task_wait((u32)read_cr2());
-+		break;
-+	case KVM_PV_REASON_PAGE_READY:
-+		kvm_async_pf_task_wake((u32)read_cr2());
-+		break;
-+	}
-+}
-+
- static void kvm_mmu_op(void *buffer, unsigned len)
- {
- 	int r;
-@@ -298,8 +466,10 @@ static void kvm_guest_cpu_notify(void *dummy)
- {
- 	if (!dummy)
- 		kvm_guest_cpu_init();
--	else
-+	else {
- 		kvm_pv_disable_apf(NULL);
-+		apf_task_wake_all();
-+	}
- }
- 
- static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
-@@ -327,13 +497,25 @@ static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
- };
- #endif
- 
-+static void __init kvm_apf_trap_init(void)
-+{
-+	set_intr_gate(14, &async_page_fault);
-+}
-+
- void __init kvm_guest_init(void)
- {
-+	int i;
-+
- 	if (!kvm_para_available())
- 		return;
- 
- 	paravirt_ops_setup();
- 	register_reboot_notifier(&kvm_pv_reboot_nb);
-+	for (i = 0; i < KVM_TASK_SLEEP_HASHSIZE; i++)
-+		spin_lock_init(&async_pf_sleepers[i].lock);
-+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
-+		x86_init.irqs.trap_init = kvm_apf_trap_init;
-+
- #ifdef CONFIG_SMP
- 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
- 	register_cpu_notifier(&kvm_cpu_notifier);
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index ca778d5..709456f 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -31,6 +31,7 @@
- 
- #include <asm/tlbflush.h>
- #include <asm/desc.h>
-+#include <asm/kvm_para.h>
- 
- #include <asm/virtext.h>
- #include "trace.h"
-@@ -133,6 +134,7 @@ struct vcpu_svm {
- 
- 	unsigned int3_injected;
- 	unsigned long int3_rip;
-+	u32 apf_reason;
- };
- 
- #define MSR_INVALID			0xffffffffU
-@@ -1383,16 +1385,31 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
- 
- static int pf_interception(struct vcpu_svm *svm)
- {
--	u64 fault_address;
-+	u64 fault_address = svm->vmcb->control.exit_info_2;
- 	u32 error_code;
-+	int r = 1;
- 
--	fault_address  = svm->vmcb->control.exit_info_2;
--	error_code = svm->vmcb->control.exit_info_1;
-+	switch (svm->apf_reason) {
-+	default:
-+		error_code = svm->vmcb->control.exit_info_1;
- 
--	trace_kvm_page_fault(fault_address, error_code);
--	if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
--		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
--	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
-+		trace_kvm_page_fault(fault_address, error_code);
-+		if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
-+			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
-+		r = kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
-+		break;
-+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
-+		local_irq_disable();
-+		kvm_async_pf_task_wait(fault_address);
-+		local_irq_enable();
-+		break;
-+	case KVM_PV_REASON_PAGE_READY:
-+		local_irq_disable();
-+		kvm_async_pf_task_wake(fault_address);
-+		local_irq_enable();
-+		break;
-+	}
-+	return r;
- }
- 
- static int db_interception(struct vcpu_svm *svm)
-@@ -1836,8 +1853,8 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
- 			return NESTED_EXIT_HOST;
- 		break;
- 	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
--		/* When we're shadowing, trap PFs */
--		if (!npt_enabled)
-+		/* When we're shadowing, trap PFs, but not async PF */
-+		if (!npt_enabled && svm->apf_reason == 0)
- 			return NESTED_EXIT_HOST;
- 		break;
- 	case SVM_EXIT_EXCP_BASE + NM_VECTOR:
-@@ -1893,6 +1910,10 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
- 		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
- 		if (svm->nested.intercept_exceptions & excp_bits)
- 			vmexit = NESTED_EXIT_DONE;
-+		/* async page fault always cause vmexit */
-+		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
-+			 svm->apf_reason != 0)
-+			vmexit = NESTED_EXIT_DONE;
- 		break;
- 	}
- 	case SVM_EXIT_ERR: {
-@@ -3409,6 +3430,10 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
- 
- 	svm->next_rip = 0;
- 
-+	/* if exit due to PF check for async PF */
-+	if (svm->vmcb->control.exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR)
-+		svm->apf_reason = kvm_read_and_reset_pf_reason();
-+
- 	if (npt_enabled) {
- 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
- 		vcpu->arch.regs_dirty &= ~(1 << VCPU_EXREG_PDPTR);
--- 
-1.7.1
+The second mechanism introduces PV notification about swapped page state to
+a guest (asynchronous page fault). Instead of halting vcpu upon access to
+swapped out page and hoping that some interrupt will cause reschedule we
+immediately inject asynchronous page fault to the vcpu.  PV aware guest
+knows that upon receiving such exception it should schedule another task
+to run on the vcpu. Current task is put to sleep until another kind of
+asynchronous page fault is received that notifies the guest that page
+is now in the host memory, so task that waits for it can run again.
+
+To measure performance benefits I use a simple benchmark program (below)
+that starts number of threads. Some of them do work (increment counter),
+others access huge array in random location trying to generate host page
+faults. The size of the array is smaller then guest memory bug bigger
+then host memory so we are guarantied that host will swap out part of
+the array.
+
+I ran the benchmark on three setups: with current kvm.git (master),
+with my patch series + non-pv guest (nonpv) and with my patch series +
+pv guest (pv).
+
+Each guest had 4 cpus and 2G memory and was launched inside 512M memory
+container. The command line was "./bm -f 4 -w 4 -t 60" (run 4 faulting
+threads and 4 working threads for a minute).
+
+Below is the total amount of "work" each guest managed to do
+(average of 10 runs):
+         total work    std error
+master: 122789420615 (3818565029)
+nonpv:  138455939001 (773774299)
+pv:     234351846135 (10461117116)
+
+Changes:
+ v1->v2
+   Use MSR instead of hypercall.
+   Move most of the code into arch independent place.
+   halt inside a guest instead of doing "wait for page" hypercall if
+    preemption is disabled.
+ v2->v3
+   Use MSR from range 0x4b564dxx.
+   Add slot version tracking.
+   Support migration by restarting all guest processes after migration.
+   Drop patch that tract preemptability for non-preemptable kernels
+    due to performance concerns. Send async PF to non-preemptable
+    guests only when vcpu is executing userspace code.
+ v3->v4
+  Provide alternative page fault handler in PV guest instead of adding hook to
+   standard page fault handler and patch it out on non-PV guests.
+  Allow only limited number of outstanding async page fault per vcpu.
+  Unify  gfn_to_pfn and gfn_to_pfn_async code.
+  Cancel outstanding slow work on reset.
+ v4->v5
+  Move async pv cpu initialization into cpu hotplug notifier.
+  Use GFP_NOWAIT instead of GFP_ATOMIC for allocation that shouldn't sleep
+  Process KVM_REQ_MMU_SYNC even in page_fault_other_cr3() before changing
+   cr3 back
+ v5->v6
+  To many. Will list only major changes here.
+  Replace slow work with work queues.
+  Halt vcpu for non-pv guests.
+  Handle async PF in nested SVM mode.
+  Do not prefault swapped in page for non tdp case.
+
+Gleb Natapov (12):
+  Add get_user_pages() variant that fails if major fault is required.
+  Halt vcpu if page it tries to access is swapped out.
+  Retry fault before vmentry
+  Add memory slot versioning and use it to provide fast guest write interface
+  Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
+  Add PV MSR to enable asynchronous page faults delivery.
+  Add async PF initialization to PV guest.
+  Handle async PF in a guest.
+  Inject asynchronous page fault into a PV guest if page is swapped out.
+  Handle async PF in non preemptable context
+  Let host know whether the guest can handle async PF in non-userspace context.
+  Send async PF when guest is not in userspace too.
+
+ Documentation/kernel-parameters.txt |    3 +
+ Documentation/kvm/cpuid.txt         |    3 +
+ Documentation/kvm/msr.txt           |   14 ++-
+ arch/x86/include/asm/kvm_host.h     |   27 +++-
+ arch/x86/include/asm/kvm_para.h     |   23 +++
+ arch/x86/include/asm/traps.h        |    1 +
+ arch/x86/kernel/entry_32.S          |   10 +
+ arch/x86/kernel/entry_64.S          |    3 +
+ arch/x86/kernel/kvm.c               |  316 +++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/kvmclock.c          |   13 +--
+ arch/x86/kvm/Kconfig                |    1 +
+ arch/x86/kvm/Makefile               |    1 +
+ arch/x86/kvm/mmu.c                  |   60 ++++++-
+ arch/x86/kvm/paging_tmpl.h          |    8 +-
+ arch/x86/kvm/svm.c                  |   43 ++++-
+ arch/x86/kvm/x86.c                  |  189 ++++++++++++++++++++-
+ fs/ncpfs/mmap.c                     |    2 +
+ include/linux/kvm.h                 |    1 +
+ include/linux/kvm_host.h            |   38 ++++
+ include/linux/kvm_types.h           |    7 +
+ include/linux/mm.h                  |    5 +
+ include/trace/events/kvm.h          |   93 ++++++++++
+ mm/filemap.c                        |    3 +
+ mm/memory.c                         |   31 +++-
+ mm/shmem.c                          |    8 +-
+ virt/kvm/Kconfig                    |    3 +
+ virt/kvm/async_pf.c                 |  223 ++++++++++++++++++++++++
+ virt/kvm/async_pf.h                 |   36 ++++
+ virt/kvm/kvm_main.c                 |  114 +++++++++++--
+ 29 files changed, 1225 insertions(+), 54 deletions(-)
+ create mode 100644 virt/kvm/async_pf.c
+ create mode 100644 virt/kvm/async_pf.h
+
+=== benchmark.c ===
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+
+#define FAULTING_THREADS 1
+#define WORKING_THREADS 1
+#define TIMEOUT 5
+#define MEMORY 1024*1024*1024
+
+pthread_barrier_t barrier;
+volatile int stop;
+size_t pages;
+
+void *fault_thread(void* p)
+{
+	char *mem = p;
+
+	pthread_barrier_wait(&barrier);
+
+	while (!stop)
+		mem[(random() % pages) << 12] = 10;
+
+	pthread_barrier_wait(&barrier);
+
+	return NULL;
+}
+
+void *work_thread(void* p)
+{
+	unsigned long *i = p;
+
+	pthread_barrier_wait(&barrier);
+
+	while (!stop)
+		(*i)++;
+
+	pthread_barrier_wait(&barrier);
+
+	return NULL;
+}
+
+int main(int argc, char **argv)
+{
+	int ft = FAULTING_THREADS, wt = WORKING_THREADS;
+	unsigned int timeout = TIMEOUT;
+	size_t mem = MEMORY;
+	void *buf;
+	int i, opt, verbose = 0;
+	pthread_t t;
+	pthread_attr_t pattr;
+	unsigned long *res, sum = 0;
+
+	while((opt = getopt(argc, argv, "f:w:m:t:v")) != -1) {
+		switch (opt) {
+		case 'f':
+			ft = atoi(optarg);
+			break;
+		case 'w':
+			wt = atoi(optarg);
+			break;
+		case 'm':
+			mem = atoi(optarg);
+			break;
+		case 't':
+			timeout = atoi(optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		default:
+			fprintf(stderr, "Usage %s [-f num] [-w num] [-m byte] [-t secs]\n", argv[0]);
+			exit(1);
+		}
+	}
+
+	if (verbose)
+		printf("fault=%d work=%d mem=%lu timeout=%d\n", ft, wt, mem, timeout);
+
+	pages = mem >> 12;
+	posix_memalign(&buf, 4096, pages << 12);
+	res = malloc(sizeof (unsigned long) * wt);
+	memset(res, 0, sizeof (unsigned long) * wt);
+
+	pthread_attr_init(&pattr);
+	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
+
+	for (i = 0; i < ft; i++) {
+		pthread_create(&t, &pattr, fault_thread, buf);
+		pthread_detach(t);
+	}
+
+	for (i = 0; i < wt; i++) {
+		pthread_create(&t, &pattr, work_thread, &res[i]);
+		pthread_detach(t);
+	}
+
+	/* prefault memory */
+	memset(buf, 0, pages << 12);
+	printf("start\n");
+
+	pthread_barrier_wait(&barrier);
+
+	pthread_barrier_destroy(&barrier);
+	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
+
+	sleep(timeout);
+	stop = 1;
+
+	pthread_barrier_wait(&barrier);
+
+	for (i = 0; i < wt; i++) {
+		sum += res[i];
+		printf("worker %d: %lu\n", i, res[i]);
+	}
+	printf("total: %lu\n", sum);
+
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
