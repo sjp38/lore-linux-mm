@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ED226B0047
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 03:01:16 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DBA46B0078
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 03:01:58 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 04/10] memcg: disable local interrupts in lock_page_cgroup()
-Date: Sun,  3 Oct 2010 23:57:59 -0700
-Message-Id: <1286175485-30643-5-git-send-email-gthelen@google.com>
+Subject: [PATCH 05/10] memcg: add dirty page accounting infrastructure
+Date: Sun,  3 Oct 2010 23:58:00 -0700
+Message-Id: <1286175485-30643-6-git-send-email-gthelen@google.com>
 In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
 References: <1286175485-30643-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,282 +13,176 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-If pages are being migrated from a memcg, then updates to that
-memcg's page statistics are protected by grabbing a bit spin lock
-using lock_page_cgroup().  In an upcoming commit memcg dirty page
-accounting will be updating memcg page accounting (specifically:
-num writeback pages) from softirq.  Avoid a deadlocking nested
-spin lock attempt by disabling interrupts on the local processor
-when grabbing the page_cgroup bit_spin_lock in lock_page_cgroup().
-This avoids the following deadlock:
-statistic
-      CPU 0             CPU 1
-                    inc_file_mapped
-                    rcu_read_lock
-  start move
-  synchronize_rcu
-                    lock_page_cgroup
-                      softirq
-                      test_clear_page_writeback
-                      mem_cgroup_dec_page_stat(NR_WRITEBACK)
-                      rcu_read_lock
-                      lock_page_cgroup   /* deadlock */
-                      unlock_page_cgroup
-                      rcu_read_unlock
-                    unlock_page_cgroup
-                    rcu_read_unlock
+Add memcg routines to track dirty, writeback, and unstable_NFS pages.
+These routines are not yet used by the kernel to count such pages.
+A later change adds kernel calls to these new routines.
 
-By disabling interrupts in lock_page_cgroup, nested calls
-are avoided.  The softirq would be delayed until after inc_file_mapped
-enables interrupts when calling unlock_page_cgroup().
-
-The normal, fast path, of memcg page stat updates typically
-does not need to call lock_page_cgroup(), so this change does
-not affect the performance of the common case page accounting.
-
-Signed-off-by: Andrea Righi <arighi@develer.com>
 Signed-off-by: Greg Thelen <gthelen@google.com>
+Signed-off-by: Andrea Righi <arighi@develer.com>
 ---
- include/linux/page_cgroup.h |    8 +++++-
- mm/memcontrol.c             |   51 +++++++++++++++++++++++++-----------------
- 2 files changed, 36 insertions(+), 23 deletions(-)
+ include/linux/memcontrol.h |    3 +
+ mm/memcontrol.c            |   89 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 84 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index b59c298..872f6b1 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -117,14 +117,18 @@ static inline enum zone_type page_cgroup_zid(struct page_cgroup *pc)
- 	return page_zonenum(pc->page);
- }
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 7c7bec4..6303da1 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -28,6 +28,9 @@ struct mm_struct;
+ /* Stats that can be updated by kernel. */
+ enum mem_cgroup_write_page_stat_item {
+ 	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++	MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
++	MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
++	MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
+ };
  
--static inline void lock_page_cgroup(struct page_cgroup *pc)
-+static inline void lock_page_cgroup(struct page_cgroup *pc,
-+				    unsigned long *flags)
- {
-+	local_irq_save(*flags);
- 	bit_spin_lock(PCG_LOCK, &pc->flags);
- }
- 
--static inline void unlock_page_cgroup(struct page_cgroup *pc)
-+static inline void unlock_page_cgroup(struct page_cgroup *pc,
-+				      unsigned long flags)
- {
- 	bit_spin_unlock(PCG_LOCK, &pc->flags);
-+	local_irq_restore(flags);
- }
- 
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f4259f4..267d774 100644
+index 267d774..f40839f 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1599,6 +1599,7 @@ void mem_cgroup_update_page_stat(struct page *page,
- 	struct mem_cgroup *mem;
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
- 	bool need_unlock = false;
-+	unsigned long flags;
- 
- 	if (unlikely(!pc))
- 		return;
-@@ -1610,7 +1611,7 @@ void mem_cgroup_update_page_stat(struct page *page,
- 	/* pc->mem_cgroup is unstable ? */
- 	if (unlikely(mem_cgroup_stealed(mem))) {
- 		/* take a lock against to access pc->mem_cgroup */
--		lock_page_cgroup(pc);
-+		lock_page_cgroup(pc, &flags);
- 		need_unlock = true;
- 		mem = pc->mem_cgroup;
- 		if (!mem || !PageCgroupUsed(pc))
-@@ -1633,7 +1634,7 @@ void mem_cgroup_update_page_stat(struct page *page,
- 
- out:
- 	if (unlikely(need_unlock))
--		unlock_page_cgroup(pc);
-+		unlock_page_cgroup(pc, flags);
- 	rcu_read_unlock();
- 	return;
- }
-@@ -2053,11 +2054,12 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
- 	struct page_cgroup *pc;
- 	unsigned short id;
- 	swp_entry_t ent;
-+	unsigned long flags;
- 
- 	VM_BUG_ON(!PageLocked(page));
- 
- 	pc = lookup_page_cgroup(page);
--	lock_page_cgroup(pc);
-+	lock_page_cgroup(pc, &flags);
- 	if (PageCgroupUsed(pc)) {
- 		mem = pc->mem_cgroup;
- 		if (mem && !css_tryget(&mem->css))
-@@ -2071,7 +2073,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
- 			mem = NULL;
- 		rcu_read_unlock();
- 	}
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	return mem;
- }
- 
-@@ -2084,13 +2086,15 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- 				     struct page_cgroup *pc,
- 				     enum charge_type ctype)
- {
-+	unsigned long flags;
+@@ -85,10 +85,13 @@ enum mem_cgroup_stat_index {
+ 	 */
+ 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+ 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+-	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+ 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
+ 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
+ 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
++	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
++	MEM_CGROUP_STAT_FILE_DIRTY,	/* # of dirty pages in page cache */
++	MEM_CGROUP_STAT_FILE_WRITEBACK,		/* # of pages under writeback */
++	MEM_CGROUP_STAT_FILE_UNSTABLE_NFS,	/* # of NFS unstable pages */
+ 	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+ 	/* incremented at every  pagein/pageout */
+ 	MEM_CGROUP_EVENTS = MEM_CGROUP_STAT_DATA,
+@@ -1626,6 +1629,48 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 			ClearPageCgroupFileMapped(pc);
+ 		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+ 		break;
 +
- 	/* try_charge() can return NULL to *memcg, taking care of it. */
- 	if (!mem)
- 		return;
- 
--	lock_page_cgroup(pc);
-+	lock_page_cgroup(pc, &flags);
- 	if (unlikely(PageCgroupUsed(pc))) {
--		unlock_page_cgroup(pc);
-+		unlock_page_cgroup(pc, flags);
- 		mem_cgroup_cancel_charge(mem);
- 		return;
++	case MEMCG_NR_FILE_DIRTY:
++		/* Use Test{Set,Clear} to only un/charge the memcg once. */
++		if (val > 0) {
++			if (TestSetPageCgroupFileDirty(pc))
++				/* already set */
++				val = 0;
++		} else {
++			if (!TestClearPageCgroupFileDirty(pc))
++				/* already cleared */
++				val = 0;
++		}
++		idx = MEM_CGROUP_STAT_FILE_DIRTY;
++		break;
++
++	case MEMCG_NR_FILE_WRITEBACK:
++		/*
++		 * This counter is adjusted while holding the mapping's
++		 * tree_lock.  Therefore there is no race between settings and
++		 * clearing of this flag.
++		 */
++		if (val > 0)
++			SetPageCgroupFileWriteback(pc);
++		else
++			ClearPageCgroupFileWriteback(pc);
++		idx = MEM_CGROUP_STAT_FILE_WRITEBACK;
++		break;
++
++	case MEMCG_NR_FILE_UNSTABLE_NFS:
++		/* Use Test{Set,Clear} to only un/charge the memcg once. */
++		if (val > 0) {
++			if (TestSetPageCgroupFileUnstableNFS(pc))
++				/* already set */
++				val = 0;
++		} else {
++			if (!TestClearPageCgroupFileUnstableNFS(pc))
++				/* already cleared */
++				val = 0;
++		}
++		idx = MEM_CGROUP_STAT_FILE_UNSTABLE_NFS;
++		break;
++
+ 	default:
+ 		BUG();
  	}
-@@ -2120,7 +2124,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- 
- 	mem_cgroup_charge_statistics(mem, pc, true);
- 
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	/*
- 	 * "charge_statistics" updated event counter. Then, check it.
- 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-@@ -2187,12 +2191,13 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
- 		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
- {
- 	int ret = -EINVAL;
--	lock_page_cgroup(pc);
-+	unsigned long flags;
-+	lock_page_cgroup(pc, &flags);
- 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
- 		__mem_cgroup_move_account(pc, from, to, uncharge);
- 		ret = 0;
- 	}
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	/*
- 	 * check events
- 	 */
-@@ -2298,6 +2303,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
- 	int ret;
-+	unsigned long flags;
- 
- 	if (mem_cgroup_disabled())
- 		return 0;
-@@ -2320,12 +2326,12 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		pc = lookup_page_cgroup(page);
- 		if (!pc)
- 			return 0;
--		lock_page_cgroup(pc);
-+		lock_page_cgroup(pc, &flags);
- 		if (PageCgroupUsed(pc)) {
--			unlock_page_cgroup(pc);
-+			unlock_page_cgroup(pc, flags);
- 			return 0;
- 		}
--		unlock_page_cgroup(pc);
-+		unlock_page_cgroup(pc, flags);
- 	}
- 
- 	if (unlikely(!mm))
-@@ -2511,6 +2517,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- {
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
-+	unsigned long flags;
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -2525,7 +2532,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	if (unlikely(!pc || !PageCgroupUsed(pc)))
- 		return NULL;
- 
--	lock_page_cgroup(pc);
-+	lock_page_cgroup(pc, &flags);
- 
- 	mem = pc->mem_cgroup;
- 
-@@ -2560,7 +2567,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	 * special functions.
- 	 */
- 
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	/*
- 	 * even after unlock, we have mem->res.usage here and this memcg
- 	 * will never be freed.
-@@ -2576,7 +2583,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	return mem;
- 
- unlock_out:
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	return NULL;
+@@ -2133,6 +2178,16 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+ 	memcg_check_events(mem, pc->page);
  }
  
-@@ -2765,12 +2772,13 @@ int mem_cgroup_prepare_migration(struct page *page,
- 	struct mem_cgroup *mem = NULL;
- 	enum charge_type ctype;
- 	int ret = 0;
-+	unsigned long flags;
++static void mem_cgroup_move_account_page_stat(struct mem_cgroup *from,
++					      struct mem_cgroup *to,
++					      enum mem_cgroup_stat_index idx)
++{
++	preempt_disable();
++	__this_cpu_dec(from->stat->count[idx]);
++	__this_cpu_inc(to->stat->count[idx]);
++	preempt_enable();
++}
++
+ /**
+  * __mem_cgroup_move_account - move account of the page
+  * @pc:	page_cgroup of the page.
+@@ -2159,13 +2214,18 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
+ 	VM_BUG_ON(!PageCgroupUsed(pc));
+ 	VM_BUG_ON(pc->mem_cgroup != from);
  
- 	if (mem_cgroup_disabled())
- 		return 0;
- 
- 	pc = lookup_page_cgroup(page);
--	lock_page_cgroup(pc);
-+	lock_page_cgroup(pc, &flags);
- 	if (PageCgroupUsed(pc)) {
- 		mem = pc->mem_cgroup;
- 		css_get(&mem->css);
-@@ -2806,7 +2814,7 @@ int mem_cgroup_prepare_migration(struct page *page,
- 		if (PageAnon(page))
- 			SetPageCgroupMigration(pc);
+-	if (PageCgroupFileMapped(pc)) {
+-		/* Update mapped_file data for mem_cgroup */
+-		preempt_disable();
+-		__this_cpu_dec(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+-		preempt_enable();
+-	}
++	if (PageCgroupFileMapped(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_MAPPED);
++	if (PageCgroupFileDirty(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_DIRTY);
++	if (PageCgroupFileWriteback(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_WRITEBACK);
++	if (PageCgroupFileUnstableNFS(pc))
++		mem_cgroup_move_account_page_stat(from, to,
++					MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
+ 	mem_cgroup_charge_statistics(from, pc, false);
+ 	if (uncharge)
+ 		/* This is not "cancel", but cancel_charge does all we need. */
+@@ -3545,6 +3605,9 @@ enum {
+ 	MCS_PGPGIN,
+ 	MCS_PGPGOUT,
+ 	MCS_SWAP,
++	MCS_FILE_DIRTY,
++	MCS_WRITEBACK,
++	MCS_UNSTABLE_NFS,
+ 	MCS_INACTIVE_ANON,
+ 	MCS_ACTIVE_ANON,
+ 	MCS_INACTIVE_FILE,
+@@ -3567,6 +3630,9 @@ struct {
+ 	{"pgpgin", "total_pgpgin"},
+ 	{"pgpgout", "total_pgpgout"},
+ 	{"swap", "total_swap"},
++	{"dirty", "total_dirty"},
++	{"writeback", "total_writeback"},
++	{"nfs", "total_nfs"},
+ 	{"inactive_anon", "total_inactive_anon"},
+ 	{"active_anon", "total_active_anon"},
+ 	{"inactive_file", "total_inactive_file"},
+@@ -3596,6 +3662,13 @@ mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
+ 		s->stat[MCS_SWAP] += val * PAGE_SIZE;
  	}
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 	/*
- 	 * If the page is not charged at this point,
- 	 * we return here.
-@@ -2819,9 +2827,9 @@ int mem_cgroup_prepare_migration(struct page *page,
- 	css_put(&mem->css);/* drop extra refcnt */
- 	if (ret || *ptr == NULL) {
- 		if (PageAnon(page)) {
--			lock_page_cgroup(pc);
-+			lock_page_cgroup(pc, &flags);
- 			ClearPageCgroupMigration(pc);
--			unlock_page_cgroup(pc);
-+			unlock_page_cgroup(pc, flags);
- 			/*
- 			 * The old page may be fully unmapped while we kept it.
- 			 */
-@@ -2852,6 +2860,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
- {
- 	struct page *used, *unused;
- 	struct page_cgroup *pc;
-+	unsigned long flags;
  
- 	if (!mem)
- 		return;
-@@ -2871,9 +2880,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
- 	 * Clear the flag and check the page should be charged.
- 	 */
- 	pc = lookup_page_cgroup(oldpage);
--	lock_page_cgroup(pc);
-+	lock_page_cgroup(pc, &flags);
- 	ClearPageCgroupMigration(pc);
--	unlock_page_cgroup(pc);
-+	unlock_page_cgroup(pc, flags);
- 
- 	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
- 
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_DIRTY);
++	s->stat[MCS_FILE_DIRTY] += val * PAGE_SIZE;
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_WRITEBACK);
++	s->stat[MCS_WRITEBACK] += val * PAGE_SIZE;
++	val = mem_cgroup_read_stat(mem, MEM_CGROUP_STAT_FILE_UNSTABLE_NFS);
++	s->stat[MCS_UNSTABLE_NFS] += val * PAGE_SIZE;
++
+ 	/* per zone stat */
+ 	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
+ 	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
 -- 
 1.7.1
 
