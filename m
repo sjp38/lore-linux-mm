@@ -1,265 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 3DCC56B007B
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 11:56:52 -0400 (EDT)
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v6 00/12] KVM: Add host swap event notifications for PV guest
-Date: Mon,  4 Oct 2010 17:56:22 +0200
-Message-Id: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 94E716B004A
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 13:35:24 -0400 (EDT)
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.31.245])
+	by e23smtp09.au.ibm.com (8.14.4/8.13.1) with ESMTP id o94HZIWq028516
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 04:35:18 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o94HZFkJ2240550
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 04:35:18 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o94HZEHS026786
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 04:35:14 +1100
+Message-ID: <4CAA104C.3000708@linux.vnet.ibm.com>
+Date: Mon, 04 Oct 2010 23:05:08 +0530
+From: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 03/10] memcg: create extensible page stat update routines
+References: <1286175485-30643-1-git-send-email-gthelen@google.com> <1286175485-30643-4-git-send-email-gthelen@google.com> <4CA9DB3E.6020106@linux.vnet.ibm.com> <xr93y6ae2cb1.fsf@ninji.mtv.corp.google.com>
+In-Reply-To: <xr93y6ae2cb1.fsf@ninji.mtv.corp.google.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-KVM virtualizes guest memory by means of shadow pages or HW assistance
-like NPT/EPT. Not all memory used by a guest is mapped into the guest
-address space or even present in a host memory at any given time.
-When vcpu tries to access memory page that is not mapped into the guest
-address space KVM is notified about it. KVM maps the page into the guest
-address space and resumes vcpu execution. If the page is swapped out from
-the host memory vcpu execution is suspended till the page is swapped
-into the memory again. This is inefficient since vcpu can do other work
-(run other task or serve interrupts) while page gets swapped in.
-
-The patch series tries to mitigate this problem by introducing two
-mechanisms. The first one is used with non-PV guest and it works like
-this: when vcpu tries to access swapped out page it is halted and
-requested page is swapped in by another thread. That way vcpu can still
-process interrupts while io is happening in parallel and, with any luck,
-interrupt will cause the guest to schedule another task on the vcpu, so
-it will have work to do instead of waiting for the page to be swapped in.
-
-The second mechanism introduces PV notification about swapped page state to
-a guest (asynchronous page fault). Instead of halting vcpu upon access to
-swapped out page and hoping that some interrupt will cause reschedule we
-immediately inject asynchronous page fault to the vcpu.  PV aware guest
-knows that upon receiving such exception it should schedule another task
-to run on the vcpu. Current task is put to sleep until another kind of
-asynchronous page fault is received that notifies the guest that page
-is now in the host memory, so task that waits for it can run again.
-
-To measure performance benefits I use a simple benchmark program (below)
-that starts number of threads. Some of them do work (increment counter),
-others access huge array in random location trying to generate host page
-faults. The size of the array is smaller then guest memory bug bigger
-then host memory so we are guarantied that host will swap out part of
-the array.
-
-I ran the benchmark on three setups: with current kvm.git (master),
-with my patch series + non-pv guest (nonpv) and with my patch series +
-pv guest (pv).
-
-Each guest had 4 cpus and 2G memory and was launched inside 512M memory
-container. The command line was "./bm -f 4 -w 4 -t 60" (run 4 faulting
-threads and 4 working threads for a minute).
-
-Below is the total amount of "work" each guest managed to do
-(average of 10 runs):
-         total work    std error
-master: 122789420615 (3818565029)
-nonpv:  138455939001 (773774299)
-pv:     234351846135 (10461117116)
-
-Changes:
- v1->v2
-   Use MSR instead of hypercall.
-   Move most of the code into arch independent place.
-   halt inside a guest instead of doing "wait for page" hypercall if
-    preemption is disabled.
- v2->v3
-   Use MSR from range 0x4b564dxx.
-   Add slot version tracking.
-   Support migration by restarting all guest processes after migration.
-   Drop patch that tract preemptability for non-preemptable kernels
-    due to performance concerns. Send async PF to non-preemptable
-    guests only when vcpu is executing userspace code.
- v3->v4
-  Provide alternative page fault handler in PV guest instead of adding hook to
-   standard page fault handler and patch it out on non-PV guests.
-  Allow only limited number of outstanding async page fault per vcpu.
-  Unify  gfn_to_pfn and gfn_to_pfn_async code.
-  Cancel outstanding slow work on reset.
- v4->v5
-  Move async pv cpu initialization into cpu hotplug notifier.
-  Use GFP_NOWAIT instead of GFP_ATOMIC for allocation that shouldn't sleep
-  Process KVM_REQ_MMU_SYNC even in page_fault_other_cr3() before changing
-   cr3 back
- v5->v6
-  To many. Will list only major changes here.
-  Replace slow work with work queues.
-  Halt vcpu for non-pv guests.
-  Handle async PF in nested SVM mode.
-  Do not prefault swapped in page for non tdp case.
-
-Gleb Natapov (12):
-  Add get_user_pages() variant that fails if major fault is required.
-  Halt vcpu if page it tries to access is swapped out.
-  Retry fault before vmentry
-  Add memory slot versioning and use it to provide fast guest write interface
-  Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
-  Add PV MSR to enable asynchronous page faults delivery.
-  Add async PF initialization to PV guest.
-  Handle async PF in a guest.
-  Inject asynchronous page fault into a PV guest if page is swapped out.
-  Handle async PF in non preemptable context
-  Let host know whether the guest can handle async PF in non-userspace context.
-  Send async PF when guest is not in userspace too.
-
- Documentation/kernel-parameters.txt |    3 +
- Documentation/kvm/cpuid.txt         |    3 +
- Documentation/kvm/msr.txt           |   14 ++-
- arch/x86/include/asm/kvm_host.h     |   27 +++-
- arch/x86/include/asm/kvm_para.h     |   23 +++
- arch/x86/include/asm/traps.h        |    1 +
- arch/x86/kernel/entry_32.S          |   10 +
- arch/x86/kernel/entry_64.S          |    3 +
- arch/x86/kernel/kvm.c               |  316 +++++++++++++++++++++++++++++++++++
- arch/x86/kernel/kvmclock.c          |   13 +--
- arch/x86/kvm/Kconfig                |    1 +
- arch/x86/kvm/Makefile               |    1 +
- arch/x86/kvm/mmu.c                  |   60 ++++++-
- arch/x86/kvm/paging_tmpl.h          |    8 +-
- arch/x86/kvm/svm.c                  |   43 ++++-
- arch/x86/kvm/x86.c                  |  189 ++++++++++++++++++++-
- fs/ncpfs/mmap.c                     |    2 +
- include/linux/kvm.h                 |    1 +
- include/linux/kvm_host.h            |   38 ++++
- include/linux/kvm_types.h           |    7 +
- include/linux/mm.h                  |    5 +
- include/trace/events/kvm.h          |   93 ++++++++++
- mm/filemap.c                        |    3 +
- mm/memory.c                         |   31 +++-
- mm/shmem.c                          |    8 +-
- virt/kvm/Kconfig                    |    3 +
- virt/kvm/async_pf.c                 |  223 ++++++++++++++++++++++++
- virt/kvm/async_pf.h                 |   36 ++++
- virt/kvm/kvm_main.c                 |  114 +++++++++++--
- 29 files changed, 1225 insertions(+), 54 deletions(-)
- create mode 100644 virt/kvm/async_pf.c
- create mode 100644 virt/kvm/async_pf.h
-
-=== benchmark.c ===
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#define FAULTING_THREADS 1
-#define WORKING_THREADS 1
-#define TIMEOUT 5
-#define MEMORY 1024*1024*1024
-
-pthread_barrier_t barrier;
-volatile int stop;
-size_t pages;
-
-void *fault_thread(void* p)
-{
-	char *mem = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		mem[(random() % pages) << 12] = 10;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-void *work_thread(void* p)
-{
-	unsigned long *i = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		(*i)++;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-int main(int argc, char **argv)
-{
-	int ft = FAULTING_THREADS, wt = WORKING_THREADS;
-	unsigned int timeout = TIMEOUT;
-	size_t mem = MEMORY;
-	void *buf;
-	int i, opt, verbose = 0;
-	pthread_t t;
-	pthread_attr_t pattr;
-	unsigned long *res, sum = 0;
-
-	while((opt = getopt(argc, argv, "f:w:m:t:v")) != -1) {
-		switch (opt) {
-		case 'f':
-			ft = atoi(optarg);
-			break;
-		case 'w':
-			wt = atoi(optarg);
-			break;
-		case 'm':
-			mem = atoi(optarg);
-			break;
-		case 't':
-			timeout = atoi(optarg);
-			break;
-		case 'v':
-			verbose++;
-			break;
-		default:
-			fprintf(stderr, "Usage %s [-f num] [-w num] [-m byte] [-t secs]\n", argv[0]);
-			exit(1);
-		}
-	}
-
-	if (verbose)
-		printf("fault=%d work=%d mem=%lu timeout=%d\n", ft, wt, mem, timeout);
-
-	pages = mem >> 12;
-	posix_memalign(&buf, 4096, pages << 12);
-	res = malloc(sizeof (unsigned long) * wt);
-	memset(res, 0, sizeof (unsigned long) * wt);
-
-	pthread_attr_init(&pattr);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	for (i = 0; i < ft; i++) {
-		pthread_create(&t, &pattr, fault_thread, buf);
-		pthread_detach(t);
-	}
-
-	for (i = 0; i < wt; i++) {
-		pthread_create(&t, &pattr, work_thread, &res[i]);
-		pthread_detach(t);
-	}
-
-	/* prefault memory */
-	memset(buf, 0, pages << 12);
-	printf("start\n");
-
-	pthread_barrier_wait(&barrier);
-
-	pthread_barrier_destroy(&barrier);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	sleep(timeout);
-	stop = 1;
-
-	pthread_barrier_wait(&barrier);
-
-	for (i = 0; i < wt; i++) {
-		sum += res[i];
-		printf("worker %d: %lu\n", i, res[i]);
-	}
-	printf("total: %lu\n", sum);
-
-	return 0;
-}
+Greg Thelen wrote:
+> Ciju Rajan K <ciju@linux.vnet.ibm.com> writes:
+>
+>   
+>> Greg Thelen wrote:
+>>     
+>>> Replace usage of the mem_cgroup_update_file_mapped() memcg
+>>> statistic update routine with two new routines:
+>>> * mem_cgroup_inc_page_stat()
+>>> * mem_cgroup_dec_page_stat()
+>>>
+>>> As before, only the file_mapped statistic is managed.  However,
+>>> these more general interfaces allow for new statistics to be
+>>> more easily added.  New statistics are added with memcg dirty
+>>> page accounting.
+>>>
+>>>
+>>>
+>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>> index 512cb12..f4259f4 100644
+>>> --- a/mm/memcontrol.c
+>>> +++ b/mm/memcontrol.c
+>>> @@ -1592,7 +1592,9 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+>>>   * possibility of race condition. If there is, we take a lock.
+>>>   */
+>>>
+>>>   -static void mem_cgroup_update_file_stat(struct page *page, int idx, int
+>>> val)
+>>>   
+>>>       
+>> Not seeing this function in mmotm 28/09. So not able to apply this patch.
+>> Am I missing anything?
+>>     
+>
+> How are you getting mmotm?
+>
+> I see the mem_cgroup_update_file_stat() routine added in mmotm
+> (stamp-2010-09-28-16-13) using patch file:
+>   http://userweb.kernel.org/~akpm/mmotm/broken-out/memcg-generic-filestat-update-interface.patch
+>   
+Sorry for the noise Greg. It was a mistake at my end. Corrected now.
+Thanks!
+>   Author: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>   Date:   Tue Sep 28 21:48:19 2010 -0700
+>   
+>       This patch extracts the core logic from mem_cgroup_update_file_mapped() as
+>       mem_cgroup_update_file_stat() and adds a wrapper.
+>   
+>       As a planned future update, memory cgroup has to count dirty pages to
+>       implement dirty_ratio/limit.  And more, the number of dirty pages is
+>       required to kick flusher thread to start writeback.  (Now, no kick.)
+>   
+>       This patch is preparation for it and makes other statistics implementation
+>       clearer.  Just a clean up.
+>   
+>       Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>       Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>       Reviewed-by: Greg Thelen <gthelen@google.com>
+>       Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+>       Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>
+> If you are using the zen mmotm repository,
+> git://zen-kernel.org/kernel/mmotm.git, the commit id of
+> memcg-generic-filestat-update-interface.patch is
+> 616960dc0cb0172a5e5adc9e2b83e668e1255b50.
+>
+>   
+>>> +void mem_cgroup_update_page_stat(struct page *page,
+>>> +				 enum mem_cgroup_write_page_stat_item idx,
+>>> +				 int val)
+>>>  {
+>>>  	struct mem_cgroup *mem;
+>>>
+>>>   
+>>>       
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
