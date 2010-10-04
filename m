@@ -1,71 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id E3DAA6B0047
-	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 20:22:18 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o940MFgS003177
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 4 Oct 2010 09:22:15 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 880D645DE50
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A02745DE4E
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CE651DB8050
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:15 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DE9FF1DB8045
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 09:22:14 +0900 (JST)
-Date: Mon, 4 Oct 2010 09:16:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][RESEND] nommu: add anonymous page memcg accounting
-Message-Id: <20101004091653.707cc5d1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1285951267.2558.69.camel@iscandar.digidescorp.com>
-References: <WC20101001143139.810346@digidescorp.com>
-	<1285929315-2856-1-git-send-email-steve@digidescorp.com>
-	<5206.1285943095@redhat.com>
-	<5867.1285945621@redhat.com>
-	<1285951267.2558.69.camel@iscandar.digidescorp.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5896B0047
+	for <linux-mm@kvack.org>; Sun,  3 Oct 2010 23:26:34 -0400 (EDT)
+Date: Mon, 4 Oct 2010 12:24:51 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: Transparent Hugepage Support #30
+Message-ID: <20101004032451.GA11622@spritzera.linux.bs1.fc.nec.co.jp>
+References: <20100901190859.GA20316@random.random>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
+In-Reply-To: <20100901190859.GA20316@random.random>
 Sender: owner-linux-mm@kvack.org
-To: steve@digidescorp.com
-Cc: David Howells <dhowells@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 01 Oct 2010 11:41:07 -0500
-"Steven J. Magnani" <steve@digidescorp.com> wrote:
-> > However, I suppose there's little harm in letting the patch in.  I would guess
-> > the additions all optimise away if memcg isn't enabled.
-> > 
-> > A question for you: why does struct page_cgroup need a page pointer?  If an
-> > array of page_cgroup structs is allocated per array of page structs, then you
-> > should be able to use the array index to map between them.
-> 
-No reason. It was not array in the 1st implemenation and ->page still remains. At 2nd
-implementation, I didn't know embeded people has any interests on memcg. And I wasn't
-sure how
-	page_cgroup_to_page() : pfn_to_page(pagec_cgroup_to_pfn(pc))
-will be widely used.
+Hi,
 
-Now, we know page_cgroup->page is not used in very critical path _if_ node-id
-and zone-id can be directly got from page_cgroup.
+I experienced build error of "calling pte_alloc_map() with 3 parameters, 
+while it's defined to have 4 parameters" in arch/x86/kernel/tboot.c etc.
+Is the following chunk in patch "pte alloc trans splitting" necessary?
 
-I'm now preparing a patch to remove struct page* pointer. I'm wondering
-whether it's ok that some architecuture cannot drop struct page pointer.
-If SPARSEMEM is used on 32bit arch, I'm not sure whether # of bits isn't enough.
-I may have to add overhead to get nid, zid in critical path.
-(for example, s390/32bit, x86-32/HIGHMEM, ARM/HIGHMEM?)
-
-Current out priority is supporting dirty_ratio rather than memory usage diet.
-Please wait. Removing page_cgroup->page patch will add something a bit complex.
-
-
+@@ -1167,16 +1168,18 @@ static inline void pgtable_page_dtor(struct page *page)
+        pte_unmap(pte);                                 \
+ } while (0)
+ 
+-#define pte_alloc_map(mm, pmd, address)                        \
+-       ((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
+-               NULL: pte_offset_map(pmd, address))
++#define pte_alloc_map(mm, vma, pmd, address)                           \
++       ((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, vma,    \
++                                                       pmd, address))? \
++        NULL: pte_offset_map(pmd, address))
+ 
 Thanks,
--Kame
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
