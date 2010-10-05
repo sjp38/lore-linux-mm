@@ -1,29 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 57D8C6B004A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 13:07:48 -0400 (EDT)
-Message-ID: <4CAB5B52.4090404@redhat.com>
-Date: Tue, 05 Oct 2010 13:07:30 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F77E6B004A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 13:34:37 -0400 (EDT)
+Received: from mail-iw0-f169.google.com (mail-iw0-f169.google.com [209.85.214.169])
+	(authenticated bits=0)
+	by smtp1.linux-foundation.org (8.14.2/8.13.5/Debian-3ubuntu1.1) with ESMTP id o95HY2ok017701
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 10:34:02 -0700
+Received: by iwn41 with SMTP id 41so973508iwn.14
+        for <linux-mm@kvack.org>; Tue, 05 Oct 2010 10:34:02 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] filemap_fault: unique path for locking page
-References: <1286265215-9025-1-git-send-email-walken@google.com> <1286265215-9025-2-git-send-email-walken@google.com>
-In-Reply-To: <1286265215-9025-2-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1286265215-9025-3-git-send-email-walken@google.com>
+References: <1286265215-9025-1-git-send-email-walken@google.com> <1286265215-9025-3-git-send-email-walken@google.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 5 Oct 2010 10:33:37 -0700
+Message-ID: <AANLkTimyZc1ggSgvBS_=t3e1yr7EFBMK-uHvFcuVB8jC@mail.gmail.com>
+Subject: Re: [PATCH 2/3] Retry page fault when blocking on disk transfer.
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/05/2010 03:53 AM, Michel Lespinasse wrote:
-> This change introduces a single location where filemap_fault() locks
-> the desired page. There used to be two such places, depending if the
-> initial find_get_page() was successful or not.
+On Tue, Oct 5, 2010 at 12:53 AM, Michel Lespinasse <walken@google.com> wrote:
 >
-> Signed-off-by: Michel Lespinasse<walken@google.com>
+> This change reduces mmap_sem hold times that are caused by waiting for
+> disk transfers when accessing file mapped VMAs.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Ok, this series looks much better. The new mm/filemap.c diff looks
+much better with the lock_page_or_retry() helper function, and on the
+whole I think I can Ack this (although obviously not actually apply it
+- but please do get it into linux-next).
+
+The do_page_fault() part of the patch still looks ugly, but I don't
+see any obvious way to improve on it.
+
+                        Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
