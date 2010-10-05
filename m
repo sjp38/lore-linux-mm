@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0416B004A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 00:20:42 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o954IXr6004842
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:18:33 -0600
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o954KeuI232498
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:20:40 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o954Kevs028435
-	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:20:40 -0600
-Date: Tue, 5 Oct 2010 09:50:27 +0530
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 170006B004A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 00:50:44 -0400 (EDT)
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o954hjp0013844
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:43:45 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o954ogNM1945676
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:50:42 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o954oge8028243
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:50:42 -0400
+Date: Tue, 5 Oct 2010 10:20:23 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
-Message-ID: <20101005042027.GR7896@balbir.in.ibm.com>
+Message-ID: <20101005045023.GS7896@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 References: <1286175485-30643-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
@@ -38,84 +38,25 @@ List-ID: <linux-mm.kvack.org>
 > 
 > These patches were developed and tested on mmotm 2010-09-28-16-13.  The patches
 > are based on a series proposed by Andrea Righi in Mar 2010.
-> 
-> Overview:
-> - Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
->   unstable.
-> - Extend mem_cgroup to record the total number of pages in each of the 
->   interesting dirty states (dirty, writeback, unstable_nfs).  
-> - Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
->   limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
->   via cgroupfs control files.
-> - Consider both system and per-memcg dirty limits in page writeback when
->   deciding to queue background writeback or block for foreground writeback.
-> 
-> Known shortcomings:
-> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
->   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
->   just inodes contributing dirty pages to the cgroup exceeding its limit.  
 
-I suspect this means that we'll need a bdi controller in the I/O
-controller spectrum or make writeback cgroup aware.
+Hi, Greg,
 
-> 
-> Performance measurements:
-> - kernel builds are unaffected unless run with a small dirty limit.
-> - all data collected with CONFIG_CGROUP_MEM_RES_CTLR=y.
-> - dd has three data points (in secs) for three data sizes (100M, 200M, and 1G).  
->   As expected, dd slows when it exceed its cgroup dirty limit.
-> 
->                kernel_build          dd
-> mmotm             2:37        0.18, 0.38, 1.65
->   root_memcg
-> 
-> mmotm             2:37        0.18, 0.35, 1.66
->   non-root_memcg
-> 
-> mmotm+patches     2:37        0.18, 0.35, 1.68
->   root_memcg
-> 
-> mmotm+patches     2:37        0.19, 0.35, 1.69
->   non-root_memcg
-> 
-> mmotm+patches     2:37        0.19, 2.34, 22.82
->   non-root_memcg
->   150 MiB memcg dirty limit
-> 
-> mmotm+patches     3:58        1.71, 3.38, 17.33
->   non-root_memcg
->   1 MiB memcg dirty limit
-> 
-> Greg Thelen (10):
->   memcg: add page_cgroup flags for dirty page tracking
->   memcg: document cgroup dirty memory interfaces
->   memcg: create extensible page stat update routines
->   memcg: disable local interrupts in lock_page_cgroup()
->   memcg: add dirty page accounting infrastructure
->   memcg: add kernel calls for memcg dirty page stats
->   memcg: add dirty limits to mem_cgroup
->   memcg: add cgroupfs interface to memcg dirty limits
->   writeback: make determine_dirtyable_memory() static.
->   memcg: check memcg dirty limits in page writeback
-> 
->  Documentation/cgroups/memory.txt |   37 ++++
->  fs/nfs/write.c                   |    4 +
->  include/linux/memcontrol.h       |   78 +++++++-
->  include/linux/page_cgroup.h      |   31 +++-
->  include/linux/writeback.h        |    2 -
->  mm/filemap.c                     |    1 +
->  mm/memcontrol.c                  |  426 ++++++++++++++++++++++++++++++++++----
->  mm/page-writeback.c              |  211 ++++++++++++-------
->  mm/rmap.c                        |    4 +-
->  mm/truncate.c                    |    1 +
->  10 files changed, 672 insertions(+), 123 deletions(-)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I see a problem with "    memcg: add dirty page accounting infrastructure".
+
+The reject is
+
+ enum mem_cgroup_write_page_stat_item {
+        MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
++       MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
++       MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
++       MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
+ };
+
+I don't see mem_cgroup_write_page_stat_item in memcontrol.h. Is this
+based on top of Kame's cleanup.
+
+I am working off of mmotm 28 sept 2010 16:13.
+
 
 -- 
 	Three Cheers,
