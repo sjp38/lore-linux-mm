@@ -1,59 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E89746B0095
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:58:23 -0400 (EDT)
-Message-Id: <20101005185819.367221853@linux.com>
-Date: Tue, 05 Oct 2010 13:57:38 -0500
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 668376B0092
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:58:26 -0400 (EDT)
+Message-Id: <20101005185821.068309361@linux.com>
+Date: Tue, 05 Oct 2010 13:57:41 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [UnifiedV4 13/16] vmscan: Tie slub object expiration into page reclaim
+Subject: [UnifiedV4 16/16] slub: Add stats for alien allocation slowpath
 References: <20101005185725.088808842@linux.com>
-Content-Disposition: inline; filename=unified_vmscan
+Content-Disposition: inline; filename=unified_alien_slow
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-We already do slab reclaim during page reclaim. Add a call to
-object expiration in slub whenever shrink_slab() is called.
-If the reclaim is zone specific then use the node of the zone
-to restrict reclaim in slub.
+Add counters and consistently count alien allocations that
+have to go to the page allocator.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-
 ---
- mm/vmscan.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/slub_def.h |    2 ++
+ mm/slub.c                |    7 ++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/vmscan.c
+Index: linux-2.6/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.orig/mm/vmscan.c	2010-10-04 08:14:25.000000000 -0500
-+++ linux-2.6/mm/vmscan.c	2010-10-04 08:26:47.000000000 -0500
-@@ -1917,6 +1917,7 @@ static unsigned long do_try_to_free_page
- 				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
- 				reclaim_state->reclaimed_slab = 0;
- 			}
-+			kmem_cache_expire_all(NUMA_NO_NODE);
+--- linux-2.6.orig/include/linux/slub_def.h	2010-10-05 13:40:04.000000000 -0500
++++ linux-2.6/include/linux/slub_def.h	2010-10-05 13:40:14.000000000 -0500
+@@ -19,12 +19,14 @@ enum stat_item {
+ 	ALLOC_FASTPATH,		/* Allocation from cpu queue */
+ 	ALLOC_SHARED,		/* Allocation caused a shared cache transaction */
+ 	ALLOC_ALIEN,		/* Allocation from alien cache */
++	ALLOC_ALIEN_SLOW,	/* Alien allocation from partial */
+ 	ALLOC_DIRECT,		/* Allocation bypassing queueing */
+ 	ALLOC_SLOWPATH,		/* Allocation required refilling of queue */
+ 	FREE_FASTPATH,		/* Free to cpu queue */
+ 	FREE_SHARED,		/* Free caused a shared cache transaction */
+ 	FREE_DIRECT,		/* Free bypassing queues */
+ 	FREE_ALIEN,		/* Free to alien node */
++	FREE_ALIEN_SLOW,	/* Alien free had to drain cache */
+ 	FREE_SLOWPATH,		/* Required pushing objects out of the queue */
+ 	FREE_ADD_PARTIAL,	/* Freeing moved slab to partial list */
+ 	FREE_REMOVE_PARTIAL,	/* Freeing removed from partial list */
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c	2010-10-05 13:40:11.000000000 -0500
++++ linux-2.6/mm/slub.c	2010-10-05 13:40:14.000000000 -0500
+@@ -2021,6 +2021,7 @@ redo:
  		}
- 		total_scanned += sc->nr_scanned;
- 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-@@ -2221,6 +2222,7 @@ loop_again:
- 			reclaim_state->reclaimed_slab = 0;
- 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
- 						lru_pages);
-+			kmem_cache_expire_all(zone_to_nid(zone));
- 			sc.nr_reclaimed += reclaim_state->reclaimed_slab;
- 			total_scanned += sc.nr_scanned;
- 			if (zone->all_unreclaimable)
-@@ -2722,6 +2724,8 @@ static int __zone_reclaim(struct zone *z
- 				break;
- 		}
+ 	}
  
-+		kmem_cache_expire_all(zone_to_nid(zone));
-+
- 		/*
- 		 * Update nr_reclaimed by the number of slab pages we
- 		 * reclaimed from this zone.
++	stat(s, ALLOC_ALIEN_SLOW);
+ 	spin_lock(&n->lock);
+ 	if (!list_empty(&n->partial)) {
+ 
+@@ -2108,7 +2109,7 @@ static void slab_free_alien(struct kmem_
+ 		if (touched)
+ 			stat(s, FREE_ALIEN);
+ 		else
+-			stat(s, FREE_SLOWPATH);
++			stat(s, FREE_ALIEN_SLOW);
+ 
+ 	} else {
+ 		/* Direct free to the slab */
+@@ -5430,11 +5431,13 @@ SLAB_ATTR(text);						\
+ STAT_ATTR(ALLOC_FASTPATH, alloc_fastpath);
+ STAT_ATTR(ALLOC_SHARED, alloc_shared);
+ STAT_ATTR(ALLOC_ALIEN, alloc_alien);
++STAT_ATTR(ALLOC_ALIEN_SLOW, alloc_alien_slow);
+ STAT_ATTR(ALLOC_DIRECT, alloc_direct);
+ STAT_ATTR(ALLOC_SLOWPATH, alloc_slowpath);
+ STAT_ATTR(FREE_FASTPATH, free_fastpath);
+ STAT_ATTR(FREE_SHARED, free_shared);
+ STAT_ATTR(FREE_ALIEN, free_alien);
++STAT_ATTR(FREE_ALIEN_SLOW, free_alien_slow);
+ STAT_ATTR(FREE_DIRECT, free_direct);
+ STAT_ATTR(FREE_SLOWPATH, free_slowpath);
+ STAT_ATTR(FREE_ADD_PARTIAL, free_add_partial);
+@@ -5494,9 +5497,11 @@ static struct attribute *slab_attrs[] = 
+ 	&alloc_alien_attr.attr,
+ 	&alloc_direct_attr.attr,
+ 	&alloc_slowpath_attr.attr,
++	&alloc_alien_slow_attr.attr,
+ 	&free_fastpath_attr.attr,
+ 	&free_shared_attr.attr,
+ 	&free_alien_attr.attr,
++	&free_alien_slow_attr.attr,
+ 	&free_direct_attr.attr,
+ 	&free_slowpath_attr.attr,
+ 	&free_add_partial_attr.attr,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
