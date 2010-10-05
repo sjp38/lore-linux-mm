@@ -1,30 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 993756B004A
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 23:16:38 -0400 (EDT)
-Message-ID: <4CAA8E9B.70100@redhat.com>
-Date: Mon, 04 Oct 2010 22:34:03 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0416B004A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 00:20:42 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o954IXr6004842
+	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:18:33 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id o954KeuI232498
+	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:20:40 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o954Kevs028435
+	for <linux-mm@kvack.org>; Mon, 4 Oct 2010 22:20:40 -0600
+Date: Tue, 5 Oct 2010 09:50:27 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
+Message-ID: <20101005042027.GR7896@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-8-git-send-email-gleb@redhat.com>
-In-Reply-To: <1286207794-16120-8-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On 10/04/2010 11:56 AM, Gleb Natapov wrote:
-> Enable async PF in a guest if async PF capability is discovered.
->
-> Signed-off-by: Gleb Natapov<gleb@redhat.com>
+* Greg Thelen <gthelen@google.com> [2010-10-03 23:57:55]:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> This patch set provides the ability for each cgroup to have independent dirty
+> page limits.
+> 
+> Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+> not be able to consume more than their designated share of dirty pages and will
+> be forced to perform write-out if they cross that limit.
+> 
+> These patches were developed and tested on mmotm 2010-09-28-16-13.  The patches
+> are based on a series proposed by Andrea Righi in Mar 2010.
+> 
+> Overview:
+> - Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
+>   unstable.
+> - Extend mem_cgroup to record the total number of pages in each of the 
+>   interesting dirty states (dirty, writeback, unstable_nfs).  
+> - Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
+>   limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
+>   via cgroupfs control files.
+> - Consider both system and per-memcg dirty limits in page writeback when
+>   deciding to queue background writeback or block for foreground writeback.
+> 
+> Known shortcomings:
+> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
+>   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
+>   just inodes contributing dirty pages to the cgroup exceeding its limit.  
+
+I suspect this means that we'll need a bdi controller in the I/O
+controller spectrum or make writeback cgroup aware.
+
+> 
+> Performance measurements:
+> - kernel builds are unaffected unless run with a small dirty limit.
+> - all data collected with CONFIG_CGROUP_MEM_RES_CTLR=y.
+> - dd has three data points (in secs) for three data sizes (100M, 200M, and 1G).  
+>   As expected, dd slows when it exceed its cgroup dirty limit.
+> 
+>                kernel_build          dd
+> mmotm             2:37        0.18, 0.38, 1.65
+>   root_memcg
+> 
+> mmotm             2:37        0.18, 0.35, 1.66
+>   non-root_memcg
+> 
+> mmotm+patches     2:37        0.18, 0.35, 1.68
+>   root_memcg
+> 
+> mmotm+patches     2:37        0.19, 0.35, 1.69
+>   non-root_memcg
+> 
+> mmotm+patches     2:37        0.19, 2.34, 22.82
+>   non-root_memcg
+>   150 MiB memcg dirty limit
+> 
+> mmotm+patches     3:58        1.71, 3.38, 17.33
+>   non-root_memcg
+>   1 MiB memcg dirty limit
+> 
+> Greg Thelen (10):
+>   memcg: add page_cgroup flags for dirty page tracking
+>   memcg: document cgroup dirty memory interfaces
+>   memcg: create extensible page stat update routines
+>   memcg: disable local interrupts in lock_page_cgroup()
+>   memcg: add dirty page accounting infrastructure
+>   memcg: add kernel calls for memcg dirty page stats
+>   memcg: add dirty limits to mem_cgroup
+>   memcg: add cgroupfs interface to memcg dirty limits
+>   writeback: make determine_dirtyable_memory() static.
+>   memcg: check memcg dirty limits in page writeback
+> 
+>  Documentation/cgroups/memory.txt |   37 ++++
+>  fs/nfs/write.c                   |    4 +
+>  include/linux/memcontrol.h       |   78 +++++++-
+>  include/linux/page_cgroup.h      |   31 +++-
+>  include/linux/writeback.h        |    2 -
+>  mm/filemap.c                     |    1 +
+>  mm/memcontrol.c                  |  426 ++++++++++++++++++++++++++++++++++----
+>  mm/page-writeback.c              |  211 ++++++++++++-------
+>  mm/rmap.c                        |    4 +-
+>  mm/truncate.c                    |    1 +
+>  10 files changed, 672 insertions(+), 123 deletions(-)
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 -- 
-All rights reversed
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
