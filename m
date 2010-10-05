@@ -1,78 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C4EE6B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 17:28:21 -0400 (EDT)
-Date: Tue, 5 Oct 2010 14:27:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 12/12] vmstat: include compaction.h when
- CONFIG_COMPACTION
-Message-Id: <20101005142748.37f186da.akpm@linux-foundation.org>
-In-Reply-To: <1285818621-29890-13-git-send-email-namhyung@gmail.com>
-References: <1285818621-29890-1-git-send-email-namhyung@gmail.com>
-	<1285818621-29890-13-git-send-email-namhyung@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 757226B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 18:15:24 -0400 (EDT)
+Date: Wed, 6 Oct 2010 00:15:15 +0200
+From: Andrea Righi <arighi@develer.com>
+Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
+Message-ID: <20101005221514.GA2649@linux.develer.com>
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Namhyung Kim <namhyung@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-
-Some of these patches do make the code significantly more complex to
-read and follow.  Boy, I hope it's all useful!
-
-On Thu, 30 Sep 2010 12:50:21 +0900
-Namhyung Kim <namhyung@gmail.com> wrote:
-
-> This removes following warning from sparse:
+On Sun, Oct 03, 2010 at 11:57:55PM -0700, Greg Thelen wrote:
+> This patch set provides the ability for each cgroup to have independent dirty
+> page limits.
 > 
->  mm/vmstat.c:466:5: warning: symbol 'fragmentation_index' was not declared. Should it be static?
+> Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
+> page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
+> not be able to consume more than their designated share of dirty pages and will
+> be forced to perform write-out if they cross that limit.
 > 
-> Signed-off-by: Namhyung Kim <namhyung@gmail.com>
-> ---
->  mm/vmstat.c |    2 ++
->  1 files changed, 2 insertions(+), 0 deletions(-)
+> These patches were developed and tested on mmotm 2010-09-28-16-13.  The patches
+> are based on a series proposed by Andrea Righi in Mar 2010.
 > 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 355a9e6..30054ea 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -394,6 +394,8 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
->  #endif
->  
->  #ifdef CONFIG_COMPACTION
-> +#include <linux/compaction.h>
-> +
->  struct contig_page_info {
->  	unsigned long free_pages;
->  	unsigned long free_blocks_total;
+> Overview:
+> - Add page_cgroup flags to record when pages are dirty, in writeback, or nfs
+>   unstable.
+> - Extend mem_cgroup to record the total number of pages in each of the 
+>   interesting dirty states (dirty, writeback, unstable_nfs).  
+> - Add dirty parameters similar to the system-wide  /proc/sys/vm/dirty_*
+>   limits to mem_cgroup.  The mem_cgroup dirty parameters are accessible
+>   via cgroupfs control files.
+> - Consider both system and per-memcg dirty limits in page writeback when
+>   deciding to queue background writeback or block for foreground writeback.
+> 
+> Known shortcomings:
+> - When a cgroup dirty limit is exceeded, then bdi writeback is employed to
+>   writeback dirty inodes.  Bdi writeback considers inodes from any cgroup, not
+>   just inodes contributing dirty pages to the cgroup exceeding its limit.  
+> 
+> Performance measurements:
+> - kernel builds are unaffected unless run with a small dirty limit.
+> - all data collected with CONFIG_CGROUP_MEM_RES_CTLR=y.
+> - dd has three data points (in secs) for three data sizes (100M, 200M, and 1G).  
+>   As expected, dd slows when it exceed its cgroup dirty limit.
+> 
+>                kernel_build          dd
+> mmotm             2:37        0.18, 0.38, 1.65
+>   root_memcg
+> 
+> mmotm             2:37        0.18, 0.35, 1.66
+>   non-root_memcg
+> 
+> mmotm+patches     2:37        0.18, 0.35, 1.68
+>   root_memcg
+> 
+> mmotm+patches     2:37        0.19, 0.35, 1.69
+>   non-root_memcg
+> 
+> mmotm+patches     2:37        0.19, 2.34, 22.82
+>   non-root_memcg
+>   150 MiB memcg dirty limit
+> 
+> mmotm+patches     3:58        1.71, 3.38, 17.33
+>   non-root_memcg
+>   1 MiB memcg dirty limit
 
-This isn't a good idea: there's a good chance that someone will later
-add a #include <linux/compaction.h> at the top of the file to support
-future changes.  So we end up including it twice.
+Hi Greg,
 
-So I assume the below will work OK??
+the patchset seems to work fine on my box.
 
---- a/mm/vmstat.c~vmstat-include-compactionh-when-config_compaction-fix
-+++ a/mm/vmstat.c
-@@ -18,6 +18,7 @@
- #include <linux/sched.h>
- #include <linux/math64.h>
- #include <linux/writeback.h>
-+#include <linux/compaction.h>
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
-@@ -395,7 +396,6 @@ void zone_statistics(struct zone *prefer
- #endif
- 
- #ifdef CONFIG_COMPACTION
--#include <linux/compaction.h>
- 
- struct contig_page_info {
- 	unsigned long free_pages;
-_
+I also ran a pretty simple test to directly verify the effectiveness of
+the dirty memory limit, using a dd running on a non-root memcg:
+
+  dd if=/dev/zero of=tmpfile bs=1M count=512
+
+and monitoring the max of the "dirty" value in cgroup/memory.stat:
+
+Here the results:
+  dd in non-root memcg (  4 MiB memcg dirty limit): dirty max=4227072
+  dd in non-root memcg (  8 MiB memcg dirty limit): dirty max=8454144
+  dd in non-root memcg ( 16 MiB memcg dirty limit): dirty max=15179776
+  dd in non-root memcg ( 32 MiB memcg dirty limit): dirty max=32235520
+  dd in non-root memcg ( 64 MiB memcg dirty limit): dirty max=64245760
+  dd in non-root memcg (128 MiB memcg dirty limit): dirty max=121028608
+  dd in non-root memcg (256 MiB memcg dirty limit): dirty max=232865792
+  dd in non-root memcg (512 MiB memcg dirty limit): dirty max=445194240
+
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
