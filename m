@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1F2236B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 07:39:16 -0400 (EDT)
-Received: by pxi5 with SMTP id 5so2182720pxi.14
-        for <linux-mm@kvack.org>; Tue, 05 Oct 2010 04:39:15 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A6D296B004A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 10:56:38 -0400 (EDT)
+Message-ID: <4CAB3C76.7040005@redhat.com>
+Date: Tue, 05 Oct 2010 10:55:50 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Date: Tue, 5 Oct 2010 13:39:14 +0200
-Message-ID: <AANLkTik34ZKasZMMpx4wD71k+RPccGLvAi1Cwe5UwZpj@mail.gmail.com>
-Subject: [PATCH] pramfs: Persistent and protected RAM filesystem
-From: Marco Stornelli <marco.stornelli@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/3] V2: Reduce mmap_sem hold times during file backed
+ page faults
+References: <1286265215-9025-1-git-send-email-walken@google.com>
+In-Reply-To: <1286265215-9025-1-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-embedded@vger.kernel.org, linux-fsdevel@vger.kernel.org, Tim Bird <tim.bird@am.sony.com>, linux-mm@kvack.org
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+On 10/05/2010 03:53 AM, Michel Lespinasse wrote:
+> This is the second iteration of our change dropping mmap_sem when a disk
+> access occurs during a page fault to a file backed VMA.
+>
+> Changes since V1:
+> - Cleaned up 'Retry page fault when blocking on disk transfer' applying
+>    linus's suggestions
+> - Added 'access_error API cleanup'
+>
+> Tests:
+>
+> - microbenchmark: thread A mmaps a large file and does random read accesses
+>    to the mmaped area - achieves about 55 iterations/s. Thread B does
+>    mmap/munmap in a loop at a separate location - achieves 55 iterations/s
+>    before, 15000 iterations/s after.
+> - We are seeing related effects in some applications in house, which show
+>    significant performance regressions when running without this change.
+> - I am looking for a microbenchmark to expose the worst case overhead of
+>    the page fault retry. Would FIO be a good match for that use ?
 
-after a lot of improvement, test, bug fix and new features, it's the
-moment for third round with the kernel community to submit PRAMFS for
-mainline. First of all, I have to say thanks to Tim Bird and CELF to
-actively support the project.
+I imagine MySQL could show the problem, on a system with
+so much memory pressure that part of MySQL itself gets
+swapped out (a slightly too large innodb buffer?).
 
-Since the last review (June 2009) a lot of things are changed:
+Without your patches, a new database thread can only be
+created in-between page faults.  With your patches, a
+new thread can be started even while other threads are
+waiting on page faults.
 
-- removed any reference of BKL
-- fixed the endianess for the fs layout
-- added support for extended attributes, ACLs and security labels
-- moved out any pte manipulations from fs and inserted them in mm
-- implemented the new truncate convention
-- fixed problems with 64bit archs
-
-...and much more. Complete "story" in the ChangeLog inserted in the
-documentation file.
-
-Since the patch is long, you can download and review the patch from
-the project site: http:\\pramfs.sourceforge.net. The patch version is
-1.2.1 for kernel 2.6.36.
-In addition, in the web site tech page, you can find a lot of
-information about implementation, technical details, benchemarking and
-so on.
-
-Regards,
-
-Marco
+More importantly, multiple threads can start pagein
+IO simultaneously after memory pressure has let up.
+This should allow the system to go back to normal
+performance much faster after a load spike has passed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
