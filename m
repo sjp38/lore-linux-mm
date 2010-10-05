@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 170006B004A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 00:50:44 -0400 (EDT)
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by e1.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o954hjp0013844
-	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:43:45 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o954ogNM1945676
-	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:50:42 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o954oge8028243
-	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 00:50:42 -0400
-Date: Tue, 5 Oct 2010 10:20:23 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
-Message-ID: <20101005045023.GS7896@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E1D6B6B004A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 01:06:52 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9556oo1013127
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 5 Oct 2010 14:06:50 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 20C4745DE7C
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:06:50 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E9EFC45DE6E
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:06:49 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C77A61DB8040
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:06:49 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C43C1DB803E
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:06:49 +0900 (JST)
+Date: Tue, 5 Oct 2010 14:01:10 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1/9] v3 Move find_memory_block routine
+Message-Id: <20101005140110.4bb65741.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4CA62857.4030803@austin.ibm.com>
+References: <4CA62700.7010809@austin.ibm.com>
+	<4CA62857.4030803@austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Nathan Fontenot <nfont@austin.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Robin Holt <holt@sgi.com>, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-* Greg Thelen <gthelen@google.com> [2010-10-03 23:57:55]:
+On Fri, 01 Oct 2010 13:28:39 -0500
+Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-> This patch set provides the ability for each cgroup to have independent dirty
-> page limits.
+> Move the find_memory_block() routine up to avoid needing a forward
+> declaration in subsequent patches.
 > 
-> Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
-> page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
-> not be able to consume more than their designated share of dirty pages and will
-> be forced to perform write-out if they cross that limit.
+> Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
 > 
-> These patches were developed and tested on mmotm 2010-09-28-16-13.  The patches
-> are based on a series proposed by Andrea Righi in Mar 2010.
-
-Hi, Greg,
-
-I see a problem with "    memcg: add dirty page accounting infrastructure".
-
-The reject is
-
- enum mem_cgroup_write_page_stat_item {
-        MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-+       MEMCG_NR_FILE_DIRTY, /* # of dirty pages in page cache */
-+       MEMCG_NR_FILE_WRITEBACK, /* # of pages under writeback */
-+       MEMCG_NR_FILE_UNSTABLE_NFS, /* # of NFS unstable pages */
- };
-
-I don't see mem_cgroup_write_page_stat_item in memcontrol.h. Is this
-based on top of Kame's cleanup.
-
-I am working off of mmotm 28 sept 2010 16:13.
-
-
--- 
-	Three Cheers,
-	Balbir
+Reviewd-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
