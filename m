@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6E5FB6B004A
-	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 21:21:15 -0400 (EDT)
-Message-ID: <4CAA7D7B.5000504@redhat.com>
-Date: Mon, 04 Oct 2010 21:20:59 -0400
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 43CFE6B007B
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2010 21:29:38 -0400 (EDT)
+Message-ID: <4CAA7F77.7010605@redhat.com>
+Date: Mon, 04 Oct 2010 21:29:27 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 02/12] Halt vcpu if page it tries to access is swapped
- out.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-3-git-send-email-gleb@redhat.com>
-In-Reply-To: <1286207794-16120-3-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH v6 04/12] Add memory slot versioning and use it to provide
+ fast guest write interface
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-5-git-send-email-gleb@redhat.com>
+In-Reply-To: <1286207794-16120-5-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,20 +18,14 @@ Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@r
 List-ID: <linux-mm.kvack.org>
 
 On 10/04/2010 11:56 AM, Gleb Natapov wrote:
-> If a guest accesses swapped out memory do not swap it in from vcpu thread
-> context. Schedule work to do swapping and put vcpu into halted state
-> instead.
->
-> Interrupts will still be delivered to the guest and if interrupt will
-> cause reschedule guest will continue to run another task.
+> Keep track of memslots changes by keeping generation number in memslots
+> structure. Provide kvm_write_guest_cached() function that skips
+> gfn_to_hva() translation if memslots was not changed since previous
+> invocation.
 >
 > Signed-off-by: Gleb Natapov<gleb@redhat.com>
 
-This seems quite different from the last version, but it
-looks fine to me.
-
 Acked-by: Rik van Riel <riel@redhat.com>
-
 
 -- 
 All rights reversed
