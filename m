@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AE3536B0047
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 02:57:02 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o956v0K1027547
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6BA8A6B0047
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 02:59:37 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o956xY1j005075
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 5 Oct 2010 15:57:00 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D6BE745DE4E
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:56:59 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AFF8945DE4F
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:56:59 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E1B21DB8051
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:56:59 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 38AD21DB804E
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:56:59 +0900 (JST)
-Date: Tue, 5 Oct 2010 15:51:42 +0900
+	Tue, 5 Oct 2010 15:59:34 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1202A45DE57
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:59:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D9D3145DE4E
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:59:33 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B80261DB803F
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:59:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CD9B1DB803C
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:59:33 +0900 (JST)
+Date: Tue, 5 Oct 2010 15:54:17 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 03/10] memcg: create extensible page stat update
- routines
-Message-Id: <20101005155142.847b1529.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1286175485-30643-4-git-send-email-gthelen@google.com>
+Subject: Re: [PATCH 04/10] memcg: disable local interrupts in
+ lock_page_cgroup()
+Message-Id: <20101005155417.d9552689.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1286175485-30643-5-git-send-email-gthelen@google.com>
 References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-4-git-send-email-gthelen@google.com>
+	<1286175485-30643-5-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,130 +34,306 @@ To: Greg Thelen <gthelen@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sun,  3 Oct 2010 23:57:58 -0700
+On Sun,  3 Oct 2010 23:57:59 -0700
 Greg Thelen <gthelen@google.com> wrote:
 
-> Replace usage of the mem_cgroup_update_file_mapped() memcg
-> statistic update routine with two new routines:
-> * mem_cgroup_inc_page_stat()
-> * mem_cgroup_dec_page_stat()
+> If pages are being migrated from a memcg, then updates to that
+> memcg's page statistics are protected by grabbing a bit spin lock
+> using lock_page_cgroup().  In an upcoming commit memcg dirty page
+> accounting will be updating memcg page accounting (specifically:
+> num writeback pages) from softirq.  Avoid a deadlocking nested
+> spin lock attempt by disabling interrupts on the local processor
+> when grabbing the page_cgroup bit_spin_lock in lock_page_cgroup().
+> This avoids the following deadlock:
+> statistic
+>       CPU 0             CPU 1
+>                     inc_file_mapped
+>                     rcu_read_lock
+>   start move
+>   synchronize_rcu
+>                     lock_page_cgroup
+>                       softirq
+>                       test_clear_page_writeback
+>                       mem_cgroup_dec_page_stat(NR_WRITEBACK)
+>                       rcu_read_lock
+>                       lock_page_cgroup   /* deadlock */
+>                       unlock_page_cgroup
+>                       rcu_read_unlock
+>                     unlock_page_cgroup
+>                     rcu_read_unlock
 > 
-> As before, only the file_mapped statistic is managed.  However,
-> these more general interfaces allow for new statistics to be
-> more easily added.  New statistics are added with memcg dirty
-> page accounting.
+> By disabling interrupts in lock_page_cgroup, nested calls
+> are avoided.  The softirq would be delayed until after inc_file_mapped
+> enables interrupts when calling unlock_page_cgroup().
 > 
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+> The normal, fast path, of memcg page stat updates typically
+> does not need to call lock_page_cgroup(), so this change does
+> not affect the performance of the common case page accounting.
+> 
 > Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Nice Catch!
 
-a nitpick. see below.
+But..hmm this wasn't necessary for FILE_MAPPED but necesary for new
+statistics, right ? (This affects the order of patches.)
+
+Anyway
+
+Acked-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 > ---
->  include/linux/memcontrol.h |   31 ++++++++++++++++++++++++++++---
->  mm/memcontrol.c            |   17 ++++++++---------
->  mm/rmap.c                  |    4 ++--
->  3 files changed, 38 insertions(+), 14 deletions(-)
+>  include/linux/page_cgroup.h |    8 +++++-
+>  mm/memcontrol.c             |   51 +++++++++++++++++++++++++-----------------
+>  2 files changed, 36 insertions(+), 23 deletions(-)
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 159a076..7c7bec4 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -25,6 +25,11 @@ struct page_cgroup;
->  struct page;
->  struct mm_struct;
->  
-> +/* Stats that can be updated by kernel. */
-> +enum mem_cgroup_write_page_stat_item {
-> +	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-> +};
-> +
->  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  					struct list_head *dst,
->  					unsigned long *scanned, int order,
-> @@ -121,7 +126,22 @@ static inline bool mem_cgroup_disabled(void)
->  	return false;
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index b59c298..872f6b1 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -117,14 +117,18 @@ static inline enum zone_type page_cgroup_zid(struct page_cgroup *pc)
+>  	return page_zonenum(pc->page);
 >  }
 >  
-> -void mem_cgroup_update_file_mapped(struct page *page, int val);
-> +void mem_cgroup_update_page_stat(struct page *page,
-> +				 enum mem_cgroup_write_page_stat_item idx,
-> +				 int val);
-> +
-> +static inline void mem_cgroup_inc_page_stat(struct page *page,
-> +				enum mem_cgroup_write_page_stat_item idx)
-> +{
-> +	mem_cgroup_update_page_stat(page, idx, 1);
-> +}
-> +
-> +static inline void mem_cgroup_dec_page_stat(struct page *page,
-> +				enum mem_cgroup_write_page_stat_item idx)
-> +{
-> +	mem_cgroup_update_page_stat(page, idx, -1);
-> +}
-> +
->  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  						gfp_t gfp_mask);
->  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
-> @@ -293,8 +313,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+> -static inline void lock_page_cgroup(struct page_cgroup *pc)
+> +static inline void lock_page_cgroup(struct page_cgroup *pc,
+> +				    unsigned long *flags)
 >  {
+> +	local_irq_save(*flags);
+>  	bit_spin_lock(PCG_LOCK, &pc->flags);
 >  }
 >  
-> -static inline void mem_cgroup_update_file_mapped(struct page *page,
-> -							int val)
-> +static inline void mem_cgroup_inc_page_stat(struct page *page,
-> +				enum mem_cgroup_write_page_stat_item idx)
-> +{
-> +}
-> +
-> +static inline void mem_cgroup_dec_page_stat(struct page *page,
-> +				enum mem_cgroup_write_page_stat_item idx)
+> -static inline void unlock_page_cgroup(struct page_cgroup *pc)
+> +static inline void unlock_page_cgroup(struct page_cgroup *pc,
+> +				      unsigned long flags)
 >  {
+>  	bit_spin_unlock(PCG_LOCK, &pc->flags);
+> +	local_irq_restore(flags);
 >  }
 >  
+>  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 512cb12..f4259f4 100644
+> index f4259f4..267d774 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -1592,7 +1592,9 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
->   * possibility of race condition. If there is, we take a lock.
->   */
->  
-> -static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
-> +void mem_cgroup_update_page_stat(struct page *page,
-> +				 enum mem_cgroup_write_page_stat_item idx,
-> +				 int val)
->  {
+> @@ -1599,6 +1599,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 >  	struct mem_cgroup *mem;
 >  	struct page_cgroup *pc = lookup_page_cgroup(page);
-> @@ -1615,30 +1617,27 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
->  			goto out;
->  	}
+>  	bool need_unlock = false;
+> +	unsigned long flags;
 >  
-> -	this_cpu_add(mem->stat->count[idx], val);
-> -
->  	switch (idx) {
-> -	case MEM_CGROUP_STAT_FILE_MAPPED:
-> +	case MEMCG_NR_FILE_MAPPED:
->  		if (val > 0)
->  			SetPageCgroupFileMapped(pc);
->  		else if (!page_mapped(page))
->  			ClearPageCgroupFileMapped(pc);
-> +		idx = MEM_CGROUP_STAT_FILE_MAPPED;
->  		break;
->  	default:
->  		BUG();
->  	}
+>  	if (unlikely(!pc))
+>  		return;
+> @@ -1610,7 +1611,7 @@ void mem_cgroup_update_page_stat(struct page *page,
+>  	/* pc->mem_cgroup is unstable ? */
+>  	if (unlikely(mem_cgroup_stealed(mem))) {
+>  		/* take a lock against to access pc->mem_cgroup */
+> -		lock_page_cgroup(pc);
+> +		lock_page_cgroup(pc, &flags);
+>  		need_unlock = true;
+>  		mem = pc->mem_cgroup;
+>  		if (!mem || !PageCgroupUsed(pc))
+> @@ -1633,7 +1634,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 >  
-> +	this_cpu_add(mem->stat->count[idx], val);
+>  out:
+>  	if (unlikely(need_unlock))
+> -		unlock_page_cgroup(pc);
+> +		unlock_page_cgroup(pc, flags);
+>  	rcu_read_unlock();
+>  	return;
+>  }
+> @@ -2053,11 +2054,12 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  	struct page_cgroup *pc;
+>  	unsigned short id;
+>  	swp_entry_t ent;
+> +	unsigned long flags;
+>  
+>  	VM_BUG_ON(!PageLocked(page));
+>  
+>  	pc = lookup_page_cgroup(page);
+> -	lock_page_cgroup(pc);
+> +	lock_page_cgroup(pc, &flags);
+>  	if (PageCgroupUsed(pc)) {
+>  		mem = pc->mem_cgroup;
+>  		if (mem && !css_tryget(&mem->css))
+> @@ -2071,7 +2073,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  			mem = NULL;
+>  		rcu_read_unlock();
+>  	}
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	return mem;
+>  }
+>  
+> @@ -2084,13 +2086,15 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+>  				     struct page_cgroup *pc,
+>  				     enum charge_type ctype)
+>  {
+> +	unsigned long flags;
 > +
-
-Why you move this_cpu_add() placement ?
-(This placement is ok but I just wonder..)
-
-Thanks,
--Kame
+>  	/* try_charge() can return NULL to *memcg, taking care of it. */
+>  	if (!mem)
+>  		return;
+>  
+> -	lock_page_cgroup(pc);
+> +	lock_page_cgroup(pc, &flags);
+>  	if (unlikely(PageCgroupUsed(pc))) {
+> -		unlock_page_cgroup(pc);
+> +		unlock_page_cgroup(pc, flags);
+>  		mem_cgroup_cancel_charge(mem);
+>  		return;
+>  	}
+> @@ -2120,7 +2124,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
+>  
+>  	mem_cgroup_charge_statistics(mem, pc, true);
+>  
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	/*
+>  	 * "charge_statistics" updated event counter. Then, check it.
+>  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> @@ -2187,12 +2191,13 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+>  		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
+>  {
+>  	int ret = -EINVAL;
+> -	lock_page_cgroup(pc);
+> +	unsigned long flags;
+> +	lock_page_cgroup(pc, &flags);
+>  	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
+>  		__mem_cgroup_move_account(pc, from, to, uncharge);
+>  		ret = 0;
+>  	}
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	/*
+>  	 * check events
+>  	 */
+> @@ -2298,6 +2303,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+>  				gfp_t gfp_mask)
+>  {
+>  	int ret;
+> +	unsigned long flags;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return 0;
+> @@ -2320,12 +2326,12 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+>  		pc = lookup_page_cgroup(page);
+>  		if (!pc)
+>  			return 0;
+> -		lock_page_cgroup(pc);
+> +		lock_page_cgroup(pc, &flags);
+>  		if (PageCgroupUsed(pc)) {
+> -			unlock_page_cgroup(pc);
+> +			unlock_page_cgroup(pc, flags);
+>  			return 0;
+>  		}
+> -		unlock_page_cgroup(pc);
+> +		unlock_page_cgroup(pc, flags);
+>  	}
+>  
+>  	if (unlikely(!mm))
+> @@ -2511,6 +2517,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  {
+>  	struct page_cgroup *pc;
+>  	struct mem_cgroup *mem = NULL;
+> +	unsigned long flags;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+> @@ -2525,7 +2532,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	if (unlikely(!pc || !PageCgroupUsed(pc)))
+>  		return NULL;
+>  
+> -	lock_page_cgroup(pc);
+> +	lock_page_cgroup(pc, &flags);
+>  
+>  	mem = pc->mem_cgroup;
+>  
+> @@ -2560,7 +2567,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	 * special functions.
+>  	 */
+>  
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	/*
+>  	 * even after unlock, we have mem->res.usage here and this memcg
+>  	 * will never be freed.
+> @@ -2576,7 +2583,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
+>  	return mem;
+>  
+>  unlock_out:
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	return NULL;
+>  }
+>  
+> @@ -2765,12 +2772,13 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  	struct mem_cgroup *mem = NULL;
+>  	enum charge_type ctype;
+>  	int ret = 0;
+> +	unsigned long flags;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return 0;
+>  
+>  	pc = lookup_page_cgroup(page);
+> -	lock_page_cgroup(pc);
+> +	lock_page_cgroup(pc, &flags);
+>  	if (PageCgroupUsed(pc)) {
+>  		mem = pc->mem_cgroup;
+>  		css_get(&mem->css);
+> @@ -2806,7 +2814,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  		if (PageAnon(page))
+>  			SetPageCgroupMigration(pc);
+>  	}
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  	/*
+>  	 * If the page is not charged at this point,
+>  	 * we return here.
+> @@ -2819,9 +2827,9 @@ int mem_cgroup_prepare_migration(struct page *page,
+>  	css_put(&mem->css);/* drop extra refcnt */
+>  	if (ret || *ptr == NULL) {
+>  		if (PageAnon(page)) {
+> -			lock_page_cgroup(pc);
+> +			lock_page_cgroup(pc, &flags);
+>  			ClearPageCgroupMigration(pc);
+> -			unlock_page_cgroup(pc);
+> +			unlock_page_cgroup(pc, flags);
+>  			/*
+>  			 * The old page may be fully unmapped while we kept it.
+>  			 */
+> @@ -2852,6 +2860,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>  {
+>  	struct page *used, *unused;
+>  	struct page_cgroup *pc;
+> +	unsigned long flags;
+>  
+>  	if (!mem)
+>  		return;
+> @@ -2871,9 +2880,9 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+>  	 * Clear the flag and check the page should be charged.
+>  	 */
+>  	pc = lookup_page_cgroup(oldpage);
+> -	lock_page_cgroup(pc);
+> +	lock_page_cgroup(pc, &flags);
+>  	ClearPageCgroupMigration(pc);
+> -	unlock_page_cgroup(pc);
+> +	unlock_page_cgroup(pc, flags);
+>  
+>  	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+>  
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
