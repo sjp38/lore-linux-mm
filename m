@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C25746B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:32:14 -0400 (EDT)
-Received: from hpaq14.eem.corp.google.com (hpaq14.eem.corp.google.com [172.25.149.14])
-	by smtp-out.google.com with ESMTP id o95IW2W9004532
-	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 11:32:02 -0700
-Received: from pxi11 (pxi11.prod.google.com [10.243.27.11])
-	by hpaq14.eem.corp.google.com with ESMTP id o95IVvo7021634
-	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 11:32:00 -0700
-Received: by pxi11 with SMTP id 11so2087596pxi.34
-        for <linux-mm@kvack.org>; Tue, 05 Oct 2010 11:31:59 -0700 (PDT)
-Date: Tue, 5 Oct 2010 11:31:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 08/10] memcg: add cgroupfs interface to memcg dirty
- limits
-In-Reply-To: <20101005091836.GA1698@linux.develer.com>
-Message-ID: <alpine.DEB.2.00.1010051131290.11568@chino.kir.corp.google.com>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com> <1286175485-30643-9-git-send-email-gthelen@google.com> <20101005161340.9bb7382e.kamezawa.hiroyu@jp.fujitsu.com> <xr93r5g5w0uc.fsf@ninji.mtv.corp.google.com>
- <20101005091836.GA1698@linux.develer.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id C10496B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:58:14 -0400 (EDT)
+Message-Id: <20101005185725.088808842@linux.com>
+Date: Tue, 05 Oct 2010 13:57:25 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [UnifiedV4 00/16] The Unified slab allocator (V4)
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Oct 2010, Andrea Righi wrote:
+V3->V4:
+- Lots of debugging
+- Performance optimizations (more would be good)...
+- Drop per slab locking in favor of per node locking for
+  partial lists (queuing implies freeing large amounts of objects
+  to per node lists of slab).
+- Implement object expiration via reclaim VM logic.
 
-> mmh... looking at the code it seems the same behaviour, but in
-> Documentation/sysctl/vm.txt we say a different thing (i.e., for
-> dirty_bytes):
-> 
-> "If dirty_bytes is written, dirty_ratio becomes a function of its value
-> (dirty_bytes / the amount of dirtyable system memory)."
-> 
-> However, in dirty_bytes_handler()/dirty_ratio_handler() we actually set
-> the counterpart value as 0.
-> 
-> I think we should clarify the documentation.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
+The following is a release of an allocator based on SLAB
+and SLUB that integrates the best approaches from both allocators. The
+per cpu queuing is like in SLAB whereas much of the infrastructure
+comes from SLUB.
 
-Acked-by: David Rientjes <rientjes@google.com>
+After this patches SLUB will track the cpu cache contents
+like SLAB attemped to. There are a number of architectural differences:
 
-Thanks for cc'ing me on this, Andrea.
+1. SLUB accurately tracks cpu caches instead of assuming that there
+   is only a single cpu cache per node or system.
+
+2. SLUB object expiration is tied into the page reclaim logic. There
+   is no periodic cache expiration.
+
+3. SLUB caches are dynamically configurable via the sysfs filesystem.
+
+4. There is no per slab page metadata structure to maintain (aside
+   from the object bitmap that usually fits into the page struct).
+
+5. Has all the resiliency and diagnostic features of SLUB.
+
+The unified allocator is a merging of SLUB with some queuing concepts from
+SLAB and a new way of managing objects in the slabs using bitmaps. Memory
+wise this is slightly more inefficient than SLUB (due to the need to place
+large bitmaps --sized a few words--in some slab pages if there are more
+than BITS_PER_LONG objects in a slab) but in general does not increase space
+use too much.
+
+The SLAB scheme of not touching the object during management is adopted.
+The unified allocator can efficiently free and allocate cache cold objects
+without causing cache misses.
+
+Some numbers using tcp_rr on localhost
+
+
+Dell R910 128G RAM, 64 processors, 4 NUMA nodes
+
+threads	unified		slub		slab
+64	4141798		3729037		3884939
+128	4146587		3890993		4105276
+192	4003063		3876570		4110971
+256	3928857		3942806		4099249
+320	3922623		3969042		4093283
+384	3827603		4002833		4108420
+448	4140345		4027251		4118534
+512	4163741		4050130		4122644
+576	4175666		4099934		4149355
+640	4190332		4142570		4175618
+704	4198779		4173177		4193657
+768	4662216		4200462		4222686
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
