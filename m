@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0CA5D6B007E
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 01:18:48 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o955IkuC022332
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4DEE96B0082
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 01:19:49 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o955JlQ7022811
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 5 Oct 2010 14:18:47 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EF5745DE4F
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:18:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 42C4D45DE3E
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:18:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 285DE1DB804D
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:18:46 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D29C31DB804E
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:18:45 +0900 (JST)
-Date: Tue, 5 Oct 2010 14:13:25 +0900
+	Tue, 5 Oct 2010 14:19:47 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A00845DE62
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:19:47 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EE1BF45DE66
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:19:46 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C58F91DB803B
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:19:46 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F1FD1DB8041
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 14:19:46 +0900 (JST)
+Date: Tue, 5 Oct 2010 14:14:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/9] v3 Allow memory blocks to span multiple memory
- sections
-Message-Id: <20101005141325.81c61dec.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4CA62FE2.2000003@austin.ibm.com>
+Subject: Re: [PATCH 5/9] v3 rename phys_index properties of memory block
+ struct
+Message-Id: <20101005141427.e5fafa25.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <4CA62982.5080900@austin.ibm.com>
 References: <4CA62700.7010809@austin.ibm.com>
-	<4CA62917.80008@austin.ibm.com>
-	<4CA62FE2.2000003@austin.ibm.com>
+	<4CA62982.5080900@austin.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -35,28 +34,22 @@ To: Nathan Fontenot <nfont@austin.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Robin Holt <holt@sgi.com>, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 01 Oct 2010 14:00:50 -0500
+On Fri, 01 Oct 2010 13:33:38 -0500
 Nathan Fontenot <nfont@austin.ibm.com> wrote:
 
-> Update the memory sysfs code such that each sysfs memory directory is now
-> considered a memory block that can span multiple memory sections per
-> memory block.  The default size of each memory block is SECTION_SIZE_BITS
-> to maintain the current behavior of having a single memory section per
-> memory block (i.e. one sysfs directory per memory section).
+> Update the 'phys_index' property of a the memory_block struct to be
+> called start_section_nr, and add a end_section_nr property.  The
+> data tracked here is the same but the updated naming is more in line
+> with what is stored here, namely the first and last section number
+> that the memory block spans.
 > 
-> For architectures that want to have memory blocks span multiple
-> memory sections they need only define their own memory_block_size_bytes()
-> routine.
+> The names presented to userspace remain the same, phys_index for
+> start_section_nr and end_phys_index for end_section_nr, to avoid breaking
+> anything in userspace.
 > 
-This should be commented in code before MEMORY_BLOCK_SIZE declaration.
-
 > Signed-off-by: Nathan Fontenot <nfont@austin.ibm.com>
-> 
 
 Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
