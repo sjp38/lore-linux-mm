@@ -1,49 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B785B6B0085
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:20:09 -0400 (EDT)
-Date: Tue, 5 Oct 2010 21:18:37 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Transparent Hugepage Support #30
-Message-ID: <20101005191837.GY26357@random.random>
-References: <20100901190859.GA20316@random.random>
- <20101004032451.GA11622@spritzera.linux.bs1.fc.nec.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AD64C6B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:45:01 -0400 (EDT)
+Message-ID: <4CAB802B.6020703@redhat.com>
+Date: Tue, 05 Oct 2010 15:44:43 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101004032451.GA11622@spritzera.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 3/3] access_error API cleanup
+References: <1286265215-9025-1-git-send-email-walken@google.com> <1286265215-9025-4-git-send-email-walken@google.com>
+In-Reply-To: <1286265215-9025-4-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Izik Eidus <ieidus@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Naoya,
+On 10/05/2010 03:53 AM, Michel Lespinasse wrote:
+> access_error() already takes error_code as an argument, so there is
+> no need for an additional write flag.
+>
+> Signed-off-by: Michel Lespinasse<walken@google.com>
 
-On Mon, Oct 04, 2010 at 12:24:51PM +0900, Naoya Horiguchi wrote:
-> Hi,
-> 
-> I experienced build error of "calling pte_alloc_map() with 3 parameters, 
-> while it's defined to have 4 parameters" in arch/x86/kernel/tboot.c etc.
-> Is the following chunk in patch "pte alloc trans splitting" necessary?
-> 
-> @@ -1167,16 +1168,18 @@ static inline void pgtable_page_dtor(struct page *page)
->         pte_unmap(pte);                                 \
->  } while (0)
->  
-> -#define pte_alloc_map(mm, pmd, address)                        \
-> -       ((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, pmd, address))? \
-> -               NULL: pte_offset_map(pmd, address))
-> +#define pte_alloc_map(mm, vma, pmd, address)                           \
-> +       ((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, vma,    \
-> +                                                       pmd, address))? \
-> +        NULL: pte_offset_map(pmd, address))
-
-Sure it's necessary.
-
-Can you try again with current aa.git origin/master?
-(84c5ce35cf221ed0e561dec279df6985a388a080) Thanks a lot.
-
-Andrea
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
