@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7B96D6B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:45:17 -0400 (EDT)
-Message-Id: <20101005185815.287555262@linux.com>
-Date: Tue, 05 Oct 2010 13:57:31 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [UnifiedV4 06/16] slub: Drop allocator announcement
-References: <20101005185725.088808842@linux.com>
-Content-Disposition: inline; filename=unified_remove_banner
+	by kanga.kvack.org (Postfix) with SMTP id 4DC9F6B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 15:53:38 -0400 (EDT)
+Date: Tue, 5 Oct 2010 15:25:54 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
+Message-ID: <20101005182554.GA1786@amt.cnet>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-8-git-send-email-gleb@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1286207794-16120-8-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-People get confused because the output repeats some basic hardware
-configuration values. Some of the items listed no
-longer have the same relevance in the queued form of SLUB.
+On Mon, Oct 04, 2010 at 05:56:29PM +0200, Gleb Natapov wrote:
+> Enable async PF in a guest if async PF capability is discovered.
+> 
+> Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> ---
+>  Documentation/kernel-parameters.txt |    3 +
+>  arch/x86/include/asm/kvm_para.h     |    5 ++
+>  arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
+>  3 files changed, 100 insertions(+), 0 deletions(-)
+> 
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> +static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
+> +				    unsigned long action, void *hcpu)
+> +{
+> +	int cpu = (unsigned long)hcpu;
+> +	switch (action) {
+> +	case CPU_ONLINE:
+> +	case CPU_DOWN_FAILED:
+> +	case CPU_ONLINE_FROZEN:
+> +		smp_call_function_single(cpu, kvm_guest_cpu_notify, NULL, 0);
 
----
- mm/slub.c |    6 ------
- 1 file changed, 6 deletions(-)
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2010-10-02 18:10:45.000000000 -0500
-+++ linux-2.6/mm/slub.c	2010-10-02 18:10:50.000000000 -0500
-@@ -3249,12 +3249,6 @@ void __init kmem_cache_init(void)
- 		}
- 	}
- #endif
--	printk(KERN_INFO
--		"SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
--		" CPUs=%d, Nodes=%d\n",
--		caches, cache_line_size(),
--		slub_min_order, slub_max_order, slub_min_objects,
--		nr_cpu_ids, nr_node_ids);
- }
- 
- void __init kmem_cache_init_late(void)
+wait parameter should probably be 1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
