@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A83C56B0087
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:49:16 -0400 (EDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7652D6B0085
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:49:17 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 2/4] HWPOISON: Copy si_addr_lsb to user
-Date: Wed,  6 Oct 2010 22:48:59 +0200
-Message-Id: <1286398141-13749-3-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 4/4] HWPOISON: Stop shrinking at right page count
+Date: Wed,  6 Oct 2010 22:49:01 +0200
+Message-Id: <1286398141-13749-5-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1286398141-13749-1-git-send-email-andi@firstfloor.org>
 References: <1286398141-13749-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,30 @@ List-ID: <linux-mm.kvack.org>
 
 From: Andi Kleen <ak@linux.intel.com>
 
-The original hwpoison code added a new siginfo field si_addr_lsb to
-pass the granuality of the fault address to user space. Unfortunately
-this field was never copied to user space. Fix this here.
+When we call the slab shrinker to free a page we need to stop at
+page count one because the caller always holds a single reference, not zero.
 
-I added explicit checks for the MCEERR codes to avoid having
-to patch all potential callers to initialize the field.
+This avoids useless looping over slab shrinkers and freeing too much
+memory.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- kernel/signal.c |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ mm/memory-failure.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/kernel/signal.c b/kernel/signal.c
-index bded651..919562c 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -2215,6 +2215,14 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
- #ifdef __ARCH_SI_TRAPNO
- 		err |= __put_user(from->si_trapno, &to->si_trapno);
- #endif
-+#ifdef BUS_MCEERR_AO
-+		/* 
-+		 * Other callers might not initialize the si_lsb field,
-+	 	 * so check explicitely for the right codes here.
-+		 */
-+		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
-+			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
-+#endif
- 		break;
- 	case __SI_CHLD:
- 		err |= __put_user(from->si_pid, &to->si_pid);
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 886144b..7c1af9b 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -237,7 +237,7 @@ void shake_page(struct page *p, int access)
+ 		int nr;
+ 		do {
+ 			nr = shrink_slab(1000, GFP_KERNEL, 1000);
+-			if (page_count(p) == 0)
++			if (page_count(p) == 1)
+ 				break;
+ 		} while (nr > 10);
+ 	}
 -- 
 1.7.1
 
