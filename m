@@ -1,99 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A48B86B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 08:38:01 -0400 (EDT)
-Date: Wed, 6 Oct 2010 20:37:53 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-Message-ID: <20101006123753.GA17674@localhost>
-References: <20101005185725.088808842@linux.com>
- <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A42556B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 09:30:46 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e3.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o96DE46L022881
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 09:14:04 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o96DUUjY119054
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 09:30:30 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o96DUTfW008500
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 10:30:30 -0300
+Date: Wed, 6 Oct 2010 19:00:24 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 08/10] memcg: add cgroupfs interface to memcg dirty limits
+Message-ID: <20101006133024.GE4195@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+ <1286175485-30643-9-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
+In-Reply-To: <1286175485-30643-9-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com, "Shi, Alex" <alex.shi@intel.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-[add CC to Alex: he is now in charge of kernel performance tests]
+* Greg Thelen <gthelen@google.com> [2010-10-03 23:58:03]:
 
-On Wed, Oct 06, 2010 at 11:01:35AM +0300, Pekka Enberg wrote:
-> (Adding more people who've taken interest in slab performance in the
-> past to CC.)
+> Add cgroupfs interface to memcg dirty page limits:
+>   Direct write-out is controlled with:
+>   - memory.dirty_ratio
+>   - memory.dirty_bytes
 > 
-> On Tue, Oct 5, 2010 at 9:57 PM, Christoph Lameter <cl@linux.com> wrote:
-> > V3->V4:
-> > - Lots of debugging
-> > - Performance optimizations (more would be good)...
-> > - Drop per slab locking in favor of per node locking for
-> > A partial lists (queuing implies freeing large amounts of objects
-> > A to per node lists of slab).
-> > - Implement object expiration via reclaim VM logic.
-> >
-> > The following is a release of an allocator based on SLAB
-> > and SLUB that integrates the best approaches from both allocators. The
-> > per cpu queuing is like in SLAB whereas much of the infrastructure
-> > comes from SLUB.
-> >
-> > After this patches SLUB will track the cpu cache contents
-> > like SLAB attemped to. There are a number of architectural differences:
-> >
-> > 1. SLUB accurately tracks cpu caches instead of assuming that there
-> > A  is only a single cpu cache per node or system.
-> >
-> > 2. SLUB object expiration is tied into the page reclaim logic. There
-> > A  is no periodic cache expiration.
-> >
-> > 3. SLUB caches are dynamically configurable via the sysfs filesystem.
-> >
-> > 4. There is no per slab page metadata structure to maintain (aside
-> > A  from the object bitmap that usually fits into the page struct).
-> >
-> > 5. Has all the resiliency and diagnostic features of SLUB.
-> >
-> > The unified allocator is a merging of SLUB with some queuing concepts from
-> > SLAB and a new way of managing objects in the slabs using bitmaps. Memory
-> > wise this is slightly more inefficient than SLUB (due to the need to place
-> > large bitmaps --sized a few words--in some slab pages if there are more
-> > than BITS_PER_LONG objects in a slab) but in general does not increase space
-> > use too much.
-> >
-> > The SLAB scheme of not touching the object during management is adopted.
-> > The unified allocator can efficiently free and allocate cache cold objects
-> > without causing cache misses.
-> >
-> > Some numbers using tcp_rr on localhost
-> >
-> >
-> > Dell R910 128G RAM, 64 processors, 4 NUMA nodes
-> >
-> > threads unified A  A  A  A  slub A  A  A  A  A  A slab
-> > 64 A  A  A 4141798 A  A  A  A  3729037 A  A  A  A  3884939
-> > 128 A  A  4146587 A  A  A  A  3890993 A  A  A  A  4105276
-> > 192 A  A  4003063 A  A  A  A  3876570 A  A  A  A  4110971
-> > 256 A  A  3928857 A  A  A  A  3942806 A  A  A  A  4099249
-> > 320 A  A  3922623 A  A  A  A  3969042 A  A  A  A  4093283
-> > 384 A  A  3827603 A  A  A  A  4002833 A  A  A  A  4108420
-> > 448 A  A  4140345 A  A  A  A  4027251 A  A  A  A  4118534
-> > 512 A  A  4163741 A  A  A  A  4050130 A  A  A  A  4122644
-> > 576 A  A  4175666 A  A  A  A  4099934 A  A  A  A  4149355
-> > 640 A  A  4190332 A  A  A  A  4142570 A  A  A  A  4175618
-> > 704 A  A  4198779 A  A  A  A  4173177 A  A  A  A  4193657
-> > 768 A  A  4662216 A  A  A  A  4200462 A  A  A  A  4222686
+>   Background write-out is controlled with:
+>   - memory.dirty_background_ratio
+>   - memory.dirty_background_bytes
 > 
-> Are there any stability problems left? Have you tried other benchmarks
-> (e.g. hackbench, sysbench)? Can we merge the series in smaller
-> batches? For example, if we leave out the NUMA parts in the first
-> stage, do we expect to see performance regressions?
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+
+The added interface is not uniform with the rest of our write
+operations. Does the patch below help? I did a quick compile and run
+test.
+
+
+Make writes to memcg dirty tunables more uniform
+
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+We today support 'M', 'm', 'k', 'K', 'g' and 'G' suffixes for
+general memcg writes. This patch provides the same functionality
+for dirty tunables.
+---
+
+ mm/memcontrol.c |   47 +++++++++++++++++++++++++++++++++++++----------
+ 1 files changed, 37 insertions(+), 10 deletions(-)
+
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2d45a0a..3c360e6 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4323,6 +4323,41 @@ static u64 mem_cgroup_dirty_read(struct cgroup *cgrp, struct cftype *cft)
+ }
+ 
+ static int
++mem_cgroup_dirty_write_string(struct cgroup *cont, struct cftype *cft,
++				const char *buffer)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
++	int type = cft->private;
++	int ret = -EINVAL;
++	unsigned long long val;
++
++	if (cgrp->parent == NULL)
++		return ret;
++
++	switch (type) {
++	case MEM_CGROUP_DIRTY_BYTES:
++		/* This function does all necessary parse...reuse it */
++		ret = res_counter_memparse_write_strategy(buffer, &val);
++		if (ret)
++			break;
++		memcg->dirty_param.dirty_bytes = val;
++		memcg->dirty_param.dirty_ratio  = 0;
++		break;
++	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
++		ret = res_counter_memparse_write_strategy(buffer, &val);
++		if (ret)
++			break;
++		memcg->dirty_param.dirty_background_bytes = val;
++		memcg->dirty_param.dirty_background_ratio = 0;
++		break;
++	default:
++		BUG();
++		break;
++	}
++	return ret;
++}
++
++static int
+ mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+@@ -4338,18 +4373,10 @@ mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+ 		memcg->dirty_param.dirty_ratio = val;
+ 		memcg->dirty_param.dirty_bytes = 0;
+ 		break;
+-	case MEM_CGROUP_DIRTY_BYTES:
+-		memcg->dirty_param.dirty_bytes = val;
+-		memcg->dirty_param.dirty_ratio  = 0;
+-		break;
+ 	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
+ 		memcg->dirty_param.dirty_background_ratio = val;
+ 		memcg->dirty_param.dirty_background_bytes = 0;
+ 		break;
+-	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
+-		memcg->dirty_param.dirty_background_bytes = val;
+-		memcg->dirty_param.dirty_background_ratio = 0;
+-		break;
+ 	default:
+ 		BUG();
+ 		break;
+@@ -4429,7 +4456,7 @@ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "dirty_bytes",
+ 		.read_u64 = mem_cgroup_dirty_read,
+-		.write_u64 = mem_cgroup_dirty_write,
++		.write_string = mem_cgroup_dirty_write_string,
+ 		.private = MEM_CGROUP_DIRTY_BYTES,
+ 	},
+ 	{
+@@ -4441,7 +4468,7 @@ static struct cftype mem_cgroup_files[] = {
+ 	{
+ 		.name = "dirty_background_bytes",
+ 		.read_u64 = mem_cgroup_dirty_read,
+-		.write_u64 = mem_cgroup_dirty_write,
++		.write_u64 = mem_cgroup_dirty_write_string,
+ 		.private = MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
+ 	},
+ };
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
