@@ -1,39 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E371E6B0085
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 10:53:24 -0400 (EDT)
-Received: by qyk4 with SMTP id 4so590033qyk.14
-        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 07:53:23 -0700 (PDT)
-Message-ID: <4CAC8D5D.9000303@vflare.org>
-Date: Wed, 06 Oct 2010 10:53:17 -0400
-From: Nitin Gupta <ngupta@vflare.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id AC3D66B0087
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 10:53:52 -0400 (EDT)
+Date: Wed, 6 Oct 2010 11:20:50 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
+Message-ID: <20101006142050.GA31423@amt.cnet>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-4-git-send-email-gleb@redhat.com>
+ <20101005155409.GB28955@amt.cnet>
+ <20101006110704.GW11145@redhat.com>
 MIME-Version: 1.0
-Subject: Re: OOM panics with zram
-References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1284053081.7586.7910.camel@nimitz> <4CA8CE45.9040207@vflare.org> <20101005234300.GA14396@kroah.com> <4CABDF0E.3050400@vflare.org> <20101006023624.GA27685@kroah.com> <4CABFB6F.2070800@vflare.org> <AANLkTi=0bPudtyVzebvM0hZUB6DdDhjopB06FOww8hvt@mail.gmail.com> <20101006140343.GC19470@kroah.com> <4CAC84CF.3060902@kernel.org>
-In-Reply-To: <4CAC84CF.3060902@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101006110704.GW11145@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Gleb Natapov <gleb@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/6/2010 10:16 AM, Pekka Enberg wrote:
->  On 6.10.2010 17.03, Greg KH wrote:
->> Oops, I need to update the MAINTAINERS file, the proper place for the
->> staging tree is now in git, at
->>
->> git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-next-2.6.git
->>
->> which feeds directly into the linux-next tree.
-> 
-> Excellent! Nitin, can you develop and test zram against this tree?
-> 
+On Wed, Oct 06, 2010 at 01:07:04PM +0200, Gleb Natapov wrote:
+> > Can't you set a bit in vcpu->requests instead, and handle it in "out:"
+> > at the end of vcpu_enter_guest? 
+> > 
+> > To have a single entry point for pagefaults, after vmexit handling.
+> Jumping to "out:" will skip vmexit handling anyway, so we will not reuse
+> same call site anyway. I don't see yet why the way you propose will have
+> an advantage.
 
-This seems like the ideal tree to develop against.
+What i meant was to call pagefault handler after vmexit handling.
 
-Thanks!
-Nitin
+Because the way it is in your patch now, with pre pagefault on entry,
+one has to make an effort to verify ordering wrt other events on entry
+processing.
+
+With pre pagefault after vmexit, its more natural.
+
+Does that make sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
