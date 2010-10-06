@@ -1,94 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CBB9E6B006A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 04:01:36 -0400 (EDT)
-Received: by iwn41 with SMTP id 41so2139063iwn.14
-        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 01:01:35 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C2B6B6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:41:44 -0400 (EDT)
+Date: Wed, 6 Oct 2010 12:41:32 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v6 10/12] Handle async PF in non preemptable context
+Message-ID: <20101006104132.GS11145@redhat.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-11-git-send-email-gleb@redhat.com>
+ <20101005195149.GC1786@amt.cnet>
 MIME-Version: 1.0
-In-Reply-To: <20101005185725.088808842@linux.com>
-References: <20101005185725.088808842@linux.com>
-Date: Wed, 6 Oct 2010 11:01:35 +0300
-Message-ID: <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101005195149.GC1786@amt.cnet>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-(Adding more people who've taken interest in slab performance in the
-past to CC.)
+On Tue, Oct 05, 2010 at 04:51:50PM -0300, Marcelo Tosatti wrote:
+> On Mon, Oct 04, 2010 at 05:56:32PM +0200, Gleb Natapov wrote:
+> > If async page fault is received by idle task or when preemp_count is
+> > not zero guest cannot reschedule, so do sti; hlt and wait for page to be
+> > ready. vcpu can still process interrupts while it waits for the page to
+> > be ready.
+> > 
+> > Acked-by: Rik van Riel <riel@redhat.com>
+> > Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> > ---
+> >  arch/x86/kernel/kvm.c |   40 ++++++++++++++++++++++++++++++++++------
+> >  1 files changed, 34 insertions(+), 6 deletions(-)
+> > 
+> > diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+> > index 36fb3e4..f73946f 100644
+> > --- a/arch/x86/kernel/kvm.c
+> > +++ b/arch/x86/kernel/kvm.c
+> > @@ -37,6 +37,7 @@
+> >  #include <asm/cpu.h>
+> >  #include <asm/traps.h>
+> >  #include <asm/desc.h>
+> > +#include <asm/tlbflush.h>
+> >  
+> >  #define MMU_QUEUE_SIZE 1024
+> >  
+> > @@ -78,6 +79,8 @@ struct kvm_task_sleep_node {
+> >  	wait_queue_head_t wq;
+> >  	u32 token;
+> >  	int cpu;
+> > +	bool halted;
+> > +	struct mm_struct *mm;
+> >  };
+> >  
+> >  static struct kvm_task_sleep_head {
+> > @@ -106,6 +109,11 @@ void kvm_async_pf_task_wait(u32 token)
+> >  	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
+> >  	struct kvm_task_sleep_node n, *e;
+> >  	DEFINE_WAIT(wait);
+> > +	int cpu, idle;
+> > +
+> > +	cpu = get_cpu();
+> > +	idle = idle_cpu(cpu);
+> > +	put_cpu();
+> >  
+> >  	spin_lock(&b->lock);
+> >  	e = _find_apf_task(b, token);
+> > @@ -119,19 +127,33 @@ void kvm_async_pf_task_wait(u32 token)
+> >  
+> >  	n.token = token;
+> >  	n.cpu = smp_processor_id();
+> > +	n.mm = current->active_mm;
+> > +	n.halted = idle || preempt_count() > 1;
+> > +	atomic_inc(&n.mm->mm_count);
+> 
+> Can't see why this reference is needed.
+I thought that if kernel thread does fault on behalf of some
+process mm can go away while kernel thread is sleeping. But it looks
+like kernel thread increase reference to mm it runs with by himself, so
+may be this is redundant (but not harmful).
 
-On Tue, Oct 5, 2010 at 9:57 PM, Christoph Lameter <cl@linux.com> wrote:
-> V3->V4:
-> - Lots of debugging
-> - Performance optimizations (more would be good)...
-> - Drop per slab locking in favor of per node locking for
-> =A0partial lists (queuing implies freeing large amounts of objects
-> =A0to per node lists of slab).
-> - Implement object expiration via reclaim VM logic.
->
-> The following is a release of an allocator based on SLAB
-> and SLUB that integrates the best approaches from both allocators. The
-> per cpu queuing is like in SLAB whereas much of the infrastructure
-> comes from SLUB.
->
-> After this patches SLUB will track the cpu cache contents
-> like SLAB attemped to. There are a number of architectural differences:
->
-> 1. SLUB accurately tracks cpu caches instead of assuming that there
-> =A0 is only a single cpu cache per node or system.
->
-> 2. SLUB object expiration is tied into the page reclaim logic. There
-> =A0 is no periodic cache expiration.
->
-> 3. SLUB caches are dynamically configurable via the sysfs filesystem.
->
-> 4. There is no per slab page metadata structure to maintain (aside
-> =A0 from the object bitmap that usually fits into the page struct).
->
-> 5. Has all the resiliency and diagnostic features of SLUB.
->
-> The unified allocator is a merging of SLUB with some queuing concepts fro=
-m
-> SLAB and a new way of managing objects in the slabs using bitmaps. Memory
-> wise this is slightly more inefficient than SLUB (due to the need to plac=
-e
-> large bitmaps --sized a few words--in some slab pages if there are more
-> than BITS_PER_LONG objects in a slab) but in general does not increase sp=
-ace
-> use too much.
->
-> The SLAB scheme of not touching the object during management is adopted.
-> The unified allocator can efficiently free and allocate cache cold object=
-s
-> without causing cache misses.
->
-> Some numbers using tcp_rr on localhost
->
->
-> Dell R910 128G RAM, 64 processors, 4 NUMA nodes
->
-> threads unified =A0 =A0 =A0 =A0 slub =A0 =A0 =A0 =A0 =A0 =A0slab
-> 64 =A0 =A0 =A04141798 =A0 =A0 =A0 =A0 3729037 =A0 =A0 =A0 =A0 3884939
-> 128 =A0 =A0 4146587 =A0 =A0 =A0 =A0 3890993 =A0 =A0 =A0 =A0 4105276
-> 192 =A0 =A0 4003063 =A0 =A0 =A0 =A0 3876570 =A0 =A0 =A0 =A0 4110971
-> 256 =A0 =A0 3928857 =A0 =A0 =A0 =A0 3942806 =A0 =A0 =A0 =A0 4099249
-> 320 =A0 =A0 3922623 =A0 =A0 =A0 =A0 3969042 =A0 =A0 =A0 =A0 4093283
-> 384 =A0 =A0 3827603 =A0 =A0 =A0 =A0 4002833 =A0 =A0 =A0 =A0 4108420
-> 448 =A0 =A0 4140345 =A0 =A0 =A0 =A0 4027251 =A0 =A0 =A0 =A0 4118534
-> 512 =A0 =A0 4163741 =A0 =A0 =A0 =A0 4050130 =A0 =A0 =A0 =A0 4122644
-> 576 =A0 =A0 4175666 =A0 =A0 =A0 =A0 4099934 =A0 =A0 =A0 =A0 4149355
-> 640 =A0 =A0 4190332 =A0 =A0 =A0 =A0 4142570 =A0 =A0 =A0 =A0 4175618
-> 704 =A0 =A0 4198779 =A0 =A0 =A0 =A0 4173177 =A0 =A0 =A0 =A0 4193657
-> 768 =A0 =A0 4662216 =A0 =A0 =A0 =A0 4200462 =A0 =A0 =A0 =A0 4222686
-
-Are there any stability problems left? Have you tried other benchmarks
-(e.g. hackbench, sysbench)? Can we merge the series in smaller
-batches? For example, if we leave out the NUMA parts in the first
-stage, do we expect to see performance regressions?
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
