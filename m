@@ -1,66 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 759586B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 17:02:16 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2574E6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 17:02:20 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 2/2] HWPOISON: Attempt directed shrinking of slabs
-Date: Wed,  6 Oct 2010 23:02:10 +0200
-Message-Id: <1286398930-11956-3-git-send-email-andi@firstfloor.org>
+Subject: [PATCH 1/2] SLAB: Add function to get slab cache for a page
+Date: Wed,  6 Oct 2010 23:02:09 +0200
+Message-Id: <1286398930-11956-2-git-send-email-andi@firstfloor.org>
 In-Reply-To: <1286398930-11956-1-git-send-email-andi@firstfloor.org>
 References: <1286398930-11956-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
-Cc: penberg@cs.helsinki.fi, cl@linux-foundation.org, mpm@selenic.com, Andi Kleen <ak@linux.intel.com>, fengguang.wu@intel.com
+Cc: penberg@cs.helsinki.fi, cl@linux-foundation.org, mpm@selenic.com, Andi Kleen <ak@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
 From: Andi Kleen <ak@linux.intel.com>
 
-When a slab page is found try to shrink the specific slab first
-before trying to shrink all slabs and call other shrinkers.
-This can be done now using the new kmem_page_cache() call.
+Add a generic function to get the slab cache for a page pointer.
+The slabs already know this information internally, so just
+export it.
 
-Cc: fengguang.wu@intel.com
+Needed for a followup hwpoison patch which uses this to shrink
+slab caches more efficiently.
+
+Be careful to never BUG_ON in this path to make hwpoison
+more robust.
+
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 ---
- mm/memory-failure.c |   18 ++++++++++++++++++
- 1 files changed, 18 insertions(+), 0 deletions(-)
+ include/linux/slab.h |    1 +
+ mm/slab.c            |   17 +++++++++++++++++
+ mm/slob.c            |    5 +++++
+ mm/slub.c            |   11 +++++++++++
+ 4 files changed, 34 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9c26eec..b49d81a 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -212,6 +212,20 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
- 	return ret;
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 59260e2..9639e28 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -108,6 +108,7 @@ unsigned int kmem_cache_size(struct kmem_cache *);
+ const char *kmem_cache_name(struct kmem_cache *);
+ int kern_ptr_validate(const void *ptr, unsigned long size);
+ int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
++struct kmem_cache *kmem_page_cache(struct page *p);
+ 
+ /*
+  * Please use this macro to create slab caches. Simply specify the
+diff --git a/mm/slab.c b/mm/slab.c
+index fcae981..20e6a24 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -498,6 +498,12 @@ static inline struct kmem_cache *page_get_cache(struct page *page)
+ 	return (struct kmem_cache *)page->lru.next;
  }
  
-+/* 
-+ * Try to free a slab page by shrinking the slab.
-+ */
-+static int shake_slab(struct page *p)
++static inline struct kmem_cache *__page_get_cache(struct page *page)
 +{
-+	struct kmem_cache *cache;
-+
-+	cache = kmem_page_cache(p);
-+	if (!cache)
-+		return 0;
-+	kmem_cache_shrink(cache);
-+	return page_count(p) == 1;
++	page = compound_head(page);
++	return (struct kmem_cache *)page->lru.next;
 +}
 +
- /*
-  * When a unknown page type is encountered drain as many buffers as possible
-  * in the hope to turn the page into a LRU or free page, which we can handle.
-@@ -233,6 +247,10 @@ void shake_page(struct page *p, int access)
- 	 */
- 	if (access) {
- 		int nr;
+ static inline void page_set_slab(struct page *page, struct slab *slab)
+ {
+ 	page->lru.prev = (struct list_head *)slab;
+@@ -4587,3 +4593,14 @@ size_t ksize(const void *objp)
+ 	return obj_size(virt_to_cache(objp));
+ }
+ EXPORT_SYMBOL(ksize);
 +
-+		if (shake_slab(p))
-+			return;
++/**
++ * kmem_page_cache - report kmem cache for page or NULL.
++ * @p: page
++ */
++struct kmem_cache *kmem_page_cache(struct page *p)
++{
++	if (!PageSlab(p))
++		return NULL;
++	return __page_get_cache(p);
++}
+diff --git a/mm/slob.c b/mm/slob.c
+index d582171..dd024a4 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -697,3 +697,8 @@ void __init kmem_cache_init_late(void)
+ {
+ 	/* Nothing to do */
+ }
 +
- 		do {
- 			nr = shrink_slab(1000, GFP_KERNEL, 1000);
- 			if (page_count(p) == 0)
++struct kmem_cache *kmem_page_cache(struct page *p)
++{
++	return NULL;
++}
+diff --git a/mm/slub.c b/mm/slub.c
+index 13fffe1..df7b998 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4678,3 +4678,14 @@ static int __init slab_proc_init(void)
+ }
+ module_init(slab_proc_init);
+ #endif /* CONFIG_SLABINFO */
++
++/**
++ * kmem_page_cache - report kmem cache for page or NULL.
++ * @p: page
++ */
++struct kmem_cache *kmem_page_cache(struct page *p)
++{
++	if (!PageSlab(p))
++		return NULL;
++	return compound_head(p)->slab;
++}
 -- 
 1.7.1
 
