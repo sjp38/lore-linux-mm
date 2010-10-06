@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 717A86B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 17:42:28 -0400 (EDT)
-Date: Wed, 6 Oct 2010 16:42:24 -0500 (CDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 347466B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 17:44:54 -0400 (EDT)
+Date: Wed, 6 Oct 2010 16:44:51 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] SLAB: Add function to get slab cache for a page
-In-Reply-To: <1286398930-11956-2-git-send-email-andi@firstfloor.org>
-Message-ID: <alpine.DEB.2.00.1010061640240.8083@router.home>
-References: <1286398930-11956-1-git-send-email-andi@firstfloor.org> <1286398930-11956-2-git-send-email-andi@firstfloor.org>
+Subject: Re: [PATCH 2/2] HWPOISON: Attempt directed shrinking of slabs
+In-Reply-To: <20101006214200.GA10386@gargoyle.ger.corp.intel.com>
+Message-ID: <alpine.DEB.2.00.1010061643200.8083@router.home>
+References: <1286398930-11956-1-git-send-email-andi@firstfloor.org> <1286398930-11956-3-git-send-email-andi@firstfloor.org> <alpine.DEB.2.00.1010061618470.8083@router.home> <20101006214200.GA10386@gargoyle.ger.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, penberg@cs.helsinki.fi, mpm@selenic.com, Andi Kleen <ak@linux.intel.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, mpm@selenic.com, fengguang.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 6 Oct 2010, Andi Kleen wrote:
 
-> +struct kmem_cache *kmem_page_cache(struct page *p);
+> We currently call the shrinking in a loop, similar to other users.
 
-That sounds as if we do something with the page cache.
+Obviously. There is already a function that does that called drop_slab()
+which lives in fs/drop_caches.c
 
-kmem_cache_of_slab_page(struct page *)
 
-?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
