@@ -1,176 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 81CF46B0085
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 07:07:18 -0400 (EDT)
-Date: Wed, 6 Oct 2010 13:07:04 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
-Message-ID: <20101006110704.GW11145@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-4-git-send-email-gleb@redhat.com>
- <20101005155409.GB28955@amt.cnet>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F636B0087
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 07:07:57 -0400 (EDT)
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o96AqNjh005135
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 06:52:23 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o96B7jhf308214
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 07:07:45 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o96B7jg0019026
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 08:07:45 -0300
+Date: Wed, 6 Oct 2010 16:37:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 01/10] memcg: add page_cgroup flags for dirty page
+ tracking
+Message-ID: <20101006110739.GB4195@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+ <1286175485-30643-2-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101005155409.GB28955@amt.cnet>
+In-Reply-To: <1286175485-30643-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 05, 2010 at 12:54:09PM -0300, Marcelo Tosatti wrote:
-> On Mon, Oct 04, 2010 at 05:56:25PM +0200, Gleb Natapov wrote:
-> > When page is swapped in it is mapped into guest memory only after guest
-> > tries to access it again and generate another fault. To save this fault
-> > we can map it immediately since we know that guest is going to access
-> > the page. Do it only when tdp is enabled for now. Shadow paging case is
-> > more complicated. CR[034] and EFER registers should be switched before
-> > doing mapping and then switched back.
-> > 
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Signed-off-by: Gleb Natapov <gleb@redhat.com>
-> > ---
-> >  arch/x86/include/asm/kvm_host.h |    4 +++-
-> >  arch/x86/kvm/mmu.c              |   16 ++++++++--------
-> >  arch/x86/kvm/paging_tmpl.h      |    6 +++---
-> >  arch/x86/kvm/x86.c              |    7 +++++++
-> >  virt/kvm/async_pf.c             |    2 ++
-> >  5 files changed, 23 insertions(+), 12 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-> > index 5f154d3..b9f263e 100644
-> > --- a/arch/x86/include/asm/kvm_host.h
-> > +++ b/arch/x86/include/asm/kvm_host.h
-> > @@ -240,7 +240,7 @@ struct kvm_mmu {
-> >  	void (*new_cr3)(struct kvm_vcpu *vcpu);
-> >  	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
-> >  	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
-> > -	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
-> > +	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool no_apf);
-> >  	void (*inject_page_fault)(struct kvm_vcpu *vcpu);
-> >  	void (*free)(struct kvm_vcpu *vcpu);
-> >  	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access,
-> > @@ -838,6 +838,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
-> >  				     struct kvm_async_pf *work);
-> >  void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
-> >  				 struct kvm_async_pf *work);
-> > +void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
-> > +			       struct kvm_async_pf *work);
-> >  extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
-> >  
-> >  #endif /* _ASM_X86_KVM_HOST_H */
-> > diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> > index 4d49b5e..d85fda8 100644
-> > --- a/arch/x86/kvm/mmu.c
-> > +++ b/arch/x86/kvm/mmu.c
-> > @@ -2558,7 +2558,7 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
-> >  }
-> >  
-> >  static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
-> > -				u32 error_code)
-> > +				u32 error_code, bool no_apf)
-> >  {
-> >  	gfn_t gfn;
-> >  	int r;
-> > @@ -2594,8 +2594,8 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
-> >  	return kvm_x86_ops->interrupt_allowed(vcpu);
-> >  }
-> >  
-> > -static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
-> > -			 pfn_t *pfn)
-> > +static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
-> > +			 gva_t gva, pfn_t *pfn)
-> >  {
-> >  	bool async;
-> >  
-> > @@ -2606,7 +2606,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
-> >  
-> >  	put_page(pfn_to_page(*pfn));
-> >  
-> > -	if (can_do_async_pf(vcpu)) {
-> > +	if (!no_apf && can_do_async_pf(vcpu)) {
-> >  		trace_kvm_try_async_get_page(async, *pfn);
-> >  		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
-> >  			vcpu->async_pf.work = kvm_double_apf;
-> > @@ -2620,8 +2620,8 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
-> >  	return false;
-> >  }
-> >  
-> > -static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
-> > -				u32 error_code)
-> > +static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
-> > +			  bool no_apf)
-> >  {
-> >  	pfn_t pfn;
-> >  	int r;
-> > @@ -2643,7 +2643,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
-> >  	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-> >  	smp_rmb();
-> >  
-> > -	if (try_async_pf(vcpu, gfn, gpa, &pfn))
-> > +	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn))
-> >  		return 0;
-> >  
-> >  	/* mmio */
-> > @@ -3306,7 +3306,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
-> >  	int r;
-> >  	enum emulation_result er;
-> >  
-> > -	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
-> > +	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
-> >  	if (r < 0)
-> >  		goto out;
-> >  
-> > diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-> > index 8154353..9ad90f8 100644
-> > --- a/arch/x86/kvm/paging_tmpl.h
-> > +++ b/arch/x86/kvm/paging_tmpl.h
-> > @@ -530,8 +530,8 @@ out_gpte_changed:
-> >   *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
-> >   *           a negative value on error.
-> >   */
-> > -static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
-> > -			       u32 error_code)
-> > +static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
-> > +			     bool no_apf)
-> >  {
-> >  	int write_fault = error_code & PFERR_WRITE_MASK;
-> >  	int user_fault = error_code & PFERR_USER_MASK;
-> > @@ -574,7 +574,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
-> >  	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-> >  	smp_rmb();
-> >  
-> > -	if (try_async_pf(vcpu, walker.gfn, addr, &pfn))
-> > +	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn))
-> >  		return 0;
-> >  
-> >  	/* mmio */
-> > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> > index 8dd9ac2..48fd59d 100644
-> > --- a/arch/x86/kvm/x86.c
-> > +++ b/arch/x86/kvm/x86.c
-> > @@ -6123,6 +6123,13 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
-> >  }
-> >  EXPORT_SYMBOL_GPL(kvm_set_rflags);
-> >  
-> > +void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
-> > +{
-> > +	if (!tdp_enabled || is_error_page(work->page))
-> > +		return;
-> > +	vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
-> > +}
-> > +
-> 
-> Can't you set a bit in vcpu->requests instead, and handle it in "out:"
-> at the end of vcpu_enter_guest? 
-> 
-> To have a single entry point for pagefaults, after vmexit handling.
-Jumping to "out:" will skip vmexit handling anyway, so we will not reuse
-same call site anyway. I don't see yet why the way you propose will have
-an advantage.
+* Greg Thelen <gthelen@google.com> [2010-10-03 23:57:56]:
 
---
-			Gleb.
+> Add additional flags to page_cgroup to track dirty pages
+> within a mem_cgroup.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+>  include/linux/page_cgroup.h |   23 +++++++++++++++++++++++
+>  1 files changed, 23 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 5bb13b3..b59c298 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -40,6 +40,9 @@ enum {
+>  	PCG_USED, /* this object is in use. */
+>  	PCG_ACCT_LRU, /* page has been accounted for */
+>  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+> +	PCG_FILE_DIRTY, /* page is dirty */
+> +	PCG_FILE_WRITEBACK, /* page is under writeback */
+> +	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
+>  	PCG_MIGRATION, /* under page migration */
+>  };
+> 
+> @@ -59,6 +62,10 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
+> 
+> +#define TESTSETPCGFLAG(uname, lname)			\
+> +static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
+> +	{ return test_and_set_bit(PCG_##lname, &pc->flags);  }
+> +
+>  TESTPCGFLAG(Locked, LOCK)
+> 
+>  /* Cache flag is set only once (at allocation) */
+> @@ -80,6 +87,22 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
+>  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+>  TESTPCGFLAG(FileMapped, FILE_MAPPED)
+> 
+> +SETPCGFLAG(FileDirty, FILE_DIRTY)
+> +CLEARPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTCLEARPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTSETPCGFLAG(FileDirty, FILE_DIRTY)
+> +
+> +SETPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +CLEARPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +TESTPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +
+> +SETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +CLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTCLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTSETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +
+>  SETPCGFLAG(Migration, MIGRATION)
+>  CLEARPCGFLAG(Migration, MIGRATION)
+>  TESTPCGFLAG(Migration, MIGRATION)
+
+Looks good to me
+
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
