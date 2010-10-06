@@ -1,51 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 40BB96B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:55:16 -0400 (EDT)
-Date: Wed, 6 Oct 2010 12:55:04 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
-Message-ID: <20101006105504.GV11145@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-8-git-send-email-gleb@redhat.com>
- <20101005182554.GA1786@amt.cnet>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E988A6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 07:03:33 -0400 (EDT)
+Message-ID: <4CAC577F.9040401@rsk.demon.co.uk>
+Date: Wed, 06 Oct 2010 12:03:27 +0100
+From: Richard Kennedy <richard@rsk.demon.co.uk>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101005182554.GA1786@amt.cnet>
+Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
+References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
+In-Reply-To: <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 05, 2010 at 03:25:54PM -0300, Marcelo Tosatti wrote:
-> On Mon, Oct 04, 2010 at 05:56:29PM +0200, Gleb Natapov wrote:
-> > Enable async PF in a guest if async PF capability is discovered.
-> > 
-> > Signed-off-by: Gleb Natapov <gleb@redhat.com>
-> > ---
-> >  Documentation/kernel-parameters.txt |    3 +
-> >  arch/x86/include/asm/kvm_para.h     |    5 ++
-> >  arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
-> >  3 files changed, 100 insertions(+), 0 deletions(-)
-> > 
+On 06/10/10 09:01, Pekka Enberg wrote:
+> (Adding more people who've taken interest in slab performance in the
+> past to CC.)
 > 
-> > +static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
-> > +				    unsigned long action, void *hcpu)
-> > +{
-> > +	int cpu = (unsigned long)hcpu;
-> > +	switch (action) {
-> > +	case CPU_ONLINE:
-> > +	case CPU_DOWN_FAILED:
-> > +	case CPU_ONLINE_FROZEN:
-> > +		smp_call_function_single(cpu, kvm_guest_cpu_notify, NULL, 0);
-> 
-> wait parameter should probably be 1.
-Why should we wait for it? FWIW I copied this from somewhere (May be
-arch/x86/pci/amd_bus.c).
+> On Tue, Oct 5, 2010 at 9:57 PM, Christoph Lameter <cl@linux.com> wrote:
+>> V3->V4:
+>> - Lots of debugging
+>> - Performance optimizations (more would be good)...
+>> - Drop per slab locking in favor of per node locking for
+>>  partial lists (queuing implies freeing large amounts of objects
+>>  to per node lists of slab).
+>> - Implement object expiration via reclaim VM logic.
+>>
+>> The following is a release of an allocator based on SLAB
+>> and SLUB that integrates the best approaches from both allocators. The
+>> per cpu queuing is like in SLAB whereas much of the infrastructure
+>> comes from SLUB.
+>>
+>> After this patches SLUB will track the cpu cache contents
+>> like SLAB attemped to. There are a number of architectural differences:
+>>
+>> 1. SLUB accurately tracks cpu caches instead of assuming that there
+>>   is only a single cpu cache per node or system.
+>>
+>> 2. SLUB object expiration is tied into the page reclaim logic. There
+>>   is no periodic cache expiration.
+>>
+>> 3. SLUB caches are dynamically configurable via the sysfs filesystem.
+>>
+>> 4. There is no per slab page metadata structure to maintain (aside
+>>   from the object bitmap that usually fits into the page struct).
+>>
+>> 5. Has all the resiliency and diagnostic features of SLUB.
+>>
+>> The unified allocator is a merging of SLUB with some queuing concepts from
+>> SLAB and a new way of managing objects in the slabs using bitmaps. Memory
+>> wise this is slightly more inefficient than SLUB (due to the need to place
+>> large bitmaps --sized a few words--in some slab pages if there are more
+>> than BITS_PER_LONG objects in a slab) but in general does not increase space
+>> use too much.
+>>
+>> The SLAB scheme of not touching the object during management is adopted.
+>> The unified allocator can efficiently free and allocate cache cold objects
+>> without causing cache misses.
+>>
 
---
-			Gleb.
+
+Hi Christoph,
+What tree are these patches against ? I'm getting patch failures on the
+main tree.
+
+regards
+Richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
