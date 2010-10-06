@@ -1,193 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E956B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 14:34:33 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 08/10] memcg: add cgroupfs interface to memcg dirty limits
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-9-git-send-email-gthelen@google.com>
-	<20101005161340.9bb7382e.kamezawa.hiroyu@jp.fujitsu.com>
-	<xr93r5g5w0uc.fsf@ninji.mtv.corp.google.com>
-	<20101005091836.GA1698@linux.develer.com>
-Date: Wed, 06 Oct 2010 11:34:16 -0700
-In-Reply-To: <20101005091836.GA1698@linux.develer.com> (Andrea Righi's message
-	of "Tue, 5 Oct 2010 11:18:36 +0200")
-Message-ID: <xr937hhvjhlj.fsf@ninji.mtv.corp.google.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1FA2A6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:05:41 -0400 (EDT)
+Received: by fxm10 with SMTP id 10so6470032fxm.14
+        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 13:05:38 -0700 (PDT)
+Date: Wed, 6 Oct 2010 22:05:20 +0200
+From: Gleb Natapov <gleb@minantech.com>
+Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
+Message-ID: <20101006200520.GB4120@minantech.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-8-git-send-email-gleb@redhat.com>
+ <20101005182554.GA1786@amt.cnet>
+ <20101006105504.GV11145@redhat.com>
+ <20101006144512.GC31423@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101006144512.GC31423@amt.cnet>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <arighi@develer.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, David Rientjes <rientjes@google.com>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Righi <arighi@develer.com> writes:
+On Wed, Oct 06, 2010 at 11:45:12AM -0300, Marcelo Tosatti wrote:
+> On Wed, Oct 06, 2010 at 12:55:04PM +0200, Gleb Natapov wrote:
+> > On Tue, Oct 05, 2010 at 03:25:54PM -0300, Marcelo Tosatti wrote:
+> > > On Mon, Oct 04, 2010 at 05:56:29PM +0200, Gleb Natapov wrote:
+> > > > Enable async PF in a guest if async PF capability is discovered.
+> > > > 
+> > > > Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> > > > ---
+> > > >  Documentation/kernel-parameters.txt |    3 +
+> > > >  arch/x86/include/asm/kvm_para.h     |    5 ++
+> > > >  arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
+> > > >  3 files changed, 100 insertions(+), 0 deletions(-)
+> > > > 
+> > > 
+> > > > +static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
+> > > > +				    unsigned long action, void *hcpu)
+> > > > +{
+> > > > +	int cpu = (unsigned long)hcpu;
+> > > > +	switch (action) {
+> > > > +	case CPU_ONLINE:
+> > > > +	case CPU_DOWN_FAILED:
+> > > > +	case CPU_ONLINE_FROZEN:
+> > > > +		smp_call_function_single(cpu, kvm_guest_cpu_notify, NULL, 0);
+> > > 
+> > > wait parameter should probably be 1.
+> > Why should we wait for it? FWIW I copied this from somewhere (May be
+> > arch/x86/pci/amd_bus.c).
+> 
+> So that you know its executed in a defined point in cpu bringup.
+> 
+If I read code correctly CPU we are notified about is already running when
+callback is called, so I do not see what waiting for IPI to be processed will
+accomplish here. With many cpus we will make boot a little bit slower. I don't
+care too much though, so if you still think that 1 is required here I'll make
+it so. 
 
-> On Tue, Oct 05, 2010 at 12:33:15AM -0700, Greg Thelen wrote:
->> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
->> 
->> > On Sun,  3 Oct 2010 23:58:03 -0700
->> > Greg Thelen <gthelen@google.com> wrote:
->> >
->> >> Add cgroupfs interface to memcg dirty page limits:
->> >>   Direct write-out is controlled with:
->> >>   - memory.dirty_ratio
->> >>   - memory.dirty_bytes
->> >> 
->> >>   Background write-out is controlled with:
->> >>   - memory.dirty_background_ratio
->> >>   - memory.dirty_background_bytes
->> >> 
->> >> Signed-off-by: Andrea Righi <arighi@develer.com>
->> >> Signed-off-by: Greg Thelen <gthelen@google.com>
->> >
->> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> >
->> > a question below.
->> >
->> >
->> >> ---
->> >>  mm/memcontrol.c |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
->> >>  1 files changed, 89 insertions(+), 0 deletions(-)
->> >> 
->> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> >> index 6ec2625..2d45a0a 100644
->> >> --- a/mm/memcontrol.c
->> >> +++ b/mm/memcontrol.c
->> >> @@ -100,6 +100,13 @@ enum mem_cgroup_stat_index {
->> >>  	MEM_CGROUP_STAT_NSTATS,
->> >>  };
->> >>  
->> >> +enum {
->> >> +	MEM_CGROUP_DIRTY_RATIO,
->> >> +	MEM_CGROUP_DIRTY_BYTES,
->> >> +	MEM_CGROUP_DIRTY_BACKGROUND_RATIO,
->> >> +	MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
->> >> +};
->> >> +
->> >>  struct mem_cgroup_stat_cpu {
->> >>  	s64 count[MEM_CGROUP_STAT_NSTATS];
->> >>  };
->> >> @@ -4292,6 +4299,64 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->> >>  	return 0;
->> >>  }
->> >>  
->> >> +static u64 mem_cgroup_dirty_read(struct cgroup *cgrp, struct cftype *cft)
->> >> +{
->> >> +	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
->> >> +	bool root;
->> >> +
->> >> +	root = mem_cgroup_is_root(mem);
->> >> +
->> >> +	switch (cft->private) {
->> >> +	case MEM_CGROUP_DIRTY_RATIO:
->> >> +		return root ? vm_dirty_ratio : mem->dirty_param.dirty_ratio;
->> >> +	case MEM_CGROUP_DIRTY_BYTES:
->> >> +		return root ? vm_dirty_bytes : mem->dirty_param.dirty_bytes;
->> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
->> >> +		return root ? dirty_background_ratio :
->> >> +			mem->dirty_param.dirty_background_ratio;
->> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
->> >> +		return root ? dirty_background_bytes :
->> >> +			mem->dirty_param.dirty_background_bytes;
->> >> +	default:
->> >> +		BUG();
->> >> +	}
->> >> +}
->> >> +
->> >> +static int
->> >> +mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
->> >> +{
->> >> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->> >> +	int type = cft->private;
->> >> +
->> >> +	if (cgrp->parent == NULL)
->> >> +		return -EINVAL;
->> >> +	if ((type == MEM_CGROUP_DIRTY_RATIO ||
->> >> +	     type == MEM_CGROUP_DIRTY_BACKGROUND_RATIO) && val > 100)
->> >> +		return -EINVAL;
->> >> +	switch (type) {
->> >> +	case MEM_CGROUP_DIRTY_RATIO:
->> >> +		memcg->dirty_param.dirty_ratio = val;
->> >> +		memcg->dirty_param.dirty_bytes = 0;
->> >> +		break;
->> >> +	case MEM_CGROUP_DIRTY_BYTES:
->> >> +		memcg->dirty_param.dirty_bytes = val;
->> >> +		memcg->dirty_param.dirty_ratio  = 0;
->> >> +		break;
->> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
->> >> +		memcg->dirty_param.dirty_background_ratio = val;
->> >> +		memcg->dirty_param.dirty_background_bytes = 0;
->> >> +		break;
->> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
->> >> +		memcg->dirty_param.dirty_background_bytes = val;
->> >> +		memcg->dirty_param.dirty_background_ratio = 0;
->> >> +		break;
->> >
->> >
->> > Curious....is this same behavior as vm_dirty_ratio ?
->> 
->> I think this is same behavior as vm_dirty_ratio.  When vm_dirty_ratio is
->> changed then dirty_ratio_handler() will set vm_dirty_bytes=0.  When
->> vm_dirty_bytes is written dirty_bytes_handler() will set
->> vm_dirty_ratio=0.  So I think that the per-memcg dirty memory parameters
->> mimic the behavior of vm_dirty_ratio, vm_dirty_bytes and the other
->> global dirty parameters.
->> 
->> Am I missing your question?
->
-> mmh... looking at the code it seems the same behaviour, but in
-> Documentation/sysctl/vm.txt we say a different thing (i.e., for
-> dirty_bytes):
->
-> "If dirty_bytes is written, dirty_ratio becomes a function of its value
-> (dirty_bytes / the amount of dirtyable system memory)."
->
-> However, in dirty_bytes_handler()/dirty_ratio_handler() we actually set
-> the counterpart value as 0.
->
-> I think we should clarify the documentation.
->
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-
-Reviewed-by: Greg Thelen <gthelen@google.com>
-
-This documentation change is general cleanup that is independent of the
-memcg patch series shown on the subject.
-
-> ---
->  Documentation/sysctl/vm.txt |   12 ++++++++----
->  1 files changed, 8 insertions(+), 4 deletions(-)
->
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index b606c2c..30289fa 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -80,8 +80,10 @@ dirty_background_bytes
->  Contains the amount of dirty memory at which the pdflush background writeback
->  daemon will start writeback.
->  
-> -If dirty_background_bytes is written, dirty_background_ratio becomes a function
-> -of its value (dirty_background_bytes / the amount of dirtyable system memory).
-> +Note: dirty_background_bytes is the counterpart of dirty_background_ratio. Only
-> +one of them may be specified at a time. When one sysctl is written it is
-> +immediately taken into account to evaluate the dirty memory limits and the
-> +other appears as 0 when read.
->  
->  ==============================================================
->  
-> @@ -97,8 +99,10 @@ dirty_bytes
->  Contains the amount of dirty memory at which a process generating disk writes
->  will itself start writeback.
->  
-> -If dirty_bytes is written, dirty_ratio becomes a function of its value
-> -(dirty_bytes / the amount of dirtyable system memory).
-> +Note: dirty_bytes is the counterpart of dirty_ratio. Only one of them may be
-> +specified at a time. When one sysctl is written it is immediately taken into
-> +account to evaluate the dirty memory limits and the other appears as 0 when
-> +read.
->  
->  Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
->  value lower than this limit will be ignored and the old configuration will be
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
