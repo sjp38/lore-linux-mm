@@ -1,62 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1FA2A6B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:05:41 -0400 (EDT)
-Received: by fxm10 with SMTP id 10so6470032fxm.14
-        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 13:05:38 -0700 (PDT)
-Date: Wed, 6 Oct 2010 22:05:20 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id ADD946B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:08:52 -0400 (EDT)
+Received: by fxm10 with SMTP id 10so6472758fxm.14
+        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 13:08:50 -0700 (PDT)
+Date: Wed, 6 Oct 2010 22:08:36 +0200
 From: Gleb Natapov <gleb@minantech.com>
-Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
-Message-ID: <20101006200520.GB4120@minantech.com>
+Subject: Re: [PATCH v6 04/12] Add memory slot versioning and use it to
+ provide fast guest write interface
+Message-ID: <20101006200836.GC4120@minantech.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-8-git-send-email-gleb@redhat.com>
- <20101005182554.GA1786@amt.cnet>
- <20101006105504.GV11145@redhat.com>
- <20101006144512.GC31423@amt.cnet>
+ <1286207794-16120-5-git-send-email-gleb@redhat.com>
+ <20101005165738.GA32750@amt.cnet>
+ <20101006111417.GX11145@redhat.com>
+ <20101006143847.GB31423@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101006144512.GC31423@amt.cnet>
+In-Reply-To: <20101006143847.GB31423@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 To: Marcelo Tosatti <mtosatti@redhat.com>
 Cc: Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 06, 2010 at 11:45:12AM -0300, Marcelo Tosatti wrote:
-> On Wed, Oct 06, 2010 at 12:55:04PM +0200, Gleb Natapov wrote:
-> > On Tue, Oct 05, 2010 at 03:25:54PM -0300, Marcelo Tosatti wrote:
-> > > On Mon, Oct 04, 2010 at 05:56:29PM +0200, Gleb Natapov wrote:
-> > > > Enable async PF in a guest if async PF capability is discovered.
-> > > > 
-> > > > Signed-off-by: Gleb Natapov <gleb@redhat.com>
-> > > > ---
-> > > >  Documentation/kernel-parameters.txt |    3 +
-> > > >  arch/x86/include/asm/kvm_para.h     |    5 ++
-> > > >  arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
-> > > >  3 files changed, 100 insertions(+), 0 deletions(-)
-> > > > 
-> > > 
-> > > > +static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
-> > > > +				    unsigned long action, void *hcpu)
+On Wed, Oct 06, 2010 at 11:38:47AM -0300, Marcelo Tosatti wrote:
+> On Wed, Oct 06, 2010 at 01:14:17PM +0200, Gleb Natapov wrote:
+> > > > +int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+> > > > +			      gpa_t gpa)
 > > > > +{
-> > > > +	int cpu = (unsigned long)hcpu;
-> > > > +	switch (action) {
-> > > > +	case CPU_ONLINE:
-> > > > +	case CPU_DOWN_FAILED:
-> > > > +	case CPU_ONLINE_FROZEN:
-> > > > +		smp_call_function_single(cpu, kvm_guest_cpu_notify, NULL, 0);
+> > > > +	struct kvm_memslots *slots = kvm_memslots(kvm);
+> > > > +	int offset = offset_in_page(gpa);
+> > > > +	gfn_t gfn = gpa >> PAGE_SHIFT;
+> > > > +
+> > > > +	ghc->gpa = gpa;
+> > > > +	ghc->generation = slots->generation;
+> 
+> kvm->memslots can change here.
+> 
+> > > > +	ghc->memslot = gfn_to_memslot(kvm, gfn);
+> > > > +	ghc->hva = gfn_to_hva(kvm, gfn);
+> 
+> And if so, gfn_to_memslot / gfn_to_hva will use new memslots pointer.
+> 
+> Should dereference all values from one copy of kvm->memslots pointer.
+>  
+Ah, I see now. Thanks! Will fix.
+
+> > > > +	if (!kvm_is_error_hva(ghc->hva))
+> > > > +		ghc->hva += offset;
+> > > > +	else
+> > > > +		return -EFAULT;
+> > > > +
+> > > > +	return 0;
+> > > > +}
 > > > 
-> > > wait parameter should probably be 1.
-> > Why should we wait for it? FWIW I copied this from somewhere (May be
-> > arch/x86/pci/amd_bus.c).
+> > > Should use a unique kvm_memslots structure for the cache entry, since it
+> > > can change in between (use gfn_to_hva_memslot, etc on "slots" pointer).
+> > > 
+> > I do not understand what do you mean here. kvm_memslots structure itself
+> > is not cached only various translation that use it are cached. Translation
+> > result are never used if kvm_memslots was changed.
 > 
-> So that you know its executed in a defined point in cpu bringup.
+> > > Also should zap any cached entries on overflow, otherwise malicious
+> > > userspace could make use of stale slots:
+> > > 
+> > There is only one cached entry at each given time. User who wants to
+> > write into guest memory often defines gfn_to_hva_cache variable
+> > somewhere. Init it with kvm_gfn_to_hva_cache_init() and then calls
+> > kvm_write_guest_cached() on it. If there was no slot changes in between
+> > cached translation are used. Otherwise cache is recalculated.
 > 
-If I read code correctly CPU we are notified about is already running when
-callback is called, so I do not see what waiting for IPI to be processed will
-accomplish here. With many cpus we will make boot a little bit slower. I don't
-care too much though, so if you still think that 1 is required here I'll make
-it so. 
+> Malicious userspace can cause entry to be cached, ioctl
+> SET_USER_MEMORY_REGION 2^32 times, generation number will match,
+> mark_page_dirty_in_slot will be called with pointer to freed memory.
+> 
+Hmm. To zap all cached entires on overflow we need to track them. If we
+will track then we can zap them on each slot update and drop "generation"
+entirely.
 
 --
 			Gleb.
