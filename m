@@ -1,27 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1D76B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:00:31 -0400 (EDT)
-Date: Wed, 6 Oct 2010 11:00:25 -0500 (CDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1C68C6B0071
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:02:10 -0400 (EDT)
+Date: Wed, 6 Oct 2010 10:59:55 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-In-Reply-To: <4CAC577F.9040401@rsk.demon.co.uk>
-Message-ID: <alpine.DEB.2.00.1010061100080.31538@router.home>
-References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <4CAC577F.9040401@rsk.demon.co.uk>
+In-Reply-To: <87fwwjha2u.fsf@basil.nowhere.org>
+Message-ID: <alpine.DEB.2.00.1010061057160.31538@router.home>
+References: <20101005185725.088808842@linux.com> <87fwwjha2u.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Oct 2010, Richard Kennedy wrote:
+On Wed, 6 Oct 2010, Andi Kleen wrote:
 
-> Hi Christoph,
-> What tree are these patches against ? I'm getting patch failures on the
-> main tree.
+> Christoph Lameter <cl@linux.com> writes:
+>
+> Not looked at code so far, but just comments based on the
+> description. But thanks for working on this, it's good
+> to have alternatives to the ugly slab.c
+>
+> > V3->V4:
+> > - Lots of debugging
+> > - Performance optimizations (more would be good)...
+> > - Drop per slab locking in favor of per node locking for
+> >   partial lists (queuing implies freeing large amounts of objects
+> >   to per node lists of slab).
+>
+> Is that really a good idea? Nodes (= sockets) are getting larger and
+> larger and they are quite substantial SMPs by themselves now.
+> On Xeon 75xx you have 16 virtual CPUs per node.
 
-The patches are against Pekkas for-next tree.
+True. The shared caches can compensate for that. Without this I got
+regression because of too many atomic operations during draining and
+refilling.
+
+The other alternative is to stay with the current approach
+which minimizes the queuing etc overhead and can affort to have the
+overhead.
+
+> > 2. SLUB object expiration is tied into the page reclaim logic. There
+> >    is no periodic cache expiration.
+>
+> Hmm, but that means that you could fill a lot of memory with caches
+> before they get pruned right? Is there another limit too?
+
+The cache all have an limit on the number of objects in them (like SLAB).
+If you want less you can limit the sizes of the queues.
+Otherwise there is no other limit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
