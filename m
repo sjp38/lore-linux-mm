@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A475E6B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 20:53:24 -0400 (EDT)
-Date: Wed, 6 Oct 2010 09:49:28 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 02/10] memcg: document cgroup dirty memory interfaces
-Message-Id: <20101006094928.cae0dbf7.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1286175485-30643-3-git-send-email-gthelen@google.com>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-3-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3A9366B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 22:30:15 -0400 (EDT)
+Received: by qwb8 with SMTP id 8so127669qwb.14
+        for <linux-mm@kvack.org>; Tue, 05 Oct 2010 19:29:58 -0700 (PDT)
+Message-ID: <4CABDF0E.3050400@vflare.org>
+Date: Tue, 05 Oct 2010 22:29:34 -0400
+From: Nitin Gupta <ngupta@vflare.org>
+MIME-Version: 1.0
+Subject: Re: OOM panics with zram
+References: <1281374816-904-1-git-send-email-ngupta@vflare.org> <1284053081.7586.7910.camel@nimitz> <4CA8CE45.9040207@vflare.org> <20101005234300.GA14396@kroah.com>
+In-Reply-To: <20101005234300.GA14396@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Greg KH <greg@kroah.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Driver Project <devel@linuxdriverproject.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun,  3 Oct 2010 23:57:57 -0700
-Greg Thelen <gthelen@google.com> wrote:
-
-> Document cgroup dirty memory interfaces and statistics.
+On 10/5/2010 7:43 PM, Greg KH wrote:
+> On Sun, Oct 03, 2010 at 02:41:09PM -0400, Nitin Gupta wrote:
+>> Also, please do not use linux-next/mainline version of compcache. Instead
+>> just use version in the project repository here:
+>> hg clone https://compcache.googlecode.com/hg/ compcache 
 > 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+> What?  No, the reason we put this into the kernel was so that _everyone_
+> could work on it, including the original developers.  Going off and
+> doing development somewhere else just isn't ok.  Should I just delete
+> this driver from the staging tree as you don't seem to want to work with
+> the community at this point in time?
+>
 
-I think you will change "nfs" to "nfs_unstable", but anyway,
+Getting it out of -staging wasn't my intent. Community is the reason
+that this project still exists.
 
-Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-Thanks
-Daisuke Nishimura.
-
-> ---
->  Documentation/cgroups/memory.txt |   37 +++++++++++++++++++++++++++++++++++++
->  1 files changed, 37 insertions(+), 0 deletions(-)
+>> This is updated much more frequently and has many more bug fixes over
+>> the mainline. It will also be easier to fix bugs/add features much more
+>> quickly in this repo rather than sending them to lkml which can take
+>> long time.
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 7781857..eab65e2 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -385,6 +385,10 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
->  pgpgin		- # of pages paged in (equivalent to # of charging events).
->  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
->  swap		- # of bytes of swap usage
-> +dirty		- # of bytes that are waiting to get written back to the disk.
-> +writeback	- # of bytes that are actively being written back to the disk.
-> +nfs		- # of bytes sent to the NFS server, but not yet committed to
-> +		the actual storage.
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
->  		LRU list.
->  active_anon	- # of bytes of anonymous and swap cache memory on active
-> @@ -453,6 +457,39 @@ memory under it will be reclaimed.
->  You can reset failcnt by writing 0 to failcnt file.
->  # echo 0 > .../memory.failcnt
->  
-> +5.5 dirty memory
-> +
-> +Control the maximum amount of dirty pages a cgroup can have at any given time.
-> +
-> +Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
-> +page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
-> +not be able to consume more than their designated share of dirty pages and will
-> +be forced to perform write-out if they cross that limit.
-> +
-> +The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.  It
-> +is possible to configure a limit to trigger both a direct writeback or a
-> +background writeback performed by per-bdi flusher threads.  The root cgroup
-> +memory.dirty_* control files are read-only and match the contents of
-> +the /proc/sys/vm/dirty_* files.
-> +
-> +Per-cgroup dirty limits can be set using the following files in the cgroupfs:
-> +
-> +- memory.dirty_ratio: the amount of dirty memory (expressed as a percentage of
-> +  cgroup memory) at which a process generating dirty pages will itself start
-> +  writing out dirty data.
-> +
-> +- memory.dirty_bytes: the amount of dirty memory (expressed in bytes) in the
-> +  cgroup at which a process generating dirty pages will start itself writing out
-> +  dirty data.
-> +
-> +- memory.dirty_background_ratio: the amount of dirty memory of the cgroup
-> +  (expressed as a percentage of cgroup memory) at which background writeback
-> +  kernel threads will start writing out dirty data.
-> +
-> +- memory.dirty_background_bytes: the amount of dirty memory (expressed in bytes)
-> +  in the cgroup at which background writeback kernel threads will start writing
-> +  out dirty data.
-> +
->  6. Hierarchy support
->  
->  The memory controller supports a deep hierarchy and hierarchical accounting.
-> -- 
-> 1.7.1
+> Yes, developing in your own sandbox can always be faster, but there is
+> no feedback loop.
 > 
+
+I was finding it real hard to find time to properly discuss each patch
+over LKML, so I thought of shifting focus to local project repository
+and then later go through proper reviews.
+
+Thanks,
+Nitin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
