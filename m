@@ -1,94 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0819C6B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:52:13 -0400 (EDT)
-Date: Wed, 6 Oct 2010 12:52:03 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 40BB96B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:55:16 -0400 (EDT)
+Date: Wed, 6 Oct 2010 12:55:04 +0200
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 02/12] Halt vcpu if page it tries to access is
- swapped out.
-Message-ID: <20101006105203.GU11145@redhat.com>
+Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
+Message-ID: <20101006105504.GV11145@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-3-git-send-email-gleb@redhat.com>
- <20101005145916.GA28955@amt.cnet>
- <4CAC5459.3060004@redhat.com>
+ <1286207794-16120-8-git-send-email-gleb@redhat.com>
+ <20101005182554.GA1786@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CAC5459.3060004@redhat.com>
+In-Reply-To: <20101005182554.GA1786@amt.cnet>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 06, 2010 at 12:50:01PM +0200, Avi Kivity wrote:
->  On 10/05/2010 04:59 PM, Marcelo Tosatti wrote:
-> >On Mon, Oct 04, 2010 at 05:56:24PM +0200, Gleb Natapov wrote:
-> >>  If a guest accesses swapped out memory do not swap it in from vcpu thread
-> >>  context. Schedule work to do swapping and put vcpu into halted state
-> >>  instead.
-> >>
-> >>  Interrupts will still be delivered to the guest and if interrupt will
-> >>  cause reschedule guest will continue to run another task.
-> >>
-> >>  Signed-off-by: Gleb Natapov<gleb@redhat.com>
-> >>  ---
-> >>   arch/x86/include/asm/kvm_host.h |   17 +++
-> >>   arch/x86/kvm/Kconfig            |    1 +
-> >>   arch/x86/kvm/Makefile           |    1 +
-> >>   arch/x86/kvm/mmu.c              |   51 +++++++++-
-> >>   arch/x86/kvm/paging_tmpl.h      |    4 +-
-> >>   arch/x86/kvm/x86.c              |  109 +++++++++++++++++++-
-> >>   include/linux/kvm_host.h        |   31 ++++++
-> >>   include/trace/events/kvm.h      |   88 ++++++++++++++++
-> >>   virt/kvm/Kconfig                |    3 +
-> >>   virt/kvm/async_pf.c             |  220 +++++++++++++++++++++++++++++++++++++++
-> >>   virt/kvm/async_pf.h             |   36 +++++++
-> >>   virt/kvm/kvm_main.c             |   57 ++++++++--
-> >>   12 files changed, 603 insertions(+), 15 deletions(-)
-> >>   create mode 100644 virt/kvm/async_pf.c
-> >>   create mode 100644 virt/kvm/async_pf.h
-> >>
-> >
-> >>  +	async_pf_cache = NULL;
-> >>  +}
-> >>  +
-> >>  +void kvm_async_pf_vcpu_init(struct kvm_vcpu *vcpu)
-> >>  +{
-> >>  +	INIT_LIST_HEAD(&vcpu->async_pf.done);
-> >>  +	INIT_LIST_HEAD(&vcpu->async_pf.queue);
-> >>  +	spin_lock_init(&vcpu->async_pf.lock);
-> >>  +}
-> >>  +
-> >>  +static void async_pf_execute(struct work_struct *work)
-> >>  +{
-> >>  +	struct page *page;
-> >>  +	struct kvm_async_pf *apf =
-> >>  +		container_of(work, struct kvm_async_pf, work);
-> >>  +	struct mm_struct *mm = apf->mm;
-> >>  +	struct kvm_vcpu *vcpu = apf->vcpu;
-> >>  +	unsigned long addr = apf->addr;
-> >>  +	gva_t gva = apf->gva;
-> >>  +
-> >>  +	might_sleep();
-> >>  +
-> >>  +	use_mm(mm);
-> >>  +	down_read(&mm->mmap_sem);
-> >>  +	get_user_pages(current, mm, addr, 1, 1, 0,&page, NULL);
-> >>  +	up_read(&mm->mmap_sem);
-> >>  +	unuse_mm(mm);
-> >>  +
-> >>  +	spin_lock(&vcpu->async_pf.lock);
-> >>  +	list_add_tail(&apf->link,&vcpu->async_pf.done);
-> >>  +	apf->page = page;
-> >>  +	spin_unlock(&vcpu->async_pf.lock);
-> >
-> >This can fail, and apf->page become NULL.
+On Tue, Oct 05, 2010 at 03:25:54PM -0300, Marcelo Tosatti wrote:
+> On Mon, Oct 04, 2010 at 05:56:29PM +0200, Gleb Natapov wrote:
+> > Enable async PF in a guest if async PF capability is discovered.
+> > 
+> > Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> > ---
+> >  Documentation/kernel-parameters.txt |    3 +
+> >  arch/x86/include/asm/kvm_para.h     |    5 ++
+> >  arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
+> >  3 files changed, 100 insertions(+), 0 deletions(-)
+> > 
 > 
-> Does it even become NULL?  On error, get_user_pages() won't update
-> the pages argument, so page becomes garbage here.
+> > +static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
+> > +				    unsigned long action, void *hcpu)
+> > +{
+> > +	int cpu = (unsigned long)hcpu;
+> > +	switch (action) {
+> > +	case CPU_ONLINE:
+> > +	case CPU_DOWN_FAILED:
+> > +	case CPU_ONLINE_FROZEN:
+> > +		smp_call_function_single(cpu, kvm_guest_cpu_notify, NULL, 0);
 > 
-apf is allocated with kmem_cache_zalloc() and ->page is set to NULL in
-kvm_setup_async_pf() to be extra sure.
+> wait parameter should probably be 1.
+Why should we wait for it? FWIW I copied this from somewhere (May be
+arch/x86/pci/amd_bus.c).
 
 --
 			Gleb.
