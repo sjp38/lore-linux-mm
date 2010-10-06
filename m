@@ -1,97 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A7C6B0085
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:49:18 -0400 (EDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH 3/4] HWPOISON: Report correct address granuality for AO huge page errors
-Date: Wed,  6 Oct 2010 22:49:00 +0200
-Message-Id: <1286398141-13749-4-git-send-email-andi@firstfloor.org>
-In-Reply-To: <1286398141-13749-1-git-send-email-andi@firstfloor.org>
-References: <1286398141-13749-1-git-send-email-andi@firstfloor.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B73696B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:54:49 -0400 (EDT)
+Date: Wed, 6 Oct 2010 22:54:41 +0200
+From: Andrea Righi <arighi@develer.com>
+Subject: Re: [PATCH 08/10] memcg: add cgroupfs interface to memcg dirty
+ limits
+Message-ID: <20101006205440.GA1266@linux.develer.com>
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+ <1286175485-30643-9-git-send-email-gthelen@google.com>
+ <20101005161340.9bb7382e.kamezawa.hiroyu@jp.fujitsu.com>
+ <xr93r5g5w0uc.fsf@ninji.mtv.corp.google.com>
+ <20101005091836.GA1698@linux.develer.com>
+ <xr937hhvjhlj.fsf@ninji.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr937hhvjhlj.fsf@ninji.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: fengguang.wu@intel.com, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-From: Andi Kleen <ak@linux.intel.com>
+On Wed, Oct 06, 2010 at 11:34:16AM -0700, Greg Thelen wrote:
+> Andrea Righi <arighi@develer.com> writes:
+> 
+> > On Tue, Oct 05, 2010 at 12:33:15AM -0700, Greg Thelen wrote:
+> >> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> >> 
+> >> > On Sun,  3 Oct 2010 23:58:03 -0700
+> >> > Greg Thelen <gthelen@google.com> wrote:
+> >> >
+> >> >> Add cgroupfs interface to memcg dirty page limits:
+> >> >>   Direct write-out is controlled with:
+> >> >>   - memory.dirty_ratio
+> >> >>   - memory.dirty_bytes
+> >> >> 
+> >> >>   Background write-out is controlled with:
+> >> >>   - memory.dirty_background_ratio
+> >> >>   - memory.dirty_background_bytes
+> >> >> 
+> >> >> Signed-off-by: Andrea Righi <arighi@develer.com>
+> >> >> Signed-off-by: Greg Thelen <gthelen@google.com>
+> >> >
+> >> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >> >
+> >> > a question below.
+> >> >
+> >> >
+> >> >> ---
+> >> >>  mm/memcontrol.c |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >> >>  1 files changed, 89 insertions(+), 0 deletions(-)
+> >> >> 
+> >> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> >> index 6ec2625..2d45a0a 100644
+> >> >> --- a/mm/memcontrol.c
+> >> >> +++ b/mm/memcontrol.c
+> >> >> @@ -100,6 +100,13 @@ enum mem_cgroup_stat_index {
+> >> >>  	MEM_CGROUP_STAT_NSTATS,
+> >> >>  };
+> >> >>  
+> >> >> +enum {
+> >> >> +	MEM_CGROUP_DIRTY_RATIO,
+> >> >> +	MEM_CGROUP_DIRTY_BYTES,
+> >> >> +	MEM_CGROUP_DIRTY_BACKGROUND_RATIO,
+> >> >> +	MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
+> >> >> +};
+> >> >> +
+> >> >>  struct mem_cgroup_stat_cpu {
+> >> >>  	s64 count[MEM_CGROUP_STAT_NSTATS];
+> >> >>  };
+> >> >> @@ -4292,6 +4299,64 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+> >> >>  	return 0;
+> >> >>  }
+> >> >>  
+> >> >> +static u64 mem_cgroup_dirty_read(struct cgroup *cgrp, struct cftype *cft)
+> >> >> +{
+> >> >> +	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+> >> >> +	bool root;
+> >> >> +
+> >> >> +	root = mem_cgroup_is_root(mem);
+> >> >> +
+> >> >> +	switch (cft->private) {
+> >> >> +	case MEM_CGROUP_DIRTY_RATIO:
+> >> >> +		return root ? vm_dirty_ratio : mem->dirty_param.dirty_ratio;
+> >> >> +	case MEM_CGROUP_DIRTY_BYTES:
+> >> >> +		return root ? vm_dirty_bytes : mem->dirty_param.dirty_bytes;
+> >> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
+> >> >> +		return root ? dirty_background_ratio :
+> >> >> +			mem->dirty_param.dirty_background_ratio;
+> >> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
+> >> >> +		return root ? dirty_background_bytes :
+> >> >> +			mem->dirty_param.dirty_background_bytes;
+> >> >> +	default:
+> >> >> +		BUG();
+> >> >> +	}
+> >> >> +}
+> >> >> +
+> >> >> +static int
+> >> >> +mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+> >> >> +{
+> >> >> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> >> >> +	int type = cft->private;
+> >> >> +
+> >> >> +	if (cgrp->parent == NULL)
+> >> >> +		return -EINVAL;
+> >> >> +	if ((type == MEM_CGROUP_DIRTY_RATIO ||
+> >> >> +	     type == MEM_CGROUP_DIRTY_BACKGROUND_RATIO) && val > 100)
+> >> >> +		return -EINVAL;
+> >> >> +	switch (type) {
+> >> >> +	case MEM_CGROUP_DIRTY_RATIO:
+> >> >> +		memcg->dirty_param.dirty_ratio = val;
+> >> >> +		memcg->dirty_param.dirty_bytes = 0;
+> >> >> +		break;
+> >> >> +	case MEM_CGROUP_DIRTY_BYTES:
+> >> >> +		memcg->dirty_param.dirty_bytes = val;
+> >> >> +		memcg->dirty_param.dirty_ratio  = 0;
+> >> >> +		break;
+> >> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
+> >> >> +		memcg->dirty_param.dirty_background_ratio = val;
+> >> >> +		memcg->dirty_param.dirty_background_bytes = 0;
+> >> >> +		break;
+> >> >> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
+> >> >> +		memcg->dirty_param.dirty_background_bytes = val;
+> >> >> +		memcg->dirty_param.dirty_background_ratio = 0;
+> >> >> +		break;
+> >> >
+> >> >
+> >> > Curious....is this same behavior as vm_dirty_ratio ?
+> >> 
+> >> I think this is same behavior as vm_dirty_ratio.  When vm_dirty_ratio is
+> >> changed then dirty_ratio_handler() will set vm_dirty_bytes=0.  When
+> >> vm_dirty_bytes is written dirty_bytes_handler() will set
+> >> vm_dirty_ratio=0.  So I think that the per-memcg dirty memory parameters
+> >> mimic the behavior of vm_dirty_ratio, vm_dirty_bytes and the other
+> >> global dirty parameters.
+> >> 
+> >> Am I missing your question?
+> >
+> > mmh... looking at the code it seems the same behaviour, but in
+> > Documentation/sysctl/vm.txt we say a different thing (i.e., for
+> > dirty_bytes):
+> >
+> > "If dirty_bytes is written, dirty_ratio becomes a function of its value
+> > (dirty_bytes / the amount of dirtyable system memory)."
+> >
+> > However, in dirty_bytes_handler()/dirty_ratio_handler() we actually set
+> > the counterpart value as 0.
+> >
+> > I think we should clarify the documentation.
+> >
+> > Signed-off-by: Andrea Righi <arighi@develer.com>
+> 
+> Reviewed-by: Greg Thelen <gthelen@google.com>
+> 
+> This documentation change is general cleanup that is independent of the
+> memcg patch series shown on the subject.
 
-The SIGBUS user space signalling is supposed to report the
-address granuality of a corruption. Pass this information correctly
-for huge pages by querying the hpage order.
+Thanks Greg. I'll resend it as an independent patch.
 
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: fengguang.wu@intel.com
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- mm/memory-failure.c |   15 +++++++++------
- 1 files changed, 9 insertions(+), 6 deletions(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 9c26eec..886144b 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -183,10 +183,11 @@ EXPORT_SYMBOL_GPL(hwpoison_filter);
-  * signal.
-  */
- static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
--			unsigned long pfn)
-+			unsigned long pfn, struct page *page)
- {
- 	struct siginfo si;
- 	int ret;
-+	unsigned order;
- 
- 	printk(KERN_ERR
- 		"MCE %#lx: Killing %s:%d early due to hardware memory corruption\n",
-@@ -198,7 +199,8 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
- #ifdef __ARCH_SI_TRAPNO
- 	si.si_trapno = trapno;
- #endif
--	si.si_addr_lsb = PAGE_SHIFT;
-+	order = PageCompound(page) ? huge_page_order(page) : PAGE_SHIFT;
-+	si.si_addr_lsb = order;
- 	/*
- 	 * Don't use force here, it's convenient if the signal
- 	 * can be temporarily blocked.
-@@ -327,7 +329,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
-  * wrong earlier.
-  */
- static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
--			  int fail, unsigned long pfn)
-+			  int fail, struct page *page, unsigned long pfn)
- {
- 	struct to_kill *tk, *next;
- 
-@@ -341,7 +343,8 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
- 			if (fail || tk->addr_valid == 0) {
- 				printk(KERN_ERR
- 		"MCE %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
--					pfn, tk->tsk->comm, tk->tsk->pid);
-+					pfn,	
-+					tk->tsk->comm, tk->tsk->pid);
- 				force_sig(SIGKILL, tk->tsk);
- 			}
- 
-@@ -352,7 +355,7 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
- 			 * process anyways.
- 			 */
- 			else if (kill_proc_ao(tk->tsk, tk->addr, trapno,
--					      pfn) < 0)
-+					      pfn, page) < 0)
- 				printk(KERN_ERR
- 		"MCE %#lx: Cannot send advisory machine check signal to %s:%d\n",
- 					pfn, tk->tsk->comm, tk->tsk->pid);
-@@ -928,7 +931,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
- 	 * any accesses to the poisoned memory.
- 	 */
- 	kill_procs_ao(&tokill, !!PageDirty(hpage), trapno,
--		      ret != SWAP_SUCCESS, pfn);
-+		      ret != SWAP_SUCCESS, p, pfn);
- 
- 	return ret;
- }
--- 
-1.7.1
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
