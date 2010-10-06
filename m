@@ -1,51 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 67A2F6B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:43:31 -0400 (EDT)
-Date: Wed, 6 Oct 2010 18:43:26 +0200
-From: Andi Kleen <andi@firstfloor.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id E20F66B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:49:41 -0400 (EDT)
+Date: Wed, 6 Oct 2010 11:49:38 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-Message-ID: <20101006164326.GB17987@basil.fritz.box>
-References: <20101005185725.088808842@linux.com>
- <87fwwjha2u.fsf@basil.nowhere.org>
- <alpine.DEB.2.00.1010061057160.31538@router.home>
- <20101006162547.GA17987@basil.fritz.box>
- <alpine.DEB.2.00.1010061133210.31538@router.home>
+In-Reply-To: <20101006164326.GB17987@basil.fritz.box>
+Message-ID: <alpine.DEB.2.00.1010061148080.31538@router.home>
+References: <20101005185725.088808842@linux.com> <87fwwjha2u.fsf@basil.nowhere.org> <alpine.DEB.2.00.1010061057160.31538@router.home> <20101006162547.GA17987@basil.fritz.box> <alpine.DEB.2.00.1010061133210.31538@router.home>
+ <20101006164326.GB17987@basil.fritz.box>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1010061133210.31538@router.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 06, 2010 at 11:37:12AM -0500, Christoph Lameter wrote:
-> On Wed, 6 Oct 2010, Andi Kleen wrote:
-> 
-> > > True. The shared caches can compensate for that. Without this I got
-> > > regression because of too many atomic operations during draining and
-> > > refilling.
+On Wed, 6 Oct 2010, Andi Kleen wrote:
+
+> > > So it would depend on that total number of caches in the system?
 > >
-> > Could you just do it by smaller units? (e.g. cores on SMT systems)
-> 
-> The shared caches are not per node but per sharing domain (l3).
+> > Yes. Also the expiration is triggerable from user space. You can set up a
+> > cron job that triggers cache expiration every minute or so.
+> > movement also.
+>
+> That doesn't seem like a good way to do this to me. Such things should work
+> without special cron jobs.
 
-That's the same at least on Intel servers.
+Its trivial to add a 2 second timer (or another variant) if we want the
+exact slab cleanup behavior. However, then you have the disturbances again
+of running code by checking all the caches in the system on all cpus.
+Running the cleaning from reclaim avoids that.
 
-> > So it would depend on that total number of caches in the system?
-> 
-> Yes. Also the expiration is triggerable from user space. You can set up a
-> cron job that triggers cache expiration every minute or so.
-> movement also.
 
-That doesn't seem like a good way to do this to me. Such things should work
-without special cron jobs.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
