@@ -1,67 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E61416B0085
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 18:33:13 -0400 (EDT)
-Date: Thu, 7 Oct 2010 00:33:08 +0200
-From: Andrea Righi <arighi@develer.com>
-Subject: [PATCH] doc: clarify the behaviour of dirty_ratio/dirty_bytes
-Message-ID: <20101006223307.GA1520@linux.develer.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C21266B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 20:04:30 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9704Qhb010194
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 7 Oct 2010 09:04:26 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A73345DE57
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 09:04:26 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EE5F545DE53
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 09:04:25 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B22E8E38004
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 09:04:25 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FC8F1DB8040
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 09:04:25 +0900 (JST)
+Date: Thu, 7 Oct 2010 08:58:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC] Restrict size of page_cgroup->flags
+Message-Id: <20101007085858.0e07de59.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101006142314.GG4195@balbir.in.ibm.com>
+References: <20101006142314.GG4195@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Randy Dunlap <rdunlap@xenotime.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: containers@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-When dirty_ratio or dirty_bytes is written the other parameter is
-disabled and set to 0 (in dirty_bytes_handler() /
-dirty_ratio_handler()).
+On Wed, 6 Oct 2010 19:53:14 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-We do the same for dirty_background_ratio and dirty_background_bytes.
+> I propose restricting page_cgroup.flags to 16 bits. The patch for the
+> same is below. Comments?
+> 
+> 
+> Restrict the bits usage in page_cgroup.flags
+> 
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Restricting the flags helps control growth of the flags unbound.
+> Restriciting it to 16 bits gives us the possibility of merging
+> cgroup id with flags (atomicity permitting) and saving a whole
+> long word in page_cgroup
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-However, in the sysctl documentation, we say that the counterpart
-becomes a function of the old value, that is not correct.
+Doesn't make sense until you show the usage of existing bits.
+And I guess 16bit may be too large on 32bit systems.
 
-Clarify the documentation reporting the actual behaviour.
+Nack for now.
 
-Reviewed-by: Greg Thelen <gthelen@google.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Andrea Righi <arighi@develer.com>
----
- Documentation/sysctl/vm.txt |   12 ++++++++----
- 1 files changed, 8 insertions(+), 4 deletions(-)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index b606c2c..30289fa 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -80,8 +80,10 @@ dirty_background_bytes
- Contains the amount of dirty memory at which the pdflush background writeback
- daemon will start writeback.
- 
--If dirty_background_bytes is written, dirty_background_ratio becomes a function
--of its value (dirty_background_bytes / the amount of dirtyable system memory).
-+Note: dirty_background_bytes is the counterpart of dirty_background_ratio. Only
-+one of them may be specified at a time. When one sysctl is written it is
-+immediately taken into account to evaluate the dirty memory limits and the
-+other appears as 0 when read.
- 
- ==============================================================
- 
-@@ -97,8 +99,10 @@ dirty_bytes
- Contains the amount of dirty memory at which a process generating disk writes
- will itself start writeback.
- 
--If dirty_bytes is written, dirty_ratio becomes a function of its value
--(dirty_bytes / the amount of dirtyable system memory).
-+Note: dirty_bytes is the counterpart of dirty_ratio. Only one of them may be
-+specified at a time. When one sysctl is written it is immediately taken into
-+account to evaluate the dirty memory limits and the other appears as 0 when
-+read.
- 
- Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
- value lower than this limit will be ignored and the old configuration will be
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
