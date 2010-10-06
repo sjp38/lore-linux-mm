@@ -1,66 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id E9EA36B0071
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 00:04:11 -0400 (EDT)
-Message-ID: <4CABF4F3.7050002@zytor.com>
-Date: Tue, 05 Oct 2010 21:02:59 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0FB6B006A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 00:14:16 -0400 (EDT)
+Received: from hpaq5.eem.corp.google.com (hpaq5.eem.corp.google.com [172.25.149.5])
+	by smtp-out.google.com with ESMTP id o964EEnE002239
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 21:14:14 -0700
+Received: from iwn39 (iwn39.prod.google.com [10.241.68.103])
+	by hpaq5.eem.corp.google.com with ESMTP id o964Cop3027712
+	for <linux-mm@kvack.org>; Tue, 5 Oct 2010 21:14:13 -0700
+Received: by iwn39 with SMTP id 39so12883683iwn.40
+        for <linux-mm@kvack.org>; Tue, 05 Oct 2010 21:14:12 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <4CABF4F3.7050002@zytor.com>
+References: <1286265215-9025-1-git-send-email-walken@google.com>
+	<1286265215-9025-4-git-send-email-walken@google.com>
+	<4CABF4F3.7050002@zytor.com>
+Date: Tue, 5 Oct 2010 21:14:12 -0700
+Message-ID: <AANLkTi=+0i13JF552P7dF_JD+S10Lt8=+KySHdtg-Uex@mail.gmail.com>
 Subject: Re: [PATCH 3/3] access_error API cleanup
-References: <1286265215-9025-1-git-send-email-walken@google.com> <1286265215-9025-4-git-send-email-walken@google.com>
-In-Reply-To: <1286265215-9025-4-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>Andrew Morton <akpm@linux-foundation.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On 10/05/2010 12:53 AM, Michel Lespinasse wrote:
-> access_error() already takes error_code as an argument, so there is
-> no need for an additional write flag.
-> 
-> Signed-off-by: Michel Lespinasse <walken@google.com>
-> ---
->  arch/x86/mm/fault.c |    6 +++---
->  1 files changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index b355b92..844d46f 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -915,9 +915,9 @@ spurious_fault(unsigned long error_code, unsigned long address)
->  int show_unhandled_signals = 1;
->  
->  static inline int
-> -access_error(unsigned long error_code, int write, struct vm_area_struct *vma)
-> +access_error(unsigned long error_code, struct vm_area_struct *vma)
->  {
-> -	if (write) {
-> +	if (error_code & PF_WRITE) {
->  		/* write, present and write, not present: */
->  		if (unlikely(!(vma->vm_flags & VM_WRITE)))
->  			return 1;
-> @@ -1110,7 +1110,7 @@ retry:
->  	 * we can handle it..
->  	 */
->  good_area:
-> -	if (unlikely(access_error(error_code, write, vma))) {
-> +	if (unlikely(access_error(error_code, vma))) {
->  		bad_area_access_error(regs, error_code, address);
->  		return;
->  	}
+On Tue, Oct 5, 2010 at 9:02 PM, H. Peter Anvin <hpa@zytor.com> wrote:
+> I was going to put it into the x86 tree, but being part of a larger
+> series it gets messy.
 
-Acked-by: H. Peter Anvin <hpa@zytor.com>
+Yes. It's easy enough to reorder the patches, if we care about this
+one making it into 2.6.36 ahead of the rest, but it does not seem like
+a huge payoff either.
 
-I was going to put it into the x86 tree, but being part of a larger
-series it gets messy.
-
-	-hpa
+I figure barring any surprises, the series is likely to merge from -mm
+tree to mainline in time for 2.6.37 ?
 
 -- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
