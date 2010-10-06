@@ -1,144 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C473C6B006A
-	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 20:48:31 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 03/10] memcg: create extensible page stat update routines
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 454AC6B006A
+	for <linux-mm@kvack.org>; Tue,  5 Oct 2010 20:50:14 -0400 (EDT)
+Date: Wed, 6 Oct 2010 09:37:32 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 01/10] memcg: add page_cgroup flags for dirty page
+ tracking
+Message-Id: <20101006093732.3dc7a682.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <1286175485-30643-2-git-send-email-gthelen@google.com>
 References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-4-git-send-email-gthelen@google.com>
-	<20101005154250.GA9515@barrios-desktop>
-	<xr93aamstnpy.fsf@ninji.mtv.corp.google.com>
-	<AANLkTi=LsoJ+_rGGjXgPTESW4Hpi03XzUL_K2ULPLGxf@mail.gmail.com>
-Date: Tue, 05 Oct 2010 17:48:09 -0700
-In-Reply-To: <AANLkTi=LsoJ+_rGGjXgPTESW4Hpi03XzUL_K2ULPLGxf@mail.gmail.com>
-	(Minchan Kim's message of "Wed, 6 Oct 2010 08:57:15 +0900")
-Message-ID: <xr93y6acjgdy.fsf@ninji.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+	<1286175485-30643-2-git-send-email-gthelen@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
+To: Greg Thelen <gthelen@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim <minchan.kim@gmail.com> writes:
+On Sun,  3 Oct 2010 23:57:56 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> On Wed, Oct 6, 2010 at 4:59 AM, Greg Thelen <gthelen@google.com> wrote:
->> Minchan Kim <minchan.kim@gmail.com> writes:
->>
->>> On Sun, Oct 03, 2010 at 11:57:58PM -0700, Greg Thelen wrote:
->>>> Replace usage of the mem_cgroup_update_file_mapped() memcg
->>>> statistic update routine with two new routines:
->>>> * mem_cgroup_inc_page_stat()
->>>> * mem_cgroup_dec_page_stat()
->>>>
->>>> As before, only the file_mapped statistic is managed. =C2=A0However,
->>>> these more general interfaces allow for new statistics to be
->>>> more easily added. =C2=A0New statistics are added with memcg dirty
->>>> page accounting.
->>>>
->>>> Signed-off-by: Greg Thelen <gthelen@google.com>
->>>> Signed-off-by: Andrea Righi <arighi@develer.com>
->>>> ---
->>>> =C2=A0include/linux/memcontrol.h | =C2=A0 31 +++++++++++++++++++++++++=
-+++---
->>>> =C2=A0mm/memcontrol.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=
-=A0 17 ++++++++---------
->>>> =C2=A0mm/rmap.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0| =C2=A0 =C2=A04 ++--
->>>> =C2=A03 files changed, 38 insertions(+), 14 deletions(-)
->>>>
->>>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->>>> index 159a076..7c7bec4 100644
->>>> --- a/include/linux/memcontrol.h
->>>> +++ b/include/linux/memcontrol.h
->>>> @@ -25,6 +25,11 @@ struct page_cgroup;
->>>> =C2=A0struct page;
->>>> =C2=A0struct mm_struct;
->>>>
->>>> +/* Stats that can be updated by kernel. */
->>>> +enum mem_cgroup_write_page_stat_item {
->>>> + =C2=A0 =C2=A0MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss=
- */
->>>> +};
->>>> +
->>>
->>> mem_cgrou_"write"_page_stat_item?
->>> Does "write" make sense to abstract page_state generally?
->>
->> First I will summarize the portion of the design relevant to this
->> comment:
->>
->> This patch series introduces two sets of memcg statistics.
->> a) the writable set of statistics the kernel updates when pages change
->> =C2=A0 state (example: when a page becomes dirty) using:
->> =C2=A0 =C2=A0 mem_cgroup_inc_page_stat(struct page *page,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0enum mem_cgroup_write_page_stat_it=
-em idx)
->> =C2=A0 =C2=A0 mem_cgroup_dec_page_stat(struct page *page,
->> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0enum mem_cgroup_write_page_stat_it=
-em idx)
->>
->> b) the read-only set of statistics the kernel queries to measure the
->> =C2=A0 amount of dirty memory used by the current cgroup using:
->> =C2=A0 =C2=A0 s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_it=
-em item)
->>
->> =C2=A0 This read-only set of statistics is set of a higher level concept=
-ual
->> =C2=A0 counters. =C2=A0For example, MEMCG_NR_DIRTYABLE_PAGES is the sum =
-of the
->> =C2=A0 counts of pages in various states (active + inactive). =C2=A0mem_=
-cgroup
->> =C2=A0 exports this value as a higher level counter rather than individu=
-al
->> =C2=A0 counters (active & inactive) to minimize the number of calls into
->> =C2=A0 mem_cgroup_page_stat(). =C2=A0This avoids extra calls to cgroup t=
-ree
->> =C2=A0 iteration with for_each_mem_cgroup_tree().
->>
->> Notice that each of the two sets of statistics are addressed by a
->> different type, mem_cgroup_{read vs write}_page_stat_item.
->>
->> This particular patch (memcg: create extensible page stat update
->> routines) introduces part of this design. =C2=A0A later patch I emailed
->> (memcg: add dirty limits to mem_cgroup) added
->> mem_cgroup_read_page_stat_item.
->>
->>
->> I think the code would read better if I renamed
->> enum mem_cgroup_write_page_stat_item to
->> enum mem_cgroup_update_page_stat_item.
->>
->> Would this address your concern
->
-> Thanks for the kind explanation.
-> I understand your concept.
->
-> I think you makes update and query as completely different level
-> abstraction but you could use similar terms.
-> Even the terms(write VS read) make me more confusing.
->
-> How about renaming following as?
->
-> 1. mem_cgroup_write_page_stat_item -> mem_cgroup_page_stat_item
-> 2. mem_cgroup_read_page_stat_item -> mem_cgroup_nr_pages_item
->
-> At least it looks to be easy for me to understand the code.
-> But it's just my preference. If others think your semantic is more
-> desirable, I am not against it strongly.
+> Add additional flags to page_cgroup to track dirty pages
+> within a mem_cgroup.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-I think your suggestion is good.  I will include it in the next revision
-of the patch series.
+Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-> Thanks, Greg.
->
->>
->> --
->> Greg
->>
+Thanks,
+Daisuke Nishimura.
+
+> ---
+>  include/linux/page_cgroup.h |   23 +++++++++++++++++++++++
+>  1 files changed, 23 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 5bb13b3..b59c298 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -40,6 +40,9 @@ enum {
+>  	PCG_USED, /* this object is in use. */
+>  	PCG_ACCT_LRU, /* page has been accounted for */
+>  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+> +	PCG_FILE_DIRTY, /* page is dirty */
+> +	PCG_FILE_WRITEBACK, /* page is under writeback */
+> +	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
+>  	PCG_MIGRATION, /* under page migration */
+>  };
+>  
+> @@ -59,6 +62,10 @@ static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  static inline int TestClearPageCgroup##uname(struct page_cgroup *pc)	\
+>  	{ return test_and_clear_bit(PCG_##lname, &pc->flags);  }
+>  
+> +#define TESTSETPCGFLAG(uname, lname)			\
+> +static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
+> +	{ return test_and_set_bit(PCG_##lname, &pc->flags);  }
+> +
+>  TESTPCGFLAG(Locked, LOCK)
+>  
+>  /* Cache flag is set only once (at allocation) */
+> @@ -80,6 +87,22 @@ SETPCGFLAG(FileMapped, FILE_MAPPED)
+>  CLEARPCGFLAG(FileMapped, FILE_MAPPED)
+>  TESTPCGFLAG(FileMapped, FILE_MAPPED)
+>  
+> +SETPCGFLAG(FileDirty, FILE_DIRTY)
+> +CLEARPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTCLEARPCGFLAG(FileDirty, FILE_DIRTY)
+> +TESTSETPCGFLAG(FileDirty, FILE_DIRTY)
+> +
+> +SETPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +CLEARPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +TESTPCGFLAG(FileWriteback, FILE_WRITEBACK)
+> +
+> +SETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +CLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTCLEARPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +TESTSETPCGFLAG(FileUnstableNFS, FILE_UNSTABLE_NFS)
+> +
+>  SETPCGFLAG(Migration, MIGRATION)
+>  CLEARPCGFLAG(Migration, MIGRATION)
+>  TESTPCGFLAG(Migration, MIGRATION)
+> -- 
+> 1.7.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
