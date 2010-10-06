@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C2B6B6B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:41:44 -0400 (EDT)
-Date: Wed, 6 Oct 2010 12:41:32 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 10/12] Handle async PF in non preemptable context
-Message-ID: <20101006104132.GS11145@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-11-git-send-email-gleb@redhat.com>
- <20101005195149.GC1786@amt.cnet>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A5A6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 06:47:26 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
+References: <20101005185725.088808842@linux.com>
+Date: Wed, 06 Oct 2010 12:47:21 +0200
+In-Reply-To: <20101005185725.088808842@linux.com> (Christoph Lameter's message
+	of "Tue, 05 Oct 2010 13:57:25 -0500")
+Message-ID: <87fwwjha2u.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101005195149.GC1786@amt.cnet>
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 05, 2010 at 04:51:50PM -0300, Marcelo Tosatti wrote:
-> On Mon, Oct 04, 2010 at 05:56:32PM +0200, Gleb Natapov wrote:
-> > If async page fault is received by idle task or when preemp_count is
-> > not zero guest cannot reschedule, so do sti; hlt and wait for page to be
-> > ready. vcpu can still process interrupts while it waits for the page to
-> > be ready.
-> > 
-> > Acked-by: Rik van Riel <riel@redhat.com>
-> > Signed-off-by: Gleb Natapov <gleb@redhat.com>
-> > ---
-> >  arch/x86/kernel/kvm.c |   40 ++++++++++++++++++++++++++++++++++------
-> >  1 files changed, 34 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-> > index 36fb3e4..f73946f 100644
-> > --- a/arch/x86/kernel/kvm.c
-> > +++ b/arch/x86/kernel/kvm.c
-> > @@ -37,6 +37,7 @@
-> >  #include <asm/cpu.h>
-> >  #include <asm/traps.h>
-> >  #include <asm/desc.h>
-> > +#include <asm/tlbflush.h>
-> >  
-> >  #define MMU_QUEUE_SIZE 1024
-> >  
-> > @@ -78,6 +79,8 @@ struct kvm_task_sleep_node {
-> >  	wait_queue_head_t wq;
-> >  	u32 token;
-> >  	int cpu;
-> > +	bool halted;
-> > +	struct mm_struct *mm;
-> >  };
-> >  
-> >  static struct kvm_task_sleep_head {
-> > @@ -106,6 +109,11 @@ void kvm_async_pf_task_wait(u32 token)
-> >  	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
-> >  	struct kvm_task_sleep_node n, *e;
-> >  	DEFINE_WAIT(wait);
-> > +	int cpu, idle;
-> > +
-> > +	cpu = get_cpu();
-> > +	idle = idle_cpu(cpu);
-> > +	put_cpu();
-> >  
-> >  	spin_lock(&b->lock);
-> >  	e = _find_apf_task(b, token);
-> > @@ -119,19 +127,33 @@ void kvm_async_pf_task_wait(u32 token)
-> >  
-> >  	n.token = token;
-> >  	n.cpu = smp_processor_id();
-> > +	n.mm = current->active_mm;
-> > +	n.halted = idle || preempt_count() > 1;
-> > +	atomic_inc(&n.mm->mm_count);
-> 
-> Can't see why this reference is needed.
-I thought that if kernel thread does fault on behalf of some
-process mm can go away while kernel thread is sleeping. But it looks
-like kernel thread increase reference to mm it runs with by himself, so
-may be this is redundant (but not harmful).
+Christoph Lameter <cl@linux.com> writes:
 
---
-			Gleb.
+Not looked at code so far, but just comments based on the 
+description. But thanks for working on this, it's good
+to have alternatives to the ugly slab.c
+
+> V3->V4:
+> - Lots of debugging
+> - Performance optimizations (more would be good)...
+> - Drop per slab locking in favor of per node locking for
+>   partial lists (queuing implies freeing large amounts of objects
+>   to per node lists of slab).
+
+Is that really a good idea? Nodes (= sockets) are getting larger and 
+larger and they are quite substantial SMPs by themselves now.
+On Xeon 75xx you have 16 virtual CPUs per node.
+
+
+> 1. SLUB accurately tracks cpu caches instead of assuming that there
+>    is only a single cpu cache per node or system.
+>
+> 2. SLUB object expiration is tied into the page reclaim logic. There
+>    is no periodic cache expiration.
+
+Hmm, but that means that you could fill a lot of memory with caches
+before they get pruned right? Is there another limit too?
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
