@@ -1,107 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8021E6B0088
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 07:15:32 -0400 (EDT)
-Date: Wed, 6 Oct 2010 13:15:18 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 173DE6B0087
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 07:17:24 -0400 (EDT)
+Date: Wed, 6 Oct 2010 12:42:59 +0200
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 02/12] Halt vcpu if page it tries to access is
- swapped out.
-Message-ID: <20101006111518.GY11145@redhat.com>
+Subject: Re: [PATCH v6 09/12] Inject asynchronous page fault into a PV
+ guest if page is swapped out.
+Message-ID: <20101006104259.GT11145@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-3-git-send-email-gleb@redhat.com>
- <20101005145916.GA28955@amt.cnet>
+ <1286207794-16120-10-git-send-email-gleb@redhat.com>
+ <20101005190051.GB1786@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101005145916.GA28955@amt.cnet>
+In-Reply-To: <20101005190051.GB1786@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 To: Marcelo Tosatti <mtosatti@redhat.com>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 05, 2010 at 11:59:16AM -0300, Marcelo Tosatti wrote:
-> On Mon, Oct 04, 2010 at 05:56:24PM +0200, Gleb Natapov wrote:
-> > If a guest accesses swapped out memory do not swap it in from vcpu thread
-> > context. Schedule work to do swapping and put vcpu into halted state
-> > instead.
+On Tue, Oct 05, 2010 at 04:00:51PM -0300, Marcelo Tosatti wrote:
+> On Mon, Oct 04, 2010 at 05:56:31PM +0200, Gleb Natapov wrote:
+> > Send async page fault to a PV guest if it accesses swapped out memory.
+> > Guest will choose another task to run upon receiving the fault.
 > > 
-> > Interrupts will still be delivered to the guest and if interrupt will
-> > cause reschedule guest will continue to run another task.
+> > Allow async page fault injection only when guest is in user mode since
+> > otherwise guest may be in non-sleepable context and will not be able
+> > to reschedule.
+> > 
+> > Vcpu will be halted if guest will fault on the same page again or if
+> > vcpu executes kernel code.
 > > 
 > > Signed-off-by: Gleb Natapov <gleb@redhat.com>
 > > ---
-> >  arch/x86/include/asm/kvm_host.h |   17 +++
-> >  arch/x86/kvm/Kconfig            |    1 +
-> >  arch/x86/kvm/Makefile           |    1 +
-> >  arch/x86/kvm/mmu.c              |   51 +++++++++-
-> >  arch/x86/kvm/paging_tmpl.h      |    4 +-
-> >  arch/x86/kvm/x86.c              |  109 +++++++++++++++++++-
-> >  include/linux/kvm_host.h        |   31 ++++++
-> >  include/trace/events/kvm.h      |   88 ++++++++++++++++
-> >  virt/kvm/Kconfig                |    3 +
-> >  virt/kvm/async_pf.c             |  220 +++++++++++++++++++++++++++++++++++++++
-> >  virt/kvm/async_pf.h             |   36 +++++++
-> >  virt/kvm/kvm_main.c             |   57 ++++++++--
-> >  12 files changed, 603 insertions(+), 15 deletions(-)
-> >  create mode 100644 virt/kvm/async_pf.c
-> >  create mode 100644 virt/kvm/async_pf.h
+> >  arch/x86/include/asm/kvm_host.h |    3 ++
+> >  arch/x86/kvm/mmu.c              |    1 +
+> >  arch/x86/kvm/x86.c              |   49 ++++++++++++++++++++++++++++++++------
+> >  include/trace/events/kvm.h      |   17 ++++++++----
+> >  virt/kvm/async_pf.c             |    3 +-
+> >  5 files changed, 58 insertions(+), 15 deletions(-)
 > > 
-> 
-> > +	async_pf_cache = NULL;
-> > +}
-> > +
-> > +void kvm_async_pf_vcpu_init(struct kvm_vcpu *vcpu)
+> > diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> > index de31551..2f6fc87 100644
+> > --- a/arch/x86/include/asm/kvm_host.h
+> > +++ b/arch/x86/include/asm/kvm_host.h
+> > @@ -419,6 +419,7 @@ struct kvm_vcpu_arch {
+> >  		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
+> >  		struct gfn_to_hva_cache data;
+> >  		u64 msr_val;
+> > +		u32 id;
+> >  	} apf;
+> >  };
+> >  
+> > @@ -594,6 +595,7 @@ struct kvm_x86_ops {
+> >  };
+> >  
+> >  struct kvm_arch_async_pf {
+> > +	u32 token;
+> >  	gfn_t gfn;
+> >  };
+> >  
+> > @@ -842,6 +844,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+> >  				 struct kvm_async_pf *work);
+> >  void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
+> >  			       struct kvm_async_pf *work);
+> > +bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+> >  extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
+> >  
+> >  #endif /* _ASM_X86_KVM_HOST_H */
+> > diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> > index d85fda8..de53cab 100644
+> > --- a/arch/x86/kvm/mmu.c
+> > +++ b/arch/x86/kvm/mmu.c
+> > @@ -2580,6 +2580,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+> >  int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
+> >  {
+> >  	struct kvm_arch_async_pf arch;
+> > +	arch.token = (vcpu->arch.apf.id++ << 12) | vcpu->vcpu_id;
+> >  	arch.gfn = gfn;
+> >  
+> >  	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
+> > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> > index 3e123ab..0e69d37 100644
+> > --- a/arch/x86/kvm/x86.c
+> > +++ b/arch/x86/kvm/x86.c
+> > @@ -6225,25 +6225,58 @@ static void kvm_del_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
+> >  	}
+> >  }
+> >  
+> > +static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
 > > +{
-> > +	INIT_LIST_HEAD(&vcpu->async_pf.done);
-> > +	INIT_LIST_HEAD(&vcpu->async_pf.queue);
-> > +	spin_lock_init(&vcpu->async_pf.lock);
+> > +
+> > +	return kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.apf.data, &val,
+> > +				      sizeof(val));
 > > +}
 > > +
-> > +static void async_pf_execute(struct work_struct *work)
-> > +{
-> > +	struct page *page;
-> > +	struct kvm_async_pf *apf =
-> > +		container_of(work, struct kvm_async_pf, work);
-> > +	struct mm_struct *mm = apf->mm;
-> > +	struct kvm_vcpu *vcpu = apf->vcpu;
-> > +	unsigned long addr = apf->addr;
-> > +	gva_t gva = apf->gva;
+> >  void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+> >  				     struct kvm_async_pf *work)
+> >  {
+> > -	vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+> > -
+> > -	if (work == kvm_double_apf)
+> > +	if (work == kvm_double_apf) {
+> >  		trace_kvm_async_pf_doublefault(kvm_rip_read(vcpu));
+> > -	else {
+> > -		trace_kvm_async_pf_not_present(work->gva);
+> > -
+> > +		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+> > +	} else {
+> > +		trace_kvm_async_pf_not_present(work->arch.token, work->gva);
+> >  		kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
 > > +
-> > +	might_sleep();
-> > +
-> > +	use_mm(mm);
-> > +	down_read(&mm->mmap_sem);
-> > +	get_user_pages(current, mm, addr, 1, 1, 0, &page, NULL);
-> > +	up_read(&mm->mmap_sem);
-> > +	unuse_mm(mm);
-> > +
-> > +	spin_lock(&vcpu->async_pf.lock);
-> > +	list_add_tail(&apf->link, &vcpu->async_pf.done);
-> > +	apf->page = page;
-> > +	spin_unlock(&vcpu->async_pf.lock);
+> > +		if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
+> > +		    kvm_x86_ops->get_cpl(vcpu) == 0)
+> > +			vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
+> > +		else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
+> > +			vcpu->arch.fault.error_code = 0;
+> > +			vcpu->arch.fault.address = work->arch.token;
+> > +			kvm_inject_page_fault(vcpu);
+> > +		}
 > 
-> This can fail, and apf->page become NULL.
-> 
-> > +	if (list_empty_careful(&vcpu->async_pf.done))
-> > +		return;
-> > +
-> > +	spin_lock(&vcpu->async_pf.lock);
-> > +	work = list_first_entry(&vcpu->async_pf.done, typeof(*work), link);
-> > +	list_del(&work->link);
-> > +	spin_unlock(&vcpu->async_pf.lock);
-> > +
-> > +	kvm_arch_async_page_present(vcpu, work);
-> > +
-> > +free:
-> > +	list_del(&work->queue);
-> > +	vcpu->async_pf.queued--;
-> > +	put_page(work->page);
-> > +	kmem_cache_free(async_pf_cache, work);
-> > +}
-> 
-> Better handle it here (and other sites).
-Yeah. We should just reenter gust and let usual code path handle error
-on next guest access.
+> Missed !kvm_event_needs_reinjection(vcpu) ? 
+This check is done in can_do_async_pf(). We will not get here if event is pending.
 
 --
 			Gleb.
