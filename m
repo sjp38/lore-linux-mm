@@ -1,85 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id ADD946B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:08:52 -0400 (EDT)
-Received: by fxm10 with SMTP id 10so6472758fxm.14
-        for <linux-mm@kvack.org>; Wed, 06 Oct 2010 13:08:50 -0700 (PDT)
-Date: Wed, 6 Oct 2010 22:08:36 +0200
-From: Gleb Natapov <gleb@minantech.com>
-Subject: Re: [PATCH v6 04/12] Add memory slot versioning and use it to
- provide fast guest write interface
-Message-ID: <20101006200836.GC4120@minantech.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-5-git-send-email-gleb@redhat.com>
- <20101005165738.GA32750@amt.cnet>
- <20101006111417.GX11145@redhat.com>
- <20101006143847.GB31423@amt.cnet>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101006143847.GB31423@amt.cnet>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 558716B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 16:11:07 -0400 (EDT)
+Date: Wed, 6 Oct 2010 13:10:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC]vmscan: doing page_referenced() in batch way
+Message-Id: <20101006131052.e3ae026f.akpm@linux-foundation.org>
+In-Reply-To: <1285729053.27440.13.camel@sli10-conroe.sh.intel.com>
+References: <1285729053.27440.13.camel@sli10-conroe.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Shaohua Li <shaohua.li@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, riel@redhat.com, Andi Kleen <andi@firstfloor.org>, hughd@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 06, 2010 at 11:38:47AM -0300, Marcelo Tosatti wrote:
-> On Wed, Oct 06, 2010 at 01:14:17PM +0200, Gleb Natapov wrote:
-> > > > +int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-> > > > +			      gpa_t gpa)
-> > > > +{
-> > > > +	struct kvm_memslots *slots = kvm_memslots(kvm);
-> > > > +	int offset = offset_in_page(gpa);
-> > > > +	gfn_t gfn = gpa >> PAGE_SHIFT;
-> > > > +
-> > > > +	ghc->gpa = gpa;
-> > > > +	ghc->generation = slots->generation;
-> 
-> kvm->memslots can change here.
-> 
-> > > > +	ghc->memslot = gfn_to_memslot(kvm, gfn);
-> > > > +	ghc->hva = gfn_to_hva(kvm, gfn);
-> 
-> And if so, gfn_to_memslot / gfn_to_hva will use new memslots pointer.
-> 
-> Should dereference all values from one copy of kvm->memslots pointer.
+On Wed, 29 Sep 2010 10:57:33 +0800
+Shaohua Li <shaohua.li@intel.com> wrote:
+
+> when memory pressure is high, page_referenced() causes a lot of lock contention
+> for anon_vma->lock or mapping->i_mmap_lock. Considering pages from one file
+> usually live side by side in LRU list, we can lock several pages in
+> shrink_page_list() and do batch page_referenced() to avoid some lock/unlock,
+> which should reduce lock contention a lot. The locking rule documented in
+> rmap.c is:
+> page_lock
+> 	mapping->i_mmap_lock
+> 		anon_vma->lock
+> For a batch of pages, we do page lock for all of them first and check their
+> reference, and then release their i_mmap_lock or anon_vma lock. This seems not
+> break the rule to me.
+> Before I further polish the patch, I'd like to know if there is anything
+> preventing us to do such batch here.
+
+The patch adds quite a bit of complexity, so we'd need to see benchmark
+testing results which justify it, please.
+
+Also, the entire patch is irrelevant for uniprocessor machines, so the
+runtime overhead and code-size increases for CONFIG_SMP=n builds should
+be as low as possible - ideally zero.  Please quantify this as well
+within the changelog if you pursue this work.
+
+>
+> ...
+>
+> +#define PRC_PAGE_NUM 8
+> +struct page_reference_control {
+> +	int num;
+> +	struct page *pages[PRC_PAGE_NUM];
+> +	int references[PRC_PAGE_NUM];
+> +	struct anon_vma *anon_vma;
+> +	struct address_space *mapping;
+> +	/* no ksm */
+> +};
+
+hm, 120 bytes of stack consumed, deep in page reclaim.
+
+>  #endif
 >  
-Ah, I see now. Thanks! Will fix.
+>  extern int hwpoison_filter(struct page *p);
+>
+> ...
+>
+>  static int page_referenced_file(struct page *page,
+>  				struct mem_cgroup *mem_cont,
+> -				unsigned long *vm_flags)
+> +				unsigned long *vm_flags,
+> +				struct page_reference_control *prc)
+>  {
+>  	unsigned int mapcount;
+>  	struct address_space *mapping = page->mapping;
+> @@ -603,8 +623,25 @@ static int page_referenced_file(struct p
+>  	 */
+>  	BUG_ON(!PageLocked(page));
+>  
+> -	spin_lock(&mapping->i_mmap_lock);
+> +	if (prc) {
+> +		if (mapping == prc->mapping) {
+> +			goto skip_lock;
+> +		}
+> +		if (prc->anon_vma) {
+> +			page_unlock_anon_vma(prc->anon_vma);
+> +			prc->anon_vma = NULL;
+> +		}
+> +		if (prc->mapping) {
+> +			spin_unlock(&prc->mapping->i_mmap_lock);
+> +			prc->mapping = NULL;
+> +		}
+> +		prc->mapping = mapping;
+> +
+> +		spin_lock(&mapping->i_mmap_lock);
+> +	} else
+> +		spin_lock(&mapping->i_mmap_lock);
 
-> > > > +	if (!kvm_is_error_hva(ghc->hva))
-> > > > +		ghc->hva += offset;
-> > > > +	else
-> > > > +		return -EFAULT;
-> > > > +
-> > > > +	return 0;
-> > > > +}
-> > > 
-> > > Should use a unique kvm_memslots structure for the cache entry, since it
-> > > can change in between (use gfn_to_hva_memslot, etc on "slots" pointer).
-> > > 
-> > I do not understand what do you mean here. kvm_memslots structure itself
-> > is not cached only various translation that use it are cached. Translation
-> > result are never used if kvm_memslots was changed.
-> 
-> > > Also should zap any cached entries on overflow, otherwise malicious
-> > > userspace could make use of stale slots:
-> > > 
-> > There is only one cached entry at each given time. User who wants to
-> > write into guest memory often defines gfn_to_hva_cache variable
-> > somewhere. Init it with kvm_gfn_to_hva_cache_init() and then calls
-> > kvm_write_guest_cached() on it. If there was no slot changes in between
-> > cached translation are used. Otherwise cache is recalculated.
-> 
-> Malicious userspace can cause entry to be cached, ioctl
-> SET_USER_MEMORY_REGION 2^32 times, generation number will match,
-> mark_page_dirty_in_slot will be called with pointer to freed memory.
-> 
-Hmm. To zap all cached entires on overflow we need to track them. If we
-will track then we can zap them on each slot update and drop "generation"
-entirely.
+Move the spin_lock() outside, remove the `else' part.
 
---
-			Gleb.
+> +skip_lock:
+>  	/*
+>  	 * i_mmap_lock does not stabilize mapcount at all, but mapcount
+>  	 * is more likely to be accurate if we note it after spinning.
+> @@ -628,7 +665,8 @@ static int page_referenced_file(struct p
+>  			break;
+>  	}
+>  
+> -	spin_unlock(&mapping->i_mmap_lock);
+> +	if (!prc)
+> +		spin_unlock(&mapping->i_mmap_lock);
+>  	return referenced;
+>  }
+>  
+>
+> ...
+>
+> +static void do_prc_batch(struct scan_control *sc,
+> +	struct page_reference_control *prc)
+> +{
+> +	int i;
+> +	for (i = 0; i < prc->num; i++)
+> +		prc->references[i] = page_check_references(prc->pages[i], sc,
+> +			prc);
+> +	/*
+> +	 * we must release all locks here, the lock ordering requries
+> +	 * pagelock->
+> +	 *   mapping->i_mmap_lock->
+> +	 *     anon_vma->lock
+> +	 * release lock guarantee we don't break the rule in next run
+> +	 */
+> +	if (prc->anon_vma) {
+> +		page_unlock_anon_vma(prc->anon_vma);
+> +		prc->anon_vma = NULL;
+> +	}
+> +	if (prc->mapping) {
+> +		spin_unlock(&prc->mapping->i_mmap_lock);
+> +		prc->mapping = NULL;
+> +	}
+> +}
+
+I didn't check the locking alterations.
+
+> +static int page_check_references_batch(struct page *page, struct scan_control *sc,
+> +	struct page_reference_control *prc)
+> +{
+> +	/* bypass ksm pages */
+> +	if (PageKsm(page))
+> +		return 1;
+
+A general point about code comments: the comment shouldn't describe
+"what" the code is doing unless that is unobvious.  The comment should
+explain "why" the code is doing something.  Because that is something
+which the code itself cannot explain.
+
+> +	if (prc->num < PRC_PAGE_NUM)
+> +		prc->pages[prc->num] = page;
+> +	prc->num++;
+> +	if (prc->num == PRC_PAGE_NUM)
+> +		return 1;
+> +	return 0;
+> +}
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
