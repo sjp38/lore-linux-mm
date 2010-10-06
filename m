@@ -1,56 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1C68C6B0071
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:02:10 -0400 (EDT)
-Date: Wed, 6 Oct 2010 10:59:55 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-In-Reply-To: <87fwwjha2u.fsf@basil.nowhere.org>
-Message-ID: <alpine.DEB.2.00.1010061057160.31538@router.home>
-References: <20101005185725.088808842@linux.com> <87fwwjha2u.fsf@basil.nowhere.org>
+	by kanga.kvack.org (Postfix) with ESMTP id ABB0A6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 12:19:48 -0400 (EDT)
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by e7.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o96G4N6Y032444
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 12:04:23 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o96GJkgM152694
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 12:19:46 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o96GJjTL031767
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 13:19:46 -0300
+Date: Wed, 6 Oct 2010 21:49:09 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/10] memcg: create extensible page stat update routines
+Message-ID: <20101006161909.GI4195@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+ <1286175485-30643-4-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1286175485-30643-4-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Oct 2010, Andi Kleen wrote:
+* Greg Thelen <gthelen@google.com> [2010-10-03 23:57:58]:
 
-> Christoph Lameter <cl@linux.com> writes:
->
-> Not looked at code so far, but just comments based on the
-> description. But thanks for working on this, it's good
-> to have alternatives to the ugly slab.c
->
-> > V3->V4:
-> > - Lots of debugging
-> > - Performance optimizations (more would be good)...
-> > - Drop per slab locking in favor of per node locking for
-> >   partial lists (queuing implies freeing large amounts of objects
-> >   to per node lists of slab).
->
-> Is that really a good idea? Nodes (= sockets) are getting larger and
-> larger and they are quite substantial SMPs by themselves now.
-> On Xeon 75xx you have 16 virtual CPUs per node.
+> Replace usage of the mem_cgroup_update_file_mapped() memcg
+> statistic update routine with two new routines:
+> * mem_cgroup_inc_page_stat()
+> * mem_cgroup_dec_page_stat()
+> 
+> As before, only the file_mapped statistic is managed.  However,
+> these more general interfaces allow for new statistics to be
+> more easily added.  New statistics are added with memcg dirty
+> page accounting.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> ---
+>  include/linux/memcontrol.h |   31 ++++++++++++++++++++++++++++---
+>  mm/memcontrol.c            |   17 ++++++++---------
+>  mm/rmap.c                  |    4 ++--
+>  3 files changed, 38 insertions(+), 14 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 159a076..7c7bec4 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -25,6 +25,11 @@ struct page_cgroup;
+>  struct page;
+>  struct mm_struct;
+> 
+> +/* Stats that can be updated by kernel. */
+> +enum mem_cgroup_write_page_stat_item {
+> +	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
+> +};
+> +
+>  extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  					struct list_head *dst,
+>  					unsigned long *scanned, int order,
+> @@ -121,7 +126,22 @@ static inline bool mem_cgroup_disabled(void)
+>  	return false;
+>  }
+> 
+> -void mem_cgroup_update_file_mapped(struct page *page, int val);
+> +void mem_cgroup_update_page_stat(struct page *page,
+> +				 enum mem_cgroup_write_page_stat_item idx,
+> +				 int val);
+> +
+> +static inline void mem_cgroup_inc_page_stat(struct page *page,
+> +				enum mem_cgroup_write_page_stat_item idx)
+> +{
+> +	mem_cgroup_update_page_stat(page, idx, 1);
+> +}
+> +
+> +static inline void mem_cgroup_dec_page_stat(struct page *page,
+> +				enum mem_cgroup_write_page_stat_item idx)
+> +{
+> +	mem_cgroup_update_page_stat(page, idx, -1);
+> +}
+> +
+>  unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask);
+>  u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
+> @@ -293,8 +313,13 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>  {
+>  }
+> 
+> -static inline void mem_cgroup_update_file_mapped(struct page *page,
+> -							int val)
+> +static inline void mem_cgroup_inc_page_stat(struct page *page,
+> +				enum mem_cgroup_write_page_stat_item idx)
+> +{
+> +}
+> +
+> +static inline void mem_cgroup_dec_page_stat(struct page *page,
+> +				enum mem_cgroup_write_page_stat_item idx)
+>  {
+>  }
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 512cb12..f4259f4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1592,7 +1592,9 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
+>   * possibility of race condition. If there is, we take a lock.
+>   */
+> 
+> -static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
+> +void mem_cgroup_update_page_stat(struct page *page,
+> +				 enum mem_cgroup_write_page_stat_item idx,
+> +				 int val)
+>  {
+>  	struct mem_cgroup *mem;
+>  	struct page_cgroup *pc = lookup_page_cgroup(page);
+> @@ -1615,30 +1617,27 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
+>  			goto out;
+>  	}
+> 
+> -	this_cpu_add(mem->stat->count[idx], val);
+> -
+>  	switch (idx) {
+> -	case MEM_CGROUP_STAT_FILE_MAPPED:
+> +	case MEMCG_NR_FILE_MAPPED:
+>  		if (val > 0)
+>  			SetPageCgroupFileMapped(pc);
+>  		else if (!page_mapped(page))
+>  			ClearPageCgroupFileMapped(pc);
+> +		idx = MEM_CGROUP_STAT_FILE_MAPPED;
+>  		break;
+>  	default:
+>  		BUG();
+>  	}
+> 
+> +	this_cpu_add(mem->stat->count[idx], val);
+> +
+>  out:
+>  	if (unlikely(need_unlock))
+>  		unlock_page_cgroup(pc);
+>  	rcu_read_unlock();
+>  	return;
+>  }
+> -
+> -void mem_cgroup_update_file_mapped(struct page *page, int val)
+> -{
+> -	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
+> -}
+> +EXPORT_SYMBOL(mem_cgroup_update_page_stat);
+> 
+>  /*
+>   * size of first charge trial. "32" comes from vmscan.c's magic value.
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 8734312..779c0db 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -912,7 +912,7 @@ void page_add_file_rmap(struct page *page)
+>  {
+>  	if (atomic_inc_and_test(&page->_mapcount)) {
+>  		__inc_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_update_file_mapped(page, 1);
+> +		mem_cgroup_inc_page_stat(page, MEMCG_NR_FILE_MAPPED);
+>  	}
+>  }
+> 
+> @@ -950,7 +950,7 @@ void page_remove_rmap(struct page *page)
+>  		__dec_zone_page_state(page, NR_ANON_PAGES);
+>  	} else {
+>  		__dec_zone_page_state(page, NR_FILE_MAPPED);
+> -		mem_cgroup_update_file_mapped(page, -1);
+> +		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
+>  	}
+>  	/*
+>  	 * It would be tidy to reset the PageAnon mapping here,
 
-True. The shared caches can compensate for that. Without this I got
-regression because of too many atomic operations during draining and
-refilling.
 
-The other alternative is to stay with the current approach
-which minimizes the queuing etc overhead and can affort to have the
-overhead.
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
-> > 2. SLUB object expiration is tied into the page reclaim logic. There
-> >    is no periodic cache expiration.
->
-> Hmm, but that means that you could fill a lot of memory with caches
-> before they get pruned right? Is there another limit too?
-
-The cache all have an limit on the number of objects in them (like SLAB).
-If you want less you can limit the sizes of the queues.
-Otherwise there is no other limit.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
