@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 92F876B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 20:32:02 -0400 (EDT)
-Date: Thu, 7 Oct 2010 09:27:41 +0900
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A4D6B0071
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 20:32:27 -0400 (EDT)
+Date: Thu, 7 Oct 2010 09:31:20 +0900
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/4] HWPOISON: Copy si_addr_lsb to user
-Message-ID: <20101007002741.GA9891@spritzera.linux.bs1.fc.nec.co.jp>
+Subject: Re: [PATCH 3/4] HWPOISON: Report correct address granuality for AO
+ huge page errors
+Message-ID: <20101007003120.GB9891@spritzera.linux.bs1.fc.nec.co.jp>
 References: <1286398141-13749-1-git-send-email-andi@firstfloor.org>
- <1286398141-13749-3-git-send-email-andi@firstfloor.org>
+ <1286398141-13749-4-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-2022-jp
 Content-Disposition: inline
-In-Reply-To: <1286398141-13749-3-git-send-email-andi@firstfloor.org>
+In-Reply-To: <1286398141-13749-4-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-kernel@vger.kernel.org, fengguang.wu@intel.com, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Just nitpicking...
-
-> @@ -2215,6 +2215,14 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
+> @@ -198,7 +199,8 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 >  #ifdef __ARCH_SI_TRAPNO
->  		err |= __put_user(from->si_trapno, &to->si_trapno);
+>  	si.si_trapno = trapno;
 >  #endif
-> +#ifdef BUS_MCEERR_AO
-> +		/* 
-                  ^
-                  trailing white space
-> +		 * Other callers might not initialize the si_lsb field,
-> +	 	 * so check explicitely for the right codes here.
-        ^                   ^^^^^^^^^^^
-        white space         explicitly
+> -	si.si_addr_lsb = PAGE_SHIFT;
+> +	order = PageCompound(page) ? huge_page_order(page) : PAGE_SHIFT;
+                                                     ^^^^
+                                     huge_page_order(page_hstate(page)) ?
 
-> +		 */
-> +		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
-> +			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
-> +#endif
->  		break;
->  	case __SI_CHLD:
->  		err |= __put_user(from->si_pid, &to->si_pid);
+> +	si.si_addr_lsb = order;
+>  	/*
+>  	 * Don't use force here, it's convenient if the signal
+>  	 * can be temporarily blocked.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+...
+
+> @@ -341,7 +343,8 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
+>  			if (fail || tk->addr_valid == 0) {
+>  				printk(KERN_ERR
+>  		"MCE %#lx: forcibly killing %s:%d because of failure to unmap corrupted page\n",
+> -					pfn, tk->tsk->comm, tk->tsk->pid);
+> +					pfn,	
+> +					tk->tsk->comm, tk->tsk->pid);
+
+What's the point of this change?
 
 Thanks,
 Naoya Horiguchi
