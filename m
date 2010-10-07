@@ -1,43 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 2CDA16B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 23:23:40 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o973Nbgc019263
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 7 Oct 2010 12:23:37 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1458445DE56
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 12:23:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 854A045DE51
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 12:23:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DEE41DB805A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 12:23:34 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B2AA31DB804E
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 12:23:33 +0900 (JST)
-Date: Thu, 7 Oct 2010 12:18:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DDA6B006A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 23:49:10 -0400 (EDT)
+Date: Thu, 7 Oct 2010 12:47:06 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [RFC] Restrict size of page_cgroup->flags
-Message-Id: <20101007121816.bbd009c1.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101007031203.GK4195@balbir.in.ibm.com>
+Message-Id: <20101007124706.c602649e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101007031459.GL4195@balbir.in.ibm.com>
 References: <20101006142314.GG4195@balbir.in.ibm.com>
-	<20101007085858.0e07de59.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007031203.GK4195@balbir.in.ibm.com>
+	<20101007095458.a992969e.nishimura@mxp.nes.nec.co.jp>
+	<20101007031459.GL4195@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: balbir@linux.vnet.ibm.com
-Cc: containers@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, containers@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Oct 2010 08:42:04 +0530
+On Thu, 7 Oct 2010 08:44:59 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-10-07 08:58:58]:
+> * nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2010-10-07 09:54:58]:
 > 
 > > On Wed, 6 Oct 2010 19:53:14 +0530
 > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
@@ -55,29 +39,18 @@ Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > > > cgroup id with flags (atomicity permitting) and saving a whole
 > > > long word in page_cgroup
 > > > 
-> > > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > Doesn't make sense until you show the usage of existing bits.
+> > I agree that reducing the size of page_cgroup would be good and important.
+> > But, wouldn't it be better to remove ->page, if possible ?
+> >
 > 
-> ??
+> Without the page pointer, how do we go from pc to page for reclaim? 
 > 
-Limiting something for NOT EXISTING PATCH doesn't make sense, in general.
-
-
-> > And I guess 16bit may be too large on 32bit systems.
-> 
-> too large on 32 bit systems? My intention is to keep the flags to 16
-> bits and then use cgroup id for the rest and see if we can remove
-> mem_cgroup pointer
-> 
-
-You can't use flags field to store mem_cgroup_id while we use lock bit on it.
-We have to store something more stable...as pfn or node-id or zone-id.
-
-It's very racy. 
+We store page_cgroups in arrays now, so I suppose we can implement pc_to_pfn()
+using the similar calculation as page_to_pfn() does.
+IIRC, KAMEZAWA-san talked about it in another thread.
 
 Thanks,
--Kame
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
