@@ -1,85 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 5F2816B004A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 14:03:52 -0400 (EDT)
-Date: Thu, 7 Oct 2010 20:03:40 +0200
+	by kanga.kvack.org (Postfix) with SMTP id AB27F6B004A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 14:45:06 -0400 (EDT)
+Date: Thu, 7 Oct 2010 20:44:57 +0200
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 08/12] Handle async PF in a guest.
-Message-ID: <20101007180340.GI2397@redhat.com>
+Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
+Message-ID: <20101007184457.GA8354@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-9-git-send-email-gleb@redhat.com>
- <4CADC6C3.3040305@redhat.com>
- <20101007171418.GA2397@redhat.com>
- <4CAE00CB.1070400@redhat.com>
+ <1286207794-16120-4-git-send-email-gleb@redhat.com>
+ <20101005155409.GB28955@amt.cnet>
+ <20101006110704.GW11145@redhat.com>
+ <20101006142050.GA31423@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CAE00CB.1070400@redhat.com>
+In-Reply-To: <20101006142050.GA31423@amt.cnet>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 07:18:03PM +0200, Avi Kivity wrote:
->  On 10/07/2010 07:14 PM, Gleb Natapov wrote:
-> >On Thu, Oct 07, 2010 at 03:10:27PM +0200, Avi Kivity wrote:
-> >>   On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >>  >When async PF capability is detected hook up special page fault handler
-> >>  >that will handle async page fault events and bypass other page faults to
-> >>  >regular page fault handler. Also add async PF handling to nested SVM
-> >>  >emulation. Async PF always generates exit to L1 where vcpu thread will
-> >>  >be scheduled out until page is available.
-> >>  >
-> >>
-> >>  Please separate guest and host changes.
-> >>
-> >>  >+void kvm_async_pf_task_wait(u32 token)
-> >>  >+{
-> >>  >+	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
-> >>  >+	struct kvm_task_sleep_head *b =&async_pf_sleepers[key];
-> >>  >+	struct kvm_task_sleep_node n, *e;
-> >>  >+	DEFINE_WAIT(wait);
-> >>  >+
-> >>  >+	spin_lock(&b->lock);
-> >>  >+	e = _find_apf_task(b, token);
-> >>  >+	if (e) {
-> >>  >+		/* dummy entry exist ->   wake up was delivered ahead of PF */
-> >>  >+		hlist_del(&e->link);
-> >>  >+		kfree(e);
-> >>  >+		spin_unlock(&b->lock);
-> >>  >+		return;
-> >>  >+	}
-> >>  >+
-> >>  >+	n.token = token;
-> >>  >+	n.cpu = smp_processor_id();
-> >>  >+	init_waitqueue_head(&n.wq);
-> >>  >+	hlist_add_head(&n.link,&b->list);
-> >>  >+	spin_unlock(&b->lock);
-> >>  >+
-> >>  >+	for (;;) {
-> >>  >+		prepare_to_wait(&n.wq,&wait, TASK_UNINTERRUPTIBLE);
-> >>  >+		if (hlist_unhashed(&n.link))
-> >>  >+			break;
-> >>  >+		local_irq_enable();
-> >>
-> >>  Suppose we take another apf here.  And another, and another (for
-> >>  different pages, while executing schedule()).  What's to prevent
-> >>  kernel stack overflow?
-> >>
-> >Host side keeps track of outstanding apfs and will not send apf for the
-> >same phys address twice. It will halt vcpu instead.
+On Wed, Oct 06, 2010 at 11:20:50AM -0300, Marcelo Tosatti wrote:
+> On Wed, Oct 06, 2010 at 01:07:04PM +0200, Gleb Natapov wrote:
+> > > Can't you set a bit in vcpu->requests instead, and handle it in "out:"
+> > > at the end of vcpu_enter_guest? 
+> > > 
+> > > To have a single entry point for pagefaults, after vmexit handling.
+> > Jumping to "out:" will skip vmexit handling anyway, so we will not reuse
+> > same call site anyway. I don't see yet why the way you propose will have
+> > an advantage.
 > 
-> What about different pages, running the scheduler code?
+> What i meant was to call pagefault handler after vmexit handling.
 > 
-We can get couple of nested apfs, just like we can get nested
-interrupts. Since scheduler disables preemption second apf will halt.
+> Because the way it is in your patch now, with pre pagefault on entry,
+> one has to make an effort to verify ordering wrt other events on entry
+> processing.
+> 
+What events do you have in mind?
 
-> Oh, and we'll run the scheduler recursively.
+> With pre pagefault after vmexit, its more natural.
 > 
-As rick said scheduler disables preemption.  And this is actually first
-thing it does. Otherwise any interrupt may cause recursive scheduler
-invocation.
- 
+I do not see non-ugly way to pass information that is needed to perform
+the prefault to the place you want me to put it. We can skip guest entry
+in case prefault was done which will have the same effect as your
+proposal, but I want to have a good reason to do so since otherwise we
+will just do more work for nothing on guest entry.
+
+> Does that make sense?
+
 --
 			Gleb.
 
