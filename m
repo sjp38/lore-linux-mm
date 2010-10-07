@@ -1,219 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DD9D56B0071
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 13:47:27 -0400 (EDT)
-Date: Thu, 7 Oct 2010 19:47:16 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 18F346B004A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 13:48:29 -0400 (EDT)
+Date: Thu, 7 Oct 2010 19:48:16 +0200
 From: Gleb Natapov <gleb@redhat.com>
 Subject: Re: [PATCH v6 02/12] Halt vcpu if page it tries to access is
  swapped out.
-Message-ID: <20101007174716.GD2397@redhat.com>
+Message-ID: <20101007174816.GE2397@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
  <1286207794-16120-3-git-send-email-gleb@redhat.com>
- <4CAD97D0.70100@redhat.com>
+ <20101005145916.GA28955@amt.cnet>
+ <4CAC5459.3060004@redhat.com>
+ <20101006105203.GU11145@redhat.com>
+ <4CAD98CE.7020502@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CAD97D0.70100@redhat.com>
+In-Reply-To: <4CAD98CE.7020502@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Avi Kivity <avi@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 11:50:08AM +0200, Avi Kivity wrote:
->  On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >If a guest accesses swapped out memory do not swap it in from vcpu thread
-> >context. Schedule work to do swapping and put vcpu into halted state
-> >instead.
+On Thu, Oct 07, 2010 at 11:54:22AM +0200, Avi Kivity wrote:
+>  On 10/06/2010 12:52 PM, Gleb Natapov wrote:
+> >On Wed, Oct 06, 2010 at 12:50:01PM +0200, Avi Kivity wrote:
+> >>   On 10/05/2010 04:59 PM, Marcelo Tosatti wrote:
+> >>  >On Mon, Oct 04, 2010 at 05:56:24PM +0200, Gleb Natapov wrote:
+> >>  >>   If a guest accesses swapped out memory do not swap it in from vcpu thread
+> >>  >>   context. Schedule work to do swapping and put vcpu into halted state
+> >>  >>   instead.
+> >>  >>
+> >>  >>   Interrupts will still be delivered to the guest and if interrupt will
+> >>  >>   cause reschedule guest will continue to run another task.
+> >>  >>
+> >>  >>   Signed-off-by: Gleb Natapov<gleb@redhat.com>
+> >>  >>   ---
+> >>  >>    arch/x86/include/asm/kvm_host.h |   17 +++
+> >>  >>    arch/x86/kvm/Kconfig            |    1 +
+> >>  >>    arch/x86/kvm/Makefile           |    1 +
+> >>  >>    arch/x86/kvm/mmu.c              |   51 +++++++++-
+> >>  >>    arch/x86/kvm/paging_tmpl.h      |    4 +-
+> >>  >>    arch/x86/kvm/x86.c              |  109 +++++++++++++++++++-
+> >>  >>    include/linux/kvm_host.h        |   31 ++++++
+> >>  >>    include/trace/events/kvm.h      |   88 ++++++++++++++++
+> >>  >>    virt/kvm/Kconfig                |    3 +
+> >>  >>    virt/kvm/async_pf.c             |  220 +++++++++++++++++++++++++++++++++++++++
+> >>  >>    virt/kvm/async_pf.h             |   36 +++++++
+> >>  >>    virt/kvm/kvm_main.c             |   57 ++++++++--
+> >>  >>    12 files changed, 603 insertions(+), 15 deletions(-)
+> >>  >>    create mode 100644 virt/kvm/async_pf.c
+> >>  >>    create mode 100644 virt/kvm/async_pf.h
+> >>  >>
+> >>  >
+> >>  >>   +	async_pf_cache = NULL;
+> >>  >>   +}
+> >>  >>   +
+> >>  >>   +void kvm_async_pf_vcpu_init(struct kvm_vcpu *vcpu)
+> >>  >>   +{
+> >>  >>   +	INIT_LIST_HEAD(&vcpu->async_pf.done);
+> >>  >>   +	INIT_LIST_HEAD(&vcpu->async_pf.queue);
+> >>  >>   +	spin_lock_init(&vcpu->async_pf.lock);
+> >>  >>   +}
+> >>  >>   +
+> >>  >>   +static void async_pf_execute(struct work_struct *work)
+> >>  >>   +{
+> >>  >>   +	struct page *page;
+> >>  >>   +	struct kvm_async_pf *apf =
+> >>  >>   +		container_of(work, struct kvm_async_pf, work);
+> >>  >>   +	struct mm_struct *mm = apf->mm;
+> >>  >>   +	struct kvm_vcpu *vcpu = apf->vcpu;
+> >>  >>   +	unsigned long addr = apf->addr;
+> >>  >>   +	gva_t gva = apf->gva;
+> >>  >>   +
+> >>  >>   +	might_sleep();
+> >>  >>   +
+> >>  >>   +	use_mm(mm);
+> >>  >>   +	down_read(&mm->mmap_sem);
+> >>  >>   +	get_user_pages(current, mm, addr, 1, 1, 0,&page, NULL);
+> >>  >>   +	up_read(&mm->mmap_sem);
+> >>  >>   +	unuse_mm(mm);
+> >>  >>   +
+> >>  >>   +	spin_lock(&vcpu->async_pf.lock);
+> >>  >>   +	list_add_tail(&apf->link,&vcpu->async_pf.done);
+> >>  >>   +	apf->page = page;
+> >>  >>   +	spin_unlock(&vcpu->async_pf.lock);
+> >>  >
+> >>  >This can fail, and apf->page become NULL.
+> >>
+> >>  Does it even become NULL?  On error, get_user_pages() won't update
+> >>  the pages argument, so page becomes garbage here.
+> >>
+> >apf is allocated with kmem_cache_zalloc() and ->page is set to NULL in
+> >kvm_setup_async_pf() to be extra sure.
 > >
-> >Interrupts will still be delivered to the guest and if interrupt will
-> >cause reschedule guest will continue to run another task.
-> >
-> >
-> >+
-> >+static bool can_do_async_pf(struct kvm_vcpu *vcpu)
-> >+{
-> >+	if (unlikely(!irqchip_in_kernel(vcpu->kvm) ||
-> >+		     kvm_event_needs_reinjection(vcpu)))
-> >+		return false;
-> >+
-> >+	return kvm_x86_ops->interrupt_allowed(vcpu);
-> >+}
 > 
-> Strictly speaking, if the cpu can handle NMIs it can take an apf?
+> But you assign apf->page = page;, overriding it with garbage here.
 > 
-We can always do apf, but if vcpu can't do anything hwy bother. For NMI
-watchdog yes, may be it is worth to allow apf if nmi is allowed.
-
-> >@@ -5112,6 +5122,13 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
-> >  	if (unlikely(r))
-> >  		goto out;
-> >
-> >+	kvm_check_async_pf_completion(vcpu);
-> >+	if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED) {
-> >+		/* Page is swapped out. Do synthetic halt */
-> >+		r = 1;
-> >+		goto out;
-> >+	}
-> >+
-> 
-> Why do it here in the fast path?  Can't you halt the cpu when
-> starting the page fault?
-Page fault may complete before guest re-entry. We do not want to halt vcpu
-in this case.
-> 
-> I guess the apf threads can't touch mp_state, but they can have a
-> KVM_REQ to trigger the check.
-This will require KVM_REQ check on fast path, so what's the difference
-performance wise.
-
-> 
-> >  	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
-> >  		inject_pending_event(vcpu);
-> >
-> >@@ -5781,6 +5798,9 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
-> >
-> >  	kvm_make_request(KVM_REQ_EVENT, vcpu);
-> >
-> >+	kvm_clear_async_pf_completion_queue(vcpu);
-> >+	memset(vcpu->arch.apf.gfns, 0xff, sizeof vcpu->arch.apf.gfns);
-> 
-> An ordinary for loop is less tricky, even if it means one more line.
-> 
-> >
-> >@@ -6040,6 +6064,7 @@ void kvm_arch_flush_shadow(struct kvm *kvm)
-> >  int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
-> >  {
-> >  	return vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE
-> >+		|| !list_empty_careful(&vcpu->async_pf.done)
-> >  		|| vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED
-> >  		|| vcpu->arch.nmi_pending ||
-> >  		(kvm_arch_interrupt_allowed(vcpu)&&
-> 
-> Unrelated, shouldn't kvm_arch_vcpu_runnable() look at
-> vcpu->requests?  Specifically KVM_REQ_EVENT?
-I think KVM_REQ_EVENT is covered by checking nmi and interrupt queue
-here.
-
-> 
-> >+static void kvm_add_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
-> >+{
-> >+	u32 key = kvm_async_pf_hash_fn(gfn);
-> >+
-> >+	while (vcpu->arch.apf.gfns[key] != -1)
-> >+		key = kvm_async_pf_next_probe(key);
-> 
-> Not sure what that -1 converts to on i386 where gfn_t is u64.
-Will check.
-
-> >+
-> >+void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
-> >+				     struct kvm_async_pf *work)
-> >+{
-> >+	vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
-> >+
-> >+	if (work == kvm_double_apf)
-> >+		trace_kvm_async_pf_doublefault(kvm_rip_read(vcpu));
-> >+	else {
-> >+		trace_kvm_async_pf_not_present(work->gva);
-> >+
-> >+		kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
-> >+	}
-> >+}
-> 
-> Just have vcpu as the argument for tracepoints to avoid
-> unconditional kvm_rip_read (slow on Intel), and call kvm_rip_read()
-> in tp_fast_assign().  Similarly you can pass work instead of
-> work->gva, though that's not nearly as important.
-> 
-Will do.
-
-> >+
-> >+TRACE_EVENT(
-> >+	kvm_async_pf_not_present,
-> >+	TP_PROTO(u64 gva),
-> >+	TP_ARGS(gva),
-> 
-> Do you actually have a gva with tdp?  With nested virtualization,
-> how do you interpret this gva?
-With tdp it is gpa just like tdp_page_fault gets gpa where shadow page
-version gets gva. Nested virtualization is too complex to interpret.
-
-> >+
-> >+TRACE_EVENT(
-> >+	kvm_async_pf_completed,
-> >+	TP_PROTO(unsigned long address, struct page *page, u64 gva),
-> >+	TP_ARGS(address, page, gva),
-> 
-> What does address mean?  There's also gva?
-> 
-hva.
-
-> >+
-> >+	TP_STRUCT__entry(
-> >+		__field(unsigned long, address)
-> >+		__field(struct page*, page)
-> >+		__field(u64, gva)
-> >+		),
-> >+
-> >+	TP_fast_assign(
-> >+		__entry->address = address;
-> >+		__entry->page = page;
-> >+		__entry->gva = gva;
-> >+		),
-> 
-> Recording a struct page * in a tracepoint?  Userspace can read this
-> entry, better to the page_to_pfn() here.
->
-OK.
- 
-> 
-> >+void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
-> >+{
-> >+	/* cancel outstanding work queue item */
-> >+	while (!list_empty(&vcpu->async_pf.queue)) {
-> >+		struct kvm_async_pf *work =
-> >+			list_entry(vcpu->async_pf.queue.next,
-> >+				   typeof(*work), queue);
-> >+		cancel_work_sync(&work->work);
-> >+		list_del(&work->queue);
-> >+		if (!work->page) /* work was canceled */
-> >+			kmem_cache_free(async_pf_cache, work);
-> >+	}
-> 
-> Are you holding any lock here?
-> 
-> If not, what protects vcpu->async_pf.queue?
-Nothing. It is accessed only from vcpu thread.
-
-> If yes, cancel_work_sync() will need to aquire it too (in case work
-> is running now and needs to take the lock, and cacncel_work_sync()
-> needs to wait for it) -> deadlock.
-> 
-Work never touches this list.
-
-> >+
-> >+	/* do alloc nowait since if we are going to sleep anyway we
-> >+	   may as well sleep faulting in page */
-> /*
->  * multi
->  * line
->  * comment
->  */
-> 
-> (but a good one, this is subtle)
-> 
-> I missed where you halt the vcpu.  Can you point me at the function?
-> 
-> Note this is a synthetic halt and must not be visible to live
-> migration, or we risk live migrating a halted state which doesn't
-> really exist.
-> 
-> Might be simplest to drain the apf queue on any of the save/restore ioctls.
-> 
-So that "info cpu" will interfere with apf? Migration should work
-in regular way. apf state should not be migrated since it has no meaning
-on the destination. I'll make sure synthetic halt state will not
-interfere with migration.
+Ah, right you are.
 
 --
 			Gleb.
