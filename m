@@ -1,55 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AB27F6B004A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 14:45:06 -0400 (EDT)
-Date: Thu, 7 Oct 2010 20:44:57 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
-Message-ID: <20101007184457.GA8354@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-4-git-send-email-gleb@redhat.com>
- <20101005155409.GB28955@amt.cnet>
- <20101006110704.GW11145@redhat.com>
- <20101006142050.GA31423@amt.cnet>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101006142050.GA31423@amt.cnet>
+	by kanga.kvack.org (Postfix) with ESMTP id DD23E6B006A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 19:15:41 -0400 (EDT)
+Date: Thu, 7 Oct 2010 16:14:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] memcg: reduce lock time at move charge (Was Re:
+ [PATCH 04/10] memcg: disable local interrupts in lock_page_cgroup()
+Message-Id: <20101007161454.84570cf9.akpm@linux-foundation.org>
+In-Reply-To: <20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+	<1286175485-30643-5-git-send-email-gthelen@google.com>
+	<20101005160332.GB9515@barrios-desktop>
+	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
+	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
+	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
+	<20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007152111.df687a62.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
+	<20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 06, 2010 at 11:20:50AM -0300, Marcelo Tosatti wrote:
-> On Wed, Oct 06, 2010 at 01:07:04PM +0200, Gleb Natapov wrote:
-> > > Can't you set a bit in vcpu->requests instead, and handle it in "out:"
-> > > at the end of vcpu_enter_guest? 
-> > > 
-> > > To have a single entry point for pagefaults, after vmexit handling.
-> > Jumping to "out:" will skip vmexit handling anyway, so we will not reuse
-> > same call site anyway. I don't see yet why the way you propose will have
-> > an advantage.
-> 
-> What i meant was to call pagefault handler after vmexit handling.
-> 
-> Because the way it is in your patch now, with pre pagefault on entry,
-> one has to make an effort to verify ordering wrt other events on entry
-> processing.
-> 
-What events do you have in mind?
+On Thu, 7 Oct 2010 17:04:05 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> With pre pagefault after vmexit, its more natural.
+> Now, at task migration among cgroup, memory cgroup scans page table and moving
+> account if flags are properly set.
 > 
-I do not see non-ugly way to pass information that is needed to perform
-the prefault to the place you want me to put it. We can skip guest entry
-in case prefault was done which will have the same effect as your
-proposal, but I want to have a good reason to do so since otherwise we
-will just do more work for nothing on guest entry.
+> The core code, mem_cgroup_move_charge_pte_range() does
+> 
+>  	pte_offset_map_lock();
+> 	for all ptes in a page table:
+> 		1. look into page table, find_and_get a page
+> 		2. remove it from LRU.
+> 		3. move charge.
+> 		4. putback to LRU. put_page()
+> 	pte_offset_map_unlock();
+> 
+> for pte entries on a 3rd level? page table.
+> 
+> This pte_offset_map_lock seems a bit long. This patch modifies a rountine as
+> 
+> 	for 32 pages: pte_offset_map_lock()
+> 		      find_and_get a page
+> 		      record it
+> 		      pte_offset_map_unlock()
+> 	for all recorded pages
+> 		      isolate it from LRU.
+> 		      move charge
+> 		      putback to LRU
+> 	for all recorded pages
+> 		      put_page()
 
-> Does that make sense?
+The patch makes the code larger, more complex and slower!
 
---
-			Gleb.
+I do think we're owed a more complete description of its benefits than
+"seems a bit long".  Have problems been observed?  Any measurements
+taken?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
