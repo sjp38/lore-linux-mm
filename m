@@ -1,52 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 62E556B0085
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 13:23:30 -0400 (EDT)
-Date: Thu, 7 Oct 2010 19:23:18 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 04/12] Add memory slot versioning and use it to
- provide fast guest write interface
-Message-ID: <20101007172318.GC2397@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-5-git-send-email-gleb@redhat.com>
- <20101005165738.GA32750@amt.cnet>
- <20101006111417.GX11145@redhat.com>
- <20101006143847.GB31423@amt.cnet>
- <20101006200836.GC4120@minantech.com>
- <4CAD9A2D.7020009@redhat.com>
- <20101007154248.GA30949@amt.cnet>
- <20101007160340.GD4120@minantech.com>
- <4CADF365.3080406@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 49CC46B004A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 13:46:26 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 08/10] memcg: add cgroupfs interface to memcg dirty limits
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+	<1286175485-30643-9-git-send-email-gthelen@google.com>
+	<4CAD6774.7030302@linux.vnet.ibm.com>
+Date: Thu, 07 Oct 2010 10:46:07 -0700
+In-Reply-To: <4CAD6774.7030302@linux.vnet.ibm.com> (Ciju Rajan K.'s message of
+	"Thu, 07 Oct 2010 11:53:48 +0530")
+Message-ID: <xr93vd5dgalc.fsf@ninji.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CADF365.3080406@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Gleb Natapov <gleb@minantech.com>, Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Ciju Rajan K <ciju@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 06:20:53PM +0200, Avi Kivity wrote:
->  On 10/07/2010 06:03 PM, Gleb Natapov wrote:
-> >>  >
-> >>  >  Isn't SET_USER_MEMORY_REGION so slow that calling it 2^32 times
-> >>  >  isn't really feasible?
-> >>
-> >>  Assuming it takes 1ms, it would take 49 days.
-> >>
-> >We may fail ioctl when max value is reached. The question is how much slot
-> >changes can we expect from real guest during its lifetime.
-> >
-> 
-> A normal guest has a 30 Hz timer for reading the vga framebuffer,
-> multiple slots.  Let's assume 100 Hz frequency, that gives 490 days
-> until things stop working.
-> 
-And reading vga framebuffer needs slots changes because of dirty map
-tracking?
+Ciju Rajan K <ciju@linux.vnet.ibm.com> writes:
 
---
-			Gleb.
+> Greg Thelen wrote:
+>> Add cgroupfs interface to memcg dirty page limits:
+>>   Direct write-out is controlled with:
+>>   - memory.dirty_ratio
+>>   - memory.dirty_bytes
+>>
+>>   Background write-out is controlled with:
+>>   - memory.dirty_background_ratio
+>>   - memory.dirty_background_bytes
+>>
+>> Signed-off-by: Andrea Righi <arighi@develer.com>
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> ---
+>>  mm/memcontrol.c |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>>  1 files changed, 89 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 6ec2625..2d45a0a 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -100,6 +100,13 @@ enum mem_cgroup_stat_index {
+>>  	MEM_CGROUP_STAT_NSTATS,
+>>  };
+>>
+>> +enum {
+>> +	MEM_CGROUP_DIRTY_RATIO,
+>> +	MEM_CGROUP_DIRTY_BYTES,
+>> +	MEM_CGROUP_DIRTY_BACKGROUND_RATIO,
+>> +	MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
+>> +};
+>> +
+>>  struct mem_cgroup_stat_cpu {
+>>  	s64 count[MEM_CGROUP_STAT_NSTATS];
+>>  };
+>> @@ -4292,6 +4299,64 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+>>  	return 0;
+>>  }
+>>
+>> +static u64 mem_cgroup_dirty_read(struct cgroup *cgrp, struct cftype *cft)
+>> +{
+>> +	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+>> +	bool root;
+>> +
+>> +	root = mem_cgroup_is_root(mem);
+>> +
+>> +	switch (cft->private) {
+>> +	case MEM_CGROUP_DIRTY_RATIO:
+>> +		return root ? vm_dirty_ratio : mem->dirty_param.dirty_ratio;
+>> +	case MEM_CGROUP_DIRTY_BYTES:
+>> +		return root ? vm_dirty_bytes : mem->dirty_param.dirty_bytes;
+>> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
+>> +		return root ? dirty_background_ratio :
+>> +			mem->dirty_param.dirty_background_ratio;
+>> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
+>> +		return root ? dirty_background_bytes :
+>> +			mem->dirty_param.dirty_background_bytes;
+>> +	default:
+>> +		BUG();
+>> +	}
+>> +}
+>> +
+>> +static int
+>> +mem_cgroup_dirty_write(struct cgroup *cgrp, struct cftype *cft, u64 val)
+>> +{
+>> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+>> +	int type = cft->private;
+>> +
+>> +	if (cgrp->parent == NULL)
+>> +		return -EINVAL;
+>> +	if ((type == MEM_CGROUP_DIRTY_RATIO ||
+>> +	     type == MEM_CGROUP_DIRTY_BACKGROUND_RATIO) && val > 100)
+>> +		return -EINVAL;
+>> +	switch (type) {
+>> +	case MEM_CGROUP_DIRTY_RATIO:
+>> +		memcg->dirty_param.dirty_ratio = val;
+>> +		memcg->dirty_param.dirty_bytes = 0;
+>> +		break;
+>> +	case MEM_CGROUP_DIRTY_BYTES:
+>> +		memcg->dirty_param.dirty_bytes = val;
+>> +		memcg->dirty_param.dirty_ratio  = 0;
+>> +		break;
+>> +	case MEM_CGROUP_DIRTY_BACKGROUND_RATIO:
+>> +		memcg->dirty_param.dirty_background_ratio = val;
+>> +		memcg->dirty_param.dirty_background_bytes = 0;
+>> +		break;
+>> +	case MEM_CGROUP_DIRTY_BACKGROUND_BYTES:
+>> +		memcg->dirty_param.dirty_background_bytes = val;
+>> +		memcg->dirty_param.dirty_background_ratio = 0;
+>> +		break;
+>> +	default:
+>> +		BUG();
+>> +		break;
+>> +	}
+>> +	return 0;
+>> +}
+>> +
+>>  static struct cftype mem_cgroup_files[] = {
+>>  	{
+>>  		.name = "usage_in_bytes",
+>> @@ -4355,6 +4420,30 @@ static struct cftype mem_cgroup_files[] = {
+>>  		.unregister_event = mem_cgroup_oom_unregister_event,
+>>  		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+>>  	},
+>> +	{
+>> +		.name = "dirty_ratio",
+>> +		.read_u64 = mem_cgroup_dirty_read,
+>> +		.write_u64 = mem_cgroup_dirty_write,
+>> +		.private = MEM_CGROUP_DIRTY_RATIO,
+>> +	},
+>> +	{
+>> +		.name = "dirty_bytes",
+>> +		.read_u64 = mem_cgroup_dirty_read,
+>> +		.write_u64 = mem_cgroup_dirty_write,
+>> +		.private = MEM_CGROUP_DIRTY_BYTES,
+>> +	},
+>> +	{
+>>   
+> Is it a good idea to rename "dirty_bytes" to "dirty_limit_in_bytes" ?
+> So that it can match with other memcg tunable naming convention.
+> We already have memory.memsw.limit_in_bytes, memory.limit_in_bytes,
+> memory.soft_limit_in_bytes, etc.
+
+I see your point in trying to be more internally consistent with other
+memcg counter.
+
+It's a trade-off, either use names consistent with /proc/sys/vm, or use
+names similar to other memory.* control files.  I prefer your suggestion
+and will rename as you suggested, unless I hear strong objection.
+
+>> +		.name = "dirty_background_ratio",
+>> +		.read_u64 = mem_cgroup_dirty_read,
+>> +		.write_u64 = mem_cgroup_dirty_write,
+>> +		.private = MEM_CGROUP_DIRTY_BACKGROUND_RATIO,
+>> +	},
+>> +	{
+>> +		.name = "dirty_background_bytes",
+>> +		.read_u64 = mem_cgroup_dirty_read,
+>> +		.write_u64 = mem_cgroup_dirty_write,
+>> +		.private = MEM_CGROUP_DIRTY_BACKGROUND_BYTES,
+>>   
+> Similarly "dirty_background_bytes" to dirty_background_limit_in_bytes ?
+>> +	},
+>>  };
+>>
+>>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>>   
+
+PS: I am collecting performance data on patch series (including Kame's
+lockless writeback stats).  I should have some useful data today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
