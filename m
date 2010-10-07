@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 9D5F96B004A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 09:37:20 -0400 (EDT)
-Message-ID: <4CADCCF8.5000408@redhat.com>
-Date: Thu, 07 Oct 2010 15:36:56 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id A9B666B004A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 11:57:49 -0400 (EDT)
+Date: Thu, 7 Oct 2010 12:42:48 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [PATCH v6 04/12] Add memory slot versioning and use it to
+ provide fast guest write interface
+Message-ID: <20101007154248.GA30949@amt.cnet>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-5-git-send-email-gleb@redhat.com>
+ <20101005165738.GA32750@amt.cnet>
+ <20101006111417.GX11145@redhat.com>
+ <20101006143847.GB31423@amt.cnet>
+ <20101006200836.GC4120@minantech.com>
+ <4CAD9A2D.7020009@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 11/12] Let host know whether the guest can handle async
- PF in non-userspace context.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-12-git-send-email-gleb@redhat.com>
-In-Reply-To: <1286207794-16120-12-git-send-email-gleb@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4CAD9A2D.7020009@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Avi Kivity <avi@redhat.com>
+Cc: Gleb Natapov <gleb@minantech.com>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-  On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> If guest can detect that it runs in non-preemptable context it can
-> handle async PFs at any time, so let host know that it can send async
-> PF even if guest cpu is not in userspace.
->
->
->
->   MSR_KVM_ASYNC_PF_EN: 0x4b564d02
->   	data: Bits 63-6 hold 64-byte aligned physical address of a 32bit memory
-> -	area which must be in guest RAM. Bits 5-1 are reserved and should be
-> +	area which must be in guest RAM. Bits 5-2 are reserved and should be
->   	zero. Bit 0 is 1 when asynchronous page faults are enabled on the vcpu
-> -	0 when disabled.
-> +	0 when disabled. Bit 2 is 1 if asynchronous page faults can be injected
-> +	when vcpu is in kernel mode.
+On Thu, Oct 07, 2010 at 12:00:13PM +0200, Avi Kivity wrote:
+>  On 10/06/2010 10:08 PM, Gleb Natapov wrote:
+> >>  Malicious userspace can cause entry to be cached, ioctl
+> >>  SET_USER_MEMORY_REGION 2^32 times, generation number will match,
+> >>  mark_page_dirty_in_slot will be called with pointer to freed memory.
+> >>
+> >Hmm. To zap all cached entires on overflow we need to track them. If we
+> >will track then we can zap them on each slot update and drop "generation"
+> >entirely.
+> 
+> To track them you need locking.
+> 
+> Isn't SET_USER_MEMORY_REGION so slow that calling it 2^32 times
+> isn't really feasible?
 
-Please use cpl instead of user mode and kernel mode.  The original terms 
-are ambiguous for cpl ==1 || cpl == 2.
+Assuming it takes 1ms, it would take 49 days.
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+> In any case, can use u64 generation count.
+
+Agree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
