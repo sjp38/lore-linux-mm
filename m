@@ -1,30 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2C2CB6B006A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 05:53:15 -0400 (EDT)
-Message-ID: <4CAD9876.3030500@redhat.com>
-Date: Thu, 07 Oct 2010 11:52:54 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4E37F6B0071
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 05:54:43 -0400 (EDT)
+Message-ID: <4CAD98CE.7020502@redhat.com>
+Date: Thu, 07 Oct 2010 11:54:22 +0200
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v6 02/12] Halt vcpu if page it tries to access is swapped
  out.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-3-git-send-email-gleb@redhat.com> <4CAD97D0.70100@redhat.com>
-In-Reply-To: <4CAD97D0.70100@redhat.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-3-git-send-email-gleb@redhat.com> <20101005145916.GA28955@amt.cnet> <4CAC5459.3060004@redhat.com> <20101006105203.GU11145@redhat.com>
+In-Reply-To: <20101006105203.GU11145@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-  On 10/07/2010 11:50 AM, Avi Kivity wrote:
+  On 10/06/2010 12:52 PM, Gleb Natapov wrote:
+> On Wed, Oct 06, 2010 at 12:50:01PM +0200, Avi Kivity wrote:
+> >   On 10/05/2010 04:59 PM, Marcelo Tosatti wrote:
+> >  >On Mon, Oct 04, 2010 at 05:56:24PM +0200, Gleb Natapov wrote:
+> >  >>   If a guest accesses swapped out memory do not swap it in from vcpu thread
+> >  >>   context. Schedule work to do swapping and put vcpu into halted state
+> >  >>   instead.
+> >  >>
+> >  >>   Interrupts will still be delivered to the guest and if interrupt will
+> >  >>   cause reschedule guest will continue to run another task.
+> >  >>
+> >  >>   Signed-off-by: Gleb Natapov<gleb@redhat.com>
+> >  >>   ---
+> >  >>    arch/x86/include/asm/kvm_host.h |   17 +++
+> >  >>    arch/x86/kvm/Kconfig            |    1 +
+> >  >>    arch/x86/kvm/Makefile           |    1 +
+> >  >>    arch/x86/kvm/mmu.c              |   51 +++++++++-
+> >  >>    arch/x86/kvm/paging_tmpl.h      |    4 +-
+> >  >>    arch/x86/kvm/x86.c              |  109 +++++++++++++++++++-
+> >  >>    include/linux/kvm_host.h        |   31 ++++++
+> >  >>    include/trace/events/kvm.h      |   88 ++++++++++++++++
+> >  >>    virt/kvm/Kconfig                |    3 +
+> >  >>    virt/kvm/async_pf.c             |  220 +++++++++++++++++++++++++++++++++++++++
+> >  >>    virt/kvm/async_pf.h             |   36 +++++++
+> >  >>    virt/kvm/kvm_main.c             |   57 ++++++++--
+> >  >>    12 files changed, 603 insertions(+), 15 deletions(-)
+> >  >>    create mode 100644 virt/kvm/async_pf.c
+> >  >>    create mode 100644 virt/kvm/async_pf.h
+> >  >>
+> >  >
+> >  >>   +	async_pf_cache = NULL;
+> >  >>   +}
+> >  >>   +
+> >  >>   +void kvm_async_pf_vcpu_init(struct kvm_vcpu *vcpu)
+> >  >>   +{
+> >  >>   +	INIT_LIST_HEAD(&vcpu->async_pf.done);
+> >  >>   +	INIT_LIST_HEAD(&vcpu->async_pf.queue);
+> >  >>   +	spin_lock_init(&vcpu->async_pf.lock);
+> >  >>   +}
+> >  >>   +
+> >  >>   +static void async_pf_execute(struct work_struct *work)
+> >  >>   +{
+> >  >>   +	struct page *page;
+> >  >>   +	struct kvm_async_pf *apf =
+> >  >>   +		container_of(work, struct kvm_async_pf, work);
+> >  >>   +	struct mm_struct *mm = apf->mm;
+> >  >>   +	struct kvm_vcpu *vcpu = apf->vcpu;
+> >  >>   +	unsigned long addr = apf->addr;
+> >  >>   +	gva_t gva = apf->gva;
+> >  >>   +
+> >  >>   +	might_sleep();
+> >  >>   +
+> >  >>   +	use_mm(mm);
+> >  >>   +	down_read(&mm->mmap_sem);
+> >  >>   +	get_user_pages(current, mm, addr, 1, 1, 0,&page, NULL);
+> >  >>   +	up_read(&mm->mmap_sem);
+> >  >>   +	unuse_mm(mm);
+> >  >>   +
+> >  >>   +	spin_lock(&vcpu->async_pf.lock);
+> >  >>   +	list_add_tail(&apf->link,&vcpu->async_pf.done);
+> >  >>   +	apf->page = page;
+> >  >>   +	spin_unlock(&vcpu->async_pf.lock);
+> >  >
+> >  >This can fail, and apf->page become NULL.
+> >
+> >  Does it even become NULL?  On error, get_user_pages() won't update
+> >  the pages argument, so page becomes garbage here.
+> >
+> apf is allocated with kmem_cache_zalloc() and ->page is set to NULL in
+> kvm_setup_async_pf() to be extra sure.
 >
-> I missed where you halt the vcpu.  Can you point me at the function?
 
-Found it.
-
-Multiplexing a guest state with a host state is a bad idea.  Better have 
-separate state.
+But you assign apf->page = page;, overriding it with garbage here.
 
 -- 
 I have a truly marvellous patch that fixes the bug which this
