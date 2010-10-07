@@ -1,103 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A60A96B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 22:23:16 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o972NDWv009958
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 7 Oct 2010 11:23:13 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CEE045DE57
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 11:23:13 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E2F0545DE53
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 11:23:12 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C7A50E78003
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 11:23:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 73C16E38008
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 11:23:12 +0900 (JST)
-Date: Thu, 7 Oct 2010 11:17:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 04/10] memcg: disable local interrupts in
- lock_page_cgroup()
-Message-Id: <20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-5-git-send-email-gthelen@google.com>
-	<20101005160332.GB9515@barrios-desktop>
-	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
-	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
-	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8C72F6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 22:25:20 -0400 (EDT)
+Date: Thu, 7 Oct 2010 10:25:15 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 1/2] Encode huge page size for VM_FAULT_HWPOISON errors
+Message-ID: <20101007022515.GC5482@localhost>
+References: <1286398641-11862-1-git-send-email-andi@firstfloor.org>
+ <1286398641-11862-2-git-send-email-andi@firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1286398641-11862-2-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, Andi Kleen <ak@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Oct 2010 10:54:56 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Thu, 7 Oct 2010 09:35:45 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, Oct 07, 2010 at 04:57:20AM +0800, Andi Kleen wrote:
+> From: Andi Kleen <ak@linux.intel.com>
 > 
-> > On Wed, 6 Oct 2010 09:15:34 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> > 
-> > > First of all, we could add your patch as it is and I don't expect any
-> > > regression report about interrupt latency.
-> > > That's because many embedded guys doesn't use mmotm and have a
-> > > tendency to not report regression of VM.
-> > > Even they don't use memcg. Hmm...
-> > > 
-> > > I pass the decision to MAINTAINER Kame and Balbir.
-> > > Thanks for the detail explanation.
-> > > 
-> > 
-> > Hmm. IRQ delay is a concern. So, my option is this. How do you think ?
-> > 
-> > 1. remove local_irq_save()/restore() in lock/unlock_page_cgroup().
-> >    yes, I don't like it.
-> > 
-> > 2. At moving charge, do this:
-> > 	a) lock_page()/ or trylock_page()
-> > 	b) wait_on_page_writeback()
-> > 	c) do move_account under lock_page_cgroup().
-> > 	c) unlock_page()
-> > 
-> > 
-> > Then, Writeback updates will never come from IRQ context while
-> > lock/unlock_page_cgroup() is held by move_account(). There will be no race.
-> > 
-> hmm, if we'll do that, I think we need to do that under pte_lock in
-> mem_cgroup_move_charge_pte_range(). But, we can't do wait_on_page_writeback()
-> under pte_lock, right? Or, we need re-organize current move-charge implementation.
+> This fixes a problem introduced with the hugetlb hwpoison handling
 > 
-Nice catch. I think releaseing pte_lock() is okay. (and it should be released)
+> The user space SIGBUS signalling wants to know the size of the hugepage
+> that caused a HWPOISON fault.
+> 
+> Unfortunately the architecture page fault handlers do not have easy
+> access to the struct page.
+> 
+> Pass the information out in the fault error code instead.
+> 
+> I added a separate VM_FAULT_HWPOISON_LARGE bit for this case and encode
+> the hpage index in some free upper bits of the fault code. The small
+> page hwpoison keeps stays with the VM_FAULT_HWPOISON name to minimize
+> changes.
+> 
+> Also add code to hugetlb.h to convert that index into a page shift.
 
-IIUC, task's css_set() points to new cgroup when "move" is called. Then,
-it's not necessary to take pte_lock, I guess.
-(And taking pte_lock too long is not appreciated..)
-
-I'll write a sample patch today.
+The use of hstate index is space efficient, however at the cost of
+more code and tight coupling with hugetlb. If directly encoding
+page_order-PAGE_SHIFT, a mask of 0x3f (6 bits) will be able to present
+max order 63+12=75 which is sufficient large. We still have plenty of
+free bits in the 32bit fault code :)
 
 Thanks,
--Kame
+Fengguang
 
-
-
-
-
-
-
-
-> Thanks,
-> Daisuke Nishimura.
+> Will be used in a further patch.
 > 
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: fengguang.wu@intel.com
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> ---
+>  include/linux/hugetlb.h |    6 ++++++
+>  include/linux/mm.h      |   12 ++++++++++--
+>  mm/hugetlb.c            |    6 ++++--
+>  mm/memory.c             |    3 ++-
+>  4 files changed, 22 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 796f30e..943c76b 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -307,6 +307,11 @@ static inline struct hstate *page_hstate(struct page *page)
+>  	return size_to_hstate(PAGE_SIZE << compound_order(page));
+>  }
+>  
+> +static inline unsigned hstate_index_to_shift(unsigned index)
+> +{
+> +	return hstates[index].order + PAGE_SHIFT;
+> +}
+> +
+>  #else
+>  struct hstate {};
+>  #define alloc_huge_page_node(h, nid) NULL
+> @@ -324,6 +329,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+>  {
+>  	return 1;
+>  }
+> +#define hstate_index_to_shift(index) 0
+>  #endif
+>  
+>  #endif /* _LINUX_HUGETLB_H */
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 74949fb..f7e9efc 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -718,12 +718,20 @@ static inline int page_mapped(struct page *page)
+>  #define VM_FAULT_SIGBUS	0x0002
+>  #define VM_FAULT_MAJOR	0x0004
+>  #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
+> -#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned page */
+> +#define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
+> +#define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
+>  
+>  #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+>  #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+>  
+> -#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
+> +#define VM_FAULT_HWPOISON_LARGE_MASK 0xf000 /* encodes hpage index for large hwpoison */
+> +
+> +#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON | \
+> +			 VM_FAULT_HWPOISON_LARGE)
+> +
+> +/* Encode hstate index for a hwpoisoned large page */
+> +#define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> +#define VM_FAULT_GET_HINDEX(x) (((x) >> 12) & 0xf)
+>  
+>  /*
+>   * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 67cd032..96991de 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -2589,7 +2589,8 @@ retry:
+>  		 * So we need to block hugepage fault by PG_hwpoison bit check.
+>  		 */
+>  		if (unlikely(PageHWPoison(page))) {
+> -			ret = VM_FAULT_HWPOISON;
+> +			ret = VM_FAULT_HWPOISON | 
+> +			      VM_FAULT_SET_HINDEX(h - hstates);
+>  			goto backout_unlocked;
+>  		}
+>  		page_dup_rmap(page);
+> @@ -2656,7 +2657,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			migration_entry_wait(mm, (pmd_t *)ptep, address);
+>  			return 0;
+>  		} else if (unlikely(is_hugetlb_entry_hwpoisoned(entry)))
+> -			return VM_FAULT_HWPOISON;
+> +			return VM_FAULT_HWPOISON_LARGE | 
+> +			       VM_FAULT_SET_HINDEX(h - hstates);
+>  	}
+>  
+>  	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 71b161b..8cea8f3 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1450,7 +1450,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  					if (ret & VM_FAULT_OOM)
+>  						return i ? i : -ENOMEM;
+>  					if (ret &
+> -					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+> +					    (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE|
+> +					     VM_FAULT_SIGBUS))
+>  						return i ? i : -EFAULT;
+>  					BUG();
+>  				}
+> -- 
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
