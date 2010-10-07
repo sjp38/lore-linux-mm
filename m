@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id CAAE36B004A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 08:51:05 -0400 (EDT)
-Message-ID: <4CADC229.9040402@redhat.com>
-Date: Thu, 07 Oct 2010 14:50:49 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 6B2AF6B004A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 08:58:48 -0400 (EDT)
+Message-ID: <4CADC3F2.2050506@redhat.com>
+Date: Thu, 07 Oct 2010 14:58:26 +0200
 From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-8-git-send-email-gleb@redhat.com>
-In-Reply-To: <1286207794-16120-8-git-send-email-gleb@redhat.com>
+Subject: Re: [PATCH v6 06/12] Add PV MSR to enable asynchronous page faults
+ delivery.
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-7-git-send-email-gleb@redhat.com>
+In-Reply-To: <1286207794-16120-7-git-send-email-gleb@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,60 +18,27 @@ Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo
 List-ID: <linux-mm.kvack.org>
 
   On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> Enable async PF in a guest if async PF capability is discovered.
->
->
-> +void __cpuinit kvm_guest_cpu_init(void)
-> +{
-> +	if (!kvm_para_available())
-> +		return;
 > +
-> +	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)&&  kvmapf) {
-> +		u64 pa = __pa(&__get_cpu_var(apf_reason));
-> +
-> +		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
-> +					  pa | KVM_ASYNC_PF_ENABLED, pa>>  32))
+> +	Physical address points to 32 bit memory location that will be written
+> +	to by the hypervisor at the time of asynchronous page fault injection to
+> +	indicate type of asynchronous page fault. Value of 1 means that the page
+> +	referred to by the page fault is not present. Value 2 means that the
+> +	page is now available.
 
-native_ versions of processor accessors shouldn't be used generally.
+"The must not enable interrupts before the reason is read, or it may be 
+overwritten by another apf".
 
-Also, the MSR isn't documented to fail on valid input, so you can use a 
-normal wrmsrl() here.
+Document the fact that disabling interrupts disables APFs.
 
-> +			return;
-> +		__get_cpu_var(apf_reason).enabled = 1;
-> +		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
-> +		       smp_processor_id());
-> +	}
-> +}
-> +
->
-> +static int kvm_pv_reboot_notify(struct notifier_block *nb,
-> +				unsigned long code, void *unused)
-> +{
-> +	if (code == SYS_RESTART)
-> +		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
-> +	return NOTIFY_DONE;
-> +}
-> +
-> +static struct notifier_block kvm_pv_reboot_nb = {
-> +	.notifier_call = kvm_pv_reboot_notify,
-> +};
+How does the guest distinguish betweem APFs and ordinary page faults?
 
-Does this handle kexec?
+What's the role of cr2?
 
-> +
-> +static void kvm_guest_cpu_notify(void *dummy)
-> +{
-> +	if (!dummy)
-> +		kvm_guest_cpu_init();
-> +	else
-> +		kvm_pv_disable_apf(NULL);
-> +}
+When disabling APF, all pending APFs are flushed and may or may not get 
+a completion.
 
-Why are you making decisions based on a dummy input?
-
-The whole thing looks strange.  Use two functions?
-
+Is a "page available" notification guaranteed to arrive on the same vcpu 
+that took the "page not present" fault?
 
 -- 
 I have a truly marvellous patch that fixes the bug which this
