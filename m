@@ -1,93 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CB5B66B004A
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 22:27:12 -0400 (EDT)
-Date: Thu, 7 Oct 2010 10:27:08 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 2/2] x86: HWPOISON: Report correct address granuality
- for huge hwpoison faults
-Message-ID: <20101007022708.GD5482@localhost>
-References: <1286398641-11862-1-git-send-email-andi@firstfloor.org>
- <1286398641-11862-3-git-send-email-andi@firstfloor.org>
+	by kanga.kvack.org (Postfix) with ESMTP id 17BFE6B004A
+	for <linux-mm@kvack.org>; Wed,  6 Oct 2010 23:12:12 -0400 (EDT)
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by e38.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9734JEV032548
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 21:04:19 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o973C8vJ175090
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 21:12:09 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o973C8pL026188
+	for <linux-mm@kvack.org>; Wed, 6 Oct 2010 21:12:08 -0600
+Date: Thu, 7 Oct 2010 08:42:04 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC] Restrict size of page_cgroup->flags
+Message-ID: <20101007031203.GK4195@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101006142314.GG4195@balbir.in.ibm.com>
+ <20101007085858.0e07de59.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1286398641-11862-3-git-send-email-andi@firstfloor.org>
+In-Reply-To: <20101007085858.0e07de59.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, Andi Kleen <ak@linux.intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: containers@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 04:57:21AM +0800, Andi Kleen wrote:
-> From: Andi Kleen <ak@linux.intel.com>
-> 
-> An earlier patch fixed the hwpoison fault handling to encode the
-> huge page size in the fault code of the page fault handler.
-> 
-> This is needed to report this information in SIGBUS to user space.
-> 
-> This is a straight forward patch to pass this information
-> through to the signal handling in the x86 specific fault.c
-> 
-> Cc: x86@kernel.org
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: fengguang.wu@intel.com
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> ---
->  arch/x86/mm/fault.c |   19 +++++++++++++------
->  1 files changed, 13 insertions(+), 6 deletions(-)
-> 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 4c4508e..1d15a27 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -11,6 +11,7 @@
->  #include <linux/kprobes.h>		/* __kprobes, ...		*/
->  #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
->  #include <linux/perf_event.h>		/* perf_sw_event		*/
-> +#include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
->  
->  #include <asm/traps.h>			/* dotraplinkage, ...		*/
->  #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
-> @@ -160,15 +161,20 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
->  
->  static void
->  force_sig_info_fault(int si_signo, int si_code, unsigned long address,
-> -		     struct task_struct *tsk)
-> +		     struct task_struct *tsk, int fault)
->  {
-> +	unsigned lsb = 0;
->  	siginfo_t info;
->  
->  	info.si_signo	= si_signo;
->  	info.si_errno	= 0;
->  	info.si_code	= si_code;
->  	info.si_addr	= (void __user *)address;
-> -	info.si_addr_lsb = si_code == BUS_MCEERR_AR ? PAGE_SHIFT : 0;
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-10-07 08:58:58]:
 
-Ah you changed the conditional 0..
+> On Wed, 6 Oct 2010 19:53:14 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > I propose restricting page_cgroup.flags to 16 bits. The patch for the
+> > same is below. Comments?
+> > 
+> > 
+> > Restrict the bits usage in page_cgroup.flags
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> > Restricting the flags helps control growth of the flags unbound.
+> > Restriciting it to 16 bits gives us the possibility of merging
+> > cgroup id with flags (atomicity permitting) and saving a whole
+> > long word in page_cgroup
+> > 
+> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Doesn't make sense until you show the usage of existing bits.
 
-> +	if (fault & VM_FAULT_HWPOISON_LARGE)
-> +		lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault)); 
-> +	if (fault & VM_FAULT_HWPOISON)
-> +		lsb = PAGE_SHIFT;
-> +	info.si_addr_lsb = lsb;
->  
->  	force_sig_info(si_signo, &info, tsk);
->  }
-> @@ -731,7 +737,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
->  		tsk->thread.error_code	= error_code | (address >= TASK_SIZE);
->  		tsk->thread.trap_no	= 14;
->  
-> -		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
-> +		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
+??
 
-..and it's sure reasonable.
+> And I guess 16bit may be too large on 32bit systems.
 
-Reviewed-by: Wu Fengguang <fengguang.wu@intel.com>
+too large on 32 bit systems? My intention is to keep the flags to 16
+bits and then use cgroup id for the rest and see if we can remove
+mem_cgroup pointer
 
-Thanks,
-Fengguang
+> Nack for now.
+>
+
+The issue is - do you see further growth of flags?
+ 
+> Thanks,
+> -Kame
+> 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
