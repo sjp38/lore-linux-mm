@@ -1,63 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 752AE6B0089
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 12:11:15 -0400 (EDT)
-Date: Fri, 8 Oct 2010 13:07:49 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
-Message-ID: <20101008160749.GA31315@amt.cnet>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-4-git-send-email-gleb@redhat.com>
- <20101005155409.GB28955@amt.cnet>
- <20101006110704.GW11145@redhat.com>
- <20101006142050.GA31423@amt.cnet>
- <20101007184457.GA8354@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 028C66B006A
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 12:59:42 -0400 (EDT)
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e35.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o98Gn6WB002931
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 10:49:06 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o98GxZE8094350
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 10:59:36 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o98GxXWd018900
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 10:59:35 -0600
+Date: Fri, 8 Oct 2010 22:29:30 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
+Message-ID: <20101008165930.GH5327@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101008104852.803E.A69D9226@jp.fujitsu.com>
+ <20101008090427.GB5327@balbir.in.ibm.com>
+ <alpine.DEB.2.00.1010081044530.30029@router.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20101007184457.GA8354@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1010081044530.30029@router.home>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 08:44:57PM +0200, Gleb Natapov wrote:
-> On Wed, Oct 06, 2010 at 11:20:50AM -0300, Marcelo Tosatti wrote:
-> > On Wed, Oct 06, 2010 at 01:07:04PM +0200, Gleb Natapov wrote:
-> > > > Can't you set a bit in vcpu->requests instead, and handle it in "out:"
-> > > > at the end of vcpu_enter_guest? 
-> > > > 
-> > > > To have a single entry point for pagefaults, after vmexit handling.
-> > > Jumping to "out:" will skip vmexit handling anyway, so we will not reuse
-> > > same call site anyway. I don't see yet why the way you propose will have
-> > > an advantage.
-> > 
-> > What i meant was to call pagefault handler after vmexit handling.
-> > 
-> > Because the way it is in your patch now, with pre pagefault on entry,
-> > one has to make an effort to verify ordering wrt other events on entry
-> > processing.
-> > 
-> What events do you have in mind?
+* Christoph Lameter <cl@linux.com> [2010-10-08 10:45:16]:
 
-TLB flushing, event injection, etc.
-
-> > With pre pagefault after vmexit, its more natural.
-> > 
-> I do not see non-ugly way to pass information that is needed to perform
-> the prefault to the place you want me to put it. We can skip guest entry
-> in case prefault was done which will have the same effect as your
-> proposal, but I want to have a good reason to do so since otherwise we
-> will just do more work for nothing on guest entry.
-
-The reason is that it becomes similar to normal pagefault handling. I
-don't have a specific bug to give you as example.
-
+> On Fri, 8 Oct 2010, Balbir Singh wrote:
 > 
-> > Does that make sense?
+> > I am not sure if this makes sense, since RECLAIM_DISTANCE is supposed
+> > to be a hardware parameter. Could you please help clarify what the
+> > access latency of a node with RECLAIM_DISTANCE 20 to that of a node
+> > with RECLAIM_DISTANCE 30 is? Has the hardware definition of reclaim
+> > distance changed?
 > 
-> --
-> 			Gleb.
+> 10 is the local distance. So 30 should be 3x the latency that a local
+> access takes.
+>
+
+Does this patch then imply that we should do zone_reclaim only for 3x
+nodes and not 2x nodes as we did earlier.
+ 
+> > I suspect the side effect is the zone_reclaim_mode is not set to 1 on
+> > bootup for the 2-4 socket machines you mention, which results in
+> > better VM behaviour?
+> 
+> Right.
+> 
+
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
