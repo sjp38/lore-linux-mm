@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DEEF46B006A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 21:24:23 -0400 (EDT)
-Date: Fri, 8 Oct 2010 10:12:22 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH v2] memcg: reduce lock time at move charge (Was Re:
- [PATCH 04/10] memcg: disable local interrupts in lock_page_cgroup()
-Message-Id: <20101008101222.1aab03ae.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101007161454.84570cf9.akpm@linux-foundation.org>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-5-git-send-email-gthelen@google.com>
-	<20101005160332.GB9515@barrios-desktop>
-	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
-	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
-	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
-	<20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007152111.df687a62.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
-	<20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007161454.84570cf9.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5A326B006A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 21:53:24 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o981mRLW007104
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 8 Oct 2010 10:48:28 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9523545DE51
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 72C8D45DE50
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53596E38005
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 051C2E38002
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
+Message-Id: <20101008104852.803E.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri,  8 Oct 2010 10:48:26 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Oct 2010 16:14:54 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+Recently, Robert Mueller reported zone_reclaim_mode doesn't work
+properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
+He is using Cyrus IMAPd and it's built on a very traditional
+single-process model.
 
-> On Thu, 7 Oct 2010 17:04:05 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> > Now, at task migration among cgroup, memory cgroup scans page table and moving
-> > account if flags are properly set.
-> > 
-> > The core code, mem_cgroup_move_charge_pte_range() does
-> > 
-> >  	pte_offset_map_lock();
-> > 	for all ptes in a page table:
-> > 		1. look into page table, find_and_get a page
-> > 		2. remove it from LRU.
-> > 		3. move charge.
-> > 		4. putback to LRU. put_page()
-> > 	pte_offset_map_unlock();
-> > 
-> > for pte entries on a 3rd level? page table.
-> > 
-> > This pte_offset_map_lock seems a bit long. This patch modifies a rountine as
-> > 
-> > 	for 32 pages: pte_offset_map_lock()
-> > 		      find_and_get a page
-> > 		      record it
-> > 		      pte_offset_map_unlock()
-> > 	for all recorded pages
-> > 		      isolate it from LRU.
-> > 		      move charge
-> > 		      putback to LRU
-> > 	for all recorded pages
-> > 		      put_page()
-> 
-> The patch makes the code larger, more complex and slower!
-> 
-Before this patch:
-   text    data     bss     dec     hex filename
-  27163   11782    4100   43045    a825 mm/memcontrol.o
+  * a master process which reads config files and manages the other
+    process
+  * multiple imapd processes, one per connection
+  * multiple pop3d processes, one per connection
+  * multiple lmtpd processes, one per connection
+  * periodical "cleanup" processes.
 
-After this patch:
-   text    data     bss     dec     hex filename
-  27307   12294    4100   43701    aab5 mm/memcontrol.o
+Then, there are thousands of independent processes. The problem is,
+recent Intel motherboard turn on zone_reclaim_mode by default and
+traditional prefork model software don't work fine on it.
+Unfortunatelly, Such model is still typical one even though 21th
+century. We can't ignore them.
 
-hmm, allocating mc.target[] statically might be bad, but I'm now wondering
-whether I could allocate mc itself dynamically(I'll try).
+This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+relatively cheap 2-4 socket machine are often used for tradiotional
+server as above. The intention is, their machine don't use
+zone_reclaim_mode.
 
-> I do think we're owed a more complete description of its benefits than
-> "seems a bit long".  Have problems been observed?  Any measurements
-> taken?
-> 
-IIUC, this patch is necessary for "[PATCH] memcg: lock-free clear page writeback"
-later, but I agree we should describe it.
+Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
+then this patch doesn't change such high-end NUMA machine behavior.
 
-Thanks,
-Daisuke Nishimura.
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Bron Gondwana <brong@fastmail.fm>
+Cc: Robert Mueller <robm@fastmail.fm>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/topology.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index 64e084f..bfbec49 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
+  * (in whatever arch specific measurement units returned by node_distance())
+  * then switch on zone reclaim on boot.
+  */
+-#define RECLAIM_DISTANCE 20
++#define RECLAIM_DISTANCE 30
+ #endif
+ #ifndef PENALTY_FOR_NODE_WITH_CPUS
+ #define PENALTY_FOR_NODE_WITH_CPUS	(1)
+-- 
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
