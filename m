@@ -1,119 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B26E6B008C
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 14:41:55 -0400 (EDT)
-Date: Fri, 8 Oct 2010 11:41:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX] memcg CPU hotplug lockdep warning fix
-Message-Id: <20101008114123.ff0592b7.akpm@linux-foundation.org>
-In-Reply-To: <20101008174958.GI5327@balbir.in.ibm.com>
-References: <20101008174958.GI5327@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 292646B006A
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 16:06:24 -0400 (EDT)
+Received: from kpbe13.cbf.corp.google.com (kpbe13.cbf.corp.google.com [172.25.105.77])
+	by smtp-out.google.com with ESMTP id o98K6LXM001832
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 13:06:21 -0700
+Received: from qyk9 (qyk9.prod.google.com [10.241.83.137])
+	by kpbe13.cbf.corp.google.com with ESMTP id o98K6JpQ003669
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 13:06:19 -0700
+Received: by qyk9 with SMTP id 9so343376qyk.9
+        for <linux-mm@kvack.org>; Fri, 08 Oct 2010 13:06:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4CAF1B90.3080703@redhat.com>
+References: <1286265215-9025-1-git-send-email-walken@google.com>
+	<1286265215-9025-3-git-send-email-walken@google.com>
+	<4CAB628D.3030205@redhat.com>
+	<AANLkTimdACZ9Xm01DM2+E64+T5XfLffrkFBhf7CJ286p@mail.gmail.com>
+	<20101008043956.GA25662@google.com>
+	<4CAF1B90.3080703@redhat.com>
+Date: Fri, 8 Oct 2010 13:06:18 -0700
+Message-ID: <AANLkTinWxTT=+m_fAudc080OUMwacSefnMbSMBFZgPMH@mail.gmail.com>
+Subject: Re: [PATCH 2/3] Retry page fault when blocking on disk transfer.
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Oct 2010 23:19:58 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Fri, Oct 8, 2010 at 6:24 AM, Rik van Riel <riel@redhat.com> wrote:
+>> +static inline int lock_page_or_retry(struct page *page, struct mm_struc=
+t
+>> *mm,
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0unsigned int flags)
+>> +{
+>> + =A0 =A0 =A0 if (trylock_page(page))
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 1;
+>> + =A0 =A0 =A0 if (!(flags& =A0FAULT_FLAG_ALLOW_RETRY)) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 __lock_page(page);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 1;
+>> + =A0 =A0 =A0 }
+>> +
+>> + =A0 =A0 =A0 up_read(&mm->mmap_sem);
+>> + =A0 =A0 =A0 wait_on_page_locked(page);
+>> + =A0 =A0 =A0 return 0;
+>> +}
+>
+> Wait a moment. =A0Your other patch 2/3 also has a
+> lock_page_or_retry function. =A0That one is in
+> filemap.c and takes slightly different arguments,
+> to do essentially the same thing...
+>
+> +/*
+> + * Lock the page, unless this would block and the caller indicated that =
+it
+> + * can handle a retry.
+> + */
+> +static int lock_page_or_retry(struct page *page,
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct vm_area_=
+struct *vma, struct vm_fault
+> *vmf)
+> +{
+>
+> Is there a way the two functions can be merged
+> into one?
 
-> 
-> memcg has lockdep warnings (sleep inside rcu lock)
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Recent move to get_online_cpus() ends up calling get_online_cpus() from
-> mem_cgroup_read_stat(). However mem_cgroup_read_stat() is called under rcu
-> lock. get_online_cpus() can sleep. The dirty limit patches expose
-> this BUG more readily due to their usage of mem_cgroup_page_stat()
-> 
-> This patch address this issue as identified by lockdep and moves the
-> hotplug protection to a higher layer. This might increase the time
-> required to hotplug, but not by much.
-> 
-> Warning messages
-> 
-> BUG: sleeping function called from invalid context at kernel/cpu.c:62
-> in_atomic(): 0, irqs_disabled(): 0, pid: 6325, name: pagetest
-> 2 locks held by pagetest/6325:
-> #0:  (&mm->mmap_sem){......}, at: [<ffffffff815e9503>]
-> do_page_fault+0x27d/0x4a0
-> #1:  (rcu_read_lock){......}, at: [<ffffffff811124a1>]
-> mem_cgroup_page_stat+0x0/0x23f
-> Pid: 6325, comm: pagetest Not tainted 2.6.36-rc5-mm1+ #201
-> Call Trace:
-> [<ffffffff81041224>] __might_sleep+0x12d/0x131
-> [<ffffffff8104f4af>] get_online_cpus+0x1c/0x51
-> [<ffffffff8110eedb>] mem_cgroup_read_stat+0x27/0xa3
-> [<ffffffff811125d2>] mem_cgroup_page_stat+0x131/0x23f
-> [<ffffffff811124a1>] ? mem_cgroup_page_stat+0x0/0x23f
-> [<ffffffff810d57c3>] global_dirty_limits+0x42/0xf8
-> [<ffffffff810d58b3>] throttle_vm_writeout+0x3a/0xb4
-> [<ffffffff810dc2f8>] shrink_zone+0x3e6/0x3f8  
-> [<ffffffff81074a35>] ? ktime_get_ts+0xb2/0xbf 
-> [<ffffffff810dd1aa>] do_try_to_free_pages+0x106/0x478
-> [<ffffffff810dd601>] try_to_free_mem_cgroup_pages+0xe5/0x14c
-> [<ffffffff8110f947>] mem_cgroup_hierarchical_reclaim+0x314/0x3a2
-> [<ffffffff81111b31>] __mem_cgroup_try_charge+0x29b/0x593
-> [<ffffffff8111194a>] ? __mem_cgroup_try_charge+0xb4/0x593
-> [<ffffffff81071258>] ? local_clock+0x40/0x59  
-> [<ffffffff81009015>] ? sched_clock+0x9/0xd
-> [<ffffffff810710d5>] ? sched_clock_local+0x1c/0x82
-> [<ffffffff8111398a>] mem_cgroup_charge_common+0x4b/0x76
-> [<ffffffff81141469>] ? bio_add_page+0x36/0x38 
-> [<ffffffff81113ba9>] mem_cgroup_cache_charge+0x1f4/0x214
-> [<ffffffff810cd195>] add_to_page_cache_locked+0x4a/0x148
-> ....
-> 
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  mm/memcontrol.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 116fecd..f4c5665 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -578,7 +578,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
->  	int cpu;
->  	s64 val = 0;
->  
-> -	get_online_cpus();
->  	for_each_online_cpu(cpu)
->  		val += per_cpu(mem->stat->count[idx], cpu);
->  #ifdef CONFIG_HOTPLUG_CPU
-> @@ -586,7 +585,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
->  	val += mem->nocpu_base.count[idx];
->  	spin_unlock(&mem->pcp_counter_lock);
->  #endif
-> -	put_online_cpus();
->  	return val;
->  }
->  
-> @@ -1284,6 +1282,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_item item)
->  	struct mem_cgroup *iter;
->  	s64 value;
->  
-> +	get_online_cpus();
->  	rcu_read_lock();
->  	mem = mem_cgroup_from_task(current);
->  	if (mem && !mem_cgroup_is_root(mem)) {
-> @@ -1305,6 +1304,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_read_page_stat_item item)
->  	} else
->  		value = -EINVAL;
->  	rcu_read_unlock();
-> +	put_online_cpus();
->  
->  	return value;
->  }
+Yes, this would be easy to do.
 
-Confused again.  There's no mem_cgroup_page_stat() in mainline,
-linux-next or in any patches in -mm.
+The argument against it would be loss of inlining and, in the filemap
+version, the need to reference vma and vmf fields to find out the mm
+and flags values. We'd like to avoid doing that at least in the fast
+path when trylock_page succeeds - though, now that I think about it,
+both could be avoided with an inline function in a header returning
+trylock_page(page) || _lock_page_or_retry(mm, flags)
+
+Hmmm, this is actually quite similar to how other functions in
+pagemap.h / filemap.c are done...
+I'll send an updated series using this suggestion.
+
+--=20
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
