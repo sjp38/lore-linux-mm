@@ -1,89 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 90E856B006A
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 03:54:33 -0400 (EDT)
-Date: Fri, 8 Oct 2010 09:54:14 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
-Message-ID: <20101008075414.GB8354@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-8-git-send-email-gleb@redhat.com>
- <4CADC229.9040402@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 600FB6B006A
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 04:57:21 -0400 (EDT)
+Date: Fri, 8 Oct 2010 16:35:14 +0800
+From: Yong Wang <yong.y.wang@linux.intel.com>
+Subject: [PATCH] bdi: use deferable timer for sync_supers task
+Message-ID: <20101008083514.GA12402@ywang-moblin2.bj.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CADC229.9040402@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Jens Axboe <jaxboe@fusionio.com>, Christoph Hellwig <hch@lst.de>, Artem Bityutskiy <Artem.Bityutskiy@nokia.com>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xia.wu@intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 02:50:49PM +0200, Avi Kivity wrote:
->  On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >Enable async PF in a guest if async PF capability is discovered.
-> >
-> >
-> >+void __cpuinit kvm_guest_cpu_init(void)
-> >+{
-> >+	if (!kvm_para_available())
-> >+		return;
-> >+
-> >+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)&&  kvmapf) {
-> >+		u64 pa = __pa(&__get_cpu_var(apf_reason));
-> >+
-> >+		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
-> >+					  pa | KVM_ASYNC_PF_ENABLED, pa>>  32))
-> 
-> native_ versions of processor accessors shouldn't be used generally.
-> 
-> Also, the MSR isn't documented to fail on valid input, so you can
-> use a normal wrmsrl() here.
-> 
-Kernel will oops on wrong write then. OK, why not.
+sync_supers task currently wakes up periodically for superblock
+writeback. This hurts power on battery driven devices. This patch
+turns this housekeeping timer into a deferable timer so that it
+does not fire when system is really idle.
 
-> >+			return;
-> >+		__get_cpu_var(apf_reason).enabled = 1;
-> >+		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
-> >+		       smp_processor_id());
-> >+	}
-> >+}
-> >+
-> >
-> >+static int kvm_pv_reboot_notify(struct notifier_block *nb,
-> >+				unsigned long code, void *unused)
-> >+{
-> >+	if (code == SYS_RESTART)
-> >+		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
-> >+	return NOTIFY_DONE;
-> >+}
-> >+
-> >+static struct notifier_block kvm_pv_reboot_nb = {
-> >+	.notifier_call = kvm_pv_reboot_notify,
-> >+};
-> 
-> Does this handle kexec?
-> 
-Yes.
+Signed-off-by: Yong Wang <yong.y.wang@intel.com>
+Signed-off-by: Xia Wu <xia.wu@intel.com>
+---
+ mm/backing-dev.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
 
-> >+
-> >+static void kvm_guest_cpu_notify(void *dummy)
-> >+{
-> >+	if (!dummy)
-> >+		kvm_guest_cpu_init();
-> >+	else
-> >+		kvm_pv_disable_apf(NULL);
-> >+}
-> 
-> Why are you making decisions based on a dummy input?
-> 
-> The whole thing looks strange.  Use two functions?
-> 
-What is so strange? Type of notification is passed as a parameter.
-The code that does this is just under the function. I can rename
-dummy to something else. Or make it two functions.
-
---
-			Gleb.
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 65d4204..9a8daa5 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -238,7 +238,9 @@ static int __init default_bdi_init(void)
+ 	sync_supers_tsk = kthread_run(bdi_sync_supers, NULL, "sync_supers");
+ 	BUG_ON(IS_ERR(sync_supers_tsk));
+ 
+-	setup_timer(&sync_supers_timer, sync_supers_timer_fn, 0);
++	init_timer_deferrable(&sync_supers_timer);
++	sync_supers_timer.function = sync_supers_timer_fn;
++	sync_supers_timer.data = 0;
+ 	bdi_arm_supers_timer();
+ 
+ 	err = bdi_init(&default_backing_dev_info);
+-- 
+1.5.5.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
