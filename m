@@ -1,121 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 55AB46B006A
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 01:17:26 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o985HOnD010956
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 8 Oct 2010 14:17:24 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 223D245DE53
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 14:17:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EBCFE45DE52
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 14:17:23 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D6F611DB805B
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 14:17:23 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E1EC1DB8043
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 14:17:23 +0900 (JST)
-Date: Fri, 8 Oct 2010 14:12:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v2] memcg: reduce lock time at move charge (Was Re:
- [PATCH 04/10] memcg: disable local interrupts in lock_page_cgroup()
-Message-Id: <20101008141201.c1e3a4e2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101007215556.21412ae6.akpm@linux-foundation.org>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<1286175485-30643-5-git-send-email-gthelen@google.com>
-	<20101005160332.GB9515@barrios-desktop>
-	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
-	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
-	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
-	<20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007152111.df687a62.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
-	<20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007161454.84570cf9.akpm@linux-foundation.org>
-	<20101008133712.2a836331.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007215556.21412ae6.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 90E856B006A
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 03:54:33 -0400 (EDT)
+Date: Fri, 8 Oct 2010 09:54:14 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v6 07/12] Add async PF initialization to PV guest.
+Message-ID: <20101008075414.GB8354@redhat.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-8-git-send-email-gleb@redhat.com>
+ <4CADC229.9040402@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4CADC229.9040402@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Oct 2010 21:55:56 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Fri, 8 Oct 2010 13:37:12 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Thu, Oct 07, 2010 at 02:50:49PM +0200, Avi Kivity wrote:
+>  On 10/04/2010 05:56 PM, Gleb Natapov wrote:
+> >Enable async PF in a guest if async PF capability is discovered.
+> >
+> >
+> >+void __cpuinit kvm_guest_cpu_init(void)
+> >+{
+> >+	if (!kvm_para_available())
+> >+		return;
+> >+
+> >+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF)&&  kvmapf) {
+> >+		u64 pa = __pa(&__get_cpu_var(apf_reason));
+> >+
+> >+		if (native_write_msr_safe(MSR_KVM_ASYNC_PF_EN,
+> >+					  pa | KVM_ASYNC_PF_ENABLED, pa>>  32))
 > 
-> > On Thu, 7 Oct 2010 16:14:54 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Thu, 7 Oct 2010 17:04:05 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > 
-> > > > Now, at task migration among cgroup, memory cgroup scans page table and moving
-> > > > account if flags are properly set.
-> > > > 
-> > > > The core code, mem_cgroup_move_charge_pte_range() does
-> > > > 
-> > > >  	pte_offset_map_lock();
-> > > > 	for all ptes in a page table:
-> > > > 		1. look into page table, find_and_get a page
-> > > > 		2. remove it from LRU.
-> > > > 		3. move charge.
-> > > > 		4. putback to LRU. put_page()
-> > > > 	pte_offset_map_unlock();
-> > > > 
-> > > > for pte entries on a 3rd level? page table.
-> > > > 
-> > > > This pte_offset_map_lock seems a bit long. This patch modifies a rountine as
-> > > > 
-> > > > 	for 32 pages: pte_offset_map_lock()
-> > > > 		      find_and_get a page
-> > > > 		      record it
-> > > > 		      pte_offset_map_unlock()
-> > > > 	for all recorded pages
-> > > > 		      isolate it from LRU.
-> > > > 		      move charge
-> > > > 		      putback to LRU
-> > > > 	for all recorded pages
-> > > > 		      put_page()
-> > > 
-> > > The patch makes the code larger, more complex and slower!
-> > > 
-> > 
-> > Slower ?
+> native_ versions of processor accessors shouldn't be used generally.
 > 
-> Sure.  It walks the same data three times, potentially causing
-> thrashing in the L1 cache.
-
-Hmm, make this 2 times, at least.
-
-> It takes and releases locks at a higher frequency.  It increases the text size.
+> Also, the MSR isn't documented to fail on valid input, so you can
+> use a normal wrmsrl() here.
 > 
+Kernel will oops on wrong write then. OK, why not.
 
-But I don't think page_table_lock is a lock which someone can hold so long
-that
-	1. find_get_page
-	2. spin_lock(zone->lock)
-		3. remove it from LRU
-	4. lock_page_cgroup()
-	5. move charge (This means page 
-	5. putback to LRU
-for 4096/8=1024 pages long.
+> >+			return;
+> >+		__get_cpu_var(apf_reason).enabled = 1;
+> >+		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
+> >+		       smp_processor_id());
+> >+	}
+> >+}
+> >+
+> >
+> >+static int kvm_pv_reboot_notify(struct notifier_block *nb,
+> >+				unsigned long code, void *unused)
+> >+{
+> >+	if (code == SYS_RESTART)
+> >+		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
+> >+	return NOTIFY_DONE;
+> >+}
+> >+
+> >+static struct notifier_block kvm_pv_reboot_nb = {
+> >+	.notifier_call = kvm_pv_reboot_notify,
+> >+};
+> 
+> Does this handle kexec?
+> 
+Yes.
 
-will try to make the routine smarter.
+> >+
+> >+static void kvm_guest_cpu_notify(void *dummy)
+> >+{
+> >+	if (!dummy)
+> >+		kvm_guest_cpu_init();
+> >+	else
+> >+		kvm_pv_disable_apf(NULL);
+> >+}
+> 
+> Why are you making decisions based on a dummy input?
+> 
+> The whole thing looks strange.  Use two functions?
+> 
+What is so strange? Type of notification is passed as a parameter.
+The code that does this is just under the function. I can rename
+dummy to something else. Or make it two functions.
 
-But I want to get rid of page_table_lock -> lock_page_cgroup().
-
-Thanks,
--Kame
-
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
