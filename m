@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4DA836B006A
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 06:27:14 -0400 (EDT)
-From: "Wu, Xia" <xia.wu@intel.com>
-Date: Fri, 8 Oct 2010 18:27:08 +0800
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 496926B0071
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 06:31:01 -0400 (EDT)
 Subject: RE: [PATCH] bdi: use deferable timer for sync_supers task
-Message-ID: <A24AE1FFE7AEC5489F83450EE98351BF227AB58D51@shsmsx502.ccr.corp.intel.com>
+From: Artem Bityutskiy <Artem.Bityutskiy@nokia.com>
+Reply-To: Artem.Bityutskiy@nokia.com
+In-Reply-To: <A24AE1FFE7AEC5489F83450EE98351BF227AB58D51@shsmsx502.ccr.corp.intel.com>
 References: <20101008083514.GA12402@ywang-moblin2.bj.intel.com>
 	 <20101008092520.GB5426@lst.de>
 	 <A24AE1FFE7AEC5489F83450EE98351BF227AB58D43@shsmsx502.ccr.corp.intel.com>
- <1286532586.2095.55.camel@localhost>
-In-Reply-To: <1286532586.2095.55.camel@localhost>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+	 <1286532586.2095.55.camel@localhost>
+	 <A24AE1FFE7AEC5489F83450EE98351BF227AB58D51@shsmsx502.ccr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 08 Oct 2010 13:28:07 +0300
+Message-ID: <1286533687.2095.58.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "Artem.Bityutskiy@nokia.com" <Artem.Bityutskiy@nokia.com>
-Cc: Christoph Hellwig <hch@lst.de>, Yong Wang <yong.y.wang@linux.intel.com>, Jens Axboe <jaxboe@fusionio.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Wu, Xia" <xia.wu@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Yong Wang <yong.y.wang@linux.intel.com>, Jens Axboe <jaxboe@fusionio.com>, "Wu,
+ Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-DQo+IE9uIEZyaSwgMjAxMC0xMC0wOCBhdCAxMjowNCArMDIwMCwgZXh0IFd1LCBYaWEgd3JvdGU6
-DQo+ID4gT24gRnJpLCBPY3QgMDgsIDIwMTAgYXQgMDQ6MzU6MTRQTSArMDgwMCwgWW9uZyBXYW5n
-IHdyb3RlOg0KPiA+ID4gPiBzeW5jX3N1cGVycyB0YXNrIGN1cnJlbnRseSB3YWtlcyB1cCBwZXJp
-b2RpY2FsbHkgZm9yIHN1cGVyYmxvY2sNCj4gPiA+ID4gd3JpdGViYWNrLiBUaGlzIGh1cnRzIHBv
-d2VyIG9uIGJhdHRlcnkgZHJpdmVuIGRldmljZXMuIFRoaXMgcGF0Y2gNCj4gPiA+ID4gdHVybnMg
-dGhpcyBob3VzZWtlZXBpbmcgdGltZXIgaW50byBhIGRlZmVyYWJsZSB0aW1lciBzbyB0aGF0IGl0
-DQo+ID4gPiA+IGRvZXMgbm90IGZpcmUgd2hlbiBzeXN0ZW0gaXMgcmVhbGx5IGlkbGUuDQo+ID4N
-Cj4gPiA+IEhvdyBsb25nIGNhbiB0aGUgdGltZXIgYmUgZGVmZXJlZWQ/ICBXZSBjYW4ndCBzaW1w
-bHkgc3RvcCB3cml0aW5nDQo+ID4gPiBvdXQgZGF0YSBmb3IgYSBsb25nIHRpbWUuICBJIHRoaW5r
-IHRoZSBjdXJyZW50IHRpbWVyIHZhbHVlIHNob3VsZCBiZQ0KPiA+ID4gdGhlIHVwcGVyIGJvdW5k
-LCBidXQgYWxsb3dpbmcgdG8gZmlyZSBlYXJsaWVyIHRvIHJ1biBkdXJpbmcgdGhlDQo+ID4gPiBz
-YW1lIHdha2V1cCBjeWNsZSBhcyBvdGhlcnMgaXMgZmluZS4NCj4gPg0KPiA+IElmIHRoZSBzeXN0
-ZW0gaXMgaW4gc2xlZXAgc3RhdGUsIHRoaXMgdGltZXIgY2FuIGJlIGRlZmVycmVkIHRvIHRoZSBu
-ZXh0IHdha2UtdXAgaW50ZXJydXB0Lg0KPiA+IElmIHRoZSBzeXN0ZW0gaXMgYnVzeSwgdGhpcyB0
-aW1lciB3aWxsIGZpcmUgYXQgdGhlIHNjaGVkdWxlZCB0aW1lLg0KDQo+IEhvd2V2ZXIsIHdoZW4g
-dGhlIG5leHQgd2FrZS11cCBpbnRlcnJ1cHQgaGFwcGVucyBpcyBub3QgZGVmaW5lZC4gSXQgY2Fu
-DQo+IGhhcHBlbiAxbXMgYWZ0ZXIsIG9yIDEgbWludXRlIGFmdGVyLCBvciAxIGhvdXIgYWZ0ZXIu
-IFdoYXQgQ2hyaXN0b3BoDQo+IHNheXMgaXMgdGhhdCB0aGVyZSBzaG91bGQgYmUgc29tZSBndWFy
-YW50ZWUgdGhhdCBzYiB3cml0ZW91dCBzdGFydHMsDQo+IHNheSwgd2l0aGluIDUgdG8gMTAgc2Vj
-b25kcyBpbnRlcnZhbC4gRGVmZXJyYWJsZSB0aW1lcnMgZG8gbm90IGd1YXJhbnRlZQ0KPiB0aGlz
-LiBCdXQgdGFrZSBhIGxvb2sgYXQgdGhlIHJhbmdlIGhydGltZXJzIC0gdGhleSBkbyBleGFjdGx5
-IHRoaXMuDQoNCklmIHRoZSBzeXN0ZW0gaXMgaW4gc2xlZXAgc3RhdGUsIGlzIHRoZXJlIGFueSBk
-YXRhIHdoaWNoIHNob3VsZCBiZSB3cml0dGVuPyBNdXN0IA0Kc2Igd3JpdGVvdXQgc3RhcnQgZXZl
-biB0aGVyZSBpc24ndCBhbnkgZGF0YT8gDQoNCg==
+On Fri, 2010-10-08 at 18:27 +0800, Wu, Xia wrote:
+> > However, when the next wake-up interrupt happens is not defined. It can
+> > happen 1ms after, or 1 minute after, or 1 hour after. What Christoph
+> > says is that there should be some guarantee that sb writeout starts,
+> > say, within 5 to 10 seconds interval. Deferrable timers do not guarantee
+> > this. But take a look at the range hrtimers - they do exactly this.
+> 
+> If the system is in sleep state, is there any data which should be written?
+
+May be yes, may be no.
+
+>  Must 
+> sb writeout start even there isn't any data? 
+
+No.
+
+-- 
+Best Regards,
+Artem Bityutskiy (D?N?N?N?D 1/4  D?D,N?N?N?DoD,D1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
