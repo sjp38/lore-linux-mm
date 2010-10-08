@@ -1,47 +1,97 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D44DE8D005B
-	for <linux-mm@kvack.org>; Sun, 31 Oct 2010 17:32:23 -0400 (EDT)
-From: Andreas Schwab <schwab@linux-m68k.org>
-Subject: Re: [PATCH/RFC] m68k/sun3: Kill pte_unmap() warnings
-References: <alpine.DEB.2.00.1010312135110.22279@ayla.of.borg>
-Date: Sun, 31 Oct 2010 22:32:18 +0100
-In-Reply-To: <alpine.DEB.2.00.1010312135110.22279@ayla.of.borg> (Geert
-	Uytterhoeven's message of "Sun, 31 Oct 2010 21:38:35 +0100 (CET)")
-Message-ID: <m2wroynj4t.fsf@igel.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
+Date: Fri,  8 Oct 2010 10:48:26 +0900 (JST)
+Message-ID: <20101008104852.803E.A69D9226__40278.6287515939$1286502818$gmane$org@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by lo.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1P429J-0005kS-Cq
+	for glkm-linux-mm-2@m.gmane.org; Fri, 08 Oct 2010 03:53:29 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5A326B006A
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 21:53:24 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o981mRLW007104
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 8 Oct 2010 10:48:28 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9523545DE51
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 72C8D45DE50
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53596E38005
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 051C2E38002
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Sam Creasey <sammy@sammy.net>, Andrew Morton <akpm@linux-foundation.org>, Linux/m68k <linux-m68k@vger.kernel.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>linux-mm <l>
+Cc: kosaki.motohiro@jp.fujitsu.com
+List-Id: linux-mm.kvack.org
 
-Geert Uytterhoeven <geert@linux-m68k.org> writes:
+Recently, Robert Mueller reported zone_reclaim_mode doesn't work
+properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
+He is using Cyrus IMAPd and it's built on a very traditional
+single-process model.
 
-> Which one is preferable?
->
-> -------------------------------------------------------------------------------
-> Since commit 31c911329e048b715a1dfeaaf617be9430fd7f4e ("mm: check the argument
-> of kunmap on architectures without highmem"), we get lots of warnings like
->
-> arch/m68k/kernel/sys_m68k.c:508: warning: passing argument 1 of a??kunmapa?? from incompatible pointer type
->
-> As m68k doesn't support highmem anyway, open code the calls to kmap() and
-> kunmap() (the latter is a no-op) to kill the warnings.
+  * a master process which reads config files and manages the other
+    process
+  * multiple imapd processes, one per connection
+  * multiple pop3d processes, one per connection
+  * multiple lmtpd processes, one per connection
+  * periodical "cleanup" processes.
 
-I prefer this one, it matches all architectures without CONFIG_HIGHPTE.
+Then, there are thousands of independent processes. The problem is,
+recent Intel motherboard turn on zone_reclaim_mode by default and
+traditional prefork model software don't work fine on it.
+Unfortunatelly, Such model is still typical one even though 21th
+century. We can't ignore them.
 
-Andreas.
+This patch raise zone_reclaim_mode threshold to 30. 30 don't have
+specific meaning. but 20 mean one-hop QPI/Hypertransport and such
+relatively cheap 2-4 socket machine are often used for tradiotional
+server as above. The intention is, their machine don't use
+zone_reclaim_mode.
 
+Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
+then this patch doesn't change such high-end NUMA machine behavior.
+
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Bron Gondwana <brong@fastmail.fm>
+Cc: Robert Mueller <robm@fastmail.fm>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ include/linux/topology.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index 64e084f..bfbec49 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
+  * (in whatever arch specific measurement units returned by node_distance())
+  * then switch on zone reclaim on boot.
+  */
+-#define RECLAIM_DISTANCE 20
++#define RECLAIM_DISTANCE 30
+ #endif
+ #ifndef PENALTY_FOR_NODE_WITH_CPUS
+ #define PENALTY_FOR_NODE_WITH_CPUS	(1)
 -- 
-Andreas Schwab, schwab@linux-m68k.org
-GPG Key fingerprint = 58CA 54C7 6D53 942B 1756  01D3 44D5 214B 8276 4ED5
-"And now for something completely different."
+1.6.5.2
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
 see: http://www.linux-mm.org/ .
-Fight unfair telecom policy in Canada: sign http://dissolvethecrtc.ca/
 Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
