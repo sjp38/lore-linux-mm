@@ -1,276 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5486B006A
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 21:22:14 -0400 (EDT)
-Received: from hpaq1.eem.corp.google.com (hpaq1.eem.corp.google.com [172.25.149.1])
-	by smtp-out.google.com with ESMTP id o991MBwu003893
-	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 18:22:11 -0700
-Received: from pwi7 (pwi7.prod.google.com [10.241.219.7])
-	by hpaq1.eem.corp.google.com with ESMTP id o991M9dx020850
-	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 18:22:09 -0700
-Received: by pwi7 with SMTP id 7so269594pwi.16
-        for <linux-mm@kvack.org>; Fri, 08 Oct 2010 18:22:08 -0700 (PDT)
-Date: Fri, 8 Oct 2010 18:22:04 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH 2/3] Retry page fault when blocking on disk transfer.
-Message-ID: <20101009012204.GA17458@google.com>
-References: <1286265215-9025-1-git-send-email-walken@google.com>
- <1286265215-9025-3-git-send-email-walken@google.com>
- <4CAB628D.3030205@redhat.com>
- <AANLkTimdACZ9Xm01DM2+E64+T5XfLffrkFBhf7CJ286p@mail.gmail.com>
- <20101008043956.GA25662@google.com>
- <4CAF1B90.3080703@redhat.com>
- <AANLkTinWxTT=+m_fAudc080OUMwacSefnMbSMBFZgPMH@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B97C6B006A
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 22:18:34 -0400 (EDT)
+Received: from hpaq13.eem.corp.google.com (hpaq13.eem.corp.google.com [172.25.149.13])
+	by smtp-out.google.com with ESMTP id o992IS3R001248
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 19:18:28 -0700
+Received: from qyk34 (qyk34.prod.google.com [10.241.83.162])
+	by hpaq13.eem.corp.google.com with ESMTP id o992IQ0Y025492
+	for <linux-mm@kvack.org>; Fri, 8 Oct 2010 19:18:26 -0700
+Received: by qyk34 with SMTP id 34so866055qyk.1
+        for <linux-mm@kvack.org>; Fri, 08 Oct 2010 19:18:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AANLkTinWxTT=+m_fAudc080OUMwacSefnMbSMBFZgPMH@mail.gmail.com>
+In-Reply-To: <20101009011520.GJ5327@balbir.in.ibm.com>
+References: <20101008174958.GI5327@balbir.in.ibm.com> <20101008114123.ff0592b7.akpm@linux-foundation.org>
+ <20101009011520.GJ5327@balbir.in.ibm.com>
+From: Greg Thelen <gthelen@google.com>
+Date: Fri, 8 Oct 2010 19:18:05 -0700
+Message-ID: <AANLkTik-+WzhaqJ2KD56MkXGuqFgwejnX8OPbPF1=oqD@mail.gmail.com>
+Subject: Re: [BUGFIX] memcg CPU hotplug lockdep warning fix
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Ying Han <yinghan@google.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Peter Zijlstra <peterz@infradead.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Oct 8, 2010 at 6:15 PM, Balbir Singh <balbir@linux.vnet.ibm.com> wr=
+ote:
+> * Andrew Morton <akpm@linux-foundation.org> [2010-10-08 11:41:23]:
+>
+>> On Fri, 8 Oct 2010 23:19:58 +0530
+>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>
+>> >
+>> > memcg has lockdep warnings (sleep inside rcu lock)
+>> >
+>> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> >
+>> > Recent move to get_online_cpus() ends up calling get_online_cpus() fro=
+m
+>> > mem_cgroup_read_stat(). However mem_cgroup_read_stat() is called under=
+ rcu
+>> > lock. get_online_cpus() can sleep. The dirty limit patches expose
+>> > this BUG more readily due to their usage of mem_cgroup_page_stat()
+>> >
+>> > This patch address this issue as identified by lockdep and moves the
+>> > hotplug protection to a higher layer. This might increase the time
+>> > required to hotplug, but not by much.
+>> >
+>> > Warning messages
+>> >
+>> > BUG: sleeping function called from invalid context at kernel/cpu.c:62
+>> > in_atomic(): 0, irqs_disabled(): 0, pid: 6325, name: pagetest
+>> > 2 locks held by pagetest/6325:
+>> > #0: =A0(&mm->mmap_sem){......}, at: [<ffffffff815e9503>]
+>> > do_page_fault+0x27d/0x4a0
+>> > #1: =A0(rcu_read_lock){......}, at: [<ffffffff811124a1>]
+>> > mem_cgroup_page_stat+0x0/0x23f
+>> > Pid: 6325, comm: pagetest Not tainted 2.6.36-rc5-mm1+ #201
+>> > Call Trace:
+>> > [<ffffffff81041224>] __might_sleep+0x12d/0x131
+>> > [<ffffffff8104f4af>] get_online_cpus+0x1c/0x51
+>> > [<ffffffff8110eedb>] mem_cgroup_read_stat+0x27/0xa3
+>> > [<ffffffff811125d2>] mem_cgroup_page_stat+0x131/0x23f
+>> > [<ffffffff811124a1>] ? mem_cgroup_page_stat+0x0/0x23f
+>> > [<ffffffff810d57c3>] global_dirty_limits+0x42/0xf8
+>> > [<ffffffff810d58b3>] throttle_vm_writeout+0x3a/0xb4
+>> > [<ffffffff810dc2f8>] shrink_zone+0x3e6/0x3f8
+>> > [<ffffffff81074a35>] ? ktime_get_ts+0xb2/0xbf
+>> > [<ffffffff810dd1aa>] do_try_to_free_pages+0x106/0x478
+>> > [<ffffffff810dd601>] try_to_free_mem_cgroup_pages+0xe5/0x14c
+>> > [<ffffffff8110f947>] mem_cgroup_hierarchical_reclaim+0x314/0x3a2
+>> > [<ffffffff81111b31>] __mem_cgroup_try_charge+0x29b/0x593
+>> > [<ffffffff8111194a>] ? __mem_cgroup_try_charge+0xb4/0x593
+>> > [<ffffffff81071258>] ? local_clock+0x40/0x59
+>> > [<ffffffff81009015>] ? sched_clock+0x9/0xd
+>> > [<ffffffff810710d5>] ? sched_clock_local+0x1c/0x82
+>> > [<ffffffff8111398a>] mem_cgroup_charge_common+0x4b/0x76
+>> > [<ffffffff81141469>] ? bio_add_page+0x36/0x38
+>> > [<ffffffff81113ba9>] mem_cgroup_cache_charge+0x1f4/0x214
+>> > [<ffffffff810cd195>] add_to_page_cache_locked+0x4a/0x148
+>> > ....
+>> >
+>> >
+>> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> > ---
+>> >
+>> > =A0mm/memcontrol.c | =A0 =A04 ++--
+>> > =A01 files changed, 2 insertions(+), 2 deletions(-)
+>> >
+>> >
+>> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> > index 116fecd..f4c5665 100644
+>> > --- a/mm/memcontrol.c
+>> > +++ b/mm/memcontrol.c
+>> > @@ -578,7 +578,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup =
+*mem,
+>> > =A0 =A0 int cpu;
+>> > =A0 =A0 s64 val =3D 0;
+>> >
+>> > - =A0 get_online_cpus();
+>> > =A0 =A0 for_each_online_cpu(cpu)
+>> > =A0 =A0 =A0 =A0 =A0 =A0 val +=3D per_cpu(mem->stat->count[idx], cpu);
+>> > =A0#ifdef CONFIG_HOTPLUG_CPU
+>> > @@ -586,7 +585,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup =
+*mem,
+>> > =A0 =A0 val +=3D mem->nocpu_base.count[idx];
+>> > =A0 =A0 spin_unlock(&mem->pcp_counter_lock);
+>> > =A0#endif
+>> > - =A0 put_online_cpus();
+>> > =A0 =A0 return val;
+>> > =A0}
+>> >
+>> > @@ -1284,6 +1282,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_read_pa=
+ge_stat_item item)
+>> > =A0 =A0 struct mem_cgroup *iter;
+>> > =A0 =A0 s64 value;
+>> >
+>> > + =A0 get_online_cpus();
+>> > =A0 =A0 rcu_read_lock();
+>> > =A0 =A0 mem =3D mem_cgroup_from_task(current);
+>> > =A0 =A0 if (mem && !mem_cgroup_is_root(mem)) {
+>> > @@ -1305,6 +1304,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_read_pa=
+ge_stat_item item)
+>> > =A0 =A0 } else
+>> > =A0 =A0 =A0 =A0 =A0 =A0 value =3D -EINVAL;
+>> > =A0 =A0 rcu_read_unlock();
+>> > + =A0 put_online_cpus();
+>> >
+>> > =A0 =A0 return value;
+>> > =A0}
+>>
+>> Confused again. =A0There's no mem_cgroup_page_stat() in mainline,
+>> linux-next or in any patches in -mm.
+>>
+>
+> Oops, sorry for the confusion. This patch applies on top of the dirty
+> limit patches posted by Greg. I should have posted this in response to
+> Greg's posting.
 
-Second try on adding the VM_FAULT_RETRY functionality to the swap in path.
-
-This proposal would replace [patch 2/3] of this series (the initial
-version of it, which was approved by linus / rik / hpa).
-
-Changes since the approved version:
-
-- split lock_page_or_retry() into an inline function in  pagemap.h,
-  handling the trylock_page() fast path, and __lock_page_or_retry() in
-  filemap.c, handling the blocking path (with or without retry).
-
-- make do_swap_page() call lock_page_or_retry() in place of lock_page(),
-  and handle the retry case.
-
----------------------------------- 8< -----------------------------------
-
-Retry page fault when blocking on disk transfer.
-    
-This change reduces mmap_sem hold times that are caused by waiting for
-disk transfers when accessing file mapped VMAs or swap space.
-It introduces the VM_FAULT_ALLOW_RETRY flag, which indicates that the
-call site wants mmap_sem to be released if blocking on a pending
-disk transfer. In that case, handle_mm_fault() returns the
-VM_FAULT_RETRY status flag and do_page_fault() will then re-acquire
-mmap_sem and retry the page fault. It is expected that the retry will
-hit the same page which will now be cached, and thus it will
-complete with a low mmap_sem hold time.
-
-Signed-off-by: Michel Lespinasse <walken@google.com>
----
- arch/x86/mm/fault.c     |   38 ++++++++++++++++++++++++++------------
- include/linux/mm.h      |    2 ++
- include/linux/pagemap.h |   13 +++++++++++++
- mm/filemap.c            |   16 +++++++++++++++-
- mm/memory.c             |   10 ++++++++--
- 5 files changed, 64 insertions(+), 15 deletions(-)
-
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 4c4508e..b355b92 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -952,8 +952,10 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
- 	struct task_struct *tsk;
- 	unsigned long address;
- 	struct mm_struct *mm;
--	int write;
- 	int fault;
-+	int write = error_code & PF_WRITE;
-+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY |
-+					(write ? FAULT_FLAG_WRITE : 0);
- 
- 	tsk = current;
- 	mm = tsk->mm;
-@@ -1064,6 +1066,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
- 			bad_area_nosemaphore(regs, error_code, address);
- 			return;
- 		}
-+retry:
- 		down_read(&mm->mmap_sem);
- 	} else {
- 		/*
-@@ -1107,8 +1110,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
- 	 * we can handle it..
- 	 */
- good_area:
--	write = error_code & PF_WRITE;
--
- 	if (unlikely(access_error(error_code, write, vma))) {
- 		bad_area_access_error(regs, error_code, address);
- 		return;
-@@ -1119,21 +1120,34 @@ good_area:
- 	 * make sure we exit gracefully rather than endlessly redo
- 	 * the fault:
- 	 */
--	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
-+	fault = handle_mm_fault(mm, vma, address, flags);
- 
- 	if (unlikely(fault & VM_FAULT_ERROR)) {
- 		mm_fault_error(regs, error_code, address, fault);
- 		return;
- 	}
- 
--	if (fault & VM_FAULT_MAJOR) {
--		tsk->maj_flt++;
--		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
--				     regs, address);
--	} else {
--		tsk->min_flt++;
--		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
--				     regs, address);
-+	/*
-+	 * Major/minor page fault accounting is only done on the
-+	 * initial attempt. If we go through a retry, it is extremely
-+	 * likely that the page will be found in page cache at that point.
-+	 */
-+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-+		if (fault & VM_FAULT_MAJOR) {
-+			tsk->maj_flt++;
-+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
-+				      regs, address);
-+		} else {
-+			tsk->min_flt++;
-+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
-+				      regs, address);
-+		}
-+		if (fault & VM_FAULT_RETRY) {
-+			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-+			 * of starvation. */
-+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-+			goto retry;
-+		}
- 	}
- 
- 	check_v8086_mode(regs, address, tsk);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 74949fb..0b4f9b2 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -144,6 +144,7 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
- #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
- #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
-+#define FAULT_FLAG_ALLOW_RETRY	0x08	/* Retry fault if blocking */
- 
- /*
-  * This interface is used by x86 PAT code to identify a pfn mapping that is
-@@ -722,6 +723,7 @@ static inline int page_mapped(struct page *page)
- 
- #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
- #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
-+#define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
- 
- #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON)
- 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e12cdc6..2d1ffe3 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -299,6 +299,8 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- extern void __lock_page(struct page *page);
- extern int __lock_page_killable(struct page *page);
- extern void __lock_page_nosync(struct page *page);
-+extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-+				unsigned int flags);
- extern void unlock_page(struct page *page);
- 
- static inline void __set_page_locked(struct page *page)
-@@ -351,6 +353,17 @@ static inline void lock_page_nosync(struct page *page)
- }
- 	
- /*
-+ * lock_page_or_retry - Lock the page, unless this would block and the
-+ * caller indicated that it can handle a retry.
-+ */
-+static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
-+				     unsigned int flags)
-+{
-+	might_sleep();
-+	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
-+}
-+
-+/*
-  * This is exported only for wait_on_page_locked/wait_on_page_writeback.
-  * Never use this directly!
-  */
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 8ed709a..2eeb6c5 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -612,6 +612,19 @@ void __lock_page_nosync(struct page *page)
- 							TASK_UNINTERRUPTIBLE);
- }
- 
-+int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-+			 unsigned int flags)
-+{
-+	if (!(flags & FAULT_FLAG_ALLOW_RETRY)) {
-+		__lock_page(page);
-+		return 1;
-+	} else {
-+		up_read(&mm->mmap_sem);
-+		wait_on_page_locked(page);
-+		return 0;
-+	}
-+}
-+
- /**
-  * find_get_page - find and get a page reference
-  * @mapping: the address_space to search
-@@ -1550,7 +1563,8 @@ retry_find:
- 			goto no_cached_page;
- 	}
- 
--	lock_page(page);
-+	if (!lock_page_or_retry(page, &vma->vm_mm, vmf->flags))
-+		return ret | VM_FAULT_RETRY;
- 
- 	/* Did it get truncated? */
- 	if (unlikely(page->mapping != mapping)) {
-diff --git a/mm/memory.c b/mm/memory.c
-index 0e18b4d..362e803 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2626,6 +2626,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page, *swapcache = NULL;
- 	swp_entry_t entry;
- 	pte_t pte;
-+	int locked;
- 	struct mem_cgroup *ptr = NULL;
- 	int exclusive = 0;
- 	int ret = 0;
-@@ -2676,8 +2677,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_release;
- 	}
- 
--	lock_page(page);
-+	locked = lock_page_or_retry(page, mm, flags);
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+	if (!locked) {
-+		ret |= VM_FAULT_RETRY;
-+		goto out_release;
-+	}
- 
- 	/*
- 	 * Make sure try_to_free_swap or reuse_swap_page or swapoff did not
-@@ -2926,7 +2931,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	vmf.page = NULL;
- 
- 	ret = vma->vm_ops->fault(vma, &vmf);
--	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-+	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
-+			    VM_FAULT_RETRY)))
- 		return ret;
- 
- 	if (unlikely(PageHWPoison(vmf.page))) {
-
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+I plan to include Balbir's fix (above) in forthcoming memcg dirty
+limits series V2.  I'm running V2 through tests right now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
