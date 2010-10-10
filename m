@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AACC26B006A
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 09:23:06 -0400 (EDT)
-Date: Sun, 10 Oct 2010 15:22:52 +0200
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id DAFFD6B006A
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 09:27:15 -0400 (EDT)
+Date: Sun, 10 Oct 2010 15:27:02 +0200
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 08/12] Handle async PF in a guest.
-Message-ID: <20101010132252.GO2397@redhat.com>
+Subject: Re: [PATCH v6 06/12] Add PV MSR to enable asynchronous page faults
+ delivery.
+Message-ID: <20101010132702.GP2397@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-9-git-send-email-gleb@redhat.com>
- <4CADC6C3.3040305@redhat.com>
- <20101010123220.GN2397@redhat.com>
- <4CB1B3E2.3000200@redhat.com>
+ <1286207794-16120-7-git-send-email-gleb@redhat.com>
+ <4CADC01E.3060409@redhat.com>
+ <20101007175329.GF2397@redhat.com>
+ <4CB1B5EF.7040207@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CB1B3E2.3000200@redhat.com>
+In-Reply-To: <4CB1B5EF.7040207@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Avi Kivity <avi@redhat.com>
 Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 10, 2010 at 02:38:58PM +0200, Avi Kivity wrote:
->  On 10/10/2010 02:32 PM, Gleb Natapov wrote:
-> >On Thu, Oct 07, 2010 at 03:10:27PM +0200, Avi Kivity wrote:
+On Sun, Oct 10, 2010 at 02:47:43PM +0200, Avi Kivity wrote:
+>  On 10/07/2010 07:53 PM, Gleb Natapov wrote:
+> >On Thu, Oct 07, 2010 at 02:42:06PM +0200, Avi Kivity wrote:
 > >>   On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >>  >When async PF capability is detected hook up special page fault handler
-> >>  >that will handle async page fault events and bypass other page faults to
-> >>  >regular page fault handler. Also add async PF handling to nested SVM
-> >>  >emulation. Async PF always generates exit to L1 where vcpu thread will
-> >>  >be scheduled out until page is available.
+> >>  >Guest enables async PF vcpu functionality using this MSR.
 > >>  >
+> >>  >   			return NON_PRESENT;
+> >>  >+
+> >>  >+MSR_KVM_ASYNC_PF_EN: 0x4b564d02
+> >>  >+	data: Bits 63-6 hold 64-byte aligned physical address of a 32bit memory
 > >>
-> >>  Please separate guest and host changes.
+> >>  Given that it must be aligned anyway, we can require it to be a
+> >>  64-byte region and also require that the guest zero it before
+> >>  writing the MSR.  That will give us a little more flexibility in the
+> >>  future.
 > >>
-> >Hmm. There are only guest changes here as far as I can see.
+> >No code change needed, so OK.
 > 
-> From the diffstat:
+> The guest needs to allocate a 64-byte per-cpu entry instead of a
+> 4-byte entry.
 > 
-> >  arch/x86/include/asm/kvm_para.h |   12 +++
-> >  arch/x86/include/asm/traps.h    |    1 +
-> >  arch/x86/kernel/entry_32.S      |   10 ++
-> >  arch/x86/kernel/entry_64.S      |    3 +
-> >  arch/x86/kernel/kvm.c           |  184 ++++++++++++++++++++++++++++++++++++++-
-> >  arch/x86/kvm/svm.c              |   43 +++++++--
+Yes, noticed that already :(
+
 > 
-> svm.c is host code.
+> >>  >+
+> >>  >+	kvm_async_pf_wakeup_all(vcpu);
+> >>
+> >>  Why is this needed?  If all apfs are flushed at disable time, what
+> >>  do we need to wake up?
+> >For migration. Destination will rewrite msr and all processes will be
+> >waked up.
 > 
-Not exactly :) It is a host code from nested guest perspective, but
-guest code from L0 perspective.
+> Ok. What happens to apf completions that happen after all vcpus are stopped?
+> 
+They will be cleaned by kvm_clear_async_pf_completion_queue() on vcpu
+destroy.
 
 --
 			Gleb.
