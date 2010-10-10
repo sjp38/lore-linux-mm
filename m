@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id DAFFD6B006A
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 09:27:15 -0400 (EDT)
-Date: Sun, 10 Oct 2010 15:27:02 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 7E2F76B006A
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 10:26:10 -0400 (EDT)
+Date: Sun, 10 Oct 2010 16:25:51 +0200
 From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 06/12] Add PV MSR to enable asynchronous page faults
- delivery.
-Message-ID: <20101010132702.GP2397@redhat.com>
+Subject: Re: [PATCH v6 10/12] Handle async PF in non preemptable context
+Message-ID: <20101010142551.GQ2397@redhat.com>
 References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-7-git-send-email-gleb@redhat.com>
- <4CADC01E.3060409@redhat.com>
- <20101007175329.GF2397@redhat.com>
- <4CB1B5EF.7040207@redhat.com>
+ <1286207794-16120-11-git-send-email-gleb@redhat.com>
+ <20101005195149.GC1786@amt.cnet>
+ <20101006104132.GS11145@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CB1B5EF.7040207@redhat.com>
+In-Reply-To: <20101006104132.GS11145@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 10, 2010 at 02:47:43PM +0200, Avi Kivity wrote:
->  On 10/07/2010 07:53 PM, Gleb Natapov wrote:
-> >On Thu, Oct 07, 2010 at 02:42:06PM +0200, Avi Kivity wrote:
-> >>   On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >>  >Guest enables async PF vcpu functionality using this MSR.
-> >>  >
-> >>  >   			return NON_PRESENT;
-> >>  >+
-> >>  >+MSR_KVM_ASYNC_PF_EN: 0x4b564d02
-> >>  >+	data: Bits 63-6 hold 64-byte aligned physical address of a 32bit memory
-> >>
-> >>  Given that it must be aligned anyway, we can require it to be a
-> >>  64-byte region and also require that the guest zero it before
-> >>  writing the MSR.  That will give us a little more flexibility in the
-> >>  future.
-> >>
-> >No code change needed, so OK.
+On Wed, Oct 06, 2010 at 12:41:32PM +0200, Gleb Natapov wrote:
+> On Tue, Oct 05, 2010 at 04:51:50PM -0300, Marcelo Tosatti wrote:
+> > On Mon, Oct 04, 2010 at 05:56:32PM +0200, Gleb Natapov wrote:
+> > > If async page fault is received by idle task or when preemp_count is
+> > > not zero guest cannot reschedule, so do sti; hlt and wait for page to be
+> > > ready. vcpu can still process interrupts while it waits for the page to
+> > > be ready.
+> > > 
+> > > Acked-by: Rik van Riel <riel@redhat.com>
+> > > Signed-off-by: Gleb Natapov <gleb@redhat.com>
+> > > ---
+> > >  arch/x86/kernel/kvm.c |   40 ++++++++++++++++++++++++++++++++++------
+> > >  1 files changed, 34 insertions(+), 6 deletions(-)
+> > > 
+> > > diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+> > > index 36fb3e4..f73946f 100644
+> > > --- a/arch/x86/kernel/kvm.c
+> > > +++ b/arch/x86/kernel/kvm.c
+> > > @@ -37,6 +37,7 @@
+> > >  #include <asm/cpu.h>
+> > >  #include <asm/traps.h>
+> > >  #include <asm/desc.h>
+> > > +#include <asm/tlbflush.h>
+> > >  
+> > >  #define MMU_QUEUE_SIZE 1024
+> > >  
+> > > @@ -78,6 +79,8 @@ struct kvm_task_sleep_node {
+> > >  	wait_queue_head_t wq;
+> > >  	u32 token;
+> > >  	int cpu;
+> > > +	bool halted;
+> > > +	struct mm_struct *mm;
+> > >  };
+> > >  
+> > >  static struct kvm_task_sleep_head {
+> > > @@ -106,6 +109,11 @@ void kvm_async_pf_task_wait(u32 token)
+> > >  	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
+> > >  	struct kvm_task_sleep_node n, *e;
+> > >  	DEFINE_WAIT(wait);
+> > > +	int cpu, idle;
+> > > +
+> > > +	cpu = get_cpu();
+> > > +	idle = idle_cpu(cpu);
+> > > +	put_cpu();
+> > >  
+> > >  	spin_lock(&b->lock);
+> > >  	e = _find_apf_task(b, token);
+> > > @@ -119,19 +127,33 @@ void kvm_async_pf_task_wait(u32 token)
+> > >  
+> > >  	n.token = token;
+> > >  	n.cpu = smp_processor_id();
+> > > +	n.mm = current->active_mm;
+> > > +	n.halted = idle || preempt_count() > 1;
+> > > +	atomic_inc(&n.mm->mm_count);
+> > 
+> > Can't see why this reference is needed.
+> I thought that if kernel thread does fault on behalf of some
+> process mm can go away while kernel thread is sleeping. But it looks
+> like kernel thread increase reference to mm it runs with by himself, so
+> may be this is redundant (but not harmful).
 > 
-> The guest needs to allocate a 64-byte per-cpu entry instead of a
-> 4-byte entry.
-> 
-Yes, noticed that already :(
-
-> 
-> >>  >+
-> >>  >+	kvm_async_pf_wakeup_all(vcpu);
-> >>
-> >>  Why is this needed?  If all apfs are flushed at disable time, what
-> >>  do we need to wake up?
-> >For migration. Destination will rewrite msr and all processes will be
-> >waked up.
-> 
-> Ok. What happens to apf completions that happen after all vcpus are stopped?
-> 
-They will be cleaned by kvm_clear_async_pf_completion_queue() on vcpu
-destroy.
+Actually it is not redundant. Kernel thread will release reference to
+active_mm on reschedule.
 
 --
 			Gleb.
