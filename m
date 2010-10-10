@@ -1,151 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id ED7396B0071
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 13:04:06 -0400 (EDT)
-Message-ID: <4CB1F369.1080108@redhat.com>
-Date: Sun, 10 Oct 2010 13:10:01 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id BEB826B0071
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 19:32:03 -0400 (EDT)
+Date: Mon, 11 Oct 2010 10:31:30 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Results of my VFS scaling evaluation.
+Message-ID: <20101010233130.GO4681@dastard>
+References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
+ <20101009031609.GK4681@dastard>
+ <87y6a6fsg4.fsf@basil.nowhere.org>
+ <20101010073732.GA4097@infradead.org>
+ <20101010082038.GA17133@basil.fritz.box>
 MIME-Version: 1.0
-Subject: Re: [RFC]vmscan: doing page_referenced() in batch way
-References: <1285729053.27440.13.camel@sli10-conroe.sh.intel.com> <20101006131052.e3ae026f.akpm@linux-foundation.org>
-In-Reply-To: <20101006131052.e3ae026f.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101010082038.GA17133@basil.fritz.box>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shaohua.li@intel.com>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, hughd@google.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Frank Mayhar <fmayhar@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On 10/06/2010 04:10 PM, Andrew Morton wrote:
-> On Wed, 29 Sep 2010 10:57:33 +0800
-> Shaohua Li<shaohua.li@intel.com>  wrote:
->
->> when memory pressure is high, page_referenced() causes a lot of lock contention
->> for anon_vma->lock or mapping->i_mmap_lock. Considering pages from one file
->> usually live side by side in LRU list, we can lock several pages in
->> shrink_page_list() and do batch page_referenced() to avoid some lock/unlock,
->> which should reduce lock contention a lot. The locking rule documented in
->> rmap.c is:
->> page_lock
->> 	mapping->i_mmap_lock
->> 		anon_vma->lock
->> For a batch of pages, we do page lock for all of them first and check their
->> reference, and then release their i_mmap_lock or anon_vma lock. This seems not
->> break the rule to me.
->> Before I further polish the patch, I'd like to know if there is anything
->> preventing us to do such batch here.
->
-> The patch adds quite a bit of complexity, so we'd need to see benchmark
-> testing results which justify it, please.
->
-> Also, the entire patch is irrelevant for uniprocessor machines, so the
-> runtime overhead and code-size increases for CONFIG_SMP=n builds should
-> be as low as possible - ideally zero.  Please quantify this as well
-> within the changelog if you pursue this work.
->
->>
->> ...
->>
->> +#define PRC_PAGE_NUM 8
->> +struct page_reference_control {
->> +	int num;
->> +	struct page *pages[PRC_PAGE_NUM];
->> +	int references[PRC_PAGE_NUM];
->> +	struct anon_vma *anon_vma;
->> +	struct address_space *mapping;
->> +	/* no ksm */
->> +};
->
-> hm, 120 bytes of stack consumed, deep in page reclaim.
->
->>   #endif
->>
->>   extern int hwpoison_filter(struct page *p);
->>
->> ...
->>
->>   static int page_referenced_file(struct page *page,
->>   				struct mem_cgroup *mem_cont,
->> -				unsigned long *vm_flags)
->> +				unsigned long *vm_flags,
->> +				struct page_reference_control *prc)
->>   {
->>   	unsigned int mapcount;
->>   	struct address_space *mapping = page->mapping;
->> @@ -603,8 +623,25 @@ static int page_referenced_file(struct p
->>   	 */
->>   	BUG_ON(!PageLocked(page));
->>
->> -	spin_lock(&mapping->i_mmap_lock);
->> +	if (prc) {
->> +		if (mapping == prc->mapping) {
->> +			goto skip_lock;
->> +		}
->> +		if (prc->anon_vma) {
->> +			page_unlock_anon_vma(prc->anon_vma);
->> +			prc->anon_vma = NULL;
->> +		}
->> +		if (prc->mapping) {
->> +			spin_unlock(&prc->mapping->i_mmap_lock);
->> +			prc->mapping = NULL;
->> +		}
->> +		prc->mapping = mapping;
->> +
->> +		spin_lock(&mapping->i_mmap_lock);
->> +	} else
->> +		spin_lock(&mapping->i_mmap_lock);
->
-> Move the spin_lock() outside, remove the `else' part.
->
->> +skip_lock:
->>   	/*
->>   	 * i_mmap_lock does not stabilize mapcount at all, but mapcount
->>   	 * is more likely to be accurate if we note it after spinning.
->> @@ -628,7 +665,8 @@ static int page_referenced_file(struct p
->>   			break;
->>   	}
->>
->> -	spin_unlock(&mapping->i_mmap_lock);
->> +	if (!prc)
->> +		spin_unlock(&mapping->i_mmap_lock);
->>   	return referenced;
->>   }
->>
->>
->> ...
->>
->> +static void do_prc_batch(struct scan_control *sc,
->> +	struct page_reference_control *prc)
->> +{
->> +	int i;
->> +	for (i = 0; i<  prc->num; i++)
->> +		prc->references[i] = page_check_references(prc->pages[i], sc,
->> +			prc);
->> +	/*
->> +	 * we must release all locks here, the lock ordering requries
->> +	 * pagelock->
->> +	 *   mapping->i_mmap_lock->
->> +	 *     anon_vma->lock
->> +	 * release lock guarantee we don't break the rule in next run
->> +	 */
->> +	if (prc->anon_vma) {
->> +		page_unlock_anon_vma(prc->anon_vma);
->> +		prc->anon_vma = NULL;
->> +	}
->> +	if (prc->mapping) {
->> +		spin_unlock(&prc->mapping->i_mmap_lock);
->> +		prc->mapping = NULL;
->> +	}
->> +}
->
-> I didn't check the locking alterations.
+On Sun, Oct 10, 2010 at 10:20:39AM +0200, Andi Kleen wrote:
+> > Certainly not for .37, where even the inode_lock splitup is pretty damn
+> > later.  Nick disappearing for a few weeks and others having to pick up
+> > the work to sort it out certainly doesn't help.  And the dcache_lock
+> > splitup is a much larget task than that anyway.  Getting that into .38
+> > is the enabler for doing more fancy things.  And as Dave mentioned at
+> > least in the writeback area it's much better to sort out the algorithmic
+> > problems now than to blindly split some locks up more.
+> 
+> I don't see why the algorithmic work can't be done in parallel 
+> to the lock split up?
 
-I've tried to wrap my head around them, but haven't
-yet been able to convince myself that it is safe.
+It is - see Fengguang Wu's 17 patch series RFC for removing
+writeback from balance_dirty_pages(). That change is complex enough
+that few people can understand it well enough to review it, and even
+fewer have the hardware and time available to test it thoroughly.
 
-What if we have multiple pages sharing the same
-mapping or root anon_vma, which is not the same
-as the prc->anon_vma ?
+That patch series is *exactly* what we need to test for fixing the
+writeback lock contention, but I cannot do that while I'm still
+trying to get the current series sorted out. It's next on my list
+because it's now the biggest problem I'm seeing on small file
+intensive workloads on XFS.
+
+> Just the lock split up on its own gives us large gains here.
+
+The writeback lock split up is an algorithmic change in itself, one
+which no-one has yet analysed for undesirable behaviour. At minimum
+it changes the writeback IO patterns because of the different list
+traversal ordering, and that is not something that should go into
+mainline without close scrutiny.
+
+Indeed, I showed that Nick's patch series actually significantly
+increased the amount of IO during certain workloads. There was
+plenty of handwaving about possible causes, but it was never
+analysed or explained. The only way to determine the cause is to go
+step by step and work out which algorithmic change caused that - it
+might be the RCU changes, the zone LRU reclaim, the writeback
+locking, or it might be something else. This series has not shown
+such a regression, so I've aleast ruled out the lock breakup as the
+cause.
+
+IMO, pushing Nick's changes into mainline without answering such
+questions is the _worst_ thing we can do. Writeback has been a mess
+for a long time and so shovelling a truck-load of badly understood,
+unmaintainable crap into the writeback path to "fix lock contention"
+is not going to improve the situation at all. It is premature
+optimisation at it's finest.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
