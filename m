@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3960A6B0071
-	for <linux-mm@kvack.org>; Sat,  9 Oct 2010 14:48:35 -0400 (EDT)
-Message-ID: <4CB0B8EF.3050702@redhat.com>
-Date: Sat, 09 Oct 2010 20:48:15 +0200
-From: Avi Kivity <avi@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A85A36B006A
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 02:50:56 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: Results of my VFS scaling evaluation.
+References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
+Date: Sun, 10 Oct 2010 08:50:49 +0200
+In-Reply-To: <1286580739.3153.57.camel@bobble.smo.corp.google.com> (Frank
+	Mayhar's message of "Fri, 08 Oct 2010 16:32:19 -0700")
+Message-ID: <8739seh77a.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 08/12] Handle async PF in a guest.
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com> <1286207794-16120-9-git-send-email-gleb@redhat.com> <4CADC6C3.3040305@redhat.com> <20101007171418.GA2397@redhat.com> <4CAE00CB.1070400@redhat.com> <20101007180340.GI2397@redhat.com>
-In-Reply-To: <20101007180340.GI2397@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Frank Mayhar <fmayhar@google.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com
 List-ID: <linux-mm.kvack.org>
 
-  On 10/07/2010 08:03 PM, Gleb Natapov wrote:
-> >  >>
-> >  >Host side keeps track of outstanding apfs and will not send apf for the
-> >  >same phys address twice. It will halt vcpu instead.
-> >
-> >  What about different pages, running the scheduler code?
-> >
-> We can get couple of nested apfs, just like we can get nested
-> interrupts. Since scheduler disables preemption second apf will halt.
+Frank Mayhar <fmayhar@google.com> writes:
 
-How much is a couple?
+> Nick Piggin has been doing work on lock contention in VFS, in particular
+> to remove the dcache and inode locks, and we are very interested in this
+> work.  He has entirely eliminated two of the most contended locks,
+> replacing them with a combination of more granular locking, seqlocks,
+> RCU lists and other mechanisms that reduce locking and contention in
+> general. He has published this work at
+>
+> git://git.kernel.org/pub/scm/linux/kernel/git/npiggin/linux-npiggin.git
+>
+> As we have run into problems with lock contention, Google is very
+> interested in these improvements.
 
-Consider:
+Thanks Frank for the data. Yes publication of any profiles would
+be interesting. We're also seeing major issues with dcache and
+inode locks in local testing.
 
-SIGSTOP
-Entire process swapped out
-SIGCONT
-
-We can get APF's on the current code, the scheduler code, the stack, any 
-debugging code in between (e.g. ftrace), and the page tables for all of 
-these.
+-Andi
 
 -- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
