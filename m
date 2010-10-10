@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7632E6B006A
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 03:35:44 -0400 (EDT)
-Date: Sun, 10 Oct 2010 09:35:29 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v6 03/12] Retry fault before vmentry
-Message-ID: <20101010073529.GL2397@redhat.com>
-References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
- <1286207794-16120-4-git-send-email-gleb@redhat.com>
- <4CADBD13.4040609@redhat.com>
- <20101007172152.GB2397@redhat.com>
- <4CB0B778.6060005@redhat.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 631246B0085
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 03:37:50 -0400 (EDT)
+Date: Sun, 10 Oct 2010 03:37:32 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Results of my VFS scaling evaluation.
+Message-ID: <20101010073732.GA4097@infradead.org>
+References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
+ <20101009031609.GK4681@dastard>
+ <87y6a6fsg4.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4CB0B778.6060005@redhat.com>
+In-Reply-To: <87y6a6fsg4.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Dave Chinner <david@fromorbit.com>, Frank Mayhar <fmayhar@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 09, 2010 at 08:42:00PM +0200, Avi Kivity wrote:
->  On 10/07/2010 07:21 PM, Gleb Natapov wrote:
-> >On Thu, Oct 07, 2010 at 02:29:07PM +0200, Avi Kivity wrote:
-> >>   On 10/04/2010 05:56 PM, Gleb Natapov wrote:
-> >>  >When page is swapped in it is mapped into guest memory only after guest
-> >>  >tries to access it again and generate another fault. To save this fault
-> >>  >we can map it immediately since we know that guest is going to access
-> >>  >the page. Do it only when tdp is enabled for now. Shadow paging case is
-> >>  >more complicated. CR[034] and EFER registers should be switched before
-> >>  >doing mapping and then switched back.
-> >>
-> >>  With non-pv apf, I don't think we can do shadow paging.  The guest
-> >Yes, with non-pv this trick will not work without tdp. I haven't even
-> >considered it for that case.
-> >
-> 
-> What about nnpt?  The same issues exist.
-> 
-I am not sure how nntp works. What is the problem there? In case of tdp
-prefault instantiates page in direct_map, how nntp interfere with that?
+On Sun, Oct 10, 2010 at 08:54:51AM +0200, Andi Kleen wrote:
+> That would be over 6 months just to make even a little progress.
 
---
-			Gleb.
+I think that's unfair.  There's been absolutely no work from Nick to
+get things mergeable since 2.6.35-rc days where we gave him that
+feedback.  We now have had Dave pick it up and sort out various issues
+with the third or so of the patchset he needed most to sort the lock
+contention problems in the workloads he saw, and we'll get large
+improvements for those for .37.  The dcache_lock splitup alone is
+another massive task that needs a lot more work, too.  I've started
+reviewing it and already fixed tons issues in in and the surrounding
+code.  
+
+> Sorry, I am not convinced yet that any progress in this area has to be
+> that glacial. Linus indicated last time he wanted to move faster on the
+> VFS improvements. And the locking as it stands today is certainly a
+> major problem.
+> 
+> Maybe it's possible to come up with a way to integrate this faster?
+
+Certainly not for .37, where even the inode_lock splitup is pretty damn
+later.  Nick disappearing for a few weeks and others having to pick up
+the work to sort it out certainly doesn't help.  And the dcache_lock
+splitup is a much larget task than that anyway.  Getting that into .38
+is the enabler for doing more fancy things.  And as Dave mentioned at
+least in the writeback area it's much better to sort out the algorithmic
+problems now than to blindly split some locks up more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
