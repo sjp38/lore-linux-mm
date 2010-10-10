@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 631246B0085
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 03:37:50 -0400 (EDT)
-Date: Sun, 10 Oct 2010 03:37:32 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: Results of my VFS scaling evaluation.
-Message-ID: <20101010073732.GA4097@infradead.org>
-References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
- <20101009031609.GK4681@dastard>
- <87y6a6fsg4.fsf@basil.nowhere.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 56F946B0085
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 03:56:38 -0400 (EDT)
+Date: Sun, 10 Oct 2010 09:56:25 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH v6 08/12] Handle async PF in a guest.
+Message-ID: <20101010075625.GM2397@redhat.com>
+References: <1286207794-16120-1-git-send-email-gleb@redhat.com>
+ <1286207794-16120-9-git-send-email-gleb@redhat.com>
+ <4CADC6C3.3040305@redhat.com>
+ <20101007171418.GA2397@redhat.com>
+ <4CAE00CB.1070400@redhat.com>
+ <20101007180340.GI2397@redhat.com>
+ <4CB0B8EF.3050702@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87y6a6fsg4.fsf@basil.nowhere.org>
+In-Reply-To: <4CB0B8EF.3050702@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Dave Chinner <david@fromorbit.com>, Frank Mayhar <fmayhar@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk
+To: Avi Kivity <avi@redhat.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 10, 2010 at 08:54:51AM +0200, Andi Kleen wrote:
-> That would be over 6 months just to make even a little progress.
-
-I think that's unfair.  There's been absolutely no work from Nick to
-get things mergeable since 2.6.35-rc days where we gave him that
-feedback.  We now have had Dave pick it up and sort out various issues
-with the third or so of the patchset he needed most to sort the lock
-contention problems in the workloads he saw, and we'll get large
-improvements for those for .37.  The dcache_lock splitup alone is
-another massive task that needs a lot more work, too.  I've started
-reviewing it and already fixed tons issues in in and the surrounding
-code.  
-
-> Sorry, I am not convinced yet that any progress in this area has to be
-> that glacial. Linus indicated last time he wanted to move faster on the
-> VFS improvements. And the locking as it stands today is certainly a
-> major problem.
+On Sat, Oct 09, 2010 at 08:48:15PM +0200, Avi Kivity wrote:
+>  On 10/07/2010 08:03 PM, Gleb Natapov wrote:
+> >>  >>
+> >>  >Host side keeps track of outstanding apfs and will not send apf for the
+> >>  >same phys address twice. It will halt vcpu instead.
+> >>
+> >>  What about different pages, running the scheduler code?
+> >>
+> >We can get couple of nested apfs, just like we can get nested
+> >interrupts. Since scheduler disables preemption second apf will halt.
 > 
-> Maybe it's possible to come up with a way to integrate this faster?
+> How much is a couple?
+> 
+> Consider:
+> 
+> SIGSTOP
+> Entire process swapped out
+> SIGCONT
+> 
+> We can get APF's on the current code, the scheduler code, the stack,
+> any debugging code in between (e.g. ftrace), and the page tables for
+> all of these.
+> 
+Lets count them all. Suppose guest is in a userspace process code and
+guest memory is completely swapped out. Guest starts to run and faults
+in userspace. Apf is queued but can't be delivered due to faults in
+idt and exception stack. All of them will be taken synchronously due
+to event pending check. After apf is delivered any fault in apf code
+will be takes synchronously since interrupt are disabled. Just before
+calling schedule() interrupts are enabled, so next pf that will happen
+during call to schedule() will be taken asynchronously. Which will cause
+another call to schedule() at which point vcpu will be halted since two
+apfs happened at the same address. So I counted two of them.
 
-Certainly not for .37, where even the inode_lock splitup is pretty damn
-later.  Nick disappearing for a few weeks and others having to pick up
-the work to sort it out certainly doesn't help.  And the dcache_lock
-splitup is a much larget task than that anyway.  Getting that into .38
-is the enabler for doing more fancy things.  And as Dave mentioned at
-least in the writeback area it's much better to sort out the algorithmic
-problems now than to blindly split some locks up more.
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
