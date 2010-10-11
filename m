@@ -1,78 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6C5726B0071
-	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 19:51:19 -0400 (EDT)
-Date: Mon, 11 Oct 2010 10:50:39 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Results of my VFS scaling evaluation.
-Message-ID: <20101010235039.GP4681@dastard>
-References: <1286580739.3153.57.camel@bobble.smo.corp.google.com>
- <20101009031609.GK4681@dastard>
- <87y6a6fsg4.fsf@basil.nowhere.org>
- <20101010073732.GA4097@infradead.org>
- <20101010082038.GA17133@basil.fritz.box>
- <20101010083749.GA8702@infradead.org>
- <20101010120309.GB8256@basil.fritz.box>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 482656B0071
+	for <linux-mm@kvack.org>; Sun, 10 Oct 2010 20:49:50 -0400 (EDT)
+Date: Mon, 11 Oct 2010 08:49:46 +0800
+From: Shaohua Li <shaohua.li@intel.com>
+Subject: Re: [RFC]vmscan: doing page_referenced() in batch way
+Message-ID: <20101011004946.GA5201@sli10-conroe.sh.intel.com>
+References: <1285729053.27440.13.camel@sli10-conroe.sh.intel.com>
+ <20101006131052.e3ae026f.akpm@linux-foundation.org>
+ <4CB1F369.1080108@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20101010120309.GB8256@basil.fritz.box>
+In-Reply-To: <4CB1F369.1080108@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Frank Mayhar <fmayhar@google.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mrubin@google.com, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, "hughd@google.com" <hughd@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 10, 2010 at 02:03:09PM +0200, Andi Kleen wrote:
-> On Sun, Oct 10, 2010 at 04:37:49AM -0400, Christoph Hellwig wrote:
-> > but actually helping with review and testing would be more useful.
+On Mon, Oct 11, 2010 at 01:10:01AM +0800, Rik van Riel wrote:
+> On 10/06/2010 04:10 PM, Andrew Morton wrote:
+> > On Wed, 29 Sep 2010 10:57:33 +0800
+> > Shaohua Li<shaohua.li@intel.com>  wrote:
+> >
+> >> when memory pressure is high, page_referenced() causes a lot of lock contention
+> >> for anon_vma->lock or mapping->i_mmap_lock. Considering pages from one file
+> >> usually live side by side in LRU list, we can lock several pages in
+> >> shrink_page_list() and do batch page_referenced() to avoid some lock/unlock,
+> >> which should reduce lock contention a lot. The locking rule documented in
+> >> rmap.c is:
+> >> page_lock
+> >> 	mapping->i_mmap_lock
+> >> 		anon_vma->lock
+> >> For a batch of pages, we do page lock for all of them first and check their
+> >> reference, and then release their i_mmap_lock or anon_vma lock. This seems not
+> >> break the rule to me.
+> >> Before I further polish the patch, I'd like to know if there is anything
+> >> preventing us to do such batch here.
+> >
+> > The patch adds quite a bit of complexity, so we'd need to see benchmark
+> > testing results which justify it, please.
+> >
+> > Also, the entire patch is irrelevant for uniprocessor machines, so the
+> > runtime overhead and code-size increases for CONFIG_SMP=n builds should
+> > be as low as possible - ideally zero.  Please quantify this as well
+> > within the changelog if you pursue this work.
+> >
+> >>
+> >> ...
+> >>
+> >> +#define PRC_PAGE_NUM 8
+> >> +struct page_reference_control {
+> >> +	int num;
+> >> +	struct page *pages[PRC_PAGE_NUM];
+> >> +	int references[PRC_PAGE_NUM];
+> >> +	struct anon_vma *anon_vma;
+> >> +	struct address_space *mapping;
+> >> +	/* no ksm */
+> >> +};
+> >
+> > hm, 120 bytes of stack consumed, deep in page reclaim.
+> >
+> >>   #endif
+> >>
+> >>   extern int hwpoison_filter(struct page *p);
+> >>
+> >> ...
+> >>
+> >>   static int page_referenced_file(struct page *page,
+> >>   				struct mem_cgroup *mem_cont,
+> >> -				unsigned long *vm_flags)
+> >> +				unsigned long *vm_flags,
+> >> +				struct page_reference_control *prc)
+> >>   {
+> >>   	unsigned int mapcount;
+> >>   	struct address_space *mapping = page->mapping;
+> >> @@ -603,8 +623,25 @@ static int page_referenced_file(struct p
+> >>   	 */
+> >>   	BUG_ON(!PageLocked(page));
+> >>
+> >> -	spin_lock(&mapping->i_mmap_lock);
+> >> +	if (prc) {
+> >> +		if (mapping == prc->mapping) {
+> >> +			goto skip_lock;
+> >> +		}
+> >> +		if (prc->anon_vma) {
+> >> +			page_unlock_anon_vma(prc->anon_vma);
+> >> +			prc->anon_vma = NULL;
+> >> +		}
+> >> +		if (prc->mapping) {
+> >> +			spin_unlock(&prc->mapping->i_mmap_lock);
+> >> +			prc->mapping = NULL;
+> >> +		}
+> >> +		prc->mapping = mapping;
+> >> +
+> >> +		spin_lock(&mapping->i_mmap_lock);
+> >> +	} else
+> >> +		spin_lock(&mapping->i_mmap_lock);
+> >
+> > Move the spin_lock() outside, remove the `else' part.
+> >
+> >> +skip_lock:
+> >>   	/*
+> >>   	 * i_mmap_lock does not stabilize mapcount at all, but mapcount
+> >>   	 * is more likely to be accurate if we note it after spinning.
+> >> @@ -628,7 +665,8 @@ static int page_referenced_file(struct p
+> >>   			break;
+> >>   	}
+> >>
+> >> -	spin_unlock(&mapping->i_mmap_lock);
+> >> +	if (!prc)
+> >> +		spin_unlock(&mapping->i_mmap_lock);
+> >>   	return referenced;
+> >>   }
+> >>
+> >>
+> >> ...
+> >>
+> >> +static void do_prc_batch(struct scan_control *sc,
+> >> +	struct page_reference_control *prc)
+> >> +{
+> >> +	int i;
+> >> +	for (i = 0; i<  prc->num; i++)
+> >> +		prc->references[i] = page_check_references(prc->pages[i], sc,
+> >> +			prc);
+> >> +	/*
+> >> +	 * we must release all locks here, the lock ordering requries
+> >> +	 * pagelock->
+> >> +	 *   mapping->i_mmap_lock->
+> >> +	 *     anon_vma->lock
+> >> +	 * release lock guarantee we don't break the rule in next run
+> >> +	 */
+> >> +	if (prc->anon_vma) {
+> >> +		page_unlock_anon_vma(prc->anon_vma);
+> >> +		prc->anon_vma = NULL;
+> >> +	}
+> >> +	if (prc->mapping) {
+> >> +		spin_unlock(&prc->mapping->i_mmap_lock);
+> >> +		prc->mapping = NULL;
+> >> +	}
+> >> +}
+> >
+> > I didn't check the locking alterations.
 > 
-> Well the constant refactoring is certainly not helping with testing.
-
-That is the way of review cycles. The need for significant
-refactoring and reworking shows how much work the VFS maintainers
-consider still needs to be done on the patch set.
-
-> Also what typically happens is that if we don't fix all the serious
-> VFS locking issues (like Nick's patch kit) we just move from one bottle 
-> neck to another.
-
-Sure, but at least there is a plan for dealing with them all and,
-most importantly, people committed to pushing it forward.
-
-Fundamentally, we need to understand the source of the lock
-contention problems before trying to fix them. Nick just hit them
-repeatedly with a big hammer until they went away....
-
-> > Yes, lots of things could be done in parallel, but it needs people to
-> > actually work on it.  And right now that's mostly Dave for the real
-> > work, with me trying to prepare a proper dcache series for .38, and Al
-> > doing some review.
+> I've tried to wrap my head around them, but haven't
+> yet been able to convince myself that it is safe.
 > 
-> It was not clear to me what was so horrible with Nick's original
-> patchkit?  Sure there were a few rough edges, but does it really
-> need to be fully redone?
-
-I think the trylock mess is pretty much universally disliked by
-anyone who looks at the VFS and writeback code on a daily basis. And
-IMO the level of nested trylock looping is generally indicative of
-getting the lock ordering strategy wrong in the first place.
-
-Not to mention that as soon as I tried to re-order cleanups to the
-front of the queue, it was pretty clear that it was going to be
-unmaintainable, too.
-
-> It certainly held up great to lots of testing, both at our side
-> and apparently Google's too.
-
-Not the least bit relevant, IMO, when the code ends up unmaintanable
-in the long term.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> What if we have multiple pages sharing the same
+> mapping or root anon_vma, which is not the same
+> as the prc->anon_vma ?
+if their mapping or anon_vma is different, page_lock_anon_vma()
+or page_referenced_file() will release the lock and retake a new
+lock in the patch. Since adjacent pages usually have the same
+mapping or anon_vma, this release/retake lock already can avoid
+quite a lot of lock. is this safe?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
