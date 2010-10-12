@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C0DF56B00BA
-	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 03:45:25 -0400 (EDT)
-Date: Tue, 12 Oct 2010 09:45:22 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BEC6B00BD
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 04:11:07 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 14(16] pramfs: memory protection
-Message-ID: <20101012074522.GA20436@basil.fritz.box>
-References: <4CB1EBA2.8090409@gmail.com>
- <87aamm3si1.fsf@basil.nowhere.org>
- <4CB34A1A.3030003@gmail.com>
+Subject: Re: RFC: Implement hwpoison on free for soft offlining
+References: <1286402951-1881-1-git-send-email-andi@firstfloor.org>
+Date: Tue, 12 Oct 2010 10:11:04 +0200
+In-Reply-To: <1286402951-1881-1-git-send-email-andi@firstfloor.org> (Andi
+	Kleen's message of "Thu, 7 Oct 2010 00:09:10 +0200")
+Message-ID: <87aamj3k6f.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4CB34A1A.3030003@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Marco Stornelli <marco.stornelli@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Embedded <linux-embedded@vger.kernel.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Tim Bird <tim.bird@am.sony.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, fengguang.wu@intel.com, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 11, 2010 at 07:32:10PM +0200, Marco Stornelli wrote:
-> Il 10/10/2010 18:46, Andi Kleen ha scritto:
-> > This won't work at all on x86 because you don't handle large 
-> > pages.
-> > 
-> > And it doesn't work on x86-64 because the first 2GB are double
-> > mapped (direct and kernel text mapping)
-> > 
-> > Thirdly I expect it won't either on architectures that map
-> > the direct mapping with special registers (like IA64 or MIPS)
-> 
-> Andi, what do you think to use the already implemented follow_pte
-> instead? 
+Andi Kleen <andi@firstfloor.org> writes:
 
-Has all the same problems. Really you need an per architecture
-function. Perhaps some architectures could use a common helper,
-but certainly not all.
+> Here's a somewhat experimental patch to improve soft offlining
+> in hwpoison, but allowing hwpoison on free for not directly
+> freeable page types. It should work for nearly all
+> left over page types that get eventually freed, so this makes
+> soft offlining nearly universal. The only non handleable page
+> types are now pages that never get freed.
+>
+> Drawback: It needs an additional page flag. Cannot set hwpoison
+> directly because that would not be "soft" and cause errors.
 
-x86 already has some infrastructure for this, but it currently
-has serious problems too (like not merging mappings on unmap) 
-and is generally overdesigned ugly code.
+Ping? Any comments on this patch?
 
--Andi
+Except for the page flag use I think it's nearly a no brainer. 
+A lot of new soft hwpoison capability for very little additional code.
+
+Has anyone a problem using up a 64bit page flag for that?
+
+Thanks,
+
+-Andi 
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
