@@ -1,58 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB646B00B3
-	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 02:25:08 -0400 (EDT)
-Date: Tue, 12 Oct 2010 15:23:42 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH v4] memcg: reduce lock time at move charge
-Message-Id: <20101012152342.c5b489e4.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20101012144801.51d15a02.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
-	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
-	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
-	<20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007152111.df687a62.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
-	<20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007161454.84570cf9.akpm@linux-foundation.org>
-	<20101008133712.2a836331.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101007215556.21412ae6.akpm@linux-foundation.org>
-	<20101008141201.c1e3a4e2.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101008194131.20b44a9d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101012125613.1accc1bd.nishimura@mxp.nes.nec.co.jp>
-	<20101012144801.51d15a02.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0B86B00B4
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 02:41:15 -0400 (EDT)
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e37.co.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9C6d6L0021230
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 00:39:06 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9C6fDE2204332
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 00:41:13 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9C6fDni031314
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 00:41:13 -0600
+Date: Tue, 12 Oct 2010 12:11:08 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
+Message-ID: <20101012064108.GE25875@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20101012111451.AD2E.A69D9226@jp.fujitsu.com>
+ <alpine.DEB.2.00.1010112004260.2066@chino.kir.corp.google.com>
+ <20101012130806.AD37.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20101012130806.AD37.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Oct 2010 14:48:01 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2010-10-12 13:07:35]:
 
-> On Tue, 12 Oct 2010 12:56:13 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > > +err_out:
-> > > +	for (; mt < info + num; mt++)
-> > > +		if (mt->type == MC_TARGET_PAGE) {
-> > > +			putback_lru_page(mt->val.page);
-> > Is this putback_lru_page() necessary ?
-> > is_target_pte_for_mc() doesn't isolate the page.
+> > On Tue, 12 Oct 2010, KOSAKI Motohiro wrote:
 > > 
-> Ok, v4 here. tested failure path and success path.
+> > > > It doesn't determine what the maximum latency to that memory is, it relies 
+> > > > on whatever was defined in the SLIT; the only semantics of that distance 
+> > > > comes from the ACPI spec that states those distances are relative to the 
+> > > > local distance of 10.
+> > > 
+> > > Right. but do we need to consider fake SLIT case? I know actually such bogus
+> > > slit are there. but I haven't seen such fake SLIT made serious trouble.
+> > > 
+> > 
+> > If we can make the assumption that the SLIT entries are truly 
+> > representative of the latencies and are adhering to the semantics 
+> > presented in the ACPI spec, then this means the VM prefers to do zone 
+> > reclaim rather than from other nodes when the latter is 3x more costly.
+> > 
+> > That's fine by me, as I've mentioned we've done this for a couple years 
+> > because we've had to explicitly disable zone_reclaim_mode for such 
+> > configurations.  If that's the policy decision that's been made, though, 
+> > we _could_ measure the cost at boot and set zone_reclaim_mode depending on 
+> > the measured latency rather than relying on the SLIT at all in this case.
 > 
-Looks good to me.
+> ok, got it. thanks.
+>
 
-	Acked-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Could we please document the change and help people understand why
+with newer kernels they may see the value of zone_reclaim_mode change
+on their systems and how to set it back if required. 
 
-Thanks,
-Daisuke Nishimura.
+-- 
+	Three Cheers,
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
