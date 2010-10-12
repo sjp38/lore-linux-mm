@@ -1,93 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 202E66B00A7
-	for <linux-mm@kvack.org>; Mon, 11 Oct 2010 23:54:45 -0400 (EDT)
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by e2.ny.us.ibm.com (8.14.4/8.13.1) with ESMTP id o9C3dMxO005178
-	for <linux-mm@kvack.org>; Mon, 11 Oct 2010 23:39:22 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id o9C3siAV346520
-	for <linux-mm@kvack.org>; Mon, 11 Oct 2010 23:54:44 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id o9C3shYg016131
-	for <linux-mm@kvack.org>; Mon, 11 Oct 2010 23:54:44 -0400
-Date: Tue, 12 Oct 2010 09:24:41 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7266F6B00A9
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 00:00:20 -0400 (EDT)
+Date: Tue, 12 Oct 2010 12:56:13 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH v2] memcg: reduce lock time at move charge (Was Re:
  [PATCH 04/10] memcg: disable local interrupts in lock_page_cgroup()
-Message-ID: <20101012035441.GB25875@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
- <20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
- <20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
- <20101007161454.84570cf9.akpm@linux-foundation.org>
- <20101008133712.2a836331.kamezawa.hiroyu@jp.fujitsu.com>
- <20101007215556.21412ae6.akpm@linux-foundation.org>
- <20101008141201.c1e3a4e2.kamezawa.hiroyu@jp.fujitsu.com>
- <20101008194131.20b44a9d.kamezawa.hiroyu@jp.fujitsu.com>
- <20101012033915.GA25875@balbir.in.ibm.com>
- <20101012124253.3ccf13fb.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20101012124253.3ccf13fb.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20101012125613.1accc1bd.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20101008194131.20b44a9d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
+	<1286175485-30643-5-git-send-email-gthelen@google.com>
+	<20101005160332.GB9515@barrios-desktop>
+	<xr93wrpwkypv.fsf@ninji.mtv.corp.google.com>
+	<AANLkTikKXNx-Cj2UY+tJj8ifC+Je5WDbS=eR6xsKM1uU@mail.gmail.com>
+	<20101007093545.429fe04a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007105456.d86d8092.nishimura@mxp.nes.nec.co.jp>
+	<20101007111743.322c3993.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007152111.df687a62.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007162811.c3a35be9.nishimura@mxp.nes.nec.co.jp>
+	<20101007164204.83b207c6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007170405.27ed964c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007161454.84570cf9.akpm@linux-foundation.org>
+	<20101008133712.2a836331.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101007215556.21412ae6.akpm@linux-foundation.org>
+	<20101008141201.c1e3a4e2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101008194131.20b44a9d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrea Righi <arighi@develer.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg@smtp1.linux-foundation.org, containers@lists.osdl.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan.kim@gmail.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-10-12 12:42:53]:
+> +err_out:
+> +	for (; mt < info + num; mt++)
+> +		if (mt->type == MC_TARGET_PAGE) {
+> +			putback_lru_page(mt->val.page);
+Is this putback_lru_page() necessary ?
+is_target_pte_for_mc() doesn't isolate the page.
 
-> On Tue, 12 Oct 2010 09:09:15 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Thanks,
+Daisuke Nishimura.
+
+
+> +			put_page(mt->val.page);
+> +		}
+> +	goto out;
+>  }
+>  
+>  static void mem_cgroup_move_charge(struct mm_struct *mm)
 > 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2010-10-08 19:41:31]:
-> > 
-> > > On Fri, 8 Oct 2010 14:12:01 +0900
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > Sure.  It walks the same data three times, potentially causing
-> > > > > thrashing in the L1 cache.
-> > > > 
-> > > > Hmm, make this 2 times, at least.
-> > > > 
-> > > How about this ?
-> > > ==
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > Presently, at task migration among cgroups, memory cgroup scans page tables and
-> > > moves accounting if flags are properly set.
-> > > 
-> > > 
-> > > The core code, mem_cgroup_move_charge_pte_range() does
-> > > 
-> > >  	pte_offset_map_lock();
-> > > 	for all ptes in a page table:
-> > > 		1. look into page table, find_and_get a page
-> > > 		2. remove it from LRU.
-> > > 		3. move charge.
-> > > 		4. putback to LRU. put_page()
-> > > 	pte_offset_map_unlock();
-> > > 
-> > > for pte entries on a 3rd level? page table.
-> > > 
-> > > As a planned updates, we'll support dirty-page accounting. Because move_charge()
-> > > is highly race, we need to add more check in move_charge.
-> > > For example, lock_page();-> wait_on_page_writeback();-> unlock_page();
-> > > is an candidate for new check.
-> > >
-> > 
-> > 
-> > Is this a change to help dirty limits or is it a generic bug fix.
-> >  
-> Not a bug fix. This for adding lock_page() to moge_charge(). It helps us
-> to remove "irq disable" in update_stat().
->
-
-Excellent! Thanks 
-
--- 
-	Three Cheers,
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
