@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AE8DD6B0104
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 03:17:28 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D7HQlj030299
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 69B4D6B0106
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 03:22:20 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D7MIQ7032505
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 13 Oct 2010 16:17:26 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E8B1345DE55
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE98845DE4E
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A57A9E18005
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F6F3E08002
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
-Date: Wed, 13 Oct 2010 16:12:06 +0900
+	Wed, 13 Oct 2010 16:22:18 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 075AF45DE54
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:22:18 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C0E7045DE59
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:22:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6637EE38001
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:22:17 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A93021DB801A
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:22:16 +0900 (JST)
+Date: Wed, 13 Oct 2010 16:16:56 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
-Message-Id: <20101013161206.c29df8ea.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <87sk0a1sq0.fsf@basil.nowhere.org>
-References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-	<87sk0a1sq0.fsf@basil.nowhere.org>
+Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when
+ per cpu page cache flushed
+Message-Id: <20101013161656.9f8b801f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20101013160640.ADC9.A69D9226@jp.fujitsu.com>
+References: <20101013121913.ADB4.A69D9226@jp.fujitsu.com>
+	<20101013151723.ADBD.A69D9226@jp.fujitsu.com>
+	<20101013160640.ADC9.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, fujita.tomonori@lab.ntt.co.jp
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Oct 2010 09:01:43 +0200
-Andi Kleen <andi@firstfloor.org> wrote:
+On Wed, 13 Oct 2010 16:10:43 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> >
-> > What this wants to do: 
-> >   allocates a contiguous chunk of pages larger than MAX_ORDER.
-> >   for device drivers (camera? etc..)
+> When memory shortage, we are using drain_pages() for flushing per cpu
+> page cache. In this case, per cpu stat should be flushed too. because
+> now we are under memory shortage and we need to know exact free pages.
 > 
-> I think to really move forward you need a concrete use case
-> actually implemented in tree.
+> Otherwise get_page_from_freelist() may fail even though pcp was flushed.
 > 
-
-yes. I heard there were users at LinuxCon Japan, so restarted.
-I heared video-for-linux + ARM wants this.
-
-I found this thread, now.
-http://kerneltrap.org/mailarchive/linux-kernel/2010/10/10/4630166
-
-Hmm. 
-
-> >   My intention is not for allocating HUGEPAGE(> MAX_ORDER).
 > 
-> I still believe using this for 1GB pages would be one of the more
-> interesting use cases.
-> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I'm successfully allocating 1GB of continous pages at test. But I'm not sure
-requirements and users. How quick this allocation should be ?
-For example, if prep_new_page() for 1GB page is slow, what kind of chunk-of-page
-construction is the best. 
-
-THanks,
--Kame
+But it seems performance measurement is necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
