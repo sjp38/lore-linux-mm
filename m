@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B01546B010C
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 04:45:14 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D8jBR5018976
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 13 Oct 2010 17:45:12 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 99F0345DE52
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 17:45:11 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EE8645DD71
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 17:45:11 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 680BC1DB8012
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 17:45:11 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C328E38001
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 17:45:11 +0900 (JST)
-Date: Wed, 13 Oct 2010 17:39:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
-Message-Id: <20101013173950.0521c849.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <87ocay1obe.fsf@basil.nowhere.org>
-References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-	<87sk0a1sq0.fsf@basil.nowhere.org>
-	<20101013161206.c29df8ea.kamezawa.hiroyu@jp.fujitsu.com>
-	<87ocay1obe.fsf@basil.nowhere.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1D80C6B010F
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 05:28:12 -0400 (EDT)
+Date: Wed, 13 Oct 2010 20:26:27 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
+Message-ID: <20101013092627.GY4681@dastard>
+References: <20100912154945.758129106@intel.com>
+ <20101012141716.GA26702@infradead.org>
+ <20101013030733.GV4681@dastard>
+ <20101013082611.GA6733@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101013082611.GA6733@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, fujita.tomonori@lab.ntt.co.jp
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Oct 2010 10:36:53 +0200
-Andi Kleen <andi@firstfloor.org> wrote:
+On Wed, Oct 13, 2010 at 04:26:12PM +0800, Wu Fengguang wrote:
+> On Wed, Oct 13, 2010 at 11:07:33AM +0800, Dave Chinner wrote:
+> > On Tue, Oct 12, 2010 at 10:17:16AM -0400, Christoph Hellwig wrote:
+> > > Wu, what's the state of this series?  It looks like we'll need it
+> > > rather sooner than later - try to get at least the preparations in
+> > > ASAP would be really helpful.
+> > 
+> > Not ready in it's current form. This load (creating millions of 1
+> > byte files in parallel):
+> > 
+> > $ /usr/bin/time ./fs_mark -D 10000 -S0 -n 100000 -s 1 -L 63 \
+> > > -d /mnt/scratch/0 -d /mnt/scratch/1 \
+> > > -d /mnt/scratch/2 -d /mnt/scratch/3 \
+> > > -d /mnt/scratch/4 -d /mnt/scratch/5 \
+> > > -d /mnt/scratch/6 -d /mnt/scratch/7
+> > 
+> > Locks up all the fs_mark processes spinning in traces like the
+> > following and no further progress is made when the inode cache
+> > fills memory.
+> 
+> I reproduced the problem on a 6G/8p 2-socket 11-disk box.
+> 
+> The root cause is, pageout() is somehow called with low scan priority,
+> which deserves more investigation.
+> 
+> The direct cause is, balance_dirty_pages() then keeps nr_dirty too low,
+> which can be improved easily by not pushing down the soft dirty limit
+> to less than 1-second worth of dirty pages.
+> 
+> My test box has two nodes, and their memory usage are rather unbalanced:
+> (Dave, maybe you have NUMA setup too?)
 
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> 
-> >> >   My intention is not for allocating HUGEPAGE(> MAX_ORDER).
-> >> 
-> >> I still believe using this for 1GB pages would be one of the more
-> >> interesting use cases.
-> >> 
-> >
-> > I'm successfully allocating 1GB of continous pages at test. But I'm not sure
-> > requirements and users. How quick this allocation should be ?
-> 
-> This will always be slow. Huge pages are always pre allocated
-> even today through a sysctl. The use case would be have
-> 
-> echo XXX > /proc/sys/vm/nr_hugepages 
-> 
-> at runtime working for 1GB too, instead of requiring a reboot
-> for this. 
-> 
-> I think it's ok if that is somewhat slow, as long as it is not
-> incredible slow. Ideally it shouldn't cause a swap storm either 
-> 
-> (maybe we need some way to indicate how hard the freeing code should
-> try?)
-> 
-yes. I think this patch should be update to do a precice control of memory
-pressure. It will improve memory hotplug's memory allocation, too.
+No, I'm running the test in a single node VM.
 
+FYI, I'm running the test on XFS (16TB 12 disk RAID0 stripe), using
+the mount options "inode64,nobarrier,logbsize=262144,delaylog".
 
-> I guess it would only really work well if you predefine
-> movable zones at boot time.
-> 
+Cheers,
 
-I think so, too. But maybe enough for embeded guys and very special systems
-which need to use 1G page.
-
-Thanks,
--Kame
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
