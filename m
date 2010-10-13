@@ -1,206 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4CBC46B00E0
-	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 23:22:58 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D3MuQO031723
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 13 Oct 2010 12:22:56 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2903F45DE60
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 12:22:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0099345DE4D
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 12:22:56 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DD1791DB803A
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 12:22:55 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EFC61DB8037
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 12:22:55 +0900 (JST)
-Date: Wed, 13 Oct 2010 12:17:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 2/3] find a contiguous range.
-Message-Id: <20101013121738.933ff002.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8B30F6B00E2
+	for <linux-mm@kvack.org>; Tue, 12 Oct 2010 23:23:46 -0400 (EDT)
+Date: Wed, 13 Oct 2010 11:23:42 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
+Message-ID: <20101013032342.GA10020@localhost>
+References: <20100912154945.758129106@intel.com>
+ <20101012141716.GA26702@infradead.org>
+ <20101013030733.GV4681@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101013030733.GV4681@dastard>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Unlike memory hotplug, at an allocation of contigous memory range, address
-may not be a problem. IOW, if a requester of memory wants to allocate 100M of
-of contigous memory, placement of allocated memory may not be a problem.
-So, "finding a range of memory which seems to be MOVABLE" is required.
-
-This patch adds a functon to isolate a length of memory within [start, end).
-This function returns a pfn which is 1st page of isolated contigous chunk
-of given length within [start, end).
-
-If no_search=true is passed as argument, start address is always same to
-the specified "base" addresss.
-
-After isolation, free memory within this area will never be allocated.
-But some pages will remain as "Used/LRU" pages. They should be dropped by
-page reclaim or migration.
-
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/page_isolation.c |  130 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 130 insertions(+)
-
-Index: mmotm-1008/mm/page_isolation.c
-===================================================================
---- mmotm-1008.orig/mm/page_isolation.c
-+++ mmotm-1008/mm/page_isolation.c
-@@ -9,6 +9,7 @@
- #include <linux/pageblock-flags.h>
- #include <linux/memcontrol.h>
- #include <linux/migrate.h>
-+#include <linux/memory_hotplug.h>
- #include <linux/mm_inline.h>
- #include "internal.h"
+On Wed, Oct 13, 2010 at 11:07:33AM +0800, Dave Chinner wrote:
+> On Tue, Oct 12, 2010 at 10:17:16AM -0400, Christoph Hellwig wrote:
+> > Wu, what's the state of this series?  It looks like we'll need it
+> > rather sooner than later - try to get at least the preparations in
+> > ASAP would be really helpful.
+> 
+> Not ready in it's current form. This load (creating millions of 1
+> byte files in parallel):
+> 
+> $ /usr/bin/time ./fs_mark -D 10000 -S0 -n 100000 -s 1 -L 63 \
+> > -d /mnt/scratch/0 -d /mnt/scratch/1 \
+> > -d /mnt/scratch/2 -d /mnt/scratch/3 \
+> > -d /mnt/scratch/4 -d /mnt/scratch/5 \
+> > -d /mnt/scratch/6 -d /mnt/scratch/7
+> 
+> Locks up all the fs_mark processes spinning in traces like the
+> following and no further progress is made when the inode cache
+> fills memory.
  
-@@ -254,3 +255,132 @@ out:
- 	return ret;
- }
- 
-+/*
-+ * Functions for getting contiguous MOVABLE pages in a zone.
-+ */
-+struct page_range {
-+	unsigned long base; /* Base address of searching contigouous block */
-+	unsigned long end;
-+	unsigned long pages;/* Length of contiguous block */
-+};
-+
-+static inline unsigned long  MAX_ORDER_ALIGN(unsigned long x)
-+{
-+	return ALIGN(x, MAX_ORDER_NR_PAGES);
-+}
-+
-+static inline unsigned long MAX_ORDER_BASE(unsigned long x)
-+{
-+	return x & ~(MAX_ORDER_NR_PAGES - 1);
-+}
-+
-+int __get_contig_block(unsigned long pfn, unsigned long nr_pages, void *arg)
-+{
-+	struct page_range *blockinfo = arg;
-+	unsigned long end;
-+
-+	end = pfn + nr_pages;
-+	pfn = MAX_ORDER_ALIGN(pfn);
-+	end = MAX_ORDER_BASE(end);
-+
-+	if (end < pfn)
-+		return 0;
-+	if (end - pfn >= blockinfo->pages) {
-+		blockinfo->base = pfn;
-+		blockinfo->end = end;
-+		return 1;
-+	}
-+	return 0;
-+}
-+
-+static void __trim_zone(struct page_range *range)
-+{
-+	struct zone *zone;
-+	unsigned long pfn;
-+	/*
-+	 * In most case, each zone's [start_pfn, end_pfn) has no
-+	 * overlap between each other. But some arch allows it and
-+	 * we need to check it here.
-+	 */
-+	for (pfn = range->base, zone = page_zone(pfn_to_page(pfn));
-+	     pfn < range->end;
-+	     pfn += MAX_ORDER_NR_PAGES) {
-+
-+		if (zone != page_zone(pfn_to_page(pfn)))
-+			break;
-+	}
-+	range->end = min(pfn, range->end);
-+	return;
-+}
-+
-+/*
-+ * This function is for finding a contiguous memory block which has length
-+ * of pages and MOVABLE. If it finds, make the range of pages as ISOLATED
-+ * and return the first page's pfn.
-+ * If no_search==true, this function doesn't scan the range but tries to
-+ * isolate the range of memory.
-+ */
-+
-+static unsigned long find_contig_block(unsigned long base,
-+		unsigned long end, unsigned long pages, bool no_search)
-+{
-+	unsigned long pfn, pos;
-+	struct page_range blockinfo;
-+	int ret;
-+
-+	pages = MAX_ORDER_ALIGN(pages);
-+retry:
-+	blockinfo.base = base;
-+	blockinfo.end = end;
-+	blockinfo.pages = pages;
-+	/*
-+	 * At first, check physical page layout and skip memory holes.
-+	 */
-+	ret = walk_system_ram_range(base, end - base, &blockinfo,
-+		__get_contig_block);
-+	if (!ret)
-+		return 0;
-+	/* check contiguous pages in a zone */
-+	__trim_zone(&blockinfo);
-+
-+
-+	/* Ok, we found contiguous memory chunk of size. Isolate it.*/
-+	for (pfn = blockinfo.base; pfn + pages < blockinfo.end;
-+	     pfn += MAX_ORDER_NR_PAGES) {
-+		/* If no_search==true, base addess should be same to 'base' */
-+		if (no_search && pfn != base)
-+			break;
-+		/* Better code is necessary here.. */
-+		for (pos = pfn; pos < pfn + pages; pos++) {
-+			struct page *p;
-+
-+			if (!pfn_valid_within(pos))
-+				break;
-+			p = pfn_to_page(pos);
-+			if (PageReserved(p))
-+				break;
-+			/* This may hit a page on per-cpu queue. */
-+			if (page_count(p) && !PageLRU(p))
-+				break;
-+			/* Need to skip order of pages */
-+		}
-+		if (pos != pfn + pages) {
-+			pfn = MAX_ORDER_BASE(pos);
-+			continue;
-+		}
-+		/*
-+		 * Now, we know [base,end) of a contiguous chunk.
-+		 * Don't need to take care of memory holes.
-+		 */
-+		if (!start_isolate_page_range(pfn, pfn + pages))
-+			return pfn;
-+	}
-+
-+	/* failed */
-+	if (!no_search && blockinfo.end + pages < end) {
-+		/* Move base address and find the next block of RAM. */
-+		base = blockinfo.end;
-+		goto retry;
-+	}
-+	return 0;
-+}
+Dave, thanks for the testing! I'll try to reproduce it and check
+what's going on.
+
+Thanks,
+Fengguang
+
+> [ 2601.452017] fs_mark       R  running task        0  2303   2235 0x00000008
+> [ 2601.452017]  ffff8801188f7878 ffffffff8103e2c9 ffff8801188f78a8 0000000000000000
+> [ 2601.452017]  0000000000000002 ffff8801129e21c0 ffff880002fd44c0 0000000000000000
+> [ 2601.452017]  ffff8801188f78b8 ffffffff810a9a08 ffff8801188f78e8 ffffffff810a98e5
+> [ 2601.452017] Call Trace:
+> [ 2601.452017]  [<ffffffff81060edc>] ? kvm_clock_read+0x1c/0x20
+> [ 2601.452017]  [<ffffffff8103e2c9>] ? sched_clock+0x9/0x10
+> [ 2601.452017]  [<ffffffff810a98e5>] ? sched_clock_local+0x25/0x90
+> [ 2601.452017]  [<ffffffff810b9e00>] ? __lock_acquire+0x330/0x14d0
+> [ 2601.452017]  [<ffffffff810a9a94>] ? local_clock+0x34/0x80
+> [ 2601.452017]  [<ffffffff81061cc8>] ? pvclock_clocksource_read+0x58/0xd0
+> [ 2601.452017]  [<ffffffff81061cc8>] ? pvclock_clocksource_read+0x58/0xd0
+> [ 2601.452017]  [<ffffffff81060edc>] ? kvm_clock_read+0x1c/0x20
+> [ 2601.452017]  [<ffffffff8103e2c9>] ? sched_clock+0x9/0x10
+> [ 2601.452017]  [<ffffffff810bb054>] ? lock_acquire+0xb4/0x140
+> [ 2601.452017]  [<ffffffff8103e2c9>] ? sched_clock+0x9/0x10
+> [ 2601.452017]  [<ffffffff810a98e5>] ? sched_clock_local+0x25/0x90
+> [ 2601.452017]  [<ffffffff81698ea2>] ? prop_get_global+0x32/0x50
+> [ 2601.452017]  [<ffffffff81699230>] ? prop_fraction_percpu+0x30/0xa0
+> [ 2601.452017]  [<ffffffff8111af3b>] ? bdi_dirty_limit+0x9b/0xe0
+> [ 2601.452017]  [<ffffffff8111bbd8>] ? balance_dirty_pages_ratelimited_nr+0x178/0x580
+> [ 2601.452017]  [<ffffffff81ad440b>] ? _raw_spin_unlock+0x2b/0x40
+> [ 2601.452017]  [<ffffffff8117ccd5>] ? __mark_inode_dirty+0xc5/0x230
+> [ 2601.452017]  [<ffffffff811114d5>] ? iov_iter_copy_from_user_atomic+0x95/0x170
+> [ 2601.452017]  [<ffffffff811118fc>] ? generic_file_buffered_write+0x1cc/0x270
+> [ 2601.452017]  [<ffffffff81492f2f>] ? xfs_file_aio_write+0x79f/0xaf0
+> [ 2601.452017]  [<ffffffff81060edc>] ? kvm_clock_read+0x1c/0x20
+> [ 2601.452017]  [<ffffffff81060edc>] ? kvm_clock_read+0x1c/0x20
+> [ 2601.452017]  [<ffffffff8103e2c9>] ? sched_clock+0x9/0x10
+> [ 2601.452017]  [<ffffffff810a98e5>] ? sched_clock_local+0x25/0x90
+> [ 2601.452017]  [<ffffffff81157cca>] ? do_sync_write+0xda/0x120
+> [ 2601.452017]  [<ffffffff8112e20c>] ? might_fault+0x5c/0xb0
+> [ 2601.452017]  [<ffffffff81669f7f>] ? security_file_permission+0x1f/0x80
+> [ 2601.452017]  [<ffffffff81157fb8>] ? vfs_write+0xc8/0x180
+> [ 2601.452017]  [<ffffffff81158904>] ? sys_write+0x54/0x90
+> [ 2601.452017]  [<ffffffff81037072>] ? system_call_fastpath+0x16/0x1b
+> 
+> This is on an 8p/4GB RAM VM.
+> 
+> FWIW, this one test now has a proven record of exposing writeback,
+> VM and filesystem regressions, so I'd suggest that anyone doing any
+> sort of work that affects writeback adds it to their test matrix....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
