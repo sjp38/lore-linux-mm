@@ -1,51 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 63B086B00E8
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 00:53:23 -0400 (EDT)
-Date: Wed, 13 Oct 2010 12:53:19 +0800
-From: Shaohua Li <shaohua.li@intel.com>
-Subject: Re: [RFC]vmscan: doing page_referenced() in batch way
-Message-ID: <20101013045319.GA11115@sli10-conroe.sh.intel.com>
-References: <1285729053.27440.13.camel@sli10-conroe.sh.intel.com>
- <20101006131052.e3ae026f.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101006131052.e3ae026f.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1FC826B00EB
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 01:04:54 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D54o0v003202
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 13 Oct 2010 14:04:51 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4E4B45DE51
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 14:04:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7215345DE4F
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 14:04:50 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F8211DB8040
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 14:04:50 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BDC7A1DB803B
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 14:04:49 +0900 (JST)
+Date: Wed, 13 Oct 2010 13:59:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] fix return value of scan_lru_pages in memory unplug
+Message-Id: <20101013135903.c505ff8b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, "hughd@google.com" <hughd@google.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 07, 2010 at 04:10:52AM +0800, Andrew Morton wrote:
-> On Wed, 29 Sep 2010 10:57:33 +0800
-> Shaohua Li <shaohua.li@intel.com> wrote:
-> 
-> > when memory pressure is high, page_referenced() causes a lot of lock contention
-> > for anon_vma->lock or mapping->i_mmap_lock. Considering pages from one file
-> > usually live side by side in LRU list, we can lock several pages in
-> > shrink_page_list() and do batch page_referenced() to avoid some lock/unlock,
-> > which should reduce lock contention a lot. The locking rule documented in
-> > rmap.c is:
-> > page_lock
-> > 	mapping->i_mmap_lock
-> > 		anon_vma->lock
-> > For a batch of pages, we do page lock for all of them first and check their
-> > reference, and then release their i_mmap_lock or anon_vma lock. This seems not
-> > break the rule to me.
-> > Before I further polish the patch, I'd like to know if there is anything
-> > preventing us to do such batch here.
-Thanks for your time.
+CC'ed to stable tree...maybe all kernel has this bug.
+But this may not very critical because we've got no report until now.
 
-> The patch adds quite a bit of complexity, so we'd need to see benchmark
-> testing results which justify it, please.
-My test only shows around 10% improvements, which is below my expections.
-try_to_unmap() causes quite a lot of lock contention for such locks, and makes
-the page_referenced() batch not quite helpful. Looks we can do batch try_to_unmap()
-too. I'll report back later when I have data with try_to_unmap() batched.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks,
-Shaohua
+scan_lru_pages returns pfn. So, it's type should be "unsigned long"
+not "int".
+
+Note: I guess this has been work until now because memory hotplug tester's
+      machine has not very big memory....
+      physical address < 32bit << PAGE_SHIFT.
+
+Reported-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memory_hotplug.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: mmotm-1008/mm/memory_hotplug.c
+===================================================================
+--- mmotm-1008.orig/mm/memory_hotplug.c
++++ mmotm-1008/mm/memory_hotplug.c
+@@ -646,7 +646,7 @@ static int test_pages_in_a_zone(unsigned
+  * Scanning pfn is much easier than scanning lru list.
+  * Scan pfn from start to end and Find LRU page.
+  */
+-int scan_lru_pages(unsigned long start, unsigned long end)
++unsigned long scan_lru_pages(unsigned long start, unsigned long end)
+ {
+ 	unsigned long pfn;
+ 	struct page *page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
