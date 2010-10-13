@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 410DF6B0103
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 03:16:50 -0400 (EDT)
-Message-ID: <4CB55CDD.9010908@kernel.org>
-Date: Wed, 13 Oct 2010 10:16:45 +0300
-From: Pekka Enberg <penberg@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <20101012182531.GH30667@csn.ul.ie>
-In-Reply-To: <20101012182531.GH30667@csn.ul.ie>
-Content-Type: multipart/mixed;
- boundary="------------070005060006040809030005"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AE8DD6B0104
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 03:17:28 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9D7HQlj030299
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 13 Oct 2010 16:17:26 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E8B1345DE55
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE98845DE4E
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A57A9E18005
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F6F3E08002
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 16:17:25 +0900 (JST)
+Date: Wed, 13 Oct 2010 16:12:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
+Message-Id: <20101013161206.c29df8ea.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <87sk0a1sq0.fsf@basil.nowhere.org>
+References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
+	<87sk0a1sq0.fsf@basil.nowhere.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, fujita.tomonori@lab.ntt.co.jp
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------070005060006040809030005
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+On Wed, 13 Oct 2010 09:01:43 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-  On 10/12/10 9:25 PM, Mel Gorman wrote:
-> On Wed, Oct 06, 2010 at 11:01:35AM +0300, Pekka Enberg wrote:
->> (Adding more people who've taken interest in slab performance in the
->> past to CC.)
->>
-> I have not come even close to reviewing this yet but I made a start on
-> putting it through a series of tests. It fails to build on ppc64
->
->    CC      mm/slub.o
-> mm/slub.c:1477: warning: 'drain_alien_caches' declared inline after being called
-> mm/slub.c:1477: warning: previous declaration of 'drain_alien_caches' was here
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+> >
+> > What this wants to do: 
+> >   allocates a contiguous chunk of pages larger than MAX_ORDER.
+> >   for device drivers (camera? etc..)
+> 
+> I think to really move forward you need a concrete use case
+> actually implemented in tree.
+> 
 
-Can you try the attached patch to see if it fixes the problem?
-> mm/slub.c: In function `alloc_shared_caches':
-> mm/slub.c:1748: error: `cpu_info' undeclared (first use in this function)
-> mm/slub.c:1748: error: (Each undeclared identifier is reported only once
-> mm/slub.c:1748: error: for each function it appears in.)
-> mm/slub.c:1748: warning: type defaults to `int' in declaration of `type name'
-> mm/slub.c:1748: warning: type defaults to `int' in declaration of `type name'
-> mm/slub.c:1748: warning: type defaults to `int' in declaration of `type name'
-> mm/slub.c:1748: warning: type defaults to `int' in declaration of `type name'
-> mm/slub.c:1748: error: invalid type argument of `unary *'
-> make[1]: *** [mm/slub.o] Error 1
-> make: *** [mm] Error 2
->
-> I didn't look closely yet but cpu_info is an arch-specific variable.
-> Checking to see if there is a known fix yet before setting aside time to
-> dig deeper.
-Yeah, cpu_info.llc_shared_map is an x86ism. Christoph?
+yes. I heard there were users at LinuxCon Japan, so restarted.
+I heared video-for-linux + ARM wants this.
 
-             Pekka
+I found this thread, now.
+http://kerneltrap.org/mailarchive/linux-kernel/2010/10/10/4630166
 
+Hmm. 
 
---------------070005060006040809030005
-Content-Type: text/plain; x-mac-type="0"; x-mac-creator="0";
- name="0001-slub-Fix-drain_alien_cache-redeclaration.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename*0="0001-slub-Fix-drain_alien_cache-redeclaration.patch"
+> >   My intention is not for allocating HUGEPAGE(> MAX_ORDER).
+> 
+> I still believe using this for 1GB pages would be one of the more
+> interesting use cases.
+> 
 
+I'm successfully allocating 1GB of continous pages at test. But I'm not sure
+requirements and users. How quick this allocation should be ?
+For example, if prep_new_page() for 1GB page is slow, what kind of chunk-of-page
+construction is the best. 
 
---------------070005060006040809030005--
+THanks,
+-Kame
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
