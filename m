@@ -1,83 +1,254 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CD6146B0122
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 10:41:01 -0400 (EDT)
-Date: Wed, 13 Oct 2010 15:40:44 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
-Message-ID: <20101013144044.GS30667@csn.ul.ie>
-References: <20101009095718.1775.qmail@kosh.dhis.org> <20101011143022.GD30667@csn.ul.ie> <20101011140039.15a2c78d.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20101011140039.15a2c78d.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with SMTP id 2D1396B0122
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 12:09:42 -0400 (EDT)
+Subject: [PATCH] [RFC] slub tracing: move trace calls out of always inlined
+ functions to reduce kernel code size
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 13 Oct 2010 17:09:38 +0100
+Message-ID: <1286986178.1901.60.camel@castor.rsk>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: pacman@kosh.dhis.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 11, 2010 at 02:00:39PM -0700, Andrew Morton wrote:
-> (cc linuxppc-dev@lists.ozlabs.org)
-> 
-> On Mon, 11 Oct 2010 15:30:22 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > On Sat, Oct 09, 2010 at 04:57:18AM -0500, pacman@kosh.dhis.org wrote:
-> > > (What a big Cc: list... scripts/get_maintainer.pl made me do it.)
-> > > 
-> > > This will be a long story with a weak conclusion, sorry about that, but it's
-> > > been a long bug-hunt.
-> > > 
-> > > With recent kernels I've seen a bug that appears to corrupt random 4-byte
-> > > chunks of memory. It's not easy to reproduce. It seems to happen only once
-> > > per boot, pretty quickly after userspace has gotten started, and sometimes it
-> > > doesn't happen at all.
-> > > 
-> > 
-> > A corruption of 4 bytes could be consistent with a pointer value being
-> > written to an incorrect location.
-> 
-> It's corruption of user memory, which is unusual.  I'd be wondering if
-> there was a pre-existing bug which 6dda9d55bf545013597 has exposed -
-> previously the corruption was hitting something harmless.  Something
-> like a missed CPU cache writeback or invalidate operation.
-> 
+Having the trace calls defined in the always inlined kmalloc functions
+in include/linux/slub_def.h causes a lot of code duplication as the
+trace functions get instantiated for each kamalloc call site. This can
+simply be removed by pushing the trace calls down into the functions in
+slub.c.
 
-This seems somewhat plausible although it's hard to tell for sure. But
-lets say we had the following situation in memory
+On my x86_64 built this patch shrinks the code size of the kernel by
+approx 29K and also shrinks the code size of many modules -- too many to
+list here ;)
 
-[<----MAX_ORDER_NR_PAGES---->][<----MAX_ORDER_NR_PAGES---->]
-INITRD                        memmap array
+size vmlinux.o reports
+       text	   data	    bss	    dec	    hex	filename
+    4777011	 602052	 763072	6142135	 5db8b7	vmlinux.o
+    4747120	 602388	 763072	6112580	 5d4544	vmlinux.o.patch
 
-initrd gets freed and someone else very early in boot gets allocated in
-there. Lets further guess that the struct pages in the memmap area are
-managing the page frame where the INITRD was because it makes the situation
-slightly easier to trigger. As pages get freed in the memmap array, we could
-reference memory where initrd used to be but the physical memory is mapped
-at two virtual addresses.
+The resulting kernel has had some testing & kmalloc trace still seems to
+work.
 
-CPU A							CPU B
-							Reads kernelspace virtual (gets cache line)
-Writes userspace virtual (gets different cache line)
-							IO, writes buffer destined for userspace (via cache line)
-Cache line eviction, writeback to memory
+This patch
+- moves trace_kmalloc out of the inlined kmalloc() and pushes it down
+into kmem_cache_alloc_trace() so this it only get instantiated once.
 
-This is somewhat contrived but I can see how it might happen even on one
-CPU particularly if the L1 cache is virtual and is loose about checking
-physical tags.
+- rename kmem_cache_alloc_notrace()  to kmem_cache_alloc_trace() to
+indicate that now is does have tracing. (maybe this would better being
+called something like kmalloc_kmem_cache ?)
 
-> How sensitive/vulnerable is PPC32 to such things?
-> 
+- adds a new function kmalloc_order() to handle allocation and tracing
+of large allocations of page order.
 
-I can not tell you specifically but if the above scenario is in any way
-plausible, I believe it would depend on what sort of L1 cache the CPU
-has. Maybe this particular version has a virtual cache with no physical
-tagging and is depending on the OS not to make virtual aliasing mistakes.
+- removes tracing from the inlined kmalloc_large() replacing them with a
+call to kmalloc_order();
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+- move tracing out of inlined kmalloc_node() and pushing it down into
+kmem_cache_alloc_node_trace
+
+- rename kmem_cache_alloc_node_notrace() to
+kmem_cache_alloc_node_trace()
+
+- removes the include of trace/events/kmem.h from slub_def.h.
+
+Signed-off-by: Richard Kennedy <richard@rsk.demon.co.uk>
+-----
+patch against v2.6.36-rc7
+compiled & tested on x86_64.
+
+Overall this lowers the overhead of having trace enabled & AFAICT seems
+to still work ;)
+
+Do you think this is the correct approach or can you suggest any better
+way to do this?
+
+
+regards
+Richard
+
+diffstat
+ include/linux/slub_def.h |   40 ++++++++++------------------------------
+ mm/slub.c                |   34 +++++++++++++++++++++++++++-------
+ 2 files changed, 37 insertions(+), 37 deletions(-)
+
+
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 9f63538..314272a 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -10,9 +10,6 @@
+ #include <linux/gfp.h>
+ #include <linux/workqueue.h>
+ #include <linux/kobject.h>
+-#include <linux/kmemleak.h>
+-
+-#include <trace/events/kmem.h>
+ 
+ enum stat_item {
+ 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
+@@ -221,12 +218,13 @@ static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
+ 
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+ void *__kmalloc(size_t size, gfp_t flags);
++void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
+ 
+ #ifdef CONFIG_TRACING
+-extern void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags);
++extern void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size);
+ #else
+ static __always_inline void *
+-kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
++kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+ {
+ 	return kmem_cache_alloc(s, gfpflags);
+ }
+@@ -235,18 +233,11 @@ kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
+ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+ {
+ 	unsigned int order = get_order(size);
+-	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
+-
+-	kmemleak_alloc(ret, size, 1, flags);
+-	trace_kmalloc(_THIS_IP_, ret, size, PAGE_SIZE << order, flags);
+-
+-	return ret;
++	return kmalloc_order(size, flags, order);
+ }
+ 
+ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ {
+-	void *ret;
+-
+ 	if (__builtin_constant_p(size)) {
+ 		if (size > SLUB_MAX_SIZE)
+ 			return kmalloc_large(size, flags);
+@@ -257,11 +248,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ 			if (!s)
+ 				return ZERO_SIZE_PTR;
+ 
+-			ret = kmem_cache_alloc_notrace(s, flags);
+-
+-			trace_kmalloc(_THIS_IP_, ret, size, s->size, flags);
+-
+-			return ret;
++			return kmem_cache_alloc_trace(s, flags, size);
+ 		}
+ 	}
+ 	return __kmalloc(size, flags);
+@@ -272,14 +259,14 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node);
+ void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+ 
+ #ifdef CONFIG_TRACING
+-extern void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
++extern void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+ 					   gfp_t gfpflags,
+-					   int node);
++					   int node, size_t size);
+ #else
+ static __always_inline void *
+-kmem_cache_alloc_node_notrace(struct kmem_cache *s,
++kmem_cache_alloc_node_trace(struct kmem_cache *s,
+ 			      gfp_t gfpflags,
+-			      int node)
++			      int node, size_t size)
+ {
+ 	return kmem_cache_alloc_node(s, gfpflags, node);
+ }
+@@ -287,8 +274,6 @@ kmem_cache_alloc_node_notrace(struct kmem_cache *s,
+ 
+ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ {
+-	void *ret;
+-
+ 	if (__builtin_constant_p(size) &&
+ 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
+ 			struct kmem_cache *s = kmalloc_slab(size);
+@@ -296,12 +281,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ 		if (!s)
+ 			return ZERO_SIZE_PTR;
+ 
+-		ret = kmem_cache_alloc_node_notrace(s, flags, node);
+-
+-		trace_kmalloc_node(_THIS_IP_, ret,
+-				   size, s->size, flags, node);
+-
+-		return ret;
++		return kmem_cache_alloc_node_trace(s, flags, node, size);
+ 	}
+ 	return __kmalloc_node(size, flags, node);
+ }
+diff --git a/mm/slub.c b/mm/slub.c
+index 13fffe1..32b89ee 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -28,6 +28,9 @@
+ #include <linux/math64.h>
+ #include <linux/fault-inject.h>
+ 
++#include <linux/kmemleak.h>
++#include <trace/events/kmem.h>
++
+ /*
+  * Lock order:
+  *   1. slab_lock(page)
+@@ -1736,13 +1739,26 @@ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
+ EXPORT_SYMBOL(kmem_cache_alloc);
+ 
+ #ifdef CONFIG_TRACING
+-void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
++void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+ {
+-	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
++	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
++	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
++	return ret;
+ }
+-EXPORT_SYMBOL(kmem_cache_alloc_notrace);
++EXPORT_SYMBOL(kmem_cache_alloc_trace);
+ #endif
+ 
++void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
++{
++	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
++
++	kmemleak_alloc(ret, size, 1, flags);
++	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
++
++	return ret;
++}
++EXPORT_SYMBOL(kmalloc_order);
++
+ #ifdef CONFIG_NUMA
+ void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
+ {
+@@ -1757,13 +1773,17 @@ EXPORT_SYMBOL(kmem_cache_alloc_node);
+ #endif
+ 
+ #ifdef CONFIG_TRACING
+-void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
++void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
+ 				    gfp_t gfpflags,
+-				    int node)
++				    int node, size_t size)
+ {
+-	return slab_alloc(s, gfpflags, node, _RET_IP_);
++	void *ret = slab_alloc(s, gfpflags, node, _RET_IP_);
++
++	trace_kmalloc_node(_RET_IP_, ret,
++			   size, s->size, gfpflags, node);
++	return ret;
+ }
+-EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
++EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+ #endif
+ 
+ /*
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
