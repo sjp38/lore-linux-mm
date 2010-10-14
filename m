@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6072D6B013B
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 04:36:43 -0400 (EDT)
-Date: Thu, 14 Oct 2010 17:36:28 +0900
-Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
-From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20101014072421.GA13414@basil.fritz.box>
-References: <87sk0a1sq0.fsf@basil.nowhere.org>
-	<20101014160217N.fujita.tomonori@lab.ntt.co.jp>
-	<20101014072421.GA13414@basil.fritz.box>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <20101014173103U.fujita.tomonori@lab.ntt.co.jp>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BA7556B013C
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:17:26 -0400 (EDT)
+From: y@redhat.com
+Subject: [PATCH v7 12/12] Send async PF when guest is not in userspace too.
+Date: Thu, 14 Oct 2010 11:17:10 +0200
+Message-Id: <1287047830-2120-13-git-send-email-y>
+In-Reply-To: <1287047830-2120-1-git-send-email-y>
+References: <1287047830-2120-1-git-send-email-y>
 Sender: owner-linux-mm@kvack.org
-To: andi@firstfloor.org
-Cc: fujita.tomonori@lab.ntt.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Oct 2010 09:24:21 +0200
-Andi Kleen <andi@firstfloor.org> wrote:
+From: Gleb Natapov <gleb@redhat.com>
 
-> On Thu, Oct 14, 2010 at 04:07:12PM +0900, FUJITA Tomonori wrote:
-> > On Wed, 13 Oct 2010 09:01:43 +0200
-> > Andi Kleen <andi@firstfloor.org> wrote:
-> > 
-> > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
-> > > >
-> > > > What this wants to do: 
-> > > >   allocates a contiguous chunk of pages larger than MAX_ORDER.
-> > > >   for device drivers (camera? etc..)
-> > > 
-> > > I think to really move forward you need a concrete use case
-> > > actually implemented in tree.
-> > 
-> > As already pointed out, some embeded drivers need physcailly
-> > contignous memory. Currenlty, they use hacky tricks (e.g. playing with
-> > the boot memory allocators). There are several proposals for this like
-> 
-> Are any of those in mainline? 
+If guest indicates that it can handle async pf in kernel mode too send
+it, but only if interrupts are enabled.
 
-The tricks or the proposals?
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ arch/x86/kvm/x86.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-I think that at least one mainline driver in arm uses such trick but I
-can't recall the name. Better to ask on the arm mainling list. Also I
-heard that the are some out-of-tree patches about this.
-
-
-I think that any such proposal hasn't merged yet. If you are looking
-for such examples, here's one:
-
-http://lwn.net/Articles/401107/
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 1e442df..51cff2f 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6248,7 +6248,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+ 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
+ 
+ 	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
+-	    kvm_x86_ops->get_cpl(vcpu) == 0)
++	    (vcpu->arch.apf.send_user_only &&
++	     kvm_x86_ops->get_cpl(vcpu) == 0))
+ 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+ 	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
+ 		vcpu->arch.fault.error_code = 0;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
