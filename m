@@ -1,7 +1,7 @@
 From: y@redhat.com
-Subject: [PATCH v7 07/12] Add async PF initialization to PV guest.
-Date: Thu, 14 Oct 2010 11:17:05 +0200
-Message-ID: <41518.1692377248$1287048060@news.gmane.org>
+Subject: [PATCH v7 04/12] Add memory slot versioning and use it to provide fast guest write interface
+Date: Thu, 14 Oct 2010 11:17:02 +0200
+Message-ID: <23401.9666132101$1287048061@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
 Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
@@ -12,180 +12,219 @@ List-Id: linux-mm.kvack.org
 
 From: Gleb Natapov <gleb@redhat.com>
 
-Enable async PF in a guest if async PF capability is discovered.
+Keep track of memslots changes by keeping generation number in memslots
+structure. Provide kvm_write_guest_cached() function that skips
+gfn_to_hva() translation if memslots was not changed since previous
+invocation.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- Documentation/kernel-parameters.txt |    3 +
- arch/x86/include/asm/kvm_para.h     |    6 ++
- arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
- 3 files changed, 101 insertions(+), 0 deletions(-)
+ include/linux/kvm_host.h  |    7 ++++
+ include/linux/kvm_types.h |    7 ++++
+ virt/kvm/kvm_main.c       |   75 +++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 77 insertions(+), 12 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 8dc2548..0bd2203 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1699,6 +1699,9 @@ and is between 256 and 4096 characters. It is defined in the file
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index 9a9b017..dda88f2 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -199,6 +199,7 @@ struct kvm_irq_routing_table {};
  
- 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
+ struct kvm_memslots {
+ 	int nmemslots;
++	u64 generation;
+ 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
+ 					KVM_PRIVATE_MEM_SLOTS];
+ };
+@@ -352,12 +353,18 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
+ 			 int offset, int len);
+ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 		    unsigned long len);
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len);
++int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			      gpa_t gpa);
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
+ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
+ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
+ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
+ unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
+ void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn);
  
-+	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
-+			fault handling.
-+
- 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
- 
- 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 8662ae0..2315398 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -65,6 +65,12 @@ struct kvm_mmu_op_release_pt {
- 	__u64 pt_phys;
+ void kvm_vcpu_block(struct kvm_vcpu *vcpu);
+ void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
+diff --git a/include/linux/kvm_types.h b/include/linux/kvm_types.h
+index 7ac0d4e..fa7cc72 100644
+--- a/include/linux/kvm_types.h
++++ b/include/linux/kvm_types.h
+@@ -67,4 +67,11 @@ struct kvm_lapic_irq {
+ 	u32 dest_id;
  };
  
-+struct kvm_vcpu_pv_apf_data {
-+	__u32 reason;
-+	__u8 pad[60];
-+	__u32 enabled;
++struct gfn_to_hva_cache {
++	u64 generation;
++	gpa_t gpa;
++	unsigned long hva;
++	struct kvm_memory_slot *memslot;
 +};
 +
- #ifdef __KERNEL__
- #include <asm/processor.h>
+ #endif /* __KVM_TYPES_H__ */
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 238079e..5d57ec9 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -687,6 +687,7 @@ skip_lpage:
+ 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 		if (mem->slot >= slots->nmemslots)
+ 			slots->nmemslots = mem->slot + 1;
++		slots->generation++;
+ 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
  
-diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index e6db179..032d03b 100644
---- a/arch/x86/kernel/kvm.c
-+++ b/arch/x86/kernel/kvm.c
-@@ -27,16 +27,30 @@
- #include <linux/mm.h>
- #include <linux/highmem.h>
- #include <linux/hardirq.h>
-+#include <linux/notifier.h>
-+#include <linux/reboot.h>
- #include <asm/timer.h>
-+#include <asm/cpu.h>
+ 		old_memslots = kvm->memslots;
+@@ -723,6 +724,7 @@ skip_lpage:
+ 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 	if (mem->slot >= slots->nmemslots)
+ 		slots->nmemslots = mem->slot + 1;
++	slots->generation++;
  
- #define MMU_QUEUE_SIZE 1024
+ 	/* actual memory is freed via old in kvm_free_physmem_slot below */
+ 	if (!npages) {
+@@ -853,10 +855,10 @@ int kvm_is_error_hva(unsigned long addr)
+ }
+ EXPORT_SYMBOL_GPL(kvm_is_error_hva);
  
-+static int kvmapf = 1;
-+
-+static int parse_no_kvmapf(char *arg)
-+{
-+        kvmapf = 0;
-+        return 0;
-+}
-+
-+early_param("no-kvmapf", parse_no_kvmapf);
-+
- struct kvm_para_state {
- 	u8 mmu_queue[MMU_QUEUE_SIZE];
- 	int mmu_queue_len;
- };
- 
- static DEFINE_PER_CPU(struct kvm_para_state, para_state);
-+static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
- 
- static struct kvm_para_state *kvm_para_state(void)
+-struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
++static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
++						gfn_t gfn)
  {
-@@ -231,12 +245,86 @@ static void __init paravirt_ops_setup(void)
- #endif
+ 	int i;
+-	struct kvm_memslots *slots = kvm_memslots(kvm);
+ 
+ 	for (i = 0; i < slots->nmemslots; ++i) {
+ 		struct kvm_memory_slot *memslot = &slots->memslots[i];
+@@ -867,6 +869,11 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+ 	}
+ 	return NULL;
+ }
++
++struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
++{
++	return __gfn_to_memslot(kvm_memslots(kvm), gfn);
++}
+ EXPORT_SYMBOL_GPL(gfn_to_memslot);
+ 
+ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
+@@ -929,12 +936,9 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
+ 	return memslot - slots->memslots;
  }
  
-+void __cpuinit kvm_guest_cpu_init(void)
-+{
-+	if (!kvm_para_available())
-+		return;
-+
-+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
-+		u64 pa = __pa(&__get_cpu_var(apf_reason));
-+
-+		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa | KVM_ASYNC_PF_ENABLED);
-+		__get_cpu_var(apf_reason).enabled = 1;
-+		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
-+		       smp_processor_id());
-+	}
-+}
-+
-+static void kvm_pv_disable_apf(void *unused)
-+{
-+	if (!__get_cpu_var(apf_reason).enabled)
-+		return;
-+
-+	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
-+	__get_cpu_var(apf_reason).enabled = 0;
-+
-+	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
-+	       smp_processor_id());
-+}
-+
-+static int kvm_pv_reboot_notify(struct notifier_block *nb,
-+				unsigned long code, void *unused)
-+{
-+	if (code == SYS_RESTART)
-+		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
-+	return NOTIFY_DONE;
-+}
-+
-+static struct notifier_block kvm_pv_reboot_nb = {
-+	.notifier_call = kvm_pv_reboot_notify,
-+};
-+
- #ifdef CONFIG_SMP
- static void __init kvm_smp_prepare_boot_cpu(void)
+-static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
++static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
+ 				     gfn_t *nr_pages)
  {
- 	WARN_ON(kvm_register_clock("primary cpu clock"));
-+	kvm_guest_cpu_init();
- 	native_smp_prepare_boot_cpu();
- }
-+
-+static void kvm_guest_cpu_online(void *dummy)
-+{
-+	kvm_guest_cpu_init();
-+}
-+
-+static void kvm_guest_cpu_offline(void *dummy)
-+{
-+	kvm_pv_disable_apf(NULL);
-+}
-+
-+static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
-+				    unsigned long action, void *hcpu)
-+{
-+	int cpu = (unsigned long)hcpu;
-+	switch (action) {
-+	case CPU_ONLINE:
-+	case CPU_DOWN_FAILED:
-+	case CPU_ONLINE_FROZEN:
-+		smp_call_function_single(cpu, kvm_guest_cpu_online, NULL, 0);
-+		break;
-+	case CPU_DOWN_PREPARE:
-+	case CPU_DOWN_PREPARE_FROZEN:
-+		smp_call_function_single(cpu, kvm_guest_cpu_offline, NULL, 1);
-+		break;
-+	default:
-+		break;
-+	}
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
-+        .notifier_call  = kvm_cpu_notify,
-+};
- #endif
+-	struct kvm_memory_slot *slot;
+-
+-	slot = gfn_to_memslot(kvm, gfn);
+ 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
+ 		return bad_hva();
  
- void __init kvm_guest_init(void)
-@@ -245,7 +333,11 @@ void __init kvm_guest_init(void)
- 		return;
+@@ -946,7 +950,7 @@ static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
  
- 	paravirt_ops_setup();
-+	register_reboot_notifier(&kvm_pv_reboot_nb);
- #ifdef CONFIG_SMP
- 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-+	register_cpu_notifier(&kvm_cpu_notifier);
-+#else
-+	kvm_guest_cpu_init();
- #endif
+ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+ {
+-	return gfn_to_hva_many(kvm, gfn, NULL);
++	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
  }
+ EXPORT_SYMBOL_GPL(gfn_to_hva);
+ 
+@@ -1063,7 +1067,7 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
+ 	unsigned long addr;
+ 	gfn_t entry;
+ 
+-	addr = gfn_to_hva_many(kvm, gfn, &entry);
++	addr = gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, &entry);
+ 	if (kvm_is_error_hva(addr))
+ 		return -1;
+ 
+@@ -1247,6 +1251,47 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 	return 0;
+ }
+ 
++int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			      gpa_t gpa)
++{
++	struct kvm_memslots *slots = kvm_memslots(kvm);
++	int offset = offset_in_page(gpa);
++	gfn_t gfn = gpa >> PAGE_SHIFT;
++
++	ghc->gpa = gpa;
++	ghc->generation = slots->generation;
++	ghc->memslot = __gfn_to_memslot(slots, gfn);
++	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
++	if (!kvm_is_error_hva(ghc->hva))
++		ghc->hva += offset;
++	else
++		return -EFAULT;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
++
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len)
++{
++	struct kvm_memslots *slots = kvm_memslots(kvm);
++	int r;
++
++	if (slots->generation != ghc->generation)
++		kvm_gfn_to_hva_cache_init(kvm, ghc, ghc->gpa);
++	
++	if (kvm_is_error_hva(ghc->hva))
++		return -EFAULT;
++
++	r = copy_to_user((void __user *)ghc->hva, data, len);
++	if (r)
++		return -EFAULT;
++	mark_page_dirty_in_slot(kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
++
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
+ {
+ 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
+@@ -1272,11 +1317,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
+ }
+ EXPORT_SYMBOL_GPL(kvm_clear_guest);
+ 
+-void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn)
+ {
+-	struct kvm_memory_slot *memslot;
+-
+-	memslot = gfn_to_memslot(kvm, gfn);
+ 	if (memslot && memslot->dirty_bitmap) {
+ 		unsigned long rel_gfn = gfn - memslot->base_gfn;
+ 
+@@ -1284,6 +1327,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
+ 	}
+ }
+ 
++void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++{
++	struct kvm_memory_slot *memslot;
++
++	memslot = gfn_to_memslot(kvm, gfn);
++	mark_page_dirty_in_slot(kvm, memslot, gfn);
++}
++
+ /*
+  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
+  */
 -- 
 1.7.1
