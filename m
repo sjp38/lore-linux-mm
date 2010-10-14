@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 508C96B013F
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 5EB1A6B0140
 	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:17:29 -0400 (EDT)
 From: y@redhat.com
-Subject: [PATCH v7 03/12] Retry fault before vmentry
-Date: Thu, 14 Oct 2010 11:17:01 +0200
-Message-Id: <1287047830-2120-4-git-send-email-y>
+Subject: [PATCH v7 01/12] Add get_user_pages() variant that fails if major fault is required.
+Date: Thu, 14 Oct 2010 11:16:59 +0200
+Message-Id: <1287047830-2120-2-git-send-email-y>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
 References: <1287047830-2120-1-git-send-email-y>
 Sender: owner-linux-mm@kvack.org
@@ -15,162 +15,173 @@ List-ID: <linux-mm.kvack.org>
 
 From: Gleb Natapov <gleb@redhat.com>
 
-When page is swapped in it is mapped into guest memory only after guest
-tries to access it again and generate another fault. To save this fault
-we can map it immediately since we know that guest is going to access
-the page. Do it only when tdp is enabled for now. Shadow paging case is
-more complicated. CR[034] and EFER registers should be switched before
-doing mapping and then switched back.
+This patch add get_user_pages() variant that only succeeds if getting
+a reference to a page doesn't require major fault.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- arch/x86/include/asm/kvm_host.h |    4 +++-
- arch/x86/kvm/mmu.c              |   16 ++++++++--------
- arch/x86/kvm/paging_tmpl.h      |    6 +++---
- arch/x86/kvm/x86.c              |    7 +++++++
- virt/kvm/async_pf.c             |    2 ++
- 5 files changed, 23 insertions(+), 12 deletions(-)
+ fs/ncpfs/mmap.c    |    2 ++
+ include/linux/mm.h |    5 +++++
+ mm/filemap.c       |    3 +++
+ mm/memory.c        |   31 ++++++++++++++++++++++++++++---
+ mm/shmem.c         |    8 +++++++-
+ 5 files changed, 45 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 043e29e..96aca44 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -241,7 +241,7 @@ struct kvm_mmu {
- 	void (*new_cr3)(struct kvm_vcpu *vcpu);
- 	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
- 	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
--	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
-+	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool no_apf);
- 	void (*inject_page_fault)(struct kvm_vcpu *vcpu);
- 	void (*free)(struct kvm_vcpu *vcpu);
- 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access,
-@@ -839,6 +839,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
- 				     struct kvm_async_pf *work);
- void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
- 				 struct kvm_async_pf *work);
-+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
-+			       struct kvm_async_pf *work);
- extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
+diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+index 56f5b3a..b9c4f36 100644
+--- a/fs/ncpfs/mmap.c
++++ b/fs/ncpfs/mmap.c
+@@ -39,6 +39,8 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
+ 	int bufsize;
+ 	int pos; /* XXX: loff_t ? */
  
- #endif /* _ASM_X86_KVM_HOST_H */
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index f01e89a..11d152b 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2568,7 +2568,7 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
- }
++	if (vmf->flags & FAULT_FLAG_MINOR)
++		return VM_FAULT_MAJOR | VM_FAULT_ERROR;
+ 	/*
+ 	 * ncpfs has nothing against high pages as long
+ 	 * as recvmsg and memset works on it
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 74949fb..da32900 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -144,6 +144,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+ #define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
++#define FAULT_FLAG_MINOR	0x08	/* Do only minor fault */
  
- static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
--				u32 error_code)
-+				u32 error_code, bool no_apf)
- {
- 	gfn_t gfn;
- 	int r;
-@@ -2604,8 +2604,8 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
- 	return kvm_x86_ops->interrupt_allowed(vcpu);
- }
+ /*
+  * This interface is used by x86 PAT code to identify a pfn mapping that is
+@@ -848,6 +849,9 @@ extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			unsigned long start, int nr_pages, int write, int force,
+ 			struct page **pages, struct vm_area_struct **vmas);
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long start, int nr_pages, int write, int force,
++			struct page **pages, struct vm_area_struct **vmas);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
+ struct page *get_dump_page(unsigned long addr);
+@@ -1394,6 +1398,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_GET	0x04	/* do get_page on page */
+ #define FOLL_DUMP	0x08	/* give error on hole if it would be zero */
+ #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
++#define FOLL_MINOR	0x20	/* do only minor page faults */
  
--static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
--			 pfn_t *pfn)
-+static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
-+			 gva_t gva, pfn_t *pfn)
- {
- 	bool async;
- 
-@@ -2616,7 +2616,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
- 
- 	put_page(pfn_to_page(*pfn));
- 
--	if (can_do_async_pf(vcpu)) {
-+	if (!no_apf && can_do_async_pf(vcpu)) {
- 		trace_kvm_try_async_get_page(async, *pfn);
- 		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
- 			trace_kvm_async_pf_doublefault(gva, gfn);
-@@ -2631,8 +2631,8 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
- 	return false;
- }
- 
--static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
--				u32 error_code)
-+static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
-+			  bool no_apf)
- {
- 	pfn_t pfn;
- 	int r;
-@@ -2654,7 +2654,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
--	if (try_async_pf(vcpu, gfn, gpa, &pfn))
-+	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn))
- 		return 0;
- 
- 	/* mmio */
-@@ -3317,7 +3317,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
- 	int r;
- 	enum emulation_result er;
- 
--	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
-+	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
- 	if (r < 0)
- 		goto out;
- 
-diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-index c45376d..d6b281e 100644
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -527,8 +527,8 @@ out_gpte_changed:
-  *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
-  *           a negative value on error.
-  */
--static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
--			       u32 error_code)
-+static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
-+			     bool no_apf)
- {
- 	int write_fault = error_code & PFERR_WRITE_MASK;
- 	int user_fault = error_code & PFERR_USER_MASK;
-@@ -569,7 +569,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
- 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
- 	smp_rmb();
- 
--	if (try_async_pf(vcpu, walker.gfn, addr, &pfn))
-+	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn))
- 		return 0;
- 
- 	/* mmio */
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 09e72fc..bf37397 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -6131,6 +6131,13 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
- }
- EXPORT_SYMBOL_GPL(kvm_set_rflags);
- 
-+void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
-+{
-+	if (!vcpu->arch.mmu.direct_map || is_error_page(work->page))
-+		return;
-+	vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
-+}
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 3d4df44..ef28b6d 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1548,6 +1548,9 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 			goto no_cached_page;
+ 		}
+ 	} else {
++		if (vmf->flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
 +
- static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
+ 		/* No page in the page cache at all */
+ 		do_sync_mmap_readahead(vma, ra, file, offset);
+ 		count_vm_event(PGMAJFAULT);
+diff --git a/mm/memory.c b/mm/memory.c
+index 0e18b4d..b221458 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1441,10 +1441,13 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
+ 				int ret;
++				unsigned int fault_fl =
++					((foll_flags & FOLL_WRITE) ?
++					FAULT_FLAG_WRITE : 0) |
++					((foll_flags & FOLL_MINOR) ?
++					FAULT_FLAG_MINOR : 0);
+ 
+-				ret = handle_mm_fault(mm, vma, start,
+-					(foll_flags & FOLL_WRITE) ?
+-					FAULT_FLAG_WRITE : 0);
++				ret = handle_mm_fault(mm, vma, start, fault_fl);
+ 
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+@@ -1452,6 +1455,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 					if (ret &
+ 					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+ 						return i ? i : -EFAULT;
++					else if (ret & VM_FAULT_MAJOR)
++						return i ? i : -EFAULT;
+ 					BUG();
+ 				}
+ 				if (ret & VM_FAULT_MAJOR)
+@@ -1562,6 +1567,23 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ }
+ EXPORT_SYMBOL(get_user_pages);
+ 
++int get_user_pages_noio(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, int nr_pages, int write, int force,
++		struct page **pages, struct vm_area_struct **vmas)
++{
++	int flags = FOLL_TOUCH | FOLL_MINOR;
++
++	if (pages)
++		flags |= FOLL_GET;
++	if (write)
++		flags |= FOLL_WRITE;
++	if (force)
++		flags |= FOLL_FORCE;
++
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
++}
++EXPORT_SYMBOL(get_user_pages_noio);
++
+ /**
+  * get_dump_page() - pin user page in memory while writing it to core dump
+  * @addr: user address
+@@ -2648,6 +2670,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
++		if (flags & FAULT_FLAG_MINOR)
++			return VM_FAULT_MAJOR | VM_FAULT_ERROR;
++
+ 		grab_swap_token(mm); /* Contend for token _before_ read-in */
+ 		page = swapin_readahead(entry,
+ 					GFP_HIGHUSER_MOVABLE, vma, address);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 080b09a..470d8a7 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1228,6 +1228,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
+ 	swp_entry_t swap;
+ 	gfp_t gfp;
+ 	int error;
++	int flags = type ? *type : 0;
+ 
+ 	if (idx >= SHMEM_MAX_INDEX)
+ 		return -EFBIG;
+@@ -1287,6 +1288,11 @@ repeat:
+ 		swappage = lookup_swap_cache(swap);
+ 		if (!swappage) {
+ 			shmem_swp_unmap(entry);
++			if (flags & FAULT_FLAG_MINOR) {
++				spin_unlock(&info->lock);
++				*type = VM_FAULT_MAJOR | VM_FAULT_ERROR;
++				goto failed;
++			}
+ 			/* here we actually do the io */
+ 			if (type && !(*type & VM_FAULT_MAJOR)) {
+ 				__count_vm_event(PGMAJFAULT);
+@@ -1510,7 +1516,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
- 	return hash_32(gfn & 0xffffffff, order_base_2(ASYNC_PF_PER_VCPU));
-diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-index 8b144d5..41607ed 100644
---- a/virt/kvm/async_pf.c
-+++ b/virt/kvm/async_pf.c
-@@ -132,6 +132,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
- 	list_del(&work->link);
- 	spin_unlock(&vcpu->async_pf.lock);
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	int error;
+-	int ret;
++	int ret = (int)vmf->flags;
  
-+	if (work->page)
-+		kvm_arch_async_page_ready(vcpu, work);
- 	kvm_arch_async_page_present(vcpu, work);
- 
- 	list_del(&work->queue);
+ 	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+ 		return VM_FAULT_SIGBUS;
 -- 
 1.7.1
 
