@@ -1,8 +1,10 @@
 From: y@redhat.com
-Subject: [PATCH v7 00/12] KVM: Add host swap event notifications for PV guest
-Date: Thu, 14 Oct 2010 11:16:58 +0200
-Message-ID: <17756.7896120765$1287048059@news.gmane.org>
+Subject: [PATCH v7 06/12] Add PV MSR to enable asynchronous page faults delivery.
+Date: Thu, 14 Oct 2010 11:17:04 +0200
+Message-ID: <30196.9685512178$1287048059@news.gmane.org>
+References: <1287047830-2120-1-git-send-email-y>
 Return-path: <kvm-owner@vger.kernel.org>
+In-Reply-To: <1287047830-2120-1-git-send-email-y>
 Sender: kvm-owner@vger.kernel.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
@@ -10,262 +12,271 @@ List-Id: linux-mm.kvack.org
 
 From: Gleb Natapov <gleb@redhat.com>
 
-KVM virtualizes guest memory by means of shadow pages or HW assistance
-like NPT/EPT. Not all memory used by a guest is mapped into the guest
-address space or even present in a host memory at any given time.
-When vcpu tries to access memory page that is not mapped into the guest
-address space KVM is notified about it. KVM maps the page into the guest
-address space and resumes vcpu execution. If the page is swapped out from
-the host memory vcpu execution is suspended till the page is swapped
-into the memory again. This is inefficient since vcpu can do other work
-(run other task or serve interrupts) while page gets swapped in.
+Guest enables async PF vcpu functionality using this MSR.
 
-The patch series tries to mitigate this problem by introducing two
-mechanisms. The first one is used with non-PV guest and it works like
-this: when vcpu tries to access swapped out page it is halted and
-requested page is swapped in by another thread. That way vcpu can still
-process interrupts while io is happening in parallel and, with any luck,
-interrupt will cause the guest to schedule another task on the vcpu, so
-it will have work to do instead of waiting for the page to be swapped in.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
+ Documentation/kvm/cpuid.txt     |    3 +++
+ Documentation/kvm/msr.txt       |   36 +++++++++++++++++++++++++++++++++++-
+ arch/x86/include/asm/kvm_host.h |    2 ++
+ arch/x86/include/asm/kvm_para.h |    4 ++++
+ arch/x86/kvm/x86.c              |   38 ++++++++++++++++++++++++++++++++++++--
+ include/linux/kvm.h             |    1 +
+ include/linux/kvm_host.h        |    1 +
+ virt/kvm/async_pf.c             |   20 ++++++++++++++++++++
+ 8 files changed, 102 insertions(+), 3 deletions(-)
 
-The second mechanism introduces PV notification about swapped page state to
-a guest (asynchronous page fault). Instead of halting vcpu upon access to
-swapped out page and hoping that some interrupt will cause reschedule we
-immediately inject asynchronous page fault to the vcpu.  PV aware guest
-knows that upon receiving such exception it should schedule another task
-to run on the vcpu. Current task is put to sleep until another kind of
-asynchronous page fault is received that notifies the guest that page
-is now in the host memory, so task that waits for it can run again.
+diff --git a/Documentation/kvm/cpuid.txt b/Documentation/kvm/cpuid.txt
+index 14a12ea..8820685 100644
+--- a/Documentation/kvm/cpuid.txt
++++ b/Documentation/kvm/cpuid.txt
+@@ -36,6 +36,9 @@ KVM_FEATURE_MMU_OP                 ||     2 || deprecated.
+ KVM_FEATURE_CLOCKSOURCE2           ||     3 || kvmclock available at msrs
+                                    ||       || 0x4b564d00 and 0x4b564d01
+ ------------------------------------------------------------------------------
++KVM_FEATURE_ASYNC_PF               ||     4 || async pf can be enabled by
++                                   ||       || writing to msr 0x4b564d02
++------------------------------------------------------------------------------
+ KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
+                                    ||       || per-cpu warps are expected in
+                                    ||       || kvmclock.
+diff --git a/Documentation/kvm/msr.txt b/Documentation/kvm/msr.txt
+index 8ddcfe8..27c11a6 100644
+--- a/Documentation/kvm/msr.txt
++++ b/Documentation/kvm/msr.txt
+@@ -3,7 +3,6 @@ Glauber Costa <glommer@redhat.com>, Red Hat Inc, 2010
+ =====================================================
+ 
+ KVM makes use of some custom MSRs to service some requests.
+-At present, this facility is only used by kvmclock.
+ 
+ Custom MSRs have a range reserved for them, that goes from
+ 0x4b564d00 to 0x4b564dff. There are MSRs outside this area,
+@@ -151,3 +150,38 @@ MSR_KVM_SYSTEM_TIME: 0x12
+ 			return PRESENT;
+ 		} else
+ 			return NON_PRESENT;
++
++MSR_KVM_ASYNC_PF_EN: 0x4b564d02
++	data: Bits 63-6 hold 64-byte aligned physical address of a
++	64 byte memory area which must be in guest RAM and must be
++	zeroed. Bits 5-1 are reserved and should be zero. Bit 0 is 1
++	when asynchronous page faults are enabled on the vcpu 0 when
++	disabled.
++
++	First 4 byte of 64 byte memory location will be written to by
++	the hypervisor at the time of asynchronous page fault (APF)
++	injection to indicate type of asynchronous page fault. Value
++	of 1 means that the page referred to by the page fault is not
++	present. Value 2 means that the page is now available. Disabling
++	interrupt inhibits APFs. Guest must not enable interrupt
++	before the reason is read, or it may be overwritten by another
++	APF. Since APF uses the same exception vector as regular page
++	fault guest must reset the reason to 0 before it does
++	something that can generate normal page fault.  If during page
++	fault APF reason is 0 it means that this is regular page
++	fault.
++
++	During delivery of type 1 APF cr2 contains a token that will
++	be used to notify a guest when missing page becomes
++	available. When page becomes available type 2 APF is sent with
++	cr2 set to the token associated with the page. There is special
++	kind of token 0xffffffff which tells vcpu that it should wake
++	up all processes waiting for APFs and no individual type 2 APFs
++	will be sent.
++
++	If APF is disabled while there are outstanding APFs, they will
++	not be delivered.
++
++	Currently type 2 APF will be always delivered on the same vcpu as
++	type 1 was, but guest should not rely on that.
++
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 96aca44..26b2064 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -419,6 +419,8 @@ struct kvm_vcpu_arch {
+ 	struct {
+ 		bool halted;
+ 		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
++		struct gfn_to_hva_cache data;
++		u64 msr_val;
+ 	} apf;
+ };
+ 
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index e3faaaf..8662ae0 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -20,6 +20,7 @@
+  * are available. The use of 0x11 and 0x12 is deprecated
+  */
+ #define KVM_FEATURE_CLOCKSOURCE2        3
++#define KVM_FEATURE_ASYNC_PF		4
+ 
+ /* The last 8 bits are used to indicate how to interpret the flags field
+  * in pvclock structure. If no bits are set, all flags are ignored.
+@@ -32,9 +33,12 @@
+ /* Custom MSRs falls in the range 0x4b564d00-0x4b564dff */
+ #define MSR_KVM_WALL_CLOCK_NEW  0x4b564d00
+ #define MSR_KVM_SYSTEM_TIME_NEW 0x4b564d01
++#define MSR_KVM_ASYNC_PF_EN 0x4b564d02
+ 
+ #define KVM_MAX_MMU_OP_BATCH           32
+ 
++#define KVM_ASYNC_PF_ENABLED			(1 << 0)
++
+ /* Operations for KVM_HC_MMU_OP */
+ #define KVM_MMU_OP_WRITE_PTE            1
+ #define KVM_MMU_OP_FLUSH_TLB	        2
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index bf37397..68a3a06 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -788,12 +788,12 @@ EXPORT_SYMBOL_GPL(kvm_get_dr);
+  * kvm-specific. Those are put in the beginning of the list.
+  */
+ 
+-#define KVM_SAVE_MSRS_BEGIN	7
++#define KVM_SAVE_MSRS_BEGIN	8
+ static u32 msrs_to_save[] = {
+ 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
+ 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
+ 	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
+-	HV_X64_MSR_APIC_ASSIST_PAGE,
++	HV_X64_MSR_APIC_ASSIST_PAGE, MSR_KVM_ASYNC_PF_EN,
+ 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
+ 	MSR_STAR,
+ #ifdef CONFIG_X86_64
+@@ -1431,6 +1431,29 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+ 	return 0;
+ }
+ 
++static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
++{
++	gpa_t gpa = data & ~0x3f;
++
++	/* Bits 1:5 are resrved, Should be zero */
++	if (data & 0x3e)
++		return 1;
++
++	vcpu->arch.apf.msr_val = data;
++
++	if (!(data & KVM_ASYNC_PF_ENABLED)) {
++		kvm_clear_async_pf_completion_queue(vcpu);
++		kvm_async_pf_hash_reset(vcpu);
++		return 0;
++	}
++
++	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa))
++		return 1;
++
++	kvm_async_pf_wakeup_all(vcpu);
++	return 0;
++}
++
+ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+ {
+ 	switch (msr) {
+@@ -1512,6 +1535,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+ 		}
+ 		break;
+ 	}
++	case MSR_KVM_ASYNC_PF_EN:
++		if (kvm_pv_enable_async_pf(vcpu, data))
++			return 1;
++		break;
+ 	case MSR_IA32_MCG_CTL:
+ 	case MSR_IA32_MCG_STATUS:
+ 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
+@@ -1788,6 +1815,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+ 	case MSR_KVM_SYSTEM_TIME_NEW:
+ 		data = vcpu->arch.time;
+ 		break;
++	case MSR_KVM_ASYNC_PF_EN:
++		data = vcpu->arch.apf.msr_val;
++		break;
+ 	case MSR_IA32_P5_MC_ADDR:
+ 	case MSR_IA32_P5_MC_TYPE:
+ 	case MSR_IA32_MCG_CAP:
+@@ -1935,6 +1965,7 @@ int kvm_dev_ioctl_check_extension(long ext)
+ 	case KVM_CAP_DEBUGREGS:
+ 	case KVM_CAP_X86_ROBUST_SINGLESTEP:
+ 	case KVM_CAP_XSAVE:
++	case KVM_CAP_ASYNC_PF:
+ 		r = 1;
+ 		break;
+ 	case KVM_CAP_COALESCED_MMIO:
+@@ -5784,6 +5815,8 @@ free_vcpu:
+ 
+ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
+ {
++	vcpu->arch.apf.msr_val = 0;
++
+ 	vcpu_load(vcpu);
+ 	kvm_mmu_unload(vcpu);
+ 	vcpu_put(vcpu);
+@@ -5803,6 +5836,7 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
+ 	vcpu->arch.dr7 = DR7_FIXED_1;
+ 
+ 	kvm_make_request(KVM_REQ_EVENT, vcpu);
++	vcpu->arch.apf.msr_val = 0;
+ 
+ 	kvm_clear_async_pf_completion_queue(vcpu);
+ 	kvm_async_pf_hash_reset(vcpu);
+diff --git a/include/linux/kvm.h b/include/linux/kvm.h
+index 919ae53..ea2dc1a 100644
+--- a/include/linux/kvm.h
++++ b/include/linux/kvm.h
+@@ -540,6 +540,7 @@ struct kvm_ppc_pvinfo {
+ #endif
+ #define KVM_CAP_PPC_GET_PVINFO 57
+ #define KVM_CAP_PPC_IRQ_LEVEL 58
++#define KVM_CAP_ASYNC_PF 59
+ 
+ #ifdef KVM_CAP_IRQ_ROUTING
+ 
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index dda88f2..5d09197 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -93,6 +93,7 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu);
+ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu);
+ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
+ 		       struct kvm_arch_async_pf *arch);
++int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
+ #endif
+ 
+ struct kvm_vcpu {
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index 41607ed..b276b06 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -190,3 +190,23 @@ retry_sync:
+ 	kmem_cache_free(async_pf_cache, work);
+ 	return 0;
+ }
++
++int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
++{
++	struct kvm_async_pf *work;
++
++	if (!list_empty(&vcpu->async_pf.done))
++		return 0;
++
++	work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
++	if (!work)
++		return -ENOMEM;
++
++	work->page = bad_page;
++	get_page(bad_page);
++	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
++
++	list_add_tail(&work->link, &vcpu->async_pf.done);
++	vcpu->async_pf.queued++;
++	return 0;
++}
+-- 
+1.7.1
 
-To measure performance benefits I use a simple benchmark program (below)
-that starts number of threads. Some of them do work (increment counter),
-others access huge array in random location trying to generate host page
-faults. The size of the array is smaller then guest memory bug bigger
-then host memory so we are guarantied that host will swap out part of
-the array.
-
-I ran the benchmark on three setups: with current kvm.git (master),
-with my patch series + non-pv guest (nonpv) and with my patch series +
-pv guest (pv).
-
-Each guest had 4 cpus and 2G memory and was launched inside 512M memory
-container. The command line was "./bm -f 4 -w 4 -t 60" (run 4 faulting
-threads and 4 working threads for a minute).
-
-Below is the total amount of "work" each guest managed to do
-(average of 10 runs):
-         total work    std error
-master: 122789420615 (3818565029)
-nonpv:  138455939001 (773774299)
-pv:     234351846135 (10461117116)
-
-Changes:
- v1->v2
-   Use MSR instead of hypercall.
-   Move most of the code into arch independent place.
-   halt inside a guest instead of doing "wait for page" hypercall if
-    preemption is disabled.
- v2->v3
-   Use MSR from range 0x4b564dxx.
-   Add slot version tracking.
-   Support migration by restarting all guest processes after migration.
-   Drop patch that tract preemptability for non-preemptable kernels
-    due to performance concerns. Send async PF to non-preemptable
-    guests only when vcpu is executing userspace code.
- v3->v4
-  Provide alternative page fault handler in PV guest instead of adding hook to
-   standard page fault handler and patch it out on non-PV guests.
-  Allow only limited number of outstanding async page fault per vcpu.
-  Unify  gfn_to_pfn and gfn_to_pfn_async code.
-  Cancel outstanding slow work on reset.
- v4->v5
-  Move async pv cpu initialization into cpu hotplug notifier.
-  Use GFP_NOWAIT instead of GFP_ATOMIC for allocation that shouldn't sleep
-  Process KVM_REQ_MMU_SYNC even in page_fault_other_cr3() before changing
-   cr3 back
- v5->v6
-  To many. Will list only major changes here.
-  Replace slow work with work queues.
-  Halt vcpu for non-pv guests.
-  Handle async PF in nested SVM mode.
-  Do not prefault swapped in page for non tdp case.
- v6->v7
-  Fix "GUP fail in work thread" problem
-  Do prefault only if mmu is in direct map mode
-  Use cpu->request to ask for vcpu halt (drop optimization that tried to
-   skip non-present apf injection if page is swapped in before next vmentry)
-  Keep track of synthetic halt in separate state to prevent it from leaking
-   during migration.
-  Fix memslot tracking problems.
-  More documentation.
-  Other small comments are addressed
-
-Gleb Natapov (12):
-  Add get_user_pages() variant that fails if major fault is required.
-  Halt vcpu if page it tries to access is swapped out.
-  Retry fault before vmentry
-  Add memory slot versioning and use it to provide fast guest write interface
-  Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
-  Add PV MSR to enable asynchronous page faults delivery.
-  Add async PF initialization to PV guest.
-  Handle async PF in a guest.
-  Inject asynchronous page fault into a PV guest if page is swapped out.
-  Handle async PF in non preemptable context
-  Let host know whether the guest can handle async PF in non-userspace context.
-  Send async PF when guest is not in userspace too.
-
- Documentation/kernel-parameters.txt |    3 +
- Documentation/kvm/cpuid.txt         |    3 +
- Documentation/kvm/msr.txt           |   36 ++++-
- arch/x86/include/asm/kvm_host.h     |   28 +++-
- arch/x86/include/asm/kvm_para.h     |   24 +++
- arch/x86/include/asm/traps.h        |    1 +
- arch/x86/kernel/entry_32.S          |   10 +
- arch/x86/kernel/entry_64.S          |    3 +
- arch/x86/kernel/kvm.c               |  315 +++++++++++++++++++++++++++++++++++
- arch/x86/kernel/kvmclock.c          |   13 +--
- arch/x86/kvm/Kconfig                |    1 +
- arch/x86/kvm/Makefile               |    1 +
- arch/x86/kvm/mmu.c                  |   61 ++++++-
- arch/x86/kvm/paging_tmpl.h          |    8 +-
- arch/x86/kvm/svm.c                  |   45 ++++-
- arch/x86/kvm/x86.c                  |  192 +++++++++++++++++++++-
- fs/ncpfs/mmap.c                     |    2 +
- include/linux/kvm.h                 |    1 +
- include/linux/kvm_host.h            |   39 +++++
- include/linux/kvm_types.h           |    7 +
- include/linux/mm.h                  |    5 +
- include/trace/events/kvm.h          |   95 +++++++++++
- mm/filemap.c                        |    3 +
- mm/memory.c                         |   31 +++-
- mm/shmem.c                          |    8 +-
- virt/kvm/Kconfig                    |    3 +
- virt/kvm/async_pf.c                 |  213 +++++++++++++++++++++++
- virt/kvm/async_pf.h                 |   36 ++++
- virt/kvm/kvm_main.c                 |  132 ++++++++++++---
- 29 files changed, 1255 insertions(+), 64 deletions(-)
- create mode 100644 virt/kvm/async_pf.c
- create mode 100644 virt/kvm/async_pf.h
-
-=== benchmark.c ===
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#define FAULTING_THREADS 1
-#define WORKING_THREADS 1
-#define TIMEOUT 5
-#define MEMORY 1024*1024*1024
-
-pthread_barrier_t barrier;
-volatile int stop;
-size_t pages;
-
-void *fault_thread(void* p)
-{
-	char *mem = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		mem[(random() % pages) << 12] = 10;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-void *work_thread(void* p)
-{
-	unsigned long *i = p;
-
-	pthread_barrier_wait(&barrier);
-
-	while (!stop)
-		(*i)++;
-
-	pthread_barrier_wait(&barrier);
-
-	return NULL;
-}
-
-int main(int argc, char **argv)
-{
-	int ft = FAULTING_THREADS, wt = WORKING_THREADS;
-	unsigned int timeout = TIMEOUT;
-	size_t mem = MEMORY;
-	void *buf;
-	int i, opt, verbose = 0;
-	pthread_t t;
-	pthread_attr_t pattr;
-	unsigned long *res, sum = 0;
-
-	while((opt = getopt(argc, argv, "f:w:m:t:v")) != -1) {
-		switch (opt) {
-		case 'f':
-			ft = atoi(optarg);
-			break;
-		case 'w':
-			wt = atoi(optarg);
-			break;
-		case 'm':
-			mem = atoi(optarg);
-			break;
-		case 't':
-			timeout = atoi(optarg);
-			break;
-		case 'v':
-			verbose++;
-			break;
-		default:
-			fprintf(stderr, "Usage %s [-f num] [-w num] [-m byte] [-t secs]\n", argv[0]);
-			exit(1);
-		}
-	}
-
-	if (verbose)
-		printf("fault=%d work=%d mem=%lu timeout=%d\n", ft, wt, mem, timeout);
-
-	pages = mem >> 12;
-	posix_memalign(&buf, 4096, pages << 12);
-	res = malloc(sizeof (unsigned long) * wt);
-	memset(res, 0, sizeof (unsigned long) * wt);
-
-	pthread_attr_init(&pattr);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	for (i = 0; i < ft; i++) {
-		pthread_create(&t, &pattr, fault_thread, buf);
-		pthread_detach(t);
-	}
-
-	for (i = 0; i < wt; i++) {
-		pthread_create(&t, &pattr, work_thread, &res[i]);
-		pthread_detach(t);
-	}
-
-	/* prefault memory */
-	memset(buf, 0, pages << 12);
-	printf("start\n");
-
-	pthread_barrier_wait(&barrier);
-
-	pthread_barrier_destroy(&barrier);
-	pthread_barrier_init(&barrier, NULL, ft + wt + 1);
-
-	sleep(timeout);
-	stop = 1;
-
-	pthread_barrier_wait(&barrier);
-
-	for (i = 0; i < wt; i++) {
-		sum += res[i];
-		printf("worker %d: %lu\n", i, res[i]);
-	}
-	printf("total: %lu\n", sum);
-
-	return 0;
-}
