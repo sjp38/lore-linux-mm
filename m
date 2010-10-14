@@ -1,7 +1,7 @@
 From: y@redhat.com
-Subject: [PATCH v7 05/12] Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
-Date: Thu, 14 Oct 2010 11:17:03 +0200
-Message-ID: <22902.9527203695$1287047973@news.gmane.org>
+Subject: [PATCH v7 11/12] Let host know whether the guest can handle async PF in non-userspace context.
+Date: Thu, 14 Oct 2010 11:17:09 +0200
+Message-ID: <7979.05655713311$1287047973@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
 Return-path: <kvm-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
@@ -12,93 +12,103 @@ List-Id: linux-mm.kvack.org
 
 From: Gleb Natapov <gleb@redhat.com>
 
-Async PF also needs to hook into smp_prepare_boot_cpu so move the hook
-into generic code.
+If guest can detect that it runs in non-preemptable context it can
+handle async PFs at any time, so let host know that it can send async
+PF even if guest cpu is not in userspace.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
+ Documentation/kvm/msr.txt       |    6 +++---
+ arch/x86/include/asm/kvm_host.h |    1 +
  arch/x86/include/asm/kvm_para.h |    1 +
- arch/x86/kernel/kvm.c           |   11 +++++++++++
- arch/x86/kernel/kvmclock.c      |   13 +------------
- 3 files changed, 13 insertions(+), 12 deletions(-)
+ arch/x86/kernel/kvm.c           |    3 +++
+ arch/x86/kvm/x86.c              |    5 +++--
+ 5 files changed, 11 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 7b562b6..e3faaaf 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -65,6 +65,7 @@ struct kvm_mmu_op_release_pt {
- #include <asm/processor.h>
+diff --git a/Documentation/kvm/msr.txt b/Documentation/kvm/msr.txt
+index 27c11a6..d079aed 100644
+--- a/Documentation/kvm/msr.txt
++++ b/Documentation/kvm/msr.txt
+@@ -154,9 +154,10 @@ MSR_KVM_SYSTEM_TIME: 0x12
+ MSR_KVM_ASYNC_PF_EN: 0x4b564d02
+ 	data: Bits 63-6 hold 64-byte aligned physical address of a
+ 	64 byte memory area which must be in guest RAM and must be
+-	zeroed. Bits 5-1 are reserved and should be zero. Bit 0 is 1
++	zeroed. Bits 5-2 are reserved and should be zero. Bit 0 is 1
+ 	when asynchronous page faults are enabled on the vcpu 0 when
+-	disabled.
++	disabled. Bit 2 is 1 if asynchronous page faults can be injected
++	when vcpu is in cpl == 0.
  
- extern void kvmclock_init(void);
-+extern int kvm_register_clock(char *txt);
+ 	First 4 byte of 64 byte memory location will be written to by
+ 	the hypervisor at the time of asynchronous page fault (APF)
+@@ -184,4 +185,3 @@ MSR_KVM_ASYNC_PF_EN: 0x4b564d02
  
- 
- /* This instruction is vmcall.  On non-VT architectures, it will generate a
-diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index 63b0ec8..e6db179 100644
---- a/arch/x86/kernel/kvm.c
-+++ b/arch/x86/kernel/kvm.c
-@@ -231,10 +231,21 @@ static void __init paravirt_ops_setup(void)
- #endif
- }
- 
-+#ifdef CONFIG_SMP
-+static void __init kvm_smp_prepare_boot_cpu(void)
-+{
-+	WARN_ON(kvm_register_clock("primary cpu clock"));
-+	native_smp_prepare_boot_cpu();
-+}
-+#endif
-+
- void __init kvm_guest_init(void)
- {
- 	if (!kvm_para_available())
- 		return;
- 
- 	paravirt_ops_setup();
-+#ifdef CONFIG_SMP
-+	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-+#endif
- }
-diff --git a/arch/x86/kernel/kvmclock.c b/arch/x86/kernel/kvmclock.c
-index ca43ce3..f98d3ea 100644
---- a/arch/x86/kernel/kvmclock.c
-+++ b/arch/x86/kernel/kvmclock.c
-@@ -125,7 +125,7 @@ static struct clocksource kvm_clock = {
- 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
+ 	Currently type 2 APF will be always delivered on the same vcpu as
+ 	type 1 was, but guest should not rely on that.
+-
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index f1868ed..d2fa951 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -422,6 +422,7 @@ struct kvm_vcpu_arch {
+ 		struct gfn_to_hva_cache data;
+ 		u64 msr_val;
+ 		u32 id;
++		bool send_user_only;
+ 	} apf;
  };
  
--static int kvm_register_clock(char *txt)
-+int kvm_register_clock(char *txt)
- {
- 	int cpu = smp_processor_id();
- 	int low, high, ret;
-@@ -152,14 +152,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
- }
- #endif
+diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
+index fbfd367..d3a1a48 100644
+--- a/arch/x86/include/asm/kvm_para.h
++++ b/arch/x86/include/asm/kvm_para.h
+@@ -38,6 +38,7 @@
+ #define KVM_MAX_MMU_OP_BATCH           32
  
--#ifdef CONFIG_SMP
--static void __init kvm_smp_prepare_boot_cpu(void)
--{
--	WARN_ON(kvm_register_clock("primary cpu clock"));
--	native_smp_prepare_boot_cpu();
--}
--#endif
--
- /*
-  * After the clock is registered, the host will keep writing to the
-  * registered memory location. If the guest happens to shutdown, this memory
-@@ -206,9 +198,6 @@ void __init kvmclock_init(void)
- 	x86_cpuinit.setup_percpu_clockev =
- 		kvm_setup_secondary_clock;
- #endif
--#ifdef CONFIG_SMP
--	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
--#endif
- 	machine_ops.shutdown  = kvm_shutdown;
- #ifdef CONFIG_KEXEC
- 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
+ #define KVM_ASYNC_PF_ENABLED			(1 << 0)
++#define KVM_ASYNC_PF_SEND_ALWAYS		(1 << 1)
+ 
+ /* Operations for KVM_HC_MMU_OP */
+ #define KVM_MMU_OP_WRITE_PTE            1
+diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+index 47ea93e..91b3d65 100644
+--- a/arch/x86/kernel/kvm.c
++++ b/arch/x86/kernel/kvm.c
+@@ -449,6 +449,9 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
+ 		u64 pa = __pa(&__get_cpu_var(apf_reason));
+ 
++#ifdef CONFIG_PREEMPT
++		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
++#endif
+ 		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa | KVM_ASYNC_PF_ENABLED);
+ 		__get_cpu_var(apf_reason).enabled = 1;
+ 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 8e2fc59..1e442df 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -1435,8 +1435,8 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+ {
+ 	gpa_t gpa = data & ~0x3f;
+ 
+-	/* Bits 1:5 are resrved, Should be zero */
+-	if (data & 0x3e)
++	/* Bits 2:5 are resrved, Should be zero */
++	if (data & 0x3c)
+ 		return 1;
+ 
+ 	vcpu->arch.apf.msr_val = data;
+@@ -1450,6 +1450,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
+ 	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa))
+ 		return 1;
+ 
++	vcpu->arch.apf.send_user_only = !(data & KVM_ASYNC_PF_SEND_ALWAYS);
+ 	kvm_async_pf_wakeup_all(vcpu);
+ 	return 0;
+ }
 -- 
 1.7.1
 
