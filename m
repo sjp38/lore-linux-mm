@@ -1,11 +1,11 @@
 From: y@redhat.com
 Subject: [PATCH v7 03/12] Retry fault before vmentry
 Date: Thu, 14 Oct 2010 11:17:01 +0200
-Message-ID: <24923.8257216804$1287047976@news.gmane.org>
+Message-ID: <41657.9146440656$1287047977@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
-Return-path: <kvm-owner@vger.kernel.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
-Sender: kvm-owner@vger.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-Id: linux-mm.kvack.org
@@ -170,4 +170,3 @@ index 8b144d5..41607ed 100644
  	list_del(&work->queue);
 -- 
 1.7.1
-
