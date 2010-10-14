@@ -1,94 +1,50 @@
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [resend][PATCH] mm: increase RECLAIM_DISTANCE to 30
-Date: Fri,  8 Oct 2010 10:48:26 +0900 (JST)
-Message-ID: <20101008104852.803E.A69D9226__40278.6287515939$1286502818$gmane$org@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+From: y@redhat.com
+Subject: [PATCH v7 12/12] Send async PF when guest is not in userspace too.
+Date: Thu, 14 Oct 2010 11:17:10 +0200
+Message-ID: <48622.689912054$1287047855@news.gmane.org>
+References: <1287047830-2120-1-git-send-email-y>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1P429J-0005kS-Cq
-	for glkm-linux-mm-2@m.gmane.org; Fri, 08 Oct 2010 03:53:29 +0200
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id B5A326B006A
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2010 21:53:24 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o981mRLW007104
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 8 Oct 2010 10:48:28 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9523545DE51
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 72C8D45DE50
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53596E38005
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 051C2E38002
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2010 10:48:27 +0900 (JST)
+	id 1P6JwI-0006pa-Nt
+	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Oct 2010 11:17:31 +0200
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id BA7556B013C
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:17:26 -0400 (EDT)
+In-Reply-To: <1287047830-2120-1-git-send-email-y>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>, Mel Gorman <mel@csn.ul.ie>, Rob Mueller <robm@fastmail.fm>, linux-kernel@vger.kernel.org, Bron Gondwana <brong@fastmail.fm>linux-mm <l>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-Id: linux-mm.kvack.org
 
-Recently, Robert Mueller reported zone_reclaim_mode doesn't work
-properly on his new NUMA server (Dual Xeon E5520 + Intel S5520UR MB).
-He is using Cyrus IMAPd and it's built on a very traditional
-single-process model.
+From: Gleb Natapov <gleb@redhat.com>
 
-  * a master process which reads config files and manages the other
-    process
-  * multiple imapd processes, one per connection
-  * multiple pop3d processes, one per connection
-  * multiple lmtpd processes, one per connection
-  * periodical "cleanup" processes.
+If guest indicates that it can handle async pf in kernel mode too send
+it, but only if interrupts are enabled.
 
-Then, there are thousands of independent processes. The problem is,
-recent Intel motherboard turn on zone_reclaim_mode by default and
-traditional prefork model software don't work fine on it.
-Unfortunatelly, Such model is still typical one even though 21th
-century. We can't ignore them.
-
-This patch raise zone_reclaim_mode threshold to 30. 30 don't have
-specific meaning. but 20 mean one-hop QPI/Hypertransport and such
-relatively cheap 2-4 socket machine are often used for tradiotional
-server as above. The intention is, their machine don't use
-zone_reclaim_mode.
-
-Note: ia64 and Power have arch specific RECLAIM_DISTANCE definition.
-then this patch doesn't change such high-end NUMA machine behavior.
-
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Bron Gondwana <brong@fastmail.fm>
-Cc: Robert Mueller <robm@fastmail.fm>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- include/linux/topology.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ arch/x86/kvm/x86.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/topology.h b/include/linux/topology.h
-index 64e084f..bfbec49 100644
---- a/include/linux/topology.h
-+++ b/include/linux/topology.h
-@@ -60,7 +60,7 @@ int arch_update_cpu_topology(void);
-  * (in whatever arch specific measurement units returned by node_distance())
-  * then switch on zone reclaim on boot.
-  */
--#define RECLAIM_DISTANCE 20
-+#define RECLAIM_DISTANCE 30
- #endif
- #ifndef PENALTY_FOR_NODE_WITH_CPUS
- #define PENALTY_FOR_NODE_WITH_CPUS	(1)
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 1e442df..51cff2f 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6248,7 +6248,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+ 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
+ 
+ 	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
+-	    kvm_x86_ops->get_cpl(vcpu) == 0)
++	    (vcpu->arch.apf.send_user_only &&
++	     kvm_x86_ops->get_cpl(vcpu) == 0))
+ 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+ 	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
+ 		vcpu->arch.fault.error_code = 0;
 -- 
-1.6.5.2
-
-
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
