@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9C6A86B0145
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id C93FC6B0146
 	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:17:30 -0400 (EDT)
 From: y@redhat.com
-Subject: [PATCH v7 04/12] Add memory slot versioning and use it to provide fast guest write interface
-Date: Thu, 14 Oct 2010 11:17:02 +0200
-Message-Id: <1287047830-2120-5-git-send-email-y>
+Subject: [PATCH v7 09/12] Inject asynchronous page fault into a PV guest if page is swapped out.
+Date: Thu, 14 Oct 2010 11:17:07 +0200
+Message-Id: <1287047830-2120-10-git-send-email-y>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
 References: <1287047830-2120-1-git-send-email-y>
 Sender: owner-linux-mm@kvack.org
@@ -15,220 +15,193 @@ List-ID: <linux-mm.kvack.org>
 
 From: Gleb Natapov <gleb@redhat.com>
 
-Keep track of memslots changes by keeping generation number in memslots
-structure. Provide kvm_write_guest_cached() function that skips
-gfn_to_hva() translation if memslots was not changed since previous
-invocation.
+Send async page fault to a PV guest if it accesses swapped out memory.
+Guest will choose another task to run upon receiving the fault.
+
+Allow async page fault injection only when guest is in user mode since
+otherwise guest may be in non-sleepable context and will not be able
+to reschedule.
+
+Vcpu will be halted if guest will fault on the same page again or if
+vcpu executes kernel code.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- include/linux/kvm_host.h  |    7 ++++
- include/linux/kvm_types.h |    7 ++++
- virt/kvm/kvm_main.c       |   75 +++++++++++++++++++++++++++++++++++++-------
- 3 files changed, 77 insertions(+), 12 deletions(-)
+ arch/x86/include/asm/kvm_host.h |    3 ++
+ arch/x86/kvm/mmu.c              |    1 +
+ arch/x86/kvm/x86.c              |   43 ++++++++++++++++++++++++++++++++++----
+ include/trace/events/kvm.h      |   17 ++++++++++-----
+ virt/kvm/async_pf.c             |    3 +-
+ 5 files changed, 55 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 9a9b017..dda88f2 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -199,6 +199,7 @@ struct kvm_irq_routing_table {};
- 
- struct kvm_memslots {
- 	int nmemslots;
-+	u64 generation;
- 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
- 					KVM_PRIVATE_MEM_SLOTS];
- };
-@@ -352,12 +353,18 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
- 			 int offset, int len);
- int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
- 		    unsigned long len);
-+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			   void *data, unsigned long len);
-+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			      gpa_t gpa);
- int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
- int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
- struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
- int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
- unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
- void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
-+void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
-+			     gfn_t gfn);
- 
- void kvm_vcpu_block(struct kvm_vcpu *vcpu);
- void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
-diff --git a/include/linux/kvm_types.h b/include/linux/kvm_types.h
-index 7ac0d4e..fa7cc72 100644
---- a/include/linux/kvm_types.h
-+++ b/include/linux/kvm_types.h
-@@ -67,4 +67,11 @@ struct kvm_lapic_irq {
- 	u32 dest_id;
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 26b2064..f1868ed 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -421,6 +421,7 @@ struct kvm_vcpu_arch {
+ 		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
+ 		struct gfn_to_hva_cache data;
+ 		u64 msr_val;
++		u32 id;
+ 	} apf;
  };
  
-+struct gfn_to_hva_cache {
-+	u64 generation;
-+	gpa_t gpa;
-+	unsigned long hva;
-+	struct kvm_memory_slot *memslot;
-+};
-+
- #endif /* __KVM_TYPES_H__ */
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 238079e..5d57ec9 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -687,6 +687,7 @@ skip_lpage:
- 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
- 		if (mem->slot >= slots->nmemslots)
- 			slots->nmemslots = mem->slot + 1;
-+		slots->generation++;
- 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
+@@ -596,6 +597,7 @@ struct kvm_x86_ops {
+ };
  
- 		old_memslots = kvm->memslots;
-@@ -723,6 +724,7 @@ skip_lpage:
- 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
- 	if (mem->slot >= slots->nmemslots)
- 		slots->nmemslots = mem->slot + 1;
-+	slots->generation++;
+ struct kvm_arch_async_pf {
++	u32 token;
+ 	gfn_t gfn;
+ };
  
- 	/* actual memory is freed via old in kvm_free_physmem_slot below */
- 	if (!npages) {
-@@ -853,10 +855,10 @@ int kvm_is_error_hva(unsigned long addr)
- }
- EXPORT_SYMBOL_GPL(kvm_is_error_hva);
+@@ -843,6 +845,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+ 				 struct kvm_async_pf *work);
+ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
+ 			       struct kvm_async_pf *work);
++bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+ extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
  
--struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
-+static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
-+						gfn_t gfn)
+ #endif /* _ASM_X86_KVM_HOST_H */
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 11d152b..463ff2e 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2590,6 +2590,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+ int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
  {
- 	int i;
--	struct kvm_memslots *slots = kvm_memslots(kvm);
+ 	struct kvm_arch_async_pf arch;
++	arch.token = (vcpu->arch.apf.id++ << 12) | vcpu->vcpu_id;
+ 	arch.gfn = gfn;
  
- 	for (i = 0; i < slots->nmemslots; ++i) {
- 		struct kvm_memory_slot *memslot = &slots->memslots[i];
-@@ -867,6 +869,11 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+ 	return kvm_setup_async_pf(vcpu, gva, gfn, &arch);
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 68a3a06..8e2fc59 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6233,20 +6233,53 @@ static void kvm_del_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
  	}
- 	return NULL;
  }
-+
-+struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+ 
++static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
 +{
-+	return __gfn_to_memslot(kvm_memslots(kvm), gfn);
++
++	return kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.apf.data, &val,
++				      sizeof(val));
 +}
- EXPORT_SYMBOL_GPL(gfn_to_memslot);
- 
- int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
-@@ -929,12 +936,9 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
- 	return memslot - slots->memslots;
- }
- 
--static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
-+static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
- 				     gfn_t *nr_pages)
- {
--	struct kvm_memory_slot *slot;
--
--	slot = gfn_to_memslot(kvm, gfn);
- 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
- 		return bad_hva();
- 
-@@ -946,7 +950,7 @@ static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
- 
- unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
- {
--	return gfn_to_hva_many(kvm, gfn, NULL);
-+	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
- }
- EXPORT_SYMBOL_GPL(gfn_to_hva);
- 
-@@ -1063,7 +1067,7 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
- 	unsigned long addr;
- 	gfn_t entry;
- 
--	addr = gfn_to_hva_many(kvm, gfn, &entry);
-+	addr = gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, &entry);
- 	if (kvm_is_error_hva(addr))
- 		return -1;
- 
-@@ -1247,6 +1251,47 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
- 	return 0;
- }
- 
-+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			      gpa_t gpa)
-+{
-+	struct kvm_memslots *slots = kvm_memslots(kvm);
-+	int offset = offset_in_page(gpa);
-+	gfn_t gfn = gpa >> PAGE_SHIFT;
 +
-+	ghc->gpa = gpa;
-+	ghc->generation = slots->generation;
-+	ghc->memslot = __gfn_to_memslot(slots, gfn);
-+	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
-+	if (!kvm_is_error_hva(ghc->hva))
-+		ghc->hva += offset;
+ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+ 				     struct kvm_async_pf *work)
+ {
+-	trace_kvm_async_pf_not_present(work->gva);
+-
+-	kvm_make_request(KVM_REQ_APF_HALT, vcpu);
++	trace_kvm_async_pf_not_present(work->arch.token, work->gva);
+ 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
++
++	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
++	    kvm_x86_ops->get_cpl(vcpu) == 0)
++		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
++	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
++		vcpu->arch.fault.error_code = 0;
++		vcpu->arch.fault.address = work->arch.token;
++		kvm_inject_page_fault(vcpu);
++	}
+ }
+ 
+ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+ 				 struct kvm_async_pf *work)
+ {
+-	trace_kvm_async_pf_ready(work->gva);
+-	kvm_del_async_pf_gfn(vcpu, work->arch.gfn);
++	trace_kvm_async_pf_ready(work->arch.token, work->gva);
++	if (is_error_page(work->page))
++		work->arch.token = ~0; /* broadcast wakeup */
 +	else
-+		return -EFAULT;
++		kvm_del_async_pf_gfn(vcpu, work->arch.gfn);
 +
-+	return 0;
++	if ((vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) &&
++	    !apf_put_user(vcpu, KVM_PV_REASON_PAGE_READY)) {
++		vcpu->arch.fault.error_code = 0;
++		vcpu->arch.fault.address = work->arch.token;
++		kvm_inject_page_fault(vcpu);
++	}
 +}
-+EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
 +
-+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			   void *data, unsigned long len)
++bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
 +{
-+	struct kvm_memslots *slots = kvm_memslots(kvm);
-+	int r;
-+
-+	if (slots->generation != ghc->generation)
-+		kvm_gfn_to_hva_cache_init(kvm, ghc, ghc->gpa);
-+	
-+	if (kvm_is_error_hva(ghc->hva))
-+		return -EFAULT;
-+
-+	r = copy_to_user((void __user *)ghc->hva, data, len);
-+	if (r)
-+		return -EFAULT;
-+	mark_page_dirty_in_slot(kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
-+
- int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
- {
- 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
-@@ -1272,11 +1317,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
- }
- EXPORT_SYMBOL_GPL(kvm_clear_guest);
- 
--void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
-+void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
-+			     gfn_t gfn)
- {
--	struct kvm_memory_slot *memslot;
--
--	memslot = gfn_to_memslot(kvm, gfn);
- 	if (memslot && memslot->dirty_bitmap) {
- 		unsigned long rel_gfn = gfn - memslot->base_gfn;
- 
-@@ -1284,6 +1327,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
- 	}
++	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED))
++		return true;
++	else
++		return !kvm_event_needs_reinjection(vcpu) &&
++			kvm_x86_ops->interrupt_allowed(vcpu);
  }
  
-+void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
-+{
-+	struct kvm_memory_slot *memslot;
-+
-+	memslot = gfn_to_memslot(kvm, gfn);
-+	mark_page_dirty_in_slot(kvm, memslot, gfn);
-+}
-+
- /*
-  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
-  */
+ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
+diff --git a/include/trace/events/kvm.h b/include/trace/events/kvm.h
+index a78a5e5..9c2cc6a 100644
+--- a/include/trace/events/kvm.h
++++ b/include/trace/events/kvm.h
+@@ -204,34 +204,39 @@ TRACE_EVENT(
+ 
+ TRACE_EVENT(
+ 	kvm_async_pf_not_present,
+-	TP_PROTO(u64 gva),
+-	TP_ARGS(gva),
++	TP_PROTO(u64 token, u64 gva),
++	TP_ARGS(token, gva),
+ 
+ 	TP_STRUCT__entry(
++		__field(__u64, token)
+ 		__field(__u64, gva)
+ 		),
+ 
+ 	TP_fast_assign(
++		__entry->token = token;
+ 		__entry->gva = gva;
+ 		),
+ 
+-	TP_printk("gva %#llx not present", __entry->gva)
++	TP_printk("token %#llx gva %#llx not present", __entry->token,
++		  __entry->gva)
+ );
+ 
+ TRACE_EVENT(
+ 	kvm_async_pf_ready,
+-	TP_PROTO(u64 gva),
+-	TP_ARGS(gva),
++	TP_PROTO(u64 token, u64 gva),
++	TP_ARGS(token, gva),
+ 
+ 	TP_STRUCT__entry(
++		__field(__u64, token)
+ 		__field(__u64, gva)
+ 		),
+ 
+ 	TP_fast_assign(
++		__entry->token = token;
+ 		__entry->gva = gva;
+ 		),
+ 
+-	TP_printk("gva %#llx ready", __entry->gva)
++	TP_printk("token %#llx gva %#llx ready", __entry->token, __entry->gva)
+ );
+ 
+ TRACE_EVENT(
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index b276b06..2ab2089 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -124,7 +124,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvm_async_pf *work;
+ 
+-	if (list_empty_careful(&vcpu->async_pf.done))
++	if (list_empty_careful(&vcpu->async_pf.done) ||
++	    !kvm_arch_can_inject_async_page_present(vcpu))
+ 		return;
+ 
+ 	spin_lock(&vcpu->async_pf.lock);
 -- 
 1.7.1
 
