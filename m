@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B05AE6B012D
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 22:39:38 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9E2dabv005070
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2CD706B012E
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 22:44:35 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9E2iWOw019268
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 14 Oct 2010 11:39:36 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F26F045DE51
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:39:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D47CE45DE4F
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:39:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B88821DB8038
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:39:35 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7720C1DB803A
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:39:35 +0900 (JST)
+	Thu, 14 Oct 2010 11:44:32 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5635045DE70
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:44:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 336EA45DE6F
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:44:32 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 138DDEF8003
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:44:32 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C039A1DB803A
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:44:31 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/3] mm: reserve max drift pages at boot time instead using zone_page_state_snapshot()
-In-Reply-To: <20101013131916.GN30667@csn.ul.ie>
-References: <20101013152922.ADC6.A69D9226@jp.fujitsu.com> <20101013131916.GN30667@csn.ul.ie>
-Message-Id: <20101014113426.8B83.A69D9226@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/3] mm, mem-hotplug: recalculate lowmem_reserve when memory hotplug occur
+In-Reply-To: <20101013125913.GL30667@csn.ul.ie>
+References: <20101013152713.ADC0.A69D9226@jp.fujitsu.com> <20101013125913.GL30667@csn.ul.ie>
+Message-Id: <20101014113504.8B86.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Oct 2010 11:39:34 +0900 (JST)
+Date: Thu, 14 Oct 2010 11:44:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 53627fa..194bdaa 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -4897,6 +4897,15 @@ static void setup_per_zone_wmarks(void)
-> >  	for_each_zone(zone) {
-> >  		u64 tmp;
-> >  
-> > +		/*
-> > +		 * If max drift are less than 1%, reserve max drift pages
-> > +		 * instead costly runtime calculation.
-> > +		 */
-> > +		if (zone->percpu_drift_mark < (zone->present_pages/100)) {
-> > +			pages_min += zone->percpu_drift_mark;
-> > +			zone->percpu_drift_mark = 0;
-> > +		}
-> > +
+> On Wed, Oct 13, 2010 at 03:27:12PM +0900, KOSAKI Motohiro wrote:
+> > Currently, memory hotplu call setup_per_zone_wmarks() and
+> > calculate_zone_inactive_ratio(), but don't call setup_per_zone_lowmem_reserve.
+> > 
+> > It mean number of reserved pages aren't updated even if memory hot plug
+> > occur. This patch fixes it.
+> > 
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
-> I don't see how this solves Shaohua's problem as such. Large systems will
-> still suffer a bug performance penalty from zone_page_state_snapshot(). I
-> do see the logic of adjusting min for larger systems to limit the amount of
-> time per-cpu thresholds are lowered but that would be as a follow-on to my
-> patch rather than a replacement.
+> Ok, I see the logic although the changelog needs a better description as
+> to why this matters and what the consequences are. It appears unrelated
+> to Shaohua's problem for example. Otherwise the patch looks reasonable
+> 
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-My patch rescue 256cpus or more smaller systems. and I assumed 4096cpus system don't
-run IO intensive workload such as Shaohua's case. they always use cpusets and run hpc
-workload.
+patch [1/3] and [2/3] is necessary for avoiding [3/3] break memory hotplug.
+When memory hotplug occur, we need to update _all_ zone->present_pages related
+vm parameters. otherwise they might become inconsistent and no workable.
 
-If you know another >1024cpus system, please let me know.
-And again, my patch works on 4096cpus sysmtem although slow, but your don't.
+more detail: [3/3] depend on setup_per_zone_wmarks() is always called after 
+refresh_zone_stat_thresholds(). patch [1/3] and [2/3] does.
 
-Am I missing something?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
