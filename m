@@ -1,81 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 011D76B012F
-	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 22:50:34 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9E2oWRU009785
+	by kanga.kvack.org (Postfix) with SMTP id 705316B0132
+	for <linux-mm@kvack.org>; Wed, 13 Oct 2010 23:07:34 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9E37VM6029467
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 14 Oct 2010 11:50:32 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 627F145DE6F
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:50:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 36AED45DE4D
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:50:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2137EEF8004
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:50:32 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2AD51DB8037
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:50:28 +0900 (JST)
+	Thu, 14 Oct 2010 12:07:31 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52D1445DE54
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 12:07:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04B4745DE50
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 12:07:31 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A967FE38003
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 12:07:30 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 37F411DB8042
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 12:07:30 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when per cpu page cache flushed
-In-Reply-To: <20101013132246.GO30667@csn.ul.ie>
-References: <20101013160640.ADC9.A69D9226@jp.fujitsu.com> <20101013132246.GO30667@csn.ul.ie>
-Message-Id: <20101014114541.8B89.A69D9226@jp.fujitsu.com>
+Subject: Re: zone state overhead
+In-Reply-To: <20101013112430.GI30667@csn.ul.ie>
+References: <20101013121913.ADB4.A69D9226@jp.fujitsu.com> <20101013112430.GI30667@csn.ul.ie>
+Message-Id: <20101014120804.8B8F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Oct 2010 11:50:28 +0900 (JST)
+Date: Thu, 14 Oct 2010 12:07:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, Oct 13, 2010 at 04:10:43PM +0900, KOSAKI Motohiro wrote:
-> > When memory shortage, we are using drain_pages() for flushing per cpu
-> > page cache. In this case, per cpu stat should be flushed too. because
-> > now we are under memory shortage and we need to know exact free pages.
+Hi
+
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index c5dfabf..47ba29e 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2378,7 +2378,9 @@ static int kswapd(void *p)
+> > >  				 */
+> > >  				if (!sleeping_prematurely(pgdat, order, remaining)) {
+> > >  					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
+> > > +					enable_pgdat_percpu_threshold(pgdat);
+> > >  					schedule();
+> > > +					disable_pgdat_percpu_threshold(pgdat);
 > > 
-> > Otherwise get_page_from_freelist() may fail even though pcp was flushed.
+> > If we have 4096 cpus, max drift = 125x4096x4096 ~= 2GB. It is higher than zone watermark.
+> > Then, such sysmtem can makes memory exshost before kswap call disable_pgdat_percpu_threshold().
 > > 
 > 
-> With my patch adjusting the threshold to a small value while kswapd is awake,
-> it seems less necessary. 
-
-I agree this.
-
-> It's also very hard to predict the performance of
-> this. We are certainly going to take a hit to do the flush but we *might*
-> gain slightly if an allocation succeeds because a watermark check passed
-> when the counters were updated. It's a definite hit for a possible gain
-> though which is not a great trade-off. Would need some performance testing.
+> I don't *think* so but lets explore that possibility. For this to occur, all
+> CPUs would have to be allocating all of their memory from the one node (4096
+> CPUs is not going to be UMA) which is not going to happen. But allocations
+> from one node could be falling over to others of course.
 > 
-> I still think my patch on adjusting thresholds is our best proposal so
-> far on how to reduce Shaohua's performance problems while still being
-> safer from livelocks due to memory exhaustion.
-
-OK, I will try to explain a detai of my worry.
-
-Initial variable ZVC commit (df9ecaba3f1) says 
-
->     [PATCH] ZVC: Scale thresholds depending on the size of the system
+> Lets take an early condition that has to occur for a 4096 CPU machine to
+> get into trouble - node 0 exhausted and moving to node 1 and counter drift
+> makes us think everything is fine.
 > 
->     The ZVC counter update threshold is currently set to a fixed value of 32.
->     This patch sets up the threshold depending on the number of processors and
->     the sizes of the zones in the system.
+> __alloc_pages_nodemask
+>   -> get_page_from_freelist
+>     -> zone_watermark_ok == true (because we are drifting)
+>     -> buffered_rmqueue
+>       -> __rmqueue (fails eventually, no pages despite watermark_ok)
+>   -> __alloc_pages_slowpath
+>     -> wake_all_kswapd()
+> ...
+>
+> kswapd wakes
+>   -> disable_pgdat_percpu_threshold()
 > 
->     With the current threshold of 32, I was able to observe slight contention
->     when more than 130-140 processors concurrently updated the counters.  The
->     contention vanished when I either increased the threshold to 64 or used
->     Andrew's idea of overstepping the interval (see ZVC overstep patch).
+> i.e. as each node becomes exhausted in reality, kswapd will wake up, disable
+> the thresholds until the high watermark is back and go back to sleep. I'm
+> not seeing how we'd get into a situation where all kswapds are asleep at the
+> same time while each allocator allocates all of memory without managing to
+> wake kswapd. Even GFP_ATOMIC allocations will wakeup kswapd.
 > 
->     However, we saw contention again at 220-230 processors.  So we need higher
->     values for larger systems.
+> Hence, I think the current patch of disabling thresholds while kswapd is
+> awake to be sufficient to avoid livelock due to memory exhaustion and
+> counter drift.
+> 
 
-So, I'm worry about your patch reintroduce old cache contention issue that Christoph
-observed when run 128-256cpus system.  May I ask how do you think this issue?
+In this case, wakeup_kswapd() don't wake kswapd because
 
+---------------------------------------------------------------------------------
+void wakeup_kswapd(struct zone *zone, int order)
+{
+        pg_data_t *pgdat;
+
+        if (!populated_zone(zone))
+                return;
+
+        pgdat = zone->zone_pgdat;
+        if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
+                return;                          // HERE
+---------------------------------------------------------------------------------
+
+So, if we take your approach, we need to know exact free pages in this.
+But, zone_page_state_snapshot() is slow. that's dilemma.
+
+
+
+> > Hmmm....
+> > This seems fundamental problem. current our zone watermark and per-cpu stat threshold have completely
+> > unbalanced definition.
+> > 
+> > zone watermak:             very few (few mega bytes)
+> >                                        propotional sqrt(mem)
+> >                                        no propotional nr-cpus
+> > 
+> > per-cpu stat threshold:  relatively large (desktop: few mega bytes, server ~50MB, SGI 2GB ;-)
+> >                                        propotional log(mem)
+> >                                        propotional log(nr-cpus)
+> > 
+> > It mean, much cpus break watermark assumption.....
+> > 
+> 
+> They are for different things. watermarks are meant to prevent livelock
+> due to memory exhaustion. per-cpu thresholds are so that counters have
+> acceptable performance. The assumptions of watermarks remain the same
+> but we have to correctly handle when counter drift can break watermarks.
+
+ok.
+
+
+
+> > > +void enable_pgdat_percpu_threshold(pg_data_t *pgdat)
+> > > +{
+> > > +	struct zone *zone;
+> > > +	int cpu;
+> > > +	int threshold;
+> > > +
+> > > +	for_each_populated_zone(zone) {
+> > > +		if (!zone->percpu_drift_mark || zone->zone_pgdat != pgdat)
+> > > +			continue;
+> > > +
+> > > +		threshold = calculate_threshold(zone);
+> > > +		for_each_online_cpu(cpu)
+> > > +			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+> > > +							= threshold;
+> > > +	}
+> > > +}
+> > 
+> > disable_pgdat_percpu_threshold() and enable_pgdat_percpu_threshold() are
+> > almostly same. can you merge them?
+> > 
+> 
+> I wondered the same but as thresholds are calculated per-zone, I didn't see
+> how that could be handled in a unified function without using a callback
+> function pointer. If I used callback functions and an additional boolean, I
+> could merge refresh_zone_stat_thresholds(), disable_pgdat_percpu_threshold()
+> and enable_pgdat_percpu_threshold() but I worried the end-result would be
+> a bit unreadable and hinder review. I could roll a standalone patch that
+> merges the three if we end up agreeing on this patches general approach
+> to counter drift.
+
+ok, I think you are right.
 
 
 
