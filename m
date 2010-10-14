@@ -1,50 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A558A6B0167
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 08:10:09 -0400 (EDT)
-Received: by bwz19 with SMTP id 19so464573bwz.14
-        for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:10:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20101014072421.GA13414@basil.fritz.box>
-References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-	<87sk0a1sq0.fsf@basil.nowhere.org>
-	<20101014160217N.fujita.tomonori@lab.ntt.co.jp>
-	<20101014072421.GA13414@basil.fritz.box>
-Date: Thu, 14 Oct 2010 15:10:07 +0300
-Message-ID: <AANLkTi=mGPjL0T33cuYbpKyc=a3d9XTCJqwBLFqVmWpm@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 88F3F5F0047
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 08:55:23 -0400 (EDT)
+Date: Thu, 14 Oct 2010 14:55:19 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
-From: Felipe Contreras <felipe.contreras@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20101014125519.GB13414@basil.fritz.box>
+References: <87sk0a1sq0.fsf@basil.nowhere.org>
+ <20101014160217N.fujita.tomonori@lab.ntt.co.jp>
+ <20101014072421.GA13414@basil.fritz.box>
+ <20101014173103U.fujita.tomonori@lab.ntt.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20101014173103U.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: andi@firstfloor.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 14, 2010 at 10:24 AM, Andi Kleen <andi@firstfloor.org> wrote:
-> On Thu, Oct 14, 2010 at 04:07:12PM +0900, FUJITA Tomonori wrote:
->> On Wed, 13 Oct 2010 09:01:43 +0200
->> Andi Kleen <andi@firstfloor.org> wrote:
->>
->> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
->> > >
->> > > What this wants to do:
->> > > =C2=A0 allocates a contiguous chunk of pages larger than MAX_ORDER.
->> > > =C2=A0 for device drivers (camera? etc..)
->> >
->> > I think to really move forward you need a concrete use case
->> > actually implemented in tree.
->>
->> As already pointed out, some embeded drivers need physcailly
->> contignous memory. Currenlty, they use hacky tricks (e.g. playing with
->> the boot memory allocators). There are several proposals for this like
->
-> Are any of those in mainline?
+> I think that at least one mainline driver in arm uses such trick but I
+> can't recall the name. Better to ask on the arm mainling list. Also I
+> heard that the are some out-of-tree patches about this.
 
-drivers/video/omap/
+I'm sure there are out of tree patches for lots of things,
+but at least in terms of merging mainline functionality
+use cases merged in the mainline tree are required.
 
---=20
-Felipe Contreras
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
