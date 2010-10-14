@@ -1,11 +1,11 @@
 From: y@redhat.com
 Subject: [PATCH v7 02/12] Halt vcpu if page it tries to access is swapped out.
 Date: Thu, 14 Oct 2010 11:17:00 +0200
-Message-ID: <32792.8970721134$1287047980@news.gmane.org>
+Message-ID: <17655.8241867044$1287047983@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
-Return-path: <linux-kernel-owner@vger.kernel.org>
+Return-path: <kvm-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
-Sender: linux-kernel-owner@vger.kernel.org
+Sender: kvm-owner@vger.kernel.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-Id: linux-mm.kvack.org
@@ -977,3 +977,4 @@ index 1aeeb7f..238079e 100644
  	unregister_reboot_notifier(&kvm_reboot_notifier);
 -- 
 1.7.1
+
