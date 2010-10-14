@@ -1,11 +1,11 @@
 From: y@redhat.com
 Subject: [PATCH v7 09/12] Inject asynchronous page fault into a PV guest if page is swapped out.
 Date: Thu, 14 Oct 2010 11:17:07 +0200
-Message-ID: <40899.1176322617$1287047900@news.gmane.org>
+Message-ID: <48159.1358701282$1287047900@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
-Return-path: <kvm-owner@vger.kernel.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
-Sender: kvm-owner@vger.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-Id: linux-mm.kvack.org
@@ -201,4 +201,3 @@ index b276b06..2ab2089 100644
  	spin_lock(&vcpu->async_pf.lock);
 -- 
 1.7.1
-
