@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4E45B5F0047
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 09:12:52 -0400 (EDT)
-Date: Thu, 14 Oct 2010 21:12:42 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 00/17] [RFC] soft and dynamic dirty throttling limits
-Message-ID: <20101014131242.GA6145@localhost>
-References: <20100912154945.758129106@intel.com>
- <20101012141716.GA26702@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101012141716.GA26702@infradead.org>
+	by kanga.kvack.org (Postfix) with ESMTP id D9ADC6B0170
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:10:11 -0400 (EDT)
+Date: Fri, 15 Oct 2010 00:09:47 +0900
+Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
+From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+In-Reply-To: <20101014125519.GB13414@basil.fritz.box>
+References: <20101014072421.GA13414@basil.fritz.box>
+	<20101014173103U.fujita.tomonori@lab.ntt.co.jp>
+	<20101014125519.GB13414@basil.fritz.box>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20101015000416N.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Chris Mason <chris.mason@oracle.com>, Christoph Hellwig <hch@lst.de>, "Li, Shaohua" <shaohua.li@intel.com>
+To: andi@firstfloor.org
+Cc: fujita.tomonori@lab.ntt.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Thu, 14 Oct 2010 14:55:19 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-On Tue, Oct 12, 2010 at 10:17:16PM +0800, Christoph Hellwig wrote:
-> Wu, what's the state of this series?  It looks like we'll need it
-> rather sooner than later - try to get at least the preparations in
-> ASAP would be really helpful.
+> > I think that at least one mainline driver in arm uses such trick but I
+> > can't recall the name. Better to ask on the arm mainling list. Also I
+> > heard that the are some out-of-tree patches about this.
+> 
+> I'm sure there are out of tree patches for lots of things,
+> but at least in terms of merging mainline functionality
+> use cases merged in the mainline tree are required.
 
-Sorry I was doing some audio work in the last month and will be attending
-the China Linux Storage and Filesystem workshop and kernel developers
-conference these days. I'll be able to pick up this series on 10.18.
+I think that we already have drivers that need such feature in
+mainline. They keep out-of-tree patches that give continuous memory to
+these drivers reliably.
 
-Sorry for the delay!
-
-Thanks,
-Fengguang
+Anyway, Felipe pointed out one user. I also think that
+drivers/media/video/videobuf-dma-contig.c also was already mentioned,
+needs such feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
