@@ -1,16 +1,16 @@
 From: y@redhat.com
-Subject: [PATCH v7 07/12] Add async PF initialization to PV guest.
-Date: Thu, 14 Oct 2010 11:17:05 +0200
-Message-ID: <1294.51242178238$1287047868@news.gmane.org>
+Subject: [PATCH v7 03/12] Retry fault before vmentry
+Date: Thu, 14 Oct 2010 11:17:01 +0200
+Message-ID: <19606.2266863466$1287047870@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by lo.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1P6JwX-000701-9p
-	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Oct 2010 11:17:45 +0200
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 973456B0141
+	id 1P6JwQ-0006vT-EC
+	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Oct 2010 11:17:38 +0200
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 508C96B013F
 	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:17:29 -0400 (EDT)
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
 Sender: owner-linux-mm@kvack.org
@@ -20,181 +20,162 @@ List-Id: linux-mm.kvack.org
 
 From: Gleb Natapov <gleb@redhat.com>
 
-Enable async PF in a guest if async PF capability is discovered.
+When page is swapped in it is mapped into guest memory only after guest
+tries to access it again and generate another fault. To save this fault
+we can map it immediately since we know that guest is going to access
+the page. Do it only when tdp is enabled for now. Shadow paging case is
+more complicated. CR[034] and EFER registers should be switched before
+doing mapping and then switched back.
 
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- Documentation/kernel-parameters.txt |    3 +
- arch/x86/include/asm/kvm_para.h     |    6 ++
- arch/x86/kernel/kvm.c               |   92 +++++++++++++++++++++++++++++++++++
- 3 files changed, 101 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/kvm_host.h |    4 +++-
+ arch/x86/kvm/mmu.c              |   16 ++++++++--------
+ arch/x86/kvm/paging_tmpl.h      |    6 +++---
+ arch/x86/kvm/x86.c              |    7 +++++++
+ virt/kvm/async_pf.c             |    2 ++
+ 5 files changed, 23 insertions(+), 12 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 8dc2548..0bd2203 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1699,6 +1699,9 @@ and is between 256 and 4096 characters. It is defined in the file
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 043e29e..96aca44 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -241,7 +241,7 @@ struct kvm_mmu {
+ 	void (*new_cr3)(struct kvm_vcpu *vcpu);
+ 	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
+ 	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
+-	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
++	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool no_apf);
+ 	void (*inject_page_fault)(struct kvm_vcpu *vcpu);
+ 	void (*free)(struct kvm_vcpu *vcpu);
+ 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access,
+@@ -839,6 +839,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+ 				     struct kvm_async_pf *work);
+ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+ 				 struct kvm_async_pf *work);
++void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
++			       struct kvm_async_pf *work);
+ extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
  
- 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
+ #endif /* _ASM_X86_KVM_HOST_H */
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index f01e89a..11d152b 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2568,7 +2568,7 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
+ }
  
-+	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
-+			fault handling.
-+
- 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
- 
- 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index 8662ae0..2315398 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -65,6 +65,12 @@ struct kvm_mmu_op_release_pt {
- 	__u64 pt_phys;
- };
- 
-+struct kvm_vcpu_pv_apf_data {
-+	__u32 reason;
-+	__u8 pad[60];
-+	__u32 enabled;
-+};
-+
- #ifdef __KERNEL__
- #include <asm/processor.h>
- 
-diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index e6db179..032d03b 100644
---- a/arch/x86/kernel/kvm.c
-+++ b/arch/x86/kernel/kvm.c
-@@ -27,16 +27,30 @@
- #include <linux/mm.h>
- #include <linux/highmem.h>
- #include <linux/hardirq.h>
-+#include <linux/notifier.h>
-+#include <linux/reboot.h>
- #include <asm/timer.h>
-+#include <asm/cpu.h>
- 
- #define MMU_QUEUE_SIZE 1024
- 
-+static int kvmapf = 1;
-+
-+static int parse_no_kvmapf(char *arg)
-+{
-+        kvmapf = 0;
-+        return 0;
-+}
-+
-+early_param("no-kvmapf", parse_no_kvmapf);
-+
- struct kvm_para_state {
- 	u8 mmu_queue[MMU_QUEUE_SIZE];
- 	int mmu_queue_len;
- };
- 
- static DEFINE_PER_CPU(struct kvm_para_state, para_state);
-+static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
- 
- static struct kvm_para_state *kvm_para_state(void)
+ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+-				u32 error_code)
++				u32 error_code, bool no_apf)
  {
-@@ -231,12 +245,86 @@ static void __init paravirt_ops_setup(void)
- #endif
+ 	gfn_t gfn;
+ 	int r;
+@@ -2604,8 +2604,8 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+ 	return kvm_x86_ops->interrupt_allowed(vcpu);
  }
  
-+void __cpuinit kvm_guest_cpu_init(void)
-+{
-+	if (!kvm_para_available())
-+		return;
-+
-+	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
-+		u64 pa = __pa(&__get_cpu_var(apf_reason));
-+
-+		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa | KVM_ASYNC_PF_ENABLED);
-+		__get_cpu_var(apf_reason).enabled = 1;
-+		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
-+		       smp_processor_id());
-+	}
-+}
-+
-+static void kvm_pv_disable_apf(void *unused)
-+{
-+	if (!__get_cpu_var(apf_reason).enabled)
-+		return;
-+
-+	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
-+	__get_cpu_var(apf_reason).enabled = 0;
-+
-+	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
-+	       smp_processor_id());
-+}
-+
-+static int kvm_pv_reboot_notify(struct notifier_block *nb,
-+				unsigned long code, void *unused)
-+{
-+	if (code == SYS_RESTART)
-+		on_each_cpu(kvm_pv_disable_apf, NULL, 1);
-+	return NOTIFY_DONE;
-+}
-+
-+static struct notifier_block kvm_pv_reboot_nb = {
-+	.notifier_call = kvm_pv_reboot_notify,
-+};
-+
- #ifdef CONFIG_SMP
- static void __init kvm_smp_prepare_boot_cpu(void)
+-static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+-			 pfn_t *pfn)
++static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
++			 gva_t gva, pfn_t *pfn)
  {
- 	WARN_ON(kvm_register_clock("primary cpu clock"));
-+	kvm_guest_cpu_init();
- 	native_smp_prepare_boot_cpu();
- }
-+
-+static void kvm_guest_cpu_online(void *dummy)
-+{
-+	kvm_guest_cpu_init();
-+}
-+
-+static void kvm_guest_cpu_offline(void *dummy)
-+{
-+	kvm_pv_disable_apf(NULL);
-+}
-+
-+static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
-+				    unsigned long action, void *hcpu)
-+{
-+	int cpu = (unsigned long)hcpu;
-+	switch (action) {
-+	case CPU_ONLINE:
-+	case CPU_DOWN_FAILED:
-+	case CPU_ONLINE_FROZEN:
-+		smp_call_function_single(cpu, kvm_guest_cpu_online, NULL, 0);
-+		break;
-+	case CPU_DOWN_PREPARE:
-+	case CPU_DOWN_PREPARE_FROZEN:
-+		smp_call_function_single(cpu, kvm_guest_cpu_offline, NULL, 1);
-+		break;
-+	default:
-+		break;
-+	}
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
-+        .notifier_call  = kvm_cpu_notify,
-+};
- #endif
+ 	bool async;
  
- void __init kvm_guest_init(void)
-@@ -245,7 +333,11 @@ void __init kvm_guest_init(void)
- 		return;
+@@ -2616,7 +2616,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
  
- 	paravirt_ops_setup();
-+	register_reboot_notifier(&kvm_pv_reboot_nb);
- #ifdef CONFIG_SMP
- 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-+	register_cpu_notifier(&kvm_cpu_notifier);
-+#else
-+	kvm_guest_cpu_init();
- #endif
+ 	put_page(pfn_to_page(*pfn));
+ 
+-	if (can_do_async_pf(vcpu)) {
++	if (!no_apf && can_do_async_pf(vcpu)) {
+ 		trace_kvm_try_async_get_page(async, *pfn);
+ 		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
+ 			trace_kvm_async_pf_doublefault(gva, gfn);
+@@ -2631,8 +2631,8 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+ 	return false;
  }
+ 
+-static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+-				u32 error_code)
++static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
++			  bool no_apf)
+ {
+ 	pfn_t pfn;
+ 	int r;
+@@ -2654,7 +2654,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+-	if (try_async_pf(vcpu, gfn, gpa, &pfn))
++	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn))
+ 		return 0;
+ 
+ 	/* mmio */
+@@ -3317,7 +3317,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
+ 	int r;
+ 	enum emulation_result er;
+ 
+-	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
++	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
+ 	if (r < 0)
+ 		goto out;
+ 
+diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
+index c45376d..d6b281e 100644
+--- a/arch/x86/kvm/paging_tmpl.h
++++ b/arch/x86/kvm/paging_tmpl.h
+@@ -527,8 +527,8 @@ out_gpte_changed:
+  *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
+  *           a negative value on error.
+  */
+-static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+-			       u32 error_code)
++static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
++			     bool no_apf)
+ {
+ 	int write_fault = error_code & PFERR_WRITE_MASK;
+ 	int user_fault = error_code & PFERR_USER_MASK;
+@@ -569,7 +569,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+-	if (try_async_pf(vcpu, walker.gfn, addr, &pfn))
++	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn))
+ 		return 0;
+ 
+ 	/* mmio */
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 09e72fc..bf37397 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6131,6 +6131,13 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
+ }
+ EXPORT_SYMBOL_GPL(kvm_set_rflags);
+ 
++void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
++{
++	if (!vcpu->arch.mmu.direct_map || is_error_page(work->page))
++		return;
++	vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
++}
++
+ static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
+ {
+ 	return hash_32(gfn & 0xffffffff, order_base_2(ASYNC_PF_PER_VCPU));
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index 8b144d5..41607ed 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -132,6 +132,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
+ 	list_del(&work->link);
+ 	spin_unlock(&vcpu->async_pf.lock);
+ 
++	if (work->page)
++		kvm_arch_async_page_ready(vcpu, work);
+ 	kvm_arch_async_page_present(vcpu, work);
+ 
+ 	list_del(&work->queue);
 -- 
 1.7.1
 
