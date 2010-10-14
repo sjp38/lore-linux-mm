@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D9ADC6B0170
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:10:11 -0400 (EDT)
-Date: Fri, 15 Oct 2010 00:09:47 +0900
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 708EC6B0172
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 11:24:19 -0400 (EDT)
+Date: Fri, 15 Oct 2010 00:24:05 +0900
 Subject: Re: [RFC][PATCH 1/3] contigous big page allocator
 From: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-In-Reply-To: <20101014125519.GB13414@basil.fritz.box>
-References: <20101014072421.GA13414@basil.fritz.box>
-	<20101014173103U.fujita.tomonori@lab.ntt.co.jp>
-	<20101014125519.GB13414@basil.fritz.box>
+In-Reply-To: <AANLkTin-8mjL_B8g9cPoviQU0FUaEyb_v5_Fm4kbSweA@mail.gmail.com>
+References: <87sk0a1sq0.fsf@basil.nowhere.org>
+	<20101014160217N.fujita.tomonori@lab.ntt.co.jp>
+	<AANLkTin-8mjL_B8g9cPoviQU0FUaEyb_v5_Fm4kbSweA@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20101015000416N.fujita.tomonori@lab.ntt.co.jp>
+Message-Id: <20101015001904I.fujita.tomonori@lab.ntt.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: andi@firstfloor.org
-Cc: fujita.tomonori@lab.ntt.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
+To: felipe.contreras@gmail.com
+Cc: fujita.tomonori@lab.ntt.co.jp, andi@firstfloor.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan.kim@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Oct 2010 14:55:19 +0200
-Andi Kleen <andi@firstfloor.org> wrote:
+On Thu, 14 Oct 2010 15:09:13 +0300
+Felipe Contreras <felipe.contreras@gmail.com> wrote:
 
-> > I think that at least one mainline driver in arm uses such trick but I
-> > can't recall the name. Better to ask on the arm mainling list. Also I
-> > heard that the are some out-of-tree patches about this.
+> > As already pointed out, some embeded drivers need physcailly
+> > contignous memory. Currenlty, they use hacky tricks (e.g. playing with
+> > the boot memory allocators). There are several proposals for this like
+> > adding a new kernel memory allocator (from samsung).
+> >
+> > It's ideal if the memory allocator can handle this, I think.
 > 
-> I'm sure there are out of tree patches for lots of things,
-> but at least in terms of merging mainline functionality
-> use cases merged in the mainline tree are required.
+> Not only contiguous, but sometimes also coherent.
 
-I think that we already have drivers that need such feature in
-mainline. They keep out-of-tree patches that give continuous memory to
-these drivers reliably.
+Can you give the list of such drivers?
 
-Anyway, Felipe pointed out one user. I also think that
-drivers/media/video/videobuf-dma-contig.c also was already mentioned,
-needs such feature.
+Anyway, in general cases, the page allocator needs to allocate large
+contignous memory if we want dma_alloc_coherent to return large
+contignous coherent memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
