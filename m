@@ -1,7 +1,7 @@
 From: y@redhat.com
-Subject: [PATCH v7 06/12] Add PV MSR to enable asynchronous page faults delivery.
-Date: Thu, 14 Oct 2010 11:17:04 +0200
-Message-ID: <30196.9685512178$1287048059@news.gmane.org>
+Subject: [PATCH v7 04/12] Add memory slot versioning and use it to provide fast guest write interface
+Date: Thu, 14 Oct 2010 11:17:02 +0200
+Message-ID: <5252.22004293955$1287048060@news.gmane.org>
 References: <1287047830-2120-1-git-send-email-y>
 Return-path: <kvm-owner@vger.kernel.org>
 In-Reply-To: <1287047830-2120-1-git-send-email-y>
@@ -12,271 +12,220 @@ List-Id: linux-mm.kvack.org
 
 From: Gleb Natapov <gleb@redhat.com>
 
-Guest enables async PF vcpu functionality using this MSR.
+Keep track of memslots changes by keeping generation number in memslots
+structure. Provide kvm_write_guest_cached() function that skips
+gfn_to_hva() translation if memslots was not changed since previous
+invocation.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Gleb Natapov <gleb@redhat.com>
 ---
- Documentation/kvm/cpuid.txt     |    3 +++
- Documentation/kvm/msr.txt       |   36 +++++++++++++++++++++++++++++++++++-
- arch/x86/include/asm/kvm_host.h |    2 ++
- arch/x86/include/asm/kvm_para.h |    4 ++++
- arch/x86/kvm/x86.c              |   38 ++++++++++++++++++++++++++++++++++++--
- include/linux/kvm.h             |    1 +
- include/linux/kvm_host.h        |    1 +
- virt/kvm/async_pf.c             |   20 ++++++++++++++++++++
- 8 files changed, 102 insertions(+), 3 deletions(-)
+ include/linux/kvm_host.h  |    7 ++++
+ include/linux/kvm_types.h |    7 ++++
+ virt/kvm/kvm_main.c       |   75 +++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 77 insertions(+), 12 deletions(-)
 
-diff --git a/Documentation/kvm/cpuid.txt b/Documentation/kvm/cpuid.txt
-index 14a12ea..8820685 100644
---- a/Documentation/kvm/cpuid.txt
-+++ b/Documentation/kvm/cpuid.txt
-@@ -36,6 +36,9 @@ KVM_FEATURE_MMU_OP                 ||     2 || deprecated.
- KVM_FEATURE_CLOCKSOURCE2           ||     3 || kvmclock available at msrs
-                                    ||       || 0x4b564d00 and 0x4b564d01
- ------------------------------------------------------------------------------
-+KVM_FEATURE_ASYNC_PF               ||     4 || async pf can be enabled by
-+                                   ||       || writing to msr 0x4b564d02
-+------------------------------------------------------------------------------
- KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
-                                    ||       || per-cpu warps are expected in
-                                    ||       || kvmclock.
-diff --git a/Documentation/kvm/msr.txt b/Documentation/kvm/msr.txt
-index 8ddcfe8..27c11a6 100644
---- a/Documentation/kvm/msr.txt
-+++ b/Documentation/kvm/msr.txt
-@@ -3,7 +3,6 @@ Glauber Costa <glommer@redhat.com>, Red Hat Inc, 2010
- =====================================================
- 
- KVM makes use of some custom MSRs to service some requests.
--At present, this facility is only used by kvmclock.
- 
- Custom MSRs have a range reserved for them, that goes from
- 0x4b564d00 to 0x4b564dff. There are MSRs outside this area,
-@@ -151,3 +150,38 @@ MSR_KVM_SYSTEM_TIME: 0x12
- 			return PRESENT;
- 		} else
- 			return NON_PRESENT;
-+
-+MSR_KVM_ASYNC_PF_EN: 0x4b564d02
-+	data: Bits 63-6 hold 64-byte aligned physical address of a
-+	64 byte memory area which must be in guest RAM and must be
-+	zeroed. Bits 5-1 are reserved and should be zero. Bit 0 is 1
-+	when asynchronous page faults are enabled on the vcpu 0 when
-+	disabled.
-+
-+	First 4 byte of 64 byte memory location will be written to by
-+	the hypervisor at the time of asynchronous page fault (APF)
-+	injection to indicate type of asynchronous page fault. Value
-+	of 1 means that the page referred to by the page fault is not
-+	present. Value 2 means that the page is now available. Disabling
-+	interrupt inhibits APFs. Guest must not enable interrupt
-+	before the reason is read, or it may be overwritten by another
-+	APF. Since APF uses the same exception vector as regular page
-+	fault guest must reset the reason to 0 before it does
-+	something that can generate normal page fault.  If during page
-+	fault APF reason is 0 it means that this is regular page
-+	fault.
-+
-+	During delivery of type 1 APF cr2 contains a token that will
-+	be used to notify a guest when missing page becomes
-+	available. When page becomes available type 2 APF is sent with
-+	cr2 set to the token associated with the page. There is special
-+	kind of token 0xffffffff which tells vcpu that it should wake
-+	up all processes waiting for APFs and no individual type 2 APFs
-+	will be sent.
-+
-+	If APF is disabled while there are outstanding APFs, they will
-+	not be delivered.
-+
-+	Currently type 2 APF will be always delivered on the same vcpu as
-+	type 1 was, but guest should not rely on that.
-+
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 96aca44..26b2064 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -419,6 +419,8 @@ struct kvm_vcpu_arch {
- 	struct {
- 		bool halted;
- 		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
-+		struct gfn_to_hva_cache data;
-+		u64 msr_val;
- 	} apf;
- };
- 
-diff --git a/arch/x86/include/asm/kvm_para.h b/arch/x86/include/asm/kvm_para.h
-index e3faaaf..8662ae0 100644
---- a/arch/x86/include/asm/kvm_para.h
-+++ b/arch/x86/include/asm/kvm_para.h
-@@ -20,6 +20,7 @@
-  * are available. The use of 0x11 and 0x12 is deprecated
-  */
- #define KVM_FEATURE_CLOCKSOURCE2        3
-+#define KVM_FEATURE_ASYNC_PF		4
- 
- /* The last 8 bits are used to indicate how to interpret the flags field
-  * in pvclock structure. If no bits are set, all flags are ignored.
-@@ -32,9 +33,12 @@
- /* Custom MSRs falls in the range 0x4b564d00-0x4b564dff */
- #define MSR_KVM_WALL_CLOCK_NEW  0x4b564d00
- #define MSR_KVM_SYSTEM_TIME_NEW 0x4b564d01
-+#define MSR_KVM_ASYNC_PF_EN 0x4b564d02
- 
- #define KVM_MAX_MMU_OP_BATCH           32
- 
-+#define KVM_ASYNC_PF_ENABLED			(1 << 0)
-+
- /* Operations for KVM_HC_MMU_OP */
- #define KVM_MMU_OP_WRITE_PTE            1
- #define KVM_MMU_OP_FLUSH_TLB	        2
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index bf37397..68a3a06 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -788,12 +788,12 @@ EXPORT_SYMBOL_GPL(kvm_get_dr);
-  * kvm-specific. Those are put in the beginning of the list.
-  */
- 
--#define KVM_SAVE_MSRS_BEGIN	7
-+#define KVM_SAVE_MSRS_BEGIN	8
- static u32 msrs_to_save[] = {
- 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
- 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
- 	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
--	HV_X64_MSR_APIC_ASSIST_PAGE,
-+	HV_X64_MSR_APIC_ASSIST_PAGE, MSR_KVM_ASYNC_PF_EN,
- 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
- 	MSR_STAR,
- #ifdef CONFIG_X86_64
-@@ -1431,6 +1431,29 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- 	return 0;
- }
- 
-+static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
-+{
-+	gpa_t gpa = data & ~0x3f;
-+
-+	/* Bits 1:5 are resrved, Should be zero */
-+	if (data & 0x3e)
-+		return 1;
-+
-+	vcpu->arch.apf.msr_val = data;
-+
-+	if (!(data & KVM_ASYNC_PF_ENABLED)) {
-+		kvm_clear_async_pf_completion_queue(vcpu);
-+		kvm_async_pf_hash_reset(vcpu);
-+		return 0;
-+	}
-+
-+	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa))
-+		return 1;
-+
-+	kvm_async_pf_wakeup_all(vcpu);
-+	return 0;
-+}
-+
- int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- {
- 	switch (msr) {
-@@ -1512,6 +1535,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
- 		}
- 		break;
- 	}
-+	case MSR_KVM_ASYNC_PF_EN:
-+		if (kvm_pv_enable_async_pf(vcpu, data))
-+			return 1;
-+		break;
- 	case MSR_IA32_MCG_CTL:
- 	case MSR_IA32_MCG_STATUS:
- 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
-@@ -1788,6 +1815,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
- 	case MSR_KVM_SYSTEM_TIME_NEW:
- 		data = vcpu->arch.time;
- 		break;
-+	case MSR_KVM_ASYNC_PF_EN:
-+		data = vcpu->arch.apf.msr_val;
-+		break;
- 	case MSR_IA32_P5_MC_ADDR:
- 	case MSR_IA32_P5_MC_TYPE:
- 	case MSR_IA32_MCG_CAP:
-@@ -1935,6 +1965,7 @@ int kvm_dev_ioctl_check_extension(long ext)
- 	case KVM_CAP_DEBUGREGS:
- 	case KVM_CAP_X86_ROBUST_SINGLESTEP:
- 	case KVM_CAP_XSAVE:
-+	case KVM_CAP_ASYNC_PF:
- 		r = 1;
- 		break;
- 	case KVM_CAP_COALESCED_MMIO:
-@@ -5784,6 +5815,8 @@ free_vcpu:
- 
- void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
- {
-+	vcpu->arch.apf.msr_val = 0;
-+
- 	vcpu_load(vcpu);
- 	kvm_mmu_unload(vcpu);
- 	vcpu_put(vcpu);
-@@ -5803,6 +5836,7 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
- 	vcpu->arch.dr7 = DR7_FIXED_1;
- 
- 	kvm_make_request(KVM_REQ_EVENT, vcpu);
-+	vcpu->arch.apf.msr_val = 0;
- 
- 	kvm_clear_async_pf_completion_queue(vcpu);
- 	kvm_async_pf_hash_reset(vcpu);
-diff --git a/include/linux/kvm.h b/include/linux/kvm.h
-index 919ae53..ea2dc1a 100644
---- a/include/linux/kvm.h
-+++ b/include/linux/kvm.h
-@@ -540,6 +540,7 @@ struct kvm_ppc_pvinfo {
- #endif
- #define KVM_CAP_PPC_GET_PVINFO 57
- #define KVM_CAP_PPC_IRQ_LEVEL 58
-+#define KVM_CAP_ASYNC_PF 59
- 
- #ifdef KVM_CAP_IRQ_ROUTING
- 
 diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index dda88f2..5d09197 100644
+index 9a9b017..dda88f2 100644
 --- a/include/linux/kvm_host.h
 +++ b/include/linux/kvm_host.h
-@@ -93,6 +93,7 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu);
- void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu);
- int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
- 		       struct kvm_arch_async_pf *arch);
-+int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
- #endif
+@@ -199,6 +199,7 @@ struct kvm_irq_routing_table {};
  
- struct kvm_vcpu {
-diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-index 41607ed..b276b06 100644
---- a/virt/kvm/async_pf.c
-+++ b/virt/kvm/async_pf.c
-@@ -190,3 +190,23 @@ retry_sync:
- 	kmem_cache_free(async_pf_cache, work);
- 	return 0;
+ struct kvm_memslots {
+ 	int nmemslots;
++	u64 generation;
+ 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
+ 					KVM_PRIVATE_MEM_SLOTS];
+ };
+@@ -352,12 +353,18 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
+ 			 int offset, int len);
+ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 		    unsigned long len);
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len);
++int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			      gpa_t gpa);
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
+ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
+ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
+ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
+ unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
+ void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn);
+ 
+ void kvm_vcpu_block(struct kvm_vcpu *vcpu);
+ void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
+diff --git a/include/linux/kvm_types.h b/include/linux/kvm_types.h
+index 7ac0d4e..fa7cc72 100644
+--- a/include/linux/kvm_types.h
++++ b/include/linux/kvm_types.h
+@@ -67,4 +67,11 @@ struct kvm_lapic_irq {
+ 	u32 dest_id;
+ };
+ 
++struct gfn_to_hva_cache {
++	u64 generation;
++	gpa_t gpa;
++	unsigned long hva;
++	struct kvm_memory_slot *memslot;
++};
++
+ #endif /* __KVM_TYPES_H__ */
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 238079e..5d57ec9 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -687,6 +687,7 @@ skip_lpage:
+ 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 		if (mem->slot >= slots->nmemslots)
+ 			slots->nmemslots = mem->slot + 1;
++		slots->generation++;
+ 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
+ 
+ 		old_memslots = kvm->memslots;
+@@ -723,6 +724,7 @@ skip_lpage:
+ 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+ 	if (mem->slot >= slots->nmemslots)
+ 		slots->nmemslots = mem->slot + 1;
++	slots->generation++;
+ 
+ 	/* actual memory is freed via old in kvm_free_physmem_slot below */
+ 	if (!npages) {
+@@ -853,10 +855,10 @@ int kvm_is_error_hva(unsigned long addr)
+ }
+ EXPORT_SYMBOL_GPL(kvm_is_error_hva);
+ 
+-struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
++static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
++						gfn_t gfn)
+ {
+ 	int i;
+-	struct kvm_memslots *slots = kvm_memslots(kvm);
+ 
+ 	for (i = 0; i < slots->nmemslots; ++i) {
+ 		struct kvm_memory_slot *memslot = &slots->memslots[i];
+@@ -867,6 +869,11 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
+ 	}
+ 	return NULL;
  }
 +
-+int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
++struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 +{
-+	struct kvm_async_pf *work;
++	return __gfn_to_memslot(kvm_memslots(kvm), gfn);
++}
+ EXPORT_SYMBOL_GPL(gfn_to_memslot);
+ 
+ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
+@@ -929,12 +936,9 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
+ 	return memslot - slots->memslots;
+ }
+ 
+-static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
++static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
+ 				     gfn_t *nr_pages)
+ {
+-	struct kvm_memory_slot *slot;
+-
+-	slot = gfn_to_memslot(kvm, gfn);
+ 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
+ 		return bad_hva();
+ 
+@@ -946,7 +950,7 @@ static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
+ 
+ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+ {
+-	return gfn_to_hva_many(kvm, gfn, NULL);
++	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
+ }
+ EXPORT_SYMBOL_GPL(gfn_to_hva);
+ 
+@@ -1063,7 +1067,7 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
+ 	unsigned long addr;
+ 	gfn_t entry;
+ 
+-	addr = gfn_to_hva_many(kvm, gfn, &entry);
++	addr = gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, &entry);
+ 	if (kvm_is_error_hva(addr))
+ 		return -1;
+ 
+@@ -1247,6 +1251,47 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+ 	return 0;
+ }
+ 
++int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			      gpa_t gpa)
++{
++	struct kvm_memslots *slots = kvm_memslots(kvm);
++	int offset = offset_in_page(gpa);
++	gfn_t gfn = gpa >> PAGE_SHIFT;
 +
-+	if (!list_empty(&vcpu->async_pf.done))
-+		return 0;
++	ghc->gpa = gpa;
++	ghc->generation = slots->generation;
++	ghc->memslot = __gfn_to_memslot(slots, gfn);
++	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
++	if (!kvm_is_error_hva(ghc->hva))
++		ghc->hva += offset;
++	else
++		return -EFAULT;
 +
-+	work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
-+	if (!work)
-+		return -ENOMEM;
-+
-+	work->page = bad_page;
-+	get_page(bad_page);
-+	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
-+
-+	list_add_tail(&work->link, &vcpu->async_pf.done);
-+	vcpu->async_pf.queued++;
 +	return 0;
 +}
++EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
++
++int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
++			   void *data, unsigned long len)
++{
++	struct kvm_memslots *slots = kvm_memslots(kvm);
++	int r;
++
++	if (slots->generation != ghc->generation)
++		kvm_gfn_to_hva_cache_init(kvm, ghc, ghc->gpa);
++	
++	if (kvm_is_error_hva(ghc->hva))
++		return -EFAULT;
++
++	r = copy_to_user((void __user *)ghc->hva, data, len);
++	if (r)
++		return -EFAULT;
++	mark_page_dirty_in_slot(kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
++
+ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
+ {
+ 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
+@@ -1272,11 +1317,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
+ }
+ EXPORT_SYMBOL_GPL(kvm_clear_guest);
+ 
+-void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
++			     gfn_t gfn)
+ {
+-	struct kvm_memory_slot *memslot;
+-
+-	memslot = gfn_to_memslot(kvm, gfn);
+ 	if (memslot && memslot->dirty_bitmap) {
+ 		unsigned long rel_gfn = gfn - memslot->base_gfn;
+ 
+@@ -1284,6 +1327,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
+ 	}
+ }
+ 
++void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
++{
++	struct kvm_memory_slot *memslot;
++
++	memslot = gfn_to_memslot(kvm, gfn);
++	mark_page_dirty_in_slot(kvm, memslot, gfn);
++}
++
+ /*
+  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
+  */
 -- 
 1.7.1
 
