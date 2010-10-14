@@ -1,43 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B8A775F004E
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:23:17 -0400 (EDT)
-From: Gleb Natapov <gleb@redhat.com>
-Subject: [PATCH v7 12/12] Send async PF when guest is not in userspace too.
-Date: Thu, 14 Oct 2010 11:22:56 +0200
-Message-Id: <1287048176-2563-13-git-send-email-gleb@redhat.com>
-In-Reply-To: <1287048176-2563-1-git-send-email-gleb@redhat.com>
-References: <1287048176-2563-1-git-send-email-gleb@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9D4B76B00CC
+	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 05:49:34 -0400 (EDT)
+Subject: Re: [PATCH] [RFC] slub tracing: move trace calls out of always
+ inlined functions to reduce kernel code size
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <4CB6ACB7.8060006@kernel.org>
+References: <1286986178.1901.60.camel@castor.rsk>
+	 <4CB6ACB7.8060006@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 14 Oct 2010 10:49:29 +0100
+Message-ID: <1287049769.1909.4.camel@castor.rsk>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Steven Rostedt <rostedt@goodmis.org>
 List-ID: <linux-mm.kvack.org>
 
-If guest indicates that it can handle async pf in kernel mode too send
-it, but only if interrupts are enabled.
+On Thu, 2010-10-14 at 10:09 +0300, Pekka Enberg wrote:
+> On 10/13/10 7:09 PM, Richard Kennedy wrote:
+> > Having the trace calls defined in the always inlined kmalloc functions
+> > in include/linux/slub_def.h causes a lot of code duplication as the
+> > trace functions get instantiated for each kamalloc call site. This can
+> > simply be removed by pushing the trace calls down into the functions in
+> > slub.c.
+> >
+> > On my x86_64 built this patch shrinks the code size of the kernel by
+> > approx 29K and also shrinks the code size of many modules -- too many to
+> > list here ;)
+> >
+> > size vmlinux.o reports
+> >         text	   data	    bss	    dec	    hex	filename
+> >      4777011	 602052	 763072	6142135	 5db8b7	vmlinux.o
+> >      4747120	 602388	 763072	6112580	 5d4544	vmlinux.o.patch
+> 
+> Impressive kernel text savings!
+> 
+> > index 13fffe1..32b89ee 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > +void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+> > +{
+> > +	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
+> > +
+> > +	kmemleak_alloc(ret, size, 1, flags);
+> > +	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE<<  order, flags);
+> > +
+> > +	return ret;
+> > +}
+> > +EXPORT_SYMBOL(kmalloc_order);
+> > +
+> This doesn't make sense to be out-of-line for the !CONFIG_TRACE case. 
+> I'd just wrap that with "#ifdef CONFIG_TRACE" and put an inline version 
+> in the header for !TRACE.
+> 
+>              Pekka
 
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
- arch/x86/kvm/x86.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 1e442df..51cff2f 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -6248,7 +6248,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
- 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
- 
- 	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
--	    kvm_x86_ops->get_cpl(vcpu) == 0)
-+	    (vcpu->arch.apf.send_user_only &&
-+	     kvm_x86_ops->get_cpl(vcpu) == 0))
- 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
- 	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
- 		vcpu->arch.fault.error_code = 0;
--- 
-1.7.1
+Yes, OK I'll do that.
+regards
+Richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
