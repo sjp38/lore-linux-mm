@@ -1,32 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7A7D36B017E
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 04:16:38 -0400 (EDT)
-Received: from fgwmail7.fujitsu.co.jp (fgwmail7.fujitsu.co.jp [192.51.44.37])
-	by fgwmail9.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9F8GZAa024740
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7D13B6B0181
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 04:17:52 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9F8Hl48006352
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 15 Oct 2010 17:16:35 +0900
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9F8GWmp016005
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 15 Oct 2010 17:16:33 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 950CF45DE6E
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:16:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 718E145DE60
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:16:32 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 588611DB8037
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:16:32 +0900 (JST)
+	Fri, 15 Oct 2010 17:17:48 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 945C345DE4C
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:17:47 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 645761EF081
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:17:47 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D77D1DB8022
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:17:46 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B24DEF8002
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:16:32 +0900 (JST)
-Date: Fri, 15 Oct 2010 17:11:09 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E1BE41DB801A
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:17:45 +0900 (JST)
+Date: Fri, 15 Oct 2010 17:12:25 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/2] memcg: avoiding unnecessary get_page at
- move_charge
-Message-Id: <20101015171109.d4575c95.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/2] memcg: new lock for mutual execution of
+ account_move and file stats
+Message-Id: <20101015171225.70d4ca8f.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,232 +30,148 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-CC'ed to Mel and Chrisotph, KOSAKi because I wanted to be double-cheked
-that I miss something important at isolate_lru_page().
+When we try to enhance page's status update to support other flags,
+one of problem is updating status from IRQ context.
 
-Checking perofrmance of memcg's move_account with perf, you may notice
-that put_page() is too much.
-#
-# Overhead  Command      Shared Object                                 Symbol
-# ........  .......  .................  .....................................
-#
-    14.24%     echo  [kernel.kallsyms]  [k] put_page
-    12.80%     echo  [kernel.kallsyms]  [k] isolate_lru_page
-     9.67%     echo  [kernel.kallsyms]  [k] is_target_pte_for_mc
-     8.11%     echo  [kernel.kallsyms]  [k] ____pagevec_lru_add
-     7.22%     echo  [kernel.kallsyms]  [k] putback_lru_page
+Now, mem_cgroup_update_file_stat() takes lock_page_cgroup() to avoid
+race with _account move_. IOW, there are no races with charge/uncharge
+in nature. Considering an update from IRQ context, it seems better
+to disable IRQ at lock_page_cgroup() to avoid deadlock.
 
-This is because mc_handle_present_pte() do get_page(). Then,
-page->count is updated 4 times.
-	get_page_unless_zero() #1
-	isolate_lru_page()
-	putback_lru_page()
-	put_page()
+But lock_page_cgroup() is used too widerly and adding IRQ disable
+there makes the performance bad. To avoid the big hammer, this patch
+adds a new lock for update_stat().
 
-But above is called all under pte_offset_map_lock().
-get_page_unless_zero() #1 is not necessary because we do all under a
-pte_offset_map_lock().
+This lock is for mutual execustion of updating stat and accout moving.
+This adds a new lock to move_account..so, this makes move_account slow.
+But considering trade-off, I think it's acceptable.
 
-isolate_lru_page()'s comment says 
- # Restrictions:
- # (1) Must be called with an elevated refcount on the page. This is a
- #     fundamentnal difference from isolate_lru_pages (which is called
- #     without a stable reference).
+A score of moving 8GB anon pages, 8cpu Xeon(3.1GHz) is here.
 
-So, current implemnation does get_page_unless_zero() explicitly but
-holding pte_lock() implies a stable reference. I removed #1.
-
-Then, Performance will be
-[Before Patch]
-[root@bluextal kamezawa]# time echo 2530 > /cgroup/B/tasks
-
-real    0m0.792s
-user    0m0.000s
-sys     0m0.780s
-
-[After Patch]
+[before patch] (mmotm + optimization patch (#1 in this series)
 [root@bluextal kamezawa]# time echo 2257 > /cgroup/B/tasks
 
 real    0m0.694s
 user    0m0.000s
 sys     0m0.683s
 
-perf's log is
-    10.82%     echo  [kernel.kallsyms]  [k] isolate_lru_page
-    10.01%     echo  [kernel.kallsyms]  [k] mem_cgroup_move_account
-     8.75%     echo  [kernel.kallsyms]  [k] is_target_pte_for_mc
-     8.52%     echo  [kernel.kallsyms]  [k] ____pagevec_lru_add
-     6.90%     echo  [kernel.kallsyms]  [k] putback_lru_page
-     6.36%     echo  [kernel.kallsyms]  [k] mem_cgroup_add_lru_list
-     6.22%     echo  [kernel.kallsyms]  [k] mem_cgroup_del_lru_list
-     5.68%     echo  [kernel.kallsyms]  [k] lookup_page_cgroup
-     5.28%     echo  [kernel.kallsyms]  [k] __lru_cache_add
-     5.00%     echo  [kernel.kallsyms]  [k] release_pages
-     3.79%     echo  [kernel.kallsyms]  [k] _raw_spin_lock_irq
-     3.52%     echo  [kernel.kallsyms]  [k] memcg_check_events
-     3.38%     echo  [kernel.kallsyms]  [k] bit_spin_lock
-     3.25%     echo  [kernel.kallsyms]  [k] put_page
+[After patch]
+[root@bluextal kamezawa]# time echo 2238 > /cgroup/B/tasks
 
-seems nice. I updated isolate_lru_page()'s comment, too.
+real    0m0.741s
+user    0m0.000s
+sys     0m0.730s
 
-# Note: isolate_lru_page() is necessary before account move for avoinding
-        memcg's LRU manipulation.
+This moves 8Gbytes == 2048k pages. But no bad effects to codes
+other than "move".
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   63 +++++++++++++++++++++++++++++++++++---------------------
- mm/vmscan.c     |    3 +-
- 2 files changed, 42 insertions(+), 24 deletions(-)
+ include/linux/page_cgroup.h |   29 +++++++++++++++++++++++++++++
+ mm/memcontrol.c             |   11 +++++++++--
+ 2 files changed, 38 insertions(+), 2 deletions(-)
 
+Index: mmotm-1013/include/linux/page_cgroup.h
+===================================================================
+--- mmotm-1013.orig/include/linux/page_cgroup.h
++++ mmotm-1013/include/linux/page_cgroup.h
+@@ -36,6 +36,7 @@ struct page_cgroup *lookup_page_cgroup(s
+ enum {
+ 	/* flags for mem_cgroup */
+ 	PCG_LOCK,  /* page cgroup is locked */
++	PCG_LOCK_STATS, /* page cgroup's stat accounting flags are locked */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
+ 	PCG_ACCT_LRU, /* page has been accounted for */
+@@ -104,6 +105,34 @@ static inline void unlock_page_cgroup(st
+ 	bit_spin_unlock(PCG_LOCK, &pc->flags);
+ }
+ 
++/*
++ * Because page's status can be updated in IRQ context(PG_writeback)
++ * we disable IRQ at updating page's stat.
++ */
++static inline void lock_page_cgroup_stat(struct page_cgroup *pc,
++	unsigned long *flags)
++{
++	local_irq_save(*flags);
++	bit_spin_lock(PCG_LOCK_STATS, &pc->flags);
++}
++
++static inline void __lock_page_cgroup_stat(struct page_cgroup *pc)
++{
++	bit_spin_lock(PCG_LOCK_STATS, &pc->flags);
++}
++
++static inline void unlock_page_cgroup_stat(struct page_cgroup *pc,
++	unsigned long *flags)
++{
++	bit_spin_unlock(PCG_LOCK_STATS, &pc->flags);
++	local_irq_restore(*flags);
++}
++
++static inline void __unlock_page_cgroup_stat(struct page_cgroup *pc)
++{
++	bit_spin_unlock(PCG_LOCK_STATS, &pc->flags);
++}
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct page_cgroup;
+ 
 Index: mmotm-1013/mm/memcontrol.c
 ===================================================================
 --- mmotm-1013.orig/mm/memcontrol.c
 +++ mmotm-1013/mm/memcontrol.c
-@@ -1169,7 +1169,6 @@ static void mem_cgroup_end_move(struct m
-  *			  under hierarchy of moving cgroups. This is for
-  *			  waiting at hith-memory prressure caused by "move".
-  */
--
- static bool mem_cgroup_stealed(struct mem_cgroup *mem)
- {
- 	VM_BUG_ON(!rcu_read_lock_held());
-@@ -4471,11 +4470,14 @@ one_by_one:
-  * Returns
-  *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
-  *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
-- *     move charge. if @target is not NULL, the page is stored in target->page
-- *     with extra refcnt got(Callers should handle it).
-+ *     move charge and it's mapped.. if @target is not NULL, the page is
-+ *     stored in target->pagewithout extra refcnt.
-  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-  *     target for charge migration. if @target is not NULL, the entry is stored
-  *     in target->ent.
-+ *   3(MC_TARGET_UNMAPPED_PAGE): if the page corresponding to this pte is a
-+ *     target for move charge. if @target is not NULL, the page is stored in
-+ *     target->page with extra refcnt got(Callers should handle it).
-  *
-  * Called with pte lock held.
-  */
-@@ -4486,8 +4488,9 @@ union mc_target {
+@@ -1596,6 +1596,7 @@ static void mem_cgroup_update_file_stat(
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 	bool need_unlock = false;
++	unsigned long flags = 0;
  
- enum mc_target_type {
- 	MC_TARGET_NONE,	/* not used */
--	MC_TARGET_PAGE,
-+	MC_TARGET_PAGE, /* a page mapped */
- 	MC_TARGET_SWAP,
-+	MC_TARGET_UNMAPPED_PAGE, /* a page unmapped */
- };
+ 	if (unlikely(!pc))
+ 		return;
+@@ -1607,7 +1608,7 @@ static void mem_cgroup_update_file_stat(
+ 	/* pc->mem_cgroup is unstable ? */
+ 	if (unlikely(mem_cgroup_stealed(mem))) {
+ 		/* take a lock against to access pc->mem_cgroup */
+-		lock_page_cgroup(pc);
++		lock_page_cgroup_stat(pc, &flags);
+ 		need_unlock = true;
+ 		mem = pc->mem_cgroup;
+ 		if (!mem || !PageCgroupUsed(pc))
+@@ -1629,7 +1630,7 @@ static void mem_cgroup_update_file_stat(
  
- static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-@@ -4504,9 +4507,10 @@ static struct page *mc_handle_present_pt
- 	} else if (!move_file())
- 		/* we ignore mapcount for file pages */
- 		return NULL;
--	if (!get_page_unless_zero(page))
--		return NULL;
--
-+	/*
-+ 	 * Because we're under pte_lock and the page is mapped,
-+	 * get_page() isn't necessary
-+	 */
- 	return page;
+ out:
+ 	if (unlikely(need_unlock))
+-		unlock_page_cgroup(pc);
++		unlock_page_cgroup_stat(pc, &flags);
+ 	rcu_read_unlock();
+ 	return;
  }
- 
-@@ -4570,14 +4574,18 @@ static int is_target_pte_for_mc(struct v
- 	struct page *page = NULL;
- 	struct page_cgroup *pc;
- 	int ret = 0;
-+	bool present = true;
- 	swp_entry_t ent = { .val = 0 };
- 
- 	if (pte_present(ptent))
- 		page = mc_handle_present_pte(vma, addr, ptent);
--	else if (is_swap_pte(ptent))
--		page = mc_handle_swap_pte(vma, addr, ptent, &ent);
--	else if (pte_none(ptent) || pte_file(ptent))
--		page = mc_handle_file_pte(vma, addr, ptent, &ent);
-+	else {
-+		present = false;
-+	 	if (is_swap_pte(ptent))
-+			page = mc_handle_swap_pte(vma, addr, ptent, &ent);
-+		else if (pte_none(ptent) || pte_file(ptent))
-+			page = mc_handle_file_pte(vma, addr, ptent, &ent);
-+	}
- 
- 	if (!page && !ent.val)
- 		return 0;
-@@ -4589,11 +4597,15 @@ static int is_target_pte_for_mc(struct v
- 		 * the lock.
- 		 */
- 		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
--			ret = MC_TARGET_PAGE;
-+			if (present)
-+				ret = MC_TARGET_PAGE;
-+			else
-+				ret = MC_TARGET_UNMAPPED_PAGE;
- 			if (target)
- 				target->page = page;
- 		}
--		if (!ret || !target)
-+		/* We got refcnt but the page is not for target */
-+		if (!present && (!ret || !target))
- 			put_page(page);
+@@ -2187,12 +2188,18 @@ static int mem_cgroup_move_account(struc
+ 		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
+ {
+ 	int ret = -EINVAL;
++
++	/* Avoiding dead-lock with page stat updates via irq context */
++	local_irq_disable();
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
++		__lock_page_cgroup_stat(pc);
+ 		__mem_cgroup_move_account(pc, from, to, uncharge);
++		__unlock_page_cgroup_stat(pc);
+ 		ret = 0;
  	}
- 	/* There is a swap entry and a page doesn't exist or isn't charged */
-@@ -4780,19 +4792,24 @@ retry:
- 		type = is_target_pte_for_mc(vma, addr, ptent, &target);
- 		switch (type) {
- 		case MC_TARGET_PAGE:
-+		case MC_TARGET_UNMAPPED_PAGE:
- 			page = target.page;
--			if (isolate_lru_page(page))
--				goto put;
--			pc = lookup_page_cgroup(page);
--			if (!mem_cgroup_move_account(pc,
-+			if (!isolate_lru_page(page)) {
-+				pc = lookup_page_cgroup(page);
-+				if (!mem_cgroup_move_account(pc,
- 						mc.from, mc.to, false)) {
--				mc.precharge--;
--				/* we uncharge from mc.from later. */
--				mc.moved_charge++;
-+					mc.precharge--;
-+					/* we uncharge from mc.from later. */
-+					mc.moved_charge++;
-+				}
-+				putback_lru_page(page);
- 			}
--			putback_lru_page(page);
--put:			/* is_target_pte_for_mc() gets the page */
--			put_page(page);
-+			/*
-+			 * Because we holds pte_lock, we have a stable reference			 * to the page if mapped. If not mapped, we have an
-+			 * elevated refcnt. drop it.
-+			 */
-+			if (type == MC_TARGET_UNMAPPED_PAGE)
-+				put_page(page);
- 			break;
- 		case MC_TARGET_SWAP:
- 			ent = target.ent;
-Index: mmotm-1013/mm/vmscan.c
-===================================================================
---- mmotm-1013.orig/mm/vmscan.c
-+++ mmotm-1013/mm/vmscan.c
-@@ -1166,7 +1166,8 @@ static unsigned long clear_active_flags(
-  * found will be decremented.
-  *
-  * Restrictions:
-- * (1) Must be called with an elevated refcount on the page. This is a
-+ * (1) Must be called with an elevated refcount on the page, IOW, the
-+ *     caller must guarantee that there is a stable reference. This is a
-  *     fundamentnal difference from isolate_lru_pages (which is called
-  *     without a stable reference).
-  * (2) the lru_lock must not be held.
+ 	unlock_page_cgroup(pc);
++	local_irq_enable();
+ 	/*
+ 	 * check events
+ 	 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
