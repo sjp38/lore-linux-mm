@@ -1,179 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BC225F0047
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:18:52 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v2 11/11] memcg: check memcg dirty limits in page writeback
-Date: Fri, 15 Oct 2010 14:14:39 -0700
-Message-Id: <1287177279-30876-12-git-send-email-gthelen@google.com>
-In-Reply-To: <1287177279-30876-1-git-send-email-gthelen@google.com>
-References: <1287177279-30876-1-git-send-email-gthelen@google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0CB575F0047
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 18:36:07 -0400 (EDT)
+Received: by qyk7 with SMTP id 7so2317485qyk.14
+        for <linux-mm@kvack.org>; Fri, 15 Oct 2010 15:36:06 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1010151211040.24683@router.home>
+References: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101015171109.d4575c95.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.DEB.2.00.1010151211040.24683@router.home>
+Date: Sat, 16 Oct 2010 07:36:05 +0900
+Message-ID: <AANLkTimNqAwb88kG2r4BkukhG7nutDHPXKqaAON687uT@mail.gmail.com>
+Subject: Re: [RFC][PATCH 1/2] memcg: avoiding unnecessary get_page at move_charge
+From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-If the current process is in a non-root memcg, then
-global_dirty_limits() will consider the memcg dirty limit.
-This allows different cgroups to have distinct dirty limits
-which trigger direct and background writeback at different
-levels.
+2010/10/16 Christoph Lameter <cl@linux.com>:
+> On Fri, 15 Oct 2010, KAMEZAWA Hiroyuki wrote:
+>
+>> But above is called all under pte_offset_map_lock().
+>> get_page_unless_zero() #1 is not necessary because we do all under a
+>> pte_offset_map_lock().
+>
+> The two (ptl and refcount) are entirely different. The ptl is for
+> protecting the page table. The refcount handles only the page.
+>
+> However, if the entry in the page table is pointing to the page then ther=
+e
+> must have been a refcount taken on the page. So if you know that the page
+> is in the page table and you took the ptl then you can be sure that the
+> page refcount will not become zero. Therefore get_page_unless_zero() will
+> never fail and there is no need to take additional refcounts as long as
+> the page table lock is held and the page is not removed from the page
+> table.
+>
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/page-writeback.c |   89 +++++++++++++++++++++++++++++++++++++++++---------
- 1 files changed, 73 insertions(+), 16 deletions(-)
+Ok, thank you for explanation. I can make this function faster.
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a0bb3e2..9b34f01 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -180,7 +180,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
-  * Returns the numebr of pages that can currently be freed and used
-  * by the kernel for direct mappings.
-  */
--static unsigned long determine_dirtyable_memory(void)
-+static unsigned long global_dirtyable_memory(void)
- {
- 	unsigned long x;
- 
-@@ -192,6 +192,58 @@ static unsigned long determine_dirtyable_memory(void)
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
-+static unsigned long dirtyable_memory(void)
-+{
-+	unsigned long memory;
-+	s64 memcg_memory;
-+
-+	memory = global_dirtyable_memory();
-+	if (!mem_cgroup_has_dirty_limit())
-+		return memory;
-+	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-+	BUG_ON(memcg_memory < 0);
-+
-+	return min((unsigned long)memcg_memory, memory);
-+}
-+
-+static long reclaimable_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_FILE_DIRTY) +
-+			global_page_state(NR_UNSTABLE_NFS);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static long writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static unsigned long dirty_writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_UNSTABLE_NFS) +
-+			global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
- /*
-  * couple the period to the dirty_ratio:
-  *
-@@ -204,8 +256,8 @@ static int calc_period_shift(void)
- 	if (vm_dirty_bytes)
- 		dirty_total = vm_dirty_bytes / PAGE_SIZE;
- 	else
--		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
--				100;
-+		dirty_total = (vm_dirty_ratio * global_dirtyable_memory()) /
-+			100;
- 	return 2 + ilog2(dirty_total - 1);
- }
- 
-@@ -410,18 +462,23 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
- 	unsigned long background;
- 	unsigned long dirty;
--	unsigned long available_memory = determine_dirtyable_memory();
-+	unsigned long available_memory = dirtyable_memory();
- 	struct task_struct *tsk;
-+	struct vm_dirty_param dirty_param;
- 
--	if (vm_dirty_bytes)
--		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-+	vm_dirty_param(&dirty_param);
-+
-+	if (dirty_param.dirty_bytes)
-+		dirty = DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
- 	else
--		dirty = (vm_dirty_ratio * available_memory) / 100;
-+		dirty = (dirty_param.dirty_ratio * available_memory) / 100;
- 
--	if (dirty_background_bytes)
--		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-+	if (dirty_param.dirty_background_bytes)
-+		background = DIV_ROUND_UP(dirty_param.dirty_background_bytes,
-+					  PAGE_SIZE);
- 	else
--		background = (dirty_background_ratio * available_memory) / 100;
-+		background = (dirty_param.dirty_background_ratio *
-+			      available_memory) / 100;
- 
- 	if (background >= dirty)
- 		background = dirty / 2;
-@@ -493,9 +550,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			.range_cyclic	= 1,
- 		};
- 
--		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
--					global_page_state(NR_UNSTABLE_NFS);
--		nr_writeback = global_page_state(NR_WRITEBACK);
-+		nr_reclaimable = reclaimable_pages();
-+		nr_writeback = writeback_pages();
- 
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
- 
-@@ -652,6 +708,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
- {
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
-+	unsigned long dirty;
- 
-         for ( ; ; ) {
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
-@@ -662,9 +719,9 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
- 
--                if (global_page_state(NR_UNSTABLE_NFS) +
--			global_page_state(NR_WRITEBACK) <= dirty_thresh)
--                        	break;
-+		dirty = dirty_writeback_pages();
-+		if (dirty <= dirty_thresh)
-+			break;
-                 congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		/*
--- 
-1.7.1
+>> Index: mmotm-1013/mm/vmscan.c
+>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>> --- mmotm-1013.orig/mm/vmscan.c
+>> +++ mmotm-1013/mm/vmscan.c
+>> @@ -1166,7 +1166,8 @@ static unsigned long clear_active_flags(
+>> =A0 * found will be decremented.
+>> =A0 *
+>> =A0 * Restrictions:
+>> - * (1) Must be called with an elevated refcount on the page. This is a
+>> + * (1) Must be called with an elevated refcount on the page, IOW, the
+>> + * =A0 =A0 caller must guarantee that there is a stable reference. This=
+ is a
+>> =A0 * =A0 =A0 fundamentnal difference from isolate_lru_pages (which is c=
+alled
+>> =A0 * =A0 =A0 without a stable reference).
+>> =A0 * (2) the lru_lock must not be held.
+>
+> There is no need for this change since you have an elevated refcount.
+> IMH The words "stable reference" may be confusing since the refcount may
+> change. The elevated refcount protects against the freeing of the page.
+>
+
+Sure, drop change this in v2. I misunderstand "elevated refcount"
+means "extra get_page()".
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
