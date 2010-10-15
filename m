@@ -1,177 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7E6F76B017C
-	for <linux-mm@kvack.org>; Thu, 14 Oct 2010 20:43:53 -0400 (EDT)
-Date: Fri, 15 Oct 2010 02:42:40 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Transparent Hugepage Support #31
-Message-ID: <20101015004240.GI5770@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 81E146B017D
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 04:11:53 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9F8BpG9013926
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 15 Oct 2010 17:11:51 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CC5745DE51
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:11:51 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CDA0E45DE53
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:11:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B5D5E1DB8049
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:11:50 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 578231DB804B
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 17:11:50 +0900 (JST)
+Date: Fri, 15 Oct 2010 17:06:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/2] memcg: some updates to move_account and file_stat
+ races
+Message-Id: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Adam Litke <agl@us.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hugh.dickins@tiscali.co.uk>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Mike Travis <travis@sgi.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Chris Wright <chrisw@sous-sol.org>, bpicco@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Chris Mason <chris.mason@oracle.com>, Borislav Petkov <bp@alien8.de>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-http://www.linux-kvm.org/wiki/images/9/9e/2010-forum-thp.pdf
 
-http://git.kernel.org/?p=linux/kernel/git/andrea/aa.git;a=shortlog
+At implementing dirty page accounting support, one of problem is that
+PG_writeback update can be called in IRQ context. So, following kind of dead-lock
+can be considered.
 
-first: git clone git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-or first: git clone --reference linux-2.6 git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git
-later: git fetch; git checkout -f origin/master
+  lock_page_cgroup()
+	<--------------- IRQ
+			  try to update Writeback state of memcg
+		          lock_page_cgroup()
+			  DEAD LOCK
 
-The tree is rebased and git pull won't work.
+To avoid this, one idea is IRQ disabling in lock_page_cgroup() but our concern is
+it's too heavy. 
 
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.36-rc/7transparent_hugepage-31/
-http://www.kernel.org/pub/linux/kernel/people/andrea/patches/v2.6/2.6.36-rc7/transparent_hugepage-31.gz
+Considering more, there are facts
+  -  why update_file_stat() has to take lock_page_cgroup() is just for avoiding
+     race with move_account(). There are no race with charge/uncharge.
 
-Diff #30 -> #31:
+So, this series adds a new lock for mutual exection of move_account() and
+update_file_stat(). This lock is always taken under IRQ disable.
+This adds new lock to move_account()....so this makes move_account() slow.
+It's a trade-off to be considered.
 
- b/ksmd-khugepaged-freeze                     |   35 ++++-
 
-Sleep in wait_event_freezable.
+This series contains 2 patches. One is a trial to performance improvement,
+next one is adding a new lock.
+They are independent from each other.
+All are onto mmotm-1014 + removing memcg-reduce-lock-hold-time-during-charge-moving.patch
 
- b/pte_alloc_trans_splitting                  |   24 +++-
+Scores on my box at moving 8GB anon process.
 
-Fix build problem with INTEL_TXT=y. (problem found by Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com>)
+== mmotm ==
+root@bluextal kamezawa]# time echo 2530 > /cgroup/B/tasks
 
- b/transhuge_mapcount_debug                   |   34 +++++
+real    0m0.792s
+user    0m0.000s
+sys     0m0.780s
 
-Add two VM_BUG_ON to verify invariants.
+== After patch 1==
+[root@bluextal kamezawa]# time echo 2257 > /cgroup/B/tasks
 
- b/transparent-hugepage-per-node-meminfo      |   54 +++++++++
+real    0m0.694s
+user    0m0.000s
+sys     0m0.683s
 
-Provide per-node meminfo from David Rientjes <rientjes@google.com>.
+[After Patch #2]
+[root@bluextal kamezawa]# time echo 2238 > /cgroup/B/tasks
 
- b/transparent_hugepage                       |   19 +--
+real    0m0.741s
+user    0m0.000s
+sys     0m0.730s
 
-Fix memleak in case of fork vs split_huge_page race.
+Any comments/advices are welcome.
 
-Move a VM_BUG_ON inside a spinlock to avoid false positives.
+Thanks,
+-Kame
 
- b/transparent_hugepage_vmstat-anon_vma-chain |   12 --
 
-Fix /proc/vmstat when TRANSPARENT_HUGEPAGE=n (problem found by Anton
-Blanchard <anton@samba.org>).
-
- b/vma_adjust_trans_huge                      |  161 +++++++++++++++++++++++++++
-
-A race condition could occur if qemu-kvm extends the vma when at least
-one ptes before vma-extension wasn't null, then khugepaged could
-collapse an hugepage before the KSM madvise run. Unlike most madvise
-that can work on anonymous memory (like MADV_DONTNEED calling
-zap_page_range that in turn will call split_huge_page_pmd) there is no
-pte mangling done whatsoever by the ksm_madvise, it just splits the
-vma in a way that can't fit an hugepage anymore, but without calling
-split_huge_page. That would then lead to a later fork to run
-copy_huge_pmd twice on the same hugepage (so boosting the mapcount
-twice). That would later trip a BUG_ON in split_huge_page when process
-quits as the number of hugepmd found by the rmap walk would be lower
-than the page_mapcount. No memory corruption or data corruption could
-happen and in fact this would result in memleak if there wasn't such
-BUG_ON. split_huge_page is very strict, changes for something to go
-wrong unnoticed are very low.
-
-For triggering it takes a combination of khugepaged just at the wrong
-time plus a combination of KSM madvise, and finally fork.
-
-Similar invariant breakage (leading to copy_huge_pmd running twice on
-the same hugepage) could have happened in case things like munmap run
-in the middle of a vma would succeed the first split_vma but fail the
-second one (no pte mangling would be invoked and the effect of the
-first succeeded split_vma wouldn't be rolled back).
-
-Fixing this from inside vma_adjust takes care of every one of these
-cases with a one liner change to mmap.c (that is optimized away at
-compile time if TRANSPARENT_HUGEPAGE=n).
-
- compaction-migration-warning                 |   25 ----
- free_pages-count                             |   60 ----------
- free_pages-drain_all_pages                   |   62 ----------
- free_pages-vmstat                            |  156 --------------------------
- swapin-race-conditions                       |  152 -------------------------
-
-merged upstream.
-
-Full diffstat:
-
- Documentation/vm/transhuge.txt        |  283 ++++
- arch/alpha/include/asm/mman.h         |    2 
- arch/mips/include/asm/mman.h          |    2 
- arch/parisc/include/asm/mman.h        |    2 
- arch/powerpc/mm/gup.c                 |   12 
- arch/x86/include/asm/kvm_host.h       |    1 
- arch/x86/include/asm/paravirt.h       |   23 
- arch/x86/include/asm/paravirt_types.h |    6 
- arch/x86/include/asm/pgtable-2level.h |    9 
- arch/x86/include/asm/pgtable-3level.h |   23 
- arch/x86/include/asm/pgtable.h        |  149 ++
- arch/x86/include/asm/pgtable_64.h     |   28 
- arch/x86/include/asm/pgtable_types.h  |    3 
- arch/x86/kernel/paravirt.c            |    3 
- arch/x86/kernel/tboot.c               |    2 
- arch/x86/kernel/vm86_32.c             |    1 
- arch/x86/kvm/mmu.c                    |   60 
- arch/x86/kvm/paging_tmpl.h            |    4 
- arch/x86/mm/gup.c                     |   28 
- arch/x86/mm/pgtable.c                 |   66 
- arch/xtensa/include/asm/mman.h        |    2 
- drivers/base/node.c                   |   21 
- fs/Kconfig                            |    2 
- fs/exec.c                             |   44 
- fs/proc/meminfo.c                     |   14 
- fs/proc/page.c                        |   14 
- include/asm-generic/mman-common.h     |    2 
- include/asm-generic/pgtable.h         |  130 +
- include/linux/compaction.h            |   13 
- include/linux/gfp.h                   |   14 
- include/linux/huge_mm.h               |  170 ++
- include/linux/khugepaged.h            |   66 
- include/linux/kvm_host.h              |    4 
- include/linux/memory_hotplug.h        |   14 
- include/linux/mm.h                    |  114 +
- include/linux/mm_inline.h             |   19 
- include/linux/mm_types.h              |    3 
- include/linux/mmu_notifier.h          |   66 
- include/linux/mmzone.h                |    1 
- include/linux/page-flags.h            |   36 
- include/linux/sched.h                 |    1 
- include/linux/swap.h                  |    2 
- kernel/fork.c                         |   12 
- kernel/futex.c                        |   55 
- mm/Kconfig                            |   38 
- mm/Makefile                           |    1 
- mm/compaction.c                       |   48 
- mm/huge_memory.c                      | 2291 ++++++++++++++++++++++++++++++++++
- mm/hugetlb.c                          |   69 -
- mm/ksm.c                              |   52 
- mm/madvise.c                          |    8 
- mm/memcontrol.c                       |  138 +-
- mm/memory-failure.c                   |    2 
- mm/memory.c                           |  198 ++
- mm/memory_hotplug.c                   |   14 
- mm/mempolicy.c                        |   14 
- mm/migrate.c                          |   12 
- mm/mincore.c                          |    7 
- mm/mmap.c                             |    7 
- mm/mmu_notifier.c                     |   20 
- mm/mprotect.c                         |   20 
- mm/mremap.c                           |    8 
- mm/page_alloc.c                       |   31 
- mm/pagewalk.c                         |    1 
- mm/rmap.c                             |  115 -
- mm/sparse.c                           |    4 
- mm/swap.c                             |  117 +
- mm/swap_state.c                       |    6 
- mm/swapfile.c                         |    2 
- mm/vmscan.c                           |   89 -
- mm/vmstat.c                           |    1 
- virt/kvm/iommu.c                      |    2 
- virt/kvm/kvm_main.c                   |   56 
- 73 files changed, 4486 insertions(+), 411 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
