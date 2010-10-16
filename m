@@ -1,76 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0CB575F0047
-	for <linux-mm@kvack.org>; Fri, 15 Oct 2010 18:36:07 -0400 (EDT)
-Received: by qyk7 with SMTP id 7so2317485qyk.14
-        for <linux-mm@kvack.org>; Fri, 15 Oct 2010 15:36:06 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id E471E6B0195
+	for <linux-mm@kvack.org>; Sat, 16 Oct 2010 00:33:25 -0400 (EDT)
+Received: by pzk1 with SMTP id 1so306514pzk.14
+        for <linux-mm@kvack.org>; Fri, 15 Oct 2010 21:33:19 -0700 (PDT)
+Date: Sat, 16 Oct 2010 12:33:31 +0800
+From: Dave Young <hidave.darkstar@gmail.com>
+Subject: [PATCH 1/2] Add vzalloc shortcut
+Message-ID: <20101016043331.GA3177@darkstar>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1010151211040.24683@router.home>
-References: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101015171109.d4575c95.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.DEB.2.00.1010151211040.24683@router.home>
-Date: Sat, 16 Oct 2010 07:36:05 +0900
-Message-ID: <AANLkTimNqAwb88kG2r4BkukhG7nutDHPXKqaAON687uT@mail.gmail.com>
-Subject: Re: [RFC][PATCH 1/2] memcg: avoiding unnecessary get_page at move_charge
-From: Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-2010/10/16 Christoph Lameter <cl@linux.com>:
-> On Fri, 15 Oct 2010, KAMEZAWA Hiroyuki wrote:
->
->> But above is called all under pte_offset_map_lock().
->> get_page_unless_zero() #1 is not necessary because we do all under a
->> pte_offset_map_lock().
->
-> The two (ptl and refcount) are entirely different. The ptl is for
-> protecting the page table. The refcount handles only the page.
->
-> However, if the entry in the page table is pointing to the page then ther=
-e
-> must have been a refcount taken on the page. So if you know that the page
-> is in the page table and you took the ptl then you can be sure that the
-> page refcount will not become zero. Therefore get_page_unless_zero() will
-> never fail and there is no need to take additional refcounts as long as
-> the page table lock is held and the page is not removed from the page
-> table.
->
+Add vzalloc for convinience of vmalloc-then-memset-zero case 
 
-Ok, thank you for explanation. I can make this function faster.
+Use __GFP_ZERO in vzalloc to zero fill the allocated memory.
 
->> Index: mmotm-1013/mm/vmscan.c
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- mmotm-1013.orig/mm/vmscan.c
->> +++ mmotm-1013/mm/vmscan.c
->> @@ -1166,7 +1166,8 @@ static unsigned long clear_active_flags(
->> =A0 * found will be decremented.
->> =A0 *
->> =A0 * Restrictions:
->> - * (1) Must be called with an elevated refcount on the page. This is a
->> + * (1) Must be called with an elevated refcount on the page, IOW, the
->> + * =A0 =A0 caller must guarantee that there is a stable reference. This=
- is a
->> =A0 * =A0 =A0 fundamentnal difference from isolate_lru_pages (which is c=
-alled
->> =A0 * =A0 =A0 without a stable reference).
->> =A0 * (2) the lru_lock must not be held.
->
-> There is no need for this change since you have an elevated refcount.
-> IMH The words "stable reference" may be confusing since the refcount may
-> change. The elevated refcount protects against the freeing of the page.
->
+Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
+---
+ include/linux/vmalloc.h |    1 +
+ mm/vmalloc.c            |   13 +++++++++++++
+ 2 files changed, 14 insertions(+)
 
-Sure, drop change this in v2. I misunderstand "elevated refcount"
-means "extra get_page()".
-
-Thanks,
--Kame
+--- linux-2.6.orig/include/linux/vmalloc.h	2010-08-22 15:31:38.000000000 +0800
++++ linux-2.6/include/linux/vmalloc.h	2010-10-16 10:50:54.739996121 +0800
+@@ -53,6 +53,7 @@ static inline void vmalloc_init(void)
+ #endif
+ 
+ extern void *vmalloc(unsigned long size);
++extern void *vzalloc(unsigned long size);
+ extern void *vmalloc_user(unsigned long size);
+ extern void *vmalloc_node(unsigned long size, int node);
+ extern void *vmalloc_exec(unsigned long size);
+--- linux-2.6.orig/mm/vmalloc.c	2010-08-22 15:31:39.000000000 +0800
++++ linux-2.6/mm/vmalloc.c	2010-10-16 10:51:57.126665918 +0800
+@@ -1604,6 +1604,19 @@ void *vmalloc(unsigned long size)
+ EXPORT_SYMBOL(vmalloc);
+ 
+ /**
++ *	vzalloc  -  allocate virtually contiguous memory with zero filled
++ *	@size:		allocation size
++ *	Allocate enough pages to cover @size from the page level
++ *	allocator and map them into contiguous kernel virtual space.
++ */
++void *vzalloc(unsigned long size)
++{
++	return __vmalloc_node(size, 1, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
++				PAGE_KERNEL, -1, __builtin_return_address(0));
++}
++EXPORT_SYMBOL(vzalloc);
++
++/**
+  * vmalloc_user - allocate zeroed virtually contiguous memory for userspace
+  * @size: allocation size
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
