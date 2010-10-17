@@ -1,46 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 737CC6B00F0
-	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 06:44:18 -0400 (EDT)
-Message-ID: <4CBAD36B.4020507@redhat.com>
-Date: Sun, 17 Oct 2010 12:43:55 +0200
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 00A666B00CB
+	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 12:13:59 -0400 (EDT)
+Date: Sun, 17 Oct 2010 18:13:42 +0200
+From: Gleb Natapov <gleb@redhat.com>
 Subject: Re: [PATCH v7 03/12] Retry fault before vmentry
-References: <1287048176-2563-1-git-send-email-gleb@redhat.com> <1287048176-2563-4-git-send-email-gleb@redhat.com> <4CBAD111.3070406@redhat.com>
-In-Reply-To: <4CBAD111.3070406@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20101017161342.GB16865@redhat.com>
+References: <1287048176-2563-1-git-send-email-gleb@redhat.com>
+ <1287048176-2563-4-git-send-email-gleb@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1287048176-2563-4-git-send-email-gleb@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-  On 10/17/2010 12:33 PM, Avi Kivity wrote:
->  On 10/14/2010 11:22 AM, Gleb Natapov wrote:
->> When page is swapped in it is mapped into guest memory only after guest
->> tries to access it again and generate another fault. To save this fault
->> we can map it immediately since we know that guest is going to access
->> the page. Do it only when tdp is enabled for now. Shadow paging case is
->> more complicated. CR[034] and EFER registers should be switched before
->> doing mapping and then switched back.
->>
->> +void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct 
->> kvm_async_pf *work)
->> +{
->> +    if (!vcpu->arch.mmu.direct_map || is_error_page(work->page))
->> +        return;
->> +    vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
->> +}
->
-> Missing mmu_topup_memory_caches().
->
+When page is swapped in it is mapped into guest memory only after guest
+tries to access it again and generate another fault. To save this fault
+we can map it immediately since we know that guest is going to access
+the page. Do it only when tdp is enabled for now. Shadow paging case is
+more complicated. CR[034] and EFER registers should be switched before
+doing mapping and then switched back.
 
-Actually not.  tdp_page_fault() has its own topup.
+Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Gleb Natapov <gleb@redhat.com>
+---
 
+Please use this one instead. Need to call kvm_mmu_reload() in kvm_arch_async_page_ready()
 
--- 
-error compiling committee.c: too many arguments to function
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 043e29e..96aca44 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -241,7 +241,7 @@ struct kvm_mmu {
+ 	void (*new_cr3)(struct kvm_vcpu *vcpu);
+ 	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
+ 	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
+-	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
++	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err, bool no_apf);
+ 	void (*inject_page_fault)(struct kvm_vcpu *vcpu);
+ 	void (*free)(struct kvm_vcpu *vcpu);
+ 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access,
+@@ -839,6 +839,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+ 				     struct kvm_async_pf *work);
+ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
+ 				 struct kvm_async_pf *work);
++void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
++			       struct kvm_async_pf *work);
+ extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
+ 
+ #endif /* _ASM_X86_KVM_HOST_H */
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index f01e89a..11d152b 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2568,7 +2568,7 @@ static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
+ }
+ 
+ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
+-				u32 error_code)
++				u32 error_code, bool no_apf)
+ {
+ 	gfn_t gfn;
+ 	int r;
+@@ -2604,8 +2604,8 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
+ 	return kvm_x86_ops->interrupt_allowed(vcpu);
+ }
+ 
+-static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+-			 pfn_t *pfn)
++static bool try_async_pf(struct kvm_vcpu *vcpu, bool no_apf, gfn_t gfn,
++			 gva_t gva, pfn_t *pfn)
+ {
+ 	bool async;
+ 
+@@ -2616,7 +2616,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+ 
+ 	put_page(pfn_to_page(*pfn));
+ 
+-	if (can_do_async_pf(vcpu)) {
++	if (!no_apf && can_do_async_pf(vcpu)) {
+ 		trace_kvm_try_async_get_page(async, *pfn);
+ 		if (kvm_find_async_pf_gfn(vcpu, gfn)) {
+ 			trace_kvm_async_pf_doublefault(gva, gfn);
+@@ -2631,8 +2631,8 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, gfn_t gfn, gva_t gva,
+ 	return false;
+ }
+ 
+-static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+-				u32 error_code)
++static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
++			  bool no_apf)
+ {
+ 	pfn_t pfn;
+ 	int r;
+@@ -2654,7 +2654,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+-	if (try_async_pf(vcpu, gfn, gpa, &pfn))
++	if (try_async_pf(vcpu, no_apf, gfn, gpa, &pfn))
+ 		return 0;
+ 
+ 	/* mmio */
+@@ -3317,7 +3317,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
+ 	int r;
+ 	enum emulation_result er;
+ 
+-	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
++	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
+ 	if (r < 0)
+ 		goto out;
+ 
+diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
+index c45376d..d6b281e 100644
+--- a/arch/x86/kvm/paging_tmpl.h
++++ b/arch/x86/kvm/paging_tmpl.h
+@@ -527,8 +527,8 @@ out_gpte_changed:
+  *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
+  *           a negative value on error.
+  */
+-static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+-			       u32 error_code)
++static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
++			     bool no_apf)
+ {
+ 	int write_fault = error_code & PFERR_WRITE_MASK;
+ 	int user_fault = error_code & PFERR_USER_MASK;
+@@ -569,7 +569,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
+ 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+ 	smp_rmb();
+ 
+-	if (try_async_pf(vcpu, walker.gfn, addr, &pfn))
++	if (try_async_pf(vcpu, no_apf, walker.gfn, addr, &pfn))
+ 		return 0;
+ 
+ 	/* mmio */
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 09e72fc..9b178ee 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6131,6 +6131,20 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
+ }
+ EXPORT_SYMBOL_GPL(kvm_set_rflags);
+ 
++void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu, struct kvm_async_pf *work)
++{
++	int r;
++
++	if (!vcpu->arch.mmu.direct_map || is_error_page(work->page))
++		return;
++
++	r = kvm_mmu_reload(vcpu);
++	if (unlikely(r))
++		return;
++
++	vcpu->arch.mmu.page_fault(vcpu, work->gva, 0, true);
++}
++
+ static inline u32 kvm_async_pf_hash_fn(gfn_t gfn)
+ {
+ 	return hash_32(gfn & 0xffffffff, order_base_2(ASYNC_PF_PER_VCPU));
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index 857d634..e97eae9 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -132,6 +132,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
+ 	list_del(&work->link);
+ 	spin_unlock(&vcpu->async_pf.lock);
+ 
++	if (work->page)
++		kvm_arch_async_page_ready(vcpu, work);
+ 	kvm_arch_async_page_present(vcpu, work);
+ 
+ 	list_del(&work->queue);
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
