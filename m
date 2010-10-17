@@ -1,94 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7092F6B0171
-	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 00:50:47 -0400 (EDT)
-Received: by iwn1 with SMTP id 1so3259021iwn.14
-        for <linux-mm@kvack.org>; Sat, 16 Oct 2010 21:50:45 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 512426B0171
+	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 01:33:52 -0400 (EDT)
+Received: by iwn1 with SMTP id 1so3285165iwn.14
+        for <linux-mm@kvack.org>; Sat, 16 Oct 2010 22:33:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20101016043331.GA3177@darkstar>
-References: <20101016043331.GA3177@darkstar>
-Date: Sun, 17 Oct 2010 13:50:45 +0900
-Message-ID: <AANLkTik8Sn9Pr+C32Wd6-XgXu=21NQ56C8D+WqsqoK5j@mail.gmail.com>
-Subject: Re: [PATCH 1/2] Add vzalloc shortcut
+In-Reply-To: <20101015171225.70d4ca8f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20101015171225.70d4ca8f.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sun, 17 Oct 2010 14:33:50 +0900
+Message-ID: <AANLkTimDRuE9oBpj6h13wFKazuOzOm8UbFdM+qhbc0On@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/2] memcg: new lock for mutual execution of
+ account_move and file stats
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Dave Young <hidave.darkstar@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Nick Piggin <npiggin@kernel.dk>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 16, 2010 at 1:33 PM, Dave Young <hidave.darkstar@gmail.com> wro=
-te:
-> Add vzalloc for convinience of vmalloc-then-memset-zero case
+On Fri, Oct 15, 2010 at 5:12 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 >
-> Use __GFP_ZERO in vzalloc to zero fill the allocated memory.
-Looks good to me.
-
-There are many place we need this.
-Although it affects meta pages for vmalloc as well as data pages, it's
-not a big.
-In this case, Maintaining code simple is better than little bit
-performance overhead.
-
+> When we try to enhance page's status update to support other flags,
+> one of problem is updating status from IRQ context.
 >
-> Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Now, mem_cgroup_update_file_stat() takes lock_page_cgroup() to avoid
+> race with _account move_. IOW, there are no races with charge/uncharge
+> in nature. Considering an update from IRQ context, it seems better
+> to disable IRQ at lock_page_cgroup() to avoid deadlock.
+>
+> But lock_page_cgroup() is used too widerly and adding IRQ disable
+> there makes the performance bad. To avoid the big hammer, this patch
+> adds a new lock for update_stat().
+>
+> This lock is for mutual execustion of updating stat and accout moving.
+> This adds a new lock to move_account..so, this makes move_account slow.
+> But considering trade-off, I think it's acceptable.
+>
+> A score of moving 8GB anon pages, 8cpu Xeon(3.1GHz) is here.
+>
+> [before patch] (mmotm + optimization patch (#1 in this series)
+> [root@bluextal kamezawa]# time echo 2257 > /cgroup/B/tasks
+>
+> real =A0 =A00m0.694s
+> user =A0 =A00m0.000s
+> sys =A0 =A0 0m0.683s
+>
+> [After patch]
+> [root@bluextal kamezawa]# time echo 2238 > /cgroup/B/tasks
+>
+> real =A0 =A00m0.741s
+> user =A0 =A00m0.000s
+> sys =A0 =A0 0m0.730s
+>
+> This moves 8Gbytes =3D=3D 2048k pages. But no bad effects to codes
+> other than "move".
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Isn't it useful in nommu, either?
-
+It looks good than old approach.
+Just a below nitpick.
 
 > ---
-> =A0include/linux/vmalloc.h | =A0 =A01 +
-> =A0mm/vmalloc.c =A0 =A0 =A0 =A0 =A0 =A0| =A0 13 +++++++++++++
-> =A02 files changed, 14 insertions(+)
+> =A0include/linux/page_cgroup.h | =A0 29 +++++++++++++++++++++++++++++
+> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 11 +++++++++--
+> =A02 files changed, 38 insertions(+), 2 deletions(-)
 >
-> --- linux-2.6.orig/include/linux/vmalloc.h =A0 =A0 =A02010-08-22 15:31:38=
-.000000000 +0800
-> +++ linux-2.6/include/linux/vmalloc.h =A0 2010-10-16 10:50:54.739996121 +=
-0800
-> @@ -53,6 +53,7 @@ static inline void vmalloc_init(void)
-> =A0#endif
->
-> =A0extern void *vmalloc(unsigned long size);
-> +extern void *vzalloc(unsigned long size);
-> =A0extern void *vmalloc_user(unsigned long size);
-> =A0extern void *vmalloc_node(unsigned long size, int node);
-> =A0extern void *vmalloc_exec(unsigned long size);
-> --- linux-2.6.orig/mm/vmalloc.c 2010-08-22 15:31:39.000000000 +0800
-> +++ linux-2.6/mm/vmalloc.c =A0 =A0 =A02010-10-16 10:51:57.126665918 +0800
-> @@ -1604,6 +1604,19 @@ void *vmalloc(unsigned long size)
-> =A0EXPORT_SYMBOL(vmalloc);
->
-> =A0/**
-> + * =A0 =A0 vzalloc =A0- =A0allocate virtually contiguous memory with zer=
-o filled
-> + * =A0 =A0 @size: =A0 =A0 =A0 =A0 =A0allocation size
-> + * =A0 =A0 Allocate enough pages to cover @size from the page level
-> + * =A0 =A0 allocator and map them into contiguous kernel virtual space.
-> + */
-> +void *vzalloc(unsigned long size)
-> +{
-> + =A0 =A0 =A0 return __vmalloc_node(size, 1, GFP_KERNEL | __GFP_HIGHMEM |=
- __GFP_ZERO,
-> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 PAGE_KERNEL=
-, -1, __builtin_return_address(0));
-> +}
-> +EXPORT_SYMBOL(vzalloc);
-> +
-> +/**
-> =A0* vmalloc_user - allocate zeroed virtually contiguous memory for users=
-pace
-> =A0* @size: allocation size
-> =A0*
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
->
+> Index: mmotm-1013/include/linux/page_cgroup.h
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- mmotm-1013.orig/include/linux/page_cgroup.h
+> +++ mmotm-1013/include/linux/page_cgroup.h
+> @@ -36,6 +36,7 @@ struct page_cgroup *lookup_page_cgroup(s
+> =A0enum {
+> =A0 =A0 =A0 =A0/* flags for mem_cgroup */
+> =A0 =A0 =A0 =A0PCG_LOCK, =A0/* page cgroup is locked */
+> + =A0 =A0 =A0 PCG_LOCK_STATS, /* page cgroup's stat accounting flags are =
+locked */
+
+Hmm, I think naming isn't a good. Aren't both for stat?
+As I understand, Both are used for stat.
+One is just used by charge/uncharge and the other is used by
+pdate_file_stat/move_account.
+If you guys who are expert in mcg feel it with easy, I am not against.
+But at least, mcg-not-familiar people like me don't feel it comfortable.
+
+
 
 
 
