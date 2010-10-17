@@ -1,98 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DE1436B0171
-	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 01:35:48 -0400 (EDT)
-Received: by iwn1 with SMTP id 1so3286298iwn.14
-        for <linux-mm@kvack.org>; Sat, 16 Oct 2010 22:35:47 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 9040F6B00AF
+	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 01:56:22 -0400 (EDT)
+Received: by iwn1 with SMTP id 1so3298292iwn.14
+        for <linux-mm@kvack.org>; Sat, 16 Oct 2010 22:56:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <AANLkTimDRuE9oBpj6h13wFKazuOzOm8UbFdM+qhbc0On@mail.gmail.com>
-References: <20101015170627.e5033fa4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101015171225.70d4ca8f.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTimDRuE9oBpj6h13wFKazuOzOm8UbFdM+qhbc0On@mail.gmail.com>
-Date: Sun, 17 Oct 2010 14:35:47 +0900
-Message-ID: <AANLkTikTMhf9NrLxdrw4Sqi8QiqaVOcfVBQWZWw6s6Vw@mail.gmail.com>
-Subject: Re: [RFC][PATCH 2/2] memcg: new lock for mutual execution of
- account_move and file stats
+In-Reply-To: <1287177279-30876-5-git-send-email-gthelen@google.com>
+References: <1287177279-30876-1-git-send-email-gthelen@google.com>
+	<1287177279-30876-5-git-send-email-gthelen@google.com>
+Date: Sun, 17 Oct 2010 14:56:20 +0900
+Message-ID: <AANLkTimosH8egHCY1BJ_8DisweJDm1VwxXJ=sGzxUJJe@mail.gmail.com>
+Subject: Re: [PATCH v2 04/11] memcg: disable softirq in lock_page_cgroup()
 From: Minchan Kim <minchan.kim@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, Greg Thelen <gthelen@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 17, 2010 at 2:33 PM, Minchan Kim <minchan.kim@gmail.com> wrote:
-> On Fri, Oct 15, 2010 at 5:12 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> When we try to enhance page's status update to support other flags,
->> one of problem is updating status from IRQ context.
->>
->> Now, mem_cgroup_update_file_stat() takes lock_page_cgroup() to avoid
->> race with _account move_. IOW, there are no races with charge/uncharge
->> in nature. Considering an update from IRQ context, it seems better
->> to disable IRQ at lock_page_cgroup() to avoid deadlock.
->>
->> But lock_page_cgroup() is used too widerly and adding IRQ disable
->> there makes the performance bad. To avoid the big hammer, this patch
->> adds a new lock for update_stat().
->>
->> This lock is for mutual execustion of updating stat and accout moving.
->> This adds a new lock to move_account..so, this makes move_account slow.
->> But considering trade-off, I think it's acceptable.
->>
->> A score of moving 8GB anon pages, 8cpu Xeon(3.1GHz) is here.
->>
->> [before patch] (mmotm + optimization patch (#1 in this series)
->> [root@bluextal kamezawa]# time echo 2257 > /cgroup/B/tasks
->>
->> real =A0 =A00m0.694s
->> user =A0 =A00m0.000s
->> sys =A0 =A0 0m0.683s
->>
->> [After patch]
->> [root@bluextal kamezawa]# time echo 2238 > /cgroup/B/tasks
->>
->> real =A0 =A00m0.741s
->> user =A0 =A00m0.000s
->> sys =A0 =A0 0m0.730s
->>
->> This moves 8Gbytes =3D=3D 2048k pages. But no bad effects to codes
->> other than "move".
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Sat, Oct 16, 2010 at 6:14 AM, Greg Thelen <gthelen@google.com> wrote:
+> If pages are being migrated from a memcg, then updates to that
+> memcg's page statistics are protected by grabbing a bit spin lock
+> using lock_page_cgroup(). =A0In an upcoming commit memcg dirty page
+> accounting will be updating memcg page accounting (specifically:
+> num writeback pages) from softirq. =A0Avoid a deadlocking nested
+> spin lock attempt by disabling softirq on the local processor
+> when grabbing the page_cgroup bit_spin_lock in lock_page_cgroup().
+> This avoids the following deadlock:
+> statistic
+> =A0 =A0 =A0CPU 0 =A0 =A0 =A0 =A0 =A0 =A0 CPU 1
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0inc_file_mapped
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_read_lock
+> =A0start move
+> =A0synchronize_rcu
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lock_page_cgroup
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0softirq
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0test_clear_page_writeback
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0mem_cgroup_dec_page_stat(NR_WR=
+ITEBACK)
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_read_lock
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0lock_page_cgroup =A0 /* deadlo=
+ck */
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unlock_page_cgroup
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_read_unlock
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unlock_page_cgroup
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0rcu_read_unlock
 >
-> It looks good than old approach.
-> Just a below nitpick.
+> By disabling softirq in lock_page_cgroup, nested calls are avoided.
+> The softirq would be delayed until after inc_file_mapped enables
+> softirq when calling unlock_page_cgroup().
 >
->> ---
->> =A0include/linux/page_cgroup.h | =A0 29 +++++++++++++++++++++++++++++
->> =A0mm/memcontrol.c =A0 =A0 =A0 =A0 =A0 =A0 | =A0 11 +++++++++--
->> =A02 files changed, 38 insertions(+), 2 deletions(-)
->>
->> Index: mmotm-1013/include/linux/page_cgroup.h
->> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
->> --- mmotm-1013.orig/include/linux/page_cgroup.h
->> +++ mmotm-1013/include/linux/page_cgroup.h
->> @@ -36,6 +36,7 @@ struct page_cgroup *lookup_page_cgroup(s
->> =A0enum {
->> =A0 =A0 =A0 =A0/* flags for mem_cgroup */
->> =A0 =A0 =A0 =A0PCG_LOCK, =A0/* page cgroup is locked */
->> + =A0 =A0 =A0 PCG_LOCK_STATS, /* page cgroup's stat accounting flags are=
- locked */
+> The normal, fast path, of memcg page stat updates typically
+> does not need to call lock_page_cgroup(), so this change does
+> not affect the performance of the common case page accounting.
 >
-> Hmm, I think naming isn't a good. Aren't both for stat?
-> As I understand, Both are used for stat.
-> One is just used by charge/uncharge and the other is used by
-> pdate_file_stat/move_account.
-> If you guys who are expert in mcg feel it with easy, I am not against.
-> But at least, mcg-not-familiar people like me don't feel it comfortable.
+> Signed-off-by: Andrea Righi <arighi@develer.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+> ---
+> =A0include/linux/page_cgroup.h | =A0 =A06 ++++++
+> =A01 files changed, 6 insertions(+), 0 deletions(-)
+>
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index b59c298..0585546 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -3,6 +3,8 @@
+>
+> =A0#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> =A0#include <linux/bit_spinlock.h>
+> +#include <linux/hardirq.h>
+> +
+> =A0/*
+> =A0* Page Cgroup can be considered as an extended mem_map.
+> =A0* A page_cgroup page is associated with every page descriptor. The
+> @@ -119,12 +121,16 @@ static inline enum zone_type page_cgroup_zid(struct=
+ page_cgroup *pc)
+>
+> =A0static inline void lock_page_cgroup(struct page_cgroup *pc)
+> =A0{
+> + =A0 =A0 =A0 /* This routine is only deadlock safe from softirq or lower=
+. */
+> + =A0 =A0 =A0 VM_BUG_ON(in_irq());
+> + =A0 =A0 =A0 local_bh_disable();
+> =A0 =A0 =A0 =A0bit_spin_lock(PCG_LOCK, &pc->flags);
+> =A0}
+>
+> =A0static inline void unlock_page_cgroup(struct page_cgroup *pc)
+> =A0{
+> =A0 =A0 =A0 =A0bit_spin_unlock(PCG_LOCK, &pc->flags);
+> + =A0 =A0 =A0 local_bh_enable();
+> =A0}
+>
+> =A0#else /* CONFIG_CGROUP_MEM_RES_CTLR */
+> --
+> 1.7.1
+>
 >
 
-And I think this patch would be better to be part of Greg Thelen's series.
+Please, see recent Kame's patch.
+http://lkml.org/lkml/2010/10/15/54
 
 --=20
 Kind regards,
