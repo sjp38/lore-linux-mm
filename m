@@ -1,161 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7C8B56B00BA
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 12:09:31 -0400 (EDT)
-Date: Mon, 18 Oct 2010 13:34:03 -0200
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [PATCH v7 00/12] KVM: Add host swap event notifications for PV
- guest
-Message-ID: <20101018153402.GA2067@amt.cnet>
-References: <1287048176-2563-1-git-send-email-gleb@redhat.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 04F0B6B00DB
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 12:15:26 -0400 (EDT)
+Date: Tue, 19 Oct 2010 00:15:04 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+Message-ID: <20101018161504.GB29500@localhost>
+References: <20100915091118.3dbdc961@notabene>
+ <4C90139A.1080809@redhat.com>
+ <20100915122334.3fa7b35f@notabene>
+ <20100915082843.GA17252@localhost>
+ <20100915184434.18e2d933@notabene>
+ <20101018151459.2b443221@notabene>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1287048176-2563-1-git-send-email-gleb@redhat.com>
+In-Reply-To: <20101018151459.2b443221@notabene>
 Sender: owner-linux-mm@kvack.org
-To: Gleb Natapov <gleb@redhat.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org
+To: Neil Brown <neilb@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 14, 2010 at 11:22:44AM +0200, Gleb Natapov wrote:
-> KVM virtualizes guest memory by means of shadow pages or HW assistance
-> like NPT/EPT. Not all memory used by a guest is mapped into the guest
-> address space or even present in a host memory at any given time.
-> When vcpu tries to access memory page that is not mapped into the guest
-> address space KVM is notified about it. KVM maps the page into the guest
-> address space and resumes vcpu execution. If the page is swapped out from
-> the host memory vcpu execution is suspended till the page is swapped
-> into the memory again. This is inefficient since vcpu can do other work
-> (run other task or serve interrupts) while page gets swapped in.
+On Mon, Oct 18, 2010 at 12:14:59PM +0800, Neil Brown wrote:
+> On Wed, 15 Sep 2010 18:44:34 +1000
+> Neil Brown <neilb@suse.de> wrote:
 > 
-> The patch series tries to mitigate this problem by introducing two
-> mechanisms. The first one is used with non-PV guest and it works like
-> this: when vcpu tries to access swapped out page it is halted and
-> requested page is swapped in by another thread. That way vcpu can still
-> process interrupts while io is happening in parallel and, with any luck,
-> interrupt will cause the guest to schedule another task on the vcpu, so
-> it will have work to do instead of waiting for the page to be swapped in.
+> > On Wed, 15 Sep 2010 16:28:43 +0800
+> > Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > 
+> > > Neil,
+> > > 
+> > > Sorry for the rushed and imaginary ideas this morning..
+> > > 
+> > > > @@ -1101,6 +1101,12 @@ static unsigned long shrink_inactive_lis
+> > > >  	int lumpy_reclaim = 0;
+> > > >  
+> > > >  	while (unlikely(too_many_isolated(zone, file, sc))) {
+> > > > +		if ((sc->gfp_mask & GFP_IOFS) != GFP_IOFS)
+> > > > +			/* Not allowed to do IO, so mustn't wait
+> > > > +			 * on processes that might try to
+> > > > +			 */
+> > > > +			return SWAP_CLUSTER_MAX;
+> > > > +
+> > > 
+> > > The above patch should behavior like this: it returns SWAP_CLUSTER_MAX
+> > > to cheat all the way up to believe "enough pages have been reclaimed".
+> > > So __alloc_pages_direct_reclaim() see non-zero *did_some_progress and
+> > > go on to call get_page_from_freelist(). That normally fails because
+> > > the task didn't really scanned the LRU lists. However it does have the
+> > > possibility to succeed -- when so many processes are doing concurrent
+> > > direct reclaims, it may luckily get one free page reclaimed by other
+> > > tasks. What's more, if it does fail to get a free page, the upper
+> > > layer __alloc_pages_slowpath() will be repeat recalling
+> > > __alloc_pages_direct_reclaim(). So, sooner or later it will succeed in
+> > > "stealing" a free page reclaimed by other tasks.
+> > > 
+> > > In summary, the patch behavior for !__GFP_IO/FS is
+> > > - won't do any page reclaim
+> > > - won't fail the page allocation (unexpected)
+> > > - will wait and steal one free page from others (unreasonable)
+> > > 
+> > > So it will address the problem you encountered, however it sounds
+> > > pretty unexpected and illogical behavior, right?
+> > > 
+> > > I believe this patch will address the problem equally well.
+> > > What do you think?
+> > 
+> > Thank you for the detailed explanation.  Is agree with your reasoning and
+> > now understand why your patch is sufficient.
+> > 
+> > I will get it tested and let you know how that goes.
 > 
-> The second mechanism introduces PV notification about swapped page state to
-> a guest (asynchronous page fault). Instead of halting vcpu upon access to
-> swapped out page and hoping that some interrupt will cause reschedule we
-> immediately inject asynchronous page fault to the vcpu.  PV aware guest
-> knows that upon receiving such exception it should schedule another task
-> to run on the vcpu. Current task is put to sleep until another kind of
-> asynchronous page fault is received that notifies the guest that page
-> is now in the host memory, so task that waits for it can run again.
+> (sorry this has taken a month to follow up).
 > 
-> To measure performance benefits I use a simple benchmark program (below)
-> that starts number of threads. Some of them do work (increment counter),
-> others access huge array in random location trying to generate host page
-> faults. The size of the array is smaller then guest memory bug bigger
-> then host memory so we are guarantied that host will swap out part of
-> the array.
-> 
-> I ran the benchmark on three setups: with current kvm.git (master),
-> with my patch series + non-pv guest (nonpv) and with my patch series +
-> pv guest (pv).
-> 
-> Each guest had 4 cpus and 2G memory and was launched inside 512M memory
-> container. The command line was "./bm -f 4 -w 4 -t 60" (run 4 faulting
-> threads and 4 working threads for a minute).
-> 
-> Below is the total amount of "work" each guest managed to do
-> (average of 10 runs):
->          total work    std error
-> master: 122789420615 (3818565029)
-> nonpv:  138455939001 (773774299)
-> pv:     234351846135 (10461117116)
-> 
-> Changes:
->  v1->v2
->    Use MSR instead of hypercall.
->    Move most of the code into arch independent place.
->    halt inside a guest instead of doing "wait for page" hypercall if
->     preemption is disabled.
->  v2->v3
->    Use MSR from range 0x4b564dxx.
->    Add slot version tracking.
->    Support migration by restarting all guest processes after migration.
->    Drop patch that tract preemptability for non-preemptable kernels
->     due to performance concerns. Send async PF to non-preemptable
->     guests only when vcpu is executing userspace code.
->  v3->v4
->   Provide alternative page fault handler in PV guest instead of adding hook to
->    standard page fault handler and patch it out on non-PV guests.
->   Allow only limited number of outstanding async page fault per vcpu.
->   Unify  gfn_to_pfn and gfn_to_pfn_async code.
->   Cancel outstanding slow work on reset.
->  v4->v5
->   Move async pv cpu initialization into cpu hotplug notifier.
->   Use GFP_NOWAIT instead of GFP_ATOMIC for allocation that shouldn't sleep
->   Process KVM_REQ_MMU_SYNC even in page_fault_other_cr3() before changing
->    cr3 back
->  v5->v6
->   To many. Will list only major changes here.
->   Replace slow work with work queues.
->   Halt vcpu for non-pv guests.
->   Handle async PF in nested SVM mode.
->   Do not prefault swapped in page for non tdp case.
->  v6->v7
->   Fix "GUP fail in work thread" problem
->   Do prefault only if mmu is in direct map mode
->   Use cpu->request to ask for vcpu halt (drop optimization that tried to
->    skip non-present apf injection if page is swapped in before next vmentry)
->   Keep track of synthetic halt in separate state to prevent it from leaking
->    during migration.
->   Fix memslot tracking problems.
->   More documentation.
->   Other small comments are addressed
-> 
-> Gleb Natapov (12):
->   Add get_user_pages() variant that fails if major fault is required.
->   Halt vcpu if page it tries to access is swapped out.
->   Retry fault before vmentry
->   Add memory slot versioning and use it to provide fast guest write interface
->   Move kvm_smp_prepare_boot_cpu() from kvmclock.c to kvm.c.
->   Add PV MSR to enable asynchronous page faults delivery.
->   Add async PF initialization to PV guest.
->   Handle async PF in a guest.
->   Inject asynchronous page fault into a PV guest if page is swapped out.
->   Handle async PF in non preemptable context
->   Let host know whether the guest can handle async PF in non-userspace context.
->   Send async PF when guest is not in userspace too.
-> 
->  Documentation/kernel-parameters.txt |    3 +
->  Documentation/kvm/cpuid.txt         |    3 +
->  Documentation/kvm/msr.txt           |   36 ++++-
->  arch/x86/include/asm/kvm_host.h     |   28 +++-
->  arch/x86/include/asm/kvm_para.h     |   24 +++
->  arch/x86/include/asm/traps.h        |    1 +
->  arch/x86/kernel/entry_32.S          |   10 +
->  arch/x86/kernel/entry_64.S          |    3 +
->  arch/x86/kernel/kvm.c               |  315 +++++++++++++++++++++++++++++++++++
->  arch/x86/kernel/kvmclock.c          |   13 +--
->  arch/x86/kvm/Kconfig                |    1 +
->  arch/x86/kvm/Makefile               |    1 +
->  arch/x86/kvm/mmu.c                  |   61 ++++++-
->  arch/x86/kvm/paging_tmpl.h          |    8 +-
->  arch/x86/kvm/svm.c                  |   45 ++++-
->  arch/x86/kvm/x86.c                  |  192 +++++++++++++++++++++-
->  fs/ncpfs/mmap.c                     |    2 +
->  include/linux/kvm.h                 |    1 +
->  include/linux/kvm_host.h            |   39 +++++
->  include/linux/kvm_types.h           |    7 +
->  include/linux/mm.h                  |    5 +
->  include/trace/events/kvm.h          |   95 +++++++++++
->  mm/filemap.c                        |    3 +
->  mm/memory.c                         |   31 +++-
->  mm/shmem.c                          |    8 +-
->  virt/kvm/Kconfig                    |    3 +
->  virt/kvm/async_pf.c                 |  213 +++++++++++++++++++++++
->  virt/kvm/async_pf.h                 |   36 ++++
->  virt/kvm/kvm_main.c                 |  132 ++++++++++++---
->  29 files changed, 1255 insertions(+), 64 deletions(-)
->  create mode 100644 virt/kvm/async_pf.c
->  create mode 100644 virt/kvm/async_pf.h
+> Testing shows that this patch seems to work.
+> The test load (essentially kernbench) doesn't deadlock any more, though it
 
-Applied, thanks.
+Good news, thanks for the test!
+
+> does get bogged down thrashing in swap so it doesn't make a lot more
+> progress :-)  I guess that is to be expected.
+ 
+The patch does allow more isolated pages, which may lead to more
+pressure on the LRU lists and hence swapping (or vmscan file writes?).
+
+> One observation is that the kernbench generated 10%-20% more context switches
+> with the patch than without.  Is that to be expected?
+
+It's total number of context switches? It may be due to the increased
+swapping as well.
+
+> Do you have plans for sending this patch upstream?
+
+Would you help try the modified patch? It tries to reduce the number
+of isolated pages. Hope it helps reduce the thrashing. I also noticed
+that the original patch only covers the GFP_NOIO case and missed GFP_NOFS.
+
+Thanks,
+Fengguang
+---
+Subject: mm: Avoid possible deadlock caused by too_many_isolated()
+From: Wu Fengguang <fengguang.wu@intel.com>
+Date: Wed Sep 15 15:36:19 CST 2010
+
+Neil find that if too_many_isolated() returns true while performing
+direct reclaim we can end up waiting for other threads to complete their
+direct reclaim.  If those threads are allowed to enter the FS or IO to
+free memory, but this thread is not, then it is possible that those
+threads will be waiting on this thread and so we get a circular
+deadlock.
+
+some task enters direct reclaim with GFP_KERNEL
+  => too_many_isolated() false
+    => vmscan and run into dirty pages
+      => pageout()
+        => take some FS lock
+	  => fs/block code does GFP_NOIO allocation
+	    => enter direct reclaim again
+	      => too_many_isolated() true
+		=> waiting for others to progress, however the other
+		   tasks may be circular waiting for the FS lock..
+
+The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
+priority than normal ones, by honouring them higher throttle threshold.
+
+Now !GFP_IOFS reclaims won't be waiting for GFP_IOFS reclaims to
+progress. They will be blocked only when there are too many concurrent
+!GFP_IOFS reclaims, however that's very unlikely because the IO-less
+direct reclaims is able to progress much more faster, and they won't
+deadlock each other. The threshold is raised high enough for them, so
+that there can be sufficient parallel progress of !GFP_IOFS reclaims.
+
+Reported-by: NeilBrown <neilb@suse.de>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/vmscan.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- linux-next.orig/mm/vmscan.c	2010-10-13 12:35:14.000000000 +0800
++++ linux-next/mm/vmscan.c	2010-10-19 00:13:04.000000000 +0800
+@@ -1163,6 +1163,13 @@ static int too_many_isolated(struct zone
+ 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
+ 	}
+ 
++	/*
++	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so that
++	 * they won't get blocked by normal ones and form circular deadlock.
++	 */
++	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
++		inactive >>= 3;
++
+ 	return isolated > inactive;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
