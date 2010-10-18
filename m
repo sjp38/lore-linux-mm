@@ -1,74 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DEDD46B00DC
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:13:47 -0400 (EDT)
-Date: Mon, 18 Oct 2010 13:13:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-In-Reply-To: <20101013141455.GQ30667@csn.ul.ie>
-Message-ID: <alpine.DEB.2.00.1010181305000.2092@router.home>
-References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <alpine.DEB.2.00.1010061054410.31538@router.home> <20101013141455.GQ30667@csn.ul.ie>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B50C6B00D5
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 15:10:36 -0400 (EDT)
+Message-ID: <20101018191034.21165.qmail@kosh.dhis.org>
+From: pacman@kosh.dhis.org
+Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
+Date: Mon, 18 Oct 2010 14:10:33 -0500 (GMT+5)
+In-Reply-To: <20101018113331.GB30667@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Oct 2010, Mel Gorman wrote:
+Mel Gorman writes:
+> 
+> A bit but I still don't know why it would cause corruption. Maybe this is still
+> a caching issue but the difference in timing between list_add and list_add_tail
+> is enough to hide the bug. It's also possible there are some registers
+> ioremapped after the memmap array and reading them is causing some
+> problem.
 
-> Minimally, I see the same sort of hackbench socket performance regression
-> as reported elsewhere (10-15% regression). Otherwise, it isn't particularly
-> exciting results. The machine is very basic - 2 socket, 4 cores, x86-64,
-> 2G RAM. Macine model is an IBM BladeCenter HS20. Processor is Xeon but I'm
-> not sure exact what model. It appears to be from around the P4 times.
+I've been doing a lot more tests and I'm sure that 6dda9d55 is not really
+responsible. It just happens to provoke the bug in my particular setup.
+Whatever it is, it's very sensitive to small changes.
 
-Looks not good. Something must still be screwed up. Trouble is to find
-time to do this work. When working on SLAB we had a team to implement the
-NUMA stuff and deal with the performance issues.
+At the end of free_all_bootmem, the free list for order 9 has 4 entries.
+Which one is at the head of the list depends on whether 6dda9d55 is applied
+or not. If page number 130048 is at the head of the list, it gets used fairly
+soon, and everything's fine. The alternative is that page number 64512 is at
+the head of the list, so it gets used fairly soon, and corruption occurs.
 
-> Christoph, in particular while it tests netperf, it is not binding to any
-> particular CPU (although it can), server and client are running on the local
-> machine (which has particular performance characterisitcs of its own) and
-> the tests is STREAM, not RR so the tarball is not a replacement for more
-> targetting testing or workload-specific testing. Still, it should catch
-> some of the common snags before getting into specific workloads without
-> taking an extraordinary amount of time to complete. sysbench might take a
-> long time for many-core machines, limit the number of threads it tests with
-> OLTP_MAX_THREADS in the config file.
+> 
+> Andrew, what is the right thing to do here? We could flail around looking
+> for explanations as to why the bug causes a user buffer corruption but never
+> get an answer or do we go with this patch, preferably before 2.6.36 releases?
 
-That should not matter too much. The performance results should replicate
-SLABs caching behavior and I do not see that in the tests.
+I've been flailing around quite a bit. Here's my latest result:
 
-> NETPERF UDP
->                    netperf-udp       netperf-udp          udp-slub
->                   slab-vanilla      slub-vanilla      unified-v4r1
->       64    52.23 ( 0.00%)*    53.80 ( 2.92%)     50.56 (-3.30%)               1.36%             1.00%             1.00%
->      128   103.70 ( 0.00%)    107.43 ( 3.47%)    101.23 (-2.44%)
->      256   208.62 ( 0.00%)*   212.15 ( 1.66%)    202.35 (-3.10%)               1.73%             1.00%             1.00%
->     1024   814.86 ( 0.00%)    827.42 ( 1.52%)    799.13 (-1.97%)
->     2048  1585.65 ( 0.00%)   1614.76 ( 1.80%)   1563.52 (-1.42%)
->     3312  2512.44 ( 0.00%)   2556.70 ( 1.73%)   2460.37 (-2.12%)
->     4096  3016.81 ( 0.00%)*  3058.16 ( 1.35%)   2901.87 (-3.96%)               1.15%             1.00%             1.00%
->     8192  5384.46 ( 0.00%)   5092.95 (-5.72%)   4912.71 (-9.60%)
->    16384  8091.96 ( 0.00%)*  8249.26 ( 1.91%)   8004.40 (-1.09%)               1.70%             1.00%             1.00%
+Since I can view the corruption with md5sum /sbin/e2fsck, I know it's in a
+clean cached page. So I made an extra copy of /sbin/e2fsck, which won't be
+loaded into memory during boot. So now after the corruption happens, I can
+  cmp -l /sbin/e2fsck good-e2fsck
+for a quick look at the changed bytes. Much easier than provoking a segfault
+under gdb.
 
+Then I got really creative and wrote a cmp replacement which mmaps the files
+and reports the physical addresses from /proc/self/pagemap of the pages that
+don't match. And the consistent result is that physical pages 64604 and 64609
+(both in the range of the order=9 64512) have wrong contents. And the
+corruption is always a single word 128 bytes after the start of the page.
+Physical addresses 0x0fc5c080 and 0x0fc61080 are hit every time.
 
-Seems that we lost some of the netperf wins.
+The values of the corrupted words, observed in 5 consecutive boots, were:
+  at 0fc5c080   at 0fc61080
+  -----------   -----------
+  c3540000      92510000
+  565c0000      23590000
+  c85b0000      97580000
+  d15f0000      9e5c0000
+  d95b0000      a8580000
 
-> SYSBENCH
->             sysbench-slab-vanilla-sysbenchsysbench-slub-vanilla-sysbench     sysbench-slub
->                   slab-vanilla      slub-vanilla      unified-v4r1
->            1  7521.24 ( 0.00%)  7719.38 ( 2.57%)  7589.13 ( 0.89%)
->            2 14872.85 ( 0.00%) 15275.09 ( 2.63%) 15054.08 ( 1.20%)
->            3 16502.53 ( 0.00%) 16676.53 ( 1.04%) 16465.69 (-0.22%)
->            4 17831.19 ( 0.00%) 17900.09 ( 0.38%) 17819.03 (-0.07%)
->            5 18158.40 ( 0.00%) 18432.74 ( 1.49%) 18341.99 ( 1.00%)
->            6 18673.68 ( 0.00%) 18878.41 ( 1.08%) 18614.92 (-0.32%)
->            7 17689.75 ( 0.00%) 17871.89 ( 1.02%) 17633.19 (-0.32%)
->            8 16885.68 ( 0.00%) 16838.37 (-0.28%) 16498.41 (-2.35%)
+The low 16 bits are all 0 and the upper 16 bits seem randomly distributed.
+But look at the differences:
 
-Same here. Seems that we combined the worst of both.
+  c3540000 - 92510000 = 31030000
+  565c0000 - 23590000 = 33030000
+  c85b0000 - 97580000 = 31030000
+  d15f0000 - 9e5c0000 = 33030000
+  d95b0000 - a8580000 = 31030000
+
+This means something... but I don't know what.
+
+In a completely different method of investigation, I went back a few stable
+kernels, got 2.6.33.7 and applied 6dda9d55 to it, thinking that if 6dda9d55
+only reveals a pre-existing bug, I could bisect it using 6dda9d55 as a
+bug-revealing assistant. The bug appeared when running 2.6.33.7 with 6dda9d55
+applied. That was discouraging.
+
+>This patch fixes the problem by ensuring we are not reading a possibly
+>invalid location of memory. It's not clear why the read causes
+>corruption but one way or the other it is a buggy read.
+
+At least that part of the explanation is wrong. Where's the buggy read?
+The action taken by the 6dda9d55 version of __free_one_page looks perfectly
+legitimate to me. Page numbers:
+
+[129024       ] [130048       ]   order=10
+[129024 129536] [130048 130560]   order=9
+
+130048 is being freed. 130560 is not free. 129024 (the higher_buddy) is
+already free at order=10. So 130048 is being pushed to the tail of the free
+list, on the speculation that 130560 might soon be free and then the whole
+thing will form an order=11 free page, the only problem being that order=11
+is too high so that later merge will never happen. It's not useful, and maybe
+not conceptually valid to say that 129024 is the buddy of 130048, but it is
+an existing page, and the only way it wouldn't be is if the total memory size
+was not a multiple of 1<<(MAX_ORDER-1) pages
+
+-- 
+Alan Curry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
