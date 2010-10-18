@@ -1,206 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BAB936B00DB
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:09:43 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
-References: <1286175485-30643-1-git-send-email-gthelen@google.com>
-	<20101018145636.806446aa.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 18 Oct 2010 11:09:26 -0700
-In-Reply-To: <20101018145636.806446aa.kamezawa.hiroyu@jp.fujitsu.com>
-	(KAMEZAWA Hiroyuki's message of "Mon, 18 Oct 2010 14:56:36 +0900")
-Message-ID: <xr93d3r79xux.fsf@ninji.mtv.corp.google.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DEDD46B00DC
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:13:47 -0400 (EDT)
+Date: Mon, 18 Oct 2010 13:13:42 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
+In-Reply-To: <20101013141455.GQ30667@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.1010181305000.2092@router.home>
+References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <alpine.DEB.2.00.1010061054410.31538@router.home> <20101013141455.GQ30667@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> writes:
+On Wed, 13 Oct 2010, Mel Gorman wrote:
 
-> On Sun,  3 Oct 2010 23:57:55 -0700
-> Greg Thelen <gthelen@google.com> wrote:
->
->> Greg Thelen (10):
->>   memcg: add page_cgroup flags for dirty page tracking
->>   memcg: document cgroup dirty memory interfaces
->>   memcg: create extensible page stat update routines
->>   memcg: disable local interrupts in lock_page_cgroup()
->>   memcg: add dirty page accounting infrastructure
->>   memcg: add kernel calls for memcg dirty page stats
->>   memcg: add dirty limits to mem_cgroup
->>   memcg: add cgroupfs interface to memcg dirty limits
->>   writeback: make determine_dirtyable_memory() static.
->>   memcg: check memcg dirty limits in page writeback
->
-> Greg, this is a patch on your set.
->
->  mmotm-1014 
->  - memcg-reduce-lock-hold-time-during-charge-moving.patch
->    (I asked Andrew to drop this)
->  + your 1,2,3,5,6,7,8,9,10 (dropped patch "4")
->
-> I'm grad if you merge this to your set as replacement of "4".
-> I'll prepare a performance improvement patch and post it if this dirty_limit
-> patches goes to -mm.
+> Minimally, I see the same sort of hackbench socket performance regression
+> as reported elsewhere (10-15% regression). Otherwise, it isn't particularly
+> exciting results. The machine is very basic - 2 socket, 4 cores, x86-64,
+> 2G RAM. Macine model is an IBM BladeCenter HS20. Processor is Xeon but I'm
+> not sure exact what model. It appears to be from around the P4 times.
 
-Thanks for the patch.  I will merge your patch (below) as a replacement
-of memcg dirty limits patch #4 and repost the entire series.
+Looks not good. Something must still be screwed up. Trouble is to find
+time to do this work. When working on SLAB we had a team to implement the
+NUMA stuff and deal with the performance issues.
 
-> Thank you for your work.
->
-> ==
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Now, at supporing dirty limit, there is a deadlock problem in accounting.
->
->  1. If pages are being migrated from a memcg, then updates to that
-> memcg page statistics are protected by grabbing a bit spin lock
-> using lock_page_cgroup().  In recent changes of dirty page accounting
-> is updating memcg page accounting (specifically: num writeback pages)
-> from IRQ context (softirq).  Avoid a deadlocking nested spin lock attempt
-> by irq on the local processor when grabbing the page_cgroup.
->
->  2. lock for update_stat is used only for avoiding race with move_account().
-> So, IRQ awareness of lock_page_cgroup() itself is not a problem. The problem
-> is in update_stat() and move_account().
->
-> Then, this reworks locking scheme of update_stat() and move_account() by
-> adding new lock bit PCG_MOVE_LOCK, which is always taken under IRQ disable.
->
-> Trade-off
->   * using lock_page_cgroup() + disable IRQ has some impacts on performance
->     and I think it's bad to disable IRQ when it's not necessary.
->   * adding a new lock makes move_account() slow. Score is here.
->
-> Peformance Impact: moving a 8G anon process.
->
-> Before:
-> 	real    0m0.792s
-> 	user    0m0.000s
-> 	sys     0m0.780s
->
-> After:
-> 	real    0m0.854s
-> 	user    0m0.000s
-> 	sys     0m0.842s
->
-> This score is bad but planned patches for optimization can reduce
-> this impact.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/page_cgroup.h |   31 ++++++++++++++++++++++++++++---
->  mm/memcontrol.c             |    9 +++++++--
->  2 files changed, 35 insertions(+), 5 deletions(-)
->
-> Index: dirty_limit_new/include/linux/page_cgroup.h
-> ===================================================================
-> --- dirty_limit_new.orig/include/linux/page_cgroup.h
-> +++ dirty_limit_new/include/linux/page_cgroup.h
-> @@ -35,15 +35,18 @@ struct page_cgroup *lookup_page_cgroup(s
->  
->  enum {
->  	/* flags for mem_cgroup */
-> -	PCG_LOCK,  /* page cgroup is locked */
-> +	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
->  	PCG_CACHE, /* charged as cache */
->  	PCG_USED, /* this object is in use. */
-> -	PCG_ACCT_LRU, /* page has been accounted for */
-> +	PCG_MIGRATION, /* under page migration */
-> +	/* flags for mem_cgroup and file and I/O status */
-> +	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
->  	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
->  	PCG_FILE_DIRTY, /* page is dirty */
->  	PCG_FILE_WRITEBACK, /* page is under writeback */
->  	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
-> -	PCG_MIGRATION, /* under page migration */
-> +	/* No lock in page_cgroup */
-> +	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
->  };
->  
->  #define TESTPCGFLAG(uname, lname)			\
-> @@ -119,6 +122,10 @@ static inline enum zone_type page_cgroup
->  
->  static inline void lock_page_cgroup(struct page_cgroup *pc)
->  {
-> +	/*
-> +	 * Don't take this lock in IRQ context.
-> +	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
-> +	 */
->  	bit_spin_lock(PCG_LOCK, &pc->flags);
->  }
->  
-> @@ -127,6 +134,24 @@ static inline void unlock_page_cgroup(st
->  	bit_spin_unlock(PCG_LOCK, &pc->flags);
->  }
->  
-> +static inline void move_lock_page_cgroup(struct page_cgroup *pc,
-> +	unsigned long *flags)
-> +{
-> +	/*
-> +	 * We know updates to pc->flags of page cache's stats are from both of
-> +	 * usual context or IRQ context. Disable IRQ to avoid deadlock.
-> +	 */
-> +	local_irq_save(*flags);
-> +	bit_spin_lock(PCG_MOVE_LOCK, &pc->flags);
-> +}
-> +
-> +static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
-> +	unsigned long *flags)
-> +{
-> +	bit_spin_unlock(PCG_MOVE_LOCK, &pc->flags);
-> +	local_irq_restore(*flags);
-> +}
-> +
->  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
->  struct page_cgroup;
->  
-> Index: dirty_limit_new/mm/memcontrol.c
-> ===================================================================
-> --- dirty_limit_new.orig/mm/memcontrol.c
-> +++ dirty_limit_new/mm/memcontrol.c
-> @@ -1784,6 +1784,7 @@ void mem_cgroup_update_page_stat(struct 
->  	struct mem_cgroup *mem;
->  	struct page_cgroup *pc = lookup_page_cgroup(page);
->  	bool need_unlock = false;
-> +	unsigned long uninitialized_var(flags);
->  
->  	if (unlikely(!pc))
->  		return;
-> @@ -1795,7 +1796,7 @@ void mem_cgroup_update_page_stat(struct 
->  	/* pc->mem_cgroup is unstable ? */
->  	if (unlikely(mem_cgroup_stealed(mem))) {
->  		/* take a lock against to access pc->mem_cgroup */
-> -		lock_page_cgroup(pc);
-> +		move_lock_page_cgroup(pc, &flags);
->  		need_unlock = true;
->  		mem = pc->mem_cgroup;
->  		if (!mem || !PageCgroupUsed(pc))
-> @@ -1856,7 +1857,7 @@ void mem_cgroup_update_page_stat(struct 
->  
->  out:
->  	if (unlikely(need_unlock))
-> -		unlock_page_cgroup(pc);
-> +		move_unlock_page_cgroup(pc, &flags);
->  	rcu_read_unlock();
->  	return;
->  }
-> @@ -2426,9 +2427,13 @@ static int mem_cgroup_move_account(struc
->  		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
->  {
->  	int ret = -EINVAL;
-> +	unsigned long flags;
-> +
->  	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-> +		move_lock_page_cgroup(pc, &flags);
->  		__mem_cgroup_move_account(pc, from, to, uncharge);
-> +		move_unlock_page_cgroup(pc, &flags);
->  		ret = 0;
->  	}
->  	unlock_page_cgroup(pc);
+> Christoph, in particular while it tests netperf, it is not binding to any
+> particular CPU (although it can), server and client are running on the local
+> machine (which has particular performance characterisitcs of its own) and
+> the tests is STREAM, not RR so the tarball is not a replacement for more
+> targetting testing or workload-specific testing. Still, it should catch
+> some of the common snags before getting into specific workloads without
+> taking an extraordinary amount of time to complete. sysbench might take a
+> long time for many-core machines, limit the number of threads it tests with
+> OLTP_MAX_THREADS in the config file.
+
+That should not matter too much. The performance results should replicate
+SLABs caching behavior and I do not see that in the tests.
+
+> NETPERF UDP
+>                    netperf-udp       netperf-udp          udp-slub
+>                   slab-vanilla      slub-vanilla      unified-v4r1
+>       64    52.23 ( 0.00%)*    53.80 ( 2.92%)     50.56 (-3.30%)               1.36%             1.00%             1.00%
+>      128   103.70 ( 0.00%)    107.43 ( 3.47%)    101.23 (-2.44%)
+>      256   208.62 ( 0.00%)*   212.15 ( 1.66%)    202.35 (-3.10%)               1.73%             1.00%             1.00%
+>     1024   814.86 ( 0.00%)    827.42 ( 1.52%)    799.13 (-1.97%)
+>     2048  1585.65 ( 0.00%)   1614.76 ( 1.80%)   1563.52 (-1.42%)
+>     3312  2512.44 ( 0.00%)   2556.70 ( 1.73%)   2460.37 (-2.12%)
+>     4096  3016.81 ( 0.00%)*  3058.16 ( 1.35%)   2901.87 (-3.96%)               1.15%             1.00%             1.00%
+>     8192  5384.46 ( 0.00%)   5092.95 (-5.72%)   4912.71 (-9.60%)
+>    16384  8091.96 ( 0.00%)*  8249.26 ( 1.91%)   8004.40 (-1.09%)               1.70%             1.00%             1.00%
+
+
+Seems that we lost some of the netperf wins.
+
+> SYSBENCH
+>             sysbench-slab-vanilla-sysbenchsysbench-slub-vanilla-sysbench     sysbench-slub
+>                   slab-vanilla      slub-vanilla      unified-v4r1
+>            1  7521.24 ( 0.00%)  7719.38 ( 2.57%)  7589.13 ( 0.89%)
+>            2 14872.85 ( 0.00%) 15275.09 ( 2.63%) 15054.08 ( 1.20%)
+>            3 16502.53 ( 0.00%) 16676.53 ( 1.04%) 16465.69 (-0.22%)
+>            4 17831.19 ( 0.00%) 17900.09 ( 0.38%) 17819.03 (-0.07%)
+>            5 18158.40 ( 0.00%) 18432.74 ( 1.49%) 18341.99 ( 1.00%)
+>            6 18673.68 ( 0.00%) 18878.41 ( 1.08%) 18614.92 (-0.32%)
+>            7 17689.75 ( 0.00%) 17871.89 ( 1.02%) 17633.19 (-0.32%)
+>            8 16885.68 ( 0.00%) 16838.37 (-0.28%) 16498.41 (-2.35%)
+
+Same here. Seems that we combined the worst of both.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
