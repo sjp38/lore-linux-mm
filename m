@@ -1,51 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0942B200015
-	for <linux-mm@kvack.org>; Sun, 17 Oct 2010 21:00:09 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9I107Fj030170
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 18 Oct 2010 10:00:07 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D578545DE81
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 10:00:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7FA845DE6F
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 10:00:05 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 59B24EF800C
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 10:00:05 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CF9071DB803F
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 10:00:04 +0900 (JST)
-Date: Mon, 18 Oct 2010 09:54:36 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH v2 10/11] writeback: make determine_dirtyable_memory()
- static.
-Message-Id: <20101018095436.bb08bf2e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1287177279-30876-11-git-send-email-gthelen@google.com>
-References: <1287177279-30876-1-git-send-email-gthelen@google.com>
-	<1287177279-30876-11-git-send-email-gthelen@google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 194E96B00B3
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 00:15:15 -0400 (EDT)
+Date: Mon, 18 Oct 2010 15:14:59 +1100
+From: Neil Brown <neilb@suse.de>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+Message-ID: <20101018151459.2b443221@notabene>
+In-Reply-To: <20100915184434.18e2d933@notabene>
+References: <20100915091118.3dbdc961@notabene>
+	<4C90139A.1080809@redhat.com>
+	<20100915122334.3fa7b35f@notabene>
+	<20100915082843.GA17252@localhost>
+	<20100915184434.18e2d933@notabene>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Oct 2010 14:14:38 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On Wed, 15 Sep 2010 18:44:34 +1000
+Neil Brown <neilb@suse.de> wrote:
 
-> The determine_dirtyable_memory() function is not used outside of
-> page writeback.  Make the routine static.  No functional change.
-> Just a cleanup in preparation for a change that adds memcg dirty
-> limits consideration into global_dirty_limits().
+> On Wed, 15 Sep 2010 16:28:43 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
+> > Neil,
+> > 
+> > Sorry for the rushed and imaginary ideas this morning..
+> > 
+> > > @@ -1101,6 +1101,12 @@ static unsigned long shrink_inactive_lis
+> > >  	int lumpy_reclaim = 0;
+> > >  
+> > >  	while (unlikely(too_many_isolated(zone, file, sc))) {
+> > > +		if ((sc->gfp_mask & GFP_IOFS) != GFP_IOFS)
+> > > +			/* Not allowed to do IO, so mustn't wait
+> > > +			 * on processes that might try to
+> > > +			 */
+> > > +			return SWAP_CLUSTER_MAX;
+> > > +
+> > 
+> > The above patch should behavior like this: it returns SWAP_CLUSTER_MAX
+> > to cheat all the way up to believe "enough pages have been reclaimed".
+> > So __alloc_pages_direct_reclaim() see non-zero *did_some_progress and
+> > go on to call get_page_from_freelist(). That normally fails because
+> > the task didn't really scanned the LRU lists. However it does have the
+> > possibility to succeed -- when so many processes are doing concurrent
+> > direct reclaims, it may luckily get one free page reclaimed by other
+> > tasks. What's more, if it does fail to get a free page, the upper
+> > layer __alloc_pages_slowpath() will be repeat recalling
+> > __alloc_pages_direct_reclaim(). So, sooner or later it will succeed in
+> > "stealing" a free page reclaimed by other tasks.
+> > 
+> > In summary, the patch behavior for !__GFP_IO/FS is
+> > - won't do any page reclaim
+> > - won't fail the page allocation (unexpected)
+> > - will wait and steal one free page from others (unreasonable)
+> > 
+> > So it will address the problem you encountered, however it sounds
+> > pretty unexpected and illogical behavior, right?
+> > 
+> > I believe this patch will address the problem equally well.
+> > What do you think?
+> 
+> Thank you for the detailed explanation.  Is agree with your reasoning and
+> now understand why your patch is sufficient.
+> 
+> I will get it tested and let you know how that goes.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+(sorry this has taken a month to follow up).
+
+Testing shows that this patch seems to work.
+The test load (essentially kernbench) doesn't deadlock any more, though it
+does get bogged down thrashing in swap so it doesn't make a lot more
+progress :-)  I guess that is to be expected.
+
+One observation is that the kernbench generated 10%-20% more context switches
+with the patch than without.  Is that to be expected?
+
+Do you have plans for sending this patch upstream?
+
+Thanks,
+NeilBrown
+
+
+> 
+> Thanks,
+> NeilBrown
+> 
+> 
+> > 
+> > Thanks,
+> > Fengguang
+> > ---
+> > 
+> > mm: Avoid possible deadlock caused by too_many_isolated()
+> > 
+> > Neil finds that if too_many_isolated() returns true while performing
+> > direct reclaim we can end up waiting for other threads to complete their
+> > direct reclaim.  If those threads are allowed to enter the FS or IO to
+> > free memory, but this thread is not, then it is possible that those
+> > threads will be waiting on this thread and so we get a circular
+> > deadlock.
+> > 
+> > some task enters direct reclaim with GFP_KERNEL
+> >   => too_many_isolated() false
+> >     => vmscan and run into dirty pages
+> >       => pageout()
+> >         => take some FS lock
+> > 	  => fs/block code does GFP_NOIO allocation
+> > 	    => enter direct reclaim again
+> > 	      => too_many_isolated() true
+> > 		=> waiting for others to progress, however the other
+> > 		   tasks may be circular waiting for the FS lock..
+> > 
+> > The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
+> > priority than normal ones, by honouring them higher throttle threshold.
+> > 
+> > Now !__GFP_IO/FS reclaims won't be waiting for __GFP_IO/FS reclaims to
+> > progress. They will be blocked only when there are too many concurrent
+> > !__GFP_IO/FS reclaims, however that's very unlikely because the IO-less
+> > direct reclaims is able to progress much more faster, and they won't
+> > deadlock each other. The threshold is raised high enough for them, so
+> > that there can be sufficient parallel progress of !__GFP_IO/FS reclaims.
+> > 
+> > Reported-by: NeilBrown <neilb@suse.de>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  mm/vmscan.c |    5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > 
+> > --- linux-next.orig/mm/vmscan.c	2010-09-15 11:58:58.000000000 +0800
+> > +++ linux-next/mm/vmscan.c	2010-09-15 15:36:14.000000000 +0800
+> > @@ -1141,36 +1141,39 @@ int isolate_lru_page(struct page *page)
+> >  	return ret;
+> >  }
+> >  
+> >  /*
+> >   * Are there way too many processes in the direct reclaim path already?
+> >   */
+> >  static int too_many_isolated(struct zone *zone, int file,
+> >  		struct scan_control *sc)
+> >  {
+> >  	unsigned long inactive, isolated;
+> > +	int ratio;
+> >  
+> >  	if (current_is_kswapd())
+> >  		return 0;
+> >  
+> >  	if (!scanning_global_lru(sc))
+> >  		return 0;
+> >  
+> >  	if (file) {
+> >  		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+> >  		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+> >  	} else {
+> >  		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
+> >  		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
+> >  	}
+> >  
+> > -	return isolated > inactive;
+> > +	ratio = sc->gfp_mask & (__GFP_IO | __GFP_FS) ? 1 : 8;
+> > +
+> > +	return isolated > inactive * ratio;
+> >  }
+> >  
+> >  /*
+> >   * TODO: Try merging with migrations version of putback_lru_pages
+> >   */
+> >  static noinline_for_stack void
+> >  putback_lru_pages(struct zone *zone, struct scan_control *sc,
+> >  				unsigned long nr_anon, unsigned long nr_file,
+> >  				struct list_head *page_list)
+> >  {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
