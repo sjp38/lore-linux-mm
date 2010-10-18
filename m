@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 42F5E6B00B1
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 06:58:20 -0400 (EDT)
-Received: by gwj21 with SMTP id 21so335547gwj.14
-        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 03:58:18 -0700 (PDT)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DA86E6B00B1
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 07:08:44 -0400 (EDT)
+Date: Mon, 18 Oct 2010 12:08:29 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when
+	per cpu page cache flushed
+Message-ID: <20101018110829.GZ30667@csn.ul.ie>
+References: <20101013160640.ADC9.A69D9226@jp.fujitsu.com> <20101013132246.GO30667@csn.ul.ie> <20101014114541.8B89.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20101018151459.2b443221@notabene>
-References: <20100915091118.3dbdc961@notabene>
-	<4C90139A.1080809@redhat.com>
-	<20100915122334.3fa7b35f@notabene>
-	<20100915082843.GA17252@localhost>
-	<20100915184434.18e2d933@notabene>
-	<20101018151459.2b443221@notabene>
-Date: Mon, 18 Oct 2010 12:58:17 +0200
-Message-ID: <AANLkTimv_zXHdFDGa9ecgXyWmQynOKTDRPC59PZA9mvL@mail.gmail.com>
-Subject: Re: Deadlock possibly caused by too_many_isolated.
-From: Torsten Kaiser <just.for.lkml@googlemail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20101014114541.8B89.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Neil Brown <neilb@suse.de>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Shaohua <shaohua.li@intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 18, 2010 at 6:14 AM, Neil Brown <neilb@suse.de> wrote:
-> Testing shows that this patch seems to work.
-> The test load (essentially kernbench) doesn't deadlock any more, though i=
-t
-> does get bogged down thrashing in swap so it doesn't make a lot more
-> progress :-) =A0I guess that is to be expected.
+On Thu, Oct 14, 2010 at 11:50:28AM +0900, KOSAKI Motohiro wrote:
+> > On Wed, Oct 13, 2010 at 04:10:43PM +0900, KOSAKI Motohiro wrote:
+> > > When memory shortage, we are using drain_pages() for flushing per cpu
+> > > page cache. In this case, per cpu stat should be flushed too. because
+> > > now we are under memory shortage and we need to know exact free pages.
+> > > 
+> > > Otherwise get_page_from_freelist() may fail even though pcp was flushed.
+> > > 
+> > 
+> > With my patch adjusting the threshold to a small value while kswapd is awake,
+> > it seems less necessary. 
+> 
+> I agree this.
+> 
+> > It's also very hard to predict the performance of
+> > this. We are certainly going to take a hit to do the flush but we *might*
+> > gain slightly if an allocation succeeds because a watermark check passed
+> > when the counters were updated. It's a definite hit for a possible gain
+> > though which is not a great trade-off. Would need some performance testing.
+> > 
+> > I still think my patch on adjusting thresholds is our best proposal so
+> > far on how to reduce Shaohua's performance problems while still being
+> > safer from livelocks due to memory exhaustion.
+> 
+> OK, I will try to explain a detai of my worry.
+> 
+> Initial variable ZVC commit (df9ecaba3f1) says 
+> 
+> >     [PATCH] ZVC: Scale thresholds depending on the size of the system
+> > 
+> >     The ZVC counter update threshold is currently set to a fixed value of 32.
+> >     This patch sets up the threshold depending on the number of processors and
+> >     the sizes of the zones in the system.
+> > 
+> >     With the current threshold of 32, I was able to observe slight contention
+> >     when more than 130-140 processors concurrently updated the counters.  The
+> >     contention vanished when I either increased the threshold to 64 or used
+> >     Andrew's idea of overstepping the interval (see ZVC overstep patch).
+> > 
+> >     However, we saw contention again at 220-230 processors.  So we need higher
+> >     values for larger systems.
+> 
+> So, I'm worry about your patch reintroduce old cache contention issue that Christoph
+> observed when run 128-256cpus system.  May I ask how do you think this issue?
+> 
 
-I just noticed this thread, as your mail from today pushed it up.
+It only reintroduces the overhead while kswapd is awake and the system is in danger
+of accidentally allocating all of its pages. Yes, it's slower but it's
+less risky.
 
-In your original mail you wrote: " I recently had a customer (running
-2.6.32) report a deadlock during very intensive IO with lots of
-processes. " and " Some threads that are blocked there, hold some IO
-lock (probably in the filesystem) and are trying to allocate memory
-inside the block device (md/raid1 to be precise) which is allocating
-with GFP_NOIO and has a mempool to fall back on."
-
-I recently had the same problem (intense IO due to swapstorm created
-by 20 gcc processes hung my system) and after initially blaming the
-workqueue changes in 2.6.36 Tejun Heo determined that my problem was
-not the workqueues getting locked up, but that it was cause by an
-exhausted mempool:
-http://marc.info/?l=3Dlinux-kernel&m=3D128655737012549&w=3D2
-
-Instrumenting mm/mempool.c and retrying my workload showed that
-fs_bio_set from fs/bio.c looked like the mempool to blame and the code
-in drivers/md/raid1.c to be the misuser:
-http://marc.info/?l=3Dlinux-kernel&m=3D128671179817823&w=3D2
-
-I was even able to reproduce this hang with only using a normal RAID1
-md device as swapspace and then using dd to fill a tmpfs until
-swapping was needed:
-http://marc.info/?l=3Dlinux-raid&m=3D128699402805191&w=3D2
-
-Looking back in the history of raid1.c and bio.c I found the following
-interesting parts:
-
- * the change to allocate more then one bio via bio_clone() is from
-2005, but it looks like it was OK back then, because at that point the
-fs_bio_set was allocation 256 entries
- * in 2007 the size of the mempool was changed from 256 to only 2
-entries (5972511b77809cb7c9ccdb79b825c54921c5c546 "A single unit is
-enough, lets scale it down to 2 just to be on the safe side.")
- * only in 2009 the comment "To make this work, callers must never
-allocate more than 1 bio at the time from this pool. Callers that need
-to allocate more than 1 bio must always submit the previously allocate
-bio for IO before attempting to allocate a new one. Failure to do so
-can cause livelocks under memory pressure." was added to bio_alloc()
-that is the base from my reasoning that raid1.c is broken. (And such a
-comment was not added to bio_clone() although both calls use the same
-mempool)
-
-So could please look someone into raid1.c to confirm or deny that
-using multiple bio_clone() (one per drive) before submitting them
-together could also cause such deadlocks?
-
-Thank for looking
-
-Torsten
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
