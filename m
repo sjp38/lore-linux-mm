@@ -1,67 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 88BB76B00DA
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 17:33:53 -0400 (EDT)
-Message-ID: <20101018213348.10281.qmail@kosh.dhis.org>
-From: pacman@kosh.dhis.org
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 71D096B00DA
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 17:56:17 -0400 (EDT)
+Date: Mon, 18 Oct 2010 23:55:44 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
 Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
-Date: Mon, 18 Oct 2010 16:33:48 -0500 (GMT+5)
-In-Reply-To: <1287436205.2341.14.camel@pasglop>
+In-Reply-To: <20101018123750.ef7d6d48.akpm@linux-foundation.org>
+Message-ID: <alpine.LFD.2.00.1010182342490.6815@localhost6.localdomain6>
+References: <20101013144044.GS30667@csn.ul.ie> <20101013175205.21187.qmail@kosh.dhis.org> <20101018113331.GB30667@csn.ul.ie> <20101018123750.ef7d6d48.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, pacman@kosh.dhis.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, Helmut Grohne <helmut@subdivi.de>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt writes:
+On Mon, 18 Oct 2010, Andrew Morton wrote:
+
+> On Mon, 18 Oct 2010 12:33:31 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> You can do something fun... like a timer interrupt that peeks at those
-> physical addresses from the linear mapping for example, and try to find
-> out "when" they get set to the wrong value (you should observe the load
-> from disk, then the corruption, unless they end up being loaded
-> incorrectly (ie. dma coherency problem ?) ...
-
-I'm headed toward something like that. Maybe not a timer, maybe a "check it
-every time the kernel is entered". But first I have to work out exactly when
-the disk load completes so I know when to start checking.
-
+> > A bit but I still don't know why it would cause corruption. Maybe this is still
+> > a caching issue but the difference in timing between list_add and list_add_tail
+> > is enough to hide the bug. It's also possible there are some registers
+> > ioremapped after the memmap array and reading them is causing some
+> > problem.
+> > 
+> > Andrew, what is the right thing to do here? We could flail around looking
+> > for explanations as to why the bug causes a user buffer corruption but never
+> > get an answer or do we go with this patch, preferably before 2.6.36 releases?
 > 
-> >From there, you might be able to close onto the culprit a bit more, for
-> example, try using the DABR register to set data access breakpoints
-> shortly before the corruption spot. AFAIK, On those old 32-bit CPUs, you
-> can set whether you want it to break on a real or a virtual address.
-
-I thought of that, but as far as I can tell, this CPU doesn't have DABR.
-/proc/cpuinfo
-processor	: 0
-cpu		: 7447/7457
-clock		: 999.999990MHz
-revision	: 1.1 (pvr 8002 0101)
-bogomips	: 66.66
-timebase	: 33333333
-platform	: CHRP
-model		: Pegasos2
-machine		: CHRP Pegasos2
-Memory		: 512 MB
-
-My next thought was: right after the correct value appears in memory, unmap
-the page from the kernel and let it Oops when it tries to write there. Then I
-found out that the kernel is using BATs instead of page tables for its own
-view of memory. Booting with "nobats" completely changes the memory usage
-pattern (probably because it's allocating a lot of pages to hold PTEs that it
-didn't need before)
-
+> Well, you've spotted a bug so I'd say we fix it asap.
 > 
-> You can also sprinkle tests for the page content through the code if
-> that doesn't work to try to "close in" on the culprit (for example if
-> it's a case of stray DMA, like a network driver bug or such).
+> It's a bit of a shame that we lose the only known way of reproducing a
+> different bug, but presumably that will come back and bite someone else
+> one day, and we'll fix it then :(
 
-No network drivers are loaded when this happens.
+I might be completely one off as usual, but this thing reminds me of a
+bug I stared at yesterday night:
 
--- 
-Alan Curry
+    http://permalink.gmane.org/gmane.linux.kernel/1049605
+
+Reporter Cc'ed
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
