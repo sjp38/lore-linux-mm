@@ -1,97 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 887986B00B8
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 06:39:59 -0400 (EDT)
-Date: Mon, 18 Oct 2010 11:39:41 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E5DD76B00B8
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 06:43:45 -0400 (EDT)
+Date: Mon, 18 Oct 2010 11:43:31 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: zone state overhead
-Message-ID: <20101018103941.GX30667@csn.ul.ie>
-References: <20101013121913.ADB4.A69D9226@jp.fujitsu.com> <20101013112430.GI30667@csn.ul.ie> <20101014120804.8B8F.A69D9226@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/3] mm: reserve max drift pages at boot time
+	instead using zone_page_state_snapshot()
+Message-ID: <20101018104330.GY30667@csn.ul.ie>
+References: <20101013152922.ADC6.A69D9226@jp.fujitsu.com> <20101013131916.GN30667@csn.ul.ie> <20101014113426.8B83.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101014120804.8B8F.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101014113426.8B83.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 14, 2010 at 12:07:29PM +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > index c5dfabf..47ba29e 100644
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > > > @@ -2378,7 +2378,9 @@ static int kswapd(void *p)
-> > > >  				 */
-> > > >  				if (!sleeping_prematurely(pgdat, order, remaining)) {
-> > > >  					trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
-> > > > +					enable_pgdat_percpu_threshold(pgdat);
-> > > >  					schedule();
-> > > > +					disable_pgdat_percpu_threshold(pgdat);
-> > > 
-> > > If we have 4096 cpus, max drift = 125x4096x4096 ~= 2GB. It is higher than zone watermark.
-> > > Then, such sysmtem can makes memory exshost before kswap call disable_pgdat_percpu_threshold().
-> > > 
+On Thu, Oct 14, 2010 at 11:39:34AM +0900, KOSAKI Motohiro wrote:
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 53627fa..194bdaa 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -4897,6 +4897,15 @@ static void setup_per_zone_wmarks(void)
+> > >  	for_each_zone(zone) {
+> > >  		u64 tmp;
+> > >  
+> > > +		/*
+> > > +		 * If max drift are less than 1%, reserve max drift pages
+> > > +		 * instead costly runtime calculation.
+> > > +		 */
+> > > +		if (zone->percpu_drift_mark < (zone->present_pages/100)) {
+> > > +			pages_min += zone->percpu_drift_mark;
+> > > +			zone->percpu_drift_mark = 0;
+> > > +		}
+> > > +
 > > 
-> > I don't *think* so but lets explore that possibility. For this to occur, all
-> > CPUs would have to be allocating all of their memory from the one node (4096
-> > CPUs is not going to be UMA) which is not going to happen. But allocations
-> > from one node could be falling over to others of course.
-> > 
-> > Lets take an early condition that has to occur for a 4096 CPU machine to
-> > get into trouble - node 0 exhausted and moving to node 1 and counter drift
-> > makes us think everything is fine.
-> > 
-> > __alloc_pages_nodemask
-> >   -> get_page_from_freelist
-> >     -> zone_watermark_ok == true (because we are drifting)
-> >     -> buffered_rmqueue
-> >       -> __rmqueue (fails eventually, no pages despite watermark_ok)
-> >   -> __alloc_pages_slowpath
-> >     -> wake_all_kswapd()
-> > ...
-> >
-> > kswapd wakes
-> >   -> disable_pgdat_percpu_threshold()
-> > 
-> > i.e. as each node becomes exhausted in reality, kswapd will wake up, disable
-> > the thresholds until the high watermark is back and go back to sleep. I'm
-> > not seeing how we'd get into a situation where all kswapds are asleep at the
-> > same time while each allocator allocates all of memory without managing to
-> > wake kswapd. Even GFP_ATOMIC allocations will wakeup kswapd.
-> > 
-> > Hence, I think the current patch of disabling thresholds while kswapd is
-> > awake to be sufficient to avoid livelock due to memory exhaustion and
-> > counter drift.
-> > 
+> > I don't see how this solves Shaohua's problem as such. Large systems will
+> > still suffer a bug performance penalty from zone_page_state_snapshot(). I
+> > do see the logic of adjusting min for larger systems to limit the amount of
+> > time per-cpu thresholds are lowered but that would be as a follow-on to my
+> > patch rather than a replacement.
 > 
-> In this case, wakeup_kswapd() don't wake kswapd because
-> 
-> ---------------------------------------------------------------------------------
-> void wakeup_kswapd(struct zone *zone, int order)
-> {
->         pg_data_t *pgdat;
-> 
->         if (!populated_zone(zone))
->                 return;
-> 
->         pgdat = zone->zone_pgdat;
->         if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
->                 return;                          // HERE
-> ---------------------------------------------------------------------------------
-> 
-> So, if we take your approach, we need to know exact free pages in this.
+> My patch rescue 256cpus or more smaller systems.
 
-Good point!
+True, and it would be nice to limit how many machines any of this logic
+applies to.
 
-> But, zone_page_state_snapshot() is slow. that's dilemma.
+> and I assumed 4096cpus system don't
+> run IO intensive workload such as Shaohua's case.
+
+Also true, but they still suffer the drift problem. The reproduction
+case would change but otherwise the drift must still be handled.
+
+> they always use cpusets and run hpc
+> workload.
+> 
+> If you know another >1024cpus system, please let me know.
+> And again, my patch works on 4096cpus sysmtem although slow, but your don't.
+> 
+> Am I missing something?
 > 
 
-Very true. I'm prototyping a version of the patch that keeps
-zone_page_state_snapshot but only uses is in wakeup_kswapd and
-sleeping_prematurely.
+I think both are ultimately needed. For my patch, I need to make sure that
+wakeup_kswapd() actually wakes up kswapd by using
+zone_page_state_snapshot() when necessary. Your patch avoids the problem
+differently but in a way that is nice for "smaller" machines.
 
 -- 
 Mel Gorman
