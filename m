@@ -1,250 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 4B0DD5F0047
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 09:22:40 -0400 (EDT)
-Date: Mon, 18 Oct 2010 15:22:23 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH v7 04/12] Add memory slot versioning and use it to
- provide fast guest write interface
-Message-ID: <20101018132223.GB10207@redhat.com>
-References: <1287048176-2563-1-git-send-email-gleb@redhat.com>
- <1287048176-2563-5-git-send-email-gleb@redhat.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B40A6B00A5
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 09:55:55 -0400 (EDT)
+Date: Mon, 18 Oct 2010 14:55:36 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 0/8] Reduce latencies and improve overall reclaim
+	efficiency v2
+Message-ID: <20101018135535.GC30667@csn.ul.ie>
+References: <1284553671-31574-1-git-send-email-mel@csn.ul.ie> <4CB721A1.4010508@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1287048176-2563-5-git-send-email-gleb@redhat.com>
+In-Reply-To: <4CB721A1.4010508@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, avi@redhat.com, mingo@elte.hu, a.p.zijlstra@chello.nl, tglx@linutronix.de, hpa@zytor.com, riel@redhat.com, cl@linux-foundation.org, mtosatti@redhat.com
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Keep track of memslots changes by keeping generation number in memslots
-structure. Provide kvm_write_guest_cached() function that skips
-gfn_to_hva() translation if memslots was not changed since previous
-invocation.
+On Thu, Oct 14, 2010 at 05:28:33PM +0200, Christian Ehrhardt wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Gleb Natapov <gleb@redhat.com>
----
+> Seing the patches Mel sent a few weeks ago I realized that this series
+> might be at least partially related to my reports in 1Q 2010 - so I ran my
+> testcase on a few kernels to provide you with some more backing data.
 
-arch/x86/kvm/x86.c also changes slots. Forgot to update generation
-there.
+Thanks very much for revisiting this.
 
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index bee71ec..bcc48bc 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -3193,6 +3193,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
- 		}
- 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
- 		slots->memslots[log->slot].dirty_bitmap = dirty_bitmap;
-+		slots->generation++;
- 
- 		old_slots = kvm->memslots;
- 		rcu_assign_pointer(kvm->memslots, slots);
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 9a9b017..dda88f2 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -199,6 +199,7 @@ struct kvm_irq_routing_table {};
- 
- struct kvm_memslots {
- 	int nmemslots;
-+	u64 generation;
- 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
- 					KVM_PRIVATE_MEM_SLOTS];
- };
-@@ -352,12 +353,18 @@ int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
- 			 int offset, int len);
- int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
- 		    unsigned long len);
-+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			   void *data, unsigned long len);
-+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			      gpa_t gpa);
- int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
- int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
- struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
- int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
- unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn);
- void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
-+void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
-+			     gfn_t gfn);
- 
- void kvm_vcpu_block(struct kvm_vcpu *vcpu);
- void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
-diff --git a/include/linux/kvm_types.h b/include/linux/kvm_types.h
-index 7ac0d4e..fa7cc72 100644
---- a/include/linux/kvm_types.h
-+++ b/include/linux/kvm_types.h
-@@ -67,4 +67,11 @@ struct kvm_lapic_irq {
- 	u32 dest_id;
- };
- 
-+struct gfn_to_hva_cache {
-+	u64 generation;
-+	gpa_t gpa;
-+	unsigned long hva;
-+	struct kvm_memory_slot *memslot;
-+};
-+
- #endif /* __KVM_TYPES_H__ */
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 238079e..5d57ec9 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -687,6 +687,7 @@ skip_lpage:
- 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
- 		if (mem->slot >= slots->nmemslots)
- 			slots->nmemslots = mem->slot + 1;
-+		slots->generation++;
- 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
- 
- 		old_memslots = kvm->memslots;
-@@ -723,6 +724,7 @@ skip_lpage:
- 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
- 	if (mem->slot >= slots->nmemslots)
- 		slots->nmemslots = mem->slot + 1;
-+	slots->generation++;
- 
- 	/* actual memory is freed via old in kvm_free_physmem_slot below */
- 	if (!npages) {
-@@ -853,10 +855,10 @@ int kvm_is_error_hva(unsigned long addr)
- }
- EXPORT_SYMBOL_GPL(kvm_is_error_hva);
- 
--struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
-+static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
-+						gfn_t gfn)
- {
- 	int i;
--	struct kvm_memslots *slots = kvm_memslots(kvm);
- 
- 	for (i = 0; i < slots->nmemslots; ++i) {
- 		struct kvm_memory_slot *memslot = &slots->memslots[i];
-@@ -867,6 +869,11 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
- 	}
- 	return NULL;
- }
-+
-+struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
-+{
-+	return __gfn_to_memslot(kvm_memslots(kvm), gfn);
-+}
- EXPORT_SYMBOL_GPL(gfn_to_memslot);
- 
- int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
-@@ -929,12 +936,9 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
- 	return memslot - slots->memslots;
- }
- 
--static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
-+static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
- 				     gfn_t *nr_pages)
- {
--	struct kvm_memory_slot *slot;
--
--	slot = gfn_to_memslot(kvm, gfn);
- 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
- 		return bad_hva();
- 
-@@ -946,7 +950,7 @@ static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
- 
- unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
- {
--	return gfn_to_hva_many(kvm, gfn, NULL);
-+	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
- }
- EXPORT_SYMBOL_GPL(gfn_to_hva);
- 
-@@ -1063,7 +1067,7 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
- 	unsigned long addr;
- 	gfn_t entry;
- 
--	addr = gfn_to_hva_many(kvm, gfn, &entry);
-+	addr = gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, &entry);
- 	if (kvm_is_error_hva(addr))
- 		return -1;
- 
-@@ -1247,6 +1251,47 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
- 	return 0;
- }
- 
-+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			      gpa_t gpa)
-+{
-+	struct kvm_memslots *slots = kvm_memslots(kvm);
-+	int offset = offset_in_page(gpa);
-+	gfn_t gfn = gpa >> PAGE_SHIFT;
-+
-+	ghc->gpa = gpa;
-+	ghc->generation = slots->generation;
-+	ghc->memslot = __gfn_to_memslot(slots, gfn);
-+	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
-+	if (!kvm_is_error_hva(ghc->hva))
-+		ghc->hva += offset;
-+	else
-+		return -EFAULT;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
-+
-+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-+			   void *data, unsigned long len)
-+{
-+	struct kvm_memslots *slots = kvm_memslots(kvm);
-+	int r;
-+
-+	if (slots->generation != ghc->generation)
-+		kvm_gfn_to_hva_cache_init(kvm, ghc, ghc->gpa);
-+	
-+	if (kvm_is_error_hva(ghc->hva))
-+		return -EFAULT;
-+
-+	r = copy_to_user((void __user *)ghc->hva, data, len);
-+	if (r)
-+		return -EFAULT;
-+	mark_page_dirty_in_slot(kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
-+
- int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
- {
- 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
-@@ -1272,11 +1317,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
- }
- EXPORT_SYMBOL_GPL(kvm_clear_guest);
- 
--void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
-+void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
-+			     gfn_t gfn)
- {
--	struct kvm_memory_slot *memslot;
--
--	memslot = gfn_to_memslot(kvm, gfn);
- 	if (memslot && memslot->dirty_bitmap) {
- 		unsigned long rel_gfn = gfn - memslot->base_gfn;
- 
-@@ -1284,6 +1327,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
- 	}
- }
- 
-+void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
-+{
-+	struct kvm_memory_slot *memslot;
-+
-+	memslot = gfn_to_memslot(kvm, gfn);
-+	mark_page_dirty_in_slot(kvm, memslot, gfn);
-+}
-+
- /*
-  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
-  */
---
-			Gleb.
+> Results are always the average of three iozone runs as it is known to be somewhat noisy - especially when affected by the issue I try to show here.
+> As discussed in detail in older threads the setup uses 16 disks and scales the number of concurrent iozone processes.
+> Processes are evenly distributed so that it always is one process per disk.
+> In the past we reported 40% to 80% degradation for the sequential read case based on 2.6.32 which can still be seen.
+> What we found was that the allocations for page cache with GFP_COLD flag loop a long time between try_to_free, get_page, reclaim as free makes some progress and due to that GFP_COLD allocations can loop and retry.
+> In addition my case had no writes at all, which forced congestion_wait to wait the full timeout all the time.
+> 
+> Kernel (git)                   4          8         16   deviation #16 case                           comment
+> linux-2.6.30              902694    1396073    1892624                 base                              base
+> linux-2.6.32              752008     990425     932938               -50.7%     impact as reported in 1Q 2010
+> linux-2.6.35               63532      71573      64083               -96.6%                    got even worse
+> linux-2.6.35.6            176485     174442     212102               -88.8%  fixes useful, but still far away
+> linux-2.6.36-rc4-trace    119683     188997     187012               -90.1%                         still bad 
+
+FWIW, I wouldn't expect the trace kernel to help. It's only adding the
+markers but not doing anything useful with them.
+
+> linux-2.6.36-rc4-fix      884431    1114073    1470659               -22.3%            Mels fixes help a lot!
+> 
+> So much from the case that I used when I reported the issue earlier this year.
+> The short summary is that the patch series from Mel helps a lot for my test case.
+> 
+
+This is good to hear. We're going in the right direction at least.
+
+> So I guess Mel you now want some traces of the last two cases right?
+> Could you give me some minimal advice what/how you would exactly need.
+> 
+
+Yes please. Please do something like the following before the test
+
+mount -t debugfs none /sys/kernel/debug
+echo 1 > /sys/kernel/debug/tracing/events/vmscan/enable
+echo 1 > /sys/kernel/debug/tracing/events/writeback/writeback_congestion_wait/enable
+echo 1 > /sys/kernel/debug/tracing/events/writeback/writeback_wait_iff_congested/enable
+cat /sys/kernel/debug/tracing/trace_pipe > trace.log &
+
+rerun the test, gzip trace.log and drop it on some publicly accessible
+webserver. I can rerun the analysis scripts and see if something odd
+falls out.
+
+> In addition it worked really fine, so you can add both, however you like.
+> Reported-by: <ehrhardt@linux.vnet.ibm.com>
+> Tested-by: <ehrhardt@linux.vnet.ibm.com>
+> 
+> Note: it might be worth to mention that the write case improved a lot since 2.6.30.
+> Not directly related to the read degradations, but with up to 150% (write) 272% (rewrite).
+> Therefore not everything is bad :-) 
+> 
+
+Every cloud has a silver lining I guess :)
+
+> Any further comments or questions?
+> 
+
+The log might help me further in figuring out how and why we are losing
+time. When/if the patches move from -mm to mainline, it'd also be worth
+retesting as there is some churn in this area and we need to know whether
+we are heading in the right direction or not. If all goes according to plan,
+kernel 2.6.37-rc1 will be of interest. Thanks again.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
