@@ -1,103 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E27376B00B3
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 01:57:42 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9I5venP003196
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 012B06B00B3
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 02:02:02 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9I61wqj003157
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 18 Oct 2010 14:57:40 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CDC9945DE54
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:57:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8367545DE51
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:57:39 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 552651DB805F
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:57:39 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CDBB91DB8040
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 14:57:38 +0900 (JST)
-Date: Mon, 18 Oct 2010 14:52:17 +0900
+	Mon, 18 Oct 2010 15:01:59 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 97E8E45DE52
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 15:01:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A20045DE51
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 15:01:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47AA61DB8042
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 15:01:58 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D7F57E08001
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 15:01:57 +0900 (JST)
+Date: Mon, 18 Oct 2010 14:56:36 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/3] alloc contig pages with migration.
-Message-Id: <20101018145217.38ba8ffc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <AANLkTimpVWwH=znGkG8zEPBcYxq-+UR+7mN29f-RK7d=@mail.gmail.com>
-References: <20101013121527.8ec6a769.kamezawa.hiroyu@jp.fujitsu.com>
-	<20101013121829.c3320944.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTingNmxT6ww_VB_K=rjsgR+dHANLnyNkwV1Myvnk@mail.gmail.com>
-	<20101018093533.abd4c8ee.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTikt+kq2LHZNSJAN3EQwYALdYtGuOAXfVghN-7oY@mail.gmail.com>
-	<20101018143108.4e0e5299.kamezawa.hiroyu@jp.fujitsu.com>
-	<AANLkTimpVWwH=znGkG8zEPBcYxq-+UR+7mN29f-RK7d=@mail.gmail.com>
+Subject: Re: [PATCH 00/10] memcg: per cgroup dirty page accounting
+Message-Id: <20101018145636.806446aa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1286175485-30643-1-git-send-email-gthelen@google.com>
+References: <1286175485-30643-1-git-send-email-gthelen@google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Oct 2010 14:52:19 +0900
-Minchan Kim <minchan.kim@gmail.com> wrote:
+On Sun,  3 Oct 2010 23:57:55 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-> On Mon, Oct 18, 2010 at 2:31 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Mon, 18 Oct 2010 14:18:52 +0900
-> > Minchan Kim <minchan.kim@gmail.com> wrote:
-> >> >
-> >> >> > + *
-> >> >> > + * Search an area of @size in the physical memory map and checks wheter
-> >> >>
-> >> >> Typo
-> >> >> whether
-> >> >>
-> >> >> > + * we can create a contigous free space. If it seems possible, try to
-> >> >> > + * create contigous space with page migration. If no_search==true, we just try
-> >> >> > + * to allocate [hint, hint+size) range of pages as contigous block.
-> >> >> > + *
-> >> >> > + * Returns a page of the beginning of contiguous block. At failure, NULL
-> >> >> > + * is returned. Each page in the area is set to page_count() = 1. Because
-> >> >>
-> >> >> Why do you mention page_count() = 1?
-> >> >> Do users of this function have to know it?
-> >> >
-> >> > A user can free any page within the range for his purpose.
-> >>
-> >> I think it's not a good idea if we allow handling of page by page, not
-> >> for page-chunk requested by user.
-> >> By mistake, free_contig_pages could have a trouble to free pages.
-> >> Why do you support the feature? A Do you have any motivation?
-> >>
-> > No big motivation.
-> >
-> > Usual pages are set up by prep_compund_page(page, order), but it is pages smaller
-> > than MAX_ORDER. A Then, I called prep_new_page() one by one.
-> > And I don't think some new prep_xxxx_page() is required.
-> >
-> > If you requests, ok, I'll add one.
-> 
-> Maybe we are talking another thing.
-> 
-> My question is why you noticed "page_count() == 1" in function description.
-> So your answer was for user to free some pages within big contiguous page.
-> Then, my concern is that if you didn't mentioned page_count() == 1 in
-> description, anonymous user will use just alloc_contig_pages and
-> free_contig_pages. That's enough for current our requirement. But
-> since you mentioned page_count() == 1 and you want for user to free
-> some pages within big contiguous page, anonymous user who isn't expert
-> in mm or careless people can free pages _freely_. It could make BUG
-> easily(free_contig_pages can free the page which is freed by user's
-> put_page).
-> 
-> So if there isn't strong cause, I hope removing the mention for
-> preventing careless API usage.
-> 
+> Greg Thelen (10):
+>   memcg: add page_cgroup flags for dirty page tracking
+>   memcg: document cgroup dirty memory interfaces
+>   memcg: create extensible page stat update routines
+>   memcg: disable local interrupts in lock_page_cgroup()
+>   memcg: add dirty page accounting infrastructure
+>   memcg: add kernel calls for memcg dirty page stats
+>   memcg: add dirty limits to mem_cgroup
+>   memcg: add cgroupfs interface to memcg dirty limits
+>   writeback: make determine_dirtyable_memory() static.
+>   memcg: check memcg dirty limits in page writeback
 
-Ah, ok. I see. I'll update that parts as "use free_contig_page() to free a chunk".
+Greg, this is a patch on your set.
 
-Thanks,
--Kame
+ mmotm-1014 
+ - memcg-reduce-lock-hold-time-during-charge-moving.patch
+   (I asked Andrew to drop this)
+ + your 1,2,3,5,6,7,8,9,10 (dropped patch "4")
+
+I'm grad if you merge this to your set as replacement of "4".
+I'll prepare a performance improvement patch and post it if this dirty_limit
+patches goes to -mm.
+
+Thank you for your work.
+
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Now, at supporing dirty limit, there is a deadlock problem in accounting.
+
+ 1. If pages are being migrated from a memcg, then updates to that
+memcg page statistics are protected by grabbing a bit spin lock
+using lock_page_cgroup().  In recent changes of dirty page accounting
+is updating memcg page accounting (specifically: num writeback pages)
+from IRQ context (softirq).  Avoid a deadlocking nested spin lock attempt
+by irq on the local processor when grabbing the page_cgroup.
+
+ 2. lock for update_stat is used only for avoiding race with move_account().
+So, IRQ awareness of lock_page_cgroup() itself is not a problem. The problem
+is in update_stat() and move_account().
+
+Then, this reworks locking scheme of update_stat() and move_account() by
+adding new lock bit PCG_MOVE_LOCK, which is always taken under IRQ disable.
+
+Trade-off
+  * using lock_page_cgroup() + disable IRQ has some impacts on performance
+    and I think it's bad to disable IRQ when it's not necessary.
+  * adding a new lock makes move_account() slow. Score is here.
+
+Peformance Impact: moving a 8G anon process.
+
+Before:
+	real    0m0.792s
+	user    0m0.000s
+	sys     0m0.780s
+
+After:
+	real    0m0.854s
+	user    0m0.000s
+	sys     0m0.842s
+
+This score is bad but planned patches for optimization can reduce
+this impact.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/page_cgroup.h |   31 ++++++++++++++++++++++++++++---
+ mm/memcontrol.c             |    9 +++++++--
+ 2 files changed, 35 insertions(+), 5 deletions(-)
+
+Index: dirty_limit_new/include/linux/page_cgroup.h
+===================================================================
+--- dirty_limit_new.orig/include/linux/page_cgroup.h
++++ dirty_limit_new/include/linux/page_cgroup.h
+@@ -35,15 +35,18 @@ struct page_cgroup *lookup_page_cgroup(s
+ 
+ enum {
+ 	/* flags for mem_cgroup */
+-	PCG_LOCK,  /* page cgroup is locked */
++	PCG_LOCK,  /* Lock for pc->mem_cgroup and following bits. */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
+-	PCG_ACCT_LRU, /* page has been accounted for */
++	PCG_MIGRATION, /* under page migration */
++	/* flags for mem_cgroup and file and I/O status */
++	PCG_MOVE_LOCK, /* For race between move_account v.s. following bits */
+ 	PCG_FILE_MAPPED, /* page is accounted as "mapped" */
+ 	PCG_FILE_DIRTY, /* page is dirty */
+ 	PCG_FILE_WRITEBACK, /* page is under writeback */
+ 	PCG_FILE_UNSTABLE_NFS, /* page is NFS unstable */
+-	PCG_MIGRATION, /* under page migration */
++	/* No lock in page_cgroup */
++	PCG_ACCT_LRU, /* page has been accounted for (under lru_lock) */
+ };
+ 
+ #define TESTPCGFLAG(uname, lname)			\
+@@ -119,6 +122,10 @@ static inline enum zone_type page_cgroup
+ 
+ static inline void lock_page_cgroup(struct page_cgroup *pc)
+ {
++	/*
++	 * Don't take this lock in IRQ context.
++	 * This lock is for pc->mem_cgroup, USED, CACHE, MIGRATION
++	 */
+ 	bit_spin_lock(PCG_LOCK, &pc->flags);
+ }
+ 
+@@ -127,6 +134,24 @@ static inline void unlock_page_cgroup(st
+ 	bit_spin_unlock(PCG_LOCK, &pc->flags);
+ }
+ 
++static inline void move_lock_page_cgroup(struct page_cgroup *pc,
++	unsigned long *flags)
++{
++	/*
++	 * We know updates to pc->flags of page cache's stats are from both of
++	 * usual context or IRQ context. Disable IRQ to avoid deadlock.
++	 */
++	local_irq_save(*flags);
++	bit_spin_lock(PCG_MOVE_LOCK, &pc->flags);
++}
++
++static inline void move_unlock_page_cgroup(struct page_cgroup *pc,
++	unsigned long *flags)
++{
++	bit_spin_unlock(PCG_MOVE_LOCK, &pc->flags);
++	local_irq_restore(*flags);
++}
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct page_cgroup;
+ 
+Index: dirty_limit_new/mm/memcontrol.c
+===================================================================
+--- dirty_limit_new.orig/mm/memcontrol.c
++++ dirty_limit_new/mm/memcontrol.c
+@@ -1784,6 +1784,7 @@ void mem_cgroup_update_page_stat(struct 
+ 	struct mem_cgroup *mem;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+ 	bool need_unlock = false;
++	unsigned long uninitialized_var(flags);
+ 
+ 	if (unlikely(!pc))
+ 		return;
+@@ -1795,7 +1796,7 @@ void mem_cgroup_update_page_stat(struct 
+ 	/* pc->mem_cgroup is unstable ? */
+ 	if (unlikely(mem_cgroup_stealed(mem))) {
+ 		/* take a lock against to access pc->mem_cgroup */
+-		lock_page_cgroup(pc);
++		move_lock_page_cgroup(pc, &flags);
+ 		need_unlock = true;
+ 		mem = pc->mem_cgroup;
+ 		if (!mem || !PageCgroupUsed(pc))
+@@ -1856,7 +1857,7 @@ void mem_cgroup_update_page_stat(struct 
+ 
+ out:
+ 	if (unlikely(need_unlock))
+-		unlock_page_cgroup(pc);
++		move_unlock_page_cgroup(pc, &flags);
+ 	rcu_read_unlock();
+ 	return;
+ }
+@@ -2426,9 +2427,13 @@ static int mem_cgroup_move_account(struc
+ 		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
+ {
+ 	int ret = -EINVAL;
++	unsigned long flags;
++
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
++		move_lock_page_cgroup(pc, &flags);
+ 		__mem_cgroup_move_account(pc, from, to, uncharge);
++		move_unlock_page_cgroup(pc, &flags);
+ 		ret = 0;
+ 	}
+ 	unlock_page_cgroup(pc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
