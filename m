@@ -1,63 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7ED5F0047
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 05:08:19 -0400 (EDT)
-Date: Tue, 19 Oct 2010 10:08:03 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FC635F0047
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 05:23:55 -0400 (EDT)
+Date: Tue, 19 Oct 2010 10:23:38 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: zone state overhead
-Message-ID: <20101019090803.GF30667@csn.ul.ie>
-References: <20101014120804.8B8F.A69D9226@jp.fujitsu.com> <20101018103941.GX30667@csn.ul.ie> <20101019100658.A1B3.A69D9226@jp.fujitsu.com>
+Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
+Message-ID: <20101019092337.GG30667@csn.ul.ie>
+References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <alpine.DEB.2.00.1010061054410.31538@router.home> <20101013141455.GQ30667@csn.ul.ie> <alpine.DEB.2.00.1010181305000.2092@router.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101019100658.A1B3.A69D9226@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.00.1010181305000.2092@router.home>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 19, 2010 at 10:16:42AM +0900, KOSAKI Motohiro wrote:
-> > > In this case, wakeup_kswapd() don't wake kswapd because
-> > > 
-> > > ---------------------------------------------------------------------------------
-> > > void wakeup_kswapd(struct zone *zone, int order)
-> > > {
-> > >         pg_data_t *pgdat;
-> > > 
-> > >         if (!populated_zone(zone))
-> > >                 return;
-> > > 
-> > >         pgdat = zone->zone_pgdat;
-> > >         if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
-> > >                 return;                          // HERE
-> > > ---------------------------------------------------------------------------------
-> > > 
-> > > So, if we take your approach, we need to know exact free pages in this.
-> > 
-> > Good point!
-> > 
-> > > But, zone_page_state_snapshot() is slow. that's dilemma.
-> > > 
-> > 
-> > Very true. I'm prototyping a version of the patch that keeps
-> > zone_page_state_snapshot but only uses is in wakeup_kswapd and
-> > sleeping_prematurely.
+On Mon, Oct 18, 2010 at 01:13:42PM -0500, Christoph Lameter wrote:
+> On Wed, 13 Oct 2010, Mel Gorman wrote:
 > 
-> Ok, this might works. but note, if we are running IO intensive workload, wakeup_kswapd()
-> is called very frequently.
-
-This is true. It is also necessary to alter wakeup_kswapd to minimise
-the number of times it calls zone_watermark_ok_safe(). It'll need
-careful review to be sure the new function is equivalent.
-
-> because it is called even though allocation is succeed. we need to
-> request Shaohua run and mesure his problem workload. and can you please cc me
-> when you post next version? I hope to review it too.
+> > Minimally, I see the same sort of hackbench socket performance regression
+> > as reported elsewhere (10-15% regression). Otherwise, it isn't particularly
+> > exciting results. The machine is very basic - 2 socket, 4 cores, x86-64,
+> > 2G RAM. Macine model is an IBM BladeCenter HS20. Processor is Xeon but I'm
+> > not sure exact what model. It appears to be from around the P4 times.
+> 
+> Looks not good. Something must still be screwed up. Trouble is to find
+> time to do this work. When working on SLAB we had a team to implement the
+> NUMA stuff and deal with the performance issues.
+> 
+> > Christoph, in particular while it tests netperf, it is not binding to any
+> > particular CPU (although it can), server and client are running on the local
+> > machine (which has particular performance characterisitcs of its own) and
+> > the tests is STREAM, not RR so the tarball is not a replacement for more
+> > targetting testing or workload-specific testing. Still, it should catch
+> > some of the common snags before getting into specific workloads without
+> > taking an extraordinary amount of time to complete. sysbench might take a
+> > long time for many-core machines, limit the number of threads it tests with
+> > OLTP_MAX_THREADS in the config file.
+> 
+> That should not matter too much. The performance results should replicate
+> SLABs caching behavior and I do not see that in the tests.
 > 
 
-Of course. I have the prototype ready but am waiting on tests at the
-moment. Unfortunately the necessary infrastructure has been unavailable for
-the last 18 hours to run the test but I'm hoping it gets fixed soon.
+On the other hand, the unified figures are very close to slab in terms of
+behaviour. Very small gains and losses. Considering that the server and
+clients are not bound to any particular CPU either and the data set it is
+working on is quite large, a small amount of noise is expected.
+
+> > NETPERF UDP
+> >                    netperf-udp       netperf-udp          udp-slub
+> >                   slab-vanilla      slub-vanilla      unified-v4r1
+> >       64    52.23 ( 0.00%)*    53.80 ( 2.92%)     50.56 (-3.30%)               1.36%             1.00%             1.00%
+> >      128   103.70 ( 0.00%)    107.43 ( 3.47%)    101.23 (-2.44%)
+> >      256   208.62 ( 0.00%)*   212.15 ( 1.66%)    202.35 (-3.10%)               1.73%             1.00%             1.00%
+> >     1024   814.86 ( 0.00%)    827.42 ( 1.52%)    799.13 (-1.97%)
+> >     2048  1585.65 ( 0.00%)   1614.76 ( 1.80%)   1563.52 (-1.42%)
+> >     3312  2512.44 ( 0.00%)   2556.70 ( 1.73%)   2460.37 (-2.12%)
+> >     4096  3016.81 ( 0.00%)*  3058.16 ( 1.35%)   2901.87 (-3.96%)               1.15%             1.00%             1.00%
+> >     8192  5384.46 ( 0.00%)   5092.95 (-5.72%)   4912.71 (-9.60%)
+> >    16384  8091.96 ( 0.00%)*  8249.26 ( 1.91%)   8004.40 (-1.09%)               1.70%             1.00%             1.00%
+> 
+> Seems that we lost some of the netperf wins.
+
+It's a different test being run here. UDP_STREAM versus UDP_RR and that could
+be one factor in the differences between my results and your own. I'll look
+into redoing these for *_RR to rule that out as one factor.  The results
+are outside statistical noise though.
+
+> 
+> > SYSBENCH
+> >             sysbench-slab-vanilla-sysbenchsysbench-slub-vanilla-sysbench     sysbench-slub
+> >                   slab-vanilla      slub-vanilla      unified-v4r1
+> >            1  7521.24 ( 0.00%)  7719.38 ( 2.57%)  7589.13 ( 0.89%)
+> >            2 14872.85 ( 0.00%) 15275.09 ( 2.63%) 15054.08 ( 1.20%)
+> >            3 16502.53 ( 0.00%) 16676.53 ( 1.04%) 16465.69 (-0.22%)
+> >            4 17831.19 ( 0.00%) 17900.09 ( 0.38%) 17819.03 (-0.07%)
+> >            5 18158.40 ( 0.00%) 18432.74 ( 1.49%) 18341.99 ( 1.00%)
+> >            6 18673.68 ( 0.00%) 18878.41 ( 1.08%) 18614.92 (-0.32%)
+> >            7 17689.75 ( 0.00%) 17871.89 ( 1.02%) 17633.19 (-0.32%)
+> >            8 16885.68 ( 0.00%) 16838.37 (-0.28%) 16498.41 (-2.35%)
+> 
+> Same here. Seems that we combined the worst of both.
+> 
 
 -- 
 Mel Gorman
