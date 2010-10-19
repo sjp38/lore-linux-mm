@@ -1,67 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B9C56B00A5
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:41:49 -0400 (EDT)
-Received: from hch by bombadil.infradead.org with local (Exim 4.72 #1 (Red Hat Linux))
-	id 1P818M-00013c-3X
-	for linux-mm@kvack.org; Tue, 19 Oct 2010 01:36:58 +0000
-Date: Mon, 18 Oct 2010 21:36:58 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: BUG in __insert_vmap_area
-Message-ID: <20101019013658.GA4065@infradead.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id C4E1A6B00B6
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:55:19 -0400 (EDT)
+Received: by qyk34 with SMTP id 34so297921qyk.14
+        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 18:55:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <AANLkTikVueTjihngtC2rsoeqkUb5Wg-zeEFH1HKgcuuo@mail.gmail.com>
+References: <20101016043331.GA3177@darkstar>
+	<20101018164647.bc928c78.akpm@linux-foundation.org>
+	<AANLkTikVueTjihngtC2rsoeqkUb5Wg-zeEFH1HKgcuuo@mail.gmail.com>
+Date: Tue, 19 Oct 2010 09:55:17 +0800
+Message-ID: <AANLkTi=t2U5wa_7pqcb1pAq6p_x7VqYKbfMDZ10q+Geq@mail.gmail.com>
+Subject: Re: [PATCH 1/2] Add vzalloc shortcut
+From: Dave Young <hidave.darkstar@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I just saw one of my VMs crashing after repeated xfstests runs.  It's
-not the first set of runs I did on a -rc7 based kernel, so I'm not
-sure how reproducible it will be:
+On Tue, Oct 19, 2010 at 9:27 AM, Dave Young <hidave.darkstar@gmail.com> wro=
+te:
+> On Tue, Oct 19, 2010 at 7:46 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Sat, 16 Oct 2010 12:33:31 +0800
+>> Dave Young <hidave.darkstar@gmail.com> wrote:
+>>
+>>> Add vzalloc for convinience of vmalloc-then-memset-zero case
+>>>
+>>> Use __GFP_ZERO in vzalloc to zero fill the allocated memory.
+>>>
+>>> Signed-off-by: Dave Young <hidave.darkstar@gmail.com>
+>>> ---
+>>> =C2=A0include/linux/vmalloc.h | =C2=A0 =C2=A01 +
+>>> =C2=A0mm/vmalloc.c =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0| =C2=A0 13=
+ +++++++++++++
+>>> =C2=A02 files changed, 14 insertions(+)
+>>>
+>>> --- linux-2.6.orig/include/linux/vmalloc.h =C2=A0 =C2=A02010-08-22 15:3=
+1:38.000000000 +0800
+>>> +++ linux-2.6/include/linux/vmalloc.h 2010-10-16 10:50:54.739996121 +08=
+00
+>>> @@ -53,6 +53,7 @@ static inline void vmalloc_init(void)
+>>> =C2=A0#endif
+>>>
+>>> =C2=A0extern void *vmalloc(unsigned long size);
+>>> +extern void *vzalloc(unsigned long size);
+>>> =C2=A0extern void *vmalloc_user(unsigned long size);
+>>> =C2=A0extern void *vmalloc_node(unsigned long size, int node);
+>>> =C2=A0extern void *vmalloc_exec(unsigned long size);
+>>> --- linux-2.6.orig/mm/vmalloc.c =C2=A0 =C2=A0 =C2=A0 2010-08-22 15:31:3=
+9.000000000 +0800
+>>> +++ linux-2.6/mm/vmalloc.c =C2=A0 =C2=A02010-10-16 10:51:57.126665918 +=
+0800
+>>> @@ -1604,6 +1604,19 @@ void *vmalloc(unsigned long size)
+>>> =C2=A0EXPORT_SYMBOL(vmalloc);
+>>>
+>>> =C2=A0/**
+>>> + * =C2=A0 vzalloc =C2=A0- =C2=A0allocate virtually contiguous memory w=
+ith zero filled
+>>
+>> s/filled/fill/
+>
+> Thanks, Will fix
+>
+>>
+>>> + * =C2=A0 @size: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0allocation size
+>>> + * =C2=A0 Allocate enough pages to cover @size from the page level
+>>> + * =C2=A0 allocator and map them into contiguous kernel virtual space.
+>>> + */
+>>> +void *vzalloc(unsigned long size)
+>>> +{
+>>> + =C2=A0 =C2=A0 return __vmalloc_node(size, 1, GFP_KERNEL | __GFP_HIGHM=
+EM | __GFP_ZERO,
+>>> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 PAGE_KERNEL, -1, __builtin_return_address(0));
+>>> +}
+>>> +EXPORT_SYMBOL(vzalloc);
+>>
+>> We'd need to add the same interface to nommu, please.
+>
+> Ok, will do
+>
+> Minchan kim, thanks as well. I missed your comments about nommu before.
+>
+>>
+>> Also, a slightly better implementation would be
+>>
+>> static inline void *__vmalloc_node_flags(unsigned long size, gfp_t flags=
+)
+>> {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0return __vmalloc_node(size, 1, flags, PAGE_KE=
+RNEL, -1,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__builtin_return_address(0));
+>> }
 
-[18890.464953] XFS mounting filesystem vdb5
-[18890.466396] ------------[ cut here ]------------
-[18890.467750] kernel BUG at /home/hch/work/linux-2.6/mm/vmalloc.c:305!
-[18890.468879] invalid opcode: 0000 [#1] SMP 
-[18890.468879] last sysfs file: /sys/devices/virtio-pci/virtio1/block/vdb/removable
-[18890.468879] Modules linked in:
-[18890.468879] 
-[18890.468879] Pid: 12074, comm: mount Not tainted 2.6.36-rc7+ #427 /Bochs
-[18890.468879] EIP: 0060:[<c01fccf7>] EFLAGS: 00010207 CPU: 0
-[18890.468879] EIP is at __insert_vmap_area+0x87/0xb0
-[18890.468879] EAX: d1b3755c EBX: c61513f0 ECX: 00000000 EDX: 00000000
-[18890.468879] ESI: 00100000 EDI: fff00000 EBP: f4f5fcbc ESP: f4f5fcb4
-[18890.468879]  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-[18890.468879] Process mount (pid: 12074, ti=f4f5e000 task=f4dbae70 task.ti=f4f5e000)
-[18890.468879] Stack:
-[18890.468879]  f8800000 00100000 f4f5fd0c c01fdfa2 00000000 00000000 00000246 000fffff
-[18890.468879] <0> c61513f0 c61513f0 f8800000 f88fffff 00100000 f8900000 00000000 000fffff
-[18890.468879] <0> fff00000 c01fe22d 00000246 f36d6148 00000003 f36d6148 f4f5fd5c c01fe288
-[18890.468879] Call Trace:
-[18890.468879]  [<c01fdfa2>] ? alloc_vmap_area+0x1f2/0x2e0
-[18890.468879]  [<c01fe22d>] ? vm_map_ram+0x19d/0x470
-[18890.468879]  [<c01fe288>] ? vm_map_ram+0x1f8/0x470
-[18890.468879]  [<c01fe0f8>] ? vm_map_ram+0x68/0x470
-[18890.468879]  [<c052da81>] ? _xfs_buf_map_pages+0x81/0xb0
-[18890.468879]  [<c052dbe7>] ? xfs_buf_get_noaddr+0x137/0x190
-[18890.468879]  [<c0513f3f>] ? xlog_alloc_log+0x18f/0x460
-[18890.468879]  [<c0514265>] ? xfs_log_mount+0x55/0x180
-[18890.468879]  [<c051ff48>] ? xfs_mountfs+0x348/0x6d0
-[18890.468879]  [<c0176193>] ? __init_timer+0x63/0x70
-[18890.468879]  [<c01761d3>] ? init_timer_key+0x33/0x70
-[18890.468879]  [<c0520976>] ? xfs_mru_cache_create+0x126/0x160
-[18890.468879]  [<c05365a5>] ? xfs_fs_fill_super+0x1a5/0x320
-[18890.468879]  [<c02135e0>] ? get_sb_bdev+0x160/0x1a0
-[18890.468879]  [<c0534371>] ? xfs_fs_get_sb+0x21/0x30
-[18890.468879]  [<c0536400>] ? xfs_fs_fill_super+0x0/0x320
-[18890.468879]  [<c02120c8>] ? vfs_kern_mount+0x48/0x110
-[18890.468879]  [<c02121e9>] ? do_kern_mount+0x39/0xd0
-[18890.468879]  [<c0229542>] ? do_mount+0x2d2/0x700
-[18890.468879]  [<c01ee2d9>] ? strndup_user+0x49/0x60
-[18890.468879]  [<c02299d6>] ? sys_mount+0x66/0xa0
-[18890.468879]  [<c09e4bfd>] ? syscall_call+0x7/0xb
-[18890.468879] Code: 0c 8b 56 18 8d 4b 18 89 43 1c 89 53 18 89 4e 18 89 4a 04 5b 5e 5d c3 90 8d 74 26 00 8b 53 04 3b 50 f4 76 07 8d 50 04 89 c1 eb 9d <0f> 0b eb fe a1 a4 d4 d6 c0 8d 53 18 c7 43 1c a4 d4 d6 c0 89 43
+Is this better? might __vmalloc_node_flags would be used by other than vmal=
+loc?
+
+static inline void *__vmalloc_node_flags(unsigned long size, int node,
+gfp_t flags)
+
+>>
+>> void *vzalloc(unsigned long size)
+>> {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0return __vmalloc_node_flags(size,
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0GFP_KERNEL | __GFP_HIGHMEM | __GFP=
+_ZERO);
+>> }
+>>
+>> void *vmalloc(unsigned long size)
+>> {
+>> =C2=A0 =C2=A0 =C2=A0 =C2=A0return __vmalloc_node_flags(size, GFP_KERNEL =
+| __GFP_HIGHMEM);
+>> }
+>>
+>> just to avoid code duplication (and possible later errors derived from i=
+t).
+>>
+>> Perhaps it should be always_inline, so the __builtin_return_address()
+>> can't get broken.
+>>
+>> Or just leave it the way you had it :)
+>
+> Andrew, your suggestion is cleaner and better. I will do as yours.
+>
+> --
+> Regards
+> dave
+>
+
+
+
+--=20
+Regards
+dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
