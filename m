@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4091A6B0087
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:43:52 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 27FAF5F0047
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:44:04 -0400 (EDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v3 10/11] writeback: make determine_dirtyable_memory() static.
-Date: Mon, 18 Oct 2010 17:39:43 -0700
-Message-Id: <1287448784-25684-11-git-send-email-gthelen@google.com>
+Subject: [PATCH v3 11/11] memcg: check memcg dirty limits in page writeback
+Date: Mon, 18 Oct 2010 17:39:44 -0700
+Message-Id: <1287448784-25684-12-git-send-email-gthelen@google.com>
 In-Reply-To: <1287448784-25684-1-git-send-email-gthelen@google.com>
 References: <1287448784-25684-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,171 +13,169 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
 List-ID: <linux-mm.kvack.org>
 
-The determine_dirtyable_memory() function is not used outside of
-page writeback.  Make the routine static.  No functional change.
-Just a cleanup in preparation for a change that adds memcg dirty
-limits consideration into global_dirty_limits().
+If the current process is in a non-root memcg, then
+global_dirty_limits() will consider the memcg dirty limit.
+This allows different cgroups to have distinct dirty limits
+which trigger direct and background writeback at different
+levels.
 
 Signed-off-by: Andrea Righi <arighi@develer.com>
 Signed-off-by: Greg Thelen <gthelen@google.com>
 ---
- include/linux/writeback.h |    2 -
- mm/page-writeback.c       |  122 ++++++++++++++++++++++----------------------
- 2 files changed, 61 insertions(+), 63 deletions(-)
 
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index c7299d2..c18e374 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -105,8 +105,6 @@ extern int vm_highmem_is_dirtyable;
- extern int block_dump;
- extern int laptop_mode;
- 
--extern unsigned long determine_dirtyable_memory(void);
--
- extern int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
- 		loff_t *ppos);
+Changelog since v1:
+- Removed unnecessary get_ prefix from get_xxx() functions.
+
+ mm/page-writeback.c |   89 +++++++++++++++++++++++++++++++++++++++++---------
+ 1 files changed, 73 insertions(+), 16 deletions(-)
+
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 820eb66..a0bb3e2 100644
+index a0bb3e2..9b34f01 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -132,6 +132,67 @@ static struct prop_descriptor vm_completions;
- static struct prop_descriptor vm_dirties;
+@@ -180,7 +180,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+  * Returns the numebr of pages that can currently be freed and used
+  * by the kernel for direct mappings.
+  */
+-static unsigned long determine_dirtyable_memory(void)
++static unsigned long global_dirtyable_memory(void)
+ {
+ 	unsigned long x;
  
+@@ -192,6 +192,58 @@ static unsigned long determine_dirtyable_memory(void)
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
+ 
++static unsigned long dirtyable_memory(void)
++{
++	unsigned long memory;
++	s64 memcg_memory;
++
++	memory = global_dirtyable_memory();
++	if (!mem_cgroup_has_dirty_limit())
++		return memory;
++	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
++	BUG_ON(memcg_memory < 0);
++
++	return min((unsigned long)memcg_memory, memory);
++}
++
++static long reclaimable_pages(void)
++{
++	s64 ret;
++
++	if (!mem_cgroup_has_dirty_limit())
++		return global_page_state(NR_FILE_DIRTY) +
++			global_page_state(NR_UNSTABLE_NFS);
++	ret = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
++	BUG_ON(ret < 0);
++
++	return ret;
++}
++
++static long writeback_pages(void)
++{
++	s64 ret;
++
++	if (!mem_cgroup_has_dirty_limit())
++		return global_page_state(NR_WRITEBACK);
++	ret = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
++	BUG_ON(ret < 0);
++
++	return ret;
++}
++
++static unsigned long dirty_writeback_pages(void)
++{
++	s64 ret;
++
++	if (!mem_cgroup_has_dirty_limit())
++		return global_page_state(NR_UNSTABLE_NFS) +
++			global_page_state(NR_WRITEBACK);
++	ret = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
++	BUG_ON(ret < 0);
++
++	return ret;
++}
++
  /*
-+ * Work out the current dirty-memory clamping and background writeout
-+ * thresholds.
-+ *
-+ * The main aim here is to lower them aggressively if there is a lot of mapped
-+ * memory around.  To avoid stressing page reclaim with lots of unreclaimable
-+ * pages.  It is better to clamp down on writers than to start swapping, and
-+ * performing lots of scanning.
-+ *
-+ * We only allow 1/2 of the currently-unmapped memory to be dirtied.
-+ *
-+ * We don't permit the clamping level to fall below 5% - that is getting rather
-+ * excessive.
-+ *
-+ * We make sure that the background writeout level is below the adjusted
-+ * clamping level.
-+ */
-+
-+static unsigned long highmem_dirtyable_memory(unsigned long total)
-+{
-+#ifdef CONFIG_HIGHMEM
-+	int node;
-+	unsigned long x = 0;
-+
-+	for_each_node_state(node, N_HIGH_MEMORY) {
-+		struct zone *z =
-+			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
-+
-+		x += zone_page_state(z, NR_FREE_PAGES) +
-+		     zone_reclaimable_pages(z);
-+	}
-+	/*
-+	 * Make sure that the number of highmem pages is never larger
-+	 * than the number of the total dirtyable memory. This can only
-+	 * occur in very strange VM situations but we want to make sure
-+	 * that this does not occur.
-+	 */
-+	return min(x, total);
-+#else
-+	return 0;
-+#endif
-+}
-+
-+/**
-+ * determine_dirtyable_memory - amount of memory that may be used
-+ *
-+ * Returns the numebr of pages that can currently be freed and used
-+ * by the kernel for direct mappings.
-+ */
-+static unsigned long determine_dirtyable_memory(void)
-+{
-+	unsigned long x;
-+
-+	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-+
-+	if (!vm_highmem_is_dirtyable)
-+		x -= highmem_dirtyable_memory(x);
-+
-+	return x + 1;	/* Ensure that we never return 0 */
-+}
-+
-+/*
   * couple the period to the dirty_ratio:
   *
-  *   period/2 ~ roundup_pow_of_two(dirty limit)
-@@ -337,67 +398,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
- EXPORT_SYMBOL(bdi_set_max_ratio);
+@@ -204,8 +256,8 @@ static int calc_period_shift(void)
+ 	if (vm_dirty_bytes)
+ 		dirty_total = vm_dirty_bytes / PAGE_SIZE;
+ 	else
+-		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
+-				100;
++		dirty_total = (vm_dirty_ratio * global_dirtyable_memory()) /
++			100;
+ 	return 2 + ilog2(dirty_total - 1);
+ }
  
- /*
-- * Work out the current dirty-memory clamping and background writeout
-- * thresholds.
-- *
-- * The main aim here is to lower them aggressively if there is a lot of mapped
-- * memory around.  To avoid stressing page reclaim with lots of unreclaimable
-- * pages.  It is better to clamp down on writers than to start swapping, and
-- * performing lots of scanning.
-- *
-- * We only allow 1/2 of the currently-unmapped memory to be dirtied.
-- *
-- * We don't permit the clamping level to fall below 5% - that is getting rather
-- * excessive.
-- *
-- * We make sure that the background writeout level is below the adjusted
-- * clamping level.
-- */
--
--static unsigned long highmem_dirtyable_memory(unsigned long total)
--{
--#ifdef CONFIG_HIGHMEM
--	int node;
--	unsigned long x = 0;
--
--	for_each_node_state(node, N_HIGH_MEMORY) {
--		struct zone *z =
--			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
--
--		x += zone_page_state(z, NR_FREE_PAGES) +
--		     zone_reclaimable_pages(z);
--	}
--	/*
--	 * Make sure that the number of highmem pages is never larger
--	 * than the number of the total dirtyable memory. This can only
--	 * occur in very strange VM situations but we want to make sure
--	 * that this does not occur.
--	 */
--	return min(x, total);
--#else
--	return 0;
--#endif
--}
--
--/**
-- * determine_dirtyable_memory - amount of memory that may be used
-- *
-- * Returns the numebr of pages that can currently be freed and used
-- * by the kernel for direct mappings.
-- */
--unsigned long determine_dirtyable_memory(void)
--{
--	unsigned long x;
--
--	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
--
--	if (!vm_highmem_is_dirtyable)
--		x -= highmem_dirtyable_memory(x);
--
--	return x + 1;	/* Ensure that we never return 0 */
--}
--
--/*
-  * global_dirty_limits - background-writeback and dirty-throttling thresholds
-  *
-  * Calculate the dirty thresholds based on sysctl parameters
+@@ -410,18 +462,23 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+ {
+ 	unsigned long background;
+ 	unsigned long dirty;
+-	unsigned long available_memory = determine_dirtyable_memory();
++	unsigned long available_memory = dirtyable_memory();
+ 	struct task_struct *tsk;
++	struct vm_dirty_param dirty_param;
+ 
+-	if (vm_dirty_bytes)
+-		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
++	vm_dirty_param(&dirty_param);
++
++	if (dirty_param.dirty_bytes)
++		dirty = DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
+ 	else
+-		dirty = (vm_dirty_ratio * available_memory) / 100;
++		dirty = (dirty_param.dirty_ratio * available_memory) / 100;
+ 
+-	if (dirty_background_bytes)
+-		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
++	if (dirty_param.dirty_background_bytes)
++		background = DIV_ROUND_UP(dirty_param.dirty_background_bytes,
++					  PAGE_SIZE);
+ 	else
+-		background = (dirty_background_ratio * available_memory) / 100;
++		background = (dirty_param.dirty_background_ratio *
++			      available_memory) / 100;
+ 
+ 	if (background >= dirty)
+ 		background = dirty / 2;
+@@ -493,9 +550,8 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			.range_cyclic	= 1,
+ 		};
+ 
+-		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
+-					global_page_state(NR_UNSTABLE_NFS);
+-		nr_writeback = global_page_state(NR_WRITEBACK);
++		nr_reclaimable = reclaimable_pages();
++		nr_writeback = writeback_pages();
+ 
+ 		global_dirty_limits(&background_thresh, &dirty_thresh);
+ 
+@@ -652,6 +708,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+ {
+ 	unsigned long background_thresh;
+ 	unsigned long dirty_thresh;
++	unsigned long dirty;
+ 
+         for ( ; ; ) {
+ 		global_dirty_limits(&background_thresh, &dirty_thresh);
+@@ -662,9 +719,9 @@ void throttle_vm_writeout(gfp_t gfp_mask)
+                  */
+                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
+ 
+-                if (global_page_state(NR_UNSTABLE_NFS) +
+-			global_page_state(NR_WRITEBACK) <= dirty_thresh)
+-                        	break;
++		dirty = dirty_writeback_pages();
++		if (dirty <= dirty_thresh)
++			break;
+                 congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/*
 -- 
 1.7.1
 
