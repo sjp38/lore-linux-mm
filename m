@@ -1,183 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 27FAF5F0047
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:44:04 -0400 (EDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH v3 11/11] memcg: check memcg dirty limits in page writeback
-Date: Mon, 18 Oct 2010 17:39:44 -0700
-Message-Id: <1287448784-25684-12-git-send-email-gthelen@google.com>
-In-Reply-To: <1287448784-25684-1-git-send-email-gthelen@google.com>
+	by kanga.kvack.org (Postfix) with SMTP id 7006D6B004A
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:50:40 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9J0obgF029401
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 19 Oct 2010 09:50:37 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B26A45DE61
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:50:37 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6503845DE55
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:50:37 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BE871DB803C
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:50:37 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id F2FBC1DB803A
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:50:36 +0900 (JST)
+Date: Tue, 19 Oct 2010 09:45:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH v3 04/11] memcg: add lock to synchronize page accounting
+ and migration
+Message-Id: <20101019094512.11eabc62.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1287448784-25684-5-git-send-email-gthelen@google.com>
 References: <1287448784-25684-1-git-send-email-gthelen@google.com>
+	<1287448784-25684-5-git-send-email-gthelen@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-If the current process is in a non-root memcg, then
-global_dirty_limits() will consider the memcg dirty limit.
-This allows different cgroups to have distinct dirty limits
-which trigger direct and background writeback at different
-levels.
+On Mon, 18 Oct 2010 17:39:37 -0700
+Greg Thelen <gthelen@google.com> wrote:
 
-Signed-off-by: Andrea Righi <arighi@develer.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
+> Performance Impact: moving a 8G anon process.
+> 
+> Before:
+> 	real    0m0.792s
+> 	user    0m0.000s
+> 	sys     0m0.780s
+> 
+> After:
+> 	real    0m0.854s
+> 	user    0m0.000s
+> 	sys     0m0.842s
+> 
+> This score is bad but planned patches for optimization can reduce
+> this impact.
+> 
 
-Changelog since v1:
-- Removed unnecessary get_ prefix from get_xxx() functions.
+I'll post optimization patches after this set goes to -mm.
+RFC version will be posted soon.
 
- mm/page-writeback.c |   89 +++++++++++++++++++++++++++++++++++++++++---------
- 1 files changed, 73 insertions(+), 16 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a0bb3e2..9b34f01 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -180,7 +180,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
-  * Returns the numebr of pages that can currently be freed and used
-  * by the kernel for direct mappings.
-  */
--static unsigned long determine_dirtyable_memory(void)
-+static unsigned long global_dirtyable_memory(void)
- {
- 	unsigned long x;
- 
-@@ -192,6 +192,58 @@ static unsigned long determine_dirtyable_memory(void)
- 	return x + 1;	/* Ensure that we never return 0 */
- }
- 
-+static unsigned long dirtyable_memory(void)
-+{
-+	unsigned long memory;
-+	s64 memcg_memory;
-+
-+	memory = global_dirtyable_memory();
-+	if (!mem_cgroup_has_dirty_limit())
-+		return memory;
-+	memcg_memory = mem_cgroup_page_stat(MEMCG_NR_DIRTYABLE_PAGES);
-+	BUG_ON(memcg_memory < 0);
-+
-+	return min((unsigned long)memcg_memory, memory);
-+}
-+
-+static long reclaimable_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_FILE_DIRTY) +
-+			global_page_state(NR_UNSTABLE_NFS);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_RECLAIM_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static long writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_WRITEBACK);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
-+static unsigned long dirty_writeback_pages(void)
-+{
-+	s64 ret;
-+
-+	if (!mem_cgroup_has_dirty_limit())
-+		return global_page_state(NR_UNSTABLE_NFS) +
-+			global_page_state(NR_WRITEBACK);
-+	ret = mem_cgroup_page_stat(MEMCG_NR_DIRTY_WRITEBACK_PAGES);
-+	BUG_ON(ret < 0);
-+
-+	return ret;
-+}
-+
- /*
-  * couple the period to the dirty_ratio:
-  *
-@@ -204,8 +256,8 @@ static int calc_period_shift(void)
- 	if (vm_dirty_bytes)
- 		dirty_total = vm_dirty_bytes / PAGE_SIZE;
- 	else
--		dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) /
--				100;
-+		dirty_total = (vm_dirty_ratio * global_dirtyable_memory()) /
-+			100;
- 	return 2 + ilog2(dirty_total - 1);
- }
- 
-@@ -410,18 +462,23 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
- 	unsigned long background;
- 	unsigned long dirty;
--	unsigned long available_memory = determine_dirtyable_memory();
-+	unsigned long available_memory = dirtyable_memory();
- 	struct task_struct *tsk;
-+	struct vm_dirty_param dirty_param;
- 
--	if (vm_dirty_bytes)
--		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-+	vm_dirty_param(&dirty_param);
-+
-+	if (dirty_param.dirty_bytes)
-+		dirty = DIV_ROUND_UP(dirty_param.dirty_bytes, PAGE_SIZE);
- 	else
--		dirty = (vm_dirty_ratio * available_memory) / 100;
-+		dirty = (dirty_param.dirty_ratio * available_memory) / 100;
- 
--	if (dirty_background_bytes)
--		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-+	if (dirty_param.dirty_background_bytes)
-+		background = DIV_ROUND_UP(dirty_param.dirty_background_bytes,
-+					  PAGE_SIZE);
- 	else
--		background = (dirty_background_ratio * available_memory) / 100;
-+		background = (dirty_param.dirty_background_ratio *
-+			      available_memory) / 100;
- 
- 	if (background >= dirty)
- 		background = dirty / 2;
-@@ -493,9 +550,8 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			.range_cyclic	= 1,
- 		};
- 
--		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
--					global_page_state(NR_UNSTABLE_NFS);
--		nr_writeback = global_page_state(NR_WRITEBACK);
-+		nr_reclaimable = reclaimable_pages();
-+		nr_writeback = writeback_pages();
- 
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
- 
-@@ -652,6 +708,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
- {
- 	unsigned long background_thresh;
- 	unsigned long dirty_thresh;
-+	unsigned long dirty;
- 
-         for ( ; ; ) {
- 		global_dirty_limits(&background_thresh, &dirty_thresh);
-@@ -662,9 +719,9 @@ void throttle_vm_writeout(gfp_t gfp_mask)
-                  */
-                 dirty_thresh += dirty_thresh / 10;      /* wheeee... */
- 
--                if (global_page_state(NR_UNSTABLE_NFS) +
--			global_page_state(NR_WRITEBACK) <= dirty_thresh)
--                        	break;
-+		dirty = dirty_writeback_pages();
-+		if (dirty <= dirty_thresh)
-+			break;
-                 congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
- 		/*
--- 
-1.7.1
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
