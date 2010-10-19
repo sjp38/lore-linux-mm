@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1ACDE6B00D8
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 01:33:26 -0400 (EDT)
-Date: Tue, 19 Oct 2010 16:33:20 +1100
-From: Nick Piggin <npiggin@kernel.dk>
-Subject: Re: [patch 03/35] mm: implement per-zone shrinker
-Message-ID: <20101019053320.GA7470@amd>
-References: <20101019034216.319085068@kernel.dk>
- <20101019034655.756353382@kernel.dk>
- <20101019134345.A1E9.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E1E2D6B00D8
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 01:34:58 -0400 (EDT)
+Received: by iwn1 with SMTP id 1so2211931iwn.14
+        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 22:34:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20101019134345.A1E9.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101019142640.44c87807.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20101018021126.GB8654@localhost>
+	<1287389631.1997.9.camel@myhost>
+	<20101018180919.3AF8.A69D9226@jp.fujitsu.com>
+	<1287454058.2078.12.camel@myhost>
+	<20101019115952.d922763b.kamezawa.hiroyu@jp.fujitsu.com>
+	<AANLkTikw6NizBStoXVz8Br_LYvoLoofsOB+d6-FX2=Be@mail.gmail.com>
+	<20101019142640.44c87807.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 19 Oct 2010 14:34:57 +0900
+Message-ID: <AANLkTim7CCfrqMa0661WEGeeg-AwQzaWi6Yfdi70se3W@mail.gmail.com>
+Subject: Re: oom_killer crash linux system
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: npiggin@kernel.dk, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Figo.zhang" <zhangtianfei@leadcoretech.com>, lKOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "rientjes@google.com" <rientjes@google.com>, figo1802 <figo1802@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, Oct 19, 2010 at 2:26 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 19 Oct 2010 14:23:29 +0900
+> Minchan Kim <minchan.kim@gmail.com> wrote:
+>
+>> On Tue, Oct 19, 2010 at 11:59 AM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> >
+>> > =A0Does anyone have idea about file-mapped-but-not-on-LRU pages ?
+>>
+>> Isn't it possible some file pages are much sharable?
+>> Please see the page_add_file_rmap.
+>>
 
-On Tue, Oct 19, 2010 at 01:49:12PM +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> > Index: linux-2.6/include/linux/mm.h
-> > ===================================================================
-> > --- linux-2.6.orig/include/linux/mm.h	2010-10-19 14:19:40.000000000 +1100
-> > +++ linux-2.6/include/linux/mm.h	2010-10-19 14:36:48.000000000 +1100
-> > @@ -997,6 +997,10 @@
-> >  /*
-> >   * A callback you can register to apply pressure to ageable caches.
-> >   *
-> > + * 'shrink_zone' is the new shrinker API. It is to be used in preference
-> > + * to 'shrink'. One must point to a shrinker function, the other must
-> > + * be NULL. See 'shrink_slab' for details about the shrink_zone API.
-> 
-...
+Absolutely you're right.
+Today, I need sleep. :(
+Sorry for the noise.
 
-> Now we decided to don't remove old (*shrink)() interface and zone unaware
-> slab users continue to use it. so why do we need global argument?
-> If only zone aware shrinker user (*shrink_zone)(), we can remove it.
-> 
-> Personally I think we should remove it because a removing makes a clear
-> message that all shrinker need to implement zone awareness eventually.
 
-I agree, I do want to remove the old API, but it's easier to merge if
-I just start by adding the new API. It is split out from my previous
-patch which does convert all users of the API. When this gets merged, I
-will break those out and send them via respective maintainers, then
-remove the old API when they're all converted upstream.
-
-Thanks,
-Nick
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
