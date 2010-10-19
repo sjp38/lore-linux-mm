@@ -1,70 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E39586B00A5
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:16:47 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9J1Gj7N009984
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 Oct 2010 10:16:45 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2236045DE54
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:16:45 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D97B45DE52
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:16:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 00D8D1DB804A
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:16:44 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A48BE38002
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 10:16:43 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: zone state overhead
-In-Reply-To: <20101018103941.GX30667@csn.ul.ie>
-References: <20101014120804.8B8F.A69D9226@jp.fujitsu.com> <20101018103941.GX30667@csn.ul.ie>
-Message-Id: <20101019100658.A1B3.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 895386B00A5
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 21:17:57 -0400 (EDT)
+Received: by iwn1 with SMTP id 1so1974436iwn.14
+        for <linux-mm@kvack.org>; Mon, 18 Oct 2010 18:17:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 Oct 2010 10:16:42 +0900 (JST)
+In-Reply-To: <1287448784-25684-5-git-send-email-gthelen@google.com>
+References: <1287448784-25684-1-git-send-email-gthelen@google.com>
+	<1287448784-25684-5-git-send-email-gthelen@google.com>
+Date: Tue, 19 Oct 2010 10:17:55 +0900
+Message-ID: <AANLkTikoV=ximPhT+XsKQahNYQBOpW5Tji5bme6pqZST@mail.gmail.com>
+Subject: Re: [PATCH v3 04/11] memcg: add lock to synchronize page accounting
+ and migration
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> > In this case, wakeup_kswapd() don't wake kswapd because
-> > 
-> > ---------------------------------------------------------------------------------
-> > void wakeup_kswapd(struct zone *zone, int order)
-> > {
-> >         pg_data_t *pgdat;
-> > 
-> >         if (!populated_zone(zone))
-> >                 return;
-> > 
-> >         pgdat = zone->zone_pgdat;
-> >         if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
-> >                 return;                          // HERE
-> > ---------------------------------------------------------------------------------
-> > 
-> > So, if we take your approach, we need to know exact free pages in this.
-> 
-> Good point!
-> 
-> > But, zone_page_state_snapshot() is slow. that's dilemma.
-> > 
-> 
-> Very true. I'm prototyping a version of the patch that keeps
-> zone_page_state_snapshot but only uses is in wakeup_kswapd and
-> sleeping_prematurely.
+On Tue, Oct 19, 2010 at 9:39 AM, Greg Thelen <gthelen@google.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Introduce a new bit spin lock, PCG_MOVE_LOCK, to synchronize
+> the page accounting and migration code. =A0This reworks the
+> locking scheme of _update_stat() and _move_account() by
+> adding new lock bit PCG_MOVE_LOCK, which is always taken
+> under IRQ disable.
+>
+> 1. If pages are being migrated from a memcg, then updates to
+> =A0 that memcg page statistics are protected by grabbing
+> =A0 PCG_MOVE_LOCK using move_lock_page_cgroup(). =A0In an
+> =A0 upcoming commit, memcg dirty page accounting will be
+> =A0 updating memcg page accounting (specifically: num
+> =A0 writeback pages) from IRQ context (softirq). =A0Avoid a
+> =A0 deadlocking nested spin lock attempt by disabling irq on
+> =A0 the local processor when grabbing the PCG_MOVE_LOCK.
+>
+> 2. lock for update_page_stat is used only for avoiding race
+> =A0 with move_account(). =A0So, IRQ awareness of
+> =A0 lock_page_cgroup() itself is not a problem. =A0The problem
+> =A0 is between mem_cgroup_update_page_stat() and
+> =A0 mem_cgroup_move_account_page().
+>
+> Trade-off:
+> =A0* Changing lock_page_cgroup() to always disable IRQ (or
+> =A0 =A0local_bh) has some impacts on performance and I think
+> =A0 =A0it's bad to disable IRQ when it's not necessary.
+> =A0* adding a new lock makes move_account() slower. =A0Score is
+> =A0 =A0here.
+>
+> Performance Impact: moving a 8G anon process.
+>
+> Before:
+> =A0 =A0 =A0 =A0real =A0 =A00m0.792s
+> =A0 =A0 =A0 =A0user =A0 =A00m0.000s
+> =A0 =A0 =A0 =A0sys =A0 =A0 0m0.780s
+>
+> After:
+> =A0 =A0 =A0 =A0real =A0 =A00m0.854s
+> =A0 =A0 =A0 =A0user =A0 =A00m0.000s
+> =A0 =A0 =A0 =A0sys =A0 =A0 0m0.842s
+>
+> This score is bad but planned patches for optimization can reduce
+> this impact.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Greg Thelen <gthelen@google.com>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
 
-Ok, this might works. but note, if we are running IO intensive workload, wakeup_kswapd()
-is called very frequently. because it is called even though allocation is succeed. we need to
-request Shaohua run and mesure his problem workload. and can you please cc me
-when you post next version? I hope to review it too.
 
-Thanks.
-
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
