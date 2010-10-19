@@ -1,142 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BE17E6B00B2
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 18:54:26 -0400 (EDT)
-Date: Tue, 19 Oct 2010 15:54:06 -0700
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B4DF26B00B2
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 19:30:47 -0400 (EDT)
+Date: Tue, 19 Oct 2010 16:29:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] Add generic exponentially weighted moving average
- function
-Message-Id: <20101019155406.0a728971.akpm@linux-foundation.org>
-In-Reply-To: <20101019153756.a89ed362.akpm@linux-foundation.org>
-References: <20101019083635.32294.67087.stgit@localhost6.localdomain6>
-	<20101019153756.a89ed362.akpm@linux-foundation.org>
+Subject: Re: [resend][PATCH 2/2] mm, mem-hotplug: update pcp->stat_threshold
+ when memory hotplug occur
+Message-Id: <20101019162940.6918506d.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1010191208130.15499@chino.kir.corp.google.com>
+References: <20101019140831.A1EB.A69D9226@jp.fujitsu.com>
+	<20101019140955.A1EE.A69D9226@jp.fujitsu.com>
+	<alpine.DEB.2.00.1010191208130.15499@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bruno Randolf <br1@einfach.org>, randy.dunlap@oracle.com, kevin.granade@gmail.com, blp@cs.stanford.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Oct 2010 15:37:56 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Tue, 19 Oct 2010 12:11:09 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-> On Tue, 19 Oct 2010 17:36:35 +0900
-> Bruno Randolf <br1@einfach.org> wrote:
+> On Tue, 19 Oct 2010, KOSAKI Motohiro wrote:
 > 
-> > This adds a generic exponentially weighted moving average function. This
-> > implementation makes use of a structure which keeps a scaled up internal
-> > representation to reduce rounding errors.
-> > 
-> > The idea for this implementation comes from the rt2x00 driver (rt2x00link.c)
-> > and I would like to use it in several places in the mac80211 and ath5k code.
-> > 
-> > Signed-off-by: Bruno Randolf <br1@einfach.org>
-> > 
-> 
-> hm, interesting.  I suspect there are a few places in MM/VFS/writeback
-> which could/should be using something like this.  Of course, if we do
-> this then your nice little function will end up 250 lines long, utterly
-> incomprehensible and full of subtle bugs.  We like things to be that way.
-> 
-> Thanks for proposing it as generic code, btw.  Let's merge it and see
-> what happens.
-
-I looked at the code..
-
-> > diff --git a/include/linux/average.h b/include/linux/average.h
-> > new file mode 100644
-> > index 0000000..55e4317
-> > --- /dev/null
-> > +++ b/include/linux/average.h
-> > @@ -0,0 +1,37 @@
-> > +#ifndef _LINUX_AVERAGE_H
-> > +#define _LINUX_AVERAGE_H
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 14ee899..222d8cc 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -51,6 +51,7 @@
+> >  #include <linux/kmemleak.h>
+> >  #include <linux/memory.h>
+> >  #include <linux/compaction.h>
+> > +#include <linux/vmstat.h>
+> >  #include <trace/events/kmem.h>
+> >  #include <linux/ftrace_event.h>
+> >  
+> > @@ -5013,6 +5014,8 @@ int __meminit init_per_zone_wmark_min(void)
+> >  		min_free_kbytes = 128;
+> >  	if (min_free_kbytes > 65536)
+> >  		min_free_kbytes = 65536;
 > > +
-> > +#define AVG_FACTOR	1000
+> > +	refresh_zone_stat_thresholds();
+> >  	setup_per_zone_wmarks();
+> >  	setup_per_zone_lowmem_reserve();
+> >  	setup_per_zone_inactive_ratio();
+> 
+> setup_per_zone_wmarks() could change the min and low watermarks for a zone 
+> when refresh_zone_stat_thresholds() would have used the old value.
 
-Can you please document the magic number?  What does it do?  I'd have
-though it likely that one day this will become variable, initialised in
-moving_average_init().
+Indeed.
 
-> > +struct avg_val {
-> > +	int value;
-> > +	int internal;
-> > +};
-
-So it's using integer types.
-
-I guess that makes sense, maybe.  Does your application use negative
-quantities?  They're pretty rare beasts in the kernel.  I expect most
-callers will want an unsigned type?
-
-> > +/**
-> > + * moving_average() -  Exponentially weighted moving average (EWMA)
-> > + * @avg: Average structure
-> > + * @val: Current value
-> > + * @weight: This defines how fast the influence of older values decreases.
-> > + *	Has to be higher than 1. Use the same number every time you call this
-> > + *	function for a single struct avg_val!
-> > + *
-> > + * This implementation make use of a struct avg_val which keeps a scaled up
-> > + * internal representation to prevent rounding errors. Due to this, the maximum
-> > + * range of values is MAX_INT/(AVG_FACTOR*weight).
-> > + *
-> > + * The current average value can be accessed by using avg_val.value.
-> > + */
-> > +static inline void
-> > +moving_average(struct avg_val *avg, const int val, const int weight)
-> > +{
-> > +	if (WARN_ON_ONCE(weight <= 1))
-> > +		return;
-> > +	avg->internal = avg->internal  ?
-> > +		(((avg->internal * (weight - 1)) +
-> > +			(val * AVG_FACTOR)) / weight) :
-> > +		(val * AVG_FACTOR);
-> > +	avg->value = DIV_ROUND_CLOSEST(avg->internal, AVG_FACTOR);
-> > +}
-
-This function is really already too large to be inlined, and I'd
-suggest that lib/moving_average.c would be a better home for it.
-
-Is it expected that `weight' will have the same value for all calls of
-moving_average() against a particular avg_val?  If so then perhaps we
-should do away with this argument and place `weight' into the avg_val
-struct, and set that up in moving_average_init().
-
-And I do think that we need a moving_average_init(), because at present
-you require that callers initialise the avg_val() by hand.  This means
-that if we later add more fields to that struct, all callers will need
-to be updated.  Any which are out-of-tree will have been made buggy.
-
-Also, perhaps moving_average() should end with a
-
-	return avg->value;
-
-for convenience on the callers side.  Or maybe not - I haven't looked
-at any calling code...
-
-Finally, it's a little ugly to have callers poking around inside the
-avg_val to get the current average.  The main problem with this is that
-it restricts future implementations: they must maintain their average
-in avg_val.value.  If they instead were to call
-
-	moving_average_read(struct avg_val *)
-
-then we get more freedom regarding future implementations.  The current
-moving_average_read() could be inlined.  That would require that avg_val be
-defined in the header file rather than in .c.  This is a bit sad, but
-acceptable.
-
-
-
-And finally+1: moving_average() needs locking to protect internal
-state.  Right now, the caller must provide that locking.  And that's a
-fine design IMO - we have no business here assuming that we can use
-mutex_lock() or spin_lock() or spin_lock_irq() or spin_lock_irqsave() - 
-let the caller decide that.
-
-But the need for this caller-provided locking should be described in
-the API documentation, please.
+I could make the obvious fix, but then what I'd have wouldn't be
+sufficiently tested.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
