@@ -1,102 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 062E16B00AC
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 14:24:24 -0400 (EDT)
-Received: from [172.16.12.116] by digidescorp.com (Cipher SSLv3:RC4-MD5:128) (MDaemon PRO v10.1.1)
-	with ESMTP id md50001454742.msg
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 13:24:21 -0500
-Subject: Re: [PATCH V2] nommu: add anonymous page memcg accounting
-From: "Steven J. Magnani" <steve@digidescorp.com>
-Reply-To: steve@digidescorp.com
-In-Reply-To: <20101019154819.GC15844@balbir.in.ibm.com>
-References: <1287491654-4005-1-git-send-email-steve@digidescorp.com>
-	 <20101019154819.GC15844@balbir.in.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 19 Oct 2010 13:24:17 -0500
-Message-ID: <1287512657.2500.31.camel@iscandar.digidescorp.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5803F6B00AA
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 15:11:30 -0400 (EDT)
+Received: from kpbe17.cbf.corp.google.com (kpbe17.cbf.corp.google.com [172.25.105.81])
+	by smtp-out.google.com with ESMTP id o9JJBLMB026723
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 12:11:23 -0700
+Received: from pzk1 (pzk1.prod.google.com [10.243.19.129])
+	by kpbe17.cbf.corp.google.com with ESMTP id o9JJB6U1014069
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 12:11:19 -0700
+Received: by pzk1 with SMTP id 1so53080pzk.21
+        for <linux-mm@kvack.org>; Tue, 19 Oct 2010 12:11:14 -0700 (PDT)
+Date: Tue, 19 Oct 2010 12:11:09 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [resend][PATCH 2/2] mm, mem-hotplug: update pcp->stat_threshold
+ when memory hotplug occur
+In-Reply-To: <20101019140955.A1EE.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1010191208130.15499@chino.kir.corp.google.com>
+References: <20101019140831.A1EB.A69D9226@jp.fujitsu.com> <20101019140955.A1EE.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, dhowells@redhat.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2010-10-19 at 21:18 +0530, Balbir Singh wrote:
-> * Steven J. Magnani <steve@digidescorp.com> [2010-10-19 07:34:14]:
-> 
-> > Add the necessary calls to track VM anonymous page usage (only).
-> > 
-> > V2 changes:
-> > * Added update of memory cgroup documentation
-> > * Clarify use of 'file' to distinguish anonymous mappings
-> > 
-> > Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
-> > ---
-> > diff -uprN a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> > --- a/Documentation/cgroups/memory.txt	2010-10-05 09:14:36.000000000 -0500
-> > +++ b/Documentation/cgroups/memory.txt	2010-10-19 07:28:04.000000000 -0500
-> > @@ -34,6 +34,7 @@ Current Status: linux-2.6.34-mmotm(devel
-> > 
-> >  Features:
-> >   - accounting anonymous pages, file caches, swap caches usage and limiting them.
-> > +   NOTE: On NOMMU systems, only anonymous pages are accounted.
-> >   - private LRU and reclaim routine. (system's global LRU and private LRU
-> >     work independently from each other)
-> >   - optionally, memory+swap usage can be accounted and limited.
-> > @@ -640,7 +641,30 @@ At reading, current status of OOM is sho
-> >  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
-> >  				 be stopped.)
-> > 
-> > -11. TODO
-> > +11. NOMMU Support
-<snip>
-> > +
-> > +At the present time, only anonymous pages are included in NOMMU memory cgroup
-> > +accounting.
-> 
-> What is the reason for tracking just anonymous memory?
+On Tue, 19 Oct 2010, KOSAKI Motohiro wrote:
 
-Tracking more than that is beyond my current scope, and perhaps of
-limited benefit under an assumption that NOMMU systems don't usually
-work with large files. The limitations of the implementation are
-documented, so hopefully anyone who needs more functionality will know
-that they need to implement it.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 14ee899..222d8cc 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -51,6 +51,7 @@
+>  #include <linux/kmemleak.h>
+>  #include <linux/memory.h>
+>  #include <linux/compaction.h>
+> +#include <linux/vmstat.h>
+>  #include <trace/events/kmem.h>
+>  #include <linux/ftrace_event.h>
+>  
+> @@ -5013,6 +5014,8 @@ int __meminit init_per_zone_wmark_min(void)
+>  		min_free_kbytes = 128;
+>  	if (min_free_kbytes > 65536)
+>  		min_free_kbytes = 65536;
+> +
+> +	refresh_zone_stat_thresholds();
+>  	setup_per_zone_wmarks();
+>  	setup_per_zone_lowmem_reserve();
+>  	setup_per_zone_inactive_ratio();
 
-> > diff -uprN a/mm/nommu.c b/mm/nommu.c
-> > --- a/mm/nommu.c	2010-10-13 08:20:38.000000000 -0500
-> > +++ b/mm/nommu.c	2010-10-13 08:24:06.000000000 -0500
-<snip>
-> > @@ -1117,9 +1125,27 @@ static int do_mmap_private(struct vm_are
-> >  		set_page_refcounted(&pages[point]);
-> > 
-> >  	base = page_address(pages);
-> > -	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
-> > +
-> >  	region->vm_start = (unsigned long) base;
-> >  	region->vm_end   = region->vm_start + rlen;
-> > +
-> > +	/* Only anonymous pages are charged, currently */
-> > +	if (!vma->vm_file) {
-> > +		for (point = 0; point < total; point++) {
-> > +			int charge_failed =
-> > +				mem_cgroup_newpage_charge(&pages[point],
-> > +							  current->mm,
-> 
-> Is current->mm same as vma->vm_mm? I think vma->vm_mm is cleaner.
-
-I agree, but at the time this code runs, vma->vm_mm is NULL except for
-an executable file mapping - which is not the case for the anonymous
-pages we are trying to track. I will look into modifying do_mmap_pgoff()
-to set vm_mm before invoking do_mmap_private(); if that can be done
-without side effects, I'll change the code here as you suggest.
-
-Thanks for the quick review.
-------------------------------------------------------------------------
- Steven J. Magnani               "I claim this network for MARS!
- www.digidescorp.com              Earthling, return my space modulator!"
-
- #include <standard.disclaimer>
-
+setup_per_zone_wmarks() could change the min and low watermarks for a zone 
+when refresh_zone_stat_thresholds() would have used the old value.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
