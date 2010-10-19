@@ -1,66 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B20B96B00AA
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 14:10:23 -0400 (EDT)
-Message-ID: <20101019181021.22456.qmail@kosh.dhis.org>
-From: pacman@kosh.dhis.org
-Subject: Re: PROBLEM: memory corrupting bug, bisected to 6dda9d55
-Date: Tue, 19 Oct 2010 13:10:21 -0500 (GMT+5)
-In-Reply-To: <1287483410.2341.66.camel@pasglop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 062E16B00AC
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 14:24:24 -0400 (EDT)
+Received: from [172.16.12.116] by digidescorp.com (Cipher SSLv3:RC4-MD5:128) (MDaemon PRO v10.1.1)
+	with ESMTP id md50001454742.msg
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 13:24:21 -0500
+Subject: Re: [PATCH V2] nommu: add anonymous page memcg accounting
+From: "Steven J. Magnani" <steve@digidescorp.com>
+Reply-To: steve@digidescorp.com
+In-Reply-To: <20101019154819.GC15844@balbir.in.ibm.com>
+References: <1287491654-4005-1-git-send-email-steve@digidescorp.com>
+	 <20101019154819.GC15844@balbir.in.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 19 Oct 2010 13:24:17 -0500
+Message-ID: <1287512657.2500.31.camel@iscandar.digidescorp.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, dhowells@redhat.com, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt writes:
-> > 
-> > I thought of that, but as far as I can tell, this CPU doesn't have DABR.
+On Tue, 2010-10-19 at 21:18 +0530, Balbir Singh wrote:
+> * Steven J. Magnani <steve@digidescorp.com> [2010-10-19 07:34:14]:
 > 
-> AFAIK, the 7447 is just a derivative of the 7450 design which -does-
-> have a DABR ... Unless it's broken :-)
+> > Add the necessary calls to track VM anonymous page usage (only).
+> > 
+> > V2 changes:
+> > * Added update of memory cgroup documentation
+> > * Clarify use of 'file' to distinguish anonymous mappings
+> > 
+> > Signed-off-by: Steven J. Magnani <steve@digidescorp.com>
+> > ---
+> > diff -uprN a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> > --- a/Documentation/cgroups/memory.txt	2010-10-05 09:14:36.000000000 -0500
+> > +++ b/Documentation/cgroups/memory.txt	2010-10-19 07:28:04.000000000 -0500
+> > @@ -34,6 +34,7 @@ Current Status: linux-2.6.34-mmotm(devel
+> > 
+> >  Features:
+> >   - accounting anonymous pages, file caches, swap caches usage and limiting them.
+> > +   NOTE: On NOMMU systems, only anonymous pages are accounted.
+> >   - private LRU and reclaim routine. (system's global LRU and private LRU
+> >     work independently from each other)
+> >   - optionally, memory+swap usage can be accounted and limited.
+> > @@ -640,7 +641,30 @@ At reading, current status of OOM is sho
+> >  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
+> >  				 be stopped.)
+> > 
+> > -11. TODO
+> > +11. NOMMU Support
+<snip>
+> > +
+> > +At the present time, only anonymous pages are included in NOMMU memory cgroup
+> > +accounting.
+> 
+> What is the reason for tracking just anonymous memory?
 
-Hmm. gdb resorts to single-stepping when I set a watchpoint while debugging
-some userspace program, which I assumed was caused by lack of hardware
-watchpoint support. But that's not important right now.
+Tracking more than that is beyond my current scope, and perhaps of
+limited benefit under an assumption that NOMMU systems don't usually
+work with large files. The limitations of the implementation are
+documented, so hopefully anyone who needs more functionality will know
+that they need to implement it.
 
-I made a new discovery. During a test boot while looking at the usual symptom
-of a corrupted page cache, I run md5sum /sbin/e2fsck twice and got 2
-different results, neither one of them correct. The third time, yet another
-different result. A few dozen more times, a few dozen more unique results. I
-had somehow managed to get a usable interactive shell while corruption was
-ongoing.
+> > diff -uprN a/mm/nommu.c b/mm/nommu.c
+> > --- a/mm/nommu.c	2010-10-13 08:20:38.000000000 -0500
+> > +++ b/mm/nommu.c	2010-10-13 08:24:06.000000000 -0500
+<snip>
+> > @@ -1117,9 +1125,27 @@ static int do_mmap_private(struct vm_are
+> >  		set_page_refcounted(&pages[point]);
+> > 
+> >  	base = page_address(pages);
+> > -	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+> > +
+> >  	region->vm_start = (unsigned long) base;
+> >  	region->vm_end   = region->vm_start + rlen;
+> > +
+> > +	/* Only anonymous pages are charged, currently */
+> > +	if (!vma->vm_file) {
+> > +		for (point = 0; point < total; point++) {
+> > +			int charge_failed =
+> > +				mem_cgroup_newpage_charge(&pages[point],
+> > +							  current->mm,
+> 
+> Is current->mm same as vma->vm_mm? I think vma->vm_mm is cleaner.
 
-So then I ran
-  dd if=/dev/mem bs=4 count=1 skip=$((0xfc5c080/4)) | od -t x4
-a few times very fast, plucking the first affected word directly out of
-memory by its physical address. The result:
+I agree, but at the time this code runs, vma->vm_mm is NULL except for
+an executable file mapping - which is not the case for the anonymous
+pages we are trying to track. I will look into modifying do_mmap_pgoff()
+to set vm_mm before invoking do_mmap_private(); if that can be done
+without side effects, I'll change the code here as you suggest.
 
-The low 16 bits are always zero as before. The high 16 bits are a counter,
-being incremented at about 1000Hz (as close as I could measure with a crude
-shell script. 1024Hz would also be within the margin of error). And it's
-little-endian.
+Thanks for the quick review.
+------------------------------------------------------------------------
+ Steven J. Magnani               "I claim this network for MARS!
+ www.digidescorp.com              Earthling, return my space modulator!"
 
-While I was watching this happen, there were only 5 or 6 userspace processes
-running, and 3 of them were shells. So I doubt that anything in userspace was
-doing it. It went on for a few minutes before I exited the interactive shell
-and allowed the boot to continue, while keeping an extra shell running on
-tty2 to continue making observations. It stopped incrementing almost
-immediately.
+ #include <standard.disclaimer>
 
-So what type of driver, firmware, or hardware bug puts a 16-bit 1000Hz timer
-in memory, and does it in little-endian instead of the CPU's native byte
-order? And why does it stop doing it some time during the early init scripts,
-shortly after the root filesystem fsck?
-
-I have not yet attempted to repeat the experiment. If it is repeatable, I'll
-probe more deeply into those init scripts later. I'm looking hard at
-/etc/rcS.d/S11hwclock.sh
-
--- 
-Alan Curry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
