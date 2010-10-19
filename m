@@ -1,93 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC635F0047
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 05:23:55 -0400 (EDT)
-Date: Tue, 19 Oct 2010 10:23:38 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [UnifiedV4 00/16] The Unified slab allocator (V4)
-Message-ID: <20101019092337.GG30667@csn.ul.ie>
-References: <20101005185725.088808842@linux.com> <AANLkTinPU4T59PvDH1wX2Rcy7beL=TvmHOZh_wWuBU-T@mail.gmail.com> <alpine.DEB.2.00.1010061054410.31538@router.home> <20101013141455.GQ30667@csn.ul.ie> <alpine.DEB.2.00.1010181305000.2092@router.home>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8C50F6B004A
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 06:06:25 -0400 (EDT)
+Received: by gwj21 with SMTP id 21so1151317gwj.14
+        for <linux-mm@kvack.org>; Tue, 19 Oct 2010 03:06:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1010181305000.2092@router.home>
+In-Reply-To: <AANLkTin3wXWwA-HXhjx6wvzznp3p57Pg6fee8YNkZB79@mail.gmail.com>
+References: <20100915091118.3dbdc961@notabene>
+	<4C90139A.1080809@redhat.com>
+	<20100915122334.3fa7b35f@notabene>
+	<20100915082843.GA17252@localhost>
+	<20100915184434.18e2d933@notabene>
+	<20101018151459.2b443221@notabene>
+	<AANLkTimv_zXHdFDGa9ecgXyWmQynOKTDRPC59PZA9mvL@mail.gmail.com>
+	<20101019101151.57c6dd56@notabene>
+	<AANLkTin3wXWwA-HXhjx6wvzznp3p57Pg6fee8YNkZB79@mail.gmail.com>
+Date: Tue, 19 Oct 2010 12:06:21 +0200
+Message-ID: <AANLkTimVu+5gTDs8przJVP2EbWC=FX-zWW7aH08BtrHC@mail.gmail.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+From: Torsten Kaiser <just.for.lkml@googlemail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, npiggin@kernel.dk, yanmin_zhang@linux.intel.com
+To: Neil Brown <neilb@suse.de>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 18, 2010 at 01:13:42PM -0500, Christoph Lameter wrote:
-> On Wed, 13 Oct 2010, Mel Gorman wrote:
-> 
-> > Minimally, I see the same sort of hackbench socket performance regression
-> > as reported elsewhere (10-15% regression). Otherwise, it isn't particularly
-> > exciting results. The machine is very basic - 2 socket, 4 cores, x86-64,
-> > 2G RAM. Macine model is an IBM BladeCenter HS20. Processor is Xeon but I'm
-> > not sure exact what model. It appears to be from around the P4 times.
-> 
-> Looks not good. Something must still be screwed up. Trouble is to find
-> time to do this work. When working on SLAB we had a team to implement the
-> NUMA stuff and deal with the performance issues.
-> 
-> > Christoph, in particular while it tests netperf, it is not binding to any
-> > particular CPU (although it can), server and client are running on the local
-> > machine (which has particular performance characterisitcs of its own) and
-> > the tests is STREAM, not RR so the tarball is not a replacement for more
-> > targetting testing or workload-specific testing. Still, it should catch
-> > some of the common snags before getting into specific workloads without
-> > taking an extraordinary amount of time to complete. sysbench might take a
-> > long time for many-core machines, limit the number of threads it tests with
-> > OLTP_MAX_THREADS in the config file.
-> 
-> That should not matter too much. The performance results should replicate
-> SLABs caching behavior and I do not see that in the tests.
-> 
+On Tue, Oct 19, 2010 at 10:43 AM, Torsten Kaiser
+<just.for.lkml@googlemail.com> wrote:
+> On Tue, Oct 19, 2010 at 1:11 AM, Neil Brown <neilb@suse.de> wrote:
+>> Yes, thanks for the report.
+>> This is a real bug exactly as you describe.
+>>
+>> This is how I think I will fix it, though it needs a bit of review and
+>> testing before I can be certain.
+>> Also I need to check raid10 etc to see if they can suffer too.
+>>
+>> If you can test it I would really appreciate it.
+>
+> I did test it, but while it seemed to fix the deadlock, the system
+> still got unusable.
+> The still running "vmstat 1" showed that the swapout was still
+> progressing, but at a rate of ~20k sized bursts every 5 to 20 seconds.
+>
+> I also tried to additionally add Wu's patch:
+> --- linux-next.orig/mm/vmscan.c 2010-10-13 12:35:14.000000000 +0800
+> +++ linux-next/mm/vmscan.c =A0 =A0 =A02010-10-19 00:13:04.000000000 +0800
+> @@ -1163,6 +1163,13 @@ static int too_many_isolated(struct zone
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 isolated =3D zone_page_state(zone, NR_ISOLATE=
+D_ANON);
+> =A0 =A0 =A0 }
+>
+> + =A0 =A0 =A0 /*
+> + =A0 =A0 =A0 =A0* GFP_NOIO/GFP_NOFS callers are allowed to isolate more =
+pages, so that
+> + =A0 =A0 =A0 =A0* they won't get blocked by normal ones and form circula=
+r deadlock.
+> + =A0 =A0 =A0 =A0*/
+> + =A0 =A0 =A0 if ((sc->gfp_mask & GFP_IOFS) =3D=3D GFP_IOFS)
+> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 inactive >>=3D 3;
+> +
+> =A0 =A0 =A0 return isolated > inactive;
+>
+> Either it did help somewhat, or I was more lucky on my second try, but
+> this time I needed ~5 tries instead of only 2 to get the system mostly
+> stuck again. On the testrun with Wu's patch the writeout pattern was
+> more stable, a burst of ~80kb each 20 seconds. But I would suspect
+> that the size of the burst is rather random.
+>
+> I do have a complete SysRq+T dump from the first run, I can send that
+> to anyone how wants it.
+> (It's 190k so I don't want not spam it to the list)
 
-On the other hand, the unified figures are very close to slab in terms of
-behaviour. Very small gains and losses. Considering that the server and
-clients are not bound to any particular CPU either and the data set it is
-working on is quite large, a small amount of noise is expected.
+Is this call trace from the SysRq+T violation the rule to only
+allocate one bio from bio_alloc() until its submitted?
 
-> > NETPERF UDP
-> >                    netperf-udp       netperf-udp          udp-slub
-> >                   slab-vanilla      slub-vanilla      unified-v4r1
-> >       64    52.23 ( 0.00%)*    53.80 ( 2.92%)     50.56 (-3.30%)               1.36%             1.00%             1.00%
-> >      128   103.70 ( 0.00%)    107.43 ( 3.47%)    101.23 (-2.44%)
-> >      256   208.62 ( 0.00%)*   212.15 ( 1.66%)    202.35 (-3.10%)               1.73%             1.00%             1.00%
-> >     1024   814.86 ( 0.00%)    827.42 ( 1.52%)    799.13 (-1.97%)
-> >     2048  1585.65 ( 0.00%)   1614.76 ( 1.80%)   1563.52 (-1.42%)
-> >     3312  2512.44 ( 0.00%)   2556.70 ( 1.73%)   2460.37 (-2.12%)
-> >     4096  3016.81 ( 0.00%)*  3058.16 ( 1.35%)   2901.87 (-3.96%)               1.15%             1.00%             1.00%
-> >     8192  5384.46 ( 0.00%)   5092.95 (-5.72%)   4912.71 (-9.60%)
-> >    16384  8091.96 ( 0.00%)*  8249.26 ( 1.91%)   8004.40 (-1.09%)               1.70%             1.00%             1.00%
-> 
-> Seems that we lost some of the netperf wins.
+[  549.700038] Call Trace:
+[  549.700038]  [<ffffffff81566b54>] schedule_timeout+0x144/0x200
+[  549.700038]  [<ffffffff81045cd0>] ? process_timeout+0x0/0x10
+[  549.700038]  [<ffffffff81565e22>] io_schedule_timeout+0x42/0x60
+[  549.700038]  [<ffffffff81083123>] mempool_alloc+0x163/0x1b0
+[  549.700038]  [<ffffffff81053560>] ? autoremove_wake_function+0x0/0x40
+[  549.700038]  [<ffffffff810ea2b9>] bio_alloc_bioset+0x39/0xf0
+[  549.700038]  [<ffffffff810ea38d>] bio_clone+0x1d/0x50
+[  549.700038]  [<ffffffff814318ed>] make_request+0x23d/0x850
+[  549.700038]  [<ffffffff81082e20>] ? mempool_alloc_slab+0x10/0x20
+[  549.700038]  [<ffffffff81045cd0>] ? process_timeout+0x0/0x10
+[  549.700038]  [<ffffffff81436e63>] md_make_request+0xc3/0x220
+[  549.700038]  [<ffffffff81083099>] ? mempool_alloc+0xd9/0x1b0
+[  549.700038]  [<ffffffff811ec153>] generic_make_request+0x1b3/0x370
+[  549.700038]  [<ffffffff810ea2d6>] ? bio_alloc_bioset+0x56/0xf0
+[  549.700038]  [<ffffffff811ec36a>] submit_bio+0x5a/0xd0
+[  549.700038]  [<ffffffff81080cf5>] ? unlock_page+0x25/0x30
+[  549.700038]  [<ffffffff810a871e>] swap_writepage+0x7e/0xc0
+[  549.700038]  [<ffffffff81090d99>] shmem_writepage+0x1c9/0x240
+[  549.700038]  [<ffffffff8108c9cb>] pageout+0x11b/0x270
+[  549.700038]  [<ffffffff8108cd78>] shrink_page_list+0x258/0x4d0
+[  549.700038]  [<ffffffff8108d9e7>] shrink_inactive_list+0x187/0x310
+[  549.700038]  [<ffffffff8102dcb1>] ? __wake_up_common+0x51/0x80
+[  549.700038]  [<ffffffff811fc8b2>] ? cpumask_next_and+0x22/0x40
+[  549.700038]  [<ffffffff8108e1c0>] shrink_zone+0x3e0/0x470
+[  549.700038]  [<ffffffff8108e797>] try_to_free_pages+0x157/0x410
+[  549.700038]  [<ffffffff81087c92>] __alloc_pages_nodemask+0x412/0x760
+[  549.700038]  [<ffffffff810b27d6>] alloc_pages_current+0x76/0xe0
+[  549.700038]  [<ffffffff810b6dad>] new_slab+0x1fd/0x2a0
+[  549.700038]  [<ffffffff81045cd0>] ? process_timeout+0x0/0x10
+[  549.700038]  [<ffffffff810b8721>] __slab_alloc+0x111/0x540
+[  549.700038]  [<ffffffff81059961>] ? prepare_creds+0x21/0xb0
+[  549.700038]  [<ffffffff810b92bb>] kmem_cache_alloc+0x9b/0xa0
+[  549.700038]  [<ffffffff81059961>] prepare_creds+0x21/0xb0
+[  549.700038]  [<ffffffff8104a919>] sys_setresgid+0x29/0x120
+[  549.700038]  [<ffffffff8100242b>] system_call_fastpath+0x16/0x1b
+[  549.700038]  ffff88011e125ea8 0000000000000046 ffff88011e125e08
+ffffffff81073c59
+[  549.700038]  0000000000012780 ffff88011ea905b0 ffff88011ea90808
+ffff88011e125fd8
+[  549.700038]  ffff88011ea90810 ffff88011e124010 0000000000012780
+ffff88011e125fd8
 
-It's a different test being run here. UDP_STREAM versus UDP_RR and that could
-be one factor in the differences between my results and your own. I'll look
-into redoing these for *_RR to rule that out as one factor.  The results
-are outside statistical noise though.
+swap_writepage() uses get_swap_bio() which uses bio_alloc() to get one
+bio. That bio is the submitted, but the submit path seems to get into
+make_request from raid1.c and that allocates a second bio from
+bio_alloc() via bio_clone().
 
-> 
-> > SYSBENCH
-> >             sysbench-slab-vanilla-sysbenchsysbench-slub-vanilla-sysbench     sysbench-slub
-> >                   slab-vanilla      slub-vanilla      unified-v4r1
-> >            1  7521.24 ( 0.00%)  7719.38 ( 2.57%)  7589.13 ( 0.89%)
-> >            2 14872.85 ( 0.00%) 15275.09 ( 2.63%) 15054.08 ( 1.20%)
-> >            3 16502.53 ( 0.00%) 16676.53 ( 1.04%) 16465.69 (-0.22%)
-> >            4 17831.19 ( 0.00%) 17900.09 ( 0.38%) 17819.03 (-0.07%)
-> >            5 18158.40 ( 0.00%) 18432.74 ( 1.49%) 18341.99 ( 1.00%)
-> >            6 18673.68 ( 0.00%) 18878.41 ( 1.08%) 18614.92 (-0.32%)
-> >            7 17689.75 ( 0.00%) 17871.89 ( 1.02%) 17633.19 (-0.32%)
-> >            8 16885.68 ( 0.00%) 16838.37 (-0.28%) 16498.41 (-2.35%)
-> 
-> Same here. Seems that we combined the worst of both.
-> 
+I am seeing this pattern (swap_writepage calling
+md_make_request/make_request and then getting stuck in mempool_alloc)
+more than 5 times in the SysRq+T output...
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+Torsten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
