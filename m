@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB286B00CE
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 22:54:15 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9J2sAxg017920
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 Oct 2010 11:54:11 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3624A45DE58
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 11:54:10 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D775945DE57
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 11:54:09 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B528E38003
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 11:54:09 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E1C4CE38001
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 11:54:08 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A7ED76B00CE
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 23:05:21 -0400 (EDT)
+Date: Tue, 19 Oct 2010 11:05:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: Deadlock possibly caused by too_many_isolated.
-In-Reply-To: <AANLkTi=1j5ejRyki+2wmKvOitorteW6uL53wfAWiPeAs@mail.gmail.com>
-References: <20101019105257.A1C6.A69D9226@jp.fujitsu.com> <AANLkTi=1j5ejRyki+2wmKvOitorteW6uL53wfAWiPeAs@mail.gmail.com>
-Message-Id: <20101019113316.A1CF.A69D9226@jp.fujitsu.com>
+Message-ID: <20101019030515.GB11924@localhost>
+References: <20101019093142.509d6947@notabene>
+ <20101018154137.90f5325f.akpm@linux-foundation.org>
+ <20101019095144.A1B0.A69D9226@jp.fujitsu.com>
+ <AANLkTin38qJ-U3B7XwMh-3aR9zRs21LgR1yHfqYifxrn@mail.gmail.com>
+ <20101019023537.GB8310@localhost>
+ <AANLkTikHxDyjOGgM8-X6FNT15Hr3s4NaA-=+FRhma+3D@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 Oct 2010 11:54:08 +0900 (JST)
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AANLkTikHxDyjOGgM8-X6FNT15Hr3s4NaA-=+FRhma+3D@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Neil Brown <neilb@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Li, Shaohua" <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-> >> > Can you please elaborate your intention? Do you think Wu's approach is wrong?
-> >>
-> >> No. I think Wu's patch may work well. But I agree Andrew.
-> >> Couldn't we remove the too_many_isolated logic? If it is, we can solve
-> >> the problem simply.
-> >> But If we remove the logic, we will meet long time ago problem, again.
-> >> So my patch's intention is to prevent OOM and deadlock problem with
-> >> simple patch without adding new heuristic in too_many_isolated.
-> >
-> > But your patch is much false positive/negative chance because isolated pages timing
-> > and too_many_isolated_zone() call site are in far distance place.
+On Tue, Oct 19, 2010 at 10:52:47AM +0800, Minchan Kim wrote:
+> Hi Wu,
 > 
-> Yes.
-> How about the returning *did_some_progress can imply too_many_isolated
-> fail by using MSB or new variable?
-> Then, page_allocator can check it whether it causes read reclaim fail
-> or parallel reclaim.
-> The point is let's throttle without holding FS/IO lock.
+> On Tue, Oct 19, 2010 at 11:35 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> >> @@ -2054,10 +2069,11 @@ rebalance:
+> >> A  A  A  A  A  A  A  A  goto got_pg;
+> >>
+> >> A  A  A  A  /*
+> >> - A  A  A  A * If we failed to make any progress reclaiming, then we are
+> >> - A  A  A  A * running out of options and have to consider going OOM
+> >> + A  A  A  A * If we failed to make any progress reclaiming and there aren't
+> >> + A  A  A  A * many parallel reclaiming, then we are unning out of options and
+> >> + A  A  A  A * have to consider going OOM
+> >> A  A  A  A  A */
+> >> - A  A  A  if (!did_some_progress) {
+> >> + A  A  A  if (!did_some_progress && !too_many_isolated_zone(preferred_zone)) {
+> >> A  A  A  A  A  A  A  A  if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
+> >> A  A  A  A  A  A  A  A  A  A  A  A  if (oom_killer_disabled)
+> >> A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  A  goto nopage;
+> >
+> > This is simply wrong.
+> >
+> > It disabled this block for 99% system because there won't be enough
+> > tasks to make (!too_many_isolated_zone == true). As a result the LRU
+> > will be scanned like mad and no task get OOMed when it should be.
+> 
+> If !too_many_isolated_zone is false, it means there are already many
+> direct reclaiming tasks.
+> So they could exit reclaim path and !too_many_isolated_zone will be true.
+> What am I missing now?
 
-Wu's version sleep in shrink_inactive_list(). your version sleep in __alloc_pages_slowpath()
-by wait_iff_congested(). both don't release lock, I think.
-But, if alloc_pages() return fail if GFP_NOIO, we introduce another issue.
+Ah sorry, my brain get short circuited.. but I still feel uneasy with
+this change. It's not fixing the root cause and won't prevent too many
+LRU pages be isolated. It's too late to test too_many_isolated_zone()
+after direct reclaim returns (after sleeping for a long time).
 
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
