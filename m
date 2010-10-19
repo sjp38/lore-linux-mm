@@ -1,60 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3A12B6B0087
-	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:43:14 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id o9J0hAea004690
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 19 Oct 2010 09:43:10 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D7AB45DE52
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:43:10 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B5D945DE4F
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:43:10 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 22AB2E38002
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:43:10 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D4DDDE08001
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 09:43:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when per cpu page cache flushed
-In-Reply-To: <alpine.DEB.2.00.1010181050000.1294@router.home>
-References: <20101013160640.ADC9.A69D9226@jp.fujitsu.com> <alpine.DEB.2.00.1010181050000.1294@router.home>
-Message-Id: <20101019094109.A1AA.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 19 Oct 2010 09:43:09 +0900 (JST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A9CB46B0085
+	for <linux-mm@kvack.org>; Mon, 18 Oct 2010 20:43:23 -0400 (EDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH v3 08/11] memcg: CPU hotplug lockdep warning fix
+Date: Mon, 18 Oct 2010 17:39:41 -0700
+Message-Id: <1287448784-25684-9-git-send-email-gthelen@google.com>
+In-Reply-To: <1287448784-25684-1-git-send-email-gthelen@google.com>
+References: <1287448784-25684-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 13 Oct 2010, KOSAKI Motohiro wrote:
-> 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 194bdaa..8b50e52 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1093,6 +1093,7 @@ static void drain_pages(unsigned int cpu)
-> >  		pcp = &pset->pcp;
-> >  		free_pcppages_bulk(zone, pcp->count, pcp);
-> >  		pcp->count = 0;
-> > +		__flush_zone_state(zone, NR_FREE_PAGES);
-> >  		local_irq_restore(flags);
-> >  	}
-> >  }
-> 
-> drain_zone_pages() is called from refresh_vm_stats() and
-> refresh_vm_stats() already flushes the counters. The patch will not change
-> anything.
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Well, it's drain_pages(), not drain_zone_pages(). drain_pages() is 
-called from reclaim path.
+memcg has lockdep warnings (sleep inside rcu lock)
 
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
+Recent move to get_online_cpus() ends up calling get_online_cpus() from
+mem_cgroup_read_stat(). However mem_cgroup_read_stat() is called under rcu
+lock. get_online_cpus() can sleep. The dirty limit patches expose
+this BUG more readily due to their usage of mem_cgroup_page_stat()
+
+This patch address this issue as identified by lockdep and moves the
+hotplug protection to a higher layer. This might increase the time
+required to hotplug, but not by much.
+
+Warning messages
+
+BUG: sleeping function called from invalid context at kernel/cpu.c:62
+in_atomic(): 0, irqs_disabled(): 0, pid: 6325, name: pagetest
+2 locks held by pagetest/6325:
+do_page_fault+0x27d/0x4a0
+mem_cgroup_page_stat+0x0/0x23f
+Pid: 6325, comm: pagetest Not tainted 2.6.36-rc5-mm1+ #201
+Call Trace:
+[<ffffffff81041224>] __might_sleep+0x12d/0x131
+[<ffffffff8104f4af>] get_online_cpus+0x1c/0x51
+[<ffffffff8110eedb>] mem_cgroup_read_stat+0x27/0xa3
+[<ffffffff811125d2>] mem_cgroup_page_stat+0x131/0x23f
+[<ffffffff811124a1>] ? mem_cgroup_page_stat+0x0/0x23f
+[<ffffffff810d57c3>] global_dirty_limits+0x42/0xf8
+[<ffffffff810d58b3>] throttle_vm_writeout+0x3a/0xb4
+[<ffffffff810dc2f8>] shrink_zone+0x3e6/0x3f8
+[<ffffffff81074a35>] ? ktime_get_ts+0xb2/0xbf
+[<ffffffff810dd1aa>] do_try_to_free_pages+0x106/0x478
+[<ffffffff810dd601>] try_to_free_mem_cgroup_pages+0xe5/0x14c
+[<ffffffff8110f947>] mem_cgroup_hierarchical_reclaim+0x314/0x3a2
+[<ffffffff81111b31>] __mem_cgroup_try_charge+0x29b/0x593
+[<ffffffff8111194a>] ? __mem_cgroup_try_charge+0xb4/0x593
+[<ffffffff81071258>] ? local_clock+0x40/0x59
+[<ffffffff81009015>] ? sched_clock+0x9/0xd
+[<ffffffff810710d5>] ? sched_clock_local+0x1c/0x82
+[<ffffffff8111398a>] mem_cgroup_charge_common+0x4b/0x76
+[<ffffffff81141469>] ? bio_add_page+0x36/0x38
+[<ffffffff81113ba9>] mem_cgroup_cache_charge+0x1f4/0x214
+[<ffffffff810cd195>] add_to_page_cache_locked+0x4a/0x148
+....
+
+Acked-by: Greg Thelen <gthelen@google.com>
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+ mm/memcontrol.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f876919..412ce73 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -588,7 +588,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
+ 	int cpu;
+ 	s64 val = 0;
+ 
+-	get_online_cpus();
+ 	for_each_online_cpu(cpu)
+ 		val += per_cpu(mem->stat->count[idx], cpu);
+ #ifdef CONFIG_HOTPLUG_CPU
+@@ -596,7 +595,6 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
+ 	val += mem->nocpu_base.count[idx];
+ 	spin_unlock(&mem->pcp_counter_lock);
+ #endif
+-	put_online_cpus();
+ 	return val;
+ }
+ 
+@@ -1300,6 +1298,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
+ 	struct mem_cgroup *iter;
+ 	s64 value;
+ 
++	get_online_cpus();
+ 	rcu_read_lock();
+ 	mem = mem_cgroup_from_task(current);
+ 	if (mem && !mem_cgroup_is_root(mem)) {
+@@ -1321,6 +1320,7 @@ s64 mem_cgroup_page_stat(enum mem_cgroup_nr_pages_item item)
+ 	} else
+ 		value = -EINVAL;
+ 	rcu_read_unlock();
++	put_online_cpus();
+ 
+ 	return value;
+ }
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
