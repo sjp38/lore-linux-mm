@@ -1,137 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 68ACD5F0047
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 04:32:02 -0400 (EDT)
-Date: Tue, 19 Oct 2010 17:27:44 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH v3 02/11] memcg: document cgroup dirty memory interfaces
-Message-Id: <20101019172744.45e0a8dc.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <1287448784-25684-3-git-send-email-gthelen@google.com>
-References: <1287448784-25684-1-git-send-email-gthelen@google.com>
-	<1287448784-25684-3-git-send-email-gthelen@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E91245F0047
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 04:43:33 -0400 (EDT)
+Received: by qyk34 with SMTP id 34so541716qyk.14
+        for <linux-mm@kvack.org>; Tue, 19 Oct 2010 01:43:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20101019101151.57c6dd56@notabene>
+References: <20100915091118.3dbdc961@notabene>
+	<4C90139A.1080809@redhat.com>
+	<20100915122334.3fa7b35f@notabene>
+	<20100915082843.GA17252@localhost>
+	<20100915184434.18e2d933@notabene>
+	<20101018151459.2b443221@notabene>
+	<AANLkTimv_zXHdFDGa9ecgXyWmQynOKTDRPC59PZA9mvL@mail.gmail.com>
+	<20101019101151.57c6dd56@notabene>
+Date: Tue, 19 Oct 2010 10:43:31 +0200
+Message-ID: <AANLkTin3wXWwA-HXhjx6wvzznp3p57Pg6fee8YNkZB79@mail.gmail.com>
+Subject: Re: Deadlock possibly caused by too_many_isolated.
+From: Torsten Kaiser <just.for.lkml@googlemail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.osdl.org, Andrea Righi <arighi@develer.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Ciju Rajan K <ciju@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: Neil Brown <neilb@suse.de>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Shaohua <shaohua.li@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Oct 2010 17:39:35 -0700
-Greg Thelen <gthelen@google.com> wrote:
+On Tue, Oct 19, 2010 at 1:11 AM, Neil Brown <neilb@suse.de> wrote:
+> On Mon, 18 Oct 2010 12:58:17 +0200
+> Torsten Kaiser <just.for.lkml@googlemail.com> wrote:
+>
+>> On Mon, Oct 18, 2010 at 6:14 AM, Neil Brown <neilb@suse.de> wrote:
+>> > Testing shows that this patch seems to work.
+>> > The test load (essentially kernbench) doesn't deadlock any more, thoug=
+h it
+>> > does get bogged down thrashing in swap so it doesn't make a lot more
+>> > progress :-) =A0I guess that is to be expected.
+>>
+>> I just noticed this thread, as your mail from today pushed it up.
+>>
+>> In your original mail you wrote: " I recently had a customer (running
+>> 2.6.32) report a deadlock during very intensive IO with lots of
+>> processes. " and " Some threads that are blocked there, hold some IO
+>> lock (probably in the filesystem) and are trying to allocate memory
+>> inside the block device (md/raid1 to be precise) which is allocating
+>> with GFP_NOIO and has a mempool to fall back on."
+>>
+>> I recently had the same problem (intense IO due to swapstorm created
+>> by 20 gcc processes hung my system) and after initially blaming the
+>> workqueue changes in 2.6.36 Tejun Heo determined that my problem was
+>> not the workqueues getting locked up, but that it was cause by an
+>> exhausted mempool:
+>> http://marc.info/?l=3Dlinux-kernel&m=3D128655737012549&w=3D2
+>>
+>> Instrumenting mm/mempool.c and retrying my workload showed that
+>> fs_bio_set from fs/bio.c looked like the mempool to blame and the code
+>> in drivers/md/raid1.c to be the misuser:
+>> http://marc.info/?l=3Dlinux-kernel&m=3D128671179817823&w=3D2
+>>
+>> I was even able to reproduce this hang with only using a normal RAID1
+>> md device as swapspace and then using dd to fill a tmpfs until
+>> swapping was needed:
+>> http://marc.info/?l=3Dlinux-raid&m=3D128699402805191&w=3D2
+>>
+>> Looking back in the history of raid1.c and bio.c I found the following
+>> interesting parts:
+>>
+>> =A0* the change to allocate more then one bio via bio_clone() is from
+>> 2005, but it looks like it was OK back then, because at that point the
+>> fs_bio_set was allocation 256 entries
+>> =A0* in 2007 the size of the mempool was changed from 256 to only 2
+>> entries (5972511b77809cb7c9ccdb79b825c54921c5c546 "A single unit is
+>> enough, lets scale it down to 2 just to be on the safe side.")
+>> =A0* only in 2009 the comment "To make this work, callers must never
+>> allocate more than 1 bio at the time from this pool. Callers that need
+>> to allocate more than 1 bio must always submit the previously allocate
+>> bio for IO before attempting to allocate a new one. Failure to do so
+>> can cause livelocks under memory pressure." was added to bio_alloc()
+>> that is the base from my reasoning that raid1.c is broken. (And such a
+>> comment was not added to bio_clone() although both calls use the same
+>> mempool)
+>>
+>> So could please look someone into raid1.c to confirm or deny that
+>> using multiple bio_clone() (one per drive) before submitting them
+>> together could also cause such deadlocks?
+>>
+>> Thank for looking
+>>
+>> Torsten
+>
+> Yes, thanks for the report.
+> This is a real bug exactly as you describe.
+>
+> This is how I think I will fix it, though it needs a bit of review and
+> testing before I can be certain.
+> Also I need to check raid10 etc to see if they can suffer too.
+>
+> If you can test it I would really appreciate it.
 
-> Document cgroup dirty memory interfaces and statistics.
-> 
-> Signed-off-by: Andrea Righi <arighi@develer.com>
-> Signed-off-by: Greg Thelen <gthelen@google.com>
-> ---
-> 
-> Changelog since v1:
-> - Renamed "nfs"/"total_nfs" to "nfs_unstable"/"total_nfs_unstable" in per cgroup
->   memory.stat to match /proc/meminfo.
-> 
-> - Allow [kKmMgG] suffixes for newly created dirty limit value cgroupfs files.
-> 
-> - Describe a situation where a cgroup can exceed its dirty limit.
-> 
->  Documentation/cgroups/memory.txt |   60 ++++++++++++++++++++++++++++++++++++++
->  1 files changed, 60 insertions(+), 0 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 7781857..02bbd6f 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -385,6 +385,10 @@ mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
->  pgpgin		- # of pages paged in (equivalent to # of charging events).
->  pgpgout		- # of pages paged out (equivalent to # of uncharging events).
->  swap		- # of bytes of swap usage
-> +dirty		- # of bytes that are waiting to get written back to the disk.
-> +writeback	- # of bytes that are actively being written back to the disk.
-> +nfs_unstable	- # of bytes sent to the NFS server, but not yet committed to
-> +		the actual storage.
->  inactive_anon	- # of bytes of anonymous memory and swap cache memory on
->  		LRU list.
->  active_anon	- # of bytes of anonymous and swap cache memory on active
+I did test it, but while it seemed to fix the deadlock, the system
+still got unusable.
+The still running "vmstat 1" showed that the swapout was still
+progressing, but at a rate of ~20k sized bursts every 5 to 20 seconds.
 
-Shouldn't we add description of "total_diryt/writeback/nfs_unstable" too ?
-Seeing [5/11], it will be showed in memory.stat.
+I also tried to additionally add Wu's patch:
+--- linux-next.orig/mm/vmscan.c 2010-10-13 12:35:14.000000000 +0800
++++ linux-next/mm/vmscan.c      2010-10-19 00:13:04.000000000 +0800
+@@ -1163,6 +1163,13 @@ static int too_many_isolated(struct zone
+               isolated =3D zone_page_state(zone, NR_ISOLATED_ANON);
+       }
 
-> @@ -453,6 +457,62 @@ memory under it will be reclaimed.
->  You can reset failcnt by writing 0 to failcnt file.
->  # echo 0 > .../memory.failcnt
->  
-> +5.5 dirty memory
-> +
-> +Control the maximum amount of dirty pages a cgroup can have at any given time.
-> +
-> +Limiting dirty memory is like fixing the max amount of dirty (hard to reclaim)
-> +page cache used by a cgroup.  So, in case of multiple cgroup writers, they will
-> +not be able to consume more than their designated share of dirty pages and will
-> +be forced to perform write-out if they cross that limit.
-> +
-> +The interface is equivalent to the procfs interface: /proc/sys/vm/dirty_*.  It
-> +is possible to configure a limit to trigger both a direct writeback or a
-> +background writeback performed by per-bdi flusher threads.  The root cgroup
-> +memory.dirty_* control files are read-only and match the contents of
-> +the /proc/sys/vm/dirty_* files.
-> +
-> +Per-cgroup dirty limits can be set using the following files in the cgroupfs:
-> +
-> +- memory.dirty_ratio: the amount of dirty memory (expressed as a percentage of
-> +  cgroup memory) at which a process generating dirty pages will itself start
-> +  writing out dirty data.
-> +
-> +- memory.dirty_limit_in_bytes: the amount of dirty memory (expressed in bytes)
-> +  in the cgroup at which a process generating dirty pages will start itself
-> +  writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to indicate
-> +  that value is kilo, mega or gigabytes.
-> +
-> +  Note: memory.dirty_limit_in_bytes is the counterpart of memory.dirty_ratio.
-> +  Only one of them may be specified at a time.  When one is written it is
-> +  immediately taken into account to evaluate the dirty memory limits and the
-> +  other appears as 0 when read.
-> +
-> +- memory.dirty_background_ratio: the amount of dirty memory of the cgroup
-> +  (expressed as a percentage of cgroup memory) at which background writeback
-> +  kernel threads will start writing out dirty data.
-> +
-> +- memory.dirty_background_limit_in_bytes: the amount of dirty memory (expressed
-> +  in bytes) in the cgroup at which background writeback kernel threads will
-> +  start writing out dirty data.  Suffix (k, K, m, M, g, or G) can be used to
-> +  indicate that value is kilo, mega or gigabytes.
-> +
-> +  Note: memory.dirty_background_limit_in_bytes is the counterpart of
-> +  memory.dirty_background_ratio.  Only one of them may be specified at a time.
-> +  When one is written it is immediately taken into account to evaluate the dirty
-> +  memory limits and the other appears as 0 when read.
-> +
-> +A cgroup may contain more dirty memory than its dirty limit.  This is possible
-> +because of the principle that the first cgroup to touch a page is charged for
-> +it.  Subsequent page counting events (dirty, writeback, nfs_unstable) are also
-> +counted to the originally charged cgroup.
-> +
-> +Example: If page is allocated by a cgroup A task, then the page is charged to
-> +cgroup A.  If the page is later dirtied by a task in cgroup B, then the cgroup A
-> +dirty count will be incremented.  If cgroup A is over its dirty limit but cgroup
-> +B is not, then dirtying a cgroup A page from a cgroup B task may push cgroup A
-> +over its dirty limit without throttling the dirtying cgroup B task.
-> +
->  6. Hierarchy support
->  
->  The memory controller supports a deep hierarchy and hierarchical accounting.
-> -- 
-> 1.7.1
-> 
-Can you clarify whether we can limit the "total" dirty pages under hierarchy
-in use_hierarchy==1 case ?
-If we can, I think it would be better to note it in this documentation.
-
-
-Thanks,
-Daisuke Nishimura. 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
++       /*
++        * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so =
+that
++        * they won't get blocked by normal ones and form circular deadlock=
