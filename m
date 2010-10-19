@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5033E5F0047
-	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 05:06:25 -0400 (EDT)
-Date: Tue, 19 Oct 2010 10:06:06 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id AC7ED5F0047
+	for <linux-mm@kvack.org>; Tue, 19 Oct 2010 05:08:19 -0400 (EDT)
+Date: Tue, 19 Oct 2010 10:08:03 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [experimental][PATCH] mm,vmstat: per cpu stat flush too when
-	per cpu page cache flushed
-Message-ID: <20101019090606.GE30667@csn.ul.ie>
-References: <20101014114541.8B89.A69D9226@jp.fujitsu.com> <20101018110829.GZ30667@csn.ul.ie> <20101019102428.A1BF.A69D9226@jp.fujitsu.com>
+Subject: Re: zone state overhead
+Message-ID: <20101019090803.GF30667@csn.ul.ie>
+References: <20101014120804.8B8F.A69D9226@jp.fujitsu.com> <20101018103941.GX30667@csn.ul.ie> <20101019100658.A1B3.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20101019102428.A1BF.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20101019100658.A1B3.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Shaohua Li <shaohua.li@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux.com" <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 19, 2010 at 10:34:13AM +0900, KOSAKI Motohiro wrote:
-> > > Initial variable ZVC commit (df9ecaba3f1) says 
+On Tue, Oct 19, 2010 at 10:16:42AM +0900, KOSAKI Motohiro wrote:
+> > > In this case, wakeup_kswapd() don't wake kswapd because
 > > > 
-> > > >     [PATCH] ZVC: Scale thresholds depending on the size of the system
-> > > > 
-> > > >     The ZVC counter update threshold is currently set to a fixed value of 32.
-> > > >     This patch sets up the threshold depending on the number of processors and
-> > > >     the sizes of the zones in the system.
-> > > > 
-> > > >     With the current threshold of 32, I was able to observe slight contention
-> > > >     when more than 130-140 processors concurrently updated the counters.  The
-> > > >     contention vanished when I either increased the threshold to 64 or used
-> > > >     Andrew's idea of overstepping the interval (see ZVC overstep patch).
-> > > > 
-> > > >     However, we saw contention again at 220-230 processors.  So we need higher
-> > > >     values for larger systems.
+> > > ---------------------------------------------------------------------------------
+> > > void wakeup_kswapd(struct zone *zone, int order)
+> > > {
+> > >         pg_data_t *pgdat;
 > > > 
-> > > So, I'm worry about your patch reintroduce old cache contention issue that Christoph
-> > > observed when run 128-256cpus system.  May I ask how do you think this issue?
+> > >         if (!populated_zone(zone))
+> > >                 return;
+> > > 
+> > >         pgdat = zone->zone_pgdat;
+> > >         if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0, 0))
+> > >                 return;                          // HERE
+> > > ---------------------------------------------------------------------------------
+> > > 
+> > > So, if we take your approach, we need to know exact free pages in this.
 > > 
-> > It only reintroduces the overhead while kswapd is awake and the system is in danger
-> > of accidentally allocating all of its pages. Yes, it's slower but it's
-> > less risky.
+> > Good point!
+> > 
+> > > But, zone_page_state_snapshot() is slow. that's dilemma.
+> > > 
+> > 
+> > Very true. I'm prototyping a version of the patch that keeps
+> > zone_page_state_snapshot but only uses is in wakeup_kswapd and
+> > sleeping_prematurely.
 > 
-> When we have rich storage and running IO intensive workload, kswapd are almost 
-> always awake ;)
+> Ok, this might works. but note, if we are running IO intensive workload, wakeup_kswapd()
+> is called very frequently.
 
-That's an interesting assertion because it's not just the storage and IO
-that is a factor but the number of pages it requires. For example, lets
-assume a workload is write-intensive but it is using the same 30% of memory
-for I/O.  That workload should not keep kswapd awake and if it is, it should
-be investigated. Are you aware of a situation like this?
+This is true. It is also necessary to alter wakeup_kswapd to minimise
+the number of times it calls zone_watermark_ok_safe(). It'll need
+careful review to be sure the new function is equivalent.
 
-An I/O intensive workload that kswapd is constantly awake for must be
-continually requiring new data meaning it is either streaming writes or its
-working set size exceeds physical memory. In the former case, there is no
-much we can do because the workload is going to be blocked on I/O anyway to
-write the pages. In the latter case, the machine could do with more memory
-or the application could do with some tuning to reduce its footprint. In
-either case, the workload is going to be more concerned with being blocked
-on I/O than the increased cost of counters.
+> because it is called even though allocation is succeed. we need to
+> request Shaohua run and mesure his problem workload. and can you please cc me
+> when you post next version? I hope to review it too.
+> 
+
+Of course. I have the prototype ready but am waiting on tests at the
+moment. Unfortunately the necessary infrastructure has been unavailable for
+the last 18 hours to run the test but I'm hoping it gets fixed soon.
 
 -- 
 Mel Gorman
